@@ -2777,6 +2777,7 @@
     "enterServerYourself": "Plainva はこのプロバイダーを知りません。「詳細設定」でサーバーとポートを入力してください。",
     "smtpPort": "SMTP ポート",
     "composeTitle": "メールを作成",
+    "composeLost": "下書きはもうありません。このウィンドウは閉じてかまいません。",
     "send": "送信",
     "sent": "メールを送信しました。",
     "composeHint": "「送信」は SMTP 経由で直接送信します。「下書きとして保存」はメッセージをメールボックスに入れます。",
@@ -3579,6 +3580,7 @@
     "verifierPlaceholder": "あなたの名前"
   },
   "window": {
-    "openInNewWindow": "新しいウィンドウで開く"
+    "openInNewWindow": "新しいウィンドウで開く",
+    "popOutCompose": "別ウィンドウで開く"
   }
 }

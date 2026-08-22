@@ -25,6 +25,8 @@
  */
 
 import type { PimEventDraft, PimEventRef } from "@plainva/core";
+import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
+import type { ComposeSnapshot } from "./mail/composeHandoff";
 
 /** Label of the window that owns the services. Tauri's own default label. */
 export const OWNER_LABEL = "main";
@@ -137,6 +139,22 @@ export interface RpcMap {
   "toggle-bookmark": { args: { path: string }; result: void };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
+  /**
+   * Send a message the writer composed in a compose window. The delayed-send
+   * queue belongs to the owner (plan §12.4): a compose window is the most
+   * likely window in the app to be closed while the undo timer runs, and its
+   * closing must not decide between sending and losing.
+   */
+  "mail-send": { args: MailSendRequest; result: void };
+  /** Same routing for "save as draft" — one provider round trip, one window. */
+  "mail-draft": { args: MailDraftRequest; result: void };
+  /**
+   * What this compose window was popped out with. Recipients, subject, body
+   * and attachments are handed over here rather than in the URL: attachments
+   * are base64.
+   */
+  "compose-draft": { args: { label: string }; result: ComposeSnapshot | null };
+  "compose-popout": { args: { vaultPath: string; snapshot: ComposeSnapshot; title: string }; result: void };
   /** An auxiliary window reports its geometry so a restart can restore it. */
   "window-bounds": {
     args: { label: string; bounds: { x: number; y: number; width: number; height: number } };

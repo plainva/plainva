@@ -2777,6 +2777,7 @@
     "enterServerYourself": "Plainva不认识这个提供商——请在“高级”中填写服务器和端口。",
     "smtpPort": "SMTP 端口",
     "composeTitle": "撰写邮件",
+    "composeLost": "草稿已不存在，可以关闭此窗口。",
     "send": "发送",
     "sent": "邮件已发送。",
     "composeHint": "“发送”会通过 SMTP 直接寄出；“保存为草稿”会将邮件放入邮箱。",
@@ -3579,6 +3580,7 @@
     "verifierPlaceholder": "你的名字"
   },
   "window": {
-    "openInNewWindow": "在新窗口中打开"
+    "openInNewWindow": "在新窗口中打开",
+    "popOutCompose": "在独立窗口中打开"
   }
 }

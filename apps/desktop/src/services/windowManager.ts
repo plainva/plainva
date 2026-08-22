@@ -1,4 +1,5 @@
 import { buildWindowQuery, type WindowRole } from "./windowContext";
+import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 
 /**
  * Opening, focusing and remembering auxiliary windows (multi-window P0).
@@ -33,6 +34,8 @@ export const windowsKey = (vaultPath: string) => `plainva-windows-${vaultPath}`;
 const DEFAULT_SIZE = { width: 720, height: 820 };
 /** A view is not a column: a month grid or a mail list needs the width. */
 const VIEW_SIZE = { width: 1100, height: 780 };
+/** A composer wants room for recipients and a body, not for a whole page. */
+const COMPOSE_SIZE = { width: 780, height: 700 };
 
 /** Views (graph, tasks, calendar, mail) open landscape, notes portrait. */
 function defaultSizeFor(content: string | null | undefined) {
@@ -41,6 +44,17 @@ function defaultSizeFor(content: string | null | undefined) {
 
 const open = new Map<string, AuxWindowRecord>();
 let counter = 0;
+
+/**
+ * Allocates the next window label. Separate from opening because a compose
+ * window needs its label BEFORE it exists (to stash the draft under it), and
+ * because opening yields at its first await: two requests in flight must not
+ * compute the same address.
+ */
+function nextLabel(role: Exclude<WindowRole, "owner">): string {
+  counter += 1;
+  return `${role}-${counter}`;
+}
 
 /** Every auxiliary window currently open, in creation order. */
 export function listAuxWindows(): AuxWindowRecord[] {
@@ -58,7 +72,10 @@ export function findWindowForContent(vaultPath: string, content: string): AuxWin
 /** Remembers what is open so the next start can restore it (plan P4/E5). */
 export function persistWindows(vaultPath: string): void {
   if (typeof window === "undefined") return;
-  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath);
+  // Compose windows are deliberately not remembered: what they hold is unsaved
+  // text that lives in memory. Restoring one after a restart would reopen an
+  // EMPTY composer — a window that lies about having kept something.
+  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath && w.role === "aux");
   try {
     if (mine.length === 0) window.localStorage.removeItem(windowsKey(vaultPath));
     else window.localStorage.setItem(windowsKey(vaultPath), JSON.stringify(mine));
@@ -97,10 +114,14 @@ export async function openAuxWindow(params: {
   content?: string | null;
   title?: string;
   bounds?: { x: number; y: number; width: number; height: number };
+  size?: { width: number; height: number };
+  /** Pre-allocated label (see `nextLabel`); otherwise one is taken here. */
+  label?: string;
+  /** Runs when the window goes away, however it went away. */
+  onClosed?: () => void;
 }): Promise<AuxWindowRecord> {
+  const label = params.label ?? nextLabel(params.role);
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-  counter += 1;
-  const label = `${params.role}-${counter}`;
   const record: AuxWindowRecord = {
     label,
     role: params.role,
@@ -119,8 +140,8 @@ export async function openAuxWindow(params: {
   const win = new WebviewWindow(label, {
     url,
     title: params.title ?? "Plainva",
-    width: params.bounds?.width ?? defaultSizeFor(params.content).width,
-    height: params.bounds?.height ?? defaultSizeFor(params.content).height,
+    width: params.bounds?.width ?? params.size?.width ?? defaultSizeFor(params.content).width,
+    height: params.bounds?.height ?? params.size?.height ?? defaultSizeFor(params.content).height,
     x: params.bounds?.x,
     y: params.bounds?.y,
     // Same frameless chrome as the main window — the aux title bar draws it.
@@ -135,9 +156,42 @@ export async function openAuxWindow(params: {
   void win.onCloseRequested(() => {
     open.delete(label);
     persistWindows(params.vaultPath);
+    params.onClosed?.();
   });
 
   return record;
+}
+
+/**
+ * Pops the message composer out into its own window (P3).
+ *
+ * Deliberately NOT deduplicated: writing two mails at once is ordinary, and the
+ * rule "content is open once" is about content in the vault — an unsent draft
+ * is not that. The snapshot is stashed before the window exists because the new
+ * window asks for it as its first act; base64 attachments have no business in a
+ * URL.
+ */
+export async function openComposeWindow(params: {
+  vaultPath: string;
+  snapshot: ComposeSnapshot;
+  title?: string;
+}): Promise<AuxWindowRecord> {
+  const label = nextLabel("compose");
+  stashComposeDraft(label, params.snapshot);
+  try {
+    return await openAuxWindow({
+      label,
+      role: "compose",
+      vaultPath: params.vaultPath,
+      title: params.title,
+      size: COMPOSE_SIZE,
+      onClosed: () => forgetComposeDraft(label),
+    });
+  } catch (e) {
+    // The window never came up: do not leave the draft lying in the map.
+    forgetComposeDraft(label);
+    throw e;
+  }
 }
 
 /** Brings an existing window forward (dedup / focus routing). */

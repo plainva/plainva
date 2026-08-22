@@ -2823,6 +2823,7 @@
     "enterServerYourself": "Plainva non conosce questo provider — inserisci server e porta in «Avanzate».",
     "smtpPort": "Porta SMTP",
     "composeTitle": "Scrivi messaggio",
+    "composeLost": "La bozza non c'è più. Questa finestra può essere chiusa.",
     "send": "Invia",
     "sent": "Messaggio inviato.",
     "composeHint": "“Invia” spedisce direttamente via SMTP; “Salva come bozza” inserisce il messaggio nella casella.",
@@ -3657,6 +3658,7 @@
     "verifierPlaceholder": "Il tuo nome"
   },
   "window": {
-    "openInNewWindow": "Apri in una nuova finestra"
+    "openInNewWindow": "Apri in una nuova finestra",
+    "popOutCompose": "Apri in una finestra separata"
   }
 }

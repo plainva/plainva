@@ -2823,6 +2823,7 @@
     "enterServerYourself": "Plainva ne connaît pas ce fournisseur — saisissez le serveur et le port sous « Avancé ».",
     "smtpPort": "Port SMTP",
     "composeTitle": "Rédiger un message",
+    "composeLost": "Le brouillon n'est plus là. Cette fenêtre peut être fermée.",
     "send": "Envoyer",
     "sent": "Message envoyé.",
     "composeHint": "« Envoyer » expédie directement via SMTP ; « Enregistrer comme brouillon » place le message dans la boîte.",
@@ -3657,6 +3658,7 @@
     "verifierPlaceholder": "Votre nom"
   },
   "window": {
-    "openInNewWindow": "Ouvrir dans une nouvelle fenêtre"
+    "openInNewWindow": "Ouvrir dans une nouvelle fenêtre",
+    "popOutCompose": "Ouvrir dans sa propre fenêtre"
   }
 }

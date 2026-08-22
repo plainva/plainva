@@ -2823,6 +2823,7 @@
     "enterServerYourself": "O Plainva não conhece este provedor — informe servidor e porta em “Avançado”.",
     "smtpPort": "Porta SMTP",
     "composeTitle": "Redigir mensagem",
+    "composeLost": "O rascunho não está mais disponível. Esta janela pode ser fechada.",
     "send": "Enviar",
     "sent": "Mensagem enviada.",
     "composeHint": "“Enviar” despacha diretamente via SMTP; “Salvar como rascunho” coloca a mensagem na caixa.",
@@ -3657,6 +3658,7 @@
     "verifierPlaceholder": "Seu nome"
   },
   "window": {
-    "openInNewWindow": "Abrir em nova janela"
+    "openInNewWindow": "Abrir em nova janela",
+    "popOutCompose": "Abrir em janela própria"
   }
 }

@@ -2800,6 +2800,7 @@
     "enterServerYourself": "Plainva kent deze provider niet — vul server en poort in onder ‘Geavanceerd’.",
     "smtpPort": "SMTP-poort",
     "composeTitle": "Bericht opstellen",
+    "composeLost": "Het concept is er niet meer. Dit venster kan worden gesloten.",
     "send": "Verzenden",
     "sent": "Bericht verzonden.",
     "composeHint": "“Verzenden” verstuurt rechtstreeks via SMTP; “Opslaan als concept” zet het bericht in de mailbox.",
@@ -3618,6 +3619,7 @@
     "verifierPlaceholder": "Je naam"
   },
   "window": {
-    "openInNewWindow": "In nieuw venster openen"
+    "openInNewWindow": "In nieuw venster openen",
+    "popOutCompose": "In een eigen venster openen"
   }
 }

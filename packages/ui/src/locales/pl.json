@@ -2846,6 +2846,7 @@
     "enterServerYourself": "Plainva nie zna tego dostawcy — podaj serwer i port w sekcji „Zaawansowane”.",
     "smtpPort": "Port SMTP",
     "composeTitle": "Napisz wiadomość",
+    "composeLost": "Wersja robocza już nie istnieje. To okno można zamknąć.",
     "send": "Wyślij",
     "sent": "Wiadomość wysłana.",
     "composeHint": "„Wyślij” dostarcza bezpośrednio przez SMTP; „Zapisz jako szkic” umieszcza wiadomość w skrzynce.",
@@ -3696,6 +3697,7 @@
     "verifierPlaceholder": "Twoje imię"
   },
   "window": {
-    "openInNewWindow": "Otwórz w nowym oknie"
+    "openInNewWindow": "Otwórz w nowym oknie",
+    "popOutCompose": "Otwórz we własnym oknie"
   }
 }

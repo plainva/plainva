@@ -44,6 +44,7 @@ import {
 import { createTaskInDatabase } from "../../services/taskPromotion";
 import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { MailDraftModal } from "./MailDraftModal";
+import { popOutCompose } from "../../services/mail/composeWindow";
 
 /**
  * Mail workspace (virtual path plainva://mail): a provider-neutral browser for
@@ -2064,7 +2065,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       </div>
     </div>
     {compose && (
-      <MailDraftModal subject={compose.subject} markdown={compose.markdown} initialTo={compose.to} onClose={() => setCompose(null)} />
+      <MailDraftModal
+        subject={compose.subject}
+        markdown={compose.markdown}
+        initialTo={compose.to}
+        onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
+        onClose={() => setCompose(null)}
+      />
     )}
     {moveMenu && (
       <MenuSurface open at={{ x: moveMenu.x, y: moveMenu.y }} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>

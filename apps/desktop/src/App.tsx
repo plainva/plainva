@@ -73,6 +73,7 @@ import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
 import { SplashScreen } from "./components/SplashScreen";
+import { popOutCompose } from "./services/mail/composeWindow";
 import { openOrFocusContent, setOwnerOpenContents } from "./services/windowManager";
 import "./App.css";
 
@@ -1859,7 +1860,14 @@ function App() {
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
         {mailDraft && (
           <Suspense fallback={null}>
-            <MailDraftModal subject={mailDraft.subject} markdown={mailDraft.markdown} attachments={mailDraft.attachments} initialTo={mailDraft.to} onClose={() => setMailDraft(null)} />
+            <MailDraftModal
+              subject={mailDraft.subject}
+              markdown={mailDraft.markdown}
+              attachments={mailDraft.attachments}
+              initialTo={mailDraft.to}
+              onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
+              onClose={() => setMailDraft(null)}
+            />
           </Suspense>
         )}
         {showFindReplace && (

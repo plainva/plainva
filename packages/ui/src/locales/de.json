@@ -2800,6 +2800,7 @@
     "enterServerYourself": "Plainva kennt diesen Anbieter nicht — trage Server und Port unter „Erweitert“ ein.",
     "smtpPort": "SMTP-Port",
     "composeTitle": "Nachricht verfassen",
+    "composeLost": "Der Entwurf ist nicht mehr da. Dieses Fenster kann geschlossen werden.",
     "send": "Senden",
     "sent": "Nachricht gesendet.",
     "composeHint": "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach.",
@@ -3618,6 +3619,7 @@
     "verifierPlaceholder": "Dein Name"
   },
   "window": {
-    "openInNewWindow": "In neuem Fenster öffnen"
+    "openInNewWindow": "In neuem Fenster öffnen",
+    "popOutCompose": "In eigenem Fenster öffnen"
   }
 }

@@ -56,6 +56,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => {
 import {
   findWindowForContent,
   openAuxWindow,
+  openComposeWindow,
   openOrFocusContent,
   ownerHasContent,
   readPersistedWindows,
@@ -64,7 +65,22 @@ import {
   noteWindowContent,
 } from "./windowManager";
 
+import { takeComposeDraft } from "./mail/composeHandoff";
+
 const VAULT = "/vault";
+
+const DRAFT = {
+  accountId: "a1",
+  fromAddress: "me@example.org",
+  to: "you@example.org",
+  cc: "",
+  bcc: "",
+  showCc: false,
+  subject: "Quarterly numbers",
+  body: "text",
+  attachments: [],
+  mailbox: "Drafts",
+};
 
 beforeEach(() => {
   resetWindowRegistryForTest();
@@ -207,5 +223,39 @@ describe("remembering windows", () => {
   it("ignores a stored list that is not a list of windows", () => {
     window.localStorage.setItem(`plainva-windows-${VAULT}`, '{"nope":true}');
     expect(readPersistedWindows(VAULT)).toEqual([]);
+  });
+});
+
+describe("the composer as its own window", () => {
+  it("hands the draft to the window it was opened for, exactly once", async () => {
+    const rec = await openComposeWindow({ vaultPath: VAULT, snapshot: DRAFT, title: DRAFT.subject });
+
+    expect(takeComposeDraft(rec.label)).toEqual(DRAFT);
+    // Taken, not read: a compose window that reloads starts from what its
+    // writer typed since, not from the state it was popped out with.
+    expect(takeComposeDraft(rec.label)).toBeNull();
+  });
+
+  it("opens a second composer instead of focusing the first", async () => {
+    const one = await openComposeWindow({ vaultPath: VAULT, snapshot: DRAFT, title: "One" });
+    const two = await openComposeWindow({ vaultPath: VAULT, snapshot: { ...DRAFT, subject: "Two" }, title: "Two" });
+
+    // "Content is open once" is about content in the vault. Writing two mails
+    // at once is ordinary, and the drafts must not share an address.
+    expect(one.label).not.toBe(two.label);
+    expect(created).toHaveLength(2);
+    expect(focused).toEqual([]);
+    expect(takeComposeDraft(two.label)?.subject).toBe("Two");
+  });
+
+  it("is not remembered for the next start", async () => {
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+    await openComposeWindow({ vaultPath: VAULT, snapshot: DRAFT, title: DRAFT.subject });
+
+    // Restoring a composer would reopen an EMPTY one: what it holds is unsaved
+    // text in memory. A window that lies about having kept something is worse
+    // than no window.
+    const stored = readPersistedWindows(VAULT);
+    expect(stored.map((w) => w.role)).toEqual(["aux"]);
   });
 });

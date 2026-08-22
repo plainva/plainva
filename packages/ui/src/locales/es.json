@@ -2823,6 +2823,7 @@
     "enterServerYourself": "Plainva no conoce este proveedor — introduce servidor y puerto en «Avanzado».",
     "smtpPort": "Puerto SMTP",
     "composeTitle": "Redactar mensaje",
+    "composeLost": "El borrador ya no está. Puedes cerrar esta ventana.",
     "send": "Enviar",
     "sent": "Mensaje enviado.",
     "composeHint": "“Enviar” despacha directamente por SMTP; “Guardar como borrador” coloca el mensaje en el buzón.",
@@ -3657,6 +3658,7 @@
     "verifierPlaceholder": "Tu nombre"
   },
   "window": {
-    "openInNewWindow": "Abrir en una ventana nueva"
+    "openInNewWindow": "Abrir en una ventana nueva",
+    "popOutCompose": "Abrir en su propia ventana"
   }
 }

@@ -2800,6 +2800,7 @@
     "enterServerYourself": "Plainva does not know this provider — enter server and port under Advanced.",
     "smtpPort": "SMTP port",
     "composeTitle": "Compose message",
+    "composeLost": "The draft is gone. This window can be closed.",
     "send": "Send",
     "sent": "Message sent.",
     "composeHint": "“Send” delivers directly via SMTP; “Save as draft” puts the message in your mailbox.",
@@ -3618,6 +3619,7 @@
     "verifierPlaceholder": "Your name"
   },
   "window": {
-    "openInNewWindow": "Open in new window"
+    "openInNewWindow": "Open in new window",
+    "popOutCompose": "Open in its own window"
   }
 }

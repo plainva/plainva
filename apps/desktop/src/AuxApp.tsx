@@ -13,6 +13,7 @@ const VaultGraphView = lazy(() => import("./components/graph/VaultGraphView").th
 const TasksView = lazy(() => import("./components/tasks/TasksView").then((m) => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import("./components/pimcal/CalendarView").then((m) => ({ default: m.CalendarView })));
 const MailView = lazy(() => import("./components/mail/MailView").then((m) => ({ default: m.MailView })));
+const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then((m) => ({ default: m.ComposeWindow })));
 
 /**
  * The shell of an auxiliary window (multi-window P0/P1).
@@ -49,6 +50,10 @@ export function AuxApp() {
   // it started with — after following a link the taskbar would otherwise still
   // show the note the window was popped out with.
   useEffect(() => {
+    // A compose window keeps the title the owner gave it: the SUBJECT of the
+    // message. Two composers in the taskbar are otherwise two entries called
+    // "Plainva", and this window never learns a file name to replace it with.
+    if (params.role === "compose") return;
     void (async () => {
       try {
         const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -57,7 +62,7 @@ export function AuxApp() {
         /* browser/test: no OS window to name */
       }
     })();
-  }, [title]);
+  }, [title, params.role]);
 
   /**
    * Where a click should land. The owner decides — it is the only participant
@@ -172,6 +177,23 @@ export function AuxApp() {
 
   const ready = !!vaultAdapter && !!path;
   const isBase = !!path && path.endsWith(".base");
+
+  // A compose window carries no vault content at all — it holds a message
+  // someone is writing. It gets its own branch rather than a pseudo path,
+  // because none of the content machinery above applies to it: no routing, no
+  // dedup (writing two mails at once is ordinary), no title from a file name.
+  if (params.role === "compose") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>
+        <AuxTitleBar title={t("mail.composeTitle")} />
+        <main style={{ flex: 1, minHeight: 0, overflow: "hidden" }} data-testid="aux-content">
+          <Suspense fallback={<EmptyState>{t("common.loading")}</EmptyState>}>
+            <ComposeWindow label={label} />
+          </Suspense>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>

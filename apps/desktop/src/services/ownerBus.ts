@@ -2,11 +2,14 @@ import { PimConflictError, type IVaultAdapter, type VaultFileInfo } from "@plain
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus } from "./windowBus";
+import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
+import { takeComposeDraft } from "./mail/composeHandoff";
 import {
   findWindowForContent,
   focusAuxWindow,
   noteWindowBounds,
   noteWindowContent,
+  openComposeWindow,
   openOrFocusContent,
 } from "./windowManager";
 import { clearDraft, recordDraft } from "./draftJournal";
@@ -205,6 +208,32 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       }
       if (result.where === "caller" && from) noteWindowContent(from, path);
       return { where: result.where };
+    }),
+  );
+
+  offs.push(
+    await bus.handle("mail-send", async (req) => {
+      // The queue, the toast and the beforeunload flush all live here — see
+      // sendQueue.ts. A compose window hands the message over and closes.
+      await enqueueSend(req);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("mail-draft", async (req) => {
+      await appendDraftFor(req);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("compose-draft", async ({ label }) => takeComposeDraft(label)),
+  );
+
+  offs.push(
+    await bus.handle("compose-popout", async ({ vaultPath, snapshot, title }) => {
+      // Only this window may create windows (the aux capability withholds it),
+      // and only this window keeps the draft until the new one collects it.
+      await openComposeWindow({ vaultPath, snapshot, title });
     }),
   );
 
