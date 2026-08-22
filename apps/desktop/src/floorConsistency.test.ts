@@ -3,7 +3,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * The supported engine floor lives in five different kinds of file, and issue
+ * The supported engine floor lives in eight different kinds of file (five on the
+ * desktop, three more on the phone since 2026-08-22), and issue
  * #46 happened because two of them disagreed without anyone noticing: the
  * bundle required Safari 16.4 while the app declared macOS 10.13. Nothing held
  * them together, so the mismatch was invisible until a user sent a screenshot
@@ -11,7 +12,7 @@ import { resolve } from "node:path";
  *
  * This is the thing that holds them together. It does not decide the floor —
  * raising it is a product decision. It only makes sure that raising it in one
- * place and forgetting the other four fails here instead of on someone's Mac.
+ * place and forgetting the others fails here instead of on someone's device.
  *
  * NOT covered, and deliberately so: the website. It lives in a separate
  * repository (plainva/website, src/i18n/landing/*.ts) and carries the same
@@ -44,6 +45,19 @@ const FLOOR = {
   webkitGtk: "2.40",
   /** Evergreen on Windows — named so a reader knows it is required at all. */
   windowsRuntime: "WebView2",
+  /**
+   * The oldest iOS carrying that engine — and here the version IS the
+   * answer, with none of the macOS ambiguity: an iOS app embeds WKWebView,
+   * which ships with the system, and iOS has no separately installable
+   * browser engine that could run ahead of it. Safari 16.4 shipped with
+   * iOS 16.4.
+   *
+   * It said 15.0 until 2026-08-22 while the bundle already required 16.4,
+   * so the App Store offered Plainva to devices on which it could not
+   * start. Raising it costs nothing that worked: those devices never got
+   * past a blank screen.
+   */
+  iosVersion: "16.4",
 };
 
 const desktopRoot = resolve(__dirname, "..");
@@ -96,6 +110,31 @@ describe("supported engine floor", () => {
     expect(readme).toContain(FLOOR.windowsRuntime);
   });
 
+  it("the iOS project refuses to install below the floor", () => {
+    // EVERY build configuration, not just one: the project carries the setting
+    // six times (debug/release x app/extension/tests), and a single one left
+    // behind would put the App Store's minimum back where it was.
+    const pbxproj = read(resolve(repoRoot, "apps/mobile/ios/App/App.xcodeproj/project.pbxproj"));
+    const targets = [...pbxproj.matchAll(/IPHONEOS_DEPLOYMENT_TARGET = ([\d.]+);/g)].map((m) => m[1]);
+
+    expect(targets.length, "no IPHONEOS_DEPLOYMENT_TARGET found — did the project move?").toBeGreaterThan(0);
+    expect(
+      [...new Set(targets)],
+      `Every build configuration must sit at the floor. Found: ${[...new Set(targets)].join(", ")}`,
+    ).toEqual([FLOOR.iosVersion]);
+  });
+
+  it("the mobile boot guard tells the user the same number", () => {
+    // The phone's guard is the only thing an Android user below the floor ever
+    // sees — Android's WebView is updatable, so no install-time check keeps
+    // them out the way the iOS deployment target does.
+    const guard = read(resolve(repoRoot, "apps/mobile/public/boot-guard.js"));
+    expect(guard).toContain(`iOS/iPadOS ${FLOOR.iosVersion}`);
+    expect(guard, "the Android path must name the fix, not just the problem").toContain(
+      "Android System WebView",
+    );
+  });
+
   it("every language of the user guide names the same numbers", () => {
     const userDocs = resolve(repoRoot, "docs/user");
     const languages = readdirSync(userDocs, { withFileTypes: true })
@@ -109,6 +148,11 @@ describe("supported engine floor", () => {
     const missing: string[] = [];
     for (const lang of languages) {
       const page = read(resolve(userDocs, lang, "Getting_Started.md"));
+      const mobilePage = read(resolve(userDocs, lang, "Mobile_App.md"));
+      // The phone floor belongs on the phone page: someone reading about the
+      // mobile app is exactly the person who needs to know which devices it
+      // runs on, and they will not find it under a desktop heading.
+      if (!mobilePage.includes(`iOS ${FLOOR.iosVersion}`)) missing.push(`${lang}: iOS ${FLOOR.iosVersion}`);
       // Checked as separate tokens on purpose: zh-CN and ja write the
       // parentheses full-width, so "13.3 (Ventura)" would fail there for reasons
       // that have nothing to do with the floor.

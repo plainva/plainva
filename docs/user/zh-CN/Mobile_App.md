@@ -7,6 +7,8 @@ Plainva也提供Android和iOS版应用。它使用与桌面版相同的Markdown�
 
 移动应用目前是 Google Play 上的**公开测试**。在 **Android** 上可以直接加入：通过 [plainva.com/android-beta](https://plainva.com/android-beta) 打开测试链接，点按**成为测试人员**，然后从 Google Play 安装——不需要邀请，也不用加入任何群组。Plainva 也已上架 Play 商店。在 **iPhone** 上通过 TestFlight 分发，等候名单见 [plainva.com](https://plainva.com)。
 
+**系统要求：**在 iPhone 和 iPad 上，Plainva 需要 **iOS 16.4** 或更高版本——绘制界面的引擎在那里属于系统的一部分，更新 Safari 并不能改变它。在 Android 上，Android 7 就够了，但 **Android System WebView** 必须是最新的；如果太旧，Plainva 会在启动时说明，并指出通过 Play 商店更新的途径。
+
 这是早期版本：请为你的仓库保留备份，并告诉我哪里有问题。
 
 ## 布局

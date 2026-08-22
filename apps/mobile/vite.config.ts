@@ -22,10 +22,16 @@ export default defineConfig({
      *
      * It matches the desktop because the phone ships the same shared packages,
      * and those are what set the bar — a scan of the built bundle finds regex
-     * lookbehind (Safari 16.4) in two chunks of the STARTUP chain. Note that
-     * this is ABOVE the iOS deployment target of 15.0 in the Xcode project:
-     * on iOS 15.0-16.3 the app would not start at all. Squaring those two is a
-     * product decision, and this line is what makes it visible.
+     * lookbehind (Safari 16.4) in two chunks of the STARTUP chain.
+     *
+     * This number and IPHONEOS_DEPLOYMENT_TARGET in the Xcode project say the
+     * same thing on purpose. They did not until 2026-08-22: the project said
+     * 15.0 while the bundle needed 16.4, so the App Store offered Plainva to
+     * devices on which it could not start. The target was raised to 16.4 --
+     * on iOS the engine ships WITH the system, so the iOS version IS the
+     * engine version, unlike macOS where Safari.app can run years ahead of
+     * the WebView an app embeds (issue #46). floorConsistency.test.ts holds
+     * the two together from here on.
      */
     target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {

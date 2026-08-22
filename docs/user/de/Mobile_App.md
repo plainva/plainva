@@ -7,6 +7,8 @@ Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Ma
 
 Die mobile App läuft als **offener Test** bei Google Play. Unter **Android** kommst Du direkt hinein: über [plainva.com/de/android-beta](https://plainva.com/de/android-beta) den Test-Link öffnen, **Tester werden** antippen und die App aus Google Play installieren — Du brauchst keine Einladung und musst keiner Gruppe beitreten. Plainva steht auch direkt im Play Store. Auf dem **iPhone** läuft die Verteilung über TestFlight; die Warteliste steht auf [plainva.com](https://plainva.com).
 
+**Systemvoraussetzungen:** Auf iPhone und iPad braucht Plainva **iOS 16.4** oder neuer — dort gehört die Engine, mit der die App ihre Oberfläche zeichnet, zum System, und ein neuerer Safari ändert daran nichts. Unter Android genügt Android 7, aber die **Android System WebView** muss aktuell sein; ist sie zu alt, sagt Plainva das beim Start und nennt den Weg über den Play Store.
+
 Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Bescheid, was hakt.
 
 ## Aufbau

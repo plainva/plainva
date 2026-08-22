@@ -26,6 +26,11 @@ import { registerAccountLoginHandler } from "./services/accountLogin";
 // failure is READABLE without a Mac / Safari web inspector. Remove once iOS
 // boot is proven stable.
 function showFatalError(label: string, err: unknown): void {
+  // public/boot-guard.js runs BEFORE this module and listens for the same
+  // errors. When it has already put its overlay up, stand down: it says more
+  // (which engine probe failed, and what the user can do about it), and two
+  // stacked overlays would bury the more specific one.
+  if ((window as unknown as { __plainvaBootFailureShown?: boolean }).__plainvaBootFailureShown) return;
   const detail =
     err instanceof Error ? `${err.name}: ${err.message}\n\n${err.stack ?? ""}` : String(err);
   let box = document.getElementById("m-fatal");

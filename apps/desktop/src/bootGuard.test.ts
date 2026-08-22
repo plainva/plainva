@@ -13,11 +13,29 @@ import { resolve } from "node:path";
  * Note on eslint: the flat config marks this path ecmaVersion 5, but the
  * TypeScript parser is what actually reads it, and it accepts modern syntax
  * regardless. The check below is the real enforcement.
+ *
+ * BOTH shells since 2026-08-22. The phone had no guard at all: its fatal
+ * overlay lives in apps/mobile/src/main.tsx, INSIDE the module graph, so it is
+ * dead in exactly the case it was written for. The structural rules below are
+ * the same for both files; what differs is the text, and each shell gets its
+ * own block for that.
  */
 
 const desktopRoot = resolve(__dirname, "..");
-const guardPath = resolve(desktopRoot, "public/boot-guard.js");
-const htmlPath = resolve(desktopRoot, "index.html");
+const repoRoot = resolve(desktopRoot, "../..");
+
+const SHELLS = [
+  {
+    name: "desktop",
+    guard: resolve(desktopRoot, "public/boot-guard.js"),
+    html: resolve(desktopRoot, "index.html"),
+  },
+  {
+    name: "mobile",
+    guard: resolve(repoRoot, "apps/mobile/public/boot-guard.js"),
+    html: resolve(repoRoot, "apps/mobile/index.html"),
+  },
+] as const;
 
 /** Crude but sufficient for a file we write ourselves: strip comments and
  *  string literals so prose like "no imports" cannot trip the syntax scan. */
@@ -29,8 +47,8 @@ function stripCommentsAndStrings(src: string): string {
     .replace(/'(?:[^'\\]|\\.)*'/g, "''");
 }
 
-describe("boot guard", () => {
-  const source = readFileSync(guardPath, "utf8");
+describe.each(SHELLS)("boot guard ($name)", ({ guard, html: htmlPath }) => {
+  const source = readFileSync(guard, "utf8");
   const code = stripCommentsAndStrings(source);
   const html = readFileSync(htmlPath, "utf8");
 
@@ -83,6 +101,11 @@ describe("boot guard", () => {
     expect(source).toMatch(/showUnsupported\(missing/);
   });
 
+});
+
+describe("boot guard (desktop) — what it says", () => {
+  const source = readFileSync(SHELLS[0].guard, "utf8");
+
   it("names the version floor on screen, in English only", () => {
     // "It doesn't work" would send the next reporter down the same road.
     // The macOS number deliberately is NOT repeated here — floorConsistency.test.ts
@@ -103,5 +126,39 @@ describe("boot guard", () => {
     const visible = source.replace(/\/\*[\s\S]*?\*\//g, " ");
     expect(visible).toContain("Safari 16.4 or newer");
     expect(visible.match(/Safari 16\.4/g) || []).toHaveLength(2);
+  });
+});
+
+describe("boot guard (mobile) — what it says", () => {
+  const source = readFileSync(SHELLS[1].guard, "utf8");
+
+  it("names the floor and, on Android, the fix", () => {
+    // The two platforms need different sentences, and the difference is not
+    // cosmetic. On iOS the engine ships with the system, so the only true
+    // statement is a version. On ANDROID the WebView is a separate, updatable
+    // component — there the honest answer is an ACTION the user can take, and
+    // a version number alone would read as "buy a new phone".
+    expect(source).toContain("Android System WebView");
+    expect(source).toContain("Plainva can't start on this device");
+    // The iOS number itself is NOT repeated here — floorConsistency.test.ts
+    // owns it and checks this same file against it. Two copies of a version
+    // number are how it drifts.
+
+    // English only, same reason as the desktop: no i18n bundle exists at this
+    // point, and this text is written to be pasted into a report.
+    expect(source).not.toContain("Plainva kann auf diesem Gerät nicht starten");
+  });
+
+  it("stands down when the in-module overlay would double up", () => {
+    // main.tsx carries its own fatal overlay and listens for the same errors.
+    // Two stacked overlays would bury the more specific one — and the more
+    // specific one is the guard, because it names the failed probe.
+    expect(source).toContain("__plainvaBootFailureShown");
+  });
+
+  it("clears the status bar", () => {
+    // The app is edge-to-edge, so a plain inset:0 box would start its heading
+    // under the clock — on the one screen a user is asked to read carefully.
+    expect(source).toContain("env(safe-area-inset-top");
   });
 });

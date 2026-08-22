@@ -17,18 +17,36 @@
  *
  * USAGE
  *   pnpm --filter desktop build && node scripts/scan-engine-floor.mjs
+ *   pnpm --filter mobile  build && node scripts/scan-engine-floor.mjs mobile
  * Exit code 1 on a fatal finding (JS that throws), 0 otherwise.
+ *
+ * BOTH SHELLS since 2026-08-22. The phone ships the same shared packages, so it
+ * carries the same bar — and it is the shell where the bar actually bit: its
+ * bundle needed iOS 16.4 while the Xcode project still declared 15.0. The scan
+ * is identical for both; only the directory differs.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const dist = join(desktopRoot, "dist");
+const APPS = {
+  desktop: { root: desktopRoot, build: "pnpm --filter desktop build" },
+  mobile: { root: resolve(desktopRoot, "../mobile"), build: "pnpm --filter mobile build" },
+};
+
+const appName = process.argv[2] || "desktop";
+const app = APPS[appName];
+if (!app) {
+  console.error(`Unknown app "${appName}". Use one of: ${Object.keys(APPS).join(", ")}`);
+  process.exit(2);
+}
+
+const dist = join(app.root, "dist");
 const assets = join(dist, "assets");
 
 if (!existsSync(assets)) {
-  console.error("No build found. Run `pnpm --filter desktop build` first.");
+  console.error(`No ${appName} build found. Run \`${app.build}\` first.`);
   process.exit(2);
 }
 

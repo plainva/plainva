@@ -11,6 +11,10 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Classic script, deliberately: modules are deferred by spec, so this runs
+         first however the built HTML orders the tags. It is the only thing that
+         still runs when the module graph fails to parse - see public/boot-guard.js. -->
+    <script src="/boot-guard.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

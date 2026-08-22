@@ -41,16 +41,29 @@ The window is drawn by the system's web engine, so the engine sets the floor: **
 WebKitGTK 2.40**, declared as macOS **13.3** — on macOS the WebView is a system component and moves
 with OS updates, not with Safari, so the system version decides the engine (issue #46 was reported
 twice from the same Mac to establish that; Monterey stops at Safari 15.6.1 however current its
-Safari is, and Ventura reached 16.4 at 13.3). Three places carry that number and a ratchet holds
+Safari is, and Ventura reached 16.4 at 13.3). Several places carry that number and a ratchet holds
 them together — but the ratchet cannot check the outside world.
+
+The phone carries the SAME bar, because it ships the same shared packages: **iOS 16.4**, which on
+iOS is the whole answer — the engine ships with the system and no separately installable browser
+can run ahead of it. Android has no version to declare: its WebView is an updatable component, so
+the boot guard is the only thing that can tell a user below the floor, and the only fix it can name
+is "update Android System WebView".
 
 - [ ] `minimumSystemVersion` in `tauri.conf.json`, `build.target` in `vite.config.ts` and the
       requirements in README / website / user guide still name the same floor.
-- [ ] If the floor moved this release: the boot guard's message (`public/boot-guard.js`) moved with
-      it. It is the only thing a user below the floor ever sees.
+- [ ] `IPHONEOS_DEPLOYMENT_TARGET` in `apps/mobile/ios/App/App.xcodeproj/project.pbxproj` names the
+      iOS floor in EVERY build configuration, and the mobile page of the user guide names it too. Both are ratcheted (`floorConsistency.test.ts`); the App Store listing is
+      not — it takes the number from the deployment target, so check the listing once after a move.
+- [ ] If the floor moved this release: BOTH boot guards (`apps/desktop/public/boot-guard.js`,
+      `apps/mobile/public/boot-guard.js`) moved with it. They are the only thing a user below the
+      floor ever sees.
 - [ ] `pnpm --filter desktop build && node apps/desktop/scripts/scan-engine-floor.mjs` reports no
       fatal finding in the startup chain. It finds known violations from a hand-maintained list — a
       clean run means "nothing known is wrong", not "verified".
+- [ ] Same scan for the phone: `pnpm --filter mobile build && node apps/desktop/scripts/scan-engine-floor.mjs mobile`.
+      The phone ships the same shared packages, so it carries the same bar — and it is the shell
+      where the bar bit: lookbehind sits in ITS startup chain, which is what iOS 16.4 enforces.
 - [ ] Ideally, once per floor change: start the build on a machine at the floor. Issue #46 was a
       blank window for exactly as long as nobody did.
 
