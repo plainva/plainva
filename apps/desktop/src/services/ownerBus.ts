@@ -9,6 +9,8 @@ import {
   focusAuxWindow,
   noteWindowBounds,
   noteWindowContent,
+  noteWindowContents,
+  noteWindowAlwaysOnTop,
   openComposeWindow,
   openOrFocusContent,
 } from "./windowManager";
@@ -240,6 +242,20 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("window-bounds", async ({ label, bounds }) => {
       noteWindowBounds(label, bounds);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("window-contents", async ({ label, active, contents }) => {
+      // Dedup asks the registry, so the registry has to know every tab of every
+      // window — not just the one in front (P4).
+      noteWindowContents(label, active, contents);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("window-always-on-top", async ({ label, value }) => {
+      noteWindowAlwaysOnTop(label, value);
     }),
   );
 

@@ -3698,6 +3698,12 @@
   },
   "window": {
     "openInNewWindow": "Otwórz w nowym oknie",
-    "popOutCompose": "Otwórz we własnym oknie"
+    "popOutCompose": "Otwórz we własnym oknie",
+    "pinOnTop": "Zawsze na wierzchu",
+    "unpinOnTop": "Nie trzymaj na wierzchu",
+    "openComms": "Otwórz okno komunikacji",
+    "settingsGroup": "Okna",
+    "restoreWindows": "Przywróć układ okien",
+    "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane."
   }
 }

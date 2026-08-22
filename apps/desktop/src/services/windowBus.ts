@@ -160,6 +160,17 @@ export interface RpcMap {
     args: { label: string; bounds: { x: number; y: number; width: number; height: number } };
     result: void;
   };
+  /**
+   * Everything an auxiliary window has open (P4). The owner needs the whole
+   * list, not just the visible tab: dedup answers "is this note open anywhere",
+   * and with tabs the answer is no longer a single field.
+   */
+  "window-contents": {
+    args: { label: string; active: string | null; contents: string[] };
+    result: void;
+  };
+  /** An auxiliary window reports its always-on-top pin so it survives a restart. */
+  "window-always-on-top": { args: { label: string; value: boolean }; result: void };
 }
 
 export type RpcKind = keyof RpcMap;

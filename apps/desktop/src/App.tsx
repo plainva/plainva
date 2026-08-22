@@ -74,7 +74,14 @@ const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => 
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
 import { SplashScreen } from "./components/SplashScreen";
 import { popOutCompose } from "./services/mail/composeWindow";
-import { openOrFocusContent, setOwnerOpenContents } from "./services/windowManager";
+import {
+  getRestoreWindowsSetting,
+  listAuxWindows,
+  openOrFocusContent,
+  openPresetWindow,
+  restoreAuxWindows,
+  setOwnerOpenContents,
+} from "./services/windowManager";
 import "./App.css";
 
 /**
@@ -557,6 +564,28 @@ function App() {
     })();
   });
 
+  /**
+   * The communications window: mail beside the calendar (multi-window P4, E4).
+   *
+   * A preset, not a window type — it only seeds the split of an ordinary
+   * auxiliary window, so closing a pane or adding a tab afterwards works like
+   * everywhere else and the combination stays the user's to change.
+   */
+  const openCommsWindow = useStableHandler(() => {
+    if (!vaultPath) return;
+    void (async () => {
+      try {
+        await openPresetWindow({
+          vaultPath,
+          preset: "mail-calendar",
+          title: t("window.openComms", { defaultValue: "Kommunikations-Fenster" }),
+        });
+      } catch (e: any) {
+        toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
+      }
+    })();
+  });
+
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
     setClosedTabCount(closedTabsRef.current.length);
@@ -1031,6 +1060,32 @@ function App() {
     }
     setOwnerOpenContents(paths);
   }, [layout]);
+
+  /**
+   * Put yesterday's windows back (multi-window P4, E5).
+   *
+   * Once per vault and only while none are open: the restore reads a stored
+   * list, so running it twice would open every window twice. A window whose
+   * saved position no longer lands on a monitor keeps its size and loses its
+   * position — better placed by the OS than restored out of reach.
+   */
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!vaultPath || isLoading) return;
+    if (restoredFor.current === vaultPath) return;
+    restoredFor.current = vaultPath;
+    void (async () => {
+      try {
+        if (!(await getRestoreWindowsSetting())) return;
+        if (listAuxWindows().some((w) => w.vaultPath === vaultPath)) return;
+        await restoreAuxWindows(vaultPath);
+      } catch (e) {
+        // No backend, or a window that would not come up: the app is usable
+        // without its extra windows, so this never blocks the start.
+        console.warn("[App] could not restore the auxiliary windows", e);
+      }
+    })();
+  }, [vaultPath, isLoading]);
 
   // Popout requests from the editor ⋮ and the peek header. They announce rather
   // than act, because only this window can open the window AND close the tab.
@@ -1745,6 +1800,7 @@ function App() {
             openTasks: () => openView(TASKS_TAB_PATH),
             openCalendar: () => openView(CALENDAR_TAB_PATH),
             openMail: () => openView(MAIL_TAB_PATH),
+            openCommsWindow: vaultPath ? openCommsWindow : undefined,
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),

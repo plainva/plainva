@@ -22,6 +22,13 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
   WebviewWindow: class {
+    label: string;
+    constructor(label: string) {
+      this.label = label;
+    }
+    async onCloseRequested() {
+      return () => {};
+    }
     static async getByLabel() {
       return null;
     }
@@ -53,7 +60,13 @@ vi.mock("./windowBus", async (importOriginal) => {
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { installOwnerBus } from "./ownerBus";
-import { resetWindowRegistryForTest, setOwnerOpenContents } from "./windowManager";
+import {
+  findWindowForContent,
+  listAuxWindows,
+  openAuxWindow,
+  resetWindowRegistryForTest,
+  setOwnerOpenContents,
+} from "./windowManager";
 
 function createWire() {
   const listeners = new Map<string, Set<{ label: string; fn: (p: unknown) => void }>>();
@@ -377,5 +390,33 @@ describe("the disposer", () => {
     // vault which is no longer open.
     await expect(aux.request("write", { path: "Stale.md", content: "x" })).rejects.toThrow();
     expect(calls).toEqual([]);
+  });
+});
+
+describe("what an auxiliary window reports about itself (P4)", () => {
+  it("makes its background tabs findable for dedup", async () => {
+    const { aux, dispose } = await setup();
+    const rec = await openAuxWindow({ role: "aux", vaultPath: "/vault", content: "One.md" });
+
+    await aux.request("window-contents", { label: rec.label, active: "Two.md", contents: ["One.md", "Two.md"] });
+
+    // The registry lives in the central window; without this report it would
+    // only ever know the note a window was OPENED with, and every further tab
+    // over there would be invisible to the "open once" rule.
+    expect(findWindowForContent("/vault", "Two.md")?.label).toBe(rec.label);
+    expect(findWindowForContent("/vault", "One.md")?.label).toBe(rec.label);
+    dispose();
+  });
+
+  it("remembers a pin across a restart", async () => {
+    const { aux, dispose } = await setup();
+    const rec = await openAuxWindow({ role: "aux", vaultPath: "/vault", content: "Note.md" });
+
+    await aux.request("window-always-on-top", { label: rec.label, value: true });
+
+    // The pin belongs to the window, and the window list is what a restart
+    // reads: a pin the central window never heard about would be gone.
+    expect(listAuxWindows().find((w) => w.label === rec.label)?.alwaysOnTop).toBe(true);
+    dispose();
   });
 });

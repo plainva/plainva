@@ -3659,6 +3659,12 @@
   },
   "window": {
     "openInNewWindow": "Ouvrir dans une nouvelle fenêtre",
-    "popOutCompose": "Ouvrir dans sa propre fenêtre"
+    "popOutCompose": "Ouvrir dans sa propre fenêtre",
+    "pinOnTop": "Toujours au premier plan",
+    "unpinOnTop": "Ne plus rester au premier plan",
+    "openComms": "Ouvrir la fenêtre de communication",
+    "settingsGroup": "Fenêtres",
+    "restoreWindows": "Restaurer la disposition des fenêtres",
+    "restoreWindowsDesc": "Rouvre au démarrage les fenêtres supplémentaires qui étaient ouvertes. Les messages non envoyés ne sont jamais restaurés."
   }
 }

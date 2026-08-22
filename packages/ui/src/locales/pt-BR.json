@@ -3659,6 +3659,12 @@
   },
   "window": {
     "openInNewWindow": "Abrir em nova janela",
-    "popOutCompose": "Abrir em janela própria"
+    "popOutCompose": "Abrir em janela própria",
+    "pinOnTop": "Sempre visível",
+    "unpinOnTop": "Não manter sempre visível",
+    "openComms": "Abrir janela de comunicação",
+    "settingsGroup": "Janelas",
+    "restoreWindows": "Restaurar a disposição das janelas",
+    "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas."
   }
 }

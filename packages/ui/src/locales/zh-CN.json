@@ -3581,6 +3581,12 @@
   },
   "window": {
     "openInNewWindow": "在新窗口中打开",
-    "popOutCompose": "在独立窗口中打开"
+    "popOutCompose": "在独立窗口中打开",
+    "pinOnTop": "始终置顶",
+    "unpinOnTop": "取消置顶",
+    "openComms": "打开通讯窗口",
+    "settingsGroup": "窗口",
+    "restoreWindows": "恢复窗口布局",
+    "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。"
   }
 }

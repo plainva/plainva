@@ -106,3 +106,24 @@ test('production bundle boots an auxiliary window showing a view', async ({ page
 
   expect(pageErrors, `Uncaught page errors in the view window:\n${pageErrors.join('\n')}`).toEqual([]);
 });
+
+/**
+ * A preset window, in the production bundle (P4/E4).
+ *
+ * What this can see is the aux entry evaluating with a preset in the URL — the
+ * module-order surface that has shipped a white window twice. What it can NOT
+ * see is the split filling up: the panes render only once a vault adapter
+ * exists, and this smoke deliberately runs without a Tauri backend. The seeded
+ * split is asserted in ../e2e/multi-window.spec.ts, where the backend is mocked.
+ */
+test('production bundle boots a preset window', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+
+  await page.goto('/?win=aux&vault=%2Ftmp%2Fvault&content=plainva%3A%2F%2Fmail&preset=mail-calendar&label=aux-3');
+
+  await expect(page.getByTestId('aux-titlebar')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('aux-content')).toBeVisible();
+
+  expect(pageErrors, `Uncaught page errors in the preset window:\n${pageErrors.join('\n')}`).toEqual([]);
+});

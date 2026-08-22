@@ -3620,6 +3620,12 @@
   },
   "window": {
     "openInNewWindow": "Open in new window",
-    "popOutCompose": "Open in its own window"
+    "popOutCompose": "Open in its own window",
+    "pinOnTop": "Always on top",
+    "unpinOnTop": "Stop staying on top",
+    "openComms": "Open communications window",
+    "settingsGroup": "Windows",
+    "restoreWindows": "Restore window layout",
+    "restoreWindowsDesc": "Reopens the auxiliary windows you had open when the app starts. Unsent messages are never restored."
   }
 }

@@ -3620,6 +3620,12 @@
   },
   "window": {
     "openInNewWindow": "In neuem Fenster öffnen",
-    "popOutCompose": "In eigenem Fenster öffnen"
+    "popOutCompose": "In eigenem Fenster öffnen",
+    "pinOnTop": "Immer im Vordergrund",
+    "unpinOnTop": "Nicht mehr im Vordergrund",
+    "openComms": "Kommunikations-Fenster öffnen",
+    "settingsGroup": "Fenster",
+    "restoreWindows": "Fensteraufteilung wiederherstellen",
+    "restoreWindowsDesc": "Beim Start werden die zuletzt geöffneten Zusatzfenster wieder geöffnet. Verfasste, noch nicht gesendete Nachrichten werden nie wiederhergestellt."
   }
 }

@@ -1,4 +1,5 @@
-import { buildWindowQuery, type WindowRole } from "./windowContext";
+import { buildWindowQuery, type WindowPreset, type WindowRole } from "./windowContext";
+import { getSettingsStore } from "./settingsStore";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 
 /**
@@ -23,12 +24,52 @@ export interface AuxWindowRecord {
   vaultPath: string;
   /** Vault-relative path or a `plainva://` pseudo path; null for a blank window. */
   content: string | null;
+  /**
+   * EVERYTHING the window has open, not just the active tab (P4).
+   *
+   * An auxiliary window carries tabs and a split now, so "which window shows
+   * this note" can no longer be answered from one field — without this, a note
+   * sitting in a window's second tab would be opened a second time and the
+   * app-wide "content is open once" rule (E2) would hold only for whatever
+   * happened to be in front. Absent on records written before P4, which reads
+   * as "just the active one".
+   */
+  contents?: string[];
   bounds?: { x: number; y: number; width: number; height: number };
   alwaysOnTop?: boolean;
+  /** Seeded the initial split; kept so a restore rebuilds the same window. */
+  preset?: WindowPreset;
 }
 
 /** Where the open windows of a vault are remembered between sessions. */
 export const windowsKey = (vaultPath: string) => `plainva-windows-${vaultPath}`;
+
+/** Settings key of "put my windows back where they were" (E5). */
+export const RESTORE_WINDOWS_KEY = "restoreWindows";
+
+/**
+ * Whether a start reopens the auxiliary windows of the vault (E5).
+ *
+ * Default ON: a window arrangement is something the user built, and losing it
+ * on every start would make the whole feature feel accidental. Off is for
+ * people who want a clean single window every morning — and for the case a
+ * restored window ever gets in the way, which is why the switch exists at all.
+ */
+export async function getRestoreWindowsSetting(): Promise<boolean> {
+  try {
+    const store = await getSettingsStore();
+    const v = await store.get<boolean>(RESTORE_WINDOWS_KEY);
+    return v !== false;
+  } catch {
+    return true;
+  }
+}
+
+export async function setRestoreWindowsSetting(value: boolean): Promise<void> {
+  const store = await getSettingsStore();
+  await store.set(RESTORE_WINDOWS_KEY, value);
+  await store.save();
+}
 
 /** Default size of a fresh note window: a comfortable single column. */
 const DEFAULT_SIZE = { width: 720, height: 820 };
@@ -36,6 +77,8 @@ const DEFAULT_SIZE = { width: 720, height: 820 };
 const VIEW_SIZE = { width: 1100, height: 780 };
 /** A composer wants room for recipients and a body, not for a whole page. */
 const COMPOSE_SIZE = { width: 780, height: 700 };
+/** A preset opens two views side by side, so it needs both of their widths. */
+const PRESET_SIZE = { width: 1320, height: 860 };
 
 /** Views (graph, tasks, calendar, mail) open landscape, notes portrait. */
 function defaultSizeFor(content: string | null | undefined) {
@@ -61,10 +104,16 @@ export function listAuxWindows(): AuxWindowRecord[] {
   return [...open.values()];
 }
 
-/** The window showing this content, if any. */
+/** Everything a window holds — its tabs across every pane, active one included. */
+function contentsOf(rec: AuxWindowRecord): string[] {
+  if (rec.contents && rec.contents.length > 0) return rec.contents;
+  return rec.content ? [rec.content] : [];
+}
+
+/** The window showing this content, if any — in ANY of its tabs (P4). */
 export function findWindowForContent(vaultPath: string, content: string): AuxWindowRecord | null {
   for (const rec of open.values()) {
-    if (rec.vaultPath === vaultPath && rec.content === content) return rec;
+    if (rec.vaultPath === vaultPath && contentsOf(rec).includes(content)) return rec;
   }
   return null;
 }
@@ -115,6 +164,10 @@ export async function openAuxWindow(params: {
   title?: string;
   bounds?: { x: number; y: number; width: number; height: number };
   size?: { width: number; height: number };
+  /** Opens with a prepared split instead of a single piece of content (E4). */
+  preset?: WindowPreset;
+  /** Restores the pin of a window that had one when it was last closed (E6). */
+  alwaysOnTop?: boolean;
   /** Pre-allocated label (see `nextLabel`); otherwise one is taken here. */
   label?: string;
   /** Runs when the window goes away, however it went away. */
@@ -128,6 +181,8 @@ export async function openAuxWindow(params: {
     vaultPath: params.vaultPath,
     content: params.content ?? null,
     bounds: params.bounds,
+    ...(params.preset ? { preset: params.preset } : {}),
+    ...(params.alwaysOnTop ? { alwaysOnTop: true } : {}),
   };
 
   const url = `index.html${buildWindowQuery({
@@ -135,6 +190,7 @@ export async function openAuxWindow(params: {
     vaultPath: params.vaultPath,
     content: params.content,
     label,
+    preset: params.preset,
   })}`;
 
   const win = new WebviewWindow(label, {
@@ -144,6 +200,7 @@ export async function openAuxWindow(params: {
     height: params.bounds?.height ?? params.size?.height ?? defaultSizeFor(params.content).height,
     x: params.bounds?.x,
     y: params.bounds?.y,
+    alwaysOnTop: params.alwaysOnTop === true,
     // Same frameless chrome as the main window — the aux title bar draws it.
     decorations: false,
   });
@@ -192,6 +249,104 @@ export async function openComposeWindow(params: {
     forgetComposeDraft(label);
     throw e;
   }
+}
+
+/**
+ * Opens a window with a prepared split — today: mail beside the calendar (E4).
+ *
+ * The window is an ordinary auxiliary window; the preset only decides what its
+ * two panes start with. Deduplicated on its first pane like any other content,
+ * so asking twice brings the existing communications window forward instead of
+ * building a second one.
+ */
+export async function openPresetWindow(params: {
+  vaultPath: string;
+  preset: WindowPreset;
+  title?: string;
+}): Promise<AuxWindowRecord> {
+  return openAuxWindow({
+    role: "aux",
+    vaultPath: params.vaultPath,
+    content: PRESET_CONTENT[params.preset][0],
+    preset: params.preset,
+    title: params.title,
+    size: PRESET_SIZE,
+  });
+}
+
+/** What each preset puts into its panes, left/top first. */
+export const PRESET_CONTENT: Record<WindowPreset, [string, string]> = {
+  "mail-calendar": ["plainva://mail", "plainva://calendar"],
+};
+
+/**
+ * Is this window's title bar reachable with the monitors that exist now (E5)?
+ *
+ * A saved position outlives the screen it was saved on: unplug the second
+ * monitor, restart, and a restored window sits at x=2400 where nothing can
+ * click it. The test is deliberately about the DRAG REGION, not about area —
+ * a window that is 90% off-screen is fine as long as enough of its title bar
+ * is grabbable to pull it back.
+ */
+export function isReachable(
+  bounds: { x: number; y: number; width: number; height: number },
+  monitors: readonly { position: { x: number; y: number }; size: { width: number; height: number } }[],
+): boolean {
+  if (monitors.length === 0) return true; // no answer is not a reason to move a window
+  const TITLE_H = 40;
+  const NEEDED = 120;
+  for (const m of monitors) {
+    const left = Math.max(bounds.x, m.position.x);
+    const right = Math.min(bounds.x + bounds.width, m.position.x + m.size.width);
+    const top = Math.max(bounds.y, m.position.y);
+    const bottom = Math.min(bounds.y + TITLE_H, m.position.y + m.size.height);
+    if (right - left >= NEEDED && bottom - top > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Reopens the windows a vault had open when it was last closed (E5).
+ *
+ * Compose windows are not in the list by construction (`persistWindows`), so
+ * nothing here can resurrect an empty composer. A window whose saved position
+ * no longer lands on a monitor keeps its SIZE and loses its position — the OS
+ * then places it, which is better than restoring it out of reach.
+ */
+export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRecord[]> {
+  const saved = readPersistedWindows(vaultPath).filter((w) => w.role === "aux");
+  if (saved.length === 0) return [];
+
+  let monitors: { position: { x: number; y: number }; size: { width: number; height: number } }[] = [];
+  try {
+    const { availableMonitors } = await import("@tauri-apps/api/window");
+    monitors = await availableMonitors();
+  } catch {
+    /* no backend (browser/test): restore without the reachability check */
+  }
+
+  const opened: AuxWindowRecord[] = [];
+  for (const rec of saved) {
+    const bounds = rec.bounds && isReachable(rec.bounds, monitors) ? rec.bounds : undefined;
+    try {
+      opened.push(
+        await openAuxWindow({
+          role: "aux",
+          vaultPath,
+          content: rec.content,
+          preset: rec.preset,
+          alwaysOnTop: rec.alwaysOnTop === true,
+          bounds,
+          size: rec.bounds ? { width: rec.bounds.width, height: rec.bounds.height } : undefined,
+          title: rec.content?.split(/[/\\]/).pop(),
+        }),
+      );
+    } catch (e) {
+      // One window that will not come up must not cost the others.
+      console.warn("[windowManager] could not restore a window", rec.label, e);
+    }
+  }
+  return opened;
 }
 
 /** Brings an existing window forward (dedup / focus routing). */
@@ -317,6 +472,34 @@ export function noteWindowContent(label: string, content: string | null): void {
   const rec = open.get(label);
   if (!rec || rec.content === content) return;
   rec.content = content;
+  persistWindows(rec.vaultPath);
+}
+
+/**
+ * Everything an auxiliary window has open, reported by the window itself (P4).
+ *
+ * The active tab decides the title and what a restart restores; the full list
+ * decides dedup. Both are written together because they change together — a
+ * tab switch moves the active one, closing a tab shortens the list.
+ */
+export function noteWindowContents(label: string, active: string | null, contents: string[]): void {
+  const rec = open.get(label);
+  if (!rec) return;
+  const same =
+    rec.content === active &&
+    (rec.contents ?? []).length === contents.length &&
+    (rec.contents ?? []).every((c, i) => c === contents[i]);
+  if (same) return;
+  rec.content = active;
+  rec.contents = contents;
+  persistWindows(rec.vaultPath);
+}
+
+/** Remembers the always-on-top pin so the next start puts it back (E6). */
+export function noteWindowAlwaysOnTop(label: string, value: boolean): void {
+  const rec = open.get(label);
+  if (!rec || rec.alwaysOnTop === value) return;
+  rec.alwaysOnTop = value;
   persistWindows(rec.vaultPath);
 }
 

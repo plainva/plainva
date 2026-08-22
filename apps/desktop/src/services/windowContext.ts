@@ -14,6 +14,19 @@
 
 export type WindowRole = "owner" | "aux" | "compose";
 
+/**
+ * A window that opens with a prepared split instead of a single piece of
+ * content (multi-window P4, plan E4).
+ *
+ * Deliberately NOT a window type of its own: a preset only seeds the layout of
+ * an ordinary auxiliary window, so everything after the first second — closing
+ * a pane, adding a tab, dragging the divider — is the behaviour every window
+ * already has, and the combination stays the user's to change.
+ */
+export type WindowPreset = "mail-calendar";
+
+const PRESETS: readonly WindowPreset[] = ["mail-calendar"];
+
 export interface WindowParams {
   role: WindowRole;
   /** Absolute path of the vault this window belongs to (aux/compose only). */
@@ -25,20 +38,24 @@ export interface WindowParams {
   content: string | null;
   /** Stable label of the window, mirrored from the query for the bus. */
   label: string | null;
+  /** Seeds the initial split when the window has no stored layout yet (P4). */
+  preset: WindowPreset | null;
 }
 
-const OWNER: WindowParams = { role: "owner", vaultPath: null, content: null, label: null };
+const OWNER: WindowParams = { role: "owner", vaultPath: null, content: null, label: null, preset: null };
 
 /** Reads the window role out of a query string. Unknown values fall back to owner. */
 export function parseWindowParams(search: string): WindowParams {
   const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const win = q.get("win");
   if (win !== "aux" && win !== "compose") return OWNER;
+  const preset = q.get("preset");
   return {
     role: win,
     vaultPath: q.get("vault"),
     content: q.get("content"),
     label: q.get("label"),
+    preset: PRESETS.includes(preset as WindowPreset) ? (preset as WindowPreset) : null,
   };
 }
 
@@ -48,12 +65,14 @@ export function buildWindowQuery(params: {
   vaultPath: string;
   content?: string | null;
   label: string;
+  preset?: WindowPreset | null;
 }): string {
   const q = new URLSearchParams();
   q.set("win", params.role);
   q.set("vault", params.vaultPath);
   q.set("label", params.label);
   if (params.content) q.set("content", params.content);
+  if (params.preset) q.set("preset", params.preset);
   return `?${q.toString()}`;
 }
 

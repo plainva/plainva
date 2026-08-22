@@ -322,3 +322,31 @@ test('a view pops out of the ribbon and the ribbon then focuses it instead of op
   await expect(page.getByRole('tab').filter({ hasText: /Graph/ })).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).createdWindows.length)).toBe(1);
 });
+
+/**
+ * The communications preset (P4/E4).
+ *
+ * "Mail beside the calendar" is the arrangement people asked for, and it is an
+ * ORDINARY auxiliary window whose two panes start filled — not a window type of
+ * its own. What matters here is that one request produces exactly one window and
+ * that the preset travels in the URL, because the new window seeds its split
+ * from that alone.
+ */
+test('the palette opens one window that starts with mail beside the calendar', async ({ page }) => {
+  await openWelcome(page);
+
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByRole('button', { name: /Kommunikations-Fenster|communications window/ }).click();
+
+  const created = await createdWindow(page);
+  expect(created.url).toContain('win=aux');
+  expect(created.url).toContain('preset=mail-calendar');
+  // The first pane doubles as the window's dedup identity.
+  expect(created.url).toContain(encodeURIComponent('plainva://mail'));
+
+  // One request, one window: a second communications window would be two mail
+  // clients on one account.
+  expect(await page.evaluate(() => (window as any).createdWindows.length)).toBe(1);
+});

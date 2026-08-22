@@ -3620,6 +3620,12 @@
   },
   "window": {
     "openInNewWindow": "In nieuw venster openen",
-    "popOutCompose": "In een eigen venster openen"
+    "popOutCompose": "In een eigen venster openen",
+    "pinOnTop": "Altijd op de voorgrond",
+    "unpinOnTop": "Niet meer op de voorgrond",
+    "openComms": "Communicatievenster openen",
+    "settingsGroup": "Vensters",
+    "restoreWindows": "Vensterindeling herstellen",
+    "restoreWindowsDesc": "Opent bij het starten de extra vensters die openstonden. Niet-verzonden berichten worden nooit hersteld."
   }
 }
