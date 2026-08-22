@@ -110,12 +110,6 @@ Cet arrangement appartient au vault et se propage à vos autres appareils via [C
 - **Zoom de l'interface** : redimensionne TOUTE l'interface entre 80 % et 150 % — sous **Paramètres → App → Apparence** ou via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` réinitialise).
 - **Boîtes de dialogue et notifications natives-free** : les confirmations apparaissent comme des boîtes de dialogue Plainva stylées selon votre thème (les actions destructrices ont un bouton rouge), les brefs avis comme des toasts discrets en bas à droite — plus de fenêtres système.
 
-## Voir aussi
-
-- [Notes & Markdown](Notes_and_Markdown.md) — tout sur l'écriture
-- [Raccourcis clavier](Keyboard_Shortcuts.md)
-- [FAQ & dépannage](FAQ.md)
-
 ## Le graphe
 
 Via **Ctrl/Cmd+Shift+G** (ou la section **Graphe** dans la barre latérale droite), vous voyez votre coffre comme une carte : les dossiers sous forme de bulles, les notes sous forme de nœuds, les relations sous forme d'arêtes étiquetées — avec un mode de nettoyage et un voyage dans le temps. Détails : [Graphe](Graph.md).
@@ -131,3 +125,9 @@ Les sections qui n'ont rien à montrer pour la note ouverte — **Plan**, **Back
 - **en dessous de 232 px** — le calendrier affiche **une semaine au lieu du mois** (sept jours, numéro de semaine en bas à droite) ; une grille mensuelle aurait ici des cellules de 14 pixels et cesserait d'être un calendrier. Le graphe devient plus court, et les backlinks affichent le nom du fichier sans la ligne de chemin.
 
 La barre latérale droite ne peut pas descendre en dessous de **200 px** — aucune section n'y est utilisable. La gauche descend quant à elle encore jusqu'à 150 px, car les noms de fichiers se tronquent simplement.
+
+## Voir aussi
+
+- [Notes & Markdown](Notes_and_Markdown.md) — tout sur l'écriture
+- [Raccourcis clavier](Keyboard_Shortcuts.md)
+- [FAQ & dépannage](FAQ.md)

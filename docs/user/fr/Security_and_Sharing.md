@@ -6,6 +6,8 @@
 
 **Sécurité et partage** comporte deux niveaux. L’**Aperçu** (premier niveau) affiche l’état de protection, **Terminer la migration** lorsqu’il reste du texte en clair, **Supprimer la connexion au cloud chiffré**, et deux cartes qui ouvrent le second niveau — **Appareils et récupération** et **Partager avec d’autres**. Au second niveau, la navigation par zones remplace la colonne de gauche des paramètres, regroupée en **Votre accès** (Appareils, récupération) et **Partage** (Membres, groupes, slices, publications) ; **‹ Aperçu** revient au premier niveau. Les actions visibles restent disponibles : une action ouvre le vault, la connexion, la configuration ou le déverrouillage requis. Une révocation peut lancer un rechiffrement complet reprenable. Créez un Vault Slice via **Détails → Contenu → Autorisations → Vérification**. Les publications externes occupent un workspace chiffré séparé ; la projection nettoyée retire propriétés privées, liens exclus et inclusions. La diffusion publique attend l’audit crypto indépendant et les essais Android/iOS réels.
 
+Créez un Vault Slice avec les quatre étapes **Détails → Contenu → Autorisations → Vérification**. Les publications externes utilisent un espace de noms de workspace chiffré séparé. Les projections nettoyées suppriment les propriétés privées du frontmatter, neutralisent les liens vers les notes exclues et omettent les inclusions exclues. Les autorisations Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV et S3 sont une protection supplémentaire, jamais un substitut aux rôles chiffrés. La diffusion publique reste bloquée jusqu’à ce que l’audit crypto indépendant et des preuves réelles sur deux appareils Android/iOS soient enregistrés.
+
 Dernière vérification : 2026-08-20
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
@@ -19,8 +21,6 @@ Sur mobile, la section indique d'abord l'état réel de ce vault : **Sur cet app
 3. Activez l’espace. Plainva publie la politique signée et chiffre tous les fichiers dans `.pvws/`. Le vault local reste lisible et la migration reprend après une interruption.
 
 L’ancien contenu en clair reste à côté de `.pvws/` pendant la migration. Il ne peut être supprimé explicitement qu’à l’état **Protégé** ; les fichiers locaux ne sont jamais supprimés.
-
-Les modifications hors ligne restent dans une file durable. Les suppressions exigent des tombstones signés et les modifications parallèles sont conservées dans des copies `.CONFLICT-…`.
 
 ## Au quotidien
 
@@ -44,7 +44,9 @@ Un slice couvre un dossier, une sélection ou une règle dynamique sur chemin, t
 
 ## Commentaires, versions et quarantaine
 
-Commentaires et marqueurs de résolution sont chiffrés et signés. **Historique des versions** lit les révisions chiffrées et restaure une version comme nouvelle modification signée ou copie. Un artefact distant invalide est isolé sous **Intégrité et forks locaux** : réessayez, exportez le ciphertext, marquez-le réparé ou ignorez-le. Il ne bloque pas le reste de la synchronisation et une absence distante ne vaut jamais suppression.
+Commenter obtient un éditeur en lecture seule avec une zone de commentaires. Les commentaires et les marqueurs de résolution sont eux-mêmes des objets chiffrés et signés du workspace. **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
+
+Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée.
 
 ## Supprimer correctement un vault chiffré
 

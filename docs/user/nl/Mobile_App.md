@@ -1,6 +1,7 @@
 # De mobiele app
 
 Laatst bijgewerkt: 2026-08-22
+
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
 ## De app installeren

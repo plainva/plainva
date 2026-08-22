@@ -110,12 +110,6 @@ Esta disposición pertenece al vault y viaja a tus otros dispositivos mediante [
 - **Zoom de la interfaz**: escala TODA la interfaz entre el 80 % y el 150 % — en **Configuración → App → Apariencia** o con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` restablece el zoom).
 - **Diálogos y avisos sin ventanas nativas**: las confirmaciones aparecen como diálogos de Plainva con el estilo de tu tema (las acciones destructivas tienen un botón rojo), los avisos breves como notificaciones discretas abajo a la derecha — se acabaron las ventanas emergentes del sistema.
 
-## Ver también
-
-- [Notas y Markdown](Notes_and_Markdown.md) — todo sobre cómo escribir
-- [Atajos de teclado](Keyboard_Shortcuts.md)
-- [FAQ y solución de problemas](FAQ.md)
-
 ## El grafo
 
 A través de **Ctrl/Cmd+Shift+G** (o la sección **Grafo** en la barra lateral derecha) ves tu vault como un mapa: carpetas como burbujas, notas como nodos, relaciones como aristas etiquetadas — incluyendo un modo de limpieza y viaje en el tiempo. Más detalles: [Grafo](Graph.md).
@@ -131,3 +125,9 @@ Las secciones que no tienen nada que mostrar para la nota abierta — **Esquema*
 - **por debajo de 232 px** — el calendario muestra **una semana en lugar del mes** (siete días, número de semana abajo a la derecha); una cuadrícula mensual tendría aquí celdas de 14 píxeles y dejaría de ser un calendario. El grafo se vuelve más corto, y los retroenlaces muestran el nombre del archivo sin la línea de ruta.
 
 La barra lateral derecha no puede bajar de **200 px** — ninguna sección es utilizable por debajo de eso. La izquierda sigue bajando hasta 150 px, porque los nombres de archivo simplemente se truncan.
+
+## Ver también
+
+- [Notas y Markdown](Notes_and_Markdown.md) — todo sobre cómo escribir
+- [Atajos de teclado](Keyboard_Shortcuts.md)
+- [FAQ y solución de problemas](FAQ.md)

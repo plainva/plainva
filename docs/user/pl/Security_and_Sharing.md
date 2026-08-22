@@ -6,6 +6,8 @@
 
 **Bezpieczeństwo i udostępnianie** ma dwa poziomy. **Przegląd** (pierwszy poziom) pokazuje stan ochrony, **Zakończ migrację**, gdy pozostają resztki tekstu jawnego, **Usuń połączenie z zaszyfrowaną chmurą** oraz dwie karty otwierające drugi poziom — **Urządzenia i odzyskiwanie** i **Udostępnij innym**. Na drugim poziomie nawigacja po obszarach zastępuje lewą kolumnę ustawień, pogrupowana w **Twój dostęp** (Urządzenia, odzyskiwanie) i **Udostępnianie** (Członkowie, grupy, wycinki, publikacje); **‹ Przegląd** wraca do pierwszego poziomu. Widoczne akcje pozostają dostępne: akcja otwiera wymagany vault, połączenie, konfigurację lub odblokowanie. Cofnięcie dostępu może uruchomić wznawialne pełne szyfrowanie. Vault Slice tworzysz przez **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne są osobnym szyfrowanym workspace, a projekcja usuwa prywatne właściwości, wykluczone linki i osadzenia. Wydanie publiczne wymaga niezależnego audytu i testów Android/iOS na urządzeniach.
 
+Vault Slice tworzysz w czterech krokach: **Szczegóły → Zawartość → Uprawnienia → Przegląd**. Publikacje zewnętrzne korzystają z osobnej przestrzeni nazw zaszyfrowanego workspace. Oczyszczone projekcje usuwają prywatne właściwości frontmatter, neutralizują linki do wykluczonych notatek i pomijają wykluczone osadzenia. Uprawnienia Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV i S3 to dodatkowa ochrona, nigdy zamiennik dla zaszyfrowanych ról. Publiczne wydanie pozostaje zablokowane, dopóki nie zostaną odnotowane niezależny audyt kryptograficzny i rzeczywiste dowody z testów na dwóch urządzeniach z Androidem/iOS.
+
 Ostatni przegląd: 2026-08-20
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
@@ -19,8 +21,6 @@ Na telefonie sekcja najpierw podaje rzeczywisty stan tego sejfu: **Tylko na tym 
 3. Aktywuj workspace. Plainva publikuje podpisaną politykę i szyfruje wszystkie pliki do `.pvws/`. Lokalny vault pozostaje czytelny, a migracja wznawia się po przerwach.
 
 Stary tekst jawny pozostaje obok `.pvws/` podczas migracji. Można go jawnie usunąć dopiero przy stanie **Chroniony**; pliki lokalne nie są usuwane.
-
-Zmiany offline pozostają w trwałej kolejce. Usunięcia wymagają podpisanych tombstone, a równoległe zmiany są zachowane jako kopie `.CONFLICT-…`.
 
 ## W codziennej pracy
 
@@ -44,7 +44,9 @@ Slice obejmuje folder, wybór lub regułę dynamiczną po ścieżce, typie, taga
 
 ## Komentarze, wersje i kwarantanna
 
-Komentarze i znaczniki rozwiązania są szyfrowane i podpisane. **Historia wersji** czyta szyfrowane rewizje i przywraca wersję jako nową podpisaną zmianę lub kopię. Nieprawidłowy artefakt zdalny trafia do **Integralność i lokalne forki**: ponów, wyeksportuj ciphertext, oznacz naprawiony lub zignoruj. Nie blokuje pozostałej synchronizacji, a zdalny brak nigdy nie oznacza usunięcia.
+Commenter otrzymuje edytor tylko do odczytu z obszarem komentarzy. Komentarze i znaczniki rozwiązania same są zaszyfrowanymi, podpisanymi obiektami workspace'u. **Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.
+
+Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka.
 
 ## Prawidłowe usuwanie zaszyfrowanego vaulta
 

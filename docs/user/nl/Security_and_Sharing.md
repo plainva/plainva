@@ -6,6 +6,8 @@
 
 **Beveiliging en delen** heeft twee niveaus. Het **Overzicht** (eerste niveau) toont de beschermingsstatus, **Migratie afronden** wanneer er nog platte tekst overblijft, **Verbinding met de versleutelde cloud verwijderen**, en twee kaarten die het tweede niveau openen — **Apparaten en herstel** en **Delen met anderen**. Op het tweede niveau vervangt de gebiedsnavigatie de linkerkolom met instellingen, gegroepeerd in **Jouw toegang** (Apparaten, herstel) en **Delen** (Leden, groepen, slices, publicaties); **‹ Overzicht** keert terug naar het eerste niveau. Zichtbare acties blijven bruikbaar: een actie opent zo nodig de vault, verbinding, configuratie of ontgrendeling. Intrekken kan een hervatbare volledige hercodering starten. Maak een Vault Slice via **Details → Inhoud → Rechten → Controleren**. Externe publicaties leven in een aparte versleutelde workspace; de opgeschoonde projectie verwijdert privé-eigenschappen, uitgesloten links en embeds. Publieke release wacht op onafhankelijke cryptobeoordeling en echte Android/iOS-tests.
 
+Maak een Vault Slice met de vier stappen **Details → Inhoud → Rechten → Controleren**. Externe publicaties gebruiken een aparte versleutelde workspace-naamruimte. Opgeschoonde projecties verwijderen privé-eigenschappen uit de frontmatter, neutraliseren links naar uitgesloten notities en laten uitgesloten embeds weg. Rechten van Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV en S3 zijn extra bescherming, nooit een vervanging voor versleutelde rollen. Publieke release blijft geblokkeerd totdat de onafhankelijke cryptobeoordeling en echt bewijs met twee apparaten op Android/iOS zijn vastgelegd.
+
 Laatst gecontroleerd: 2026-08-20
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
@@ -19,8 +21,6 @@ Op mobiel noemt het onderdeel eerst de werkelijke staat van deze kluis: **Alleen
 3. Activeer de workspace. Plainva publiceert het ondertekende beleid en versleutelt alle bestanden naar `.pvws/`. De lokale vault blijft leesbaar en migratie wordt na onderbrekingen hervat.
 
 Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveiligd** kun je die expliciet verwijderen; lokale bestanden worden nooit verwijderd.
-
-Offline wijzigingen blijven in een duurzame wachtrij. Verwijderingen vereisen ondertekende tombstones en parallelle wijzigingen blijven als `.CONFLICT-…`-kopieën bewaard.
 
 ## Dagelijks gebruik
 
@@ -44,7 +44,9 @@ Een slice bevat een map, een selectie of een dynamische regel op pad, type, tags
 
 ## Opmerkingen, versies en quarantaine
 
-Opmerkingen en oplossingsmarkeringen zijn versleuteld en ondertekend. **Versiegeschiedenis** leest versleutelde revisies en herstelt een versie als nieuwe ondertekende wijziging of kopie. Een ongeldig extern artefact wordt geïsoleerd onder **Integriteit en lokale forks**: probeer opnieuw, exporteer ciphertext, markeer gerepareerd of negeer. Het blokkeert de overige synchronisatie niet en externe afwezigheid betekent nooit verwijdering.
+Commenter krijgt een alleen-lezen editor met een opmerkingengebied. Opmerkingen en oplossingsmarkeringen zijn zelf versleutelde, ondertekende workspace-objecten. **Versiegeschiedenis** leest versleutelde workspace-revisies en herstelt een oudere revisie als nieuwe ondertekende wijziging of als kopie.
+
+Ongeldige externe artefacten worden afzonderlijk geïsoleerd onder **Integriteit en lokale forks**. Je kunt ze opnieuw proberen, hun ciphertext exporteren, een extern gerepareerd artefact als gerepareerd markeren, of het bewust negeren. Eén ongeldig bestand blokkeert de rest van een geldige synchronisatie niet, en externe afwezigheid alleen betekent nooit verwijdering. Een wijziging van een lokaal programma zonder schrijfrecht blijft bewaard als een privé-forkkopie.
 
 ## Een versleutelde vault correct verwijderen
 

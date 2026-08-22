@@ -110,12 +110,6 @@ Deze indeling hoort bij de vault en reist mee naar je andere apparaten via [Sync
 - **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → App → Weergave** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).
 - **Native-vrije dialoogvensters**: bevestigingen verschijnen als Plainva-dialoogvensters in de stijl van je thema (destructieve acties krijgen een rode knop), korte meldingen als subtiele toasts rechtsonder — geen systeempopups meer.
 
-## Zie ook
-
-- [Notities & Markdown](Notes_and_Markdown.md) — alles over het schrijven
-- [Sneltoetsen](Keyboard_Shortcuts.md)
-- [FAQ & probleemoplossing](FAQ.md)
-
 ## De graaf
 
 Via **Ctrl/Cmd+Shift+G** (of de sectie **Graaf** in de rechterzijbalk) zie je je vault als een kaart: mappen als bubbels, notities als nodes, relaties als gelabelde edges — inclusief een opruimmodus en tijdreis. Details: [Graaf](Graph.md).
@@ -131,3 +125,9 @@ Secties die niets te tonen hebben voor de geopende notitie — **Structuur**, **
 - **onder 232 px** — de kalender toont **één week in plaats van de maand** (zeven dagen, weeknummer rechtsonder); een maandraster zou hier cellen van 14 pixel hebben en geen kalender meer zijn. De graaf wordt korter, en backlinks tonen de bestandsnaam zonder de padregel.
 
 De rechterzijbalk kan niet onder **200 px** komen — geen enkele sectie is daaronder nog bruikbaar. De linker gaat nog wel terug tot 150 px, omdat bestandsnamen gewoon worden afgekapt.
+
+## Zie ook
+
+- [Notities & Markdown](Notes_and_Markdown.md) — alles over het schrijven
+- [Sneltoetsen](Keyboard_Shortcuts.md)
+- [FAQ & probleemoplossing](FAQ.md)

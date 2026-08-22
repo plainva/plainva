@@ -1,6 +1,7 @@
 # Taken
 
 Laatst bijgewerkt: 2026-08-07
+
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
 ## Waarom een aparte weergave (en geen `.base`)

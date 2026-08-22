@@ -110,12 +110,6 @@ Die Anordnung gehört zum Vault und reist über die [Einstellungs-Synchronisatio
 - **Oberflächen-Zoom**: skaliert die GESAMTE Oberfläche zwischen 80 % und 150 % — unter **Einstellungen → App → Erscheinungsbild** oder per `Strg+Plus`/`Strg+Minus` (`Strg+0` setzt zurück).
 - **Eigene Dialoge & Hinweise**: Bestätigungen erscheinen als Plainva-Dialoge im Stil Deines Themes (destruktive Aktionen mit rotem Knopf), kurze Meldungen als dezente Hinweise unten rechts — keine System-Popups mehr.
 
-## Siehe auch
-
-- [Notizen & Markdown](Notes_and_Markdown.md) — alles über das Schreiben
-- [Tastenkürzel](Keyboard_Shortcuts.md)
-- [FAQ & Fehlerbehebung](FAQ.md)
-
 ## Der Graph
 
 Über **Strg/Cmd+Umschalt+G** (oder die Sektion **Graph** in der rechten Seitenleiste) siehst Du Dein Vault als Karte: Ordner als Blasen, Notizen als Knoten, Relationen als beschriftete Kanten — samt Aufräum-Modus und Zeitreise. Details: [Graph](Graph.md).
@@ -131,3 +125,9 @@ Abschnitte, die zur geöffneten Notiz nichts zu zeigen haben — **Gliederung**,
 - **unter 232 px** — der Kalender zeigt **eine Woche statt des Monats** (sieben Tage, Kalenderwoche rechts darunter); ein Monatsraster hätte hier 14 Pixel breite Zellen und wäre kein Kalender mehr. Der Graph wird flacher, und Backlinks zeigen nur noch den Dateinamen ohne Pfadzeile.
 
 Schmaler als **200 px** lässt sich die rechte Leiste nicht ziehen — darunter ist kein Abschnitt mehr bedienbar. Die linke Leiste darf weiter bis 150 px, weil Dateinamen dort einfach kürzen.
+
+## Siehe auch
+
+- [Notizen & Markdown](Notes_and_Markdown.md) — alles über das Schreiben
+- [Tastenkürzel](Keyboard_Shortcuts.md)
+- [FAQ & Fehlerbehebung](FAQ.md)

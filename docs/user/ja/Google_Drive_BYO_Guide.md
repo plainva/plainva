@@ -1,5 +1,7 @@
 # Google Drive同期の設定（Bring Your Own Credentials）
 
+最終更新: 2026-07-28
+
 Plainvaでローカル保管庫をGoogle Driveと同期するには、自前のGoogle API認証情報（Credentials）を使用できます。Plainvaはまだ（今のところ）Googleの中央CASA検証を通過していないため、この**Bring Your Own Credentials（BYO）**方式は、あなたの個人ファイルを安全に同期する方法を提供します。
 
 これは実質的に、あなただけが所有し、あなただけがアクセスできる自分専用の小さな「開発者プロジェクト」をGoogle上に構築する作業です。

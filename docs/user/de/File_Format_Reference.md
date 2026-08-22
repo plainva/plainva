@@ -531,14 +531,6 @@ Erzeugst Du eine Ordnerübersicht von Hand, ist die sichere Wahl, den Marker **n
 
 ---
 
-## Nicht-anfassen und Sicherheit
-
-- **`.plainva/`** enthält Backups und internen Zustand. Niemals daraus Programmlogik lesen oder hineinschreiben.
-- **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
-- **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
-- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
-- **Encoding:** UTF-8 ohne BOM, LF-Zeilenenden, überall.
-
 ### Graph-Ansichten (`plainva.render: "graph"`)
 
 Eine Graph-Ansicht wird wie jede nicht-native Ansicht gespeichert: `type: table` plus Render-Hinweis. Ihre Optionen liegen im SELBEN `views[i].plainva`-Namensraum:
@@ -578,6 +570,14 @@ views:
 ```
 
 Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, die in keiner Liste stehen, zeigt Plainva oben, neueste zuerst (Anlagezeit). Einträge, deren Datei nicht mehr existiert oder aus der Quellmenge gefallen ist, werden ignoriert und beim nächsten Speichern bereinigt. Beim Umbenennen oder Verschieben einer Notiz zieht Plainva die Pfade in beiden Listen automatisch nach; externe Werkzeuge müssen dasselbe tun. Obsidian ignoriert die Schlüssel und zeigt die Ansicht als Tabelle.
+
+## Nicht-anfassen und Sicherheit
+
+- **`.plainva/`** enthält Backups und internen Zustand. Niemals daraus Programmlogik lesen oder hineinschreiben.
+- **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
+- **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
+- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
+- **Encoding:** UTF-8 ohne BOM, LF-Zeilenenden, überall.
 
 ## Siehe auch
 

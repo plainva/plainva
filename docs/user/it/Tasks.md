@@ -1,6 +1,7 @@
 # Attività
 
 Ultimo aggiornamento: 2026-08-07
+
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
 ## Perché una vista separata (e non un `.base`)

@@ -1,5 +1,7 @@
 # Google Drive Sync instellen (Bring Your Own Credentials)
 
+Laatst bijgewerkt: 2026-07-28
+
 Om in Plainva een lokale vault te synchroniseren met je Google Drive, kun je eigen Google API-toegangsgegevens ("credentials") gebruiken. Omdat Plainva (nog) geen centrale CASA-verificatie door Google heeft doorlopen, biedt deze **Bring Your Own Credentials (BYO)**-aanpak een veilige manier om je privébestanden te synchroniseren.
 
 Je richt hierbij als het ware een eigen "ontwikkelaarsproject" bij Google in, dat uitsluitend van jou is en waartoe alleen jij toegang hebt.

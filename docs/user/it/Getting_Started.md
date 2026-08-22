@@ -114,12 +114,6 @@ Questa disposizione appartiene al vault e viaggia sui tuoi altri dispositivi tra
 
 Tramite **Ctrl/Cmd+Shift+G** (o la sezione **Grafo** nella barra laterale destra) vedi il tuo vault come una mappa: cartelle come bolle, note come nodi, relazioni come archi etichettati — inclusa una modalità di pulizia e il viaggio nel tempo. Dettagli: [Grafo](Graph.md).
 
-## Vedi anche
-
-- [Note e Markdown](Notes_and_Markdown.md) — tutto sulla scrittura
-- [Scorciatoie da tastiera](Keyboard_Shortcuts.md)
-- [FAQ e risoluzione dei problemi](FAQ.md)
-
 ## Memoria della barra laterale destra
 
 Le sezioni che non hanno nulla da mostrare per la nota aperta — **Struttura**, **Backlink**, **Proprietà**, **Database** — non compaiono affatto, invece di restare lì in grigio. L’intera barra laterale destra ricorda un’unica preferenza globale per le note; le viste a schermo intero senza contesto nota la chiudono solo temporaneamente.
@@ -131,3 +125,9 @@ Le sezioni che non hanno nulla da mostrare per la nota aperta — **Struttura**,
 - **sotto i 232 px** — il calendario mostra **una settimana invece del mese** (sette giorni, numero della settimana in basso a destra); una griglia mensile avrebbe qui celle da 14 pixel e smetterebbe di essere un calendario. Il grafo diventa più corto, e i backlink mostrano il nome del file senza la riga del percorso.
 
 La barra laterale destra non può scendere sotto i **200 px** — nessuna sezione è utilizzabile al di sotto. Quella sinistra scende ancora fino a 150 px, perché i nomi dei file si troncano semplicemente.
+
+## Vedi anche
+
+- [Note e Markdown](Notes_and_Markdown.md) — tutto sulla scrittura
+- [Scorciatoie da tastiera](Keyboard_Shortcuts.md)
+- [FAQ e risoluzione dei problemi](FAQ.md)

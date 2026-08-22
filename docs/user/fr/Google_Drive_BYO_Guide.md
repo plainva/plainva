@@ -1,5 +1,7 @@
 # Configurer la synchronisation Google Drive (avec vos propres identifiants)
 
+Dernière mise à jour : 2026-07-28
+
 Pour synchroniser un vault local avec votre Google Drive dans Plainva, vous pouvez utiliser vos propres identifiants API Google. Comme Plainva n'a pas (encore) subi la vérification CASA centrale de Google, cette approche **Bring Your Own Credentials (BYO)** offre un moyen sûr de synchroniser vos fichiers privés.
 
 Vous mettez en place ici, en quelque sorte, votre propre petit « projet de développeur » chez Google, qui vous appartient exclusivement et auquel vous seul avez accès.

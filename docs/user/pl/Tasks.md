@@ -1,6 +1,7 @@
 # Zadania
 
 Stan na: 2026-08-07
+
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
 ## Dlaczego osobny widok (a nie `.base`)

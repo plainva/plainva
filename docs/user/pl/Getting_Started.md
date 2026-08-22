@@ -110,12 +110,6 @@ Układ należy do vaultu i przenosi się na inne urządzenia (patrz [Konfiguracj
 - **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Aplikacja → Wygląd** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
 - **Okna dialogowe i powiadomienia bez natywnych okienek**: potwierdzenia pojawiają się jako okna dialogowe Plainva w stylu Twojego motywu (destrukcyjne akcje mają czerwony przycisk), krótkie komunikaty jako dyskretne powiadomienia w prawym dolnym rogu — koniec z systemowymi wyskakującymi okienkami.
 
-## Zobacz też
-
-- [Notatki i Markdown](Notes_and_Markdown.md) — wszystko o pisaniu
-- [Skróty klawiszowe](Keyboard_Shortcuts.md)
-- [FAQ i rozwiązywanie problemów](FAQ.md)
-
 ## Graf
 
 Przez **Ctrl/Cmd+Shift+G** (lub sekcję **Graf** w prawym pasku bocznym) widzisz swój sejf jako mapę: foldery jako bąbelki, notatki jako węzły, relacje jako oznaczone etykietami krawędzie — łącznie z trybem porządkowania i podróżą w czasie. Szczegóły: [Graf](Graph.md).
@@ -131,3 +125,9 @@ Sekcje, które nie mają nic do pokazania dla otwartej notatki — **Konspekt**,
 - **poniżej 232 px** — kalendarz pokazuje **jeden tydzień zamiast miesiąca** (siedem dni, numer tygodnia poniżej z prawej); siatka miesiąca miałaby tu komórki o szerokości 14 pikseli i przestałaby być kalendarzem. Graf robi się krótszy, a linki zwrotne pokazują nazwę pliku bez linii ze ścieżką.
 
 Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości żadna sekcja nie jest użyteczna. Lewy panel wciąż schodzi do 150 px, bo nazwy plików po prostu są ucinane.
+
+## Zobacz też
+
+- [Notatki i Markdown](Notes_and_Markdown.md) — wszystko o pisaniu
+- [Skróty klawiszowe](Keyboard_Shortcuts.md)
+- [FAQ i rozwiązywanie problemów](FAQ.md)

@@ -4,6 +4,8 @@ Stan na: 2026-08-22
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
+> **Eksperymentalne.** Kalendarz komunikuje się z prawdziwymi zewnętrznymi kontami (CalDAV, Google, Microsoft), których nie da się przećwiczyć w automatycznych testach Plainva. Działa i jest używany codziennie, ale traktuj go jako wersję zapoznawczą: zachowaj kopię zapasową i zgłaszaj, proszę, wszystko, co wygląda nietypowo.
+
 ## Łączenie konta
 
 Otwórz **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…**, wybierz dostawcę i w kroku wyboru usług zaznacz **Kalendarz i zadania**:

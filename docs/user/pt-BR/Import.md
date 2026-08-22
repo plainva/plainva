@@ -121,6 +121,7 @@ Todo importador declara seus limites na prévia e novamente no relatório. Os pr
 - **Arquivos do Logseq são copiados sem alterações** — propriedades `key:: value` e referências de bloco não são convertidas em propriedades ou links do Plainva.
 - **O que foi excluído continua excluído.** A lixeira do Simplenote e do Google Keep é ignorada — você decidiu abrir mão dessas notas uma vez, e uma importação não deve trazê-las de volta silenciosamente. Elas aparecem nomeadas no relatório, para que você veja o que ficou para trás.
 - **Exportações ZIP do Notion** associam linhas e páginas pelo título (veja acima) e não trazem relações entre bancos de dados.
+- **Tabelas e blocos de código em HTML perdem sua estrutura.** A conversão lê títulos, listas, ênfase, links e imagens; uma tabela vira o texto de suas células. Cada página afetada é citada no relatório.
 
 ## As datas também são trazidas
 
@@ -162,4 +163,3 @@ Bem no final está como **desfazer** a importação: tudo de uma execução fica
 - [Bancos de Dados (.base)](Databases_Base.md) — o que acontece com bancos de dados do Notion importados
 - [OKF](OKF.md) — o frontmatter que as notas importadas recebem
 - [Primeiros Passos](Getting_Started.md) — criar um vault separado para uma importação
-- **Tabelas e blocos de código em HTML perdem sua estrutura.** A conversão lê títulos, listas, ênfase, links e imagens; uma tabela vira o texto de suas células. Cada página afetada é citada no relatório.

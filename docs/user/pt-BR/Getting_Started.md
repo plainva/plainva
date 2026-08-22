@@ -110,12 +110,6 @@ A organização pertence ao vault e viaja para seus outros dispositivos (veja [C
 - **Zoom da interface**: redimensiona TODA a interface entre 80 % e 150 % — em **Configurações → App → Aparência** ou por `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` redefine).
 - **Diálogos e avisos sem janelas nativas**: as confirmações aparecem como diálogos do Plainva no estilo do seu tema (ações destrutivas ganham um botão vermelho), avisos curtos como notificações discretas no canto inferior direito — chega de pop-ups do sistema.
 
-## Veja também
-
-- [Notas & Markdown](Notes_and_Markdown.md) — tudo sobre a escrita
-- [Atalhos de Teclado](Keyboard_Shortcuts.md)
-- [FAQ e Solução de Problemas](FAQ.md)
-
 ## O grafo
 
 Por **Ctrl/Cmd+Shift+G** (ou a seção **Grafo** na barra lateral direita) você vê seu vault como um mapa: pastas como bolhas, notas como nós, relações como arestas rotuladas — incluindo um modo de limpeza e viagem no tempo. Detalhes: [Grafo](Graph.md).
@@ -131,3 +125,9 @@ Seções sem nada para mostrar na nota aberta — **Estrutura**, **Backlinks**, 
 - **abaixo de 232 px** — o calendário mostra **uma semana em vez do mês** (sete dias, número da semana embaixo à direita); uma grade mensal teria células de 14 pixels aqui e deixaria de ser um calendário. O grafo fica mais curto, e os backlinks mostram o nome do arquivo sem a linha do caminho.
 
 A barra lateral direita não pode ficar abaixo de **200 px** — nenhuma seção fica utilizável abaixo disso. A esquerda ainda vai até 150 px, porque os nomes de arquivo simplesmente são truncados.
+
+## Veja também
+
+- [Notas & Markdown](Notes_and_Markdown.md) — tudo sobre a escrita
+- [Atalhos de Teclado](Keyboard_Shortcuts.md)
+- [FAQ e Solução de Problemas](FAQ.md)

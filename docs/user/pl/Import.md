@@ -121,6 +121,7 @@ Każdy import podaje swoje ograniczenia w podglądzie, a potem ponownie w raporc
 - **Pliki Logseq są kopiowane bez zmian** — właściwości `key:: value` oraz odwołania do bloków nie są konwertowane na właściwości ani linki Plainva.
 - **Usunięte pozostaje usunięte.** Kosz Simplenote i Google Keep jest pomijany — te notatki zostały już raz odrzucone, a import nie powinien po cichu ich przywracać. Są wymienione z nazwy w raporcie, dzięki czemu widzisz, co zostało pominięte.
 - **Eksporty ZIP z Notion** dopasowują wiersze do stron po tytule (patrz wyżej) i nie przenoszą relacji między bazami danych.
+- **Tabele i bloki kodu HTML tracą strukturę.** Konwersja czyta nagłówki, listy, wyróżnienia, linki i obrazy; tabela staje się tekstem swoich komórek. Każda strona, której to dotyczyło, jest wymieniona w raporcie.
 
 ## Daty zostają przeniesione
 
@@ -162,4 +163,3 @@ Na samym dole znajduje się informacja, jak **cofnąć** import: wszystko z jedn
 - [Bazy danych (.base)](Databases_Base.md) — co dzieje się z zaimportowanymi bazami danych Notion
 - [OKF](OKF.md) — frontmatter, jaki otrzymują zaimportowane notatki
 - [Pierwsze kroki](Getting_Started.md) — tworzenie osobnego vaultu na potrzeby importu
-- **Tabele i bloki kodu HTML tracą strukturę.** Konwersja czyta nagłówki, listy, wyróżnienia, linki i obrazy; tabela staje się tekstem swoich komórek. Każda strona, której to dotyczyło, jest wymieniona w raporcie.

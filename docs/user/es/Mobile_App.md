@@ -1,6 +1,7 @@
 # La aplicación móvil
 
 Última actualización: 2026-08-22
+
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
 ## Instalar la aplicación

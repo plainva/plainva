@@ -6,6 +6,8 @@
 
 **Segurança e compartilhamento** tem dois níveis. A **Visão geral** (primeiro nível) mostra o status de proteção, **Concluir migração** quando restam sobras de texto simples, **Remover a conexão com a nuvem criptografada** e dois cartões que abrem o segundo nível — **Dispositivos e recuperação** e **Compartilhar com outros**. No segundo nível, a navegação por áreas substitui a coluna esquerda de configurações, agrupada em **Seu acesso** (Dispositivos, recuperação) e **Compartilhamento** (Membros, grupos, slices, publicações); **‹ Visão geral** volta ao primeiro nível. As ações visíveis continuam disponíveis: uma ação abre o vault, conexão, configuração ou desbloqueio necessário. A revogação pode iniciar recifragem completa retomável. Crie um Vault Slice por **Detalhes → Conteúdo → Permissões → Revisão**. Publicações externas ficam num workspace criptografado separado; a projeção higienizada remove propriedades privadas, links excluídos e incorporações. A liberação pública exige revisão criptográfica independente e testes reais Android/iOS.
 
+Crie um Vault Slice com as quatro etapas **Detalhes → Conteúdo → Permissões → Revisão**. Publicações externas usam um namespace de workspace criptografado separado. Projeções higienizadas removem propriedades privadas do frontmatter, neutralizam links para notas excluídas e omitem incorporações excluídas. As permissões do Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV e S3 são proteção adicional, nunca um substituto para funções criptografadas. A liberação pública continua bloqueada até que a revisão criptográfica independente e evidências reais de dois dispositivos em Android/iOS sejam registradas.
+
 Última revisão: 2026-08-20
 
 Plainva mantém o vault como arquivos legíveis no dispositivo e armazena a cópia na nuvem como objetos criptografados opacos. Depois de conectar uma conta, abra **Configurações → vault → Segurança e compartilhamento**.
@@ -19,8 +21,6 @@ No celular, a área informa primeiro o estado real deste vault: **Somente neste 
 3. Ative o workspace. Plainva publica a política assinada e criptografa todos os arquivos em `.pvws/`. O vault local continua legível e a migração retoma após interrupções.
 
 O texto simples antigo permanece ao lado de `.pvws/` durante a migração. Só no estado **Protegido** ele pode ser removido explicitamente; arquivos locais nunca são removidos.
-
-Alterações offline ficam em uma fila durável. Exclusões exigem tombstones assinados e alterações paralelas são preservadas como cópias `.CONFLICT-…`.
 
 ## No dia a dia
 
@@ -44,7 +44,9 @@ Um slice contém uma pasta, uma seleção ou uma regra dinâmica por caminho, ti
 
 ## Comentários, versões e quarentena
 
-Comentários e marcadores de resolução são criptografados e assinados. **Histórico de versões** lê revisões criptografadas e restaura uma versão como nova alteração assinada ou cópia. Um artefato remoto inválido é isolado em **Integridade e forks locais**: tente novamente, exporte o ciphertext, marque como reparado ou ignore. Ele não bloqueia o restante da sincronização e ausência remota nunca significa exclusão.
+Commenter recebe um editor somente leitura com uma área de comentários. Os comentários e os marcadores de resolução são, eles mesmos, objetos criptografados e assinados do workspace. **Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.
+
+Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork.
 
 ## Remover corretamente um vault cifrado
 

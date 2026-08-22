@@ -1,6 +1,7 @@
 # Tâches
 
 Dernière mise à jour : 2026-08-07
+
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
 ## Pourquoi une vue séparée (et pas une `.base`)

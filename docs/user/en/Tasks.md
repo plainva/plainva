@@ -1,6 +1,7 @@
 # Tasks
 
 Last updated: 2026-08-07
+
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
 ## Why a separate view (and not a `.base`)

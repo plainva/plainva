@@ -1,5 +1,7 @@
 # Setting up Google Drive Sync (Bring Your Own Credentials)
 
+Last updated: 2026-07-28
+
 To sync a local vault with your Google Drive in Plainva, you can use your own Google API credentials. Since Plainva has not (yet) gone through Google's central CASA verification, this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
 
 You essentially set up your own little "developer project" at Google that belongs to you alone and that only you can access.

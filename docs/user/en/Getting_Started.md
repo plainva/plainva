@@ -110,12 +110,6 @@ The arrangement belongs to the vault and travels to your other devices through [
 - **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → App → Appearance** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
 - **Native-free dialogs**: confirmations appear as Plainva dialogs styled by your theme (destructive actions get a red button), short notices as subtle toasts in the bottom right — no more system popups.
 
-## See also
-
-- [Notes & Markdown](Notes_and_Markdown.md) — everything about writing
-- [Keyboard Shortcuts](Keyboard_Shortcuts.md)
-- [FAQ & Troubleshooting](FAQ.md)
-
 ## The graph
 
 Via **Ctrl/Cmd+Shift+G** (or the **Graph** section in the right sidebar) you see your vault as a map: folders as bubbles, notes as nodes, relations as labeled edges — including a cleanup mode and time travel. Details: [Graph](Graph.md).
@@ -131,3 +125,9 @@ Sections with nothing to show for the open note — **Outline**, **Backlinks**, 
 - **below 232 px** — the calendar shows **one week instead of the month** (seven days, week number below right); a month grid would have 14-pixel cells here and stop being a calendar. The graph gets shorter, and backlinks show the file name without the path line.
 
 The right panel cannot go below **200 px** — no section is usable under that. The left one still goes down to 150 px, because file names simply truncate.
+
+## See also
+
+- [Notes & Markdown](Notes_and_Markdown.md) — everything about writing
+- [Keyboard Shortcuts](Keyboard_Shortcuts.md)
+- [FAQ & Troubleshooting](FAQ.md)

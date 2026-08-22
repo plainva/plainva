@@ -4,6 +4,8 @@
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
+> **Experimental.** O calendário se comunica com contas externas reais (CalDAV, Google, Microsoft) que não podem ser exercitadas nos testes automatizados do Plainva. Funciona e é usado diariamente, mas trate-o como uma prévia: guarde uma cópia de segurança e, por favor, relate qualquer coisa que pareça estranha.
+
 ## Conectando uma conta
 
 Abra **Configurações → seu vault → Contas na nuvem → Conectar conta…**, escolha um provedor e, na etapa de serviços, marque **Calendário e tarefas**:

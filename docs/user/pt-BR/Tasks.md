@@ -1,6 +1,7 @@
 # Tarefas
 
 Última revisão: 2026-08-07
+
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
 ## Por que uma visualização separada (e não um `.base`)

@@ -1,6 +1,7 @@
 # Aplikacja mobilna
 
 Stan na: 2026-08-22
+
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
 ## Instalacja aplikacji

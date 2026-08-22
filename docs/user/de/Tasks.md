@@ -1,6 +1,7 @@
 # Aufgaben
 
 Stand: 2026-08-07
+
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
 ## Warum eine eigene Ansicht (und keine `.base`)
