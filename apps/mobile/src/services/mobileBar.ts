@@ -32,6 +32,33 @@ export function mobileBarTabs(value: AreaOrder): TabScreenId[] {
   return visibleAreas(value) as TabScreenId[];
 }
 
+/**
+ * What the RAIL carries (plan Mobile-Feedback, P2/E3): every area of the pool,
+ * in the arranged order.
+ *
+ * The 3–5 bound is a thumb's budget on a phone bar, not a property of the
+ * arrangement — a rail is a tall column with room for all of them. It inherited
+ * the cut only because one list fed both shapes, which left a tablet showing
+ * three destinations beside an empty column. The order is the same one the
+ * person arranged; only the line that hides the tail is ignored here.
+ */
+export function mobileRailTabs(value: AreaOrder): TabScreenId[] {
+  return [...value.order] as TabScreenId[];
+}
+
+/**
+ * What the bar SHOWS, given the shape it is in.
+ *
+ * Everything downstream turns on this one list: which tab a captured note lands
+ * in, whether the areas sheet switches a tab or pushes an overlay, and which
+ * tab the shell falls back to when the arrangement changes. Answering the
+ * question separately in each of those places is how a destination ends up
+ * visible in the rail and still treated as if it were hidden.
+ */
+export function shownBarTabs(value: AreaOrder, rail: boolean): TabScreenId[] {
+  return rail ? mobileRailTabs(value) : mobileBarTabs(value);
+}
+
 export function loadMobileBar(vaultId: string | null): Promise<AreaOrder> {
   return loadBarLayout(BAR, vaultId);
 }

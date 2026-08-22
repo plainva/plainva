@@ -544,11 +544,25 @@ textarea {
   gap: var(--space-2);
   width: 88px;
   flex: 0 0 auto;
-  padding: var(--space-3) var(--space-1) calc(var(--space-3) + env(safe-area-inset-bottom));
+  /* The capsule never needed a top inset — it floats at the BOTTOM. A rail
+     runs the full height, so its first icon lands under the status bar (and on
+     a notched tablet under the camera) unless it says otherwise. The bottom
+     inset stays for the same reason it always did: the home indicator. */
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-1)
+    calc(var(--space-3) + env(safe-area-inset-bottom));
   border-right: 1px solid var(--border-color-light);
+  /* Every area lives here now, so the column can outgrow a short window. */
+  overflow-y: auto;
 }
 .m-tabbar--rail .m-tab {
   flex: 0 0 auto;
+}
+
+/* Pushes what follows to the foot of the rail. On the phone the bar has no
+   spacer child at all, so this shape exists only where a rail does. */
+.m-tabbar--rail .m-tab-spacer {
+  flex: 1 1 auto;
+  min-height: var(--space-3);
 }
 /* The FAB belongs to the working surface, not to the bar it used to clear. */
 [data-window="medium"] .m-fab-float--above-tabs,

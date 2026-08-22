@@ -9,6 +9,7 @@ import {
   type ISettingsStore,
 } from "@plainva/ui";
 import { TAB_POOL } from "./navigation";
+import { mobileBarTabs, mobileRailTabs, shownBarTabs } from "./services/mobileBar";
 
 /**
  * The phone's navigation bar is the shared bar model's fifth bar (S10). These
@@ -121,5 +122,42 @@ describe("migrating the phone's own two settings into the model", () => {
     const existing = { order: ["mail", "notes", "today", "tasks", "calendar", "graph"], visibleCount: 3 };
     const out = await migrate({ [barLayoutKey("mobileBar", "v1")]: existing }, { tabSlots: ["notes"], barTabCount: 2 });
     expect(out).toEqual(existing);
+  });
+});
+
+describe("what each bar SHAPE shows", () => {
+  /**
+   * The 3–5 bound is a thumb's budget on a phone bar, not a property of the
+   * arrangement. The rail inherited it because one list fed both shapes, and a
+   * tablet ended up showing three destinations beside an empty column.
+   */
+  it("gives the rail the whole pool and the phone bar its visible slots", () => {
+    const value = sanitizeAreaOrder(undefined, spec);
+    const rail = mobileRailTabs(value);
+    const phone = mobileBarTabs(value);
+
+    expect(rail).toEqual(value.order);
+    expect(rail).toHaveLength(TAB_POOL.length);
+    expect(phone).toHaveLength(value.visibleCount);
+    expect(phone.length).toBeLessThan(rail.length);
+    // Same arrangement, one shape just stops early: the rail must not reorder.
+    expect(rail.slice(0, phone.length)).toEqual(phone);
+
+    // And the rule the shell actually asks, so a caller cannot pick the wrong
+    // half: one question, answered by the shape it is given.
+    expect(shownBarTabs(value, true)).toEqual(rail);
+    expect(shownBarTabs(value, false)).toEqual(phone);
+  });
+
+  it("keeps the arrangement when an area is moved", () => {
+    const value = moveArea(sanitizeAreaOrder(undefined, spec), "graph", 1, spec);
+    expect(mobileRailTabs(value)).toEqual(value.order);
+    expect(mobileRailTabs(value)[1]).toBe("graph");
+  });
+
+  it("hands back a copy — a caller cannot rearrange the stored order", () => {
+    const value = sanitizeAreaOrder(undefined, spec);
+    mobileRailTabs(value).reverse();
+    expect(mobileRailTabs(value)).toEqual(value.order);
   });
 });

@@ -357,3 +357,20 @@ export function pushCapturedNote(
   const tab = slots.includes("notes") ? "notes" : state.activeTab;
   return pushEntry({ ...state, activeTab: tab }, entry);
 }
+
+/**
+ * Pool-screen id -> pushable stack entry.
+ *
+ * The counterpart to TAB_POOL: that one says what an area IS, this one says
+ * how to reach it when it is not a tab. Both are the pool's vocabulary, so
+ * they belong to the same module — a shell that has to know how to build a
+ * `mail` entry is a shell that knows one area too many.
+ */
+export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
+  notes: { kind: "folder", path: "" },
+  today: { kind: "today", path: "" },
+  tasks: { kind: "tasks", path: "" },
+  calendar: { kind: "pimcalendar", path: "" },
+  mail: { kind: "mail", path: "" },
+  graph: { kind: "graphmap", path: "" },
+};

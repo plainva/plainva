@@ -35,7 +35,13 @@ import { describe, expect, it } from "vitest";
 // components/StartupSheets.tsx. They answer the same question ("is there
 // anything from last time you need to know about?"), so grouping them is not a
 // line-count trick; the shell came out four lines smaller than before P8.
-const APP_TSX_LINE_BUDGET = 824;
+// Lowered from 824 with P2: "what does the bar show" moved into
+// services/mobileBar (shownBarTabs), and the pool-id -> stack-entry map into
+// navigation (SCREEN_ENTRY). The rail change would have grown the shell by
+// twenty lines; both blocks were answering questions the shell should be
+// ASKING — which is exactly what this budget is for. It came out smaller than
+// before P2.
+const APP_TSX_LINE_BUDGET = 819;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

@@ -101,10 +101,16 @@ describe("rescheduleReminders", () => {
     expect(sent[0].extra).toMatchObject({ uid: "standup", accountId: "a1", calendarId: "c1" });
     expect(getReminderState()).toMatchObject({ scheduled: 1, truncatedFrom: null, denied: false });
     // The notification says WHAT it is, not just when — the finding was that a
-    // task and an appointment arrived indistinguishable.
-    // Real i18n here, so this is the shipped sentence rather than a key: the
-    // body names the kind and then the moment.
-    expect(sent[0].body).toMatch(/^\S+ · \d{2}:\d{2}$/);
+    // task and an appointment arrived indistinguishable. Real i18n here, so
+    // this is the shipped sentence rather than a key: kind first, then moment.
+    //
+    // Deliberately not anchored on a time FORMAT. The wording and the clock
+    // belong to `reminderText`, whose own tests pin both locales exactly
+    // (including en-US's "02:05 PM"). Here the machine's locale decides, and
+    // this suite runs in node — where `navigator.language` is the OS's, not
+    // jsdom's fixed en-US. A stricter pattern passed in Germany and failed on
+    // the CI runner, which is a test that measures geography.
+    expect(sent[0].body).toMatch(/^\S+ · \S/);
     expect(sent[0].body).not.toContain("reminders.");
     expect(sent[0].smallIcon).toBe("ic_stat_event");
   });

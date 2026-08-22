@@ -1,6 +1,6 @@
-import { useRef, useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Settings } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
@@ -21,10 +21,16 @@ import { TAB_POOL, type TabScreenId } from "../navigation";
  * discoverable ways in. A short tap stays a tab switch.
  *
  * From the medium window class it becomes a navigation RAIL along the left
- * edge (S13, M3 Canonical Layouts): the same destinations in the same order,
+ * edge (S13, M3 Canonical Layouts): the destinations in the arranged order,
  * standing where a wider window has room and a thumb does not reach. The bar
  * retreat is a phone behaviour and stops there — a rail has no scroll to
  * follow, and nothing gains from it moving.
+ *
+ * The rail carries EVERY area (plan Mobile-Feedback, P2/E3), so it needs no
+ * “Areas” entry and no long press: both exist to reach what the bar had to
+ * leave out, and a rail leaves nothing out. In their place, at the foot, sits
+ * settings — on a tablet the rail is the standing navigation surface, and the
+ * way into settings should not be behind each screen's own ⋮.
  */
 export function NavBar({
   tabs,
@@ -32,13 +38,16 @@ export function NavBar({
   areasOpen,
   onPick,
   onOpenAreas,
+  onOpenSettings,
 }: {
+  /** What this shape shows: the visible slots on a phone, the pool in a rail. */
   tabs: TabScreenId[];
   /** The lit tab, or null while an overlay covers the tabs. */
   activeTab: TabScreenId | null;
   areasOpen: boolean;
   onPick: (id: TabScreenId) => void;
   onOpenAreas: () => void;
+  onOpenSettings: () => void;
 }) {
   const { t } = useTranslation();
   const pressTimer = useRef<number | null>(null);
@@ -69,11 +78,15 @@ export function NavBar({
     <nav
       aria-label="Tabs"
       className={`m-tabbar${rail ? " m-tabbar--rail" : ""}${!rail && away ? " is-away" : ""}`}
-      onContextMenu={(e) => { e.preventDefault(); haptics.medium(); onOpenAreas(); }}
-      onPointerDown={beginPress}
-      onPointerUp={cancelPress}
-      onPointerCancel={cancelPress}
-      onPointerLeave={cancelPress}
+      {...(rail
+        ? {}
+        : {
+            onContextMenu: (e: ReactMouseEvent) => { e.preventDefault(); haptics.medium(); onOpenAreas(); },
+            onPointerDown: beginPress,
+            onPointerUp: cancelPress,
+            onPointerCancel: cancelPress,
+            onPointerLeave: cancelPress,
+          })}
     >
       {tabs.map((id) => {
         const def = TAB_POOL.find((p) => p.id === id);
@@ -95,17 +108,34 @@ export function NavBar({
           </button>
         );
       })}
-      <button
-        className={`m-tab${areasOpen ? " is-active" : ""}`}
-        data-testid="tab-areas"
-        onClick={() => { haptics.light(); onOpenAreas(); }}
-        type="button"
-      >
-        <span className="m-tab-pill">
-          <LayoutGrid size={ICON.head} />
-        </span>
-        <span className="m-tab-label">{t("mobile.areas")}</span>
-      </button>
+      {rail ? (
+        <>
+          <span aria-hidden className="m-tab-spacer" />
+          <button
+            className="m-tab"
+            data-testid="rail-settings"
+            onClick={() => { haptics.light(); onOpenSettings(); }}
+            type="button"
+          >
+            <span className="m-tab-pill">
+              <Settings size={ICON.head} />
+            </span>
+            <span className="m-tab-label">{t("mobile.sectionSettings")}</span>
+          </button>
+        </>
+      ) : (
+        <button
+          className={`m-tab${areasOpen ? " is-active" : ""}`}
+          data-testid="tab-areas"
+          onClick={() => { haptics.light(); onOpenAreas(); }}
+          type="button"
+        >
+          <span className="m-tab-pill">
+            <LayoutGrid size={ICON.head} />
+          </span>
+          <span className="m-tab-label">{t("mobile.areas")}</span>
+        </button>
+      )}
     </nav>
   );
 }

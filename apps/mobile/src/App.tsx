@@ -48,7 +48,7 @@ import {
   loadMobileBar,
   migrateMobileBarLayout,
   mirrorLegacyBarFields,
-  mobileBarTabs,
+  shownBarTabs,
   saveMobileBar,
 } from "./services/mobileBar";
 import { createFolderPrompt } from "./screens/BrowseScreen";
@@ -69,9 +69,8 @@ import {
   activeNotePath,
   showsCaptureFab,
   tapTab,
-  type NavEntry,
+  SCREEN_ENTRY,
   type NavState,
-  type TabScreenId,
 } from "./navigation";
 import { PendingIntentRunner } from "./PendingIntentRunner";
 import { consumePendingShare, type PendingShare } from "./services/shareTarget";
@@ -101,17 +100,6 @@ const dailyPathFor = (iso: string) => {
   return { path: fullPath, title: dateStr };
 };
 
-/** Pool-screen id -> pushable stack entry (More menu, R2.5). */
-
-const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
-  notes: { kind: "folder", path: "" },
-  today: { kind: "today", path: "" },
-  tasks: { kind: "tasks", path: "" },
-  calendar: { kind: "pimcalendar", path: "" },
-  mail: { kind: "mail", path: "" },
-  graph: { kind: "graphmap", path: "" },
-};
-
 export default function App() {
   const { i18n, t } = useTranslation();
   const [vault, setVault] = useState<MobileVault | null>(null);
@@ -122,10 +110,14 @@ export default function App() {
   const [barLayout, setBarLayout] = useState<AreaOrder>(() =>
     sanitizeAreaOrder(undefined, barDef("mobileBar").spec),
   );
-  const slots = mobileBarTabs(barLayout);
   /** Areas sheet: the one place that reaches every area (E10). */
   const [areasOpen, setAreasOpen] = useState(false);
-  const [nav, setNav] = useState<NavState>(() => initialNavState(mobileBarTabs(barLayout)[0]));
+  // The shape decides the list, and the list decides which tab opens first.
+  // Both shapes start from the same arranged head, but reading the rule rather
+  // than one of its two answers is what keeps that true if the rule changes.
+  const [nav, setNav] = useState<NavState>(() =>
+    initialNavState(shownBarTabs(barLayout, getWindowClass() !== "compact")[0]),
+  );
   const [bump, setBump] = useState(0);
   const [onboarded, setOnboarded] = useState(getMobileSettings().onboarded);
   /** Release highlights / welcome on this start (H5) — resolved once. */
@@ -134,6 +126,7 @@ export default function App() {
   // Which layout the window is in (S13) — read here, with the other stores, so
   // it is never behind a conditional return.
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
+  const slots = shownBarTabs(barLayout, windowClass !== "compact");
   const [oauthPick, setOauthPick] = useState(false);
   // Stable so the picker's navigation effect doesn't re-fetch every render.
   const oauthListFolders = useCallback((p: string) => {
@@ -195,7 +188,8 @@ export default function App() {
     await migrateMobileBarLayout(vaultId);
     const next = await loadMobileBar(vaultId);
     setBarLayout(next);
-    setNav((s) => ensureVisibleTab(s, mobileBarTabs(next)));
+    // Read, not closed over: this callback is deliberately dependency-free.
+    setNav((s) => ensureVisibleTab(s, shownBarTabs(next, getWindowClass() !== "compact")));
   }, []);
 
   /**
@@ -762,6 +756,7 @@ export default function App() {
           activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
           areasOpen={areasOpen}
           onOpenAreas={() => setAreasOpen(true)}
+          onOpenSettings={() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" }))}
           onPick={(id) => void tabTapped(id, setNav)}
           tabs={slots}
         />

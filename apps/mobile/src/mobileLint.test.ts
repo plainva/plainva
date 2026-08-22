@@ -1808,6 +1808,15 @@ describe("the navigation capsule and the FAB", () => {
     expect(rail).not.toMatch(/backdrop-filter|--surface-glass/);
   });
 
+  it("keeps the rail out from under the status bar", () => {
+    // The capsule never needed a top inset — it floats at the BOTTOM. A rail
+    // runs the full height, so without this its first icon sits under the
+    // status bar, and on a notched tablet under the camera (finding 2).
+    const rail = rule(css(), ".m-tabbar--rail {");
+    expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-top\)/s);
+    expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-bottom\)/s);
+  });
+
   it("lets a theme whose material is opaque win the cascade", () => {
     // mobile.css loads AFTER the themes, so a theme rule at the same
     // specificity would silently lose its material to the capsule's. Both flat
