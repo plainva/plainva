@@ -6,10 +6,18 @@ import { Button } from "@plainva/ui";
 import { TextInput } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { toast } from "@plainva/ui";
-import { scanVaultOkf, runOkfConversion, rollbackOkfConversion, type OkfRunReport } from "../services/okfConversion";
+import {
+  scanVaultOkf,
+  runOkfConversion,
+  convertVaultToOkf,
+  undoOkfConversion,
+  pendingOkfRun,
+  type OkfRunReport,
+  type PendingOkfRun,
+} from "../services/okfConversion";
 import { getConfiguredNoteType } from "../services/newNote";
 
-type Step = "scanning" | "options" | "preview" | "running" | "report";
+type Step = "scanning" | "pending" | "options" | "preview" | "running" | "report";
 
 /**
  * OKF conversion wizard (Gesamtplan W6): scan summary + options → dry-run
@@ -37,17 +45,37 @@ export const OkfConversionModal: React.FC<{
   const [preview, setPreview] = useState<OkfRunReport | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [report, setReport] = useState<OkfRunReport | null>(null);
+  const [pending, setPending] = useState<PendingOkfRun | null>(null);
+  // The backup folder the CURRENT run is writing into. A continued run keeps
+  // the folder of the run it continues, so one undo still covers both passes.
+  const backupRef = useRef<string | null>(null);
   const cancelRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
     if (!vaultPath || !vaultAdapter || !queryService) return;
     getConfiguredNoteType(vaultPath).then((v) => { if (alive) setDefaultType(v); }).catch(() => {});
-    scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter })
-      .then((result) => {
-        if (!alive) return;
-        setScan(result);
-        setStep("options");
+    // An interrupted run comes first: offering a fresh conversion to someone
+    // whose last one died halfway would start a SECOND backup folder, and
+    // neither folder would then restore the vault on its own.
+    pendingOkfRun({ vaultPath, queryService, adapter: vaultAdapter })
+      .catch(() => null)
+      .then((open) => {
+        if (!alive || !open) return null;
+        setPending(open);
+        setDefaultType(open.journal.options.defaultType);
+        setStrategy(open.journal.options.existingTypeStrategy ?? "keep");
+        if (open.journal.options.renameTo) setRenameTo(open.journal.options.renameTo);
+        setStep("pending");
+        return open;
+      })
+      .then((open) => {
+        if (!alive || open) return;
+        return scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter }).then((result) => {
+          if (!alive) return;
+          setScan(result);
+          setStep("options");
+        });
       })
       .catch((e) => {
         if (!alive) return;
@@ -92,15 +120,16 @@ export const OkfConversionModal: React.FC<{
    * Puts every file this run changed back, from its own backup folder.
    *
    * The backups were always written; what was missing was a way to use them
-   * that did not involve a file manager. Deliberately available only while the
-   * report is on screen: it undoes THIS run, and offering it later would
-   * suggest it can undo any of them.
+   * that did not involve a file manager. Available while the report is on
+   * screen — it undoes THIS run — and from the recovery card, where "this run"
+   * is the interrupted one the journal points at.
    */
-  const undoRun = async () => {
-    if (!report?.backupDir || !vaultAdapter) return;
+  const undoRun = async (dir?: string) => {
+    const backupDir = dir ?? backupRef.current ?? report?.backupDir;
+    if (!backupDir || !vaultAdapter || !vaultPath) return;
     setUndoing(true);
     try {
-      const result = await rollbackOkfConversion(vaultAdapter, report.backupDir);
+      const result = await undoOkfConversion(vaultPath, vaultAdapter, backupDir);
       if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
       else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
       onConverted?.();
@@ -111,18 +140,38 @@ export const OkfConversionModal: React.FC<{
     }
   };
 
-  const runConversion = async () => {
-    if (!vaultAdapter || !scan) return;
+  /**
+   * One pass over the vault, with the journal around it.
+   *
+   * `backupDir` is set when CONTINUING an interrupted run: the pass then keeps
+   * writing into that run's backup folder, so a single undo still covers
+   * everything both passes touched.
+   */
+  const runPass = async (target: OkfScanResult, backupDir?: string) => {
+    if (!vaultAdapter || !vaultPath) return;
     cancelRef.current = false;
-    setProgress({ done: 0, total: scan.convertiblePaths.length });
+    setProgress({ done: 0, total: target.convertiblePaths.length });
     setStep("running");
-    const result = await runOkfConversion({
-      adapter: vaultAdapter,
-      scan,
-      options,
-      onProgress: (done, total) => setProgress({ done, total }),
-      isCancelled: () => cancelRef.current,
-    });
+    let result: OkfRunReport;
+    try {
+      result = await convertVaultToOkf({
+        vaultPath,
+        adapter: vaultAdapter,
+        scan: target,
+        options,
+        backupDir,
+        onProgress: (done, total) => setProgress({ done, total }),
+        isCancelled: () => cancelRef.current,
+      });
+    } catch (e) {
+      // The journal could not be written, so nothing ran. Saying so is the
+      // point: a conversion nobody could recover from is worse than one that
+      // never started.
+      setScanError(e instanceof Error ? e.message : String(e));
+      setStep("options");
+      return;
+    }
+    backupRef.current = result.backupDir || backupDir || null;
     setReport(result);
     // Refresh index + open editors so the new frontmatter is visible everywhere.
     try {
@@ -138,6 +187,30 @@ export const OkfConversionModal: React.FC<{
     onConverted?.();
   };
 
+  const runConversion = async () => {
+    if (scan) await runPass(scan);
+  };
+
+  /**
+   * Picks an interrupted run back up.
+   *
+   * Scans FRESH rather than trusting the journal's file list: the run died
+   * halfway, so the vault has moved since — and the notes the first pass
+   * already converted simply no longer show up as violations.
+   */
+  const resume = async (backupDir: string) => {
+    if (!vaultPath || !vaultAdapter || !queryService) return;
+    setStep("scanning");
+    try {
+      const fresh = await scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter });
+      setScan(fresh);
+      await runPass(fresh, backupDir);
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : String(e));
+      setStep("options");
+    }
+  };
+
   const rowStyle: React.CSSProperties = { fontSize: "var(--text-md)", margin: "0.2rem 0" };
 
   const running = step === "running";
@@ -149,7 +222,17 @@ export const OkfConversionModal: React.FC<{
       hideClose={running}
       closeOnOverlay={!running}
       footer={
-        step === "options" ? (
+        step === "pending" && pending ? (
+          <>
+            <Button onClick={onClose}>{t("okf.recoveryLater")}</Button>
+            <Button disabled={undoing} onClick={() => void undoRun(pending.journal.backupDir)}>
+              {t("okf.recoveryRollback")}
+            </Button>
+            <Button variant="primary" onClick={() => void resume(pending.journal.backupDir)}>
+              {t("okf.recoveryResume")}
+            </Button>
+          </>
+        ) : step === "options" ? (
           <>
             <Button onClick={onClose}>{t("okf.cancel")}</Button>
             <Button variant="primary" onClick={runPreview} disabled={!scan}>{t("okf.previewButton")}</Button>
@@ -168,7 +251,7 @@ export const OkfConversionModal: React.FC<{
             {/* The backup folder was already named above; without a button it
                 is an instruction to copy 400 files back by hand (P8). */}
             {report.backupDir && report.changed.length > 0 && (
-              <Button disabled={undoing} onClick={undoRun}>{t("okf.undoRun")}</Button>
+              <Button disabled={undoing} onClick={() => void undoRun()}>{t("okf.undoRun")}</Button>
             )}
             {onOpenIndexManager && (
               <Button onClick={() => { onClose(); onOpenIndexManager(); }}>{t("okf.reportIndexButton")}</Button>
@@ -179,6 +262,26 @@ export const OkfConversionModal: React.FC<{
       }
     >
         {step === "scanning" && <div style={rowStyle}>{t("okf.scanning")}</div>}
+
+        {/* An interrupted run, found by its journal. It leaves an INCOMPLETE
+            vault, not a broken one — the conversion only adds frontmatter keys
+            — so this asks instead of rolling back on sight, and "Later" is a
+            real answer: the journal stays until the run is finished or undone. */}
+        {step === "pending" && pending && (
+          <div data-testid="okf-pending-run">
+            <div style={rowStyle}>
+              {t("okf.recoveryBody", { started: new Date(pending.journal.startedAt).toLocaleString() })}
+            </div>
+            {pending.remaining >= 0 && (
+              <div style={{ ...rowStyle, color: "var(--text-muted)" }}>
+                {t("okf.recoveryRemaining", { count: pending.remaining })}
+              </div>
+            )}
+            <div style={{ ...rowStyle, color: "var(--text-muted)" }}>
+              {t("okf.reportBackup", { dir: pending.journal.backupDir })}
+            </div>
+          </div>
+        )}
 
         {step === "options" && (
           <>

@@ -5,7 +5,7 @@ import { applyIndexChanges } from "./services/fileActions";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault, okfPromptDismissedKey, type SyncProviderId, type VaultSyncWorker } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
-import { scanVaultOkf } from "./services/okfConversion";
+import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
 // paint the first frame, and each becomes its own chunk that only ever
 // downloads when the user opens it.
@@ -214,6 +214,26 @@ function App() {
     okfPromptCheckedRef.current = vaultPath;
     (async () => {
       try {
+        // An interrupted conversion comes first — and instead of the offer,
+        // never on top of it. It leaves a vault where some notes carry the OKF
+        // fields and some do not, with nothing on screen saying so; the offer
+        // to convert would be the wrong sentence for that state, and two
+        // toasts about the same subject teach people to dismiss both.
+        //
+        // A persistent toast rather than a dialog, because that is what this
+        // shell does with OKF: the automatic explain-modal was deliberately
+        // removed and replaced by a toast with a button. The phone shows a
+        // sheet for the same thing — different shell, same three ways out:
+        // take a look, or decide later by dismissing it. The journal stays
+        // until the run is finished or undone, so declining is not forgetting.
+        const open = await pendingOkfRun({ vaultPath, queryService, adapter: vaultAdapter }).catch(() => null);
+        if (open) {
+          toast.progress(
+            t("okf.recoveryBody", { started: new Date(open.journal.startedAt).toLocaleString() }),
+            { label: t("okf.recoveryOpen"), run: () => setShowOkfWizard(true) }
+          );
+          return;
+        }
         const store = await getSettingsStore();
         if (await store.get<boolean>(okfPromptDismissedKey(vaultPath))) return;
         const scan = await scanVaultOkf({ vaultPath, queryService, adapter: vaultAdapter });

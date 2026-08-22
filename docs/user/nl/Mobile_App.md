@@ -92,7 +92,7 @@ In een OKF-kluis is de `index.md` de inhoudsopgave van een map. De telefoon bied
 
 Een hele vault naar het [OKF-formaat](OKF.md) tillen werkt nu ook vanaf de telefoon: **Instellingen → Vault → Onderhoud → Naar OKF-formaat omzetten**. De wizard scant, laat je het standaard-`type` kiezen, **noemt de betrokken notities** en schrijft pas daarna — elk bestand gaat vóór de wijziging naar de back-upmap.
 
-Omdat een telefoon een lopende app op elk moment mag afsluiten, komen er twee dingen bij die de desktop niet nodig heeft: de run stopt bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat — en de volgende keer dat je de vault opent, vraagt Plainva of een onderbroken run moet worden **voortgezet** of **teruggedraaid**. **Later** is een geldig antwoord; de vraag komt terug, ze gaat niet verloren.
+Omdat een telefoon een lopende app op elk moment mag afsluiten, stopt de run hier bovendien bij het volgende bestand wanneer je op **Pauze** tikt of de app naar de achtergrond gaat. Dat Plainva de volgende keer dat je de vault opent vraagt of een onderbroken run moet worden **voortgezet** of **teruggedraaid**, geldt voor beide apparaten; **Later** is een geldig antwoord, de vraag komt terug en gaat niet verloren.
 
 Een onderbroken run laat een deels omgezette vault achter, geen kapotte: er worden alleen frontmatter-velden toegevoegd, elke notitie blijft geldige Markdown en elke andere editor kan haar nog lezen.
 

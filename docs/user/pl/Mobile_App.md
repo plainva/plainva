@@ -92,7 +92,7 @@ W sejfie OKF `index.md` to spis treści folderu. Telefon oferuje dwa wejścia, p
 
 Przeniesienie całego vaulta do [formatu OKF](OKF.md) działa teraz także z telefonu: **Ustawienia → Vault → Konserwacja → Konwertuj do formatu OKF**. Kreator skanuje, pozwala wybrać domyślny `type`, **wymienia z nazwy notatki, których to dotyczy**, i dopiero wtedy zapisuje — każdy plik trafia przed zmianą do folderu kopii zapasowej.
 
-Ponieważ telefon może w każdej chwili zakończyć działającą aplikację, dochodzą dwie rzeczy, których komputer nie potrzebuje: przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło — a przy następnym otwarciu vaulta Plainva pyta, czy przerwany przebieg **kontynuować**, czy **wycofać**. **Później** to poprawna odpowiedź; pytanie wróci, nie przepada.
+Ponieważ telefon może w każdej chwili zakończyć działającą aplikację, tutaj przebieg zatrzymuje się dodatkowo przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. To, że Plainva przy następnym otwarciu vaulta pyta, czy przerwany przebieg **kontynuować**, czy **wycofać**, dotyczy obu urządzeń; **Później** to poprawna odpowiedź, pytanie wróci i nie przepada.
 
 Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, każda notatka pozostaje poprawnym Markdownem i każdy inny edytor nadal ją odczyta.
 

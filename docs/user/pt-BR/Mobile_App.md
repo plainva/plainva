@@ -92,7 +92,7 @@ Em um cofre OKF, o `index.md` é o índice de uma pasta. O telefone oferece dois
 
 Levar um vault inteiro para o [formato OKF](OKF.md) agora também funciona pelo telefone: **Configurações → Vault → Manutenção → Converter para o formato OKF**. O assistente faz a varredura, deixa você escolher o `type` padrão, **nomeia as notas afetadas** e só então escreve — cada arquivo passa pela pasta de backup antes de ser alterado.
 
-Como um telefone pode encerrar um app em execução a qualquer momento, somam-se duas coisas de que o desktop não precisa: a execução para no próximo arquivo quando você toca em **Pausar** ou o app vai para segundo plano — e, na próxima vez que você abrir o vault, o Plainva pergunta se uma execução interrompida deve ser **continuada** ou **revertida**. **Depois** é uma resposta válida; a pergunta volta, ela não se perde.
+Como um telefone pode encerrar um app em execução a qualquer momento, aqui a execução também para no próximo arquivo quando você toca em **Pausar** ou o app vai para segundo plano. O fato de o Plainva perguntar, na próxima vez que você abrir o vault, se uma execução interrompida deve ser **continuada** ou **revertida** vale para os dois dispositivos; **Depois** é uma resposta válida, a pergunta volta e não se perde.
 
 Uma execução interrompida deixa um vault parcialmente convertido, não quebrado: apenas campos de frontmatter são adicionados, cada nota continua sendo Markdown válido e qualquer outro editor ainda consegue lê-la.
 

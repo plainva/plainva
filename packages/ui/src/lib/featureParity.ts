@@ -407,22 +407,4 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "yes",
     verified: "2026-08-19",
   },
-  {
-    id: "okf-conversion-recovery",
-    title: "Notice an OKF conversion that was interrupted",
-    area: "vault",
-    kind: "gap",
-    desktop: "partial",
-    mobile: "yes",
-    desktopReason:
-      "Both shells back every file up before converting it and both can undo a " +
-      "finished run from the report. What only the phone has is a marker: a " +
-      "journal written before the first change, and a prompt on the next start " +
-      "offering to continue or roll back. It was built there first because being " +
-      "killed out of the background is the normal way a run ends on a phone — " +
-      "but a desktop that crashes mid-run leaves exactly the same partly " +
-      "converted vault and says nothing about it on the next launch. The journal " +
-      "is a file plus a read at start-up; nothing about it is mobile-specific.",
-    verified: "2026-08-21",
-  },
 ];

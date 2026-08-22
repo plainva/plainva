@@ -92,7 +92,7 @@ In einem OKF-Vault ist die `index.md` das Inhaltsverzeichnis eines Ordners. Am T
 
 Einen ganzen Vault auf das [OKF-Format](OKF.md) zu heben, geht jetzt auch vom Telefon: **Einstellungen → Vault → Wartung → In OKF-Format überführen**. Der Wizard scannt, lässt Dich den Standard-`type` wählen, **zeigt die betroffenen Notizen namentlich** und schreibt erst danach — vor jeder Änderung landet die Datei im Backup-Ordner.
 
-Weil ein Telefon eine laufende App jederzeit beenden darf, kommen zwei Dinge dazu, die es am Desktop so nicht braucht: der Lauf hält an der nächsten Datei an, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht — und beim nächsten Öffnen fragt Plainva, ob ein unterbrochener Lauf **fortgesetzt** oder **zurückgerollt** werden soll. **Später** ist eine gültige Antwort; die Frage kommt wieder, sie geht nicht verloren.
+Weil ein Telefon eine laufende App jederzeit beenden darf, hält der Lauf hier zusätzlich an der nächsten Datei an, wenn Du **Anhalten** tippst oder die App in den Hintergrund geht. Dass Plainva beim nächsten Öffnen fragt, ob ein unterbrochener Lauf **fortgesetzt** oder **zurückgerollt** werden soll, gilt auf beiden Geräten; **Später** ist eine gültige Antwort, die Frage kommt wieder und geht nicht verloren.
 
 Ein unterbrochener Lauf lässt einen unvollständig konvertierten Vault zurück, keinen kaputten: Es werden ausschließlich Frontmatter-Felder ergänzt, jede Notiz bleibt gültiges Markdown und in jedem anderen Editor lesbar.
 

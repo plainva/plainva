@@ -92,7 +92,7 @@ Dans un coffre OKF, l’`index.md` est la table des matières d’un dossier. Le
 
 Faire passer tout un vault au [format OKF](OKF.md) fonctionne désormais aussi depuis le téléphone : **Réglages → Vault → Maintenance → Convertir au format OKF**. L'assistant analyse, vous laisse choisir le `type` par défaut, **nomme les notes concernées**, et n'écrit qu'ensuite — chaque fichier passe par le dossier de sauvegarde avant d'être modifié.
 
-Parce qu'un téléphone peut arrêter une application en cours à tout moment, deux choses s'ajoutent, dont le bureau n'a pas besoin : l'exécution s'arrête au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan — et à la prochaine ouverture du vault, Plainva demande si une exécution interrompue doit être **continuée** ou **annulée**. **Plus tard** est une réponse valable ; la question revient, elle n'est pas perdue.
+Parce qu'un téléphone peut arrêter une application en cours à tout moment, l'exécution s'arrête ici en plus au fichier suivant lorsque vous touchez **Pause** ou que l'application passe en arrière-plan. Que Plainva demande, la prochaine fois que vous ouvrez le vault, si une exécution interrompue doit être **continuée** ou **annulée** vaut pour les deux appareils ; **Plus tard** est une réponse valable, la question revient et n'est pas perdue.
 
 Une exécution interrompue laisse un vault partiellement converti, pas cassé : seuls des champs de frontmatter sont ajoutés, chaque note reste du Markdown valide et tout autre éditeur peut encore la lire.
 

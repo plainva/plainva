@@ -92,7 +92,7 @@ In an OKF vault the `index.md` is a folder's table of contents. The phone offers
 
 Lifting a whole vault to the [OKF format](OKF.md) now works from the phone as well: **Settings → Vault → Maintenance → Convert to OKF format**. The wizard scans, lets you pick the default `type`, **names the affected notes**, and only writes afterwards — every file goes into the backup folder before it is changed.
 
-Because a phone may end a running app at any moment, two things are added that the desktop does not need: the run stops at the next file when you tap **Pause** or the app goes to the background — and the next time you open the vault, Plainva asks whether an interrupted run should be **continued** or **rolled back**. **Later** is a valid answer; the question comes back, it is not lost.
+Because a phone may end a running app at any moment, the run additionally stops at the next file when you tap **Pause** or the app goes to the background. That Plainva asks the next time you open the vault whether an interrupted run should be **continued** or **rolled back** applies to both devices; **Later** is a valid answer, the question comes back and is not lost.
 
 An interrupted run leaves a partly converted vault, not a broken one: only frontmatter fields are added, every note stays valid Markdown, and every other editor can still read it.
 
