@@ -45,6 +45,12 @@ El asistente muestra un estado por servicio ("conectado — n calendarios encont
   - **Las tareas se colorean de forma distinta a los eventos.** Un evento pasado ya terminó y aparece atenuado; una tarea **vencida**, en cambio, es más urgente y se **destaca**. Las tareas que vencen hoy aparecen normales, las futuras atenuadas, las completadas tachadas.
   - Un **icono de repetición** en la fila indica que esa tarea lleva una repetición. Aun así solo aparece **una vez** en el calendario — consulta [Tareas](Tasks.md) para saber por qué.
 
+## El calendario en su propia ventana
+
+Haz clic derecho en **Calendario** en la barra de acciones para abrirlo en una ventana propia — práctico junto a la nota en la que estás escribiendo. Si después vuelves a hacer clic en la entrada, esa ventana pasa al frente en lugar de abrir un segundo calendario.
+
+La paleta de comandos ofrece **Abrir ventana de comunicación**: una ventana con correo y calendario uno junto al otro. Más en [Primeros pasos](Getting_Started.md).
+
 ## Evento → nota de reunión
 
 El icono de nota en cualquier evento crea (o vuelve a abrir) su **nota de reunión** — una nota normal en tu carpeta de reuniones llamada `AAAA-MM-DD Título.md`, prerrellenada con la fecha, el lugar y los asistentes, más una pequeña marca `plainva.pim` en el frontmatter que la vincula al evento. Hacer clic en el mismo evento otra vez siempre abre la misma nota; una nota tuya que casualmente comparta el nombre nunca se toca.

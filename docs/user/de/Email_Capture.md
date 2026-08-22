@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-08-21
+Stand: 2026-08-22
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -56,6 +56,14 @@ Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto
 - **Antworten**, **Allen antworten** und **Weiterleiten** an jeder Nachricht öffnen dasselbe Fenster mit zitiertem Original und vorbelegten Empfängern; beim Weiterleiten kommen die Anhänge mit.
 - **Senden** läuft über SMTP (IMAP-Konten) oder Microsoft Graph (Microsoft-Konten).
 - **Diese Notiz per Mail** (⋮-Menü einer Notiz oder Befehlspalette) startet eine Nachricht mit der aktuellen Notiz als Anhang oder inline als Text.
+
+## E-Mail in einem eigenen Fenster
+
+Ein Rechtsklick auf **E-Mail** in der Aktionsleiste öffnet das Postfach in einem eigenen Fenster; **Kommunikations-Fenster öffnen** in der Befehls-Palette stellt E-Mail und Kalender nebeneinander.
+
+Beim Verfassen löst das Ausklapp-Symbol das Verfassen-Fenster heraus — Empfänger, Betreff, Text und Anhänge wandern mit, auch eine Adresse, die Du gerade erst getippt und noch nicht bestätigt hast. **Gesendet wird weiterhin aus dem Hauptfenster**: Das Verfassen-Fenster übergibt die Nachricht und schließt, der Hinweis mit **Rückgängig** erscheint dort, wo Du weiterarbeitest. So entscheidet das Schließen eines Fensters nie zwischen Senden und Verlieren.
+
+Ein Verfassen-Fenster wird beim nächsten Start **nicht** wiederhergestellt — was darin steht, lebt im Arbeitsspeicher. Schreib eine längere Nachricht also zu Ende oder speichere sie als Entwurf.
 
 ## Eine Notiz ohne den Mail-Client weitergeben
 

@@ -45,6 +45,12 @@ Ouvrez-le depuis la barre d'actions à gauche (icône calendrier) ou la palette 
   - **Les tâches sont teintées différemment des événements.** Un événement passé est terminé et apparaît estompé ; une tâche **en retard** est au contraire plus urgente et **mise en évidence**. Les tâches dues aujourd'hui apparaissent normalement, les futures atténuées, les terminées barrées.
   - Un **symbole de répétition** sur la ligne indique que cette tâche porte une répétition. Elle n'apparaît pourtant qu'**une fois** dans le calendrier — voir [Tâches](Tasks.md) pour savoir pourquoi.
 
+## Le calendrier dans sa propre fenêtre
+
+Faites un clic droit sur **Calendrier** dans la barre d'actions pour l'ouvrir dans sa propre fenêtre — pratique à côté de la note que vous rédigez. Cliquez de nouveau sur l'entrée ensuite et cette fenêtre revient au premier plan au lieu d'ouvrir un second calendrier.
+
+La palette de commandes propose **Ouvrir la fenêtre de communication** : une fenêtre avec les e-mails et le calendrier côte à côte. Plus de détails dans [Prise en main](Getting_Started.md).
+
 ## Événement → note de réunion
 
 L'icône de note sur n'importe quel événement crée (ou rouvre) sa **note de réunion** — une note normale dans votre dossier des réunions nommée `AAAA-MM-JJ Titre.md`, pré-remplie avec la date, le lieu et les participants, plus un petit marqueur `plainva.pim` dans le frontmatter qui la lie à l'événement. Cliquer à nouveau sur le même événement ouvre toujours la même note ; une de vos notes qui porte par hasard le même nom n'est jamais touchée.

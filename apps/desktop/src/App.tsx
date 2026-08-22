@@ -578,7 +578,8 @@ function App() {
         await openPresetWindow({
           vaultPath,
           preset: "mail-calendar",
-          title: t("window.openComms", { defaultValue: "Kommunikations-Fenster" }),
+          // The taskbar entry names the window, not the command that opened it.
+          title: t("window.commsTitle"),
         });
       } catch (e: any) {
         toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));

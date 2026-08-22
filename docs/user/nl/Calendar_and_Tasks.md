@@ -45,6 +45,12 @@ Open het via de actiebalk uiterst links (agenda-icoon) of het opdrachtenpalet (*
   - **Taken krijgen een andere kleur dan afspraken.** Een afgelopen afspraak is voorbij en verschijnt vaag; een **verlopen** taak is juist dringender en wordt **benadrukt**. Vandaag vervallende taken staan normaal, toekomstige gedempt, voltooide doorgestreept.
   - Een **herhalingspictogram** bij de regel toont dat deze taak een herhaling draagt. Toch verschijnt hij maar **eenmaal** in de agenda — zie [Taken](Tasks.md) voor het waarom.
 
+## Agenda in een eigen venster
+
+Rechtsklik op **Agenda** in de actiebalk om deze in een eigen venster te openen — handig naast de notitie waaraan je schrijft. Klik de vermelding daarna nog eens aan en dat venster komt naar voren in plaats van een tweede agenda te openen.
+
+Het opdrachtenpalet biedt **Communicatievenster openen**: één venster met e-mail en agenda naast elkaar. Meer in [Aan de slag](Getting_Started.md).
+
 ## Afspraak → vergadernotitie
 
 Het notitie-icoon bij een afspraak maakt zijn **vergadernotitie** aan (of opent hem opnieuw) — een gewone notitie in je vergadermap met de naam `JJJJ-MM-DD Titel.md`, vooraf ingevuld met datum, locatie en deelnemers, plus een kleine `plainva.pim`-markering in de frontmatter die hem koppelt aan de afspraak. Nogmaals klikken op dezelfde afspraak opent altijd dezelfde notitie; een eigen notitie die toevallig dezelfde naam draagt, wordt nooit aangeraakt.

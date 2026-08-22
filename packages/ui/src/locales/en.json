@@ -1480,7 +1480,18 @@
     "mPeek": "Header drags, corner grip resizes; ◀ ▶ its own history",
     "mResize": "Resize sidebars and split panes",
     "mCalendar": "Month name = pick month/year; day = daily note",
-    "mImageEditor": "Draw with the mouse (pen/arrow/rect/text/crop); zoom via buttons"
+    "mImageEditor": "Draw with the mouse (pen/arrow/rect/text/crop); zoom via buttons",
+    "catWindows": "Windows",
+    "mTabPopOut": "Open a tab in its own window",
+    "mViewPopOut": "Open a view in its own window",
+    "mComposePopOut": "Write a message in its own window",
+    "mWindowPin": "Keep a window on top",
+    "gRightClickTab": "Right-click the tab",
+    "gRightClickRibbon": "Right-click in the ribbon",
+    "gClickPopOut": "Click the pop-out icon",
+    "gClickPin": "Click the pin in the window title",
+    "noteViaPalette": "Through the command palette",
+    "noteWindowDedup": "A piece of content is only ever open in one window; asking again brings that window forward."
   },
   "calendar": {
     "prevMonth": "Previous month",
@@ -3624,6 +3635,7 @@
     "pinOnTop": "Always on top",
     "unpinOnTop": "Stop staying on top",
     "openComms": "Open communications window",
+    "commsTitle": "Communications",
     "settingsGroup": "Windows",
     "restoreWindows": "Restore window layout",
     "restoreWindowsDesc": "Reopens the auxiliary windows you had open when the app starts. Unsent messages are never restored."

@@ -45,6 +45,12 @@ Aprila dalla barra delle azioni all'estrema sinistra (icona del calendario) o da
   - **Le attività vengono colorate diversamente dagli eventi.** Un evento passato è concluso e appare attenuato; un'attività **scaduta** è invece più urgente e viene **messa in evidenza**. Le attività in scadenza oggi appaiono normali, quelle future attenuate, quelle completate barrate.
   - Un **simbolo di ripetizione** sulla riga mostra che l'attività porta una ripetizione. Compare comunque solo **una volta** nel calendario — vedi [Attività](Tasks.md) per il motivo.
 
+## Il calendario in una finestra propria
+
+Fai clic destro su **Calendario** nella barra delle azioni per aprirlo in una finestra propria — comodo accanto alla nota che stai scrivendo. Se poi tocchi di nuovo la voce, quella finestra viene portata in primo piano invece di aprire un secondo calendario.
+
+La palette dei comandi offre **Apri finestra comunicazioni**: una finestra con la posta e il calendario affiancati. Altro in [Per iniziare](Getting_Started.md).
+
 ## Evento → nota della riunione
 
 L'icona a forma di nota su qualsiasi evento crea (o riapre) la sua **nota della riunione** — una nota normale nella tua cartella riunioni chiamata `AAAA-MM-GG Titolo.md`, precompilata con data, luogo e partecipanti, più una piccola marcatura `plainva.pim` nel frontmatter che la collega all'evento. Un nuovo clic sullo stesso evento apre sempre la stessa nota; una tua nota che per caso condivide lo stesso nome non viene mai toccata.

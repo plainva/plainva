@@ -1485,7 +1485,18 @@
     "mPeek": "Arrastar o cabeçalho move a janela; a alça no canto redimensiona; ◀ ▶ tem histórico próprio",
     "mResize": "Redimensionar barras laterais e painéis divididos",
     "mCalendar": "Nome do mês = escolher mês/ano; dia = nota diária",
-    "mImageEditor": "Desenhar com o mouse (caneta/seta/retângulo/texto/cortar); zoom pelos botões"
+    "mImageEditor": "Desenhar com o mouse (caneta/seta/retângulo/texto/cortar); zoom pelos botões",
+    "catWindows": "Janelas",
+    "mTabPopOut": "Abrir uma aba em sua própria janela",
+    "mViewPopOut": "Abrir uma visão em sua própria janela",
+    "mComposePopOut": "Escrever uma mensagem em sua própria janela",
+    "mWindowPin": "Manter uma janela sempre visível",
+    "gRightClickTab": "Clique com o botão direito na aba",
+    "gRightClickRibbon": "Clique com o botão direito na barra de ações",
+    "gClickPopOut": "Clique no ícone de destacar",
+    "gClickPin": "Clique no alfinete no título da janela",
+    "noteViaPalette": "Pela paleta de comandos",
+    "noteWindowDedup": "Um conteúdo só fica aberto em uma janela; pedir de novo traz essa janela para frente."
   },
   "calendar": {
     "prevMonth": "Mês anterior",
@@ -3663,6 +3674,7 @@
     "pinOnTop": "Sempre visível",
     "unpinOnTop": "Não manter sempre visível",
     "openComms": "Abrir janela de comunicação",
+    "commsTitle": "Comunicação",
     "settingsGroup": "Janelas",
     "restoreWindows": "Restaurar a disposição das janelas",
     "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas."

@@ -1485,7 +1485,18 @@
     "mPeek": "Trascina l'intestazione per spostarla, l'angolo per ridimensionarla; ◀ ▶ hanno una cronologia propria",
     "mResize": "Ridimensiona le barre laterali e le viste divise",
     "mCalendar": "Nome del mese = scegli mese/anno; giorno = nota giornaliera",
-    "mImageEditor": "Disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti"
+    "mImageEditor": "Disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti",
+    "catWindows": "Finestre",
+    "mTabPopOut": "Aprire una scheda in una finestra propria",
+    "mViewPopOut": "Aprire una vista in una finestra propria",
+    "mComposePopOut": "Scrivere un messaggio in una finestra propria",
+    "mWindowPin": "Tenere una finestra in primo piano",
+    "gRightClickTab": "Clic destro sulla scheda",
+    "gRightClickRibbon": "Clic destro nella barra delle azioni",
+    "gClickPopOut": "Clic sull'icona di distacco",
+    "gClickPin": "Clic sulla puntina nel titolo della finestra",
+    "noteViaPalette": "Dalla palette dei comandi",
+    "noteWindowDedup": "Un contenuto è aperto in una sola finestra; richiederlo porta quella finestra in primo piano."
   },
   "calendar": {
     "prevMonth": "Mese precedente",
@@ -3663,6 +3674,7 @@
     "pinOnTop": "Sempre in primo piano",
     "unpinOnTop": "Non tenere più in primo piano",
     "openComms": "Apri finestra comunicazioni",
+    "commsTitle": "Comunicazioni",
     "settingsGroup": "Finestre",
     "restoreWindows": "Ripristina la disposizione delle finestre",
     "restoreWindowsDesc": "All'avvio riapre le finestre aggiuntive che erano aperte. I messaggi non inviati non vengono mai ripristinati."

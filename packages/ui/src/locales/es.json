@@ -1485,7 +1485,18 @@
     "mPeek": "El encabezado arrastra, la esquina cambia el tamaño; ◀ ▶ su propio historial",
     "mResize": "Cambiar el tamaño de las barras laterales y los paneles divididos",
     "mCalendar": "Nombre del mes = elegir mes/año; día = nota diaria",
-    "mImageEditor": "Dibujar con el ratón (lápiz/flecha/rectángulo/texto/recorte); zoom con los botones"
+    "mImageEditor": "Dibujar con el ratón (lápiz/flecha/rectángulo/texto/recorte); zoom con los botones",
+    "catWindows": "Ventanas",
+    "mTabPopOut": "Abrir una pestaña en su propia ventana",
+    "mViewPopOut": "Abrir una vista en su propia ventana",
+    "mComposePopOut": "Escribir un mensaje en su propia ventana",
+    "mWindowPin": "Mantener una ventana siempre visible",
+    "gRightClickTab": "Clic derecho en la pestaña",
+    "gRightClickRibbon": "Clic derecho en la barra de acciones",
+    "gClickPopOut": "Clic en el icono de desacople",
+    "gClickPin": "Clic en la chincheta del título de la ventana",
+    "noteViaPalette": "Desde la paleta de comandos",
+    "noteWindowDedup": "Un contenido solo está abierto en una ventana; pedirlo de nuevo trae esa ventana al frente."
   },
   "calendar": {
     "prevMonth": "Mes anterior",
@@ -3663,6 +3674,7 @@
     "pinOnTop": "Siempre visible",
     "unpinOnTop": "Dejar de mostrar siempre visible",
     "openComms": "Abrir ventana de comunicación",
+    "commsTitle": "Comunicación",
     "settingsGroup": "Ventanas",
     "restoreWindows": "Restaurar la disposición de ventanas",
     "restoreWindowsDesc": "Al iniciar, vuelve a abrir las ventanas adicionales que tenías abiertas. Los mensajes sin enviar nunca se restauran."

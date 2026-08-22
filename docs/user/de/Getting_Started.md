@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-08-15
+Stand: 2026-08-22
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -86,6 +86,23 @@ Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum ö
 - **Rechtsklick auf einen Tab** öffnet sein Menü: **Anheften**, **Neu laden**, **Im Split öffnen (rechts)**, **Pfad kopieren**, **Im Dateimanager zeigen** und die Schließen-Gruppe.
 - **Anheften** hält einen Tab fest: Er rückt an den Anfang der Leiste, zeigt statt des Schließen-Kreuzes eine Nadel und überlebt jedes **Andere schließen** / **Links schließen** / **Rechts schließen** / **Alle schließen**. Zum Schließen erst wieder **Lösen**.
 - **Neu laden** verwirft die Ansicht und liest die Datei frisch von der Platte — nützlich, wenn ein anderes Programm sie geändert hat. Hat der Tab ungespeicherte Änderungen, lehnt Plainva das Neuladen ab, statt Deine Arbeit zu überschreiben.
+
+## Mehrere Fenster
+
+Plainva muss nicht in einem Fenster bleiben. Was Du gerade brauchst, kann daneben stehen:
+
+- **Rechtsklick auf einen Tab → In neuem Fenster öffnen.** Der Tab verlässt dieses Fenster und lebt im neuen weiter; eine Kopie bleibt nicht zurück.
+- **Rechtsklick in der Aktionsleiste** auf **Graph**, **Aufgaben**, **Kalender** oder **E-Mail** → dieselbe Wahl. Klickst Du den Eintrag danach wieder an, holt Plainva das Fenster nach vorn, statt die Ansicht ein zweites Mal zu öffnen.
+- **Befehls-Palette → Kommunikations-Fenster öffnen** startet ein Fenster, das gleich geteilt ist: E-Mail links, Kalender rechts.
+- Beim **Verfassen einer Nachricht** löst das Ausklapp-Symbol das Fenster heraus — mitsamt allem, was Du schon getippt hast.
+
+Ein Zusatzfenster ist ein vollwertiges Plainva: es hat **Reiter**, lässt sich **teilen** und speichert über dieselbe Kette wie das Hauptfenster. Was es nicht hat, sind Seitenleisten, Aktionsleiste und Einstellungen — die bleiben im Hauptfenster.
+
+**Ein Inhalt ist immer nur in EINEM Fenster offen.** Öffnest Du eine Notiz, die woanders schon aufgeschlagen ist, kommt dieses Fenster nach vorn. Das ist Absicht: zwei Editoren auf derselben Datei sind der sicherste Weg, Arbeit zu verlieren. Beim Verfassen von Nachrichten gilt das nicht — zwei Mails gleichzeitig zu schreiben ist normal.
+
+Die **Nadel** im Fenstertitel hält ein Fenster im Vordergrund, während Du im anderen arbeitest.
+
+Beim nächsten Start kommen die Zusatzfenster eines Vaults dorthin zurück, wo sie waren. Wenn Du das nicht möchtest: **Einstellungen → Start & Verhalten → Fenster**. Eine **noch nicht gesendete Nachricht** wird nie wiederhergestellt — was in einem Verfassen-Fenster steht, lebt im Arbeitsspeicher, und ein Fenster, das behauptet, es aufbewahrt zu haben, wäre schlimmer als keins.
 
 ## Leisten & Bereiche anpassen
 

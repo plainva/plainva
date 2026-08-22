@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-08-15
+Ultimo aggiornamento: 2026-08-22
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -86,6 +86,23 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 - **Clic destro su una scheda** per aprire il suo menu: **Blocca**, **Ricarica**, **Apri nella vista divisa (destra)**, **Copia percorso**, **Mostra in Esplora file** e il gruppo di chiusura.
 - **Blocca** tiene ferma una scheda: si sposta all'inizio della barra delle schede, mostra una puntina invece della croce di chiusura e sopravvive a ogni **Chiudi le altre** / **Chiudi a sinistra** / **Chiudi a destra** / **Chiudi tutto**. Per chiuderla, tocca prima **Sblocca**.
 - **Ricarica** scarta la vista attuale e rilegge il file dal disco — utile quando un altro programma lo ha modificato. Se la scheda ha modifiche non salvate, Plainva rifiuta di ricaricare piuttosto che sovrascrivere il tuo lavoro.
+
+## Più finestre
+
+Plainva non deve restare in una sola finestra. Quello che ti serve adesso può stare accanto al tuo lavoro:
+
+- **Clic destro su una scheda → Apri in una nuova finestra.** La scheda lascia questa finestra e prosegue nella nuova; non ne resta una copia.
+- **Clic destro su Grafo, Attività, Calendario o E-mail nella barra delle azioni** per la stessa scelta. Se poi tocchi di nuovo la voce, Plainva porta in primo piano quella finestra invece di aprire la vista una seconda volta.
+- **Palette dei comandi → Apri finestra comunicazioni** avvia una finestra già divisa: la posta a sinistra, il calendario a destra.
+- Mentre **scrivi un messaggio**, l'icona a comparsa solleva la finestra di composizione in una finestra propria — con tutto ciò che hai già digitato.
+
+Una finestra aggiuntiva è Plainva a pieno titolo: porta le **schede**, si può **dividere** e salva attraverso la stessa catena della finestra principale. Quello che non porta sono le barre laterali, la barra delle azioni e le impostazioni — quelle restano nella finestra principale.
+
+**Un contenuto è aperto sempre e solo in UNA finestra.** Se apri una nota che è già visibile altrove, quella finestra viene portata in primo piano. È voluto: due editor sullo stesso file sono il modo più sicuro di perdere lavoro. La composizione è l'eccezione — scrivere due messaggi insieme è normale.
+
+La **puntina** nella barra del titolo tiene una finestra in primo piano mentre lavori nell'altra.
+
+Al prossimo avvio le finestre aggiuntive di un vault tornano dov'erano. Se preferisci di no: **Impostazioni → Avvio e comportamento → Finestre**. Un **messaggio non inviato** non viene mai ripristinato — quello che sta in una finestra di composizione vive in memoria, e una finestra che sostenesse di averlo conservato sarebbe peggio di nessuna finestra.
 
 ## Barre e aree
 

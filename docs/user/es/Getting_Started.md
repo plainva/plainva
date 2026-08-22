@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-08-15
+Última actualización: 2026-08-22
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -86,6 +86,23 @@ El **Calendario** de la derecha es una vista general por días: **hacer clic** e
 - **Clic derecho en una pestaña** para abrir su menú: **Fijar**, **Recargar**, **Abrir en panel dividido (derecha)**, **Copiar ruta**, **Mostrar en el administrador de archivos** y el grupo de cierre.
 - **Fijar** mantiene una pestaña en su lugar: se mueve al principio de la barra de pestañas, muestra un pin en lugar de la cruz de cierre y sobrevive a cada **Cerrar las demás** / **Cerrar a la izquierda** / **Cerrar a la derecha** / **Cerrar todo**. Para cerrarla, primero elige **Dejar de fijar**.
 - **Recargar** descarta la vista actual y vuelve a leer el archivo desde el disco — útil cuando otro programa lo ha modificado. Si la pestaña tiene cambios sin guardar, Plainva se niega a recargar en lugar de sobrescribir tu trabajo.
+
+## Varias ventanas
+
+Plainva no tiene por qué quedarse en una sola ventana. Lo que necesites ahora mismo puede colocarse junto a tu trabajo:
+
+- **Clic derecho en una pestaña → Abrir en una ventana nueva.** La pestaña deja esta ventana y sigue viva en la nueva; no queda ninguna copia atrás.
+- **Clic derecho en Grafo, Tareas, Calendario o Correo dentro de la barra de acciones** ofrece la misma opción. Si después vuelves a hacer clic en la entrada, Plainva trae esa ventana al frente en lugar de abrir la vista por segunda vez.
+- **Paleta de comandos → Abrir ventana de comunicación** inicia una ventana ya dividida: correo a la izquierda, calendario a la derecha.
+- Mientras **redactas un mensaje**, el icono de Abrir en su propia ventana saca la redacción a una ventana propia — con todo lo que ya has escrito.
+
+Una ventana auxiliar es un Plainva completo: tiene **pestañas**, se puede **dividir** y guarda a través de la misma cadena que la ventana principal. Lo que no tiene son las barras laterales, la barra de acciones ni la configuración — eso se queda en la ventana principal.
+
+**Un mismo contenido solo está abierto en UNA ventana a la vez.** Si abres una nota que ya se muestra en otro lugar, esa ventana pasa al frente. Esto es intencionado: dos editores sobre el mismo archivo son la forma más segura de perder trabajo. Redactar es la excepción — escribir dos mensajes a la vez es algo normal.
+
+El botón **Siempre visible** en el título de la ventana la mantiene en primer plano mientras trabajas en la otra.
+
+Al iniciar de nuevo, las ventanas auxiliares de un vault vuelven a aparecer donde estaban. Si prefieres que no sea así: **Configuración → Inicio y comportamiento → Ventanas**. Un **mensaje sin enviar** nunca se restaura — lo que hay en una ventana de redacción vive en memoria, y una ventana que afirmara haberlo conservado sería peor que ninguna ventana.
 
 ## Barras y áreas
 

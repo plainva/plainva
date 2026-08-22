@@ -45,6 +45,12 @@ Open it from the left action rail (calendar icon) or the command palette (**Open
   - **Tasks are tinted differently from events.** A past event is over and appears faded; an **overdue** task is more urgent instead and is **emphasised**. Tasks due today appear normal, future ones muted, completed ones struck through.
   - A **repeat glyph** on the row shows that the task carries a repetition. It still appears only **once** in the calendar — see [Tasks](Tasks.md) for why.
 
+## The calendar in its own window
+
+Right-click **Calendar** in the ribbon to open it in a window of its own — handy next to the note you are writing. Click the entry again afterwards and that window comes forward instead of opening a second calendar.
+
+The command palette offers **Open communications window**: one window with mail and calendar side by side. More in [Getting Started](Getting_Started.md).
+
 ## Event → meeting note
 
 The note icon on any event creates (or re-opens) its **meeting note** — a normal note in your meetings folder named `YYYY-MM-DD Title.md`, pre-filled with the date, location and attendees, plus a small `plainva.pim` marker in the frontmatter that ties it to the event. Clicking the same event again always opens the same note; a note of yours that happens to share the name is never touched.

@@ -45,6 +45,12 @@ Der Assistent zeigt je Dienst den Status („Verbunden — n Kalender gefunden")
   - **Aufgaben werden anders eingefärbt als Termine.** Ein vergangener Termin ist vorbei und erscheint blass; eine **überfällige** Aufgabe ist dagegen dringlicher und wird **hervorgehoben**. Heute fällige Aufgaben stehen normal, künftige gedämpft, erledigte durchgestrichen.
   - Ein **Wiederhol-Symbol** an der Zeile zeigt, dass diese Aufgabe eine Wiederholung trägt. Sie erscheint trotzdem nur **einmal** im Kalender — siehe [Aufgaben](Tasks.md) dazu, warum das so ist.
 
+## Kalender in einem eigenen Fenster
+
+Ein Rechtsklick auf **Kalender** in der Aktionsleiste öffnet ihn in einem eigenen Fenster — praktisch neben der Notiz, an der Du schreibst. Klickst Du den Eintrag danach wieder an, kommt dieses Fenster nach vorn, statt den Kalender ein zweites Mal zu öffnen.
+
+Über die Befehls-Palette gibt es **Kommunikations-Fenster öffnen**: ein Fenster mit E-Mail und Kalender nebeneinander. Mehr dazu in [Erste Schritte](Getting_Started.md).
+
 ## Termin → Meeting-Notiz
 
 Das Notiz-Symbol an einem Termin erstellt (oder öffnet erneut) seine **Meeting-Notiz** — eine normale Notiz im Meeting-Ordner mit dem Namen `JJJJ-MM-TT Titel.md`, vorbefüllt mit Datum, Ort und Teilnehmern, plus einer kleinen `plainva.pim`-Markierung im Frontmatter, die sie mit dem Termin verknüpft. Ein zweiter Klick auf denselben Termin öffnet immer dieselbe Notiz; eine zufällig gleichnamige eigene Notiz wird nie angetastet.

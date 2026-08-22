@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-15
+Last updated: 2026-08-22
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -86,6 +86,23 @@ The **Calendar** on the right is a day overview: **clicking** a date opens the [
 - **Right-click a tab** for its menu: **Pin**, **Reload**, **Open in split (right)**, **Copy path**, **Show in file manager**, and the closing group.
 - **Pin** holds a tab in place: it moves to the front of the strip, shows a pin instead of the close cross, and survives every **Close others** / **Close to the left** / **Close to the right** / **Close all**. To close it, **Unpin** first.
 - **Reload** discards the view and reads the file from disk again — handy when another program changed it. If the tab has unsaved edits, Plainva refuses to reload rather than overwrite your work.
+
+## Several windows
+
+Plainva does not have to stay in one window. Whatever you need right now can sit next to your work:
+
+- **Right-click a tab → Open in new window.** The tab leaves this window and lives on in the new one; no copy stays behind.
+- **Right-click Graph, Tasks, Calendar or Email in the ribbon** for the same choice. Click the entry again afterwards and Plainva brings that window forward instead of opening the view a second time.
+- **Command palette → Open communications window** starts a window that is already split: mail on the left, calendar on the right.
+- While **composing a message**, the pop-out icon lifts the composer into its own window — with everything you have already typed.
+
+An auxiliary window is a full Plainva: it carries **tabs**, can be **split**, and saves through the same chain as the main window. What it does not carry are the sidebars, the ribbon and the settings — those stay in the main window.
+
+**A piece of content is only ever open in ONE window.** Open a note that is already showing somewhere else and that window comes forward. This is deliberate: two editors on the same file are the surest way to lose work. Composing is the exception — writing two messages at once is ordinary.
+
+The **pin** in the window title keeps a window on top while you work in the other one.
+
+On the next start, a vault's auxiliary windows come back where they were. If you would rather they did not: **Settings → Startup & behavior → Windows**. An **unsent message** is never restored — what sits in a composer lives in memory, and a window claiming to have kept it would be worse than no window.
 
 ## Arranging bars & areas
 

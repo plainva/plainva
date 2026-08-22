@@ -1480,7 +1480,18 @@
     "mPeek": "Kop = slepen, hoekgreep = formaat wijzigen; ◀ ▶ eigen geschiedenis",
     "mResize": "Zijbalken en gesplitste panelen aanpassen",
     "mCalendar": "Maandnaam = maand/jaar kiezen; dag = dagnotitie",
-    "mImageEditor": "Tekenen met de muis (pen/pijl/rechthoek/tekst/bijsnijden); zoomen via de knoppen"
+    "mImageEditor": "Tekenen met de muis (pen/pijl/rechthoek/tekst/bijsnijden); zoomen via de knoppen",
+    "catWindows": "Vensters",
+    "mTabPopOut": "Een tabblad in een eigen venster openen",
+    "mViewPopOut": "Een weergave in een eigen venster openen",
+    "mComposePopOut": "Een bericht in een eigen venster schrijven",
+    "mWindowPin": "Een venster op de voorgrond houden",
+    "gRightClickTab": "Rechtsklik op het tabblad",
+    "gRightClickRibbon": "Rechtsklik in de actiebalk",
+    "gClickPopOut": "Klik op het uitklap-pictogram",
+    "gClickPin": "Klik op de speld in de venstertitel",
+    "noteViaPalette": "Via het opdrachtenpalet",
+    "noteWindowDedup": "Inhoud staat altijd maar in één venster open; nog een keer vragen haalt dat venster naar voren."
   },
   "calendar": {
     "prevMonth": "Vorige maand",
@@ -3624,6 +3635,7 @@
     "pinOnTop": "Altijd op de voorgrond",
     "unpinOnTop": "Niet meer op de voorgrond",
     "openComms": "Communicatievenster openen",
+    "commsTitle": "Communicatie",
     "settingsGroup": "Vensters",
     "restoreWindows": "Vensterindeling herstellen",
     "restoreWindowsDesc": "Opent bij het starten de extra vensters die openstonden. Niet-verzonden berichten worden nooit hersteld."

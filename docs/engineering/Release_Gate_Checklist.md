@@ -201,6 +201,37 @@ recorded — that is what this checkbox is for.
 - [ ] Where a highlight is deliberately desktop-only, the release notes say so
       plainly rather than letting phone users hunt for it.
 
+## 12. Multiple windows (desktop only)
+
+Auxiliary windows are the one surface where the automated suites are blind by
+construction: Playwright drives a single browser page, so it never sees a real
+second OS window, a monitor that was unplugged, or a taskbar entry. Everything
+below needs a human at a real desktop.
+
+- [ ] Pop out a note (tab context menu, "Open in new window"): the tab LEAVES the
+      main window, the new window carries its own title bar, and typing plus
+      saving works there.
+- [ ] Open the same note again from the main window: the existing window comes
+      forward instead of a second editor appearing. Same check for a view
+      (calendar/mail/graph/tasks) through the ribbon context menu.
+- [ ] Command palette, "Open communications window": ONE window comes up already
+      split, mail beside the calendar.
+- [ ] The pin keeps a window above the main window while you work in the latter.
+- [ ] Restart with two auxiliary windows open: both come back where they were
+      (Settings → Startup & behavior → Windows, on by default). Turn the switch
+      off, restart again: only the main window comes up.
+- [ ] **Unplug the second monitor, then restart.** A window that used to live
+      there must come up on a monitor you can actually reach, not off-screen.
+- [ ] Pop out a composer with text in it, then close that window: the message is
+      NOT restored on the next start — it lives in memory, and a window claiming
+      to have kept it would be worse than no window.
+- [ ] Send from a popped-out composer: the message leaves, the composer window
+      closes, and the undo notice appears in the MAIN window.
+- [ ] Close the main window while auxiliary windows are open: they close too, and
+      no orphaned process stays behind in the task manager.
+- [ ] Start the app a second time while it is running: the existing instance
+      comes forward instead of a second process opening the same vault.
+
 ## Results
 
 | Date | Build/Tag | OS/Provider | Item | Result |

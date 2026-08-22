@@ -350,3 +350,30 @@ test('the palette opens one window that starts with mail beside the calendar', a
   // clients on one account.
   expect(await page.evaluate(() => (window as any).createdWindows.length)).toBe(1);
 });
+
+/**
+ * The restore switch (P4/E5) in the settings.
+ *
+ * On by default: a window arrangement is something the user built, and dropping
+ * it every morning would make the whole feature feel accidental. The switch is
+ * the escape hatch — and it has to be findable, which is why it sits with the
+ * other startup behaviour rather than in a corner of its own.
+ */
+test('the window settings offer restoring the arrangement, on by default', async ({ page }) => {
+  await openWelcome(page);
+  await page.keyboard.press('Control+,');
+
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
+
+  const card = dlg.getByRole('group', { name: /^(Fenster|Windows)$/ });
+  await expect(card).toBeVisible();
+  const restore = card.getByRole('switch');
+  await expect(restore).toHaveAttribute('aria-checked', 'true');
+
+  // Turning it off must stick — and say what it means: an unsent message is
+  // never restored, whatever this switch says.
+  await restore.click();
+  await expect(restore).toHaveAttribute('aria-checked', 'false');
+  await expect(card).toContainText(/nicht wiederhergestellt|never restored/);
+});

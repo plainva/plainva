@@ -188,6 +188,19 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     ],
   },
   {
+    id: "windows",
+    labelKey: "shortcuts.catWindows",
+    keyboard: [
+      { descKey: "window.openComms", keys: [["Mod", "P"]], noteKey: "shortcuts.noteViaPalette" },
+    ],
+    mouse: [
+      { descKey: "shortcuts.mTabPopOut", gestureKey: "shortcuts.gRightClickTab" },
+      { descKey: "shortcuts.mViewPopOut", gestureKey: "shortcuts.gRightClickRibbon" },
+      { descKey: "shortcuts.mComposePopOut", gestureKey: "shortcuts.gClickPopOut" },
+      { descKey: "shortcuts.mWindowPin", gestureKey: "shortcuts.gClickPin", noteKey: "shortcuts.noteWindowDedup" },
+    ],
+  },
+  {
     id: "mouse",
     labelKey: "shortcuts.catMouse",
     keyboard: [],

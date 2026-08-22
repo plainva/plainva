@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-21
+Última actualización: 2026-08-22
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -56,6 +56,14 @@ En cuanto una cuenta puede enviar — una cuenta de **Microsoft**, o una cuenta 
 - **Responder**, **Responder a todos** y **Reenviar** en cualquier mensaje abren la misma ventana con el original citado y los destinatarios prerrellenados; un reenvío lleva consigo los adjuntos.
 - **Enviar** sale por SMTP (cuentas IMAP) o Microsoft Graph (cuentas de Microsoft).
 - **Esta nota por correo** (menú `⋮` de una nota, o la paleta de comandos) inicia un mensaje con la nota actual adjunta, o incrustada como texto.
+
+## El correo en su propia ventana
+
+Haz clic derecho en **Correo** en la barra de acciones para abrir el buzón en una ventana propia; **Abrir ventana de comunicación** en la paleta de comandos coloca correo y calendario uno junto al otro.
+
+Mientras redactas, el icono de Abrir en su propia ventana saca la redacción a su propia ventana — destinatarios, asunto, cuerpo y adjuntos viajan con ella, incluida una dirección que acabas de escribir y aún no has confirmado. **El envío sigue ocurriendo en la ventana principal**: la ventana de redacción entrega el mensaje y se cierra, y el aviso con **Deshacer** aparece donde sigues trabajando. Así, cerrar una ventana nunca decide entre enviar y perder.
+
+Una ventana de redacción **no** se restaura al iniciar de nuevo — lo que contiene vive en memoria. Así que termina un mensaje largo, o guárdalo como borrador.
 
 ## Entregar una nota sin el cliente de correo
 

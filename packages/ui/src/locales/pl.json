@@ -1490,7 +1490,18 @@
     "mPeek": "Nagłówek przeciąga, uchwyt w rogu zmienia rozmiar; ◀ ▶ własna historia",
     "mResize": "Zmień rozmiar paneli bocznych i podzielonych obszarów",
     "mCalendar": "Nazwa miesiąca = wybór miesiąca/roku; dzień = notatka dzienna",
-    "mImageEditor": "Rysuj myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków"
+    "mImageEditor": "Rysuj myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków",
+    "catWindows": "Okna",
+    "mTabPopOut": "Otwórz kartę we własnym oknie",
+    "mViewPopOut": "Otwórz widok we własnym oknie",
+    "mComposePopOut": "Napisz wiadomość we własnym oknie",
+    "mWindowPin": "Trzymaj okno na wierzchu",
+    "gRightClickTab": "Kliknij kartę prawym przyciskiem",
+    "gRightClickRibbon": "Kliknij pasek akcji prawym przyciskiem",
+    "gClickPopOut": "Kliknij ikonę wysunięcia",
+    "gClickPin": "Kliknij pinezkę w tytule okna",
+    "noteViaPalette": "Przez paletę poleceń",
+    "noteWindowDedup": "Treść jest otwarta tylko w jednym oknie; kolejna prośba przywołuje to okno na wierzch."
   },
   "calendar": {
     "prevMonth": "Poprzedni miesiąc",
@@ -3702,6 +3713,7 @@
     "pinOnTop": "Zawsze na wierzchu",
     "unpinOnTop": "Nie trzymaj na wierzchu",
     "openComms": "Otwórz okno komunikacji",
+    "commsTitle": "Komunikacja",
     "settingsGroup": "Okna",
     "restoreWindows": "Przywróć układ okien",
     "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane."

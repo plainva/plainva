@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-08-15
+Última revisão: 2026-08-22
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -86,6 +86,23 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 - **Clique com o botão direito em uma aba** para abrir seu menu: **Fixar aba**, **Recarregar**, **Abrir na divisão (direita)**, **Copiar caminho**, **Mostrar no gerenciador de arquivos** e o grupo de fechamento.
 - **Fixar aba** mantém uma aba no lugar: ela vai para o início da barra, mostra um alfinete em vez do X de fechar e sobrevive a qualquer **Fechar as outras abas** / **Fechar abas à esquerda** / **Fechar abas à direita** / **Fechar todas as abas**. Para fechá-la, primeiro **Desafixar aba**.
 - **Recarregar** descarta a visualização e relê o arquivo do disco — útil quando outro programa o alterou. Se a aba tiver alterações não salvas, o Plainva se recusa a recarregar em vez de sobrescrever seu trabalho.
+
+## Várias janelas
+
+O Plainva não precisa ficar em uma única janela. O que você precisa agora pode ficar ao lado do seu trabalho:
+
+- **Clique com o botão direito em uma aba → Abrir em nova janela.** A aba deixa esta janela e passa a viver na nova; nenhuma cópia fica para trás.
+- **Clique com o botão direito em Grafo, Tarefas, Calendário ou E-mail na barra de ações** para a mesma opção. Clique no item de novo depois e o Plainva traz aquela janela para a frente, em vez de abrir a visualização uma segunda vez.
+- **Paleta de comandos → Abrir janela de comunicação** inicia uma janela que já vem dividida: e-mail à esquerda, calendário à direita.
+- Ao **redigir uma mensagem**, o ícone de destacar leva a janela de redação para uma janela própria — com tudo o que você já digitou.
+
+Uma janela adicional é um Plainva completo: ela tem **abas**, pode ser **dividida** e salva pela mesma cadeia que a janela principal. O que ela não tem são as barras laterais, a barra de ações e as configurações — essas ficam na janela principal.
+
+**Um conteúdo está sempre aberto em apenas UMA janela.** Abrir uma nota que já está exibida em outro lugar traz aquela janela para a frente. Isso é intencional: dois editores no mesmo arquivo são o jeito mais certo de perder trabalho. Redigir é a exceção — escrever duas mensagens ao mesmo tempo é normal.
+
+O ícone **Sempre visível** no título da janela mantém uma janela em primeiro plano enquanto você trabalha na outra.
+
+Na próxima inicialização, as janelas adicionais de um vault voltam para onde estavam. Se você preferir que não voltem: **Configurações → Inicialização e comportamento → Janelas**. Uma **mensagem não enviada** nunca é restaurada — o que está em uma janela de redação vive na memória, e uma janela que afirmasse tê-la guardado seria pior do que nenhuma janela.
 
 ## Barras e áreas
 
