@@ -2,11 +2,14 @@ import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow } from "@plainva/core";
 import type { PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
-import { savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { savePimCredentials, clearPimCredentials, getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { noteAccountRemovedLocally } from "../settingsProfile";
 import {
+  accountToAdoptInto,
+  adoptAccountInto,
   parseGoogleUserInfo,
   parseMicrosoftMe,
+  verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
 } from "@plainva/ui";
 
@@ -31,12 +34,58 @@ export async function checkCalDavLogin(opts: { url: string; user: string; pass: 
   if (calendars.length === 0) throw new Error("No calendars found on this server.");
 }
 
+/**
+ * Moves a validated connect onto an account this vault already holds, when the
+ * provider says they are the same one.
+ *
+ * The move itself is shared with the phone (`adoptAccountInto`) — including the
+ * re-read of the possibly rotated credential and the order the cascade demands.
+ * What is local here is the question of WHETHER to adopt, and what the merged
+ * account row should say afterwards.
+ */
+async function adoptIfKnown(
+  runtime: PimRuntime,
+  vaultPath: string,
+  fresh: PimAccountRow,
+  creds: PimStoredCredentials
+): Promise<PimAccountRow | null> {
+  const existing = await runtime.cache.listAccounts().catch(() => [] as PimAccountRow[]);
+  const target = accountToAdoptInto(existing, {
+    id: fresh.id,
+    provider: fresh.provider,
+    identity: verifiedProviderIdentityOf(fresh),
+  });
+  if (!target) return null;
+
+  await adoptAccountInto(
+    {
+      getCredentials: getPimCredentials,
+      saveCredentials: (v, id, c) => savePimCredentials(v, id, c as PimStoredCredentials),
+      clearCredentials: clearPimCredentials,
+      reassignRows: (from, to) => runtime.cache.reassignAccountRows(from, to),
+      deleteAccount: (id) => runtime.cache.deleteAccount(id),
+    },
+    { vault: vaultPath, freshId: fresh.id, targetId: target.id, validatedCreds: creds },
+  );
+
+  // Keep the target's identity, take the fresh label and config: a re-connect
+  // is also how a renamed account gets its new name.
+  return { ...target, label: fresh.label, config: fresh.config, enabled: true };
+}
+
 async function finishConnect(
   runtime: PimRuntime,
   vaultPath: string,
   account: PimAccountRow,
   creds: PimStoredCredentials
 ): Promise<PimAccountRow> {
+  // Is this a repair of an account we already have? Connecting again is the
+  // normal fix for an expired sign-in, and every connect mints a new id — so
+  // without this the vault ends up with two rows for one account while the
+  // task anchors and cursors stay with the old one (C22).
+  const adopted = await adoptIfKnown(runtime, vaultPath, account, creds);
+  if (adopted) account = adopted;
+
   // Persist secret + account only after listCalendars proved the connection.
   await savePimCredentials(vaultPath, account.id, creds);
   await runtime.cache.upsertAccount(account);

@@ -164,6 +164,38 @@ export class PimCacheRepository {
   }
 
   /**
+   * Moves every cached row of one account onto another — the write half of
+   * merging two sign-ins that turned out to be the same account.
+   *
+   * This is the dangerous one. `pim_task_state` is the ONLY thing that ties a
+   * task note to the task it came from; drop a row here and the reconcile no
+   * longer recognises the note, imports the task a second time and stops
+   * propagating its deletion. That is why the rows are moved rather than
+   * dropped and re-earned, and why this runs in one transaction.
+   *
+   * **The target wins every collision.** Where both accounts hold the same
+   * (list, uid), the target's row is the one with the history — the note path
+   * it learned, the etag it last saw. The source has at most half a cycle
+   * behind it. `UPDATE OR IGNORE` skips the colliding row; the `DELETE` after
+   * it clears what stayed behind, so the source is left with nothing either
+   * way.
+   *
+   * The account row itself is not moved: the caller deletes it, and the order
+   * matters — `pim_calendars` and `pim_tasklists` cascade on that delete, so
+   * moving has to happen first or their rows go with it.
+   */
+  async reassignAccountRows(fromId: string, toId: string): Promise<void> {
+    if (fromId === toId) return;
+    await this.db.transaction(async () => {
+      for (const table of ACCOUNT_CACHE_TABLES) {
+        if (table.accountColumn !== "account_id") continue;
+        await this.db.execute(`UPDATE OR IGNORE ${table.name} SET account_id = ? WHERE account_id = ?`, [toId, fromId]);
+        await this.db.execute(`DELETE FROM ${table.name} WHERE account_id = ?`, [fromId]);
+      }
+    });
+  }
+
+  /**
    * Removes cached rows whose account no longer exists.
    *
    * `deleteAccount` above is thorough, but it is not the only way an account

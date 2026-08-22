@@ -11,6 +11,11 @@ import {
   PimConflictError,
 } from "@plainva/core";
 import { runTaskSync, readNoteFields, applyFieldsToNote, type TaskSyncAdapter, type TaskSyncOptions } from "./taskSync";
+// Static on purpose: as a dynamic import inside the test body, the first (and
+// only) lazy load of this file pulled the taskDatabase module chain in AT test
+// time and pushed a 5 s test to 5123 ms under parallel load. Loading it here
+// puts that cost in file setup, which the per-test timeout does not count.
+import { buildTaskDbFile } from "../taskDatabase";
 
 /**
  * Stage-3 reconciler against REAL SQLite (node:sqlite) + a fake vault: create
@@ -364,7 +369,6 @@ describe("a checkbox task database (one-click scaffold)", () => {
   });
 
   it("imports completed as the done checkbox (+coupled status) and a local un-check pushes", async () => {
-    const { buildTaskDbFile } = await import("../taskDatabase");
     const { path, content } = buildTaskDbFile("Aufgaben", {
       viewTable: "Tabelle",
       viewBoard: "Board",

@@ -21,6 +21,8 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
+  accountToAdoptInto,
+  adoptAccountInto,
   calendarPickerOptions,
   createCalendarEvent,
   deleteCalendarEvent,
@@ -31,6 +33,7 @@ import {
   resolveOrCreateMeetingNote,
   splitCalendarKey,
   updateCalendarEvent,
+  verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
 } from "@plainva/ui";
@@ -238,7 +241,33 @@ export async function addPimAccount(
     await clearPimCredentials(runtime.vaultId, id).catch(() => undefined);
     throw error;
   }
-  await runtime.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
+  // Is this a repair of an account we already have? Connecting again is the
+  // normal fix for an expired sign-in, and every connect mints a new id — so
+  // without this the phone ends up with two rows for one account while the
+  // task anchors and cursors stay with the old one (C22). Same rule, same
+  // shared helper as the desktop; only the plumbing differs.
+  const known = await runtime.cache.listAccounts().catch(() => []);
+  const adoptInto = accountToAdoptInto(known, {
+    id,
+    provider,
+    identity: verifiedProviderIdentityOf({ config }),
+  });
+  if (adoptInto) {
+    const cache = runtime.cache;
+    await adoptAccountInto(
+      {
+        getCredentials: getPimCredentials,
+        saveCredentials: (v, accountId, c) => savePimCredentials(v, accountId, c as PimStoredCredentials),
+        clearCredentials: clearPimCredentials,
+        reassignRows: (from, to) => cache.reassignAccountRows(from, to),
+        deleteAccount: (accountId) => cache.deleteAccount(accountId),
+      },
+      { vault: runtime.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
+    );
+    await cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config, enabled: true });
+  } else {
+    await runtime.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
+  }
   if (state.status === "off") setState({ status: "idle", message: null });
   runtime.worker.start();
   runtime.worker.triggerImmediate();

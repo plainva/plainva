@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   ACCOUNT_FIELD_SCOPE,
+  accountToAdoptInto,
+  adoptAccountInto,
+  VERIFIED_PROVIDER_IDENTITY_KEY,
   cloudRegistryToLogical,
   emptyAccountMap,
   importAccountMetadata,
@@ -677,5 +682,177 @@ describe("account profile: deletions travel, identities survive", () => {
     await importAccountMetadata({ pimAccounts: [pim({ id: "a1", label: "Google" })] }, api);
 
     expect(state.pim[0].config.plainvaVerifiedProviderIdentity).toEqual(identity);
+  });
+});
+
+describe("accountToAdoptInto", () => {
+  const identity = { issuer: "https://accounts.google.com", subject: "sub-1" };
+  const known = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    provider: "google",
+    config: { [VERIFIED_PROVIDER_IDENTITY_KEY]: identity, ...over },
+  });
+
+  it("adopts the account the provider says is the same one", () => {
+    expect(accountToAdoptInto([known("a1")], { id: "fresh", provider: "google", identity })?.id).toBe("a1");
+  });
+
+  it("never adopts without a verified identity — a label is not an identity", () => {
+    // Two people at one company share a display name. The settings sync already
+    // refuses to merge on a label alone, for exactly this reason.
+    //
+    // The guard is deliberately doubled: the early return here, and the filter
+    // branch that rejects a CANDIDATE without an identity. Removing only the
+    // early return leaves this assertion green — the second guard catches it —
+    // so a counter-check has to remove both, and then it is the "no identity of
+    // its own" case below that falls. Together they measure the behaviour
+    // rather than one particular guard.
+    expect(accountToAdoptInto([known("a1")], { id: "fresh", provider: "google", identity: null })).toBeNull();
+  });
+
+  it("never adopts across providers, even on an identical subject", () => {
+    const sameSubjectElsewhere = { ...known("a1"), provider: "microsoft" };
+    expect(accountToAdoptInto([sameSubjectElsewhere], { id: "fresh", provider: "google", identity })).toBeNull();
+  });
+
+  it("never adopts an account that has no identity of its own", () => {
+    expect(
+      accountToAdoptInto([{ id: "a1", provider: "google", config: {} }], { id: "fresh", provider: "google", identity })
+    ).toBeNull();
+  });
+
+  it("never adopts itself", () => {
+    expect(accountToAdoptInto([known("fresh")], { id: "fresh", provider: "google", identity })).toBeNull();
+  });
+
+  it("picks the same candidate on every device when several match", () => {
+    // Two devices reading the same list have to reach the same answer, so the
+    // choice is by id rather than by list order.
+    const byId = accountToAdoptInto([known("b2"), known("a1")], { id: "fresh", provider: "google", identity });
+    expect(byId?.id).toBe("a1");
+  });
+
+  it("treats a differently-cased issuer as the same account", () => {
+    const upper = known("a1", {
+      [VERIFIED_PROVIDER_IDENTITY_KEY]: { issuer: "HTTPS://ACCOUNTS.GOOGLE.COM", subject: "sub-1" },
+    });
+    expect(accountToAdoptInto([upper], { id: "fresh", provider: "google", identity })?.id).toBe("a1");
+  });
+
+  it("keeps a different subject apart — same issuer is not the same person", () => {
+    const other = known("a1", {
+      [VERIFIED_PROVIDER_IDENTITY_KEY]: { issuer: identity.issuer, subject: "someone-else" },
+    });
+    expect(accountToAdoptInto([other], { id: "fresh", provider: "google", identity })).toBeNull();
+  });
+});
+
+describe("adoptAccountInto", () => {
+  /** Records what happened and in which order — the order IS the contract. */
+  function ports(stored: Record<string, unknown> = {}) {
+    const log: string[] = [];
+    const slots = new Map(Object.entries(stored));
+    return {
+      log,
+      slots,
+      api: {
+        getCredentials: async (_v: string, id: string) => {
+          log.push(`get:${id}`);
+          return slots.get(id) ?? null;
+        },
+        saveCredentials: async (_v: string, id: string, c: unknown) => {
+          log.push(`save:${id}`);
+          slots.set(id, c);
+        },
+        clearCredentials: async (_v: string, id: string) => {
+          log.push(`clear:${id}`);
+          slots.delete(id);
+        },
+        reassignRows: async (from: string, to: string) => {
+          log.push(`move:${from}->${to}`);
+        },
+        deleteAccount: async (id: string) => {
+          log.push(`deleteAccount:${id}`);
+        },
+      },
+    };
+  }
+
+  const OPTS = { vault: "/v", freshId: "fresh", targetId: "old", validatedCreds: { token: "as-validated" } };
+
+  it("writes the ROTATED credential, not the one the caller validated with", async () => {
+    // Validating the connection already refreshed the token, and Microsoft
+    // rotates on every refresh — the auth provider persisted the new one under
+    // the throwaway id. Using the caller's copy would leave the surviving
+    // account holding a spent token.
+    const p = ports({ fresh: { token: "rotated-during-validation" } });
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.slots.get("old")).toEqual({ token: "rotated-during-validation" });
+  });
+
+  it("falls back to the validated credential when the slot holds nothing", async () => {
+    const p = ports();
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.slots.get("old")).toEqual({ token: "as-validated" });
+  });
+
+  it("moves the rows BEFORE deleting the account — calendars cascade on that delete", async () => {
+    const p = ports({ fresh: { token: "x" } });
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.log.indexOf("move:fresh->old")).toBeLessThan(p.log.indexOf("deleteAccount:fresh"));
+  });
+
+  it("saves to the target BEFORE clearing the throwaway slot", async () => {
+    // A duplicate slot is a tidiness problem; a cleared slot with nothing
+    // written yet locks the account out.
+    const p = ports({ fresh: { token: "x" } });
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.log.indexOf("save:old")).toBeLessThan(p.log.indexOf("clear:fresh"));
+  });
+
+  it("leaves the throwaway slot empty", async () => {
+    const p = ports({ fresh: { token: "x" } });
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.slots.has("fresh")).toBe(false);
+  });
+
+  it("still moves the rows when the credential slot cannot be read", async () => {
+    // A keychain that will not answer must not cost the task anchors.
+    const p = ports();
+    p.api.getCredentials = async () => {
+      throw new Error("keychain locked");
+    };
+    await adoptAccountInto(p.api, OPTS);
+    expect(p.log).toContain("move:fresh->old");
+    expect(p.slots.get("old")).toEqual({ token: "as-validated" });
+  });
+});
+
+describe("both shells adopt through the SHARED sequence", () => {
+  /**
+   * A source-reading guard, because this is the kind of rule a comment cannot
+   * hold: the tempting change is to inline "read the slot, save it, move the
+   * rows" into one shell, and a second copy would drift silently — the phone
+   * would keep a spent Microsoft token, or delete the account before its
+   * calendars had moved, and nothing here would go red.
+   *
+   * What it can prove: both shells call the shared decision and the shared
+   * sequence, each exactly once. What it cannot: that someone writes a third,
+   * differently-named copy elsewhere. That part is carried by the parity rule
+   * in CLAUDE.md — the same honesty the parity catalog states in its own header
+   * about the asymmetries nobody entered.
+   */
+  const repoRoot = join(import.meta.dirname, "..", "..", "..", "..");
+  const shells = [
+    ["desktop", join(repoRoot, "apps", "desktop", "src", "services", "pim", "pimAccounts.ts")],
+    ["mobile", join(repoRoot, "apps", "mobile", "src", "services", "pim", "pimService.ts")],
+  ] as const;
+
+  it.each(shells)("%s calls adoptAccountInto rather than re-implementing it", (_name, file) => {
+    const src = readFileSync(file, "utf8");
+    expect(src).toContain("accountToAdoptInto(");
+    expect(src).toContain("adoptAccountInto(");
+    // Exactly once: a second call site would be a second sequence.
+    expect(src.match(/adoptAccountInto\(/g)).toHaveLength(1);
   });
 });

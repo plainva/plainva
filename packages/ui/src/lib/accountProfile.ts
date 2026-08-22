@@ -277,6 +277,86 @@ export function verifiedProviderIdentityKey(identity: VerifiedProviderIdentity):
   return `${identity.issuer}\u0000${identity.subject}`;
 }
 
+/**
+ * Finds the account a fresh sign-in should be ADOPTED INTO rather than added
+ * beside — the read half of merging two sign-ins that are the same account.
+ *
+ * Connecting an account that is already here is the normal repair for an
+ * expired sign-in, and every connect mints a new local id. Without this the
+ * vault ends up with two rows for one account, and worse: the task anchors,
+ * the calendar selection and the sync cursors stay with the OLD id while the
+ * new one starts from nothing, so every mirrored task is imported a second
+ * time (finding 2026-08-19, C22).
+ *
+ * Only a VERIFIED provider identity may adopt. A label is not an identity —
+ * two people at one company share a display name, and the settings sync
+ * already refuses to merge on a label alone for exactly that reason. An
+ * account without one (CalDAV, a Graph profile that could not be read) is
+ * added beside, which is the old behaviour: untidy, never wrong.
+ *
+ * Deterministic on purpose: with more than one candidate the lowest id wins,
+ * so two devices reading the same list reach the same answer.
+ */
+export function accountToAdoptInto<T extends { id: string; provider: string; config?: Record<string, unknown> }>(
+  accounts: readonly T[],
+  fresh: { id: string; provider: string; identity: VerifiedProviderIdentity | null },
+): T | null {
+  if (!fresh.identity) return null;
+  const key = verifiedProviderIdentityKey(fresh.identity);
+  const matches = accounts.filter((a) => {
+    if (a.id === fresh.id || a.provider !== fresh.provider) return false;
+    const own = verifiedProviderIdentityOf(a);
+    return own ? verifiedProviderIdentityKey(own) === key : false;
+  });
+  if (matches.length === 0) return null;
+  return [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
+}
+
+/**
+ * What adopting a fresh connect into an existing account needs from a shell.
+ * The two shells name their vault differently (path here, id there) and keep
+ * their credentials in different stores; everything else is the same.
+ */
+export interface AccountAdoptionPorts {
+  getCredentials(vault: string, accountId: string): Promise<unknown | null>;
+  saveCredentials(vault: string, accountId: string, creds: unknown): Promise<void>;
+  clearCredentials(vault: string, accountId: string): Promise<void>;
+  reassignRows(fromId: string, toId: string): Promise<void>;
+  deleteAccount(accountId: string): Promise<void>;
+}
+
+/**
+ * Carries out the adoption: the throwaway account hands its credential and all
+ * its cached rows to the account it turned out to be, and disappears.
+ *
+ * Two things about this order are load-bearing.
+ *
+ * The credential is RE-READ from the throwaway slot instead of using the one
+ * the caller validated with. Validating already refreshed the token, and
+ * Microsoft rotates its refresh token on every refresh — the auth provider
+ * persists the rotated one immediately, under the id it was built with, which
+ * is the throwaway id. Writing the caller's original would put a spent token on
+ * the account that is meant to keep working.
+ *
+ * The rows move BEFORE the throwaway account row is deleted, because
+ * `pim_calendars` and `pim_tasklists` cascade on that delete. Reverse the two
+ * and the calendars are gone before anything can move them.
+ *
+ * The credential is written to the target BEFORE the throwaway slot is cleared:
+ * an interruption in between leaves a duplicate slot, which the next connect
+ * overwrites — losing the token in the other order would lock the account out.
+ */
+export async function adoptAccountInto(
+  ports: AccountAdoptionPorts,
+  opts: { vault: string; freshId: string; targetId: string; validatedCreds: unknown },
+): Promise<void> {
+  const rotated = (await ports.getCredentials(opts.vault, opts.freshId).catch(() => null)) ?? opts.validatedCreds;
+  await ports.saveCredentials(opts.vault, opts.targetId, rotated);
+  await ports.clearCredentials(opts.vault, opts.freshId).catch(() => undefined);
+  await ports.reassignRows(opts.freshId, opts.targetId);
+  await ports.deleteAccount(opts.freshId).catch(() => undefined);
+}
+
 export interface VerifiedProviderProfile {
   identity: VerifiedProviderIdentity;
   label?: string;
