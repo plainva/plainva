@@ -153,7 +153,9 @@ jobs:
       # It also covers the application binary, not just the installers: that is
       # the one users execute, and whether it was signed had been an open
       # question since 0.6.6 (it is — proven at 0.6.7 by extracting the NSIS
-      # archive, and now asserted every time).
+      # archive). The binary is taken OUT of the MSI for that, because the copy
+      # left in target/release is never signed; pointing at it failed the 0.6.8
+      # cut on a file that is not shipped.
       - name: Verify Windows signatures carry a timestamp
         if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
         shell: pwsh
@@ -161,9 +163,27 @@ jobs:
           $root = "apps/desktop/src-tauri/target/release"
           $targets = @(
             "$root/bundle/nsis/*.exe",
-            "$root/bundle/msi/*.msi",
-            "$root/plainva-desktop.exe"
+            "$root/bundle/msi/*.msi"
           )
+          # NOT "$root/plainva-desktop.exe": that is the raw build output, which Tauri
+          # never signs — it signs the copy it packs into the installers. Checking it
+          # failed the 0.6.8 cut for a file nobody ships. The binary a user actually gets
+          # is the one inside the MSI, so extract it and measure that (finding 2026-08-22).
+          $extract = Join-Path $env:RUNNER_TEMP "msi-extract"
+          $msi = Get-ChildItem -Path "$root/bundle/msi/*.msi" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if ($msi) {
+            New-Item -ItemType Directory -Force -Path $extract | Out-Null
+            $p = Start-Process msiexec -ArgumentList "/a `"$($msi.FullName)`" /qn TARGETDIR=`"$extract`"" -Wait -PassThru
+            if ($p.ExitCode -eq 0) {
+              $inner = Get-ChildItem -Path $extract -Recurse -Filter "plainva-desktop.exe" -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+              if ($inner) { $targets += $inner.FullName }
+              else { Write-Host "::warning::no plainva-desktop.exe inside the MSI" }
+            } else {
+              Write-Host "::warning::msiexec /a exited $($p.ExitCode); skipping the inner binary"
+            }
+          }
           $checked = 0
           $failed = @()
           foreach ($pattern in $targets) {
@@ -173,8 +193,11 @@ jobs:
               $checked++
               $sig = Get-AuthenticodeSignature $f.FullName
               $stamped = [bool]$sig.TimeStamperCertificate
-              "{0}: {1}, timestamped={2}, signer={3}" -f $f.Name, $sig.Status, $stamped,
-                $sig.SignerCertificate.Subject.Split(',')[0]
+              # Null-safe on purpose: an unsigned file has no SignerCertificate, and
+              # $null.Subject.Split() throws — which killed the step before the two
+              # checks below could report anything. A guard that crashes says nothing.
+              $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject.Split(',')[0] } else { '<unsigned>' }
+              "{0}: {1}, timestamped={2}, signer={3}" -f $f.Name, $sig.Status, $stamped, $signer
               if ($sig.Status -ne 'Valid') { $failed += "$($f.Name): status $($sig.Status)" }
               if (-not $stamped) { $failed += "$($f.Name): signed but NOT timestamped" }
             }
