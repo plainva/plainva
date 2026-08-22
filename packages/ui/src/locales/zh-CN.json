@@ -3577,5 +3577,8 @@
     "verifierPromptTitle": "由谁审阅？",
     "verifierPromptBody": "每次标记审阅时，Plainva 会记录你的名字（verified: human:<姓名>）。该名字仅保存在此设备上的这个仓库中。",
     "verifierPlaceholder": "你的名字"
+  },
+  "window": {
+    "openInNewWindow": "在新窗口中打开"
   }
 }

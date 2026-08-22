@@ -3616,5 +3616,8 @@
     "verifierPromptTitle": "Wer prüft?",
     "verifierPromptBody": "Plainva trägt Deinen Namen bei jeder Prüfung ein (verified: human:<Name>). Der Name bleibt auf diesem Gerät für diesen Vault.",
     "verifierPlaceholder": "Dein Name"
+  },
+  "window": {
+    "openInNewWindow": "In neuem Fenster öffnen"
   }
 }

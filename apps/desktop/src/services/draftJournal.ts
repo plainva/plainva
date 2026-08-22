@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readTextFile, remove, stat } from "@tauri-apps/plugin-fs";
+import { isOwnerWindow } from "./windowContext";
+import { getWindowBus } from "./windowBus";
 
 /**
  * Crash/draft recovery journal (hardening plan P2.4). While a note is dirty,
@@ -47,10 +49,21 @@ export function pathHash(input: string): string {
 
 let draftsRootPromise: Promise<{ dir: string; rootId: string }> | null = null;
 
+/**
+ * Where the journal lives — without creating anything.
+ *
+ * Split from `draftsRoot()` for the auxiliary windows (multi-window P1): they
+ * READ drafts locally, and creating the directory is an fs write their
+ * capability deliberately withholds. Nothing to read means nothing to create.
+ */
+async function draftsDir(): Promise<string> {
+  return join(await appDataDir(), "drafts");
+}
+
 async function draftsRoot(): Promise<{ dir: string; rootId: string }> {
   if (!draftsRootPromise) {
     draftsRootPromise = (async () => {
-      const dir = await join(await appDataDir(), "drafts");
+      const dir = await draftsDir();
       if (!(await exists(dir))) await mkdir(dir, { recursive: true });
       const rootId = await invoke<string>("register_write_root", { path: dir });
       return { dir, rootId };
@@ -72,6 +85,15 @@ export async function recordDraft(
   text: string,
   revision: number
 ): Promise<void> {
+  // An auxiliary window hands its snapshots to the owner, like every other
+  // write. Not a restriction but the same rule: one window owns the disk. The
+  // crash story is unchanged — a crash takes the whole process with it, and the
+  // owner's journal covers the drafts of every window in it.
+  if (!isOwnerWindow()) {
+    const bus = await getWindowBus();
+    await bus.request("draft-record", { vaultPath, notePath, text, revision });
+    return;
+  }
   const { rootId } = await draftsRoot();
   const entry: DraftEntry = { vaultPath, notePath, text, revision, savedAt: Date.now() };
   await invoke("write_file_atomic", {
@@ -87,8 +109,7 @@ export async function readDraft(
   notePath: string
 ): Promise<DraftEntry | null> {
   try {
-    const { dir } = await draftsRoot();
-    const file = await join(dir, pathHash(vaultPath), `${pathHash(notePath)}.json`);
+    const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
     if (!(await exists(file))) return null;
     const entry = JSON.parse(await readTextFile(file)) as DraftEntry;
     if (typeof entry?.text !== "string") return null;
@@ -107,9 +128,22 @@ export async function clearDraft(
   notePath: string,
   upToRevision: number
 ): Promise<void> {
+  if (!isOwnerWindow()) {
+    // `Infinity` does not survive JSON — null carries "force" over the bus.
+    const bus = await getWindowBus();
+    await bus
+      .request("draft-clear", {
+        vaultPath,
+        notePath,
+        upToRevision: Number.isFinite(upToRevision) ? upToRevision : null,
+      })
+      .catch(() => {
+        /* best-effort, same as the local path below */
+      });
+    return;
+  }
   try {
-    const { dir } = await draftsRoot();
-    const file = await join(dir, pathHash(vaultPath), `${pathHash(notePath)}.json`);
+    const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
     if (!(await exists(file))) return;
     if (upToRevision !== Infinity) {
       const entry = JSON.parse(await readTextFile(file)) as DraftEntry;

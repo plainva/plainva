@@ -3616,5 +3616,8 @@
     "verifierPromptTitle": "Who is reviewing?",
     "verifierPromptBody": "Plainva records your name with every review you mark (verified: human:<name>). The name is kept on this device for this vault.",
     "verifierPlaceholder": "Your name"
+  },
+  "window": {
+    "openInNewWindow": "Open in new window"
   }
 }

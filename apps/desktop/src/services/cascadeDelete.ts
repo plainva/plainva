@@ -1,7 +1,7 @@
 import {
   resolveLinkTarget,
   type IVaultAdapter,
-  type VaultIndexer,
+
   type VaultQueryService,
 } from "@plainva/core";
 import {
@@ -24,6 +24,7 @@ import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "./relations";
 import { loadAnchoredNotes } from "./pim/entryEventSync";
 import { requestSaveFlush } from "./saveFlush";
+import type { IndexerApi } from "./remoteIndexer";
 
 /**
  * Desktop side of the cascade deletion (plan Kaskadenloeschung): plan deps on
@@ -157,7 +158,12 @@ export interface CascadeExecuteResult {
 export async function executeDeletionPlan(opts: {
   adapter: IVaultAdapter;
   queryService: VaultQueryService;
-  indexer: VaultIndexer | null;
+  /**
+   * Accepted but unused: the host re-indexes after the plan runs (it knows
+   * which paths ended up deleted). Typed by the small API rather than the
+   * class so a client window can pass its stand-in (multi-window P1).
+   */
+  indexer: IndexerApi | null;
   syncWorker: { noteUserInitiatedDeletion(paths: string[]): void } | null;
   vaultPath: string | null;
   plan: DeletionPlan;

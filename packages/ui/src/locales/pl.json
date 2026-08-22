@@ -3694,5 +3694,8 @@
     "verifierPromptTitle": "Kto sprawdza?",
     "verifierPromptBody": "Plainva zapisuje Twoje imię przy każdym oznaczeniu (verified: human:<imię>). Imię pozostaje na tym urządzeniu dla tego vaulta.",
     "verifierPlaceholder": "Twoje imię"
+  },
+  "window": {
+    "openInNewWindow": "Otwórz w nowym oknie"
   }
 }

@@ -169,8 +169,95 @@ export async function closeAllAuxWindows(): Promise<void> {
   }
 }
 
+/**
+ * What the CENTRAL window currently has open in its tabs.
+ *
+ * The owner is the only place that can answer "is this content already open
+ * somewhere" for the whole app, and half the answer lives in React state
+ * (`usePaneLayout`). App keeps this mirror in sync; nothing else writes it.
+ */
+let ownerContents: ReadonlySet<string> = new Set();
+
+/** Called by App whenever the pane layout changes. */
+export function setOwnerOpenContents(paths: readonly string[]): void {
+  ownerContents = new Set(paths);
+}
+
+/** Does the central window have this content open in a tab? */
+export function ownerHasContent(path: string): boolean {
+  return ownerContents.has(path);
+}
+
+/** Where a piece of content ended up when it was asked for. */
+export type OpenContentResult =
+  | { where: "focused"; label: string }
+  | { where: "owner" }
+  | { where: "caller" };
+
+/**
+ * The one routing decision for "show me this content", app-wide (P1).
+ *
+ * Content is open ONCE (plan E2): opening something that another window
+ * already shows must bring that window forward, never draw a second copy. The
+ * owner is the only participant that can decide this, so both the owner's own
+ * UI and every auxiliary window's request go through here.
+ *
+ * `newWindow` is the popout: it MOVES the content into a fresh window. The
+ * caller (App) closes its tab afterwards — leaving it open would put the same
+ * note in two places, which is exactly what dedup exists to prevent.
+ */
+export async function openOrFocusContent(opts: {
+  vaultPath: string;
+  path: string;
+  newWindow?: boolean;
+  /** Label of the window that asked, so it is not told to focus itself. */
+  from?: string;
+  title?: string;
+}): Promise<OpenContentResult> {
+  const existing = findWindowForContent(opts.vaultPath, opts.path);
+  if (existing) {
+    if (existing.label === opts.from) return { where: "caller" };
+    const ok = await focusAuxWindow(existing.label);
+    if (ok) return { where: "focused", label: existing.label };
+    // The window died without telling us; fall through and open a fresh one.
+  }
+
+  if (opts.newWindow) {
+    const rec = await openAuxWindow({
+      role: "aux",
+      vaultPath: opts.vaultPath,
+      content: opts.path,
+      title: opts.title,
+    });
+    return { where: "focused", label: rec.label };
+  }
+
+  if (ownerHasContent(opts.path)) return { where: "owner" };
+  return { where: "caller" };
+}
+
+/** Remembers where a window is, so a later start can put it back (P4/E5). */
+export function noteWindowBounds(
+  label: string,
+  bounds: { x: number; y: number; width: number; height: number },
+): void {
+  const rec = open.get(label);
+  if (!rec) return;
+  rec.bounds = bounds;
+  persistWindows(rec.vaultPath);
+}
+
+/** Which content an auxiliary window shows now (it navigated on its own). */
+export function noteWindowContent(label: string, content: string | null): void {
+  const rec = open.get(label);
+  if (!rec || rec.content === content) return;
+  rec.content = content;
+  persistWindows(rec.vaultPath);
+}
+
 /** Test seam: forget the in-memory registry (never called by the app). */
 export function resetWindowRegistryForTest(): void {
   open.clear();
+  ownerContents = new Set();
   counter = 0;
 }

@@ -22,6 +22,7 @@ import { startBackupScheduler } from "../services/backupScheduler";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus } from "../services/ownerBus";
+import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -69,7 +70,10 @@ interface VaultState {
   /** The backup layer of the adapter chain (forceBackup/updatePolicy live here). */
   backupAdapter: BackupVaultAdapter | null;
   dbAdapter: TauriDatabaseAdapter | null;
-  indexer: VaultIndexer | null;
+  // Typed by what the app calls, not by the class: an auxiliary window gets a
+  // no-op stand-in (services/remoteIndexer.ts) because the owner indexes every
+  // delegated write itself. The real VaultIndexer satisfies this structurally.
+  indexer: IndexerApi | null;
   queryService: VaultQueryService | null;
   /** Read-model for the graph views (context graph, vault map, base graph). */
   graphService: GraphService | null;
@@ -1246,13 +1250,32 @@ export const VaultProvider: React.FC<{
     if (!isClient) return;
     let stop: (() => void) | null = null;
     let cancelled = false;
+    const offs: Array<() => void> = [];
     void getWindowBus()
       .then(async (bus) => {
-        const un = await bus.onBroadcast("index-changed", ({ paths, structural }) => {
-          triggerFileTreeUpdate(structural || paths.length === 0 ? undefined : paths);
-        });
-        if (cancelled) un();
-        else stop = un;
+        offs.push(
+          await bus.onBroadcast("index-changed", ({ paths, structural }) => {
+            triggerFileTreeUpdate(structural || paths.length === 0 ? undefined : paths);
+          }),
+        );
+        // A saved BODY is not an index change (fix C), so it travels on its own
+        // channel and is re-dispatched here as the local event the pinboard
+        // already listens for — the view code stays identical in both windows.
+        offs.push(
+          await bus.onBroadcast("note-saved", ({ path }) => {
+            window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+          }),
+        );
+        // The watcher lives in the owner. Without this an auxiliary window would
+        // never learn that the file under its editor changed on disk — the very
+        // case the editor's external-update logic exists for.
+        offs.push(
+          await bus.onBroadcast("file-changed", ({ path }) => {
+            window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
+          }),
+        );
+        if (cancelled) for (const off of offs.splice(0)) off();
+        else stop = () => { for (const off of offs.splice(0)) off(); };
       })
       .catch((e) => console.warn("[VaultContext] no window bus in this window", e));
     return () => {
@@ -1281,6 +1304,10 @@ export const VaultProvider: React.FC<{
         dbAdapter: services.dbAdapter,
         queryService: services.queryService,
         graphService: services.graphService,
+        // Not null: the editor treats a missing indexer as "vault not ready"
+        // and refuses to save, which would make an auxiliary window silently
+        // read-only. See remoteIndexer.ts for why every method is a no-op.
+        indexer: createRemoteIndexer(),
         isLoading: false,
         error: null,
       }));

@@ -3616,5 +3616,8 @@
     "verifierPromptTitle": "Wie controleert?",
     "verifierPromptBody": "Plainva legt je naam vast bij elke controle die je markeert (verified: human:<naam>). De naam blijft op dit apparaat voor deze vault.",
     "verifierPlaceholder": "Je naam"
+  },
+  "window": {
+    "openInNewWindow": "In nieuw venster openen"
   }
 }

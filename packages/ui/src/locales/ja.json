@@ -3577,5 +3577,8 @@
     "verifierPromptTitle": "確認者は誰ですか？",
     "verifierPromptBody": "確認済みにするたびに、Plainva はあなたの名前を記録します（verified: human:<名前>）。名前はこの端末のこの保管庫にのみ保存されます。",
     "verifierPlaceholder": "あなたの名前"
+  },
+  "window": {
+    "openInNewWindow": "新しいウィンドウで開く"
   }
 }

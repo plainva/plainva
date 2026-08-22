@@ -45,6 +45,12 @@ export interface BroadcastMap {
   "index-changed": { paths: string[]; structural: boolean };
   /** A file on disk changed — feeds the aux editor's external-update logic. */
   "file-changed": { path: string };
+  /**
+   * A note's BODY was saved. Separate from index-changed on purpose: a pure
+   * prose edit deliberately skips the tree bump (fix C, 2026-07-08), so a
+   * pinboard `.base` in another window would keep showing the old card text.
+   */
+  "note-saved": { path: string };
   /** Mirrors the owner's sync status so aux windows can show it. */
   "sync-status": { status: string; message?: string | null };
   /** Calendar/task data changed (PIM worker cycle finished). */
@@ -55,6 +61,8 @@ export interface BroadcastMap {
   "tab-registry": { label: string; contents: string[] };
   /** Owner to one window: bring this content forward (dedup / focus routing). */
   "focus-content": { label: string; path: string };
+  /** Owner to one window: show this content instead of what it has open. */
+  "set-content": { label: string; path: string | null };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -76,6 +84,24 @@ export interface RpcMap {
   "focus-content": { args: { path: string }; result: boolean };
   /** Waits for a foreign editor's pending save before a write path touches it. */
   "flush-pending": { args: { path: string }; result: void };
+  /** Draft snapshot of an unsaved buffer — the owner owns the journal on disk. */
+  "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number }; result: void };
+  /** Clears a journal entry; `upToRevision: null` forces (Infinity over JSON). */
+  "draft-clear": { args: { vaultPath: string; notePath: string; upToRevision: number | null }; result: void };
+  /**
+   * Open this content wherever it belongs: the owner focuses the window that
+   * already has it, otherwise it tells the caller to show it itself. `where`
+   * says what happened, so the caller does not guess.
+   */
+  "open-content": {
+    args: { path: string; newWindow?: boolean; from?: string };
+    result: { where: "focused" | "caller" | "owner" };
+  };
+  /** An auxiliary window reports its geometry so a restart can restore it. */
+  "window-bounds": {
+    args: { label: string; bounds: { x: number; y: number; width: number; height: number } };
+    result: void;
+  };
 }
 
 export type RpcKind = keyof RpcMap;

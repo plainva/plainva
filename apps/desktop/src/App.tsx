@@ -73,6 +73,7 @@ import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
 import { SplashScreen } from "./components/SplashScreen";
+import { openOrFocusContent, setOwnerOpenContents } from "./services/windowManager";
 import "./App.css";
 
 /**
@@ -509,6 +510,25 @@ function App() {
   });
   const closeActiveTab = useStableHandler(() => {
     if (activePane) trackClose(layout.activePaneIndex, activePane.activeIndex);
+  });
+  /**
+   * Move a note or database into its own window (multi-window P1).
+   *
+   * A MOVE, not a copy: content is open once app-wide, so the tab that held it
+   * closes as the window opens. It is tracked as a close, which means Mod+Shift+T
+   * brings it back into a tab — the way out of a popout without hunting for the
+   * window.
+   */
+  const openInNewWindow = useStableHandler((path: string) => {
+    if (!vaultPath) return;
+    void (async () => {
+      try {
+        const result = await openOrFocusContent({ vaultPath, path, newWindow: true });
+        if (result.where === "focused") closeTabsByPrefix(path);
+      } catch (e: any) {
+        toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
+      }
+    })();
   });
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
@@ -953,6 +973,46 @@ function App() {
     window.addEventListener("plainva-create-note-from-link", onCreate);
     return () => window.removeEventListener("plainva-create-note-from-link", onCreate);
   }, [vaultAdapter, indexer, vaultPath, openInFocusedPane, triggerFileTreeUpdate, t]);
+
+  /**
+   * The dedup mirror (multi-window P1).
+   *
+   * "Is this open somewhere?" is a question about the whole app, and half the
+   * answer lives in this window's React state. Mirroring it into the window
+   * manager on every layout change is the cheap half of the deal — the routing
+   * decision itself stays in one place.
+   */
+  useEffect(() => {
+    const paths: string[] = [];
+    for (const pane of layout.panes) {
+      for (const tab of pane.tabs) {
+        const p = tab.history[tab.historyIndex];
+        if (p) paths.push(p);
+      }
+    }
+    setOwnerOpenContents(paths);
+  }, [layout]);
+
+  // Popout requests from the editor ⋮ and the peek header. They announce rather
+  // than act, because only this window can open the window AND close the tab.
+  useEffect(() => {
+    const onPopout = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path as string | undefined;
+      if (path) openInNewWindow(path);
+    };
+    // An auxiliary window asked for content the central window already holds:
+    // the owner brings itself forward (bus side) and shows the tab (here).
+    const onShow = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path as string | undefined;
+      if (path) openInFocusedPane(path, false);
+    };
+    window.addEventListener("plainva-open-in-new-window", onPopout);
+    window.addEventListener("plainva-window-show-content", onShow);
+    return () => {
+      window.removeEventListener("plainva-open-in-new-window", onPopout);
+      window.removeEventListener("plainva-window-show-content", onShow);
+    };
+  }, [openInNewWindow, openInFocusedPane]);
 
   // Persist user-chosen sidebar widths.
   useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);
@@ -1809,6 +1869,7 @@ function App() {
             canCloseLeft={hasUnpinnedLeft}
             canCloseRight={hasUnpinnedRight}
             onShowVersionHistory={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: tabPath } })) : undefined}
+            onOpenInNewWindow={isFile ? () => openInNewWindow(tabPath!) : undefined}
           />
         );
       })()}

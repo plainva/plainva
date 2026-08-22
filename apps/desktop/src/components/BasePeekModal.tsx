@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ArrowRight, Columns2, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Columns2, ExternalLink, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
 import { createDocChannel } from "../services/activeDocument";
 import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
@@ -175,6 +175,21 @@ export function BasePeekModal({
               data-tip={t("database.maximize", "Als Tab öffnen")}
             >
               <Maximize2 size={ICON.ui} />
+            </button>
+            <button
+              type="button"
+              className="pv-peek-btn"
+              data-testid="peek-new-window"
+              onClick={() => {
+                // The owner opens the window and closes whatever held the note;
+                // the peek's own job here is to get out of the way.
+                window.dispatchEvent(new CustomEvent("plainva-open-in-new-window", { detail: { path: current } }));
+                onClose();
+              }}
+              aria-label={t("window.openInNewWindow")}
+              data-tip={t("window.openInNewWindow")}
+            >
+              <ExternalLink size={ICON.ui} />
             </button>
             {(onRename || onDelete) && !isBase && (
               <button

@@ -2,7 +2,14 @@ import type { IVaultAdapter, VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus } from "./windowBus";
-import { findWindowForContent, focusAuxWindow } from "./windowManager";
+import {
+  findWindowForContent,
+  focusAuxWindow,
+  noteWindowBounds,
+  noteWindowContent,
+  openOrFocusContent,
+} from "./windowManager";
+import { clearDraft, recordDraft } from "./draftJournal";
 
 /**
  * The owner half of the window bus (multi-window P0).
@@ -32,6 +39,9 @@ export interface OwnerBusDeps {
   refresh: (paths?: string[]) => void;
 }
 
+/** Path separator on either platform — the note name is the window title. */
+const SEP = /[/\\]/;
+
 /** Decodes the base64 an auxiliary window sends binary content as. */
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -52,6 +62,40 @@ export function broadcastIndexChanged(paths: string[], structural: boolean): voi
     });
 }
 
+/**
+ * Forwards two of the owner's own window events onto the bus.
+ *
+ * Both are LOCAL events with several dispatchers — a note save fires from the
+ * editor, from two base views and from a delegated write; an external change
+ * fires from the watcher, from the index.md regeneration and from a version
+ * restore. Bridging the event instead of calling out from each site means a
+ * seventh dispatcher is covered the day it is written, rather than the day
+ * somebody notices the other window went stale.
+ *
+ * Only the owner installs this, so a re-dispatched broadcast in a client
+ * cannot bounce back.
+ */
+function installEventBridges(): () => void {
+  const bridges: Array<[string, "note-saved" | "file-changed"]> = [
+    ["plainva-note-saved", "note-saved"],
+    ["plainva-external-update", "file-changed"],
+  ];
+  const offs = bridges.map(([local, channel]) => {
+    const handler = (e: Event) => {
+      const path = (e as CustomEvent).detail?.path;
+      if (typeof path !== "string") return;
+      void getWindowBus()
+        .then((bus) => bus.broadcast(channel, { path }))
+        .catch(() => {});
+    };
+    window.addEventListener(local, handler);
+    return () => window.removeEventListener(local, handler);
+  });
+  return () => {
+    for (const off of offs) off();
+  };
+}
+
 /** Mirrors the owner's sync status into the other windows. */
 export function broadcastSyncStatus(status: string, message?: string | null): void {
   void getWindowBus()
@@ -66,7 +110,7 @@ export function broadcastSyncStatus(status: string, message?: string | null): vo
  */
 export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   const bus = await getWindowBus();
-  const offs: Array<() => void> = [];
+  const offs: Array<() => void> = [installEventBridges()];
 
   const indexAfterWrite = async (path: string) => {
     if (!deps.indexer) return;
@@ -135,6 +179,49 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       const win = findWindowForContent(deps.vaultPath, path);
       if (!win) return false;
       return focusAuxWindow(win.label);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("open-content", async ({ path, newWindow, from }) => {
+      // One routing decision for the whole app (plan E2, hard dedup): the owner
+      // knows every window, so it answers whether somebody else already has
+      // this content — and only when nobody does may the caller draw it.
+      const result = await openOrFocusContent({
+        vaultPath: deps.vaultPath,
+        path,
+        newWindow,
+        from,
+        title: path.split(SEP).pop(),
+      });
+      if (result.where === "owner") {
+        // Bring the central window forward and let App open the tab.
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        await getCurrentWindow().setFocus().catch(() => {});
+        window.dispatchEvent(new CustomEvent("plainva-window-show-content", { detail: { path } }));
+      }
+      if (result.where === "caller" && from) noteWindowContent(from, path);
+      return { where: result.where };
+    }),
+  );
+
+  offs.push(
+    await bus.handle("window-bounds", async ({ label, bounds }) => {
+      noteWindowBounds(label, bounds);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision }) => {
+      // The journal lives on disk next to the owner's own drafts; an auxiliary
+      // window has no write access to it (aux capability) and needs none.
+      await recordDraft(vaultPath, notePath, text, revision);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("draft-clear", async ({ vaultPath, notePath, upToRevision }) => {
+      await clearDraft(vaultPath, notePath, upToRevision ?? Infinity);
     }),
   );
 

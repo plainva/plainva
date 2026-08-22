@@ -3655,5 +3655,8 @@
     "verifierPromptTitle": "Quem está revisando?",
     "verifierPromptBody": "O Plainva registra seu nome em cada revisão que você marca (verified: human:<nome>). O nome fica neste dispositivo para este vault.",
     "verifierPlaceholder": "Seu nome"
+  },
+  "window": {
+    "openInNewWindow": "Abrir em nova janela"
   }
 }

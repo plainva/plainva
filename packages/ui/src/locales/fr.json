@@ -3655,5 +3655,8 @@
     "verifierPromptTitle": "Qui relit ?",
     "verifierPromptBody": "Plainva enregistre votre nom à chaque relecture que vous marquez (verified : human:<nom>). Le nom reste sur cet appareil pour ce vault.",
     "verifierPlaceholder": "Votre nom"
+  },
+  "window": {
+    "openInNewWindow": "Ouvrir dans une nouvelle fenêtre"
   }
 }

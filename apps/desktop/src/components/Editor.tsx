@@ -39,6 +39,7 @@ import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
+import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
@@ -272,6 +273,18 @@ export const Editor: React.FC<{
     if (!activePath) return;
     parkTreeReveal(activePath);
     window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: activePath } }));
+  };
+  /**
+   * Move this note into its own window (multi-window P1).
+   *
+   * Announced rather than executed here: the owner window holds the window list
+   * and the tab layout, and it is the only place that can both open the window
+   * and close the tab this note came from. In an auxiliary window the editor is
+   * already IN its own window — the entry is hidden there.
+   */
+  const handleMenuOpenInNewWindow = () => {
+    if (!activePath) return;
+    window.dispatchEvent(new CustomEvent("plainva-open-in-new-window", { detail: { path: activePath } }));
   };
   const [tablePicker, setTablePicker] = useState<{ x: number; y: number; pos: number } | null>(null);
   // `@` mention -> "Datum wählen…" opens the calendar at the caret (#4).
@@ -1898,6 +1911,11 @@ export const Editor: React.FC<{
               <MenuItem icon={<FolderTree size={ICON.ui} />} data-testid="editor-menu-reveal-tree" onSelect={handleMenuRevealInTree}>
                 {t("editor.revealInTree")}
               </MenuItem>
+              {isOwnerWindow() && (
+                <MenuItem icon={<ExternalLink size={ICON.ui} />} data-testid="editor-menu-new-window" onSelect={handleMenuOpenInNewWindow}>
+                  {t("window.openInNewWindow")}
+                </MenuItem>
+              )}
               <MenuItem icon={<FolderOpen size={ICON.ui} />} onSelect={() => { void handleMenuReveal(); }}>
                 {t("editor.revealInFileManager", "Im Dateimanager anzeigen")}
               </MenuItem>
