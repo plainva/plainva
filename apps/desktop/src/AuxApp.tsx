@@ -87,11 +87,18 @@ export function AuxApp() {
   // A virtual view carries no file name: splitting "plainva://graph" on "/"
   // would name the window "graph" — the exact defect the recents strip had
   // before virtualTabMeta existed.
-  const meta = virtualTabMeta(activePath);
+  // Until the layout is seeded there is no active path yet — but the window
+  // already KNOWS what it was asked to show, and the URL says so. Falling back
+  // to the request rather than to "Plainva" matters most where several windows
+  // come up at once (restore on start, E5): a row of identical "Plainva"
+  // taskbar entries that only sort themselves out a moment later is worse than
+  // no titles at all. The named content wins as soon as it arrives.
+  const shown = activePath || params.content || "";
+  const meta = virtualTabMeta(shown);
   const title = meta
     ? t(meta.labelKey, meta.defaultLabel)
-    : activePath
-      ? activePath.split("/").pop() || activePath
+    : shown
+      ? shown.split("/").pop() || shown
       : "Plainva";
 
   // The OS title bar and the taskbar entry follow the content, not the window

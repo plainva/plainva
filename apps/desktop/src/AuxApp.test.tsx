@@ -116,4 +116,27 @@ describe("what an auxiliary window starts with", () => {
     expect(panes()).toEqual(["B.md"]);
     expect(host.textContent).not.toContain("Note.md");
   });
+
+  it("names itself from the requested content before the layout is seeded", async () => {
+    // The title used to come from the active path alone, which only exists
+    // AFTER the seed. Every window therefore called itself "Plainva" for the
+    // first moments — harmless with one window, bad with the restore on start
+    // (E5), where several come up at once and the taskbar shows a row of
+    // identical entries that sort themselves out a beat later. The window
+    // already knows what it was asked to show, so it says so.
+    window.history.replaceState({}, "", "/?win=aux&vault=%2Fvault&content=Projekte%2FAlpha.md&label=aux-4");
+    resetWindowParamsForTest();
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root.render(<AuxApp />);
+    });
+
+    // Deliberately WITHOUT advancing the timers: this is the moment before the
+    // seed runs, the one the production smoke caught.
+    const bar = host.querySelector('[data-testid="titlebar"]');
+    expect(bar?.textContent).toContain("Alpha.md");
+    expect(bar?.textContent).not.toContain("Plainva");
+  });
 });
