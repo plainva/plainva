@@ -19,6 +19,9 @@ import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePe
 import { clearWorkspaceRuntime, getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
+import { openClientVault, type ClientVaultServices } from "../services/clientVault";
+import { getWindowBus } from "../services/windowBus";
+import { broadcastIndexChanged, installOwnerBus } from "../services/ownerBus";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -367,7 +370,39 @@ async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
 let activeLoadPath: string | null = null;
 let loadAbortController: AbortController | null = null;
 
-export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+/**
+ * How this window runs the vault (multi-window P0).
+ *
+ * "owner" is the central window: it builds the indexer, the file watcher, the
+ * sync chain, the workspace worker, the PIM worker, the schedulers and the undo
+ * queues, and it holds every write path. "client" is an auxiliary window: it
+ * reads the vault and the index directly and hands mutations to the owner over
+ * the window bus (services/clientVault.ts). There is deliberately no third mode
+ * and no half-owner — two windows running the same background service is the
+ * failure this architecture exists to prevent.
+ */
+export type VaultMode = "owner" | "client";
+
+/** The vault-lifecycle half of the context — owner-only in a client window. */
+type VaultLifecycleApi = Pick<
+  VaultContextType,
+  | "selectVault"
+  | "openVault"
+  | "closeVault"
+  | "refreshVault"
+  | "rebuildIndex"
+  | "removeRecentVault"
+  | "setAutoOpenLastVault"
+>;
+
+const ownerOnly = (name: string) => `${name} is owner-only; an auxiliary window cannot run it`;
+
+export const VaultProvider: React.FC<{
+  children: ReactNode;
+  mode?: VaultMode;
+  /** Client mode only: which vault this window shows. */
+  clientVaultPath?: string | null;
+}> = ({ children, mode = "owner", clientVaultPath = null }) => {
   const [state, setState] = useState<VaultState>({
     vaultPath: null,
     vaultAdapter: null,
@@ -401,12 +436,21 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const syncProviderRef = useRef<SyncProviderId | null>(null);
   const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
   const workspaceRuntimeRef = useRef<PersonalWorkspaceRuntime | null>(null);
+  /** Client mode: the read/render services, kept for disposal on unmount. */
+  const clientServicesRef = useRef<ClientVaultServices | null>(null);
+  const isClient = mode === "client";
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
   // serialized queue per vault and maps its batch results to version bumps.
 
   const loadVault = async (path: string, isNewConnection?: boolean) => {
+    // The owner path below builds indexer, watcher, sync worker, workspace
+    // worker, PIM runtime and the schedulers. A client window must never run
+    // it — loud rather than silent, because a second set of services shows up
+    // as duplicate reminders and a token refresh race, not as an error.
+    if (isClient) throw new Error(ownerOnly("loadVault"));
+
     // If we're already loading this exact path, ignore the duplicate call
     if (activeLoadPath === path) {
       console.log(`[VaultContext] Already loading ${path}, skipping duplicate call`);
@@ -1170,7 +1214,101 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  // Owner: answer the auxiliary windows' requests. Re-installed per vault,
+  // because the adapter chain and the indexer belong to the open vault.
   useEffect(() => {
+    if (isClient) return;
+    if (!state.vaultPath || !state.vaultAdapter) return;
+    let dispose: (() => void) | null = null;
+    let cancelled = false;
+    void installOwnerBus({
+      vaultPath: state.vaultPath,
+      vaultAdapter: state.vaultAdapter,
+      indexer: state.indexer,
+      refresh: triggerFileTreeUpdate,
+    })
+      .then((off) => {
+        if (cancelled) off();
+        else dispose = off;
+      })
+      .catch((e) => console.warn("[VaultContext] window bus unavailable (single window?)", e));
+    return () => {
+      cancelled = true;
+      dispose?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer]);
+
+  // Client: the owner owns the index, so its broadcast is what makes the views
+  // in this window refresh. Without it an auxiliary window would show whatever
+  // the index held when it opened.
+  useEffect(() => {
+    if (!isClient) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void getWindowBus()
+      .then(async (bus) => {
+        const un = await bus.onBroadcast("index-changed", ({ paths, structural }) => {
+          triggerFileTreeUpdate(structural || paths.length === 0 ? undefined : paths);
+        });
+        if (cancelled) un();
+        else stop = un;
+      })
+      .catch((e) => console.warn("[VaultContext] no window bus in this window", e));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient]);
+
+  /**
+   * Client mode: open the vault read-mostly (services/clientVault.ts) and put
+   * the services into the same state shape the rest of the app reads. The
+   * owner-only slots (indexer, backup adapter, index queue, sync worker, PIM
+   * runtime) stay null, which is what keeps the effects below inert.
+   */
+  const loadClientVault = async (path: string) => {
+    setState((s) => ({ ...s, isLoading: true, error: null }));
+    try {
+      const bus = await getWindowBus();
+      const services = await openClientVault(path, bus);
+      clientServicesRef.current = services;
+      setState((s) => ({
+        ...s,
+        vaultPath: path,
+        vaultAdapter: services.vaultAdapter,
+        dbAdapter: services.dbAdapter,
+        queryService: services.queryService,
+        graphService: services.graphService,
+        isLoading: false,
+        error: null,
+      }));
+    } catch (e) {
+      console.error("[VaultContext] client vault failed to open", e);
+      setState((s) => ({ ...s, isLoading: false, error: e instanceof Error ? e.message : String(e) }));
+    }
+  };
+
+  useEffect(() => {
+    if (!isClient) return;
+    if (!clientVaultPath) {
+      // A blank auxiliary window is a legitimate state (a P4 restore can open
+      // one before the content is known) — it simply shows nothing yet.
+      setState((s) => ({ ...s, isLoading: false }));
+      return;
+    }
+    void loadClientVault(clientVaultPath);
+    return () => {
+      void clientServicesRef.current?.dispose();
+      clientServicesRef.current = null;
+    };
+  }, [isClient, clientVaultPath]);
+
+  useEffect(() => {
+    // Recents, the last-vault memory and auto-open belong to the central
+    // window; an auxiliary window is told which vault to show.
+    if (isClient) return;
     const initStore = async () => {
       try {
         const store = await getSettingsStore();
@@ -1282,9 +1420,13 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // scheduler re-reads its settings from the store on every tick, so only the
   // vault switch needs a restart.
   useEffect(() => {
+    // Owner-only: a second scheduler would write a second daily ZIP and prune
+    // the same snapshot folder from two sides.
+    if (isClient) return;
     if (!state.vaultPath || !state.vaultAdapter) return;
     const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: state.vaultAdapter });
     return stop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.vaultAdapter]);
 
   // Retention settings changed in the settings modal: push the new policy into
@@ -1304,6 +1446,9 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [state.vaultPath, state.backupAdapter]);
 
   useEffect(() => {
+    // Owner-only: every handler here reopens the vault or drives the sync
+    // worker. In a client window there is neither.
+    if (isClient) return;
     const handleCredentialsSaved = (e: Event) => {
       if (state.vaultPath) {
         if (state.syncWorker) {
@@ -1367,7 +1512,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       window.removeEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.vaultPath, state.syncWorker]);
+  }, [state.vaultPath, state.syncWorker, isClient]);
 
   const openVault = async (path: string) => {
     const store = await getSettingsStore();
@@ -1562,6 +1707,11 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [state.indexer, stableRefresh]);
 
   const triggerFileTreeUpdate = (paths?: string[]) => {
+    // Every write path ends here, which makes it the one place that cannot
+    // forget to tell the other windows. Only the owner broadcasts: a client's
+    // own bump is a consequence, not a cause, and re-broadcasting it would
+    // bounce between auxiliary windows.
+    if (!isClient) broadcastIndexChanged(paths ?? [], !paths || paths.length === 0);
     if (paths && paths.length > 0) {
       // File-only refresh (P2.5): no folder-structure walk, and consumers may
       // skip refreshes whose paths cannot affect them (P2.7).
@@ -1952,12 +2102,44 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await loadVault(path, true);
   };
 
+  /**
+   * Client mode: the vault lifecycle stays with the central window. These
+   * throw instead of quietly doing nothing — an auxiliary window that silently
+   * ignored "switch vault" would leave the user staring at the old one.
+   */
+  const clientLifecycle: VaultLifecycleApi = useMemo(
+    () => ({
+      selectVault: async () => {
+        throw new Error(ownerOnly("selectVault"));
+      },
+      openVault: async () => {
+        throw new Error(ownerOnly("openVault"));
+      },
+      closeVault: () => {
+        throw new Error(ownerOnly("closeVault"));
+      },
+      refreshVault: async () => {
+        throw new Error(ownerOnly("refreshVault"));
+      },
+      rebuildIndex: async () => {
+        throw new Error(ownerOnly("rebuildIndex"));
+      },
+      removeRecentVault: async () => {
+        throw new Error(ownerOnly("removeRecentVault"));
+      },
+      setAutoOpenLastVault: async () => {
+        throw new Error(ownerOnly("setAutoOpenLastVault"));
+      },
+    }),
+    [],
+  );
+
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision }),
+    () => ({ ...state, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state]
+    [state, isClient, clientLifecycle]
   );
 
   return (

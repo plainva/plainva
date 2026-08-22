@@ -353,6 +353,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "multi-window",
+    title: "Open notes, databases and views in separate OS windows",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Mobile shells have no OS windows: Android and iOS present one activity or " +
+      "scene at a time, so 'open this note in a second window' has no counterpart " +
+      "to build. The need behind it — looking at two things at once — is answered " +
+      "there by pushed screens, the context sheet and, on tablets, the adaptive " +
+      "two-column layout. Permanent by platform, not a backlog item.",
+    verified: "2026-08-22",
+  },
+  {
     id: "share-target",
     title: "Receive text or images shared from other apps",
     area: "platform",

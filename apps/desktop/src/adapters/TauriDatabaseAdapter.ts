@@ -47,11 +47,52 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
     await this.db.execute("PRAGMA foreign_keys = ON;");
   }
 
+  /**
+   * Attaches to the database WITHOUT opening a second connection — what an
+   * auxiliary window gets (multi-window P0, client mode).
+   *
+   * `Database.get()` rather than `Database.load()`, and that is not a
+   * micro-optimization. The sql plugin keeps ONE app-wide map of pools keyed by
+   * the connection string (`DbInstances(RwLock<HashMap<String, DbPool>>)`,
+   * plugin 2.4.0), and its `load` command does `instances.insert(db, pool)`:
+   * a second window calling `load` on the same URL builds a second pool and
+   * REPLACES the owner's entry, after which every query from BOTH windows runs
+   * through the newcomer's pool while the owner's is dropped mid-flight.
+   * `get` only constructs the JS wrapper and defers to whatever pool is
+   * registered — the owner's. If the owner has not opened this vault, the first
+   * query fails loudly with `DatabaseNotLoaded`, which is the correct answer for
+   * a window that only exists as part of an open vault.
+   *
+   * `initialize()` above also does three things a second window must not do: a
+   * ROLLBACK that would clear a dangling transaction belonging to the owner, and
+   * PRAGMAs that are either already persisted in the file (journal_mode) or only
+   * matter to a writer (synchronous, foreign_keys). The aux capability grants
+   * `sql:default` and deliberately NOT `sql:allow-execute`, so a client window
+   * cannot write to the index at all. Reading concurrently is safe because the
+   * file is in WAL mode.
+   */
+  attachReadOnly(): void {
+    this.db = Database.get(this.dbPath);
+  }
+
+  /**
+   * Closes the pool. OWNER ONLY.
+   *
+   * The pool is shared app-wide (see `attachReadOnly`), so `close` on the
+   * connection string tears it down for EVERY window. An auxiliary window
+   * calling this would kill the central window's index — it detaches instead
+   * (`detach()`).
+   */
   async close(): Promise<void> {
     if (this.db) {
       await this.db.close();
       this.db = null;
     }
+  }
+
+  /** Drops this window's handle without touching the shared pool. */
+  detach(): void {
+    this.db = null;
   }
 
   private getDb(): Database {

@@ -56,3 +56,31 @@ test('production bundle boots and renders the splash without an uncaught error',
   // arrives as an uncaught pageerror. Report the messages on failure.
   expect(pageErrors, `Uncaught page errors during startup:\n${pageErrors.join('\n')}`).toEqual([]);
 });
+
+/**
+ * The auxiliary-window entry point, in the production bundle (multi-window P0).
+ *
+ * A second window is a second entry into the SAME bundle (`index.html?win=aux`),
+ * and that changes what the production build evaluates first — exactly the class
+ * of failure that shipped a white window twice (v0.3.0 and the mobile bundle in
+ * S20). The dev-server suite cannot see it, so the aux shell is checked here
+ * from the day it exists rather than the day it breaks.
+ *
+ * Without a Tauri backend there is no window bus and no vault: the shell reports
+ * that and renders its title bar. That is the point — what is being asserted is
+ * that the bundle evaluates and the aux tree mounts, not that a vault opens.
+ */
+test('production bundle boots the auxiliary window shell', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+
+  await page.goto('/?win=aux&vault=%2Ftmp%2Fvault&content=Test.md&label=aux-1');
+
+  // The aux title bar is the shell's own chrome — no ribbon, no tabs, no
+  // sidebars. Its presence proves the client-mode provider mounted.
+  await expect(page.getByTestId('aux-titlebar')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('aux-titlebar')).toContainText('Test.md');
+  await expect(page.getByTestId('aux-content')).toBeVisible();
+
+  expect(pageErrors, `Uncaught page errors in the aux window:\n${pageErrors.join('\n')}`).toEqual([]);
+});

@@ -55,8 +55,11 @@ const BUDGET: Record<string, number> = {
   "apps/mobile/src/services/mobileSettingsScope.ts": 21,
   "apps/mobile/src/services/mobileSettingsSync.ts": 1,
   // Entry points: these run first by construction, so their chunk cannot be
-  // reordered ahead of themselves. The least risky of the lot.
-  "apps/desktop/src/main.tsx": 6,
+  // reordered ahead of themselves. The least risky of the lot. Down from 6 with
+  // multi-window P0: the mail platform registration and the two token resolvers
+  // now run inside the owner-window branch, so they are no longer module-init
+  // work at all.
+  "apps/desktop/src/main.tsx": 4,
   "apps/mobile/src/main.tsx": 2,
   "apps/desktop/src/test-setup.ts": 4,
   // Shape of the v0.3.0 defect: reading off an imported constant at load time.

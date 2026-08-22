@@ -20,6 +20,7 @@ import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
 import { VaultProvider } from "./contexts/VaultContext";
+import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
 import { initDefaultViewMode } from "./services/viewModeDefault";
@@ -29,6 +30,12 @@ import { initInputModality } from "./services/inputModality";
 import { initWebviewHardening } from "./services/webviewHardening";
 import { installGlobalDiagnostics } from "@plainva/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+
+// Which window is this? An auxiliary window loads the same bundle and differs
+// only in what it starts (multi-window P0): theme, density, fonts and the
+// platform services apply everywhere, the background machinery does not.
+const windowParams = currentWindowParams();
+const isOwnerWindow = windowParams.role === "owner";
 
 // Apply the persisted (or system) color theme before first paint.
 initTheme();
@@ -49,7 +56,9 @@ initWebviewHardening();
 installGlobalDiagnostics();
 // Local perf sampling (hardening P1.1): typing keystroke→frame latency for
 // the "About & diagnostics" table — on-device only, never transmitted.
-void import("./services/perfMetrics").then(({ installTypingLatencySampler }) => installTypingLatencySampler());
+if (isOwnerWindow) {
+  void import("./services/perfMetrics").then(({ installTypingLatencySampler }) => installTypingLatencySampler());
+}
 // Register the platform capabilities (ADR 0011): shared code in @plainva/ui
 // reaches settings, secrets and URL-opening only through this injected bundle.
 setPlatformServices({
@@ -68,20 +77,53 @@ setPlatformServices({
 });
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
-// to the Tauri http plugin with the Origin-free relay for token POSTs.
-registerDesktopMailPlatform();
+// to the Tauri http plugin with the Origin-free relay for token POSTs. Owner
+// only: mail sessions and the token refresh live in one window (multi-window
+// P0); the compose window reaches them over the bus in P3.
+if (isOwnerWindow) {
+  registerDesktopMailPlatform();
 
-// Mail draws its Graph token from the shared account broker when the account
-// was connected through the union consent (cloud accounts stage B); otherwise
-// the resolver returns undefined and the per-account refresh path stays.
-setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
-// And why it came back empty, when it does (finding 2026-07-30).
-setMailLookupNote((vaultPath) => describeBrokerLookup(vaultPath, "mail"));
+  // Mail draws its Graph token from the shared account broker when the account
+  // was connected through the union consent (cloud accounts stage B); otherwise
+  // the resolver returns undefined and the per-account refresh path stays.
+  setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
+  // And why it came back empty, when it does (finding 2026-07-30).
+  setMailLookupNote((vaultPath) => describeBrokerLookup(vaultPath, "mail"));
+}
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.
-void i18nReady.then(() => {
-  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+void i18nReady.then(async () => {
+  const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+
+  if (!isOwnerWindow) {
+    // Auxiliary window: the client-mode provider reads the vault and hands
+    // writes to the owner. The shell is imported here, not at module level, so
+    // the central window's start path stays exactly what it was.
+    const { AuxApp } = await import("./AuxApp");
+    // Theme/density/font/zoom changes happen in the central window's settings;
+    // this keeps the look of this window in step with them.
+    const { installAppearanceSync } = await import("./services/appearanceSync");
+    void installAppearanceSync().catch(() => {
+      /* no bus: nothing to follow */
+    });
+    root.render(
+      <React.StrictMode>
+        <ErrorBoundary>
+          <VaultProvider mode="client" clientVaultPath={windowParams.vaultPath}>
+            <AuxApp />
+          </VaultProvider>
+          <DialogHost />
+          <ToastHost />
+          <TooltipHost />
+          <ContextMenuHost />
+        </ErrorBoundary>
+      </React.StrictMode>,
+    );
+    return;
+  }
+
+  root.render(
     <React.StrictMode>
       <ErrorBoundary>
         <VaultProvider>

@@ -80,7 +80,7 @@ export function isAccessWatchEvent(type: unknown): boolean {
 
 /** Uint8Array → base64 for the atomic-write IPC (chunked: no stack overflow
  *  on multi-MB images, and a JSON number-array would be ~4x the size). */
-function bytesToBase64(bytes: Uint8Array): string {
+export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {

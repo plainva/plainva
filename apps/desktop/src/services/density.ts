@@ -1,4 +1,5 @@
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * UI density (plan Designsprache 2026-07-05, §2.5). "comfortable" is the
@@ -38,6 +39,7 @@ export async function setStoredDensity(density: Density): Promise<void> {
   await store.set("density", density);
   await store.save();
   applyDensity(density);
+  notifyAppearanceChanged();
 }
 
 /** Applies the default immediately (avoids a flash), then the stored value. */
