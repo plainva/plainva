@@ -308,6 +308,28 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
+    await bus.handle("owner-surface", async ({ surface, provider, area }) => {
+      // Bring this window forward first: opening a dialog in a window the user
+      // cannot see is the same as doing nothing, only more confusing.
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const win = getCurrentWindow();
+        await win.unminimize().catch(() => {});
+        await win.setFocus();
+      } catch {
+        /* no backend (browser/test): the dispatch below still works */
+      }
+      if (surface === "settings") {
+        window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { provider, area } }));
+      } else if (surface === "import") {
+        window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"));
+      } else {
+        window.dispatchEvent(new CustomEvent("plainva-show-sync-error"));
+      }
+    }),
+  );
+
+  offs.push(
     await bus.handle("toggle-bookmark", async ({ path }) => {
       // App.tsx owns the list and its optimistic state; the bus only carries
       // the request across the window boundary.

@@ -80,6 +80,12 @@ const VIEW_SIZE = { width: 1100, height: 780 };
 const COMPOSE_SIZE = { width: 780, height: 700 };
 /** A preset opens two views side by side, so it needs both of their widths. */
 const PRESET_SIZE = { width: 1320, height: 860 };
+/**
+ * A full second window carries the sidebars as well (stage C), so it opens at
+ * roughly the size the central window has by default -- a narrower one would
+ * start with both sidebars collapsed and look broken rather than compact.
+ */
+const FULL_SIZE = { width: 1280, height: 860 };
 
 /** Views (graph, tasks, calendar, mail) open landscape, notes portrait. */
 function defaultSizeFor(content: string | null | undefined) {
@@ -159,7 +165,7 @@ export function persistWindows(vaultPath: string): void {
   // Compose windows are deliberately not remembered: what they hold is unsaved
   // text that lives in memory. Restoring one after a restart would reopen an
   // EMPTY composer — a window that lies about having kept something.
-  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath && w.role === "aux");
+  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath && (w.role === "aux" || w.role === "full"));
   try {
     if (mine.length === 0) window.localStorage.removeItem(windowsKey(vaultPath));
     else window.localStorage.setItem(windowsKey(vaultPath), JSON.stringify(mine));
@@ -260,6 +266,26 @@ export async function openAuxWindow(params: {
 }
 
 /**
+ * Opens a full second window: the whole shell, in client mode (stage C).
+ *
+ * Deliberately not deduplicated by content — a full window is a WORKPLACE, not
+ * a piece of content, and having two of them open on two monitors is the point
+ * of the stage. What stays deduplicated is what they show: the routing in
+ * `openOrFocusContent` treats a full window like any other.
+ */
+export async function openFullWindow(params: {
+  vaultPath: string;
+  title?: string;
+}): Promise<AuxWindowRecord> {
+  return openAuxWindow({
+    role: "full",
+    vaultPath: params.vaultPath,
+    title: params.title,
+    size: FULL_SIZE,
+  });
+}
+
+/**
  * Pops the message composer out into its own window (P3).
  *
  * Deliberately NOT deduplicated: writing two mails at once is ordinary, and the
@@ -354,7 +380,7 @@ export function isReachable(
  * then places it, which is better than restoring it out of reach.
  */
 export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRecord[]> {
-  const saved = readPersistedWindows(vaultPath).filter((w) => w.role === "aux");
+  const saved = readPersistedWindows(vaultPath).filter((w) => w.role === "aux" || w.role === "full");
   if (saved.length === 0) return [];
 
   let monitors: { position: { x: number; y: number }; size: { width: number; height: number } }[] = [];
@@ -371,7 +397,9 @@ export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRec
     try {
       opened.push(
         await openAuxWindow({
-          role: "aux",
+          // A full window comes back full: the role is part of what was open,
+          // not a property of the restore.
+          role: rec.role === "full" ? "full" : "aux",
           vaultPath,
           // The layout of a window hangs on its label, so a restored window has
           // to come back under the SAME one -- otherwise its tabs stay behind

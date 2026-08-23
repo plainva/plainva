@@ -4,7 +4,7 @@
  * Every window loads the same bundle; the URL query decides what it becomes.
  * The central window ("owner") has no query at all — that is deliberate, so an
  * ordinary launch is byte-identical to what it was before multi-window
- * existed. Auxiliary windows carry `?win=aux|compose` plus the vault they
+ * existed. Client windows carry `?win=aux|compose|full` plus the vault they
  * belong to and the content they opened with.
  *
  * The parse is a pure function on the query string so the aux shell can be
@@ -12,7 +12,16 @@
  * touches `location`.
  */
 
-export type WindowRole = "owner" | "aux" | "compose";
+/**
+ * `full` (stage C) is a second window with the whole shell — sidebars, ribbon,
+ * status bar. It is a CLIENT like the other two: it reads the vault locally and
+ * delegates every write to the owner. Only the owner keeps the background
+ * services, so "full" describes what the window DRAWS, never what it runs.
+ */
+export type WindowRole = "owner" | "aux" | "compose" | "full";
+
+/** Every role that is not the owner — i.e. every window running in client mode. */
+const CLIENT_ROLES: readonly WindowRole[] = ["aux", "compose", "full"];
 
 /**
  * A window that opens with a prepared split instead of a single piece of
@@ -48,10 +57,11 @@ const OWNER: WindowParams = { role: "owner", vaultPath: null, content: null, lab
 export function parseWindowParams(search: string): WindowParams {
   const q = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const win = q.get("win");
-  if (win !== "aux" && win !== "compose") return OWNER;
+  // An unknown or missing value is the owner: an ordinary launch has no query.
+  if (!CLIENT_ROLES.includes(win as WindowRole)) return OWNER;
   const preset = q.get("preset");
   return {
-    role: win,
+    role: win as WindowRole,
     vaultPath: q.get("vault"),
     content: q.get("content"),
     label: q.get("label"),

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "identifier": "aux-window",
-  "description": "Permissions for auxiliary windows (aux-*, compose-*). They render content, read the vault and the index directly, and hand every mutation to the owner window over the window bus. Deliberately smaller than the owner set: no updater, no process control, no notifications, no autostart, no window creation, no file watcher, no filesystem writes, no SQL writes and no settings writes — all of that belongs to the one window that owns the background services.",
-  "windows": ["aux-*", "compose-*"],
+  "description": "Permissions for client windows (aux-*, compose-*, full-*). They render content, read the vault and the index directly, and hand every mutation to the owner window over the window bus. Deliberately smaller than the owner set: no updater, no process control, no notifications, no autostart, no window creation, no file watcher, no filesystem writes, no SQL writes and no settings writes — all of that belongs to the one window that owns the background services.",
+  "windows": ["aux-*", "compose-*", "full-*"],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",

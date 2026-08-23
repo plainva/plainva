@@ -140,6 +140,20 @@ export interface RpcMap {
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
   /**
+   * Show one of the owner-only surfaces (stage C2).
+   *
+   * Settings, the import wizard and the sync-error dialog start services, bind
+   * credentials or write across the whole vault, so they exist in exactly one
+   * window. A full second window keeps the buttons that lead to them — a
+   * greyed-out gear explains nothing — and this request brings the central
+   * window forward and opens the surface THERE. One request rather than three:
+   * the ask is always the same shape, only the surface differs.
+   */
+  "owner-surface": {
+    args: { surface: "settings" | "import" | "sync-error"; provider?: string; area?: string };
+    result: void;
+  };
+  /**
    * Send a message the writer composed in a compose window. The delayed-send
    * queue belongs to the owner (plan §12.4): a compose window is the most
    * likely window in the app to be closed while the undo timer runs, and its
