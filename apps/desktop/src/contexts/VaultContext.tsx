@@ -1297,12 +1297,12 @@ export const VaultProvider: React.FC<{
   }, [isClient, state.vaultPath]);
 
   // Owner: every status the sync worker reaches goes out to the other windows
-  // (C3). Independent of the vault, because the store is reset on a switch and
-  // that reset is itself worth mirroring.
+  // (C3), addressed with the vault it belongs to — a window on another vault
+  // would otherwise draw this one's progress bar (stage D).
   useEffect(() => {
-    if (isClient) return;
-    return installSyncStatusMirror();
-  }, [isClient]);
+    if (isClient || !state.vaultPath) return;
+    return installSyncStatusMirror(state.vaultPath);
+  }, [isClient, state.vaultPath]);
 
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
@@ -1810,7 +1810,11 @@ export const VaultProvider: React.FC<{
     // forget to tell the other windows. Only the owner broadcasts: a client's
     // own bump is a consequence, not a cause, and re-broadcasting it would
     // bounce between auxiliary windows.
-    if (!isClient) broadcastIndexChanged(paths ?? [], !paths || paths.length === 0);
+    // Addressed with the vault of THIS runtime (stage D): with two of them in
+    // the process, an unaddressed "the index moved" would refresh the other
+    // window's tree over a vault that never changed.
+    if (!isClient && state.vaultPath)
+      broadcastIndexChanged(paths ?? [], !paths || paths.length === 0, state.vaultPath);
     if (paths && paths.length > 0) {
       // File-only refresh (P2.5): no folder-structure walk, and consumers may
       // skip refreshes whose paths cannot affect them (P2.7).

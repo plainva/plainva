@@ -1,9 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "../services/settingsStore";
 import { AUTO_OPEN_LAST_VAULT_KEY } from "./VaultContext";
-import { OWNER_LABEL } from "../services/windowBus";
+import { OWNER_LABEL, setBusVaultResolver } from "../services/windowBus";
+import { installOwnerAppBus } from "../services/ownerBus";
 import { currentWindowParams } from "../services/windowContext";
 import {
   heldVaults,
@@ -59,6 +60,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [autoOpenLastVault, setAutoOpen] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [held, setHeld] = useState<readonly string[]>(() => heldVaults());
+  const shownVaultRef = useRef<string | null>(null);
 
   // The label is what a vault is held BY: a window, not a component. Reading it
   // once keeps the identity stable across re-renders, so a render can never
@@ -67,10 +69,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => subscribeVaultRuntimes(() => setHeld(heldVaults())), []);
 
+  // Every message this window sends carries the vault it is looking at. Read
+  // through a function rather than captured, because the central window changes
+  // vaults while its bus stays the same (stage D).
+  const isOwner = label === OWNER_LABEL;
+  useEffect(() => {
+    if (!isOwner) return;
+    setBusVaultResolver(() => shownVaultRef.current);
+  }, [isOwner]);
+
+  // The requests that belong to the PROCESS rather than to a vault — window
+  // routing, the compose hand-over, the mail queue — are installed once here.
+  // Installing them per vault would answer one click twice as soon as a second
+  // vault is open.
+  useEffect(() => {
+    if (!isOwner) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void installOwnerAppBus()
+      .then((off) => {
+        if (cancelled) off();
+        else stop = off;
+      })
+      .catch((e) => console.warn("[AppContext] no window bus in this window", e));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [isOwner]);
+
   // This window holds exactly what it shows. Registered as one move rather than
   // release-then-acquire: a release that lands first would tear the runtime
   // down between two renders even when the same vault is shown again.
   useEffect(() => {
+    shownVaultRef.current = shownVault;
     setHolderVault(shownVault, label);
   }, [shownVault, label]);
 

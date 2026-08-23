@@ -79,9 +79,9 @@ function base64ToBytes(base64: string): Uint8Array {
  * Tells the other windows that the index moved. Called from the owner's single
  * refresh funnel, so no write path can forget it.
  */
-export function broadcastIndexChanged(paths: string[], structural: boolean): void {
+export function broadcastIndexChanged(paths: string[], structural: boolean, vaultPath: string): void {
   void getWindowBus()
-    .then((bus) => bus.broadcast("index-changed", { paths, structural }))
+    .then((bus) => bus.broadcast("index-changed", { paths, structural }, vaultPath))
     .catch(() => {
       /* no bus (browser/test): a single window needs no broadcast */
     });
@@ -101,7 +101,10 @@ export function announceVaultChanged(vaultPath: string | null): void {
   // its windows remembered under it, so reopening brings them back (E5).
   if (vaultPath) noteVaultChanged(vaultPath);
   void getWindowBus()
-    .then((bus) => bus.broadcast("vault-changed", { vaultPath }))
+    // Addressed to nobody in particular on purpose: this says which vault the
+    // CENTRAL window moved to, which is a fact about that window rather than
+    // about the vault, and every other window has to hear it.
+    .then((bus) => bus.broadcast("vault-changed", { vaultPath }, null))
     .catch(() => {
       /* no bus (browser/test): a single window needs no broadcast */
     });
@@ -120,7 +123,7 @@ export function announceVaultChanged(vaultPath: string | null): void {
  * Only the owner installs this, so a re-dispatched broadcast in a client
  * cannot bounce back.
  */
-function installEventBridges(): () => void {
+function installEventBridges(vaultPath: string): () => void {
   const bridges: Array<[string, "note-saved" | "file-changed"]> = [
     ["plainva-note-saved", "note-saved"],
     ["plainva-external-update", "file-changed"],
@@ -130,7 +133,7 @@ function installEventBridges(): () => void {
       const path = (e as CustomEvent).detail?.path;
       if (typeof path !== "string") return;
       void getWindowBus()
-        .then((bus) => bus.broadcast(channel, { path }))
+        .then((bus) => bus.broadcast(channel, { path }, vaultPath))
         .catch(() => {});
     };
     window.addEventListener(local, handler);
@@ -149,8 +152,11 @@ function installEventBridges(): () => void {
  * converge there, and a mirror that misses one of them shows a client a state
  * the vault left minutes ago.
  */
-export function installSyncStatusMirror(): () => void {
+export function installSyncStatusMirror(vaultPath: string): () => void {
   let last = "";
+  // The store itself is still one per process (stage D, package D3). Until it
+  // is split, a second vault's worker would overwrite this vault's status here
+  // — the address makes the message honest, not the store.
   return syncStatusStore.subscribe(() => {
     const s = syncStatusStore.get();
     // Cheap equality: the store also emits for fields no other window draws
@@ -160,26 +166,37 @@ export function installSyncStatusMirror(): () => void {
     last = key;
     void getWindowBus()
       .then((bus) =>
-        bus.broadcast("sync-status", {
-          status: s.status,
-          message: s.message,
-          provider: s.provider,
-          retryAt: s.retryAt ?? null,
-          progress: s.progress ?? null,
-        }),
+        bus.broadcast(
+          "sync-status",
+          {
+            status: s.status,
+            message: s.message,
+            provider: s.provider,
+            retryAt: s.retryAt ?? null,
+            progress: s.progress ?? null,
+          },
+          vaultPath,
+        ),
       )
       .catch(() => {});
   });
 }
 
 /**
- * Serves the requests of the auxiliary windows. Returns a disposer; the owner
- * re-installs it whenever the open vault changes, because the adapter chain and
- * the indexer belong to that vault.
+ * Serves the vault-scoped requests of the other windows — one installation per
+ * OPEN vault (stage D).
+ *
+ * Every handler here is bound to `deps.vaultPath`, so a process holding two
+ * vaults answers a write with the runtime the caller named. Without that
+ * binding both installations would answer the same request and the faster one
+ * would win, which on a write path means the wrong vault's adapter chain.
+ *
+ * The app- and window-scoped requests live in `installOwnerAppBus` instead:
+ * they belong to the process, so N runtimes must not answer them N times.
  */
 export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   const bus = await getWindowBus();
-  const offs: Array<() => void> = [installEventBridges()];
+  const offs: Array<() => void> = [installEventBridges(deps.vaultPath)];
 
   const indexAfterWrite = async (path: string) => {
     if (!deps.indexer) return;
@@ -203,14 +220,14 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("write", async ({ path, content }) => {
       await deps.vaultAdapter.writeTextFile(path, content);
       await indexAfterWrite(path);
-    }),
+    }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
     await bus.handle("write-binary", async ({ path, base64 }) => {
       await deps.vaultAdapter.writeBinaryFile(path, base64ToBytes(base64));
       await indexAfterWrite(path);
-    }),
+    }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
@@ -218,7 +235,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       await deps.vaultAdapter.renameItem(from, to);
       if (deps.indexer) await applyIndexChanges(deps.indexer, { removed: [from], added: [to] });
       deps.refresh();
-    }),
+    }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
@@ -230,34 +247,142 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
         await applyIndexChanges(deps.indexer, recursive ? { needsFullScan: true } : { removed: [path] });
       }
       deps.refresh();
-    }),
+    }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
     await bus.handle("mkdir", async ({ path }) => {
       await deps.vaultAdapter.createDir(path);
       deps.refresh();
-    }),
+    }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
-    await bus.handle("focus-content", async ({ path }) => {
+    await bus.handle("sync-control", async ({ what, paths }) => {
+      // One worker per vault, in this window (C3). The client shows the status
+      // and asks for the two things the status bar offers; the outcome comes
+      // back as the ordinary status broadcast, not as a return value, because
+      // the run outlives this request.
+      if (what === "note-deletions") deps.syncWorker?.noteUserInitiatedDeletion(paths ?? []);
+      else if (what === "retry") deps.syncWorker?.retryFailed();
+      else deps.syncWorker?.triggerImmediate();
+    }, { vaultPath: deps.vaultPath }),
+  );
+
+  offs.push(
+    await bus.handle("reindex", async ({ scope }) => {
+      // Both of these write to the index, and a client's connection is
+      // read-only by design (C1). The toast lands in the central window because
+      // that is where the work happens; the broadcast that follows updates
+      // every window's tree.
+      if (scope === "rebuild") await deps.rebuildIndex();
+      else await deps.refreshVault();
+    }, { vaultPath: deps.vaultPath }),
+  );
+
+  offs.push(
+    await bus.handle("pim-write", async ({ accountId, op }) => {
+      // The provider round trip happens HERE, in the window that owns the token
+      // broker. The rules around it (a move is create-then-delete, a moved
+      // remote means re-pull) already ran in the window the user clicked in.
+      if (!deps.pimRuntime) throw new Error("no calendar runtime in this window");
+      const account = (await deps.pimRuntime.cache.listAccounts()).find((a) => a.id === accountId);
+      if (!account) throw new Error("unknown calendar account");
+      const target = await deps.pimRuntime.buildTarget(account);
+      if (!target) throw new Error("no writable target for this account");
+      try {
+        if (op.kind === "createEvent") {
+          const res = await target.createEvent(op.calendarId, op.draft);
+          return { ok: true as const, uid: res.uid, etag: res.etag, href: res.href };
+        }
+        if (op.kind === "updateEvent") {
+          const res = await target.updateEvent(op.ref, op.draft);
+          return { ok: true as const, etag: res.etag };
+        }
+        if (op.kind === "deleteEvent") {
+          await target.deleteEvent(op.ref);
+          return { ok: true as const };
+        }
+        if (!target.respondToEvent) throw new Error("this provider cannot answer invitations");
+        await target.respondToEvent(op.ref, op.response);
+        return { ok: true as const };
+      } catch (err) {
+        // A conflict is an ANSWER, not a failure: the caller re-pulls and lets
+        // the user edit the fresh state. It travels as a value because
+        // `PimConflictError` cannot survive JSON.
+        if (err instanceof PimConflictError) return { conflict: true as const };
+        throw err;
+      }
+    }, { vaultPath: deps.vaultPath }),
+  );
+
+  offs.push(
+    await bus.handle("pim-refresh", async () => {
+      // Only this window has a worker; an aux calendar asking for fresh data
+      // must not start a second poller on the same cache tables.
+      await deps.pimRuntime?.worker.triggerImmediate();
+    }, { vaultPath: deps.vaultPath }),
+  );
+
+  offs.push(
+    await bus.handle("toggle-bookmark", async ({ path }) => {
+      // App.tsx owns the list and its optimistic state; the bus only carries
+      // the request across the window boundary.
+      window.dispatchEvent(new CustomEvent("plainva-toggle-bookmark", { detail: { path } }));
+    }, { vaultPath: deps.vaultPath }),
+  );
+
+  return () => {
+    for (const off of offs.splice(0)) {
+      try {
+        off();
+      } catch {
+        /* a listener that is already gone is not a problem */
+      }
+    }
+  };
+}
+
+/**
+ * Serves the requests that belong to the PROCESS, not to a vault (stage D).
+ *
+ * Window routing, the compose hand-over, the mail queue, the draft journal and
+ * the owner's own surfaces are all app-level: there is one window registry, one
+ * send queue, one settings dialog. With a runtime per open vault these must be
+ * installed exactly once, or two runtimes would answer the same request and a
+ * compose window would be opened twice for one click.
+ *
+ * Two of them still need to know a vault — "who has this file open" and "open
+ * this content" are questions about one vault's tree. They read it from the
+ * CALLER, which is the window that asked, rather than from whatever the central
+ * window happens to show.
+ */
+export async function installOwnerAppBus(): Promise<() => void> {
+  const bus = await getWindowBus();
+  const offs: Array<() => void> = [];
+
+  offs.push(
+    await bus.handle("focus-content", async ({ path }, _from, vaultPath) => {
       // Content is open once, app-wide (plan E2). The owner knows every window,
       // so it answers whether somebody else already has this file — and brings
       // that window forward when it does.
-      const win = findWindowForContent(deps.vaultPath, path);
+      // The CALLER's vault, not this window's: with two vaults open, asking
+      // "who has this file" about the wrong one answers about a different tree.
+      if (!vaultPath) return false;
+      const win = findWindowForContent(vaultPath, path);
       if (!win) return false;
       return focusAuxWindow(win.label);
     }),
   );
 
   offs.push(
-    await bus.handle("open-content", async ({ path, newWindow, from }) => {
+    await bus.handle("open-content", async ({ path, newWindow, from }, _sender, vaultPath) => {
       // One routing decision for the whole app (plan E2, hard dedup): the owner
       // knows every window, so it answers whether somebody else already has
       // this content — and only when nobody does may the caller draw it.
+      if (!vaultPath) throw new Error("open-content needs the calling window's vault");
       const result = await openOrFocusContent({
-        vaultPath: deps.vaultPath,
+        vaultPath,
         path,
         newWindow,
         from,
@@ -324,73 +449,6 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("sync-control", async ({ what, paths }) => {
-      // One worker per vault, in this window (C3). The client shows the status
-      // and asks for the two things the status bar offers; the outcome comes
-      // back as the ordinary status broadcast, not as a return value, because
-      // the run outlives this request.
-      if (what === "note-deletions") deps.syncWorker?.noteUserInitiatedDeletion(paths ?? []);
-      else if (what === "retry") deps.syncWorker?.retryFailed();
-      else deps.syncWorker?.triggerImmediate();
-    }),
-  );
-
-  offs.push(
-    await bus.handle("reindex", async ({ scope }) => {
-      // Both of these write to the index, and a client's connection is
-      // read-only by design (C1). The toast lands in the central window because
-      // that is where the work happens; the broadcast that follows updates
-      // every window's tree.
-      if (scope === "rebuild") await deps.rebuildIndex();
-      else await deps.refreshVault();
-    }),
-  );
-
-  offs.push(
-    await bus.handle("pim-write", async ({ accountId, op }) => {
-      // The provider round trip happens HERE, in the window that owns the token
-      // broker. The rules around it (a move is create-then-delete, a moved
-      // remote means re-pull) already ran in the window the user clicked in.
-      if (!deps.pimRuntime) throw new Error("no calendar runtime in this window");
-      const account = (await deps.pimRuntime.cache.listAccounts()).find((a) => a.id === accountId);
-      if (!account) throw new Error("unknown calendar account");
-      const target = await deps.pimRuntime.buildTarget(account);
-      if (!target) throw new Error("no writable target for this account");
-      try {
-        if (op.kind === "createEvent") {
-          const res = await target.createEvent(op.calendarId, op.draft);
-          return { ok: true as const, uid: res.uid, etag: res.etag, href: res.href };
-        }
-        if (op.kind === "updateEvent") {
-          const res = await target.updateEvent(op.ref, op.draft);
-          return { ok: true as const, etag: res.etag };
-        }
-        if (op.kind === "deleteEvent") {
-          await target.deleteEvent(op.ref);
-          return { ok: true as const };
-        }
-        if (!target.respondToEvent) throw new Error("this provider cannot answer invitations");
-        await target.respondToEvent(op.ref, op.response);
-        return { ok: true as const };
-      } catch (err) {
-        // A conflict is an ANSWER, not a failure: the caller re-pulls and lets
-        // the user edit the fresh state. It travels as a value because
-        // `PimConflictError` cannot survive JSON.
-        if (err instanceof PimConflictError) return { conflict: true as const };
-        throw err;
-      }
-    }),
-  );
-
-  offs.push(
-    await bus.handle("pim-refresh", async () => {
-      // Only this window has a worker; an aux calendar asking for fresh data
-      // must not start a second poller on the same cache tables.
-      await deps.pimRuntime?.worker.triggerImmediate();
-    }),
-  );
-
-  offs.push(
     await bus.handle("owner-surface", async ({ surface, provider, area }) => {
       // Bring this window forward first: opening a dialog in a window the user
       // cannot see is the same as doing nothing, only more confusing.
@@ -420,14 +478,6 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("toggle-bookmark", async ({ path }) => {
-      // App.tsx owns the list and its optimistic state; the bus only carries
-      // the request across the window boundary.
-      window.dispatchEvent(new CustomEvent("plainva-toggle-bookmark", { detail: { path } }));
-    }),
-  );
-
-  offs.push(
     await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision }) => {
       // The journal lives on disk next to the owner's own drafts; an auxiliary
       // window has no write access to it (aux capability) and needs none.
@@ -448,6 +498,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       await requestSaveFlush(path);
     }),
   );
+
 
   return () => {
     for (const off of offs.splice(0)) {

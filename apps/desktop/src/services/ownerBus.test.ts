@@ -63,7 +63,7 @@ vi.mock("./windowBus", async (importOriginal) => {
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { syncStatusStore } from "./syncStatusStore";
-import { installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import {
   findWindowForContent,
   listAuxWindows,
@@ -147,8 +147,10 @@ function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
 
 async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean } = {}) {
   const wire = createWire();
-  const owner = createWindowBus(wire(OWNER_LABEL));
-  const aux = createWindowBus(wire("aux-1"), opts.auxTimeoutMs);
+  const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/vault");
+  // The aux window belongs to a vault and says so on every message — that is
+  // what picks the runtime once a second vault is open (stage D).
+  const aux = createWindowBus(wire("aux-1"), opts.auxTimeoutMs, () => "/vault");
   busForTest = owner;
 
   const calls: string[] = [];
@@ -211,8 +213,22 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
       },
     },
   });
+  // The app-scoped half is installed once for the process, not per vault.
+  const disposeApp = await installOwnerAppBus();
 
-  return { aux, calls, refreshed, indexed, triggered, reindexed, syncCalls, dispose };
+  return {
+    aux,
+    calls,
+    refreshed,
+    indexed,
+    triggered,
+    reindexed,
+    syncCalls,
+    dispose: () => {
+      dispose();
+      disposeApp();
+    },
+  };
 }
 
 beforeEach(() => {
@@ -559,7 +575,7 @@ describe("the sync status the other windows see", () => {
     const { aux, dispose } = await setup();
     const seen: Array<{ status: string; message?: string | null }> = [];
     const off = await aux.onBroadcast("sync-status", (p) => seen.push(p));
-    const stop = installSyncStatusMirror();
+    const stop = installSyncStatusMirror("/vault");
 
     syncStatusStore.set({ status: "syncing", message: null });
     syncStatusStore.set({ status: "syncing", message: null });
@@ -574,5 +590,74 @@ describe("the sync status the other windows see", () => {
     stop();
     off();
     dispose();
+  });
+});
+
+/**
+ * Two open vaults, one process (stage D).
+ *
+ * This is the assertion the whole addressing package exists for: with a runtime
+ * per open vault, both of them register `write`, and a write that reached the
+ * wrong one would go through the wrong adapter chain — into another vault's
+ * backup history, another vault's sync queue, another vault's files.
+ */
+describe("owner bus with two vaults open", () => {
+  it("writes through the chain of the vault the caller named", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onB = createWindowBus(wire("full-2"), 200, () => "/B");
+    busForTest = owner;
+
+    const callsA: string[] = [];
+    const callsB: string[] = [];
+    const runtime = (vaultPath: string, calls: string[]) =>
+      installOwnerBus({
+        vaultPath,
+        vaultAdapter: createAdapter(calls),
+        indexer: null,
+        pimRuntime: null,
+        refresh: () => {},
+        refreshVault: async () => {},
+        rebuildIndex: async () => {},
+        syncWorker: null,
+      });
+
+    const stopA = await runtime("/A", callsA);
+    const stopB = await runtime("/B", callsB);
+    try {
+      await onB.request("write", { path: "Note.md", content: "from B" });
+      expect(callsB).toEqual(["write:Note.md"]);
+      expect(callsA).toEqual([]);
+    } finally {
+      stopA();
+      stopB();
+    }
+  });
+
+  it("answers a request from a window whose vault is closed instead of hanging", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onGone = createWindowBus(wire("full-3"), 120, () => "/gone");
+    busForTest = owner;
+
+    const calls: string[] = [];
+    const stop = await installOwnerBus({
+      vaultPath: "/A",
+      vaultAdapter: createAdapter(calls),
+      indexer: null,
+      pimRuntime: null,
+      refresh: () => {},
+      refreshVault: async () => {},
+      rebuildIndex: async () => {},
+      syncWorker: null,
+    });
+    try {
+      // Nobody holds "/gone" any more. The open vault must not stand in for it:
+      // a write answered by the wrong runtime is worse than one that fails.
+      await expect(onGone.request("write", { path: "N.md", content: "x" })).rejects.toThrow();
+      expect(calls).toEqual([]);
+    } finally {
+      stop();
+    }
   });
 });
