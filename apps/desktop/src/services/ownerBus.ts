@@ -3,7 +3,8 @@ import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
-import { takeComposeDraft } from "./mail/composeHandoff";
+import { readComposeDraft } from "./mail/composeHandoff";
+import { mailAccessTokenFor } from "@plainva/ui/mail";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -228,7 +229,10 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("compose-draft", async ({ label }) => takeComposeDraft(label)),
+    await bus.handle("mail-token", async ({ vaultPath, accountId, force }) =>
+      mailAccessTokenFor(vaultPath, accountId, force),
+    ),
+    await bus.handle("compose-draft", async ({ label }) => readComposeDraft(label)),
   );
 
   offs.push(

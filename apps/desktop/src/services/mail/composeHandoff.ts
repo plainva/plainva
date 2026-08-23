@@ -31,14 +31,21 @@ export function stashComposeDraft(label: string, snapshot: ComposeSnapshot): voi
 }
 
 /**
- * Hands the snapshot to the window it was made for, once. Taken rather than
- * read: a compose window that reloads starts from what its user typed since,
- * not from the state it was popped out with.
+ * Hands the snapshot to the window it was made for.
+ *
+ * Deliberately a READ, not a take, and the reason is a bug this had on the
+ * first real window (maintainer finding 2026-08-23): React StrictMode runs an
+ * effect twice in development, so the window asked twice. The first answer
+ * carried the draft and deleted it, the second came back empty and won — and
+ * the writer saw "the draft is gone" over an empty form.
+ *
+ * The snapshot stays until the window it belongs to goes away: `openAuxWindow`
+ * already calls `forgetComposeDraft` on close, whichever way it closed. That
+ * bounds the map by the same lifetime a take would have, without making a
+ * second question fatal.
  */
-export function takeComposeDraft(label: string): ComposeSnapshot | null {
-  const snap = drafts.get(label) ?? null;
-  drafts.delete(label);
-  return snap;
+export function readComposeDraft(label: string): ComposeSnapshot | null {
+  return drafts.get(label) ?? null;
 }
 
 /** A window closed before it ever asked (the writer changed their mind). */

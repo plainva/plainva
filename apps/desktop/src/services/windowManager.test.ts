@@ -118,7 +118,7 @@ import {
   noteWindowContent,
 } from "./windowManager";
 
-import { takeComposeDraft } from "./mail/composeHandoff";
+import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
 
 const VAULT = "/vault";
 
@@ -284,13 +284,25 @@ describe("remembering windows", () => {
 });
 
 describe("the composer as its own window", () => {
-  it("hands the draft to the window it was opened for, exactly once", async () => {
+  it("hands the draft to the window it was opened for, however often it asks", async () => {
     const rec = await openComposeWindow({ vaultPath: VAULT, snapshot: DRAFT, title: DRAFT.subject });
 
-    expect(takeComposeDraft(rec.label)).toEqual(DRAFT);
-    // Taken, not read: a compose window that reloads starts from what its
-    // writer typed since, not from the state it was popped out with.
-    expect(takeComposeDraft(rec.label)).toBeNull();
+    expect(readComposeDraft(rec.label)).toEqual(DRAFT);
+    // Asking twice must not empty the form. This used to be a take, and React
+    // StrictMode runs an effect twice in development: the second answer came
+    // back null and won, so the writer saw "the draft is gone" over an empty
+    // composer (maintainer finding 2026-08-23).
+    expect(readComposeDraft(rec.label)).toEqual(DRAFT);
+  });
+
+  it("forgets the draft when its window goes away", async () => {
+    const rec = await openComposeWindow({ vaultPath: VAULT, snapshot: DRAFT, title: DRAFT.subject });
+
+    // What bounds the map now that reading no longer clears it: the close
+    // handler wired in openAuxWindow, whichever way the window closed.
+    forgetComposeDraft(rec.label);
+
+    expect(readComposeDraft(rec.label)).toBeNull();
   });
 
   it("opens a second composer instead of focusing the first", async () => {
@@ -302,7 +314,7 @@ describe("the composer as its own window", () => {
     expect(one.label).not.toBe(two.label);
     expect(created).toHaveLength(2);
     expect(focused).toEqual([]);
-    expect(takeComposeDraft(two.label)?.subject).toBe("Two");
+    expect(readComposeDraft(two.label)?.subject).toBe("Two");
   });
 
   it("is not remembered for the next start", async () => {
