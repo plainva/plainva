@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-22
+Ultimo aggiornamento: 2026-08-23
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -220,6 +220,8 @@ L'app segue la larghezza della finestra, non il nome del dispositivo:
 - **da 840 px in su** — il navigatore e la superficie di lavoro stanno **fianco a fianco**. È lo stesso navigatore dell'area **Note**, solo accanto al tuo lavoro invece che davanti.
 
 **La barra laterale mostra tutte le aree.** Su un telefono la barra inferiore contiene da tre a cinque destinazioni — più di quante un pollice riesca a colpire in modo affidabile, perciò le altre restano dietro **Aree**. Lungo il bordo di una superficie larga quel limite non vale: l'elenco **intero** sta lì nel tuo ordine (**Impostazioni → Barra di navigazione**), la deviazione tramite **Aree** scompare, e le **Impostazioni** stanno proprio in fondo. La barra laterale inizia sotto la barra di stato — su un tablet con un incavo per la fotocamera, la sua prima icona prima si trovava sotto di esso.
+
+**Il navigatore si ripiega.** Mentre cerchi una nota, la colonna di sinistra le appartiene; mentre ne scrivi una, appartiene alla nota. L'icona in fondo alla barra laterale — appena sopra **Impostazioni** — lo ripiega e lo riapre, e la superficie di lavoro occupa quindi tutta la larghezza. L'interruttore compare solo dove esiste davvero una seconda colonna (da 840 px), vale per questo dispositivo e resta come lo hai lasciato dopo un riavvio. Sul desktop è lo stesso gesto — lì si chiama **Attiva/disattiva barra laterale sinistra**.
 
 Su un tablet, o su un telefono grande ruotato, ottieni lo stesso modello spaziale del desktop — navighi a sinistra, lavori al centro — invece di un telefono ingrandito.
 

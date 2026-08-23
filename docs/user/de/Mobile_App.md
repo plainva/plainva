@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-22
+Stand: 2026-08-23
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -220,6 +220,8 @@ Die App richtet sich nach der Fensterbreite, nicht nach dem Gerätenamen:
 - **ab 840 px** — Navigator und Arbeitsfläche stehen **nebeneinander**. Es ist derselbe Navigator wie im Bereich **Notizen**, nur neben Deiner Arbeit statt davor.
 
 **Die Leiste am Rand zeigt alle Bereiche.** Auf dem Telefon fasst die untere Leiste drei bis fünf Ziele — mehr trifft ein Daumen nicht zuverlässig, deshalb liegen die übrigen hinter **Bereiche**. Am Rand einer breiten Fläche gilt diese Grenze nicht: dort steht die **ganze** Liste in Deiner Reihenfolge (**Einstellungen → Navigationsleiste**), der Umweg über **Bereiche** entfällt, und ganz unten sitzen die **Einstellungen**. Die Leiste beginnt unter der Statusleiste — auf einem Tablet mit Kamera-Aussparung lag ihr erstes Symbol vorher darunter.
+
+**Den Navigator kannst Du wegklappen.** Solange Du eine Notiz suchst, gehört ihm die linke Spalte; solange Du eine schreibst, gehört sie der Notiz. Das Symbol unten in der Leiste — direkt über den **Einstellungen** — klappt ihn weg und wieder hervor; die Arbeitsfläche nimmt dann die ganze Breite ein. Der Schalter erscheint nur dort, wo es überhaupt eine zweite Spalte gibt (ab 840 px), gilt für dieses Gerät und bleibt über einen Neustart hinweg so, wie Du ihn gelassen hast. Am Desktop ist es derselbe Handgriff — dort heißt er **Linke Seitenleiste umschalten**.
 
 Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe Raummodell wie am Desktop — links navigieren, in der Mitte arbeiten — statt eines vergrößerten Telefons.
 

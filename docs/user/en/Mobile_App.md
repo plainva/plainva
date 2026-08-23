@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-22
+Last updated: 2026-08-23
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -220,6 +220,8 @@ The app follows the window width, not the device name:
 - **from 840 px** — navigator and working surface stand **side by side**. It is the same navigator as the **Notes** area, just beside your work instead of in front of it.
 
 **The rail shows every area.** On a phone the bottom bar holds three to five destinations — more than a thumb reliably hits, so the rest live behind **Areas**. Along the edge of a wide surface that limit does not apply: the **whole** list stands there in your order (**Settings → Navigation bar**), the detour through **Areas** falls away, and **Settings** sits at the very bottom. The rail starts below the status bar — on a tablet with a camera cutout its first icon used to sit underneath it.
+
+**The navigator folds away.** While you are looking for a note the left column belongs to it; while you are writing one it belongs to the note. The icon at the bottom of the rail — just above **Settings** — folds it away and back, and the working surface then takes the full width. The switch appears only where there is a second column at all (from 840 px), applies to this device, and stays the way you left it across a restart. On the desktop it is the same move — there it is called **Toggle left sidebar**.
 
 On a tablet, or a large phone turned sideways, you get the same spatial model as on the desktop — navigate on the left, work in the middle — instead of a blown-up phone.
 

@@ -65,7 +65,12 @@ describe("mobile routes", () => {
       .flatMap((m) => m[1].split(",").map((n) => n.trim()))
       .filter((n) => /Screen$/.test(n));
     expect(screenImports, `App.tsx still imports screens: ${screenImports.join(", ")}`).toEqual([]);
-    expect(source).toContain("renderRoute(");
+    // Since 2026-08-23 the shell does not even call the table: arranging the
+    // surfaces is its own component, and the call went with it. The claim is
+    // unchanged - one table decides what renders - so it follows the call.
+    const layout = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "components/AdaptiveLayout.tsx"), "utf8");
+    expect(layout).toContain("renderRoute(");
+    expect(source).not.toContain("renderRoute(");
   });
 
   /**

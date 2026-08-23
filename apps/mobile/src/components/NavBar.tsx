@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { LayoutGrid, Settings } from "lucide-react";
+import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
@@ -31,23 +31,41 @@ import { TAB_POOL, type TabScreenId } from "../navigation";
  * leave out, and a rail leaves nothing out. In their place, at the foot, sits
  * settings — on a tablet the rail is the standing navigation surface, and the
  * way into settings should not be behind each screen's own ⋮.
+ *
+ * Beside settings, where the shell offers two columns, sits the switch that
+ * folds the navigator away. It is deliberately NOT shaped like the entries
+ * above it: those are destinations, this changes the layout, and a tool that
+ * looks like a destination invites a tap that goes nowhere. It is also the
+ * only place the switch exists — the rail is the one surface standing beside
+ * every working surface, so no route can forget to offer it.
  */
 export function NavBar({
   tabs,
   activeTab,
   areasOpen,
+  navCollapsed,
   onPick,
   onOpenAreas,
   onOpenSettings,
+  onToggleNav,
 }: {
   /** What this shape shows: the visible slots on a phone, the pool in a rail. */
   tabs: TabScreenId[];
   /** The lit tab, or null while an overlay covers the tabs. */
   activeTab: TabScreenId | null;
   areasOpen: boolean;
+  /** True while the navigator column is folded away. Only read in a rail. */
+  navCollapsed: boolean;
   onPick: (id: TabScreenId) => void;
   onOpenAreas: () => void;
   onOpenSettings: () => void;
+  /**
+   * Undefined where there is no second column to fold — the shell decides
+   * that, next to where it decides whether to render one. Answering it here
+   * too would be a second opinion on the same question, which is how a rail
+   * ends up offering a switch for a column that is not there.
+   */
+  onToggleNav?: () => void;
 }) {
   const { t } = useTranslation();
   const pressTimer = useRef<number | null>(null);
@@ -111,6 +129,19 @@ export function NavBar({
       {rail ? (
         <>
           <span aria-hidden className="m-tab-spacer" />
+          {onToggleNav && (
+            <button
+              aria-label={t("titlebar.toggleLeftSidebar")}
+              aria-pressed={!navCollapsed}
+              className="m-railtool"
+              data-testid="rail-nav-toggle"
+              onClick={() => { haptics.light(); onToggleNav(); }}
+              data-tip={t("titlebar.toggleLeftSidebar")}
+              type="button"
+            >
+              {navCollapsed ? <PanelLeftOpen size={ICON.head} /> : <PanelLeftClose size={ICON.head} />}
+            </button>
+          )}
           <button
             className="m-tab"
             data-testid="rail-settings"

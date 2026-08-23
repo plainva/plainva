@@ -93,6 +93,17 @@ export interface MobileSettings extends VaultScopedSettings {
    * squeezed three-column tablet came from.
    */
   contextPanelDocked: boolean;
+  /**
+   * Fold the navigator away so the working surface has the tablet to itself.
+   *
+   * The two-column layout gave the navigator a permanent 280-380 px, which is
+   * right while you are picking a note and wrong while you are writing one --
+   * the desktop has been able to collapse its left sidebar since it had one.
+   * Device-local and OFF by default, so nothing moves for anyone who never
+   * asks; it only means anything from the expanded class, because below it
+   * there is no second column to fold.
+   */
+  navSidebarCollapsed: boolean;
 }
 
 /** Re-export so consumers (mobileSettingsSync) keep importing the type from here. */
@@ -123,6 +134,7 @@ const DEFAULTS: MobileSettings = {
   contentFontCustom: "",
   motion: "system",
   contextPanelDocked: false,
+  navSidebarCollapsed: false,
   ...VAULT_DEFAULTS,
 };
 

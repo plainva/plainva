@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-22
+Laatst bijgewerkt: 2026-08-23
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -220,6 +220,8 @@ De app volgt de vensterbreedte, niet de naam van het apparaat:
 - **vanaf 840 px** — navigator en werkoppervlak staan **naast elkaar**. Het is dezelfde navigator als het onderdeel **Notities**, alleen naast je werk in plaats van ervoor.
 
 **De balk aan de zijkant toont alle onderdelen.** Op een telefoon biedt de onderbalk drie tot vijf bestemmingen — meer haalt een duim niet betrouwbaar, dus de rest zit achter **Onderdelen**. Langs de rand van een breed oppervlak geldt die grens niet: de **hele** lijst staat daar in jouw volgorde (**Instellingen → Navigatiebalk**), de omweg via **Onderdelen** vervalt, en **Instellingen** staat helemaal onderaan. De balk begint onder de statusbalk — op een tablet met een camera-uitsparing zat het eerste icoon daar voorheen onder.
+
+**De navigator klapt weg.** Terwijl je een notitie zoekt, hoort de linkerkolom bij haar; terwijl je er een schrijft, hoort hij bij de notitie. Het icoon onderaan de balk — net boven **Instellingen** — klapt hem weg en weer open, waarna het werkoppervlak de volle breedte inneemt. De schakelaar verschijnt alleen waar er sowieso een tweede kolom is (vanaf 840 px), geldt voor dit apparaat en zijn stand overleeft een herstart. Op de desktop is het dezelfde beweging — daar heet de schakelaar **Linkerzijbalk tonen/verbergen**.
 
 Op een tablet, of een groot omgedraaid gehouden telefoon, krijg je hetzelfde ruimtelijke model als op de desktop — links navigeren, in het midden werken — in plaats van een opgeblazen telefoon.
 
