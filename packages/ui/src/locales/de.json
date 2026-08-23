@@ -3531,6 +3531,7 @@
     "trayQuit": "Beenden",
     "trayNoNext": "Kein Termin in Sicht",
     "trayNext": "Nächster: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Im Hintergrund bleiben?",
     "offerBody": "Erinnerungen erscheinen nur, solange Plainva läuft. Soll Plainva beim Schließen des Fensters im Infobereich weiterlaufen?",
     "offerYes": "Ja, im Hintergrund bleiben",

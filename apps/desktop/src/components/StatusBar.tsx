@@ -35,7 +35,7 @@ export function StatusBar() {
   const { syncWorker, vaultPath } = useVault();
   // Sync status via the external store (P3/E2), with anti-flicker: a no-op
   // poll cycle every 15 s must not blink the icon.
-  const { status: syncStatus, progress: syncProgress, retryAt: syncRetryAt } = useDisplaySyncStatus();
+  const { status: syncStatus, progress: syncProgress, retryAt: syncRetryAt } = useDisplaySyncStatus(vaultPath);
   const [doc, setDoc] = useState<ActiveDoc>(() => activeDocument.get());
   const [stats, setStats] = useState<Stats | null>(null);
   // Selection-aware counts (P3.9): while text is selected in the active

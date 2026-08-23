@@ -3494,6 +3494,7 @@
     "trayQuit": "退出",
     "trayNoNext": "暂无日程",
     "trayNext": "下一个：{{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "留在后台？",
     "offerBody": "提醒只在 Plainva 运行时出现。关闭窗口后，是否让 Plainva 在通知区域继续运行？",
     "offerYes": "好，留在后台",

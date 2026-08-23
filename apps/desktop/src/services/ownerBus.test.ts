@@ -232,7 +232,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
 }
 
 beforeEach(() => {
-  syncStatusStore.reset();
+  syncStatusStore.resetAll();
   resetWindowRegistryForTest();
   setOwnerOpenContents([]);
   focusedWindows.length = 0;
@@ -577,9 +577,9 @@ describe("the sync status the other windows see", () => {
     const off = await aux.onBroadcast("sync-status", (p) => seen.push(p));
     const stop = installSyncStatusMirror("/vault");
 
-    syncStatusStore.set({ status: "syncing", message: null });
-    syncStatusStore.set({ status: "syncing", message: null });
-    syncStatusStore.set({ status: "error", message: "no route to host" });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    syncStatusStore.set("/vault", { status: "error", message: "no route to host" });
     await new Promise((r) => setTimeout(r, 0));
 
     // The middle set is a no-op for the reader, and the store fires on every

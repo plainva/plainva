@@ -3531,6 +3531,7 @@
     "trayQuit": "Afsluiten",
     "trayNoNext": "Geen afspraak in zicht",
     "trayNext": "Volgende: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Op de achtergrond blijven?",
     "offerBody": "Herinneringen verschijnen alleen zolang Plainva draait. Moet Plainva bij het sluiten van het venster in het systeemvak doorlopen?",
     "offerYes": "Ja, op de achtergrond blijven",

@@ -31,9 +31,18 @@ interface RustZipResult {
 export { buildZipFileName, selectZipsToDelete, zipNamePattern } from "@plainva/ui";
 import { buildZipFileName, selectZipsToDelete } from "@plainva/ui";
 
-let zipRunning = false;
-export function isZipRunning(): boolean {
-  return zipRunning;
+/**
+ * Which vaults are archiving right now (stage D).
+ *
+ * A single flag was true while a process could only hold one vault. With two,
+ * it made vault B's scheduled archive wait for vault A's — and answered a
+ * manual "back up now" in B with "already running" about a run that window
+ * never started. Two archives are two Rust invocations over two folders; what
+ * must not happen twice is an archive of the SAME vault.
+ */
+const zipRunning = new Set<string>();
+export function isZipRunning(vaultPath: string): boolean {
+  return zipRunning.has(vaultPath);
 }
 
 export type ZipStatusState = "running" | "done" | "error";
@@ -49,9 +58,9 @@ function emitStatus(vaultPath: string, detail: Record<string, unknown> & { state
  * touching lastRun, so the scheduler retries on its next tick.
  */
 export async function runVaultZipBackup(opts: { vaultPath: string; store: ISettingsStore }): Promise<ZipRunOutcome> {
-  if (zipRunning) return { ok: false, error: "already-running" };
-  zipRunning = true;
   const { vaultPath, store } = opts;
+  if (zipRunning.has(vaultPath)) return { ok: false, error: "already-running" };
+  zipRunning.add(vaultPath);
   try {
     const customDest = ((await store.get<string>(backupZipDestKey(vaultPath))) ?? "").trim();
     const destDir = customDest || (await defaultZipDestination(vaultPath));
@@ -100,6 +109,6 @@ export async function runVaultZipBackup(opts: { vaultPath: string; store: ISetti
     emitStatus(vaultPath, { state: "error", message });
     return { ok: false, error: message };
   } finally {
-    zipRunning = false;
+    zipRunning.delete(vaultPath);
   }
 }

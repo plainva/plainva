@@ -1,5 +1,6 @@
 import { buildWindowQuery, windowStatePrefix, type WindowPreset, type WindowRole } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
+import { getWindowBus } from "./windowBus";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
 
@@ -577,6 +578,41 @@ export async function openOrFocusContent(opts: {
 
   if (ownerHasContent(opts.path)) return { where: "owner" };
   return { where: "caller" };
+}
+
+/**
+ * Shows content in whichever window has that vault open (stage D).
+ *
+ * A reminder fires in the runtime, and the runtime has no window — with two
+ * vaults open the one it belongs to may well be a window the central one is
+ * not showing. Clicking the notification then has to land where that vault
+ * IS, not where the central window happens to be looking, because opening it
+ * centrally would silently switch the vault out from under the other window.
+ *
+ * A held vault always has a window: that is what holding means. So the only
+ * two answers are "the central window, locally" and "that window, brought
+ * forward" — there is no third case to invent a fallback for.
+ */
+export async function showContentInVaultWindow(opts: {
+  vaultPath: string;
+  path: string;
+  /** True when the central window is the one showing this vault. */
+  ownerShows: boolean;
+}): Promise<boolean> {
+  if (opts.ownerShows) {
+    window.dispatchEvent(new CustomEvent("plainva-window-show-content", { detail: { path: opts.path } }));
+    return true;
+  }
+  const target =
+    findWindowForContent(opts.vaultPath, opts.path) ??
+    listAuxWindows().find((w) => w.vaultPath === opts.vaultPath && (w.role === "aux" || w.role === "full")) ??
+    null;
+  if (!target) return false;
+  const focused = await focusAuxWindow(target.label);
+  if (!focused) return false;
+  const bus = await getWindowBus();
+  await bus.broadcast("set-content", { label: target.label, path: opts.path }, opts.vaultPath);
+  return true;
 }
 
 /** Remembers where a window is, so a later start can put it back (P4/E5). */

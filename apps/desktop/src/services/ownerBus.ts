@@ -154,11 +154,11 @@ function installEventBridges(vaultPath: string): () => void {
  */
 export function installSyncStatusMirror(vaultPath: string): () => void {
   let last = "";
-  // The store itself is still one per process (stage D, package D3). Until it
-  // is split, a second vault's worker would overwrite this vault's status here
-  // — the address makes the message honest, not the store.
+  // Subscription is process-wide, the read is not: every vault's emit wakes
+  // this mirror and it looks only at ITS vault, so a second worker's poll
+  // cannot make this one broadcast a status it never reached (stage D).
   return syncStatusStore.subscribe(() => {
-    const s = syncStatusStore.get();
+    const s = syncStatusStore.get(vaultPath);
     // Cheap equality: the store also emits for fields no other window draws
     // (error history, authRecoverable), and every emit here is an IPC message.
     const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total].join("|");

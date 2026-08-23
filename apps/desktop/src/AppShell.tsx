@@ -30,7 +30,6 @@ import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
-import { ReminderHost } from "./components/ReminderHost";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
 import { requestCascadeDelete } from "./services/cascadeDelete";
@@ -1526,15 +1525,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       </div>
 
-      {/* Clocks belong to the central window (stage C). The shell is shared, so
-          a second window would start a SECOND reminder scheduler on the same
-          vault: the same appointment notified twice, and two windows writing
-          the tray's "next up" text. Unlike the handed-over runs this one has no
-          button — it fires by itself — so it is not deferred, it simply does
-          not run here. */}
-      {!capabilities.deferToOwner && (
-        <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
-      )}
+      {/* No clock here. The shell is shared, so everything it MOUNTS runs in
+          every window — and since stage D it does not even run for every open
+          vault, because only the vault a window SHOWS renders a shell. The
+          reminder scheduler therefore lives in the runtime (VaultContext), one
+          per open vault, where neither a second window nor a window looking
+          elsewhere can double it or drop it. */}
       <StatusBar />
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense

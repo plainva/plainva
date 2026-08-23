@@ -3531,6 +3531,7 @@
     "trayQuit": "Quit",
     "trayNoNext": "No appointment in sight",
     "trayNext": "Next: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Stay in the background?",
     "offerBody": "Reminders only appear while Plainva is running. Should Plainva keep running in the tray when you close the window?",
     "offerYes": "Yes, stay in the background",

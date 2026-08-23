@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { open } from "@tauri-apps/plugin-dialog";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "../services/settingsStore";
+import { RUN_IN_TRAY_KEY, enableTray } from "../services/background";
 import { AUTO_OPEN_LAST_VAULT_KEY } from "./VaultContext";
 import { OWNER_LABEL, setBusVaultResolver } from "../services/windowBus";
 import { installOwnerAppBus } from "../services/ownerBus";
@@ -54,6 +55,30 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const MAX_RECENTS = 10;
 
+/**
+ * What was open, as opposed to what was opened last (multi-window stage D).
+ *
+ * `lastVaultPath` is a single string, and a single string can only ever bring
+ * one vault back: with two windows on two vaults, the second one was forgotten
+ * on every restart — silently, because the app came up looking perfectly
+ * normal, just missing a window. The list is written from the vaults actually
+ * held, which is the only description of "open" that cannot drift.
+ */
+export const LAST_VAULT_PATHS_KEY = "lastVaultPaths";
+
+/** The vaults that were open when the app last ran; the window restore reads it. */
+export async function loadLastVaultPaths(): Promise<string[]> {
+  try {
+    const store = await getSettingsStore();
+    const list = await store.get<string[]>(LAST_VAULT_PATHS_KEY);
+    if (list?.length) return list;
+    const single = await store.get<string>("lastVaultPath");
+    return single ? [single] : [];
+  } catch {
+    return [];
+  }
+}
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [shownVault, setShownVault] = useState<string | null>(null);
   const [recentVaults, setRecentVaults] = useState<string[]>([]);
@@ -98,6 +123,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [isOwner]);
 
+  // Restores the tray from the setting, once per process rather than once per
+  // vault. A start that fails — the environment can change between sessions —
+  // turns the setting off rather than leaving a switch that claims a way back
+  // which is not there.
+  useEffect(() => {
+    if (!isOwner) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      if ((await store.get<boolean>(RUN_IN_TRAY_KEY)) !== true) return;
+      try {
+        await enableTray();
+      } catch {
+        await store.set(RUN_IN_TRAY_KEY, false);
+        await store.save();
+      }
+    })();
+  }, [isOwner]);
+
+  // Remembers the open set, never an empty one: the last window to close drains
+  // the held list, and writing that would erase the memory in the one moment it
+  // is about to be needed.
+  useEffect(() => {
+    if (!isOwner || isBooting || held.length === 0) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      await store.set(LAST_VAULT_PATHS_KEY, [...held]);
+      await store.save();
+    })().catch((e) => console.warn("[AppContext] could not remember the open vaults", e));
+  }, [isOwner, isBooting, held]);
+
   // This window holds exactly what it shows. Registered as one move rather than
   // release-then-acquire: a release that lands first would tear the runtime
   // down between two renders even when the same vault is shown again.
@@ -140,6 +195,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           });
         }
 
+        // Bestand carried one remembered vault; seed the list from it once so a
+        // first start after the update restores what the user had.
+        if (savedPath && !(await store.get<string[]>(LAST_VAULT_PATHS_KEY))) {
+          await store.set(LAST_VAULT_PATHS_KEY, [savedPath]);
+          await store.save();
+        }
+
         const autoOpen = (await store.get<boolean>(AUTO_OPEN_LAST_VAULT_KEY)) ?? false;
         if (cancelled) return;
         setRecentVaults(savedRecents);
@@ -180,10 +242,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // The runtime tears itself down when its provider unmounts; the app layer
     // only stops looking. In this order the UI answers immediately even when
     // the teardown has to wait for a sync cycle to drain.
+    const closed = shownVaultRef.current;
     setShownVault(null);
     try {
       const store = await getSettingsStore();
       await store.set("lastVaultPath", null);
+      // A deliberate close is remembered as closed — otherwise the vault would
+      // come back on the next start and the button would look like it failed.
+      if (closed) {
+        const open = (await store.get<string[]>(LAST_VAULT_PATHS_KEY)) ?? [];
+        await store.set(LAST_VAULT_PATHS_KEY, open.filter((p) => p !== closed));
+      }
       await store.save();
     } catch (e) {
       console.error("[AppContext] could not forget the last vault", e);
@@ -197,6 +266,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await store.set("recentVaults", newRecents);
     const last = await store.get<string>("lastVaultPath");
     if (last === path) await store.set("lastVaultPath", null);
+    const open = (await store.get<string[]>(LAST_VAULT_PATHS_KEY)) ?? [];
+    if (open.includes(path)) await store.set(LAST_VAULT_PATHS_KEY, open.filter((p) => p !== path));
     await store.save();
     setRecentVaults(newRecents);
   }, []);

@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, Cloud } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { useDisplaySyncStatus } from "../services/syncStatusStore";
-import type { VaultSyncWorker } from "../contexts/VaultContext";
+import { useVault, type VaultSyncWorker } from "../contexts/VaultContext";
 
 /**
  * Sync icon in the vault switcher, isolated as a leaf (2026-07-06 fix). It is
@@ -17,7 +17,8 @@ import type { VaultSyncWorker } from "../contexts/VaultContext";
  */
 export function SyncSwitcherIcon({ syncWorker, onError }: { syncWorker: VaultSyncWorker; onError: () => void }) {
   const { t } = useTranslation();
-  const { status } = useDisplaySyncStatus();
+  const { vaultPath } = useVault();
+  const { status } = useDisplaySyncStatus(vaultPath);
   return (
     <div
       style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}

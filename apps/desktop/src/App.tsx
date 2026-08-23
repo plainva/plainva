@@ -144,9 +144,9 @@ function App() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [syncErrorSnapshot, setSyncErrorSnapshot] = useState<SyncErrorSnapshot | null>(null);
   const openSyncError = useCallback(() => {
-    setSyncErrorSnapshot(captureSyncErrorSnapshot());
+    setSyncErrorSnapshot(captureSyncErrorSnapshot(vaultPath));
     setShowErrorModal(true);
-  }, []);
+  }, [vaultPath]);
   // Fill the dialog's conflict rows from the index whenever it opens (P3.11).
   useEffect(() => {
     if (!showErrorModal || !queryService) {
@@ -397,7 +397,8 @@ function SyncErrorDialog({
   onResetEncryption: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const { status } = useDisplaySyncStatus();
+  const { vaultPath } = useVault();
+  const { status } = useDisplaySyncStatus(vaultPath);
   const message = error?.message || t("sync.unknownError", { defaultValue: "Unbekannter Fehler aufgetreten." });
   // Stated wins over guessed: the worker's raw provider texts still go through
   // the regex, but a failure that KNOWS it needs a sign-in says so (P3).

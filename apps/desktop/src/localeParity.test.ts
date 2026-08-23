@@ -283,6 +283,8 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // Two placeholders and a separator; there is no word in it to translate.
+  "background.trayNextInVault",
   "cloudAccounts.familyAol",
   "cloudAccounts.familyApple",
   "cloudAccounts.familyDropbox",

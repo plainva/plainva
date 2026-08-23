@@ -91,14 +91,24 @@ describe("runs that stay with the central window", () => {
     expect(read("AppShell.tsx")).toContain('capabilities.deferToOwner("switch-vault")');
   });
 
-  it("does not start a second clock in the second window", () => {
-    // The shell is shared, so everything it MOUNTS runs in both windows. A
-    // reminder scheduler is not a run behind a button that could be handed
-    // over: it fires on its own, and a second one would notify the same
-    // appointment twice and fight over the tray's "next up" line.
+  it("keeps every clock out of the shared shell", () => {
+    // The shell is shared, so everything it MOUNTS runs in both windows — and
+    // since stage D it renders only for the vault a window SHOWS. A scheduler
+    // mounted here would therefore be wrong twice over: two windows on one
+    // vault would notify the same appointment twice, and a vault held open for
+    // another window would have a sync worker and an indexer but no clock, so
+    // its appointments would never fire at all.
     const shell = read("AppShell.tsx");
-    expect(shell).toContain(`{!capabilities.deferToOwner && (
-        <ReminderHost`);
+    expect(shell).not.toContain("ReminderHost");
+    expect(shell).not.toContain("startReminderScheduler");
+  });
+
+  it("runs the reminder clock once per open vault, in the central window", () => {
+    // A vault is what has appointments, so the clock belongs to the runtime —
+    // one per held vault, started only by the window that owns the writes.
+    const vault = read("contexts/VaultContext.tsx");
+    expect(vault).toContain("startReminderScheduler({");
+    expect(vault).toContain("if (isClient) return;");
   });
 
   it("is the client that defers, never the central window", () => {

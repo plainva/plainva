@@ -315,7 +315,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 )}
             </SettingCardNote>
           )}
-          {p.isActiveVault && syncStatusStore.get().collisions.length > 0 && (
+          {p.isActiveVault && syncStatusStore.get(p.selectedVault).collisions.length > 0 && (
             // A decision, not a failure (finding 2026-08-21): every other file
             // keeps syncing, so this no longer paints the status red — and the
             // sentence is no longer built in English inside the core.
@@ -324,7 +324,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                 <strong>{t("sync.collisionTitle")}</strong>
                 <div style={{ marginTop: "0.3rem" }}>{t("sync.collisionBody")}</div>
                 <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem", fontSize: "var(--text-sm)", overflowWrap: "anywhere" }}>
-                  {syncStatusStore.get().collisions.map((c) => (
+                  {syncStatusStore.get(p.selectedVault).collisions.map((c) => (
                     <li key={`${c.path}|${c.twin}`}>
                       {c.path}
                       <span aria-hidden="true"> ↔ </span>
@@ -335,11 +335,11 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               </Banner>
             </SettingCardNote>
           )}
-          {p.isActiveVault && syncStatusStore.getErrorHistory().length > 0 && (
+          {p.isActiveVault && syncStatusStore.getErrorHistory(p.selectedVault).length > 0 && (
             <SettingCardNote>
               <div style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", marginBottom: "0.3rem" }}>{t("settings.syncErrorHistory")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", maxHeight: 140, overflowY: "auto", border: "1px solid var(--border-color-light)", borderRadius: "var(--radius-sm)", padding: "0.4rem 0.6rem" }}>
-                {[...syncStatusStore.getErrorHistory()].reverse().map((e, i) => (
+                {[...syncStatusStore.getErrorHistory(p.selectedVault)].reverse().map((e, i) => (
                   <div key={`${e.ts}-${i}`} style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>
                     <span style={{ color: "var(--text-faint)" }}>{new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "medium" }).format(new Date(e.ts))}</span>{" — "}{e.message}
                   </div>

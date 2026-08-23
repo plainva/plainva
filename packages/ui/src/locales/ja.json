@@ -3494,6 +3494,7 @@
     "trayQuit": "終了",
     "trayNoNext": "予定はありません",
     "trayNext": "次: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "バックグラウンドに残しますか？",
     "offerBody": "リマインダーは Plainva が動いているあいだだけ表示されます。ウィンドウを閉じたあとも通知領域で動かし続けますか。",
     "offerYes": "はい、残す",

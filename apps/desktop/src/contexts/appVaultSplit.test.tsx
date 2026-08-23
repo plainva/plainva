@@ -62,9 +62,9 @@ vi.mock("./VaultContext", async () => {
   };
 });
 
-import { AppProvider, StaticAppProvider, useApp } from "./AppContext";
+import { AppProvider, LAST_VAULT_PATHS_KEY, StaticAppProvider, useApp } from "./AppContext";
 import { VaultHost } from "./VaultHost";
-import { acquireVault, heldVaults, holdersOf, resetVaultRuntimes } from "../services/vaultRuntimes";
+import { acquireVault, heldVaults, holdersOf, releaseHolder, resetVaultRuntimes } from "../services/vaultRuntimes";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -235,6 +235,68 @@ describe("app layer and vault layer (stage D)", () => {
     // window reads through the owner and never boots a runtime of its own.
     expect([...mounted].sort()).toEqual(["/A", "/B"]);
     expect(q('[data-testid="runtime:/B"]')?.childElementCount).toBe(0);
+  });
+
+  it("remembers every open vault, not just the last one opened", async () => {
+    // One string could only ever bring one vault back: a second window's vault
+    // was forgotten on every restart, silently — the app came up looking
+    // perfectly normal, just missing a window.
+    storeValues.lastVaultPath = "/A";
+    storeValues.autoOpenLastVault = true;
+    await mount(<AppProvider><Probe /></AppProvider>);
+    await act(async () => acquireVault("/B", "full-1"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect([...(storeValues[LAST_VAULT_PATHS_KEY] as string[])].sort()).toEqual(["/A", "/B"]);
+  });
+
+  it("does not erase the memory on a start that shows no vault", async () => {
+    // The splash holds nothing, and the process drains the held set on the way
+    // out. Writing that empty set would wipe the memory in the one moment it is
+    // about to be read.
+    storeValues[LAST_VAULT_PATHS_KEY] = ["/A", "/B"];
+    await mount(<AppProvider><Probe /></AppProvider>);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(storeValues[LAST_VAULT_PATHS_KEY]).toEqual(["/A", "/B"]);
+  });
+
+  it("drops a vault whose window went away", async () => {
+    storeValues.lastVaultPath = "/A";
+    storeValues.autoOpenLastVault = true;
+    await mount(<AppProvider><Probe /></AppProvider>);
+    await act(async () => acquireVault("/B", "full-1"));
+    await act(async () => releaseHolder("full-1"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // A closed window's vault is not open any more — and would otherwise
+    // reappear on the next start as a window nobody asked for.
+    expect(storeValues[LAST_VAULT_PATHS_KEY]).toEqual(["/A"]);
+  });
+
+  it("forgets a vault that was closed on purpose", async () => {
+    storeValues.lastVaultPath = "/A";
+    storeValues.autoOpenLastVault = true;
+    await mount(<AppProvider><Probe /></AppProvider>);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await api!.closeVault();
+    });
+    // Otherwise it comes back on the next start and the button looks broken.
+    expect(storeValues[LAST_VAULT_PATHS_KEY]).toEqual([]);
+  });
+
+  it("seeds the list from the single vault an older version remembered", async () => {
+    storeValues.lastVaultPath = "/A";
+    await mount(<AppProvider><Probe /></AppProvider>);
+    // Auto-open is off here, so nothing is held: the memory still has to survive
+    // the update, or a first start after it comes up empty.
+    expect(storeValues[LAST_VAULT_PATHS_KEY]).toEqual(["/A"]);
   });
 
   it("does not show the splash while the app is still deciding", async () => {

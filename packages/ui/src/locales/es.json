@@ -3568,6 +3568,7 @@
     "trayQuit": "Salir",
     "trayNoNext": "Ninguna cita a la vista",
     "trayNext": "Siguiente: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "¿Quedarse en segundo plano?",
     "offerBody": "Los recordatorios solo aparecen mientras Plainva está en marcha. ¿Debe Plainva seguir en el área de notificación al cerrar la ventana?",
     "offerYes": "Sí, quedarse en segundo plano",

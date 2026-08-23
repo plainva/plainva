@@ -3568,6 +3568,7 @@
     "trayQuit": "Esci",
     "trayNoNext": "Nessun appuntamento in vista",
     "trayNext": "Prossimo: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Restare sullo sfondo?",
     "offerBody": "I promemoria compaiono solo finché Plainva è in esecuzione. Plainva deve restare nell'area di notifica quando chiudi la finestra?",
     "offerYes": "Sì, resta sullo sfondo",

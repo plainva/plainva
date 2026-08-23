@@ -390,7 +390,7 @@ export interface WindowBus {
   /** Any side: react to a broadcast. Own emissions are filtered out. */
   onBroadcast<C extends BroadcastChannel>(
     channel: C,
-    handler: (payload: BroadcastMap[C], from: string) => void,
+    handler: (payload: BroadcastMap[C], from: string, vaultPath: string | null) => void,
   ): Promise<() => void>;
   /** Aux side: ask the owner to do something and wait for the outcome. */
   request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"]): Promise<RpcMap[K]["result"]>;
@@ -478,7 +478,7 @@ export function createWindowBus(
           const mine = vaultPathOf();
           if (mine && env.vaultPath && env.vaultPath !== mine) return;
         }
-        handler(env.payload as never, env.from);
+        handler(env.payload as never, env.from, env.vaultPath ?? null);
       });
       unlisteners.push(un);
       return un;

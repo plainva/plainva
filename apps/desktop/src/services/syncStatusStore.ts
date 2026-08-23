@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { logDiagnostic } from "@plainva/ui";
@@ -9,6 +9,13 @@ import { logDiagnostic } from "@plainva/ui";
  * (15 s) — routed through the VaultContext state that re-rendered the whole
  * app (all useVault consumers) twice per tick. Only the status bar and the
  * sync-error UI actually care, so they subscribe here instead.
+ *
+ * Keyed by vault since stage D. It used to be one snapshot per process, which
+ * was true while a process could only hold one open vault — with two, the
+ * second worker's every poll overwrote the first one's status, and a status bar
+ * would have reported a vault its window does not show. The key is passed in
+ * rather than read from an ambient "current vault": every caller knows which
+ * vault it means, and a store that guesses is the failure this split removes.
  */
 export interface SyncStatusSnapshot {
   status: SyncStatus;
@@ -44,7 +51,6 @@ export interface SyncStatusSnapshot {
 
 const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [] };
 
-let snapshot: SyncStatusSnapshot = IDLE;
 const listeners = new Set<() => void>();
 
 /** Recent sync errors (P4.3): shown in the settings' sync section. */
@@ -57,58 +63,84 @@ export interface SyncErrorEntry {
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
 const MAX_ERROR_HISTORY = 20;
-const errorHistory: SyncErrorEntry[] = [];
+
+interface VaultSyncState {
+  snapshot: SyncStatusSnapshot;
+  errorHistory: SyncErrorEntry[];
+}
+
+const byVault = new Map<string, VaultSyncState>();
+const NO_ERRORS: readonly SyncErrorEntry[] = [];
+
+function stateOf(vaultPath: string): VaultSyncState {
+  let st = byVault.get(vaultPath);
+  if (!st) {
+    st = { snapshot: IDLE, errorHistory: [] };
+    byVault.set(vaultPath, st);
+  }
+  return st;
+}
 
 function emit() {
   for (const l of listeners) l();
 }
 
 export const syncStatusStore = {
-  get(): SyncStatusSnapshot {
-    return snapshot;
+  /** Null (no vault open) reads as idle — the splash has no sync to report. */
+  get(vaultPath: string | null): SyncStatusSnapshot {
+    if (!vaultPath) return IDLE;
+    return byVault.get(vaultPath)?.snapshot ?? IDLE;
   },
-  set(next: Partial<SyncStatusSnapshot>) {
+  set(vaultPath: string, next: Partial<SyncStatusSnapshot>) {
+    const st = stateOf(vaultPath);
+    const snapshot = st.snapshot;
     // A temporary failure counts as a transition too: the surface deliberately
     // stops shouting about it, so the history is the only place its raw text
     // survives (round 3, R4).
     const wasFailure = (snapshot.status === "error" || snapshot.status === "retrying") && snapshot.message;
-    snapshot = { ...snapshot, ...next };
+    const merged = { ...snapshot, ...next };
     // `authRecoverable` belongs to ONE failure. Merging would carry it into the
     // next status, so a long-resolved sign-in problem would keep sending later
     // network errors to the settings instead of offering a retry.
     if ((next.status !== undefined || next.message !== undefined) && next.authRecoverable === undefined) {
-      snapshot.authRecoverable = undefined;
+      merged.authRecoverable = undefined;
     }
+    st.snapshot = merged;
     if (
-      (snapshot.status === "error" || snapshot.status === "retrying") &&
-      snapshot.message &&
-      snapshot.message !== (wasFailure || null)
+      (merged.status === "error" || merged.status === "retrying") &&
+      merged.message &&
+      merged.message !== (wasFailure || null)
     ) {
-      errorHistory.push({
+      st.errorHistory.push({
         ts: Date.now(),
-        message: snapshot.message,
-        provider: snapshot.provider,
-        reason: snapshot.reason,
-        authRecoverable: snapshot.authRecoverable,
+        message: merged.message,
+        provider: merged.provider,
+        reason: merged.reason,
+        authRecoverable: merged.authRecoverable,
       });
-      if (errorHistory.length > MAX_ERROR_HISTORY) errorHistory.splice(0, errorHistory.length - MAX_ERROR_HISTORY);
-      logDiagnostic("sync", snapshot.message);
+      if (st.errorHistory.length > MAX_ERROR_HISTORY) st.errorHistory.splice(0, st.errorHistory.length - MAX_ERROR_HISTORY);
+      logDiagnostic("sync", merged.message);
     }
     emit();
   },
-  getErrorHistory(): readonly SyncErrorEntry[] {
-    return errorHistory;
+  getErrorHistory(vaultPath: string | null): readonly SyncErrorEntry[] {
+    if (!vaultPath) return NO_ERRORS;
+    return byVault.get(vaultPath)?.errorHistory ?? NO_ERRORS;
   },
-  getLatestError(): SyncErrorEntry | null {
-    return errorHistory[errorHistory.length - 1] ?? null;
+  getLatestError(vaultPath: string | null): SyncErrorEntry | null {
+    const h = syncStatusStore.getErrorHistory(vaultPath);
+    return h[h.length - 1] ?? null;
   },
-  reset() {
-    // Also clear the error history: it is a global module-level list, so without
-    // this a locked/failing vault's errors would keep showing in the sync
-    // settings of a DIFFERENT vault opened afterwards (loadVault + closeVault both
-    // call reset()).
-    snapshot = IDLE;
-    errorHistory.length = 0;
+  /**
+   * Drops everything this vault said, status and error history alike.
+   *
+   * The history used to be one process-wide list, so a failing vault's errors
+   * kept showing in the sync settings of a DIFFERENT vault opened afterwards —
+   * which is why the reset had to clear it. Keyed, that cannot happen at all;
+   * the reset now only frees what a closed vault left behind.
+   */
+  reset(vaultPath: string) {
+    byVault.delete(vaultPath);
     emit();
   },
   subscribe(listener: () => void): () => void {
@@ -117,13 +149,18 @@ export const syncStatusStore = {
       listeners.delete(listener);
     };
   },
+  /** Tests only: forget every vault. */
+  resetAll() {
+    byVault.clear();
+    emit();
+  },
 };
 
 /** Captures the failed attempt before an automatic retry changes live status. */
-export function captureSyncErrorSnapshot(): SyncErrorSnapshot | null {
-  const current = syncStatusStore.get();
+export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSnapshot | null {
+  const current = syncStatusStore.get(vaultPath);
   if (current.status === "error" && current.message) {
-    const latest = syncStatusStore.getLatestError();
+    const latest = syncStatusStore.getLatestError(vaultPath);
     if (latest?.message === current.message && latest.provider === current.provider) return latest;
     return {
       ts: Date.now(),
@@ -133,7 +170,7 @@ export function captureSyncErrorSnapshot(): SyncErrorSnapshot | null {
       authRecoverable: current.authRecoverable,
     };
   }
-  return syncStatusStore.getLatestError();
+  return syncStatusStore.getLatestError(vaultPath);
 }
 
 /** Authentication failures are the only errors for which reconnect is useful. */
@@ -141,8 +178,9 @@ export function isSyncAuthenticationError(message: string): boolean {
   return /(?:\b401\b|unauthori[sz]ed|invalid[_ -]?grant|invalid[_ -]?token|token.*(?:expired|revoked)|refresh token|authentication|authentifizierung|anmeldung.*abgelaufen)/i.test(message);
 }
 
-export function useSyncStatus(): SyncStatusSnapshot {
-  return useSyncExternalStore(syncStatusStore.subscribe, syncStatusStore.get);
+export function useSyncStatus(vaultPath: string | null): SyncStatusSnapshot {
+  const read = useCallback(() => syncStatusStore.get(vaultPath), [vaultPath]);
+  return useSyncExternalStore(syncStatusStore.subscribe, read);
 }
 
 function sameSnap(a: SyncStatusSnapshot, b: SyncStatusSnapshot): boolean {
@@ -176,8 +214,8 @@ function displayOf(snap: SyncStatusSnapshot, showSyncing: boolean): SyncStatusSn
  * read-mode Mermaid diagram (flicker) and churning the live editor around the
  * caret. Keeping the subscription in leaves confines each flip to that leaf.
  */
-export function useDisplaySyncStatus(delayMs = 400): SyncStatusSnapshot {
-  const [display, setDisplay] = useState<SyncStatusSnapshot>(() => displayOf(syncStatusStore.get(), false));
+export function useDisplaySyncStatus(vaultPath: string | null, delayMs = 400): SyncStatusSnapshot {
+  const [display, setDisplay] = useState<SyncStatusSnapshot>(() => displayOf(syncStatusStore.get(vaultPath), false));
   useEffect(() => {
     let timer: number | null = null;
     // Once "syncing" has been revealed (past the delay) it stays shown until the
@@ -186,7 +224,7 @@ export function useDisplaySyncStatus(delayMs = 400): SyncStatusSnapshot {
     let revealed = false;
     const commit = (next: SyncStatusSnapshot) => setDisplay((prev) => (sameSnap(prev, next) ? prev : next));
     const recompute = () => {
-      const snap = syncStatusStore.get();
+      const snap = syncStatusStore.get(vaultPath);
       if (snap.status === "syncing") {
         if (revealed) {
           commit(snap); // already shown -> flow updates (progress) straight through
@@ -196,9 +234,9 @@ export function useDisplaySyncStatus(delayMs = 400): SyncStatusSnapshot {
         if (timer === null) {
           timer = window.setTimeout(() => {
             timer = null;
-            if (syncStatusStore.get().status === "syncing") {
+            if (syncStatusStore.get(vaultPath).status === "syncing") {
               revealed = true;
-              commit(syncStatusStore.get());
+              commit(syncStatusStore.get(vaultPath));
             }
           }, delayMs);
         }
@@ -211,6 +249,6 @@ export function useDisplaySyncStatus(delayMs = 400): SyncStatusSnapshot {
     const unsub = syncStatusStore.subscribe(recompute);
     recompute();
     return () => { unsub(); if (timer !== null) window.clearTimeout(timer); };
-  }, [delayMs]);
+  }, [vaultPath, delayMs]);
   return display;
 }

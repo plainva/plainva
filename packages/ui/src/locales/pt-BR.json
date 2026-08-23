@@ -3568,6 +3568,7 @@
     "trayQuit": "Sair",
     "trayNoNext": "Nenhum compromisso à vista",
     "trayNext": "Próximo: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Permanecer em segundo plano?",
     "offerBody": "Os lembretes só aparecem enquanto o Plainva estiver em execução. O Plainva deve continuar na área de notificação ao fechar a janela?",
     "offerYes": "Sim, permanecer em segundo plano",

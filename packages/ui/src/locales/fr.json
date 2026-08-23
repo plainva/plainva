@@ -3568,6 +3568,7 @@
     "trayQuit": "Quitter",
     "trayNoNext": "Aucun rendez-vous en vue",
     "trayNext": "Prochain : {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Rester en arrière-plan ?",
     "offerBody": "Les rappels n'apparaissent que tant que Plainva fonctionne. Plainva doit-il continuer dans la zone de notification lorsque vous fermez la fenêtre ?",
     "offerYes": "Oui, rester en arrière-plan",
