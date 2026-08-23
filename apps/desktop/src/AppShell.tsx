@@ -1526,7 +1526,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       </div>
 
-      <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
+      {/* Clocks belong to the central window (stage C). The shell is shared, so
+          a second window would start a SECOND reminder scheduler on the same
+          vault: the same appointment notified twice, and two windows writing
+          the tray's "next up" text. Unlike the handed-over runs this one has no
+          button — it fires by itself — so it is not deferred, it simply does
+          not run here. */}
+      {!capabilities.deferToOwner && (
+        <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
+      )}
       <StatusBar />
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense

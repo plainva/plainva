@@ -91,6 +91,16 @@ describe("runs that stay with the central window", () => {
     expect(read("AppShell.tsx")).toContain('capabilities.deferToOwner("switch-vault")');
   });
 
+  it("does not start a second clock in the second window", () => {
+    // The shell is shared, so everything it MOUNTS runs in both windows. A
+    // reminder scheduler is not a run behind a button that could be handed
+    // over: it fires on its own, and a second one would notify the same
+    // appointment twice and fight over the tray's "next up" line.
+    const shell = read("AppShell.tsx");
+    expect(shell).toContain(`{!capabilities.deferToOwner && (
+        <ReminderHost`);
+  });
+
   it("is the client that defers, never the central window", () => {
     // If the owner ever carried `deferToOwner` it would ask ITSELF and the run
     // would never happen.
