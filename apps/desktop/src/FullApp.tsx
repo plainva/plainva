@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { EmptyState } from "@plainva/ui";
 import { AppShell } from "./AppShell";
+import { useVault } from "./contexts/VaultContext";
 import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { currentWindowParams } from "./services/windowContext";
@@ -31,6 +34,8 @@ import type { ShellCapabilities } from "./shellCapabilities";
  */
 export function FullApp() {
   const label = currentWindowParams().label;
+  const { t } = useTranslation();
+  const { vaultPath } = useVault();
 
   const openOwnerSurface = useCallback(
     (
@@ -86,6 +91,14 @@ export function FullApp() {
     // Deliberately absent: closeVault, openVault, recentVaults — see the note
     // above (plan E7).
   }), [openOwnerSurface, reportOpenContents, label]);
+
+  // One process holds one open vault (plan E7), so this window's vault is the
+  // central window's. When that one closes it, drawing an empty tree over
+  // disposed services would look like a broken window rather than an empty one
+  // — and this window has no "open vault" of its own to offer (C5).
+  if (!vaultPath) {
+    return <EmptyState title={t("window.noVaultTitle")}>{t("window.noVaultBody")}</EmptyState>;
+  }
 
   return <AppShell capabilities={capabilities} />;
 }

@@ -74,6 +74,13 @@ export interface BroadcastMap {
   "pim-changed": Record<string, never>;
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
+  /**
+   * The central window is on another vault now (C5). One process holds one open
+   * vault (plan E7), so this is not an invitation: a client that stayed behind
+   * would be showing a tree that is no longer there, over services pointing at
+   * a vault nobody has open. `null` means the owner closed the vault.
+   */
+  "vault-changed": { vaultPath: string | null };
   /** Who has what open — the owner keeps the global open-registry from this. */
   "tab-registry": { label: string; contents: string[] };
   /** Owner to one window: bring this content forward (dedup / focus routing). */

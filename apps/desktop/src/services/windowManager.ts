@@ -191,6 +191,34 @@ export function persistWindows(vaultPath: string): void {
   }
 }
 
+/**
+ * The owner moved to another vault; the open windows move with it (C5).
+ *
+ * Only for a real switch: CLOSING the vault leaves the records where they are,
+ * so reopening that vault brings its windows back (E5). The client windows are
+ * told either way — that is the broadcast, not this.
+ *
+ * A window's record carries the vault it belongs to, and that is what decides
+ * which list it is remembered in and which windows a start restores. Leave the
+ * records behind on a switch and two things go wrong at once: the windows that
+ * are visibly showing the NEW vault are remembered under the old one, and the
+ * old vault's list keeps promising windows that no longer show it.
+ *
+ * Both lists are written: the new one gains the windows, the old one loses
+ * them — otherwise the next start of the old vault reopens windows that have
+ * been looking at something else since.
+ */
+export function noteVaultChanged(vaultPath: string): void {
+  const previous = new Set<string>();
+  for (const rec of open.values()) {
+    if (rec.vaultPath === vaultPath) continue;
+    previous.add(rec.vaultPath);
+    rec.vaultPath = vaultPath;
+  }
+  for (const old of previous) persistWindows(old);
+  persistWindows(vaultPath);
+}
+
 /** What was open last time. Malformed content is dropped, never thrown. */
 export function readPersistedWindows(vaultPath: string): AuxWindowRecord[] {
   if (typeof window === "undefined") return [];

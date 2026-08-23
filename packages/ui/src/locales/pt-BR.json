@@ -3677,6 +3677,8 @@
     "commsTitle": "Comunicação",
     "settingsGroup": "Janelas",
     "restoreWindows": "Restaurar a disposição das janelas",
-    "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas."
+    "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas.",
+    "noVaultTitle": "Nenhum cofre aberto",
+    "noVaultBody": "A janela principal do Plainva não está mostrando nenhum cofre no momento. Abra um lá e esta janela vai acompanhar."
   }
 }

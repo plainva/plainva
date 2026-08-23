@@ -157,3 +157,57 @@ describe("window state", () => {
     expect(read("components/RightSidebar.tsx")).toContain("windowStateKey(");
   });
 });
+
+/**
+ * What happens when the central window changes vault (stage C5).
+ *
+ * One process holds one open vault (E7), so a client window’s vault is never
+ * its own decision. Two failure shapes hide here, and both still LOOK like a
+ * working window: one drawing the tree of a vault the process has left, and one
+ * holding adapters the owner has already disposed.
+ */
+describe("following the central window's vault", () => {
+  it("announces from state, not from the switcher", () => {
+    const ctx = read("contexts/VaultContext.tsx");
+    // The vault also changes through the splash, through "open recent" and
+    // through closing it. Announcing at the switcher covers one door of four.
+    expect(ctx).toContain("announceVaultChanged(state.vaultPath)");
+    expect(ctx).toContain("}, [isClient, state.vaultPath]);");
+  });
+
+  it("announces the close as well", () => {
+    // `vaultPath: string | null` is the point, and the call has to stay
+    // unguarded: `if (state.vaultPath)` would leave every other window on the
+    // vault that was just closed.
+    expect(read("services/windowBus.ts")).toContain('"vault-changed": { vaultPath: string | null }');
+    expect(read("contexts/VaultContext.tsx")).toContain(
+      `    if (isClient) return;
+    announceVaultChanged(state.vaultPath);`,
+    );
+  });
+
+  it("lets a client follow the broadcast, not just its launch parameter", () => {
+    const ctx = read("contexts/VaultContext.tsx");
+    expect(ctx).toContain('bus.onBroadcast("vault-changed"');
+    // The launch parameter seeds the state; it must not BE the state, or the
+    // window would keep the vault it was born with.
+    expect(ctx).toContain("useState<string | null>(clientVaultPath)");
+    expect(ctx).toContain("}, [isClient, clientVault]);");
+  });
+
+  it("makes a client let go of the services it no longer has", () => {
+    const ctx = read("contexts/VaultContext.tsx");
+    const branch = ctx.slice(ctx.indexOf("if (!clientVault) {"), ctx.indexOf("if (!clientVault) {") + 900);
+    for (const field of ["vaultAdapter: null", "queryService: null", "indexer: null", "syncWorker: null"]) {
+      expect(branch, `the client must drop ${field}`).toContain(field);
+    }
+  });
+
+  it("says so instead of drawing an empty tree", () => {
+    // A full window has no "open vault" of its own to offer — it deliberately
+    // carries no such capability — so an empty shell would be a dead end.
+    const full = read("FullApp.tsx");
+    expect(full).toContain("if (!vaultPath)");
+    expect(full).toContain("window.noVaultTitle");
+  });
+});

@@ -21,7 +21,7 @@ import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, comp
 import { startBackupScheduler } from "../services/backupScheduler";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { broadcastIndexChanged, announceVaultChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
@@ -1260,6 +1260,15 @@ export const VaultProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
 
+  // Owner: which vault this process has open is a fact the other windows need.
+  // Driven from the STATE rather than from the switcher, because the vault also
+  // changes through the splash, through "open recent" and through closing it —
+  // an announcement made at one of those doors is one the others forget (C5).
+  useEffect(() => {
+    if (isClient) return;
+    announceVaultChanged(state.vaultPath);
+  }, [isClient, state.vaultPath]);
+
   // Owner: every status the sync worker reaches goes out to the other windows
   // (C3). Independent of the vault, because the store is reset on a switch and
   // that reset is itself worth mirroring.
@@ -1307,6 +1316,12 @@ export const VaultProvider: React.FC<{
             });
           }),
         );
+        // One process, one open vault (plan E7). When the central window moves,
+        // this one moves with it: the services are rebuilt for the new vault and
+        // the layout — which is keyed by vault AND label — comes back as the one
+        // this window last had THERE. A window that stayed behind would be
+        // holding services on a vault nobody has open (C5).
+        offs.push(await bus.onBroadcast("vault-changed", ({ vaultPath }) => setClientVault(vaultPath)));
         // The watcher lives in the owner. Without this an auxiliary window would
         // never learn that the file under its editor changed on disk — the very
         // case the editor's external-update logic exists for.
@@ -1332,6 +1347,15 @@ export const VaultProvider: React.FC<{
    * owner-only slots (indexer, backup adapter, index queue, sync worker, PIM
    * runtime) stay null, which is what keeps the effects below inert.
    */
+  /**
+   * The vault this window shows. Seeded from the query it was opened with, and
+   * changed by the owner's `vault-changed` broadcast (C5) — one process holds
+   * one open vault, so a window that stayed behind would be drawing a tree that
+   * is no longer there.
+   */
+  const [clientVault, setClientVault] = useState<string | null>(clientVaultPath);
+  useEffect(() => setClientVault(clientVaultPath), [clientVaultPath]);
+
   const loadClientVault = async (path: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
@@ -1368,18 +1392,35 @@ export const VaultProvider: React.FC<{
 
   useEffect(() => {
     if (!isClient) return;
-    if (!clientVaultPath) {
+    if (!clientVault) {
       // A blank auxiliary window is a legitimate state (a P4 restore can open
-      // one before the content is known) — it simply shows nothing yet.
-      setState((s) => ({ ...s, isLoading: false }));
+      // one before the content is known) — it simply shows nothing yet. The
+      // same branch catches the owner closing the vault (C5): the services this
+      // window held are disposed by the cleanup below, so the state has to let
+      // go of them too. Leaving them would draw a tree over adapters nobody
+      // owns any more.
+      setState((s) => ({
+        ...s,
+        vaultPath: null,
+        vaultAdapter: null,
+        dbAdapter: null,
+        queryService: null,
+        graphService: null,
+        indexer: null,
+        pimRuntime: null,
+        syncWorker: null,
+        fileTreeVersion: 0,
+        isLoading: false,
+        error: null,
+      }));
       return;
     }
-    void loadClientVault(clientVaultPath);
+    void loadClientVault(clientVault);
     return () => {
       void clientServicesRef.current?.dispose();
       clientServicesRef.current = null;
     };
-  }, [isClient, clientVaultPath]);
+  }, [isClient, clientVault]);
 
   useEffect(() => {
     // Recents, the last-vault memory and auto-open belong to the central

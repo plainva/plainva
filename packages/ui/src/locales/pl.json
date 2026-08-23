@@ -3716,6 +3716,8 @@
     "commsTitle": "Komunikacja",
     "settingsGroup": "Okna",
     "restoreWindows": "Przywróć układ okien",
-    "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane."
+    "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane.",
+    "noVaultTitle": "Nie otwarto żadnego sejfu",
+    "noVaultBody": "Główne okno Plainvy nie pokazuje teraz żadnego sejfu. Otwórz go tam, a to okno podąży za nim."
   }
 }

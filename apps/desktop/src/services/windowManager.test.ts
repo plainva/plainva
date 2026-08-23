@@ -117,6 +117,7 @@ import {
   setOwnerOpenContents,
   noteWindowContent,
   isDuplicableView,
+  noteVaultChanged,
 } from "./windowManager";
 
 import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
@@ -276,6 +277,20 @@ describe("remembering windows", () => {
     // resetWindowRegistryForTest only drops the in-memory map; what a restart
     // reads is the stored list, which is what P4 restores from.
     expect(readPersistedWindows(VAULT)).toHaveLength(1);
+  });
+
+  it("moves its windows to the vault the central window switched to (C5)", async () => {
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+
+    noteVaultChanged("/other");
+
+    // BOTH lists are written, and that is the whole point: persisting only the
+    // new one leaves the window listed under the old vault as well, so the next
+    // start restores a window for content that vault no longer has.
+    expect(readPersistedWindows("/other")).toHaveLength(1);
+    expect(readPersistedWindows(VAULT)).toEqual([]);
+    // The window itself is not lost — it is the same window, on another vault.
+    expect(findWindowForContent("/other", "Note.md")).not.toBeNull();
   });
 
   it("ignores a stored list that is not a list of windows", () => {

@@ -14,6 +14,7 @@ import {
   noteWindowAlwaysOnTop,
   openComposeWindow,
   openOrFocusContent,
+  noteVaultChanged,
 } from "./windowManager";
 import { clearDraft, recordDraft } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
@@ -81,6 +82,26 @@ function base64ToBytes(base64: string): Uint8Array {
 export function broadcastIndexChanged(paths: string[], structural: boolean): void {
   void getWindowBus()
     .then((bus) => bus.broadcast("index-changed", { paths, structural }))
+    .catch(() => {
+      /* no bus (browser/test): a single window needs no broadcast */
+    });
+}
+
+/**
+ * Tells the other windows that this one moved to another vault (C5).
+ *
+ * Sent from the owner's vault state, not from the switcher: the vault also
+ * changes through the splash, through "open recent" and through closing it, and
+ * an announcement made at one of those four doors is an announcement the other
+ * three forget.
+ */
+export function announceVaultChanged(vaultPath: string | null): void {
+  // The open windows belong to the vault they SHOW, and that is what decides
+  // which list remembers them. Only on a real switch — closing a vault leaves
+  // its windows remembered under it, so reopening brings them back (E5).
+  if (vaultPath) noteVaultChanged(vaultPath);
+  void getWindowBus()
+    .then((bus) => bus.broadcast("vault-changed", { vaultPath }))
     .catch(() => {
       /* no bus (browser/test): a single window needs no broadcast */
     });
