@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-22
+Dernière mise à jour : 2026-08-23
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -220,6 +220,8 @@ L’application s’adapte à la largeur de la fenêtre, pas au nom de l’appar
 - **à partir de 840 px** — le navigateur et la surface de travail se placent **côte à côte**. C’est le même navigateur que la zone **Notes**, simplement à côté de votre travail plutôt que devant lui.
 
 **Le rail affiche toutes les rubriques.** Sur un téléphone, la barre inférieure comporte de trois à cinq destinations — plus qu'un pouce n'en atteint de façon fiable, c'est pourquoi le reste se trouve derrière **Rubriques**. Le long du bord d'une surface large, cette limite ne s'applique pas : la liste **entière** s'y trouve dans votre ordre (**Paramètres → Barre de navigation**), le détour par **Rubriques** disparaît, et les **Paramètres** se trouvent tout en bas. Le rail commence sous la barre d'état — sur une tablette avec une encoche pour la caméra, sa première icône se trouvait auparavant dessous.
+
+**Le navigateur se replie.** Tant que vous cherchez une note, la colonne de gauche lui appartient ; tant que vous en écrivez une, elle appartient à la note. L'icône tout en bas du rail — juste au-dessus des **Paramètres** — la replie et la rouvre, et la surface de travail occupe alors toute la largeur. Le bouton n'apparaît que là où une deuxième colonne existe (à partir de 840 px), vaut pour cet appareil et reste tel que vous l'avez laissé après un redémarrage. Sur le bureau, c'est le même geste — il s'y appelle **Basculer la barre latérale gauche**.
 
 Sur une tablette, ou un grand téléphone tourné à l’horizontale, vous obtenez le même modèle spatial que sur le bureau — naviguer à gauche, travailler au centre — au lieu d’un téléphone agrandi.
 

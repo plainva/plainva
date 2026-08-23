@@ -22,7 +22,7 @@ import {
   toast,
   type AreaOrder,
 } from "@plainva/ui";
-import { SplitPlaceholder } from "./components/SplitPlaceholder";
+import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
@@ -52,7 +52,6 @@ import {
   saveMobileBar,
 } from "./services/mobileBar";
 import { createFolderPrompt } from "./screens/BrowseScreen";
-import { renderRoute, TAB_ROUTES } from "./routes";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { AreasSheet } from "./components/AreasSheet";
 import { StartupSheets } from "./components/StartupSheets";
@@ -78,6 +77,7 @@ import { haptics } from "./services/haptics";
 import { closeTopSheet } from "./services/sheetStack";
 import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
+import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
 import { isoOf } from "./lib/dates";
 
@@ -395,6 +395,12 @@ export default function App() {
   useConnectRun(setNav);
   useDeepLinkNav(setNav);
 
+  // Whether a tablet stands two columns, and whether the navigator is folded
+  // away. Above the early return with the rest: it holds state and a
+  // subscription, so skipping it on the render without a vault would change
+  // the hook order on the next one.
+  const { splitPossible, twoColumn, navCollapsed, toggleNav } = useAdaptiveSplit(onboarded);
+
   // Long press on the navigation bar opens the areas sheet (P5/E10) — the
   // shortcut next to the discoverable title ▾. A short tap must stay a tab
   // switch, so the timer is cancelled on pointerup/leave. Declared above the
@@ -681,9 +687,6 @@ export default function App() {
     commands,
     barLayout, onBarLayout,
   };
-  // Two columns only where there is room for both AND the navigator is not the
-  // work itself: a settings area or an editor fills the whole width.
-  const twoColumn = windowClass === "expanded" && onboarded;
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // reserves --m-fab-space
   return (
@@ -706,25 +709,7 @@ export default function App() {
         </div>
       )}
 
-      {/* No header here since S11: every surface carries its own app bar, so a
-          navigation step no longer swaps one header family for another.
-
-          From the expanded window class the navigator stands PERMANENTLY beside
-          the working surface (S13, M3 list-detail). It is the same component the
-          notes tab renders — a wide window does not get a second navigator, it
-          gets the one it already had, next to instead of in front of the work. */}
-      <div className={`m-screen${twoColumn ? " m-screen--split" : ""}`}>
-        {twoColumn && (
-          <div className="m-col m-col--nav">{TAB_ROUTES.notes(routeCtx)}</div>
-        )}
-        <div className={twoColumn ? "m-col m-col--work" : "m-col"}>
-          {twoColumn && !top && nav.activeTab === "notes" ? (
-            <SplitPlaceholder onCreateNote={routeCtx.captureNote} />
-          ) : (
-            renderRoute(top, nav.activeTab, routeCtx)
-          )}
-        </div>
-      </div>
+      <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} top={top} twoColumn={twoColumn} />
 
       {/* Capture floats above the bar on tab roots and folder screens only. */}
       {hasFab && (
@@ -755,9 +740,11 @@ export default function App() {
         <NavBar
           activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
           areasOpen={areasOpen}
+          navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}
           onOpenSettings={() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" }))}
           onPick={(id) => void tabTapped(id, setNav)}
+          onToggleNav={splitPossible ? toggleNav : undefined}
           tabs={slots}
         />
       )}

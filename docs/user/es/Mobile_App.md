@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-22
+Última actualización: 2026-08-23
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -220,6 +220,8 @@ La app se adapta al ancho de la ventana, no al nombre del dispositivo:
 - **a partir de 840 px** — el navegador y la superficie de trabajo se colocan **uno junto al otro**. Es el mismo navegador que el área **Notas**, solo que junto a tu trabajo en lugar de delante de él.
 
 **La barra lateral muestra todas las áreas.** En un teléfono, la barra inferior tiene de tres a cinco destinos — más de los que un pulgar alcanza con fiabilidad, por eso el resto vive detrás de **Áreas**. En el borde de una superficie ancha ese límite no se aplica: la lista **completa** está ahí en tu orden (**Ajustes → Barra de navegación**), el rodeo por **Áreas** desaparece, y **Ajustes** queda hasta abajo del todo. La barra lateral empieza debajo de la barra de estado — en una tableta con un recorte de cámara, su primer icono solía quedar debajo de él.
+
+**El navegador se puede plegar.** Mientras buscas una nota, la columna izquierda le pertenece a ella; mientras escribes una, le pertenece a la nota. El icono en la parte inferior de la barra lateral — justo encima de **Ajustes** — lo pliega y lo despliega de nuevo, y entonces la superficie de trabajo ocupa todo el ancho. El interruptor solo aparece donde hay una segunda columna (a partir de 840 px), se aplica a este dispositivo y se mantiene como lo dejaste tras un reinicio. En el escritorio es el mismo gesto — allí se llama **Alternar barra lateral izquierda**.
 
 En una tableta, o en un teléfono grande girado, obtienes el mismo modelo espacial que en el escritorio — navegar a la izquierda, trabajar en el medio — en lugar de un teléfono agrandado.
 

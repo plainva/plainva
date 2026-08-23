@@ -41,7 +41,13 @@ import { describe, expect, it } from "vitest";
 // twenty lines; both blocks were answering questions the shell should be
 // ASKING — which is exactly what this budget is for. It came out smaller than
 // before P2.
-const APP_TSX_LINE_BUDGET = 819;
+// Lowered from 819 with the foldable navigator (2026-08-23): how the shell
+// ARRANGES its surfaces moved into components/AdaptiveLayout, and the two
+// answers behind it - is there room for a second column, does the reader want
+// one - into hooks/useAdaptiveSplit. The switch would have grown the shell by
+// thirteen lines; the block it grew was the one the shell should have been
+// asking for rather than holding, and it came out smaller than before.
+const APP_TSX_LINE_BUDGET = 806;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

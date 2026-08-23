@@ -53,7 +53,7 @@ afterEach(() => {
 
 const ALL = TAB_POOL.map((p) => p.id);
 
-function mount(width: number, tabs = ALL) {
+function mount(width: number, tabs = ALL, opts: { onToggleNav?: () => void; navCollapsed?: boolean } = {}) {
   // Height too: a landscape phone is wide and short, and must stay a phone.
   setWindowClassForTest(width, 800);
   act(() =>
@@ -61,9 +61,11 @@ function mount(width: number, tabs = ALL) {
       <NavBar
         activeTab={tabs[0]}
         areasOpen={false}
+        navCollapsed={opts.navCollapsed ?? false}
         onOpenAreas={onOpenAreas}
         onOpenSettings={onOpenSettings}
         onPick={onPick}
+        onToggleNav={opts.onToggleNav}
         tabs={tabs}
       />,
     ),
@@ -87,8 +89,11 @@ describe("the rail's trailing entry", () => {
   it("is settings, and it is the only extra beside the areas themselves", () => {
     mount(900);
     expect(q(".m-tabbar--rail"), "a 900 px window should stand a rail").toBeTruthy();
-    // Every area of the pool, plus exactly one trailing entry.
+    // Every area of the pool, plus exactly one trailing entry. Handed no
+    // `onToggleNav`, the rail stands beside a single surface and offers no
+    // switch for a column that is not there.
     expect(buttons()).toHaveLength(ALL.length + 1);
+    expect(q('[data-testid="rail-nav-toggle"]')).toBeNull();
     expect(q('[data-testid="rail-settings"]')).toBeTruthy();
     // "Areas" is a way to what the bar left out. A rail leaves nothing out.
     expect(q('[data-testid="tab-areas"]')).toBeNull();
@@ -127,6 +132,7 @@ describe("the phone bar", () => {
         <NavBar
           activeTab="notes"
           areasOpen={false}
+          navCollapsed={false}
           onOpenAreas={onOpenAreas}
           onOpenSettings={onOpenSettings}
           onPick={onPick}
@@ -138,5 +144,62 @@ describe("the phone bar", () => {
     // not out of the rail. What matters is that it is one consistent shape.
     expect(q(".m-tabbar--rail")).toBeTruthy();
     expect(q('[data-testid="rail-settings"]')).toBeTruthy();
+  });
+});
+
+/**
+ * The switch that folds the navigator away (2026-08-23).
+ *
+ * It exists in the rail and nowhere else, because the rail is the one surface
+ * standing beside EVERY working surface — putting it in each screen's app bar
+ * would mean a route can forget it, which is how the desktop's own sidebar
+ * toggle would look if the title bar were per-screen.
+ *
+ * The rail does not decide whether a second column exists; the shell does,
+ * where it decides whether to render one. `onToggleNav` is that decision
+ * arriving, and its absence is the whole gate.
+ */
+describe("the rail's fold switch", () => {
+  it("appears only where the shell offers a second column", () => {
+    const onToggleNav = vi.fn();
+    mount(1100, ALL, { onToggleNav });
+    const btn = q('[data-testid="rail-nav-toggle"]');
+    expect(btn, "a wide window with a split should offer the switch").toBeTruthy();
+
+    act(() => btn!.click());
+    expect(onToggleNav).toHaveBeenCalledTimes(1);
+    // It changes the layout; it must not also navigate.
+    expect(onPick).not.toHaveBeenCalled();
+    expect(onOpenSettings).not.toHaveBeenCalled();
+  });
+
+  it("is a tool, not a destination", () => {
+    mount(1100, ALL, { onToggleNav: vi.fn() });
+    const btn = q('[data-testid="rail-nav-toggle"]')!;
+    // No `m-tab`: the entries above it go somewhere, this one does not, and
+    // the label is clipped at 76px anyway — a "Seitenleiste…" would be a
+    // broken label rather than a short one (E7).
+    expect(btn.classList.contains("m-tab")).toBe(false);
+    expect(btn.querySelector(".m-tab-label")).toBeNull();
+    // Which leaves the accessible name to carry it, and it is the desktop's
+    // own wording rather than a second phrase for the same act.
+    expect(btn.getAttribute("aria-label")).toBe("titlebar.toggleLeftSidebar");
+  });
+
+  it("says whether the navigator is standing", () => {
+    const onToggleNav = vi.fn();
+    mount(1100, ALL, { onToggleNav, navCollapsed: false });
+    expect(q('[data-testid="rail-nav-toggle"]')!.getAttribute("aria-pressed")).toBe("true");
+
+    mount(1100, ALL, { onToggleNav, navCollapsed: true });
+    expect(q('[data-testid="rail-nav-toggle"]')!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("never reaches the phone bar", () => {
+    // Even handed the callback: a phone has one surface, and a switch for a
+    // column it cannot show is a control that does nothing.
+    mount(400, ALL.slice(0, 3), { onToggleNav: vi.fn() });
+    expect(q(".m-tabbar--rail")).toBeNull();
+    expect(q('[data-testid="rail-nav-toggle"]')).toBeNull();
   });
 });

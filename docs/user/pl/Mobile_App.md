@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-22
+Stan na: 2026-08-23
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -220,6 +220,8 @@ Aplikacja dostosowuje się do szerokości okna, a nie do nazwy urządzenia:
 - **od 840 px** — nawigator i powierzchnia robocza stoją **obok siebie**. To ten sam nawigator co obszar **Notatki** — tylko obok Twojej pracy, a nie przed nią.
 
 **Listwa z boku pokazuje wszystkie obszary.** Na telefonie dolny pasek mieści od trzech do pięciu miejsc — więcej niż kciuk trafia niezawodnie, dlatego reszta znajduje się za **Obszarami**. Wzdłuż krawędzi szerokiej powierzchni to ograniczenie już nie obowiązuje: **cała** lista stoi tam w Twojej kolejności (**Ustawienia → Pasek nawigacji**), objazd przez **Obszary** znika, a **Ustawienia** znajdują się na samym dole. Listwa zaczyna się poniżej paska stanu — na tablecie z wycięciem na aparat jej pierwsza ikona wcześniej leżała pod nim.
+
+**Nawigator chowa się.** Gdy szukasz notatki, lewa kolumna należy do niej; gdy ją piszesz, należy do notatki. Ikona na dole listwy — tuż nad **Ustawieniami** — chowa go i przywraca, a powierzchnia robocza zajmuje wtedy całą szerokość. Przełącznik pojawia się tylko tam, gdzie w ogóle istnieje druga kolumna (od 840 px), dotyczy tego urządzenia i zachowuje stan, w jakim go zostawiłeś, także po ponownym uruchomieniu. Na komputerze to ten sam ruch — tam nazywa się **Przełącz lewy panel boczny**.
 
 Na tablecie albo na dużym telefonie obróconym w poziomie masz dzięki temu ten sam model przestrzenny co na komputerze — nawigujesz po lewej, pracujesz na środku — zamiast powiększonego telefonu.
 

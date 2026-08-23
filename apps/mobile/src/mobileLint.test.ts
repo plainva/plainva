@@ -780,6 +780,60 @@ describe("the context surface has one implementation", () => {
 });
 
 /**
+ * The navigator column folds away (2026-08-23).
+ *
+ * The desktop has been able to collapse its left sidebar since it had one; the
+ * tablet's navigator was a fixed 280-380 px with no way out, which is right
+ * while you are picking a note and wrong while you are writing one.
+ *
+ * Two things are worth holding structurally. The switch lives in the RAIL and
+ * nowhere else — an app bar is per-route, so a route can forget it, and then
+ * the fold exists on some surfaces and not others. And the shell answers "is
+ * there a second column" exactly once: the rail is handed the callback or it
+ * is not, rather than re-deriving the window class and eventually disagreeing
+ * with the layout it sits next to (the mistake `isRailClass` was written to
+ * end).
+ */
+describe("the tablet navigator can be folded away", () => {
+  it("the shell offers the switch on the same condition as it renders the column", () => {
+    // The one claim a behaviour test cannot make: `adaptiveSplit.test.tsx`
+    // drives the hook directly and never sees App.tsx, so it cannot notice a
+    // shell that hands the rail a switch for a column it is not rendering.
+    // What the derivation itself DOES is asserted there, not here — a second
+    // copy of it in source text would break on every rewording and prove
+    // nothing the run does not already prove.
+    const src = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+    expect(src, "the rail must be handed the switch only when a column exists")
+      .toMatch(/onToggleNav=\{\s*splitPossible[\s\S]{0,160}: undefined/);
+  });
+
+  it("the switch is in the rail, and only there", () => {
+    const nav = stripComments(readFileSync(join(SRC, "components/NavBar.tsx"), "utf8"));
+    expect(nav).toMatch(/data-testid="rail-nav-toggle"/);
+    // A tool, not a destination: no `m-tab`, so no label to clip at 76px.
+    expect(nav).toMatch(/className="m-railtool"/);
+    // Its accessible name is the desktop's own wording — one phrase per act.
+    expect(nav).toMatch(/titlebar\.toggleLeftSidebar/);
+
+    // Nowhere else. An app bar carrying the same switch is per-route, and the
+    // route that forgets it is the defect this rule exists to prevent.
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      if (!/\.tsx?$/.test(file) || /\.test\./.test(file)) continue;
+      // The definition, the shell that holds the state, and the rail that
+      // offers it. Anything else reading this flag is a second switch.
+      if (
+        file.endsWith(join("services", "mobileSettings.ts")) ||
+        file.endsWith(join("hooks", "useAdaptiveSplit.ts")) ||
+        file.endsWith(join("components", "NavBar.tsx"))
+      ) continue;
+      if (/navSidebarCollapsed/.test(readFileSync(file, "utf8"))) offenders.push(file);
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
+/**
  * Every row-shaped view marks its rows (S20). The entry menu hangs on ONE
  * delegated hold listener that finds its target through `data-row-path`; a view
  * whose rows carry no marker simply has no menu, and nothing else would notice.

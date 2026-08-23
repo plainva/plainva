@@ -564,6 +564,35 @@ textarea {
   flex: 1 1 auto;
   min-height: var(--space-3);
 }
+/* The rail's layout switch (folds the navigator away).
+   Shaped as a tool, not as a destination: no label, no pill, smaller target
+   than the areas above it. The entries in this column all GO somewhere; this
+   one changes what is already on screen, and giving it the same shape would
+   promise a sixth area that does not exist. Its pressed state is the fill,
+   read from `aria-pressed` so the state has one source rather than a class
+   that can disagree with it. */
+.m-tabbar--rail .m-railtool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: var(--touch-md);
+  height: var(--touch-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-effects), color var(--dur-1) var(--ease-effects);
+}
+.m-tabbar--rail .m-railtool:hover {
+  background: var(--state-hover);
+}
+.m-tabbar--rail .m-railtool[aria-pressed="true"] {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+
 /* The FAB belongs to the working surface, not to the bar it used to clear. */
 [data-window="medium"] .m-fab-float--above-tabs,
 [data-window="expanded"] .m-fab-float--above-tabs {
