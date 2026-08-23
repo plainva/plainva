@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
+import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
@@ -27,7 +28,6 @@ import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer"
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
-import { open } from "@tauri-apps/plugin-dialog";
 import { getSettingsStore } from "../services/settingsStore";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
@@ -372,9 +372,6 @@ async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
   }
 }
 
-// Global tracker to prevent double-loads in React Strict Mode
-let activeLoadPath: string | null = null;
-let loadAbortController: AbortController | null = null;
 
 /**
  * How this window runs the vault (multi-window P0).
@@ -404,11 +401,43 @@ type VaultLifecycleApi = Pick<
 const ownerOnly = (name: string) => `${name} is owner-only; an auxiliary window cannot run it`;
 
 export const VaultProvider: React.FC<{
-  children: ReactNode;
+  /** Absent for a background runtime: a vault another window is showing. */
+  children?: ReactNode;
   mode?: VaultMode;
   /** Client mode only: which vault this window shows. */
   clientVaultPath?: string | null;
-}> = ({ children, mode = "owner", clientVaultPath = null }) => {
+  /**
+   * Owner mode: the vault this instance runs (stage D). One provider per held
+   * vault, so the path is fixed for the life of the instance — switching vaults
+   * mounts another provider rather than reloading this one, which is why the
+   * runtime can be torn down by simply unmounting.
+   */
+  vaultPath?: string | null;
+  /**
+   * The app layer is still reading which vault to reopen. Without it the very
+   * first paint would be the splash for the few milliseconds the settings read
+   * takes, and an auto-opening start would flash it before the loading screen.
+   */
+  appBooting?: boolean;
+}> = ({ children, mode = "owner", clientVaultPath = null, vaultPath: ownerVaultPath = null, appBooting = false }) => {
+  // Per instance, not per process (stage D): with one provider per held vault
+  // a module-level tracker would let the second vault's load abort the first.
+  // It still does what it always did — swallow React Strict Mode's double call.
+  const activeLoadPathRef = useRef<string | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  // Recents, the last-vault memory, auto-open and the three lifecycle entry
+  // points live one level up (contexts/AppContext.tsx) — they outlive any
+  // single vault. They are re-exported through this context so the sixty-one
+  // useVault() consumers keep the shape they already had.
+  const {
+    recentVaults,
+    autoOpenLastVault,
+    openVault,
+    selectVault,
+    closeVault,
+    removeRecentVault,
+    setAutoOpenLastVault,
+  } = useApp();
   const [state, setState] = useState<VaultState>({
     vaultPath: null,
     vaultAdapter: null,
@@ -458,22 +487,20 @@ export const VaultProvider: React.FC<{
     if (isClient) throw new Error(ownerOnly("loadVault"));
 
     // If we're already loading this exact path, ignore the duplicate call
-    if (activeLoadPath === path) {
+    if (activeLoadPathRef.current === path) {
       console.log(`[VaultContext] Already loading ${path}, skipping duplicate call`);
       return;
     }
     
     // If we are loading a DIFFERENT path, abort the old one (basic tracking)
-    if (activeLoadPath && activeLoadPath !== path) {
-      console.log(`[VaultContext] Aborting previous load of ${activeLoadPath} in favor of ${path}`);
-      if (loadAbortController) {
-        loadAbortController.abort();
-      }
+    if (activeLoadPathRef.current && activeLoadPathRef.current !== path) {
+      console.log(`[VaultContext] Aborting previous load of ${activeLoadPathRef.current} in favor of ${path}`);
+      loadAbortRef.current?.abort();
     }
 
-    activeLoadPath = path;
-    loadAbortController = new AbortController();
-    const currentAbortSignal = loadAbortController.signal;
+    activeLoadPathRef.current = path;
+    loadAbortRef.current = new AbortController();
+    const currentAbortSignal = loadAbortRef.current.signal;
 
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
@@ -1207,15 +1234,15 @@ export const VaultProvider: React.FC<{
         loadingPath: null,
       }));
       
-      if (activeLoadPath === path) {
-        activeLoadPath = null;
+      if (activeLoadPathRef.current === path) {
+        activeLoadPathRef.current = null;
       }
     } catch (error: any) {
       if (currentAbortSignal.aborted) return;
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
-      if (activeLoadPath === path) {
-        activeLoadPath = null;
+      if (activeLoadPathRef.current === path) {
+        activeLoadPathRef.current = null;
       }
     }
   };
@@ -1423,46 +1450,20 @@ export const VaultProvider: React.FC<{
   }, [isClient, clientVault]);
 
   useEffect(() => {
-    // Recents, the last-vault memory and auto-open belong to the central
-    // window; an auxiliary window is told which vault to show.
+    // The owner runs the vault it was mounted for (stage D). The path never
+    // changes for an instance: showing a different vault mounts a different
+    // provider, which is what makes the teardown below a plain unmount.
     if (isClient) return;
-    const initStore = async () => {
-      try {
-        const store = await getSettingsStore();
-        const savedPath = await store.get<string>("lastVaultPath");
-        let savedRecents = await store.get<string[]>("recentVaults") || [];
-        
-        // Legacy migration: If we have a savedPath but it's not in recentVaults, add it
-        if (savedPath && !savedRecents.includes(savedPath)) {
-          savedRecents = [savedPath, ...savedRecents].slice(0, 10);
-          await store.set("recentVaults", savedRecents);
-          await store.save();
-        }
-
-        const savedLanguage = await store.get<string>("appLanguage");
-        if (savedLanguage) {
-          // Loads the bundle on demand first — locales are lazy chunks (P2.8).
-          import("@plainva/ui/i18n").then(({ changeAppLanguage }) => {
-            changeAppLanguage(savedLanguage).catch(console.error);
-          });
-        }
-
-        const autoOpen = (await store.get<boolean>(AUTO_OPEN_LAST_VAULT_KEY)) ?? false;
-        setState(s => ({ ...s, recentVaults: savedRecents, autoOpenLastVault: autoOpen }));
-
-        if (savedPath && autoOpen) {
-          await loadVault(savedPath);
-        } else {
-          setState(s => ({ ...s, isLoading: false }));
-        }
-      } catch (e) {
-        console.error("Store error:", e);
-        setState(s => ({ ...s, isLoading: false }));
-      }
+    if (!ownerVaultPath) {
+      if (!appBooting) setState(s => ({ ...s, isLoading: false }));
+      return;
+    }
+    void loadVault(ownerVaultPath);
+    return () => {
+      void teardownVaultRef.current?.();
     };
-    initStore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isClient, ownerVaultPath, appBooting]);
 
   useEffect(() => {
     if (!state.vaultAdapter || !state.indexQueue) return;
@@ -1631,32 +1632,13 @@ export const VaultProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.syncWorker, isClient]);
 
-  const openVault = async (path: string) => {
-    const store = await getSettingsStore();
-    await store.set("lastVaultPath", path);
-    
-    const currentRecents = await store.get<string[]>("recentVaults") || [];
-    const newRecents = [path, ...currentRecents.filter(p => p !== path)].slice(0, 10);
-    await store.set("recentVaults", newRecents);
-    await store.save();
-    
-    setState(s => ({ ...s, recentVaults: newRecents }));
-    await loadVault(path);
-  };
-
-  const selectVault = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: i18n.t("splash.selectVaultFolderTitle")
-    });
-
-    if (selected && typeof selected === "string") {
-      await openVault(selected);
-    }
-  };
-
-  const closeVault = async () => {
+  /**
+   * Stops everything this vault runs. Called when the provider unmounts, which
+   * happens when the last window showing this vault looks away — closing the
+   * vault, switching to another one, or the window going away are all the same
+   * event from here, so there is only one teardown path to keep correct.
+   */
+  const teardownVault = async () => {
     if (state.syncWorker) {
       state.syncWorker.stop();
     }
@@ -1664,8 +1646,9 @@ export const VaultProvider: React.FC<{
     syncTargetRef.current = null;
     syncProviderRef.current = null;
     workspaceStateRef.current = null;
-    
-    // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
+    loadAbortRef.current?.abort();
+    activeLoadPathRef.current = null;
+
     syncStatusStore.reset();
     setState(s => ({
       ...s,
@@ -1686,15 +1669,14 @@ export const VaultProvider: React.FC<{
       loadingProgress: undefined,
       loadingPath: null
     }));
-
-    try {
-      const store = await getSettingsStore();
-      await store.set("lastVaultPath", null);
-      await store.save();
-    } catch (e) {
-      console.error("Failed to update store on closeVault:", e);
-    }
   };
+
+  // Read through a ref so the unmount cleanup always runs the CURRENT teardown:
+  // the effect that owns it is keyed on the vault path, not on every render.
+  const teardownVaultRef = useRef(teardownVault);
+  useEffect(() => {
+    teardownVaultRef.current = teardownVault;
+  });
 
   const bumpTree = () =>
     setState(s => ({
@@ -1848,30 +1830,6 @@ export const VaultProvider: React.FC<{
   useEffect(() => {
     vaultOpsRef.current = { refreshVault, rebuildIndex, syncWorker: state.syncWorker };
   });
-
-  const removeRecentVault = async (path: string) => {
-    const store = await getSettingsStore();
-    const currentRecents = (await store.get<string[]>("recentVaults")) || [];
-    const newRecents = currentRecents.filter(p => p !== path);
-    await store.set("recentVaults", newRecents);
-    const last = await store.get<string>("lastVaultPath");
-    if (last === path) {
-      await store.set("lastVaultPath", null);
-    }
-    await store.save();
-    setState(s => ({ ...s, recentVaults: newRecents }));
-  };
-
-  const setAutoOpenLastVault = async (value: boolean) => {
-    setState(s => ({ ...s, autoOpenLastVault: value }));
-    try {
-      const store = await getSettingsStore();
-      await store.set(AUTO_OPEN_LAST_VAULT_KEY, value);
-      await store.save();
-    } catch (e) {
-      console.error("Failed to persist autoOpenLastVault:", e);
-    }
-  };
 
   // Build recovery material before any remote state is created. Activation is a
   // separate, recovery-confirmed step in the Security Center.
@@ -2274,9 +2232,9 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, isClient, clientLifecycle]
+    [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );
 
   return (
