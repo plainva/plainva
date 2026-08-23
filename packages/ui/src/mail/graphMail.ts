@@ -1,6 +1,6 @@
 import { refreshOneDriveAccessToken } from "@plainva/core";
 import type { MailAccountConfig } from "./mailAccounts";
-import { getMailRefreshToken, saveMailRefreshToken } from "./mailAccounts";
+import { getMailRefreshToken, listMailAccounts, saveMailRefreshToken } from "./mailAccounts";
 import { mailHttp } from "./transport";
 import type { MailboxInfo, MailEnvelope, MailEnvelopePage, MailMessage, MailAttachmentInfo, MailFolderRole } from "./types";
 import type { MailAttachment } from "./mailOut";
@@ -48,7 +48,10 @@ const runtimes = new Map<string, GraphMailRuntime>();
  * account still holds its own refresh token. Injected rather than imported,
  * because the broker wiring is platform code and this module is not.
  */
-export type MailTokenResolver = (vaultPath: string) => Promise<((force: boolean) => Promise<string>) | undefined>;
+export type MailTokenResolver = (
+  vaultPath: string,
+  accountId: string,
+) => Promise<((force: boolean) => Promise<string>) | undefined>;
 let mailTokenResolver: MailTokenResolver | null = null;
 export function setMailTokenResolver(resolver: MailTokenResolver | null): void {
   mailTokenResolver = resolver;
@@ -106,7 +109,7 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
   if (existing) return existing;
   const refreshToken = await getMailRefreshToken(vaultPath, account.id);
   // A broker-backed account carries no mail-side refresh token by design.
-  const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath).catch(() => undefined) : undefined;
+  const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath, account.id).catch(() => undefined) : undefined;
   if (!refreshToken && !viaBroker) {
     // Two very different situations used to share this sentence: a mailbox that
     // was never connected, and one whose per-service token the account-wide
@@ -119,6 +122,23 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
   const rt = buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
   runtimes.set(account.id, rt);
   return rt;
+}
+
+/**
+ * The access token for one mailbox, resolved the way this window resolves it.
+ *
+ * Exported for the owner window's `mail-token` bus handler (multi-window,
+ * finding 2026-08-23): an auxiliary window may READ and WRITE a mailbox — IMAP
+ * is built for several clients — but it must never refresh an OAuth token,
+ * because Microsoft ROTATES the refresh token and two windows refreshing at
+ * once destroy the one that works. So the aux side asks here instead, and the
+ * owner stays the single refresher for the whole account.
+ */
+export async function mailAccessTokenFor(vaultPath: string, accountId: string, force = false): Promise<string> {
+  const account = (await listMailAccounts(vaultPath)).find((a) => a.id === accountId);
+  if (!account) throw new Error(`no mail account ${accountId} in this vault`);
+  const rt = await runtimeFor(vaultPath, account);
+  return rt.getAccessToken(force);
 }
 
 /** Drops the cached runtime (token + folder map) when an account is removed. */

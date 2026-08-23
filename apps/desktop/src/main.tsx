@@ -77,9 +77,11 @@ setPlatformServices({
 });
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
-// to the Tauri http plugin with the Origin-free relay for token POSTs. Owner
-// only: mail sessions and the token refresh live in one window (multi-window
-// P0); the compose window reaches them over the bus in P3.
+// to the Tauri http plugin with the Origin-free relay for token POSTs. The
+// TOKEN half is owner-only — one refresher per account, because Microsoft
+// rotates the refresh token. Auxiliary windows register the same seam minus
+// that half (`registerClientMailPlatform`, finding 2026-08-23); sending still
+// goes over the bus so the undo queue stays with the owner.
 if (isOwnerWindow) {
   registerDesktopMailPlatform();
 
@@ -107,6 +109,11 @@ void i18nReady.then(async () => {
     void installAppearanceSync().catch(() => {
       /* no bus: nothing to follow */
     });
+    // Mail reads and writes the mailbox from here too — the message list stayed
+    // empty otherwise (finding 2026-08-23). Token refresh is NOT part of that:
+    // this registration routes it to the owner, which stays the only refresher.
+    const { registerClientMailPlatform } = await import("./services/mail/tauriMailTransport");
+    registerClientMailPlatform();
     root.render(
       <React.StrictMode>
         <ErrorBoundary>

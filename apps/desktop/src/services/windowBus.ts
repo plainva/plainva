@@ -149,6 +149,18 @@ export interface RpcMap {
   /** Same routing for "save as draft" — one provider round trip, one window. */
   "mail-draft": { args: MailDraftRequest; result: void };
   /**
+   * An access token for one mailbox, minted BY THE OWNER (finding 2026-08-23).
+   *
+   * Reading and writing a mailbox is safe from any window — IMAP was built for
+   * several clients, and Graph calls carry a bearer token. Refreshing is not:
+   * Microsoft ROTATES the refresh token, so two windows renewing at the same
+   * time leave one of them holding a token that no longer works, and the
+   * account falls over. The owner is therefore the only refresher; every other
+   * window asks here. `force` passes a 401 through, so a stale token is
+   * renewed once rather than by each window on its own.
+   */
+  "mail-token": { args: { vaultPath: string; accountId: string; force: boolean }; result: string };
+  /**
    * What this compose window was popped out with. Recipients, subject, body
    * and attachments are handed over here rather than in the URL: attachments
    * are base64.

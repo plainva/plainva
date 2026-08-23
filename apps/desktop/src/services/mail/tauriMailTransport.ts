@@ -10,7 +10,7 @@ import type {
   RawImapMessage,
   SmtpSendArgs,
 } from "@plainva/ui/mail";
-import { setMailPlatform } from "@plainva/ui/mail";
+import { setMailPlatform, setMailTokenResolver } from "@plainva/ui/mail";
 import { microsoftAuthFetch } from "../authFetch";
 
 /**
@@ -131,4 +131,38 @@ export const tauriMailTransport: MailTransport = {
  */
 export function registerDesktopMailPlatform(): void {
   setMailPlatform({ transport: tauriMailTransport, http: { api: httpFetch as typeof fetch, token: microsoftAuthFetch } });
+}
+
+/**
+ * The same mail platform for an AUXILIARY window (finding 2026-08-23).
+ *
+ * P2 let the mail view move into a window of its own — and the communications
+ * preset even opens one — but the data layer under it was never wired: only
+ * the owner ever called `setMailPlatform`, so `mailTransport()` threw and the
+ * message list stayed empty while the same mailbox worked in the main window.
+ * The automated suite could not see it: Playwright drives one page.
+ *
+ * What an aux window may do itself is READ and WRITE the mailbox. IMAP is built
+ * for several clients, the Rust session pool lives in the shared process, and a
+ * Graph call is a bearer token on a request. What it must NOT do is refresh an
+ * OAuth token: Microsoft rotates the refresh token, and two windows renewing at
+ * once leave one holding a dead one — the account-wide failure §5.6 of the plan
+ * warns about. So the token comes from the owner over the bus, and the relay
+ * that would mint one here throws instead of quietly rotating.
+ */
+export function registerClientMailPlatform(): void {
+  setMailPlatform({
+    transport: tauriMailTransport,
+    http: {
+      api: httpFetch as typeof fetch,
+      token: async () => {
+        throw new Error("mail token refresh belongs to the main window (multi-window: one refresher per account)");
+      },
+    },
+  });
+  setMailTokenResolver(async (vaultPath, accountId) => async (force: boolean) => {
+    const { getWindowBus } = await import("../windowBus");
+    const bus = await getWindowBus();
+    return bus.request("mail-token", { vaultPath, accountId, force });
+  });
 }
