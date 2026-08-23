@@ -27,6 +27,9 @@
     }
   },
   "plugins": {
+    "fs": {
+      "requireLiteralLeadingDot": false
+    },
     "sql": {
       "preload": ["sqlite:plainva.db"]
     },
