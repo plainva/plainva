@@ -293,15 +293,20 @@ test('the editor menu offers the same popout', async ({ page }) => {
 });
 
 /**
- * A singleton view in its own window (multi-window P2).
+ * A singleton view in its own window (multi-window P2, relaxed 2026-08-23).
  *
  * The ribbon is where a view is opened, so it is also where it gets popped out.
- * What matters beyond the window itself: the ribbon must stop opening a TAB for
- * a view that already has a window — `focusOrOpenVirtual` only ever knew this
- * window's panes, and a second calendar next to the one on screen is the same
- * duplicate the design forbids for notes.
+ * What happens on the NEXT ribbon click changed after the maintainer's window
+ * acceptance: graph, tasks, calendar and mail may be open more than once. They
+ * draw shared state and hold no editing buffer, so a second copy cannot lose
+ * anything — and wanting the calendar on the second monitor AND in the tab you
+ * are working in is the ordinary case, not a mistake.
+ *
+ * The strict half of the rule is pinned by the note test above: a file stays
+ * open exactly once, because two editors on one file is the race the whole
+ * design exists to prevent.
  */
-test('a view pops out of the ribbon and the ribbon then focuses it instead of opening a tab', async ({ page }) => {
+test('a view pops out of the ribbon, and the ribbon may then open a second one', async ({ page }) => {
   await openWelcome(page);
 
   await page.getByTestId('ribbon-graph').click({ button: 'right' });
@@ -311,27 +316,14 @@ test('a view pops out of the ribbon and the ribbon then focuses it instead of op
   expect(created.url).toContain('win=aux');
   expect(created.url).toContain(encodeURIComponent('plainva://graph'));
 
-  // The graph is now in a window. Clicking the ribbon again must bring THAT
-  // window forward, not build a second graph here. Waiting for the focus first
-  // matters: asserting "no tab" right after the click would pass before the
-  // routing has even answered.
+  // The graph is in a window now. Clicking the ribbon again opens it HERE too
+  // — a view is duplicable. What must not happen is a second window: the
+  // ribbon opens a tab in this window, it does not spawn windows.
   await page.getByTestId('ribbon-graph').click();
-  await expect
-    .poll(async () => await page.evaluate(() => (window as any).focusedWindows.length), { timeout: 10000 })
-    .toBeGreaterThan(0);
-  await expect(page.getByRole('tab').filter({ hasText: /Graph/ })).toHaveCount(0);
+  await expect(page.getByRole('tab').filter({ hasText: /Graph/ })).toHaveCount(1);
   expect(await page.evaluate(() => (window as any).createdWindows.length)).toBe(1);
 });
 
-/**
- * The communications preset (P4/E4).
- *
- * "Mail beside the calendar" is the arrangement people asked for, and it is an
- * ORDINARY auxiliary window whose two panes start filled — not a window type of
- * its own. What matters here is that one request produces exactly one window and
- * that the preset travels in the URL, because the new window seeds its split
- * from that alone.
- */
 test('the palette opens one window that starts with mail beside the calendar', async ({ page }) => {
   await openWelcome(page);
 
