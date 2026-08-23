@@ -116,6 +116,7 @@ import {
   resetWindowRegistryForTest,
   setOwnerOpenContents,
   noteWindowContent,
+  isDuplicableView,
 } from "./windowManager";
 
 import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
@@ -525,5 +526,115 @@ describe("the restore switch (E5)", () => {
     settingsBroken = true;
     // A store that will not answer is not a decision to change the behaviour.
     expect(await getRestoreWindowsSetting()).toBe(true);
+  });
+});
+
+describe("window identity across restarts (finding 2026-08-23)", () => {
+  it("keeps a restored window under the label its layout is stored beneath", async () => {
+    // The panes and tabs of a window live in localStorage under its LABEL. Come
+    // back with a different name and the tabs stay behind -- and land on
+    // whichever window is called that next time.
+    // Deliberately NOT the name a fresh counter would pick: after a restart it
+    // starts at 0, so a window that was `aux-1` matches by luck and the
+    // assertion would hold with or without the fix (red probe 2026-08-23).
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Kept.md", label: "aux-5" });
+    const saved = readPersistedWindows(VAULT);
+    expect(saved).toHaveLength(1);
+    const label = saved[0].label;
+    expect(label).toBe("aux-5");
+
+    resetWindowRegistryForTest();
+    setRestoreWindowsSetting(true);
+    created.length = 0;
+    await restoreAuxWindows(VAULT);
+
+    expect(created.map((c) => c.label), "a restored window must come back as itself").toEqual([label]);
+  });
+
+  it("never hands a fresh window a name that is already taken", async () => {
+    // `counter` starts at 0 in every process. Without the guard the first new
+    // window of a session collides with a restored one -- the maintainer asked
+    // for tasks and got the graph, then the calendar.
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "First.md", label: "aux-1" });
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Second.md", label: "aux-2" });
+
+    const fresh = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Third.md" });
+
+    expect(["aux-1", "aux-2"]).not.toContain(fresh.label);
+  });
+
+  it("drops the stored tabs of an earlier window with the same name", async () => {
+    // Closed by hand, so nothing restores it -- but its layout outlives it and
+    // the name comes round again.
+    window.localStorage.setItem(`plainva-layout-${VAULT}-aux-1`, JSON.stringify({ panes: [{ tabs: ["Ghost.md"] }] }));
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Wanted.md" });
+
+    expect(
+      window.localStorage.getItem(`plainva-layout-${VAULT}-aux-1`),
+      "a fresh window shows what it was opened with, not a stranger's tabs",
+    ).toBeNull();
+  });
+
+  it("leaves the stored tabs alone when a window is restored", async () => {
+    const layout = JSON.stringify({ panes: [{ tabs: ["Kept.md", "AlsoKept.md"] }] });
+    window.localStorage.setItem(`plainva-layout-${VAULT}-aux-7`, layout);
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Kept.md", label: "aux-7" });
+
+    expect(window.localStorage.getItem(`plainva-layout-${VAULT}-aux-7`)).toBe(layout);
+  });
+});
+
+describe("views may exist more than once (maintainer decision 2026-08-23)", () => {
+  it("opens a second window for a view that is already in one", async () => {
+    const first = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "plainva://calendar" });
+    created.length = 0;
+    focused.length = 0;
+
+    const result = await openOrFocusContent({ vaultPath: VAULT, path: "plainva://calendar", newWindow: true });
+
+    expect(result.where).toBe("focused");
+    expect(
+      result.where === "focused" ? result.label : null,
+      "the calendar may sit on both monitors",
+    ).not.toBe(first.label);
+    expect(created).toHaveLength(1);
+    expect(focused, "nothing should be pulled forward instead").toEqual([]);
+  });
+
+  it("still refuses a second window for a note", async () => {
+    const first = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+    created.length = 0;
+
+    const result = await openOrFocusContent({ vaultPath: VAULT, path: "Note.md", newWindow: true });
+
+    expect(result).toEqual({ where: "focused", label: first.label });
+    expect(created, "two editors on one file is the race the rule exists for").toEqual([]);
+  });
+
+  it("names which paths may be duplicated", () => {
+    expect(isDuplicableView("plainva://mail")).toBe(true);
+    expect(isDuplicableView("plainva://graph")).toBe(true);
+    expect(isDuplicableView("Notes/Plan.md")).toBe(false);
+    expect(isDuplicableView("Tasks.base")).toBe(false);
+  });
+});
+
+describe("the communications window (finding 2026-08-23)", () => {
+  it("starts from its preset instead of a stranger's leftovers", async () => {
+    // The preset only decides what the two panes START with, and the aux shell
+    // skips that seeding when a stored layout already holds tabs. So a layout
+    // left behind under the same name -- one pane, mail only -- made the window
+    // come up with mail and no calendar, permanently.
+    window.localStorage.setItem(
+      `plainva-layout-${VAULT}-aux-1`,
+      JSON.stringify({ panes: [{ tabs: ["plainva://mail"] }] }),
+    );
+
+    const rec = await openPresetWindow({ vaultPath: VAULT, preset: "mail-calendar" });
+
+    expect(window.localStorage.getItem(`plainva-layout-${VAULT}-${rec.label}`)).toBeNull();
+    expect(rec.preset).toBe("mail-calendar");
   });
 });

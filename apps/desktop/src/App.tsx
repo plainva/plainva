@@ -1973,7 +1973,11 @@ function App() {
             canCloseLeft={hasUnpinnedLeft}
             canCloseRight={hasUnpinnedRight}
             onShowVersionHistory={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: tabPath } })) : undefined}
-            onOpenInNewWindow={isFile ? () => openInNewWindow(tabPath!) : undefined}
+            // Not gated on `isFile`: a view is content too, and the calendar
+            // was the one people most wanted on the second monitor (maintainer
+            // finding 2026-08-23). Everything else in this menu stays file-only
+            // because a view has no path to rename, bookmark or reveal.
+            onOpenInNewWindow={tabPath ? () => openInNewWindow(tabPath) : undefined}
           />
         );
       })()}

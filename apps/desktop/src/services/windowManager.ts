@@ -1,6 +1,7 @@
 import { buildWindowQuery, type WindowPreset, type WindowRole } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
+import { isVirtualPath } from "../components/graph/virtualPaths";
 
 /**
  * Opening, focusing and remembering auxiliary windows (multi-window P0).
@@ -95,7 +96,14 @@ let counter = 0;
  * compute the same address.
  */
 function nextLabel(role: Exclude<WindowRole, "owner">): string {
+  // Never hand out a name that is already taken. `counter` starts at 0 in every
+  // process, while the per-window layouts in localStorage outlive the process --
+  // so a fresh window used to inherit the tabs of a long-closed stranger that
+  // happened to carry the same name (maintainer finding 2026-08-23: right-click
+  // "Tasks" opened the graph, then the calendar). Restored windows keep their
+  // stored label, which puts them into `open` before anything new is named.
   counter += 1;
+  while (open.has(`${role}-${counter}`)) counter += 1;
   return `${role}-${counter}`;
 }
 
@@ -110,12 +118,39 @@ function contentsOf(rec: AuxWindowRecord): string[] {
   return rec.content ? [rec.content] : [];
 }
 
+/**
+ * May this content be open in more than one place at a time?
+ *
+ * The four singleton VIEWS may: they render shared state and hold no editing
+ * buffer, so a second one cannot lose anything. Everything with a file behind
+ * it may not -- see `openOrFocusContent`.
+ */
+export function isDuplicableView(path: string): boolean {
+  return isVirtualPath(path);
+}
+
 /** The window showing this content, if any — in ANY of its tabs (P4). */
 export function findWindowForContent(vaultPath: string, content: string): AuxWindowRecord | null {
   for (const rec of open.values()) {
     if (rec.vaultPath === vaultPath && contentsOf(rec).includes(content)) return rec;
   }
   return null;
+}
+
+/**
+ * Drops the stored panes/tabs of one window (see `openAuxWindow`).
+ *
+ * The key mirrors `layoutKey` in usePaneLayout, which is deliberately not
+ * exported: the layout hook owns the shape, this only needs to be able to
+ * clear it. A test pins the two together.
+ */
+export function forgetWindowLayout(vaultPath: string, label: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(`plainva-layout-${vaultPath}-${label}`);
+  } catch {
+    /* quota/private mode: a stale layout is not worth failing an open for */
+  }
 }
 
 /** Remembers what is open so the next start can restore it (plan P4/E5). */
@@ -174,6 +209,11 @@ export async function openAuxWindow(params: {
   onClosed?: () => void;
 }): Promise<AuxWindowRecord> {
   const label = params.label ?? nextLabel(params.role);
+  // A window that is opened FRESH starts with what it was opened with. Only a
+  // restore (which passes its stored label) brings tabs back, so anything left
+  // under this name by an earlier window goes -- the second half of the finding
+  // above, for the case where the earlier window was closed by hand.
+  if (!params.label) forgetWindowLayout(params.vaultPath, label);
   const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
   const record: AuxWindowRecord = {
     label,
@@ -333,6 +373,10 @@ export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRec
         await openAuxWindow({
           role: "aux",
           vaultPath,
+          // The layout of a window hangs on its label, so a restored window has
+          // to come back under the SAME one -- otherwise its tabs stay behind
+          // and land on whichever window is named that next time.
+          label: rec.label,
           content: rec.content,
           preset: rec.preset,
           alwaysOnTop: rec.alwaysOnTop === true,
@@ -434,7 +478,13 @@ export async function openOrFocusContent(opts: {
   from?: string;
   title?: string;
 }): Promise<OpenContentResult> {
-  const existing = findWindowForContent(opts.vaultPath, opts.path);
+  // A VIEW may exist more than once (maintainer decision 2026-08-23). Notes and
+  // databases stay unique app-wide -- two editors on one file is the very race
+  // the rule was written for -- but the graph, tasks, calendar and mail are
+  // read surfaces over shared state. Insisting they be unique meant the
+  // communications window could not show a calendar that was open in a tab, and
+  // that the ribbon could only ever pull the existing window forward.
+  const existing = isDuplicableView(opts.path) ? null : findWindowForContent(opts.vaultPath, opts.path);
   if (existing) {
     if (existing.label === opts.from) return { where: "caller" };
     const ok = await focusAuxWindow(existing.label);
