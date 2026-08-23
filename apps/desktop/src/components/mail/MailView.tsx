@@ -552,7 +552,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // feels slow". The banner keeps saying it is not confirmed until the
       // refresh lands, so this shows the copy without CLAIMING freshness.
       if (offset === 0) {
-        const warm = await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE);
+        // Guarded: reading the offline copy must never be able to stop the
+        // fetch below. It could, before the finding of 2026-08-23 -- this call
+        // sat outside the try, and in a window without write rights it threw,
+        // leaving the list empty and silent.
+        const warm = await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE).catch(() => []);
         if (!current()) return;
         if (warm.length > 0) {
           setEnvelopes(warm);
@@ -589,7 +593,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // "load more" must not replace what is already on screen.
         // The warm read above already put the cached page on screen; only an
         // EMPTY cache still needs the error, or the pane would sit blank.
-        const cached = offset === 0 ? await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE) : [];
+        const cached = offset === 0 ? await cachedEnvelopes(dbAdapter, account.id, mailbox, PAGE_SIZE).catch(() => []) : [];
         if (!current()) return;
         if (cached.length > 0) {
           setEnvelopes(cached);

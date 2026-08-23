@@ -98,11 +98,31 @@ export interface MailCacheSnapshot {
 }
 
 let ready: WeakSet<object> = new WeakSet();
+/**
+ * Connections that may not write. An auxiliary window attaches the index
+ * READ-ONLY (its capability withholds `sql:allow-execute`), so the CREATE TABLE
+ * below throws there. The cache is a convenience -- an offline copy of a mailbox
+ * -- and must never be the reason a mailbox cannot be shown: it switches itself
+ * off instead, exactly as if no database had been handed in.
+ *
+ * Found the hard way (maintainer finding 2026-08-23): the throw travelled out of
+ * a caller that reads the cache BEFORE fetching, so the message list stayed
+ * empty with no error at all, while the folder tree -- which never touches the
+ * cache -- looked perfectly healthy.
+ */
+const readOnly: WeakSet<object> = new WeakSet();
 
 async function ensure(db: IDatabaseAdapter | null | undefined): Promise<boolean> {
   if (!db) return false;
   if (ready.has(db as object)) return true;
-  for (const stmt of SCHEMA) await db.execute(stmt);
+  if (readOnly.has(db as object)) return false;
+  try {
+    for (const stmt of SCHEMA) await db.execute(stmt);
+  } catch (e) {
+    readOnly.add(db as object);
+    console.warn("[mailCache] no offline copy on this connection (read-only)", e);
+    return false;
+  }
   for (const stmt of ADDED_COLUMNS) {
     await db.execute(stmt).catch(() => undefined); // already present
   }
