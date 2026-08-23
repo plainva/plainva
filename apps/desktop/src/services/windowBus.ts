@@ -197,6 +197,17 @@ export interface RpcMap {
   };
   /** An auxiliary window reports its always-on-top pin so it survives a restart. */
   "window-always-on-top": { args: { label: string; value: boolean }; result: void };
+  /**
+   * Re-read the vault, or rebuild the index from scratch (multi-window C1).
+   *
+   * The indexer stays with the owner — a client holds a read-only connection to
+   * the index by design, and both of these WRITE. `refresh` is the cheap
+   * reconcile behind the tree-header button; `rebuild` is the maintenance page's
+   * "rebuild index", which drops every row first. Either way the owner
+   * broadcasts `index-changed` afterwards, so this window follows without
+   * asking again.
+   */
+  reindex: { args: { scope: "refresh" | "rebuild" }; result: void };
 }
 
 export type RpcKind = keyof RpcMap;

@@ -1232,6 +1232,12 @@ export const VaultProvider: React.FC<{
       indexer: state.indexer,
       pimRuntime: state.pimRuntime,
       refresh: triggerFileTreeUpdate,
+      // Through the ref, not captured: the bus is re-installed only when the
+      // vault changes, and both of these read state that moves more often than
+      // that — a captured `refreshVault` would keep skipping the cloud step
+      // because it still held yesterday's sync worker.
+      refreshVault: () => vaultOpsRef.current.refreshVault(),
+      rebuildIndex: () => vaultOpsRef.current.rebuildIndex(),
     })
       .then((off) => {
         if (cancelled) off();
@@ -1754,6 +1760,13 @@ export const VaultProvider: React.FC<{
     }
   };
 
+  // Kept current for the owner bus (C1). Written in an effect, never during
+  // render, so the value the handler reads is the one the last render produced.
+  const vaultOpsRef = useRef({ refreshVault, rebuildIndex });
+  useEffect(() => {
+    vaultOpsRef.current = { refreshVault, rebuildIndex };
+  });
+
   const removeRecentVault = async (path: string) => {
     const store = await getSettingsStore();
     const currentRecents = (await store.get<string[]>("recentVaults")) || [];
@@ -2151,11 +2164,20 @@ export const VaultProvider: React.FC<{
       closeVault: () => {
         throw new Error(ownerOnly("closeVault"));
       },
+      // These two are not owner-only in the sense the others are: the ACTION is
+      // legitimate from any window, only the writing is not (C1). So the client
+      // asks instead of refusing — the button in its tree header would
+      // otherwise be a button that throws.
       refreshVault: async () => {
-        throw new Error(ownerOnly("refreshVault"));
+        const bus = await getWindowBus();
+        await bus.request("reindex", { scope: "refresh" });
+        // The owner reports what it found; this window learns of the result
+        // through `index-changed`, so there is nothing local to hand back.
+        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
       },
       rebuildIndex: async () => {
-        throw new Error(ownerOnly("rebuildIndex"));
+        const bus = await getWindowBus();
+        await bus.request("reindex", { scope: "rebuild" });
       },
       removeRecentVault: async () => {
         throw new Error(ownerOnly("removeRecentVault"));

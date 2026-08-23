@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppShell } from "./AppShell";
 import { getWindowBus } from "./services/windowBus";
+import { routeOpenThroughOwner } from "./services/openRouting";
+import { currentWindowParams } from "./services/windowContext";
 import type { ShellCapabilities } from "./shellCapabilities";
 
 /**
@@ -21,11 +23,12 @@ import type { ShellCapabilities } from "./shellCapabilities";
  * - **Switching the vault** — one process, one open vault (plan E7). The
  *   switcher still NAMES the vault this window is looking at; it just does not
  *   offer to change it for everyone else.
- * - **Reporting open contents** — the dedup registry lives in the owner, and
- *   this window already reports its tabs through `window-contents`. Handing the
- *   owner a second, competing list would make it forget the first.
+ * - **Deciding where content opens** — the owner knows every window, this one
+ *   knows only itself. Every door into a pane asks first (C1).
  */
 export function FullApp() {
+  const label = currentWindowParams().label;
+
   const openOwnerSurface = useCallback(
     (surface: "settings" | "import" | "sync-error", opts?: { provider?: string; area?: string }) => {
       void (async () => {
@@ -40,13 +43,42 @@ export function FullApp() {
     [],
   );
 
+  /**
+   * Debounced: the shell reports on every layout change, and this ends in a
+   * write to the owner's stored window list. Dragging a tab across a split
+   * would otherwise be a burst of them (same reason as in `AuxApp`).
+   */
+  const reportTimer = useRef<number | null>(null);
+  const reportOpenContents = useCallback(
+    (contents: readonly string[], active: string | null) => {
+      if (!label) return;
+      if (reportTimer.current !== null) window.clearTimeout(reportTimer.current);
+      reportTimer.current = window.setTimeout(() => {
+        void (async () => {
+          try {
+            const bus = await getWindowBus();
+            await bus.request("window-contents", { label, active, contents: [...contents] });
+          } catch {
+            /* no owner listening (browser/test) */
+          }
+        })();
+      }, 200);
+    },
+    [label],
+  );
+  useEffect(() => () => {
+    if (reportTimer.current !== null) window.clearTimeout(reportTimer.current);
+  }, []);
+
   const capabilities = useMemo<ShellCapabilities>(() => ({
     openSettings: (opts) => openOwnerSurface("settings", opts),
     openSyncError: () => openOwnerSurface("sync-error"),
     openImport: () => openOwnerSurface("import"),
-    // Deliberately absent: reportOpenContents, closeVault, openVault,
-    // recentVaults — see the note above.
-  }), [openOwnerSurface]);
+    reportOpenContents,
+    routeOpen: (path, openHere, opts) => routeOpenThroughOwner(path, openHere, { from: label, ...opts }),
+    // Deliberately absent: closeVault, openVault, recentVaults — see the note
+    // above (plan E7).
+  }), [openOwnerSurface, reportOpenContents, label]);
 
   return <AppShell capabilities={capabilities} />;
 }

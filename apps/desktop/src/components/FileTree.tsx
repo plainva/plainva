@@ -20,6 +20,7 @@ import { useStableHandler } from "@plainva/ui";
 import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
+import { currentWindowParams } from "../services/windowContext";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { sweepPinboardRefs } from "@plainva/ui";
@@ -326,12 +327,26 @@ const TreeNodeView: React.FC<{
   );
 });
 
+/**
+ * Where a window remembers its expanded folders (multi-window C1, plan § 5.5).
+ *
+ * Per WINDOW, not per app: two windows on the same vault are usually open
+ * because they are looking at different parts of it, and a shared key would
+ * have each one collapse the other's folders on every click. The suffix is the
+ * window label, which is also its identity across a restart — so a restored
+ * window comes back with the tree it had. `vaultForget` matches this key by
+ * prefix, so the per-window variants are covered without a second entry.
+ */
+export function expandedKey(vaultPath: string, windowLabel?: string | null): string {
+  return windowLabel ? `plainva-expanded-${vaultPath}-${windowLabel}` : `plainva-expanded-${vaultPath}`;
+}
+
 /** Per-vault persisted expanded-folder set, so the tree keeps its shape across
  *  sidebar tab switches (Files/Tags/Bookmarks) and app restarts. */
-function loadExpanded(vaultPath: string | null | undefined): Set<string> {
+function loadExpanded(vaultPath: string | null | undefined, windowLabel?: string | null): Set<string> {
   if (!vaultPath) return new Set();
   try {
-    const raw = localStorage.getItem(`plainva-expanded-${vaultPath}`);
+    const raw = localStorage.getItem(expandedKey(vaultPath, windowLabel));
     return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
   } catch {
     return new Set();
@@ -376,18 +391,19 @@ export const FileTree: React.FC<{
   const cancelRenaming = useStableHandler(() => { setRenamingItemParams(null); setRenamingError(null); });
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => loadExpanded(vaultPath));
+  const windowLabel = currentWindowParams().label;
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => loadExpanded(vaultPath, windowLabel));
   const persistExpanded = useStableHandler((set: Set<string>) => {
     if (!vaultPath) return;
     try {
-      localStorage.setItem(`plainva-expanded-${vaultPath}`, JSON.stringify([...set]));
+      localStorage.setItem(expandedKey(vaultPath, windowLabel), JSON.stringify([...set]));
     } catch {
       /* storage blocked/full — the tree still works, it just won't be remembered */
     }
   });
   // Reload when the vault changes (the tree can stay mounted across a vault
   // switch; the lazy init above only covers the first mount / a remount).
-  useEffect(() => { setExpandedFolders(loadExpanded(vaultPath)); }, [vaultPath]);
+  useEffect(() => { setExpandedFolders(loadExpanded(vaultPath, windowLabel)); }, [vaultPath, windowLabel]);
   // Explorer-style selection (P7/P9): plain click selects, Ctrl/Meta toggles,
   // Shift ranges over the visible rows; the anchor is the last plain target.
   const [selection, setSelection] = useState<Set<string>>(new Set());

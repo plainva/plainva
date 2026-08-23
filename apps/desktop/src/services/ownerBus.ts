@@ -46,6 +46,10 @@ export interface OwnerBusDeps {
   pimRuntime: PimRuntime | null;
   /** Refresh the owner's own views (VaultContext.triggerFileTreeUpdate). */
   refresh: (paths?: string[]) => void;
+  /** Re-read the vault (the cheap reconcile) — a client asks for it (C1). */
+  refreshVault: () => Promise<unknown>;
+  /** Drop every indexed row and parse the vault again — likewise (C1). */
+  rebuildIndex: () => Promise<unknown>;
 }
 
 /** Path separator on either platform — the note name is the window title. */
@@ -260,6 +264,17 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(
     await bus.handle("window-always-on-top", async ({ label, value }) => {
       noteWindowAlwaysOnTop(label, value);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("reindex", async ({ scope }) => {
+      // Both of these write to the index, and a client's connection is
+      // read-only by design (C1). The toast lands in the central window because
+      // that is where the work happens; the broadcast that follows updates
+      // every window's tree.
+      if (scope === "rebuild") await deps.rebuildIndex();
+      else await deps.refreshVault();
     }),
   );
 

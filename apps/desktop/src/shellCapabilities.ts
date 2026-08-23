@@ -26,8 +26,24 @@ export interface ShellCapabilities {
    * Reports every path this window has open, so the app-wide "content is open
    * once" rule can be answered (plan E2). The owner mirrors it into the window
    * registry; a client sends it over the bus.
+   *
+   * `active` rides along because it answers a second question with the same
+   * data: the active tab names the window and decides what a restart puts back,
+   * while the full list decides dedup. They change together, so they travel
+   * together.
    */
-  reportOpenContents?: (paths: readonly string[]) => void;
+  reportOpenContents?: (contents: readonly string[], active: string | null) => void;
+  /**
+   * Asks where content should be drawn (multi-window C1). Absent in the owner:
+   * it holds the window registry and answers the question itself.
+   *
+   * Present in a client, it is handed straight to `usePaneLayout`, so every door
+   * into a pane routes without any surface knowing about it — the alternative
+   * was a rule that has to be remembered at each of the twenty openers, and the
+   * one that gets forgotten is the one that opens a second editor on a file
+   * somebody is typing in.
+   */
+  routeOpen?: (path: string, openHere: () => void, opts?: { newWindow?: boolean }) => boolean;
   /** Leaves the current vault. Absent in a client: a client follows the owner (E7). */
   closeVault?: () => void;
   /** Opens another known vault. Absent in a client for the same reason (E7). */

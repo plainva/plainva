@@ -181,15 +181,22 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     stop: () => {},
   } as never;
 
+  const reindexed: string[] = [];
   const dispose = await installOwnerBus({
     vaultPath: "/vault",
     vaultAdapter: createAdapter(calls),
     indexer: indexer as never,
     pimRuntime,
     refresh: (paths) => refreshed.push(paths),
+    refreshVault: async () => {
+      reindexed.push("refresh");
+    },
+    rebuildIndex: async () => {
+      reindexed.push("rebuild");
+    },
   });
 
-  return { aux, calls, refreshed, indexed, triggered, dispose };
+  return { aux, calls, refreshed, indexed, triggered, reindexed, dispose };
 }
 
 beforeEach(() => {
@@ -417,6 +424,29 @@ describe("what an auxiliary window reports about itself (P4)", () => {
     // The pin belongs to the window, and the window list is what a restart
     // reads: a pin the central window never heard about would be gone.
     expect(listAuxWindows().find((w) => w.label === rec.label)?.alwaysOnTop).toBe(true);
+    dispose();
+  });
+});
+
+describe("re-reading the vault from a client window", () => {
+  it("runs the cheap reconcile in the central window", async () => {
+    const { aux, reindexed, dispose } = await setup();
+
+    await aux.request("reindex", { scope: "refresh" });
+
+    // The indexer belongs to the owner: a client holds a read-only connection
+    // to the index by design, so the button in its tree header asks rather than
+    // writes (multi-window C1).
+    expect(reindexed).toEqual(["refresh"]);
+    dispose();
+  });
+
+  it("runs the full rebuild in the central window", async () => {
+    const { aux, reindexed, dispose } = await setup();
+
+    await aux.request("reindex", { scope: "rebuild" });
+
+    expect(reindexed).toEqual(["rebuild"]);
     dispose();
   });
 });

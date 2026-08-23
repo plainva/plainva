@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseBookmarksFile, serializeBookmarksFile } from "@plainva/ui";
+import {
+  BOOKMARKS_FILE,
+  parseBookmarksFile,
+  removeBookmarksOnDisk,
+  serializeBookmarksFile,
+  toggleBookmarkOnDisk,
+  type BookmarksIO,
+} from "@plainva/ui";
 
 /** Shared .plainva/bookmarks.json contract (plan Mobile M3E 2026-07-12, A5). */
 describe("bookmarksFile", () => {
@@ -33,5 +40,62 @@ describe("bookmarksFile", () => {
     expect(parseBookmarksFile(out)).toEqual({ paths: ["A.md", "B/C.md"], existed: true });
     // The legacy mobile shape round-trips into the canonical one.
     expect(parseBookmarksFile(serializeBookmarksFile(parseBookmarksFile('["A.md"]').paths)).paths).toEqual(["A.md"]);
+  });
+});
+
+/** A file on disk plus a window that may hold a stale view of it. */
+function createDisk(initial: string[]) {
+  let text = serializeBookmarksFile(initial);
+  const io: BookmarksIO = {
+    readTextFile: async () => text,
+    writeTextFile: async (_p, content) => {
+      text = content;
+    },
+  };
+  return { io, read: () => parseBookmarksFile(text).paths };
+}
+
+describe("changing bookmarks with two windows open (multi-window C1)", () => {
+  it("keeps what the other window added", async () => {
+    const disk = createDisk(["A.md"]);
+    // Window 1 stars B while window 2 still believes the list is ["A.md"].
+    await toggleBookmarkOnDisk(disk.io, "B.md");
+
+    // Window 2 stars C. It must read first: writing its own snapshot would drop B.
+    const after = await toggleBookmarkOnDisk(disk.io, "C.md");
+
+    expect(after).toEqual(["A.md", "B.md", "C.md"]);
+    expect(disk.read()).toEqual(["A.md", "B.md", "C.md"]);
+  });
+
+  it("keeps what the other window removed", async () => {
+    const disk = createDisk(["A.md", "B.md"]);
+    await toggleBookmarkOnDisk(disk.io, "A.md"); // window 1 unstars A
+
+    const after = await toggleBookmarkOnDisk(disk.io, "C.md"); // window 2 stars C
+
+    // A stays gone: the second write must not resurrect it from a stale list.
+    expect(after).toEqual(["B.md", "C.md"]);
+  });
+
+  it("drops only the deleted files on a cascade delete", async () => {
+    const disk = createDisk(["A.md", "B.md", "C.md"]);
+    const after = await removeBookmarksOnDisk(disk.io, ["B.md", "Missing.md"]);
+    expect(after).toEqual(["A.md", "C.md"]);
+  });
+
+  it("creates the file on the first bookmark", async () => {
+    let text: string | null = null;
+    const io: BookmarksIO = {
+      readTextFile: async () => {
+        throw new Error("not found");
+      },
+      writeTextFile: async (path, content) => {
+        expect(path).toBe(BOOKMARKS_FILE);
+        text = content;
+      },
+    };
+    expect(await toggleBookmarkOnDisk(io, "A.md")).toEqual(["A.md"]);
+    expect(parseBookmarksFile(text ?? "")).toEqual({ paths: ["A.md"], existed: true });
   });
 });

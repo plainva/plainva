@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { expandedKey } from "./FileTree";
 import {
   ancestorsOf,
   applyClickSelection,
@@ -182,5 +183,22 @@ describe("copyCandidate", () => {
 
   it("appends for extension-less names", () => {
     expect(copyCandidate("Atlas/Ordnernotiz", "Kopie", 1)).toBe("Atlas/Ordnernotiz (Kopie)");
+  });
+});
+
+describe("expandedKey (multi-window C1)", () => {
+  it("keeps the historic key for the central window", () => {
+    // A window without a label is the central one; renaming its key would make
+    // every existing installation forget its open folders on first launch.
+    expect(expandedKey("C:/Vaults/Wiki")).toBe("plainva-expanded-C:/Vaults/Wiki");
+    expect(expandedKey("C:/Vaults/Wiki", null)).toBe("plainva-expanded-C:/Vaults/Wiki");
+  });
+
+  it("gives every other window its own", () => {
+    // Which folders are open is a property of the window, not of the vault: two
+    // windows on the same vault look at different parts of it, and sharing the
+    // key would have them fight over the tree on every click.
+    expect(expandedKey("C:/Vaults/Wiki", "full-1")).toBe("plainva-expanded-C:/Vaults/Wiki-full-1");
+    expect(expandedKey("C:/Vaults/Wiki", "full-1")).not.toBe(expandedKey("C:/Vaults/Wiki", "full-2"));
   });
 });

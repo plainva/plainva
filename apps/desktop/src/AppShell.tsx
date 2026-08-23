@@ -13,7 +13,7 @@ const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModa
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { SyncSwitcherIcon } from "./components/SyncSwitcherIcon";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, parseBookmarksFile, rememberSearch, SearchField, serializeBookmarksFile, useStableHandler } from "@plainva/ui";
+import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, parseBookmarksFile, rememberSearch, removeBookmarksOnDisk, SearchField, serializeBookmarksFile, toggleBookmarkOnDisk, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -67,6 +67,7 @@ import {
   openOrFocusContent,
   openPresetWindow,
 } from "./services/windowManager";
+import { currentWindowParams } from "./services/windowContext";
 import "./App.css";
 
 /**
@@ -84,6 +85,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const { t } = useTranslation();
   const drag = useActiveDrag();
   const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex } = useVault();
+  // Identity of this window, not a capability: it is a fact about where the
+  // code runs (null in the central window), and every per-window store keys off
+  // it — panes, tabs, expanded folders (plan § 5.5).
+  const windowLabel = currentWindowParams().label;
   /** Spins the tree-header refresh button while a reconcile is running (P1). */
   const [refreshing, setRefreshing] = useState(false);
 
@@ -282,6 +287,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       if (!vaultPath) return;
       void openAttachmentExternally(vaultPath, p, t);
     },
+    // Client windows ask the owner before drawing anything (multi-window C1);
+    // the central window holds the registry and answers for itself.
+    routeOpen: capabilities.routeOpen,
+    // Panes and tabs belong to THIS window (P4/E4). The label is the scope: a
+    // restored window comes back under its stored name, so its layout comes
+    // back with it. The central window passes nothing and keeps the historic
+    // key.
+    layoutScope: windowLabel,
   });
 
   // Apply either the global note preference or a contextless temporary close.
@@ -343,6 +356,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
    */
   const openInNewWindow = useStableHandler((path: string) => {
     if (!vaultPath) return;
+    // A client asks the owner to create the window — only the central window may
+    // (its capability withholds window creation from the others). The answer is
+    // never "caller" for a pop-out, so the local tab always goes.
+    if (capabilities.routeOpen) {
+      capabilities.routeOpen(path, () => {}, { newWindow: true });
+      closeTabsByPrefix(path);
+      return;
+    }
     void (async () => {
       try {
         const result = await openOrFocusContent({ vaultPath, path, newWindow: true });
@@ -364,6 +385,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const openView = useStableHandler((path: string) => {
     if (!vaultPath) {
       focusOrOpenVirtual(path);
+      return;
+    }
+    // A client cannot read the registry, so it asks. Since the loosening of
+    // 2026-08-23 the answer for a view is usually "you draw it" — graph, tasks,
+    // calendar and mail may exist more than once — but the question still has
+    // to be asked: the owner is the one that knows.
+    if (capabilities.routeOpen) {
+      capabilities.routeOpen(path, () => focusOrOpenVirtual(path));
       return;
     }
     void (async () => {
@@ -514,19 +543,27 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     loadBookmarks();
   }, [vaultPath, vaultAdapter]);
 
+  /**
+   * The list is re-read from disk before it is written (multi-window C1).
+   *
+   * Since stage C two windows can draw the same bookmark list, and each holds
+   * its own copy in React state. Writing the whole file from that copy means the
+   * second window's star quietly drops whatever the first one added. The shared
+   * helper does read-modify-write — the shape `pushRecent` has always had — so
+   * the state below is a mirror of the file rather than its source.
+   */
   const toggleBookmark = (path: string) => {
-    setBookmarks(prev => {
-      const next = prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path];
-      if (vaultPath && vaultAdapter) {
-        vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(next)).catch((e) => {
-          // The optimistic state update already happened — a silent write
-          // failure would leave bookmarks permanently out of sync with disk.
-          console.error("Failed to persist bookmarks", e);
-          toast.error(t("sidebar.bookmarkSaveFailed"));
-        });
-      }
-      return next;
-    });
+    if (!vaultPath || !vaultAdapter) return;
+    // Optimistic, so the star flips under the finger; the disk answer wins.
+    setBookmarks(prev => (prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]));
+    void toggleBookmarkOnDisk(vaultAdapter, path)
+      .then(setBookmarks)
+      .catch((e) => {
+        // The optimistic state update already happened — a silent write
+        // failure would leave bookmarks permanently out of sync with disk.
+        console.error("Failed to persist bookmarks", e);
+        toast.error(t("sidebar.bookmarkSaveFailed"));
+      });
   };
 
   // An auxiliary window (multi-window P2) has the star in its graph but not
@@ -615,17 +652,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // already cleans them in vaultOps.remove).
   const handleCascadeDeleted = useStableHandler((paths: string[]) => {
     for (const p of paths) closeTabsByPrefix(p);
-    setBookmarks((prev) => {
-      const gone = new Set(paths);
-      const next = prev.filter((b) => !gone.has(b));
-      if (next.length !== prev.length && vaultPath && vaultAdapter) {
-        vaultAdapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(next)).catch((e) => {
-          console.error("Failed to persist bookmarks", e);
-          toast.error(t("sidebar.bookmarkSaveFailed"));
-        });
-      }
-      return next;
-    });
+    const gone = new Set(paths);
+    if (!bookmarks.some((b) => gone.has(b))) return;
+    setBookmarks((prev) => prev.filter((b) => !gone.has(b)));
+    if (!vaultAdapter) return;
+    void removeBookmarksOnDisk(vaultAdapter, paths)
+      .then(setBookmarks)
+      .catch((e) => {
+        console.error("Failed to persist bookmarks", e);
+        toast.error(t("sidebar.bookmarkSaveFailed"));
+      });
   });
 
   // Drag the divider between the two panes to change their size ratio (the hook clamps
@@ -867,8 +903,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         if (p) paths.push(p);
       }
     }
-    capabilities.reportOpenContents?.(paths);
-  }, [layout, capabilities]);
+    capabilities.reportOpenContents?.(paths, activePath ?? null);
+  }, [layout, activePath, capabilities]);
 
   // Popout requests from the editor ⋮ and the peek header. They announce rather
   // than act, because only this window can open the window AND close the tab.
