@@ -99,10 +99,17 @@ void i18nReady.then(async () => {
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
   if (!isOwnerWindow) {
-    // Auxiliary window: the client-mode provider reads the vault and hands
-    // writes to the owner. The shell is imported here, not at module level, so
-    // the central window's start path stays exactly what it was.
-    const { AuxApp } = await import("./AuxApp");
+    // Client window: the client-mode provider reads the vault and hands writes
+    // to the owner. The shell is imported here, not at module level, so the
+    // central window's start path stays exactly what it was.
+    //
+    // Which shell depends on the role: `full` (stage C) draws the whole app —
+    // sidebars, ribbon, status bar — while `aux`/`compose` draw content and
+    // nothing else. Both run in the same client mode; only what they SHOW
+    // differs.
+    const Shell = windowParams.role === "full"
+      ? (await import("./FullApp")).FullApp
+      : (await import("./AuxApp")).AuxApp;
     // Theme/density/font/zoom changes happen in the central window's settings;
     // this keeps the look of this window in step with them.
     const { installAppearanceSync } = await import("./services/appearanceSync");
@@ -118,7 +125,7 @@ void i18nReady.then(async () => {
       <React.StrictMode>
         <ErrorBoundary>
           <VaultProvider mode="client" clientVaultPath={windowParams.vaultPath}>
-            <AuxApp />
+            <Shell />
           </VaultProvider>
           <DialogHost />
           <ToastHost />

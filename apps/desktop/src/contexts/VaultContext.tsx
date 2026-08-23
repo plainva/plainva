@@ -7,7 +7,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
-import { syncStatusStore } from "../services/syncStatusStore";
+import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
@@ -21,7 +21,8 @@ import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, comp
 import { startBackupScheduler } from "../services/backupScheduler";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus } from "../services/ownerBus";
+import { broadcastIndexChanged, announceVaultChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -1232,6 +1233,20 @@ export const VaultProvider: React.FC<{
       indexer: state.indexer,
       pimRuntime: state.pimRuntime,
       refresh: triggerFileTreeUpdate,
+      // Through the ref, not captured: the bus is re-installed only when the
+      // vault changes, and both of these read state that moves more often than
+      // that — a captured `refreshVault` would keep skipping the cloud step
+      // because it still held yesterday's sync worker.
+      refreshVault: () => vaultOpsRef.current.refreshVault(),
+      rebuildIndex: () => vaultOpsRef.current.rebuildIndex(),
+      // Same reason, one step further: the worker is created AFTER the vault
+      // has loaded, so a captured one would always be the null it was at
+      // install time — and "sync now" from another window would do nothing.
+      syncWorker: {
+        triggerImmediate: () => vaultOpsRef.current.syncWorker?.triggerImmediate(),
+        retryFailed: () => vaultOpsRef.current.syncWorker?.retryFailed(),
+        noteUserInitiatedDeletion: (paths) => vaultOpsRef.current.syncWorker?.noteUserInitiatedDeletion(paths),
+      },
     })
       .then((off) => {
         if (cancelled) off();
@@ -1244,6 +1259,23 @@ export const VaultProvider: React.FC<{
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
+
+  // Owner: which vault this process has open is a fact the other windows need.
+  // Driven from the STATE rather than from the switcher, because the vault also
+  // changes through the splash, through "open recent" and through closing it —
+  // an announcement made at one of those doors is one the others forget (C5).
+  useEffect(() => {
+    if (isClient) return;
+    announceVaultChanged(state.vaultPath);
+  }, [isClient, state.vaultPath]);
+
+  // Owner: every status the sync worker reaches goes out to the other windows
+  // (C3). Independent of the vault, because the store is reset on a switch and
+  // that reset is itself worth mirroring.
+  useEffect(() => {
+    if (isClient) return;
+    return installSyncStatusMirror();
+  }, [isClient]);
 
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
@@ -1268,6 +1300,28 @@ export const VaultProvider: React.FC<{
             window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
           }),
         );
+        // There is one sync worker, in the owner. This window has no way to
+        // observe it, so without the mirror its status bar would say "local"
+        // for a vault that syncs — honest-looking and wrong (C3).
+        offs.push(
+          await bus.onBroadcast("sync-status", (s) => {
+            syncStatusStore.set({
+              status: s.status as SyncStatusSnapshot["status"],
+              message: s.message ?? null,
+              provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
+              // `retryAt` is optional, not nullable: null would type-error and
+              // read as "a retry at epoch zero" in the status bar.
+              retryAt: s.retryAt ?? undefined,
+              progress: s.progress ?? null,
+            });
+          }),
+        );
+        // One process, one open vault (plan E7). When the central window moves,
+        // this one moves with it: the services are rebuilt for the new vault and
+        // the layout — which is keyed by vault AND label — comes back as the one
+        // this window last had THERE. A window that stayed behind would be
+        // holding services on a vault nobody has open (C5).
+        offs.push(await bus.onBroadcast("vault-changed", ({ vaultPath }) => setClientVault(vaultPath)));
         // The watcher lives in the owner. Without this an auxiliary window would
         // never learn that the file under its editor changed on disk — the very
         // case the editor's external-update logic exists for.
@@ -1293,6 +1347,15 @@ export const VaultProvider: React.FC<{
    * owner-only slots (indexer, backup adapter, index queue, sync worker, PIM
    * runtime) stay null, which is what keeps the effects below inert.
    */
+  /**
+   * The vault this window shows. Seeded from the query it was opened with, and
+   * changed by the owner's `vault-changed` broadcast (C5) — one process holds
+   * one open vault, so a window that stayed behind would be drawing a tree that
+   * is no longer there.
+   */
+  const [clientVault, setClientVault] = useState<string | null>(clientVaultPath);
+  useEffect(() => setClientVault(clientVaultPath), [clientVaultPath]);
+
   const loadClientVault = async (path: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
@@ -1314,6 +1377,10 @@ export const VaultProvider: React.FC<{
         // database connection; only the provider round trips travel to the owner
         // (one refresh token per account since stage B).
         pimRuntime: createClientPimRuntime(services.dbAdapter),
+        // Not null either, and for a sharper reason than the indexer: null
+        // would make this window claim the vault does not sync at all. See
+        // services/clientSyncWorker.ts.
+        syncWorker: createClientSyncWorker(),
         isLoading: false,
         error: null,
       }));
@@ -1325,18 +1392,35 @@ export const VaultProvider: React.FC<{
 
   useEffect(() => {
     if (!isClient) return;
-    if (!clientVaultPath) {
+    if (!clientVault) {
       // A blank auxiliary window is a legitimate state (a P4 restore can open
-      // one before the content is known) — it simply shows nothing yet.
-      setState((s) => ({ ...s, isLoading: false }));
+      // one before the content is known) — it simply shows nothing yet. The
+      // same branch catches the owner closing the vault (C5): the services this
+      // window held are disposed by the cleanup below, so the state has to let
+      // go of them too. Leaving them would draw a tree over adapters nobody
+      // owns any more.
+      setState((s) => ({
+        ...s,
+        vaultPath: null,
+        vaultAdapter: null,
+        dbAdapter: null,
+        queryService: null,
+        graphService: null,
+        indexer: null,
+        pimRuntime: null,
+        syncWorker: null,
+        fileTreeVersion: 0,
+        isLoading: false,
+        error: null,
+      }));
       return;
     }
-    void loadClientVault(clientVaultPath);
+    void loadClientVault(clientVault);
     return () => {
       void clientServicesRef.current?.dispose();
       clientServicesRef.current = null;
     };
-  }, [isClient, clientVaultPath]);
+  }, [isClient, clientVault]);
 
   useEffect(() => {
     // Recents, the last-vault memory and auto-open belong to the central
@@ -1754,6 +1838,17 @@ export const VaultProvider: React.FC<{
     }
   };
 
+  // Kept current for the owner bus (C1). Written in an effect, never during
+  // render, so the value the handler reads is the one the last render produced.
+  const vaultOpsRef = useRef<{
+    refreshVault: typeof refreshVault;
+    rebuildIndex: typeof rebuildIndex;
+    syncWorker: VaultSyncWorker | null;
+  }>({ refreshVault, rebuildIndex, syncWorker: null });
+  useEffect(() => {
+    vaultOpsRef.current = { refreshVault, rebuildIndex, syncWorker: state.syncWorker };
+  });
+
   const removeRecentVault = async (path: string) => {
     const store = await getSettingsStore();
     const currentRecents = (await store.get<string[]>("recentVaults")) || [];
@@ -2151,11 +2246,20 @@ export const VaultProvider: React.FC<{
       closeVault: () => {
         throw new Error(ownerOnly("closeVault"));
       },
+      // These two are not owner-only in the sense the others are: the ACTION is
+      // legitimate from any window, only the writing is not (C1). So the client
+      // asks instead of refusing — the button in its tree header would
+      // otherwise be a button that throws.
       refreshVault: async () => {
-        throw new Error(ownerOnly("refreshVault"));
+        const bus = await getWindowBus();
+        await bus.request("reindex", { scope: "refresh" });
+        // The owner reports what it found; this window learns of the result
+        // through `index-changed`, so there is nothing local to hand back.
+        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
       },
       rebuildIndex: async () => {
-        throw new Error(ownerOnly("rebuildIndex"));
+        const bus = await getWindowBus();
+        await bus.request("reindex", { scope: "rebuild" });
       },
       removeRecentVault: async () => {
         throw new Error(ownerOnly("removeRecentVault"));

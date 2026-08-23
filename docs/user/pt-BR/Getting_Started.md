@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-08-22
+Última revisão: 2026-08-23
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -94,9 +94,12 @@ O Plainva não precisa ficar em uma única janela. O que você precisa agora pod
 - **Clique com o botão direito em uma aba → Abrir em nova janela.** A aba deixa esta janela e passa a viver na nova; nenhuma cópia fica para trás.
 - **Clique com o botão direito em Grafo, Tarefas, Calendário ou E-mail na barra de ações** para a mesma opção. Clique no item de novo depois e o Plainva traz aquela janela para a frente, em vez de abrir a visualização uma segunda vez.
 - **Paleta de comandos → Abrir janela de comunicação** inicia uma janela que já vem dividida: e-mail à esquerda, calendário à direita.
+- **Paleta de comandos → Abrir uma segunda janela** abre a interface inteira novamente — barras laterais, barra de ações, abas, barra de status — no mesmo vault. Essa é a opção para um segundo monitor.
 - Ao **redigir uma mensagem**, o ícone de destacar leva a janela de redação para uma janela própria — com tudo o que você já digitou.
 
-Uma janela adicional é um Plainva completo: ela tem **abas**, pode ser **dividida** e salva pela mesma cadeia que a janela principal. O que ela não tem são as barras laterais, a barra de ações e as configurações — essas ficam na janela principal.
+Uma janela destacada é um Plainva completo: ela tem **abas**, pode ser **dividida** e salva pela mesma cadeia que a janela principal. O que ela deliberadamente não tem são as barras laterais e a barra de ações — ela foi feita para mostrar uma única coisa.
+
+Uma **segunda janela** tem essas duas, e mostra o mesmo vault: um Plainva mantém um vault aberto, e a segunda janela acompanha a primeira. Troque ou feche o vault na janela principal e ela também acompanha lá. As configurações, o assistente de importação e o seletor de vault também ficam na janela principal — os botões estão lá, e clicar em um deles traz a janela principal para a frente e a abre **ali**. Tudo relacionado ao seu trabalho é igual nas duas: editar, salvar, buscar e o estado de sincronização na barra de status. A largura das barras laterais e o que você recolheu pertencem a cada janela separadamente.
 
 **Um conteúdo está sempre aberto em apenas UMA janela.** Abrir uma nota que já está exibida em outro lugar traz aquela janela para a frente. Isso é intencional: dois editores no mesmo arquivo são o jeito mais certo de perder trabalho. Redigir é a exceção — escrever duas mensagens ao mesmo tempo é normal.
 

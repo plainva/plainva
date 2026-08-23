@@ -3596,9 +3596,12 @@
     "pinOnTop": "始终置顶",
     "unpinOnTop": "取消置顶",
     "openComms": "打开通讯窗口",
+    "openSecond": "打开第二个窗口",
     "commsTitle": "通讯",
     "settingsGroup": "窗口",
     "restoreWindows": "恢复窗口布局",
-    "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。"
+    "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。",
+    "noVaultTitle": "未打开任何知识库",
+    "noVaultBody": "Plainva 主窗口当前没有显示任何知识库。在那里打开一个，此窗口就会跟随。"
   }
 }

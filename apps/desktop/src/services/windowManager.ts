@@ -1,4 +1,4 @@
-import { buildWindowQuery, type WindowPreset, type WindowRole } from "./windowContext";
+import { buildWindowQuery, windowStatePrefix, type WindowPreset, type WindowRole } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
@@ -80,6 +80,12 @@ const VIEW_SIZE = { width: 1100, height: 780 };
 const COMPOSE_SIZE = { width: 780, height: 700 };
 /** A preset opens two views side by side, so it needs both of their widths. */
 const PRESET_SIZE = { width: 1320, height: 860 };
+/**
+ * A full second window carries the sidebars as well (stage C), so it opens at
+ * roughly the size the central window has by default -- a narrower one would
+ * start with both sidebars collapsed and look broken rather than compact.
+ */
+const FULL_SIZE = { width: 1280, height: 860 };
 
 /** Views (graph, tasks, calendar, mail) open landscape, notes portrait. */
 function defaultSizeFor(content: string | null | undefined) {
@@ -138,16 +144,33 @@ export function findWindowForContent(vaultPath: string, content: string): AuxWin
 }
 
 /**
- * Drops the stored panes/tabs of one window (see `openAuxWindow`).
+ * Drops everything one window left behind (see `openAuxWindow`).
  *
- * The key mirrors `layoutKey` in usePaneLayout, which is deliberately not
- * exported: the layout hook owns the shape, this only needs to be able to
+ * Two shapes, because window state comes in two flavours: keys that carry the
+ * vault (panes/tabs, the tree's expanded folders) and keys that do not (sidebar
+ * geometry, which context sections are open — multi-window C4). Both end in
+ * `-<label>`, so both would otherwise be inherited by the next window that gets
+ * this name: a fresh window would come up with a stranger's collapsed sidebar
+ * and half-open panels, which is the same finding the tabs had, one surface
+ * further.
+ *
+ * The layout key mirrors `layoutKey` in usePaneLayout, which is deliberately
+ * not exported: the layout hook owns the shape, this only needs to be able to
  * clear it. A test pins the two together.
  */
 export function forgetWindowLayout(vaultPath: string, label: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(`plainva-layout-${vaultPath}-${label}`);
+    window.localStorage.removeItem(`plainva-expanded-${vaultPath}-${label}`);
+    // Prefix sweep rather than a list: window state grows with the shell, and a
+    // list is the thing that goes stale silently. See `windowStatePrefix` for
+    // why the label leads the key instead of ending it.
+    const prefix = windowStatePrefix(label);
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(prefix)) window.localStorage.removeItem(key);
+    }
   } catch {
     /* quota/private mode: a stale layout is not worth failing an open for */
   }
@@ -159,13 +182,41 @@ export function persistWindows(vaultPath: string): void {
   // Compose windows are deliberately not remembered: what they hold is unsaved
   // text that lives in memory. Restoring one after a restart would reopen an
   // EMPTY composer — a window that lies about having kept something.
-  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath && w.role === "aux");
+  const mine = listAuxWindows().filter((w) => w.vaultPath === vaultPath && (w.role === "aux" || w.role === "full"));
   try {
     if (mine.length === 0) window.localStorage.removeItem(windowsKey(vaultPath));
     else window.localStorage.setItem(windowsKey(vaultPath), JSON.stringify(mine));
   } catch (e) {
     console.warn("[windowManager] could not persist the window list", e);
   }
+}
+
+/**
+ * The owner moved to another vault; the open windows move with it (C5).
+ *
+ * Only for a real switch: CLOSING the vault leaves the records where they are,
+ * so reopening that vault brings its windows back (E5). The client windows are
+ * told either way — that is the broadcast, not this.
+ *
+ * A window's record carries the vault it belongs to, and that is what decides
+ * which list it is remembered in and which windows a start restores. Leave the
+ * records behind on a switch and two things go wrong at once: the windows that
+ * are visibly showing the NEW vault are remembered under the old one, and the
+ * old vault's list keeps promising windows that no longer show it.
+ *
+ * Both lists are written: the new one gains the windows, the old one loses
+ * them — otherwise the next start of the old vault reopens windows that have
+ * been looking at something else since.
+ */
+export function noteVaultChanged(vaultPath: string): void {
+  const previous = new Set<string>();
+  for (const rec of open.values()) {
+    if (rec.vaultPath === vaultPath) continue;
+    previous.add(rec.vaultPath);
+    rec.vaultPath = vaultPath;
+  }
+  for (const old of previous) persistWindows(old);
+  persistWindows(vaultPath);
 }
 
 /** What was open last time. Malformed content is dropped, never thrown. */
@@ -257,6 +308,26 @@ export async function openAuxWindow(params: {
   });
 
   return record;
+}
+
+/**
+ * Opens a full second window: the whole shell, in client mode (stage C).
+ *
+ * Deliberately not deduplicated by content — a full window is a WORKPLACE, not
+ * a piece of content, and having two of them open on two monitors is the point
+ * of the stage. What stays deduplicated is what they show: the routing in
+ * `openOrFocusContent` treats a full window like any other.
+ */
+export async function openFullWindow(params: {
+  vaultPath: string;
+  title?: string;
+}): Promise<AuxWindowRecord> {
+  return openAuxWindow({
+    role: "full",
+    vaultPath: params.vaultPath,
+    title: params.title,
+    size: FULL_SIZE,
+  });
 }
 
 /**
@@ -354,7 +425,7 @@ export function isReachable(
  * then places it, which is better than restoring it out of reach.
  */
 export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRecord[]> {
-  const saved = readPersistedWindows(vaultPath).filter((w) => w.role === "aux");
+  const saved = readPersistedWindows(vaultPath).filter((w) => w.role === "aux" || w.role === "full");
   if (saved.length === 0) return [];
 
   let monitors: { position: { x: number; y: number }; size: { width: number; height: number } }[] = [];
@@ -371,7 +442,9 @@ export async function restoreAuxWindows(vaultPath: string): Promise<AuxWindowRec
     try {
       opened.push(
         await openAuxWindow({
-          role: "aux",
+          // A full window comes back full: the role is part of what was open,
+          // not a property of the restore.
+          role: rec.role === "full" ? "full" : "aux",
           vaultPath,
           // The layout of a window hangs on its label, so a restored window has
           // to come back under the SAME one -- otherwise its tabs stay behind

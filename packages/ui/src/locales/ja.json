@@ -3596,9 +3596,12 @@
     "pinOnTop": "常に最前面",
     "unpinOnTop": "最前面を解除",
     "openComms": "コミュニケーションウィンドウを開く",
+    "openSecond": "2 つ目のウィンドウを開く",
     "commsTitle": "コミュニケーション",
     "settingsGroup": "ウィンドウ",
     "restoreWindows": "ウィンドウ配置を復元",
-    "restoreWindowsDesc": "起動時に、前回開いていた追加ウィンドウを開き直します。未送信のメッセージは復元されません。"
+    "restoreWindowsDesc": "起動時に、前回開いていた追加ウィンドウを開き直します。未送信のメッセージは復元されません。",
+    "noVaultTitle": "Vault が開かれていません",
+    "noVaultBody": "Plainva のメインウィンドウは現在どの Vault も表示していません。そちらで開くと、このウィンドウも追随します。"
   }
 }

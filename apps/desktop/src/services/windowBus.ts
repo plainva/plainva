@@ -55,12 +55,32 @@ export interface BroadcastMap {
    * pinboard `.base` in another window would keep showing the old card text.
    */
   "note-saved": { path: string };
-  /** Mirrors the owner's sync status so aux windows can show it. */
-  "sync-status": { status: string; message?: string | null };
+  /**
+   * The owner's sync status, mirrored into every other window (C3).
+   *
+   * Carries the fields the status bar actually draws: without `provider` a
+   * client cannot tell "no sync configured" from "sync running elsewhere", and
+   * it would honestly but wrongly say "local" for a synced vault.
+   */
+  "sync-status": {
+    status: string;
+    message?: string | null;
+    provider?: string | null;
+    retryAt?: number | null;
+    /** Mirrors core's SyncProgress verbatim — see services/syncStatusStore.ts. */
+    progress?: { phase: "pull" | "push"; current: number; total: number } | null;
+  };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
+  /**
+   * The central window is on another vault now (C5). One process holds one open
+   * vault (plan E7), so this is not an invitation: a client that stayed behind
+   * would be showing a tree that is no longer there, over services pointing at
+   * a vault nobody has open. `null` means the owner closed the vault.
+   */
+  "vault-changed": { vaultPath: string | null };
   /** Who has what open — the owner keeps the global open-registry from this. */
   "tab-registry": { label: string; contents: string[] };
   /** Owner to one window: bring this content forward (dedup / focus routing). */
@@ -140,6 +160,36 @@ export interface RpcMap {
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
   /**
+   * Show one of the owner-only surfaces (stage C2).
+   *
+   * Settings, the import wizard and the sync-error dialog start services, bind
+   * credentials or write across the whole vault, so they exist in exactly one
+   * window. A full second window keeps the buttons that lead to them — a
+   * greyed-out gear explains nothing — and this request brings the central
+   * window forward and opens the surface THERE. One request rather than six:
+   * the ask is always the same shape, only the target differs.
+   *
+   * The last three are runs rather than dialogs — the index.md sweep, the
+   * manual backup, the vault switcher — and they belong here for the same
+   * reason (multi-window C2): they touch the whole vault, and the window that
+   * owns the schedulers and the indexer is the one that should be doing it.
+   */
+  "owner-surface": {
+    args: {
+      surface:
+      | "settings"
+      | "import"
+      | "sync-error"
+      | "update-indexes"
+      | "backup"
+      | "switch-vault"
+      | "new-window";
+      provider?: string;
+      area?: string;
+    };
+    result: void;
+  };
+  /**
    * Send a message the writer composed in a compose window. The delayed-send
    * queue belongs to the owner (plan §12.4): a compose window is the most
    * likely window in the app to be closed while the undo timer runs, and its
@@ -183,6 +233,34 @@ export interface RpcMap {
   };
   /** An auxiliary window reports its always-on-top pin so it survives a restart. */
   "window-always-on-top": { args: { label: string; value: boolean }; result: void };
+  /**
+   * Re-read the vault, or rebuild the index from scratch (multi-window C1).
+   *
+   * The indexer stays with the owner — a client holds a read-only connection to
+   * the index by design, and both of these WRITE. `refresh` is the cheap
+   * reconcile behind the tree-header button; `rebuild` is the maintenance page's
+   * "rebuild index", which drops every row first. Either way the owner
+   * broadcasts `index-changed` afterwards, so this window follows without
+   * asking again.
+   */
+  reindex: { args: { scope: "refresh" | "rebuild" }; result: void };
+  /**
+   * Ask the central window to sync now, or to retry what failed (C3).
+   *
+   * There is exactly one sync worker per vault, in the owner — that is what the
+   * whole July 2026 hardening assumes. A client therefore SHOWS the status and
+   * asks for the two things a user can trigger from the status bar; the result
+   * comes back as the usual `sync-status` broadcast rather than as a return
+   * value, because the run outlives the request.
+   */
+  /**
+   * Sync control from another window (C3). "now"/"retry" are the two buttons
+   * the status bar offers; "note-deletions" is not a button at all — it is the
+   * record that a HUMAN asked for these deletions, which is what keeps the
+   * owner's mass-deletion guard from stopping the cycle and asking the central
+   * window about a folder somebody deleted in this one.
+   */
+  "sync-control": { args: { what: "now" | "retry" | "note-deletions"; paths?: string[] }; result: void };
 }
 
 export type RpcKind = keyof RpcMap;
@@ -193,6 +271,13 @@ const EV_RPC_REPLY = "pv:rpc-reply";
 
 /** How long an aux window waits for the owner before it reports a failure. */
 export const RPC_TIMEOUT_MS = 15_000;
+
+/**
+ * The owner-only surfaces, derived from the contract above rather than written
+ * out a second time: a client window listing them by hand is how a value gets
+ * added on one side and silently ignored on the other.
+ */
+export type OwnerSurface = RpcMap["owner-surface"]["args"]["surface"];
 
 interface BroadcastEnvelope {
   from: string;

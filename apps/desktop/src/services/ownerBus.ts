@@ -14,8 +14,10 @@ import {
   noteWindowAlwaysOnTop,
   openComposeWindow,
   openOrFocusContent,
+  noteVaultChanged,
 } from "./windowManager";
 import { clearDraft, recordDraft } from "./draftJournal";
+import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 /**
@@ -46,6 +48,20 @@ export interface OwnerBusDeps {
   pimRuntime: PimRuntime | null;
   /** Refresh the owner's own views (VaultContext.triggerFileTreeUpdate). */
   refresh: (paths?: string[]) => void;
+  /** Re-read the vault (the cheap reconcile) — a client asks for it (C1). */
+  refreshVault: () => Promise<unknown>;
+  /** Drop every indexed row and parse the vault again — likewise (C1). */
+  rebuildIndex: () => Promise<unknown>;
+  /**
+   * The one sync worker of this vault, or null when none is configured (C3).
+   * A client shows its status and asks for "sync now" / "retry" through here.
+   */
+  syncWorker: {
+    triggerImmediate: () => void;
+    retryFailed: () => void;
+    /** See the "sync-control" comment in windowBus.ts — this is a guard, not a button. */
+    noteUserInitiatedDeletion: (paths: string[]) => void;
+  } | null;
 }
 
 /** Path separator on either platform — the note name is the window title. */
@@ -66,6 +82,26 @@ function base64ToBytes(base64: string): Uint8Array {
 export function broadcastIndexChanged(paths: string[], structural: boolean): void {
   void getWindowBus()
     .then((bus) => bus.broadcast("index-changed", { paths, structural }))
+    .catch(() => {
+      /* no bus (browser/test): a single window needs no broadcast */
+    });
+}
+
+/**
+ * Tells the other windows that this one moved to another vault (C5).
+ *
+ * Sent from the owner's vault state, not from the switcher: the vault also
+ * changes through the splash, through "open recent" and through closing it, and
+ * an announcement made at one of those four doors is an announcement the other
+ * three forget.
+ */
+export function announceVaultChanged(vaultPath: string | null): void {
+  // The open windows belong to the vault they SHOW, and that is what decides
+  // which list remembers them. Only on a real switch — closing a vault leaves
+  // its windows remembered under it, so reopening brings them back (E5).
+  if (vaultPath) noteVaultChanged(vaultPath);
+  void getWindowBus()
+    .then((bus) => bus.broadcast("vault-changed", { vaultPath }))
     .catch(() => {
       /* no bus (browser/test): a single window needs no broadcast */
     });
@@ -105,11 +141,35 @@ function installEventBridges(): () => void {
   };
 }
 
-/** Mirrors the owner's sync status into the other windows. */
-export function broadcastSyncStatus(status: string, message?: string | null): void {
-  void getWindowBus()
-    .then((bus) => bus.broadcast("sync-status", { status, message }))
-    .catch(() => {});
+/**
+ * Mirrors the owner's sync status into the other windows (C3).
+ *
+ * Subscribed to the store rather than called at each writer: the worker's
+ * status changes, the "idle" set on vault open and the reset on close all
+ * converge there, and a mirror that misses one of them shows a client a state
+ * the vault left minutes ago.
+ */
+export function installSyncStatusMirror(): () => void {
+  let last = "";
+  return syncStatusStore.subscribe(() => {
+    const s = syncStatusStore.get();
+    // Cheap equality: the store also emits for fields no other window draws
+    // (error history, authRecoverable), and every emit here is an IPC message.
+    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total].join("|");
+    if (key === last) return;
+    last = key;
+    void getWindowBus()
+      .then((bus) =>
+        bus.broadcast("sync-status", {
+          status: s.status,
+          message: s.message,
+          provider: s.provider,
+          retryAt: s.retryAt ?? null,
+          progress: s.progress ?? null,
+        }),
+      )
+      .catch(() => {});
+  });
 }
 
 /**
@@ -264,6 +324,29 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
+    await bus.handle("sync-control", async ({ what, paths }) => {
+      // One worker per vault, in this window (C3). The client shows the status
+      // and asks for the two things the status bar offers; the outcome comes
+      // back as the ordinary status broadcast, not as a return value, because
+      // the run outlives this request.
+      if (what === "note-deletions") deps.syncWorker?.noteUserInitiatedDeletion(paths ?? []);
+      else if (what === "retry") deps.syncWorker?.retryFailed();
+      else deps.syncWorker?.triggerImmediate();
+    }),
+  );
+
+  offs.push(
+    await bus.handle("reindex", async ({ scope }) => {
+      // Both of these write to the index, and a client's connection is
+      // read-only by design (C1). The toast lands in the central window because
+      // that is where the work happens; the broadcast that follows updates
+      // every window's tree.
+      if (scope === "rebuild") await deps.rebuildIndex();
+      else await deps.refreshVault();
+    }),
+  );
+
+  offs.push(
     await bus.handle("pim-write", async ({ accountId, op }) => {
       // The provider round trip happens HERE, in the window that owns the token
       // broker. The rules around it (a move is create-then-delete, a moved
@@ -304,6 +387,35 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       // Only this window has a worker; an aux calendar asking for fresh data
       // must not start a second poller on the same cache tables.
       await deps.pimRuntime?.worker.triggerImmediate();
+    }),
+  );
+
+  offs.push(
+    await bus.handle("owner-surface", async ({ surface, provider, area }) => {
+      // Bring this window forward first: opening a dialog in a window the user
+      // cannot see is the same as doing nothing, only more confusing.
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const win = getCurrentWindow();
+        await win.unminimize().catch(() => {});
+        await win.setFocus();
+      } catch {
+        /* no backend (browser/test): the dispatch below still works */
+      }
+      // The event names are the ones the owner's own surfaces already listen
+      // for, so a request from another window walks exactly the same path as a
+      // click here — there is no second entry point that can drift.
+      const events: Record<typeof surface, string> = {
+        settings: "plainva-open-sync-settings",
+        import: "plainva-open-import-wizard",
+        "sync-error": "plainva-show-sync-error",
+        "update-indexes": "plainva-update-all-indexes",
+        backup: "plainva-backup-now",
+        "switch-vault": "plainva-open-vault-switcher",
+        "new-window": "plainva-open-full-window",
+      };
+      const detail = surface === "settings" ? { provider, area } : undefined;
+      window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));
     }),
   );
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-22
+Last updated: 2026-08-23
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -94,9 +94,12 @@ Plainva does not have to stay in one window. Whatever you need right now can sit
 - **Right-click a tab → Open in new window.** The tab leaves this window and lives on in the new one; no copy stays behind.
 - **Right-click Graph, Tasks, Calendar or Email in the ribbon** for the same choice. Click the entry again afterwards and Plainva brings that window forward instead of opening the view a second time.
 - **Command palette → Open communications window** starts a window that is already split: mail on the left, calendar on the right.
+- **Command palette → Open a second window** opens the whole shell again — sidebars, ribbon, tabs, status bar — on the same vault. That is the one for a second monitor.
 - While **composing a message**, the pop-out icon lifts the composer into its own window — with everything you have already typed.
 
-An auxiliary window is a full Plainva: it carries **tabs**, can be **split**, and saves through the same chain as the main window. What it does not carry are the sidebars, the ribbon and the settings — those stay in the main window.
+A popped-out window is a full Plainva: it carries **tabs**, can be **split**, and saves through the same chain as the main window. What it deliberately does not carry are the sidebars and the ribbon — it is meant to show one thing.
+
+A **second window** does carry them, and it shows the same vault: one Plainva holds one vault open, and the second window follows the first. Switch or close the vault in the main window and it follows there too. Settings, the import wizard and the vault switcher stay with the main window as well — the buttons are there, and pressing one brings the main window forward and opens it **there**. Everything about your work is the same in both: editing, saving, searching, and the sync state in the status bar. Sidebar widths and what you collapsed belong to each window separately.
 
 **A piece of content is only ever open in ONE window.** Open a note that is already showing somewhere else and that window comes forward. This is deliberate: two editors on the same file are the surest way to lose work. Composing is the exception — writing two messages at once is ordinary.
 

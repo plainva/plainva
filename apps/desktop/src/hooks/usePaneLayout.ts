@@ -328,6 +328,12 @@ export interface UsePaneLayoutOptions {
    * nothing and keeps the historic key.
    */
   layoutScope?: string | null;
+  /**
+   * Asks another window to draw the content (multi-window C1). A client window
+   * passes the router here; the central window passes nothing. Returns true when
+   * the request was handed over and this window must stop.
+   */
+  routeOpen?: (path: string, openHere: () => void) => boolean;
 }
 
 /**
@@ -337,7 +343,7 @@ export interface UsePaneLayoutOptions {
  * UI. Multi-value host concerns (recent files, the quick switcher) are delegated
  * via the `onOpenPath` / `onRequestPick` callbacks.
  */
-export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick, openExternally, layoutScope }: UsePaneLayoutOptions) {
+export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPick, openExternally, routeOpen, layoutScope }: UsePaneLayoutOptions) {
   const [layout, setLayout] = useState<Layout>(() => emptyLayout());
   const [splitRatio, setSplitRatioState] = useState<number>(DEFAULT_SPLIT_RATIO);
 
@@ -349,6 +355,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   const onOpenPathRef = useRef(onOpenPath);
   const onRequestPickRef = useRef(onRequestPick);
   const openExternallyRef = useRef(openExternally);
+  const routeOpenRef = useRef(routeOpen);
   const layoutRef = useRef(layout);
   // Guards saving until the current vault has been hydrated, so the interim empty
   // layout set on a vault switch never clobbers the stored snapshot.
@@ -359,6 +366,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     onOpenPathRef.current = onOpenPath;
     onRequestPickRef.current = onRequestPick;
     openExternallyRef.current = openExternally;
+    routeOpenRef.current = routeOpen;
     layoutRef.current = layout;
   });
 
@@ -376,6 +384,15 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     openExternallyRef.current?.(path);
     return true;
   };
+
+  /**
+   * Content is open once app-wide (multi-window C1). In a client window this
+   * asks the owner first and returns true — the answer arrives asynchronously,
+   * so the caller stops and `openHere` runs when it comes back "you". In the
+   * central window there is no router and the answer is always "draw it".
+   */
+  const routedToAnotherWindow = (path: string, openHere: () => void): boolean =>
+    routeOpenRef.current?.(path, openHere) ?? false;
 
   // Restore on vault change (switching vaults invalidates the old vault's tabs —
   // their paths are relative to it). Reset immediately, then hydrate async.
@@ -410,28 +427,40 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // Open a path in a SPECIFIC pane (used by each pane's own editor/links) and focus it.
   const openTab = useCallback((paneIndex: number, path: string, newTab: boolean) => {
     if (handedToTheSystem(path)) return;
-    notifyOpen(path);
-    setLayout((prev) => ({
-      ...prev,
-      activePaneIndex: paneIndex,
-      panes: prev.panes.map((p, i) => (i === paneIndex ? openInPane(p, path, newTab) : p)),
-    }));
+    const here = () => {
+      notifyOpen(path);
+      setLayout((prev) => ({
+        ...prev,
+        activePaneIndex: paneIndex,
+        panes: prev.panes.map((p, i) => (i === paneIndex ? openInPane(p, path, newTab) : p)),
+      }));
+    };
+    if (routedToAnotherWindow(path, here)) return;
+    here();
   }, []);
 
   // Open a path in the focused pane (used by sidebar, quick switcher, calendar, …).
   const openInFocusedPane = useCallback((path: string, newTab: boolean = false) => {
     if (handedToTheSystem(path)) return;
-    notifyOpen(path);
-    setLayout((prev) => ({
-      ...prev,
-      panes: prev.panes.map((p, i) => (i === prev.activePaneIndex ? openInPane(p, path, newTab) : p)),
-    }));
+    const here = () => {
+      notifyOpen(path);
+      setLayout((prev) => ({
+        ...prev,
+        panes: prev.panes.map((p, i) => (i === prev.activePaneIndex ? openInPane(p, path, newTab) : p)),
+      }));
+    };
+    if (routedToAnotherWindow(path, here)) return;
+    here();
   }, []);
 
   // Open a VIRTUAL singleton path (graph/tasks/calendar/mail) without stacking
   // duplicates: if any pane already has a tab showing it, focus that tab;
   // otherwise open a fresh tab in the focused pane. The ribbon/palette entry
   // points route through here so repeated clicks don't pile up second copies.
+  // Deliberately NOT routed through `routeOpen` (multi-window C1): this is the
+  // second half of a decision the caller has already made — `openView` asks the
+  // owner and then calls in here to focus or create the tab. Asking again would
+  // be a second round trip for the same click.
   const focusOrOpenVirtual = useCallback((path: string) => {
     notifyOpen(path);
     setLayout((prev) => focusOrOpenVirtualInLayout(prev, path));
@@ -442,21 +471,25 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // Splits vertically first when there is only one pane; if the target pane
   // already shows the path in a tab, that tab is focused instead of duplicated.
   const openInOtherPane = useCallback((fromPane: number, path: string) => {
-    notifyOpen(path);
-    setLayout((prev) => {
-      if (prev.panes.length >= 2) {
-        const other = fromPane === 0 ? 1 : 0;
-        const pane = prev.panes[other];
-        const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
-        const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
-        return { ...prev, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
-      }
-      return {
-        direction: "vertical",
-        activePaneIndex: prev.panes.length,
-        panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
-      };
-    });
+    const here = () => {
+      notifyOpen(path);
+      setLayout((prev) => {
+        if (prev.panes.length >= 2) {
+          const other = fromPane === 0 ? 1 : 0;
+          const pane = prev.panes[other];
+          const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
+          const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
+          return { ...prev, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
+        }
+        return {
+          direction: "vertical",
+          activePaneIndex: prev.panes.length,
+          panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
+        };
+      });
+    };
+    if (routedToAnotherWindow(path, here)) return;
+    here();
   }, []);
 
   // Open a path in a split with an explicit direction (file-tree context menu,
@@ -464,21 +497,25 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // already split → re-orient and reuse the other pane like openInOtherPane.
   const openPathInSplit = useCallback((path: string, direction: SplitDirection) => {
     if (handedToTheSystem(path)) return;
-    notifyOpen(path);
-    setLayout((prev) => {
-      if (prev.panes.length >= 2) {
-        const other = prev.activePaneIndex === 0 ? 1 : 0;
-        const pane = prev.panes[other];
-        const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
-        const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
-        return { ...prev, direction, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
-      }
-      return {
-        direction,
-        activePaneIndex: prev.panes.length,
-        panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
-      };
-    });
+    const here = () => {
+      notifyOpen(path);
+      setLayout((prev) => {
+        if (prev.panes.length >= 2) {
+          const other = prev.activePaneIndex === 0 ? 1 : 0;
+          const pane = prev.panes[other];
+          const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
+          const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
+          return { ...prev, direction, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
+        }
+        return {
+          direction,
+          activePaneIndex: prev.panes.length,
+          panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
+        };
+      });
+    };
+    if (routedToAnotherWindow(path, here)) return;
+    here();
   }, []);
 
   const navigateTab = useCallback((paneIndex: number, direction: -1 | 1) => {

@@ -127,3 +127,29 @@ test('production bundle boots a preset window', async ({ page }) => {
 
   expect(pageErrors, `Uncaught page errors in the preset window:\n${pageErrors.join('\n')}`).toEqual([]);
 });
+
+/**
+ * The FULL second window, in the production bundle (multi-window stage C).
+ *
+ * A third entry point into the same bundle — and the heaviest one: it pulls the
+ * whole shell (ribbon, sidebars, tabs, status bar) in client mode. That is the
+ * same combination that shipped a white window twice, one shell larger, so it
+ * is smoke-checked from the day it exists.
+ *
+ * Without a Tauri backend no vault opens, so what must appear is the honest
+ * empty state rather than a tree: a full window carries no "open vault" of its
+ * own (plan E7), and an empty shell would be a dead end.
+ */
+test('production bundle boots the full second window', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+
+  await page.goto('/?win=full&vault=%2Ftmp%2Fvault&label=full-1');
+
+  await expect(page.locator('#root > *').first()).toBeVisible({ timeout: 15000 });
+  // Scoped by text rather than by order: the shell mounts other live regions.
+  const empty = page.getByRole('status').filter({ hasText: /No vault open|Kein Vault/ });
+  await expect(empty).toBeVisible({ timeout: 15000 });
+
+  expect(pageErrors, `Uncaught page errors in the full window:\n${pageErrors.join('\n')}`).toEqual([]);
+});

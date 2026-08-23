@@ -9,6 +9,7 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { currentWindowParams } from "./services/windowContext";
 import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
+import { routeOpenThroughOwner } from "./services/openRouting";
 import { PRESET_CONTENT } from "./services/windowManager";
 
 const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then((m) => ({ default: m.ComposeWindow })));
@@ -125,18 +126,7 @@ export function AuxApp() {
    */
   const openPath = useCallback(
     (paneIndex: number, next: string) => {
-      void (async () => {
-        try {
-          const bus = await getWindowBus();
-          const result = await bus.request("open-content", { path: next, from: label ?? undefined });
-          if (result.where === "caller") openTab(paneIndex, next, false);
-        } catch (e) {
-          // No bus (browser/test) or the owner did not answer: showing it here
-          // is the honest fallback — worse than a duplicate is a dead click.
-          console.warn("[AuxApp] could not route the open request", e);
-          openTab(paneIndex, next, false);
-        }
-      })();
+      routeOpenThroughOwner(next, () => openTab(paneIndex, next, false), { from: label });
     },
     [label, openTab],
   );

@@ -3674,9 +3674,12 @@
     "pinOnTop": "Siempre visible",
     "unpinOnTop": "Dejar de mostrar siempre visible",
     "openComms": "Abrir ventana de comunicación",
+    "openSecond": "Abrir una segunda ventana",
     "commsTitle": "Comunicación",
     "settingsGroup": "Ventanas",
     "restoreWindows": "Restaurar la disposición de ventanas",
-    "restoreWindowsDesc": "Al iniciar, vuelve a abrir las ventanas adicionales que tenías abiertas. Los mensajes sin enviar nunca se restauran."
+    "restoreWindowsDesc": "Al iniciar, vuelve a abrir las ventanas adicionales que tenías abiertas. Los mensajes sin enviar nunca se restauran.",
+    "noVaultTitle": "Ningún baúl abierto",
+    "noVaultBody": "La ventana principal de Plainva no muestra ningún baúl en este momento. Abre uno allí y esta ventana lo seguirá."
   }
 }

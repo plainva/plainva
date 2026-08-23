@@ -117,6 +117,7 @@ import {
   setOwnerOpenContents,
   noteWindowContent,
   isDuplicableView,
+  noteVaultChanged,
 } from "./windowManager";
 
 import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
@@ -276,6 +277,20 @@ describe("remembering windows", () => {
     // resetWindowRegistryForTest only drops the in-memory map; what a restart
     // reads is the stored list, which is what P4 restores from.
     expect(readPersistedWindows(VAULT)).toHaveLength(1);
+  });
+
+  it("moves its windows to the vault the central window switched to (C5)", async () => {
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+
+    noteVaultChanged("/other");
+
+    // BOTH lists are written, and that is the whole point: persisting only the
+    // new one leaves the window listed under the old vault as well, so the next
+    // start restores a window for content that vault no longer has.
+    expect(readPersistedWindows("/other")).toHaveLength(1);
+    expect(readPersistedWindows(VAULT)).toEqual([]);
+    // The window itself is not lost — it is the same window, on another vault.
+    expect(findWindowForContent("/other", "Note.md")).not.toBeNull();
   });
 
   it("ignores a stored list that is not a list of windows", () => {
@@ -583,6 +598,46 @@ describe("window identity across restarts (finding 2026-08-23)", () => {
     await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Kept.md", label: "aux-7" });
 
     expect(window.localStorage.getItem(`plainva-layout-${VAULT}-aux-7`)).toBe(layout);
+  });
+});
+
+describe("what a window leaves behind (multi-window C4)", () => {
+  it("drops the sidebar state of an earlier window with the same name", async () => {
+    // Same finding as the tabs above, one surface further: a full window keeps
+    // its own sidebar widths and collapsed state, and a fresh window under a
+    // recycled name would come up wearing them.
+    window.localStorage.setItem("plainva-w-aux-1-plainva-left-sidebar-width", "480");
+    window.localStorage.setItem("plainva-w-aux-1-plainva-right-panel-open-outline", "true");
+    window.localStorage.setItem(`plainva-expanded-${VAULT}-aux-1`, JSON.stringify(["Projects"]));
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Wanted.md" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-1-plainva-left-sidebar-width")).toBeNull();
+    expect(window.localStorage.getItem("plainva-w-aux-1-plainva-right-panel-open-outline")).toBeNull();
+    expect(window.localStorage.getItem(`plainva-expanded-${VAULT}-aux-1`)).toBeNull();
+  });
+
+  it("touches no other window and no other vault", async () => {
+    window.localStorage.setItem("plainva-w-aux-2-plainva-left-sidebar-width", "300");
+    window.localStorage.setItem("plainva-left-sidebar-width", "260");
+    // The reason the label LEADS these keys: with a trailing label, this one —
+    // a second vault whose folder happens to be named like a window — would be
+    // swept away by opening `aux-1`.
+    window.localStorage.setItem("plainva-expanded-D:/notes/aux-1", JSON.stringify(["Inbox"]));
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Wanted.md" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-2-plainva-left-sidebar-width")).toBe("300");
+    expect(window.localStorage.getItem("plainva-left-sidebar-width"), "the central window's own state").toBe("260");
+    expect(window.localStorage.getItem("plainva-expanded-D:/notes/aux-1")).not.toBeNull();
+  });
+
+  it("leaves it alone when the window is restored", async () => {
+    window.localStorage.setItem("plainva-w-aux-7-plainva-left-sidebar-width", "420");
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Kept.md", label: "aux-7" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-7-plainva-left-sidebar-width")).toBe("420");
   });
 });
 

@@ -76,18 +76,26 @@ describe("collectPerVaultLocalStorageKeys", () => {
       `plainva-left-sections-${VAULT}-open-recents`,
       `plainva-left-sections-${VAULT}-open-bookmarks`,
       `plainva-mail-cols-${VAULT}`,
+      // Per-window variants (multi-window C1): the second window keeps its own
+      // panes and its own expanded folders, and "forget this vault" has to take
+      // both with it. Prefix matching covers them without a second entry.
+      `plainva-layout-${VAULT}-full-1`,
+      `plainva-expanded-${VAULT}`,
+      `plainva-expanded-${VAULT}-full-1`,
       // Must survive: other vaults + global keys.
       "plainva-layout-C:/Vaults/Anderer",
       "plainva-left-sections-C:/Vaults/Anderer-order",
       "plainva-mail-cols-C:/Vaults/Anderer",
+      "plainva-expanded-C:/Vaults/Anderer-full-1",
       "plainva-calendar-show-weeks",
       "plainva-recent-emoji",
     ];
     const hit = collectPerVaultLocalStorageKeys(VAULT, all);
-    expect(hit).toHaveLength(10);
+    expect(hit).toHaveLength(13);
     expect(hit).not.toContain("plainva-layout-C:/Vaults/Anderer");
     expect(hit).not.toContain("plainva-left-sections-C:/Vaults/Anderer-order");
     expect(hit).not.toContain("plainva-mail-cols-C:/Vaults/Anderer");
+    expect(hit).not.toContain("plainva-expanded-C:/Vaults/Anderer-full-1");
     expect(hit).not.toContain("plainva-calendar-show-weeks");
   });
 });

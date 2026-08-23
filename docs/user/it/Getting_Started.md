@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-08-22
+Ultimo aggiornamento: 2026-08-23
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -94,9 +94,12 @@ Plainva non deve restare in una sola finestra. Quello che ti serve adesso può s
 - **Clic destro su una scheda → Apri in una nuova finestra.** La scheda lascia questa finestra e prosegue nella nuova; non ne resta una copia.
 - **Clic destro su Grafo, Attività, Calendario o E-mail nella barra delle azioni** per la stessa scelta. Se poi tocchi di nuovo la voce, Plainva porta in primo piano quella finestra invece di aprire la vista una seconda volta.
 - **Palette dei comandi → Apri finestra comunicazioni** avvia una finestra già divisa: la posta a sinistra, il calendario a destra.
+- **Palette dei comandi → Apri una seconda finestra** apre di nuovo l'intera interfaccia — barre laterali, barra delle azioni, schede, barra di stato — sullo stesso vault. È la scelta giusta per un secondo monitor.
 - Mentre **scrivi un messaggio**, l'icona a comparsa solleva la finestra di composizione in una finestra propria — con tutto ciò che hai già digitato.
 
-Una finestra aggiuntiva è Plainva a pieno titolo: porta le **schede**, si può **dividere** e salva attraverso la stessa catena della finestra principale. Quello che non porta sono le barre laterali, la barra delle azioni e le impostazioni — quelle restano nella finestra principale.
+Una finestra a comparsa è Plainva a pieno titolo: porta le **schede**, si può **dividere** e salva attraverso la stessa catena della finestra principale. Quello che deliberatamente non porta sono le barre laterali e la barra delle azioni — è pensata per mostrare una cosa sola.
+
+Una **seconda finestra** invece le porta, e mostra lo stesso vault: un Plainva tiene aperto un vault, e la seconda finestra segue il primo. Cambia o chiudi il vault nella finestra principale e lo segue anche lì. Le impostazioni, la procedura guidata di importazione e il selettore di vault restano anch'essi nella finestra principale — i pulsanti sono lì, e premerne uno porta la finestra principale in primo piano e la apre **lì**. Tutto ciò che riguarda il tuo lavoro è uguale in entrambe: modifica, salvataggio, ricerca e lo stato di sincronizzazione nella barra di stato. La larghezza delle barre laterali e cosa hai compresso appartengono a ciascuna finestra separatamente.
 
 **Un contenuto è aperto sempre e solo in UNA finestra.** Se apri una nota che è già visibile altrove, quella finestra viene portata in primo piano. È voluto: due editor sullo stesso file sono il modo più sicuro di perdere lavoro. La composizione è l'eccezione — scrivere due messaggi insieme è normale.
 

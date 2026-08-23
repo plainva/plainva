@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-08-22
+Stand: 2026-08-23
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -94,9 +94,12 @@ Plainva muss nicht in einem Fenster bleiben. Was Du gerade brauchst, kann danebe
 - **Rechtsklick auf einen Tab → In neuem Fenster öffnen.** Der Tab verlässt dieses Fenster und lebt im neuen weiter; eine Kopie bleibt nicht zurück.
 - **Rechtsklick in der Aktionsleiste** auf **Graph**, **Aufgaben**, **Kalender** oder **E-Mail** → dieselbe Wahl. Klickst Du den Eintrag danach wieder an, holt Plainva das Fenster nach vorn, statt die Ansicht ein zweites Mal zu öffnen.
 - **Befehls-Palette → Kommunikations-Fenster öffnen** startet ein Fenster, das gleich geteilt ist: E-Mail links, Kalender rechts.
+- **Befehls-Palette → Zweites Fenster öffnen** startet die ganze Oberfläche noch einmal — Seitenleisten, Aktionsleiste, Reiter, Statusleiste — auf demselben Vault. Das ist die Wahl für den zweiten Bildschirm.
 - Beim **Verfassen einer Nachricht** löst das Ausklapp-Symbol das Fenster heraus — mitsamt allem, was Du schon getippt hast.
 
-Ein Zusatzfenster ist ein vollwertiges Plainva: es hat **Reiter**, lässt sich **teilen** und speichert über dieselbe Kette wie das Hauptfenster. Was es nicht hat, sind Seitenleisten, Aktionsleiste und Einstellungen — die bleiben im Hauptfenster.
+Ein herausgelöstes Fenster ist ein vollwertiges Plainva: es hat **Reiter**, lässt sich **teilen** und speichert über dieselbe Kette wie das Hauptfenster. Was es bewusst nicht hat, sind Seitenleisten und Aktionsleiste — es soll eine Sache zeigen.
+
+Ein **zweites Fenster** hat beides, und es zeigt denselben Vault: ein Plainva hält einen Vault offen, und das zweite Fenster folgt dem ersten. Wechselst oder schließt Du den Vault im Hauptfenster, folgt es auch dorthin. Einstellungen, Import-Assistent und Vault-Wechsler bleiben ebenfalls beim Hauptfenster — die Knöpfe sind da, und ein Druck darauf holt das Hauptfenster nach vorn und öffnet die Fläche **dort**. Alles, was mit Deiner Arbeit zu tun hat, ist in beiden gleich: Bearbeiten, Speichern, Suchen und der Sync-Zustand in der Statusleiste. Breite der Seitenleisten und was Du eingeklappt hast, gehören jedem Fenster für sich.
 
 **Ein Inhalt ist immer nur in EINEM Fenster offen.** Öffnest Du eine Notiz, die woanders schon aufgeschlagen ist, kommt dieses Fenster nach vorn. Das ist Absicht: zwei Editoren auf derselben Datei sind der sicherste Weg, Arbeit zu verlieren. Beim Verfassen von Nachrichten gilt das nicht — zwei Mails gleichzeitig zu schreiben ist normal.
 
