@@ -117,7 +117,7 @@ import {
   setOwnerOpenContents,
   noteWindowContent,
   isDuplicableView,
-  noteVaultChanged,
+  noteWindowVault,
 } from "./windowManager";
 
 import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
@@ -279,18 +279,33 @@ describe("remembering windows", () => {
     expect(readPersistedWindows(VAULT)).toHaveLength(1);
   });
 
-  it("moves its windows to the vault the central window switched to (C5)", async () => {
-    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+  it("moves ONE window to the vault that window switched to (stage D)", async () => {
+    const moved = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+    const stays = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Other.md" });
 
-    noteVaultChanged("/other");
+    noteWindowVault(moved.label, "/other");
 
     // BOTH lists are written, and that is the whole point: persisting only the
     // new one leaves the window listed under the old vault as well, so the next
     // start restores a window for content that vault no longer has.
     expect(readPersistedWindows("/other")).toHaveLength(1);
-    expect(readPersistedWindows(VAULT)).toEqual([]);
+    // And only the window that switched moves. Until stage D one switch dragged
+    // every window along, which with two vaults open takes away the only reason
+    // the second window exists.
+    expect(readPersistedWindows(VAULT).map((w) => w.label)).toEqual([stays.label]);
     // The window itself is not lost — it is the same window, on another vault.
     expect(findWindowForContent("/other", "Note.md")).not.toBeNull();
+  });
+
+  it("forgets a window that lets go of every vault", async () => {
+    const rec = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+
+    noteWindowVault(rec.label, null);
+
+    // A window with no vault has nothing to restore: leaving the record behind
+    // reopens it empty on the next start of a vault it no longer shows.
+    expect(readPersistedWindows(VAULT)).toEqual([]);
+    expect(findWindowForContent(VAULT, "Note.md")).toBeNull();
   });
 
   it("ignores a stored list that is not a list of windows", () => {

@@ -469,7 +469,7 @@ describe("surfaces and runs that belong to the central window", () => {
     ["sync-error", "plainva-show-sync-error"],
     ["update-indexes", "plainva-update-all-indexes"],
     ["backup", "plainva-backup-now"],
-    ["switch-vault", "plainva-open-vault-switcher"],
+    ["new-window", "plainva-open-full-window"],
   ] as const;
 
   for (const [surface, event] of targets) {
@@ -489,6 +489,21 @@ describe("surfaces and runs that belong to the central window", () => {
       dispose();
     });
   }
+
+  it("names the vault a new window should show (stage D)", async () => {
+    // Since stage D the asking window may be looking at a different vault than
+    // this one: without the target the new window would open on the owner's.
+    const { aux, dispose } = await setup();
+    let detail: unknown = null;
+    const on = (e: Event) => { detail = (e as CustomEvent).detail; };
+    window.addEventListener("plainva-open-full-window", on);
+
+    await aux.request("owner-surface", { surface: "new-window", vaultPath: "/vaults/B" });
+
+    expect(detail).toEqual({ vaultPath: "/vaults/B" });
+    window.removeEventListener("plainva-open-full-window", on);
+    dispose();
+  });
 
   it("carries the settings target along", async () => {
     const { aux, dispose } = await setup();

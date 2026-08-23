@@ -52,3 +52,21 @@ export const VaultHost: React.FC<{ children: ReactNode }> = ({ children }) => {
     </>
   );
 };
+
+/**
+ * The same idea in a client window: one provider for the vault it shows.
+ *
+ * Keyed by path, for the same reason the owner's is — a switch unmounts the old
+ * provider, which disposes its read connection in its own cleanup instead of a
+ * caller having to remember to. Without the key React would reuse the provider
+ * and the window would keep the previous vault's database open behind a tree
+ * that already shows the new one.
+ */
+export const ClientVaultHost: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { shownVault } = useApp();
+  return (
+    <VaultProvider key={shownVault ?? "none"} mode="client" clientVaultPath={shownVault}>
+      {children}
+    </VaultProvider>
+  );
+};

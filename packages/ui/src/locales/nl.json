@@ -3637,11 +3637,12 @@
     "unpinOnTop": "Niet meer op de voorgrond",
     "openComms": "Communicatievenster openen",
     "openSecond": "Tweede venster openen",
+    "openVaultWindow": "Kluis in een nieuw venster openen",
     "commsTitle": "Communicatie",
     "settingsGroup": "Vensters",
     "restoreWindows": "Vensterindeling herstellen",
     "restoreWindowsDesc": "Opent bij het starten de extra vensters die openstonden. Niet-verzonden berichten worden nooit hersteld.",
     "noVaultTitle": "Geen kluis geopend",
-    "noVaultBody": "Het hoofdvenster van Plainva toont op dit moment geen kluis. Open er daar een, dan volgt dit venster."
+    "noVaultBody": "Dit venster toont op dit moment geen kluis. Kies er een uit de recente of selecteer een map."
   }
 }

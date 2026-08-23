@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { ChevronUp, Folder, Settings } from "lucide-react";
-import { ICON } from "@plainva/ui";
+import { ChevronUp, Folder, Settings, SquareArrowOutUpRight } from "lucide-react";
+import { ICON, IconButton } from "@plainva/ui";
 import { SyncSwitcherIcon } from "./SyncSwitcherIcon";
 import type { VaultSyncWorker } from "../contexts/VaultContext";
 
@@ -8,13 +8,13 @@ export interface VaultSwitcherProps {
   vaultPath: string | null;
   /** Null in a vault without a provider; the icon then shows a plain folder. */
   syncWorker: VaultSyncWorker | null;
-  /** Recently opened vaults — owner only; a client never has this list. */
+  /** Recently opened vaults, offered as switch targets. */
   recentVaults?: readonly string[];
-  /** Owner only: switch to another vault / go back to the splash. */
+  /** Switch this window to another vault / go back to the chooser. */
   openVault?: (path: string) => void;
   closeVault?: () => void;
-  /** Client only: ask the central window to show its switcher (stage C2). */
-  deferToOwner?: () => void;
+  /** Opens a known vault in a window of its own (stage D). */
+  openVaultWindow?: (path: string) => void;
   onSyncError?: () => void;
   /** Controlled by the shell: another window can ask for this menu (C2). */
   open: boolean;
@@ -29,10 +29,10 @@ export interface VaultSwitcherProps {
  * that drives the app never sees a second window — so this had no coverage at
  * all. Everything else in the sidebar renders the same in both.
  *
- * The difference is deliberately not a disabled control: one process holds one
- * open vault (plan E7), so a client cannot switch it — but a dead grey line
- * explains nothing. It asks the central window instead, which is exactly what
- * the palette entry does, so both doors end in the same place.
+ * Since stage D there is no difference left to explain: several vaults can be
+ * open at once, so a second window switches its own — the line behaves the same
+ * in both. What differs is one level down: the central window RUNS the runtime
+ * this window then reads through.
  */
 export function VaultSwitcher({
   vaultPath,
@@ -40,7 +40,7 @@ export function VaultSwitcher({
   recentVaults,
   openVault,
   closeVault,
-  deferToOwner,
+  openVaultWindow,
   onSyncError,
   open,
   onOpenChange,
@@ -48,7 +48,6 @@ export function VaultSwitcher({
   const { t } = useTranslation();
   const setOpen = onOpenChange;
   const canSwitchHere = !!closeVault;
-  const interactive = canSwitchHere || !!deferToOwner;
 
   return (
     <div style={{ position: "relative", width: "100%", marginTop: "auto" }}>
@@ -56,10 +55,17 @@ export function VaultSwitcher({
         <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: "var(--z-menu)" }}>
           <div className="pv-menu-label">{t("sidebar.recentVaults")}</div>
           {(recentVaults ?? []).filter((p) => p !== vaultPath).slice(0, 5).map((path) => (
-            <button key={path} onClick={() => { setOpen(false); openVault?.(path); }} className="pv-menu-item">
-              <Folder size={ICON.ui} color="var(--accent-color)" />
-              <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
-            </button>
+            <div key={path} style={{ display: "flex", alignItems: "center" }}>
+              <button onClick={() => { setOpen(false); openVault?.(path); }} className="pv-menu-item" style={{ flex: 1 }}>
+                <Folder size={ICON.ui} color="var(--accent-color)" />
+                <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
+              </button>
+              {openVaultWindow && (
+                <IconButton label={t("window.openVaultWindow")} onClick={() => { setOpen(false); openVaultWindow(path); }}>
+                  <SquareArrowOutUpRight size={ICON.ui} />
+                </IconButton>
+              )}
+            </div>
           ))}
           <button onClick={() => { setOpen(false); closeVault?.(); }} className="pv-menu-item">
             <Settings size={ICON.ui} />
@@ -72,10 +78,10 @@ export function VaultSwitcher({
         width: "100%", padding: "0.75rem 0.5rem", background: open ? "var(--bg-hover)" : "transparent",
       }}>
         <button
-          onClick={canSwitchHere ? () => setOpen(!open) : deferToOwner}
+          onClick={canSwitchHere ? () => setOpen(!open) : undefined}
           aria-expanded={canSwitchHere ? open : undefined}
           aria-haspopup={canSwitchHere ? "true" : undefined}
-          disabled={!interactive}
+          disabled={!canSwitchHere}
           style={{
             display: "flex", alignItems: "center", gap: "0.5rem", overflow: "hidden",
             background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", flex: 1, textAlign: "left",

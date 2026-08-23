@@ -86,9 +86,11 @@ describe("runs that stay with the central window", () => {
   });
 
   it("does not leave the vault switcher as a dead command", () => {
-    // The palette entry existed before this stage and called a capability the
-    // client does not have — a command that silently does nothing.
-    expect(read("AppShell.tsx")).toContain('capabilities.deferToOwner("switch-vault")');
+    // The palette entry used to call a capability the client did not have — a
+    // command that silently did nothing. Since stage D every window has its own
+    // vault line, so the command closes THIS window's vault and lands on the
+    // chooser instead of asking the central window to switch for everyone.
+    expect(read("AppShell.tsx")).toContain("switchVault: () => capabilities.closeVault?.()");
   });
 
   it("keeps every clock out of the shared shell", () => {
@@ -179,40 +181,41 @@ describe("window state", () => {
 });
 
 /**
- * What happens when the central window changes vault (stage C5).
+ * Which vault a window shows (stage C5, rewritten in stage D).
  *
- * One process holds one open vault (E7), so a client window’s vault is never
- * its own decision. Two failure shapes hide here, and both still LOOK like a
- * working window: one drawing the tree of a vault the process has left, and one
- * holding adapters the owner has already disposed.
+ * Until stage D one process held one open vault, so the central window's switch
+ * dragged every other window along. With several vaults open at once that is
+ * exactly backwards: a second window exists in order to show something else,
+ * and moving it would take away the only reason it is open. Both failure shapes
+ * still LOOK like a working window, which is why they are pinned: one drawing
+ * the tree of a vault it never chose, and one holding adapters for a vault that
+ * nobody is keeping current.
  */
-describe("following the central window's vault", () => {
-  it("announces from state, not from the switcher", () => {
+describe("which vault a window shows", () => {
+  it("does not drag another window along with the central window's switch", () => {
     const ctx = read("contexts/VaultContext.tsx");
-    // The vault also changes through the splash, through "open recent" and
-    // through closing it. Announcing at the switcher covers one door of four.
-    expect(ctx).toContain("announceVaultChanged(state.vaultPath)");
-    expect(ctx).toContain("}, [isClient, state.vaultPath]);");
+    // The follow was a broadcast a client subscribed to. It is gone, channel
+    // and all: leaving the subscription would move a window the moment somebody
+    // opened a different vault elsewhere.
+    expect(ctx).not.toContain("vault-changed");
+    expect(read("services/windowBus.ts")).not.toContain("vault-changed");
   });
 
-  it("announces the close as well", () => {
-    // `vaultPath: string | null` is the point, and the call has to stay
-    // unguarded: `if (state.vaultPath)` would leave every other window on the
-    // vault that was just closed.
-    expect(read("services/windowBus.ts")).toContain('"vault-changed": { vaultPath: string | null }');
-    expect(read("contexts/VaultContext.tsx")).toContain(
-      `    if (isClient) return;
-    announceVaultChanged(state.vaultPath);`,
-    );
+  it("tells the central window which vault it holds, so that vault gets a runtime", () => {
+    // The runtimes all live in the owner. A window showing vault B whose hold
+    // never arrives draws a tree with no indexer, no watcher and no sync worker
+    // behind it — current at the moment it opened and never again.
+    expect(read("services/windowBus.ts")).toContain('"hold-vault"');
+    expect(read("services/ownerBus.ts")).toContain('bus.handle("hold-vault"');
+    expect(read("contexts/VaultContext.tsx")).toContain('request("hold-vault"');
   });
 
-  it("lets a client follow the broadcast, not just its launch parameter", () => {
-    const ctx = read("contexts/VaultContext.tsx");
-    expect(ctx).toContain('bus.onBroadcast("vault-changed"');
-    // The launch parameter seeds the state; it must not BE the state, or the
-    // window would keep the vault it was born with.
-    expect(ctx).toContain("useState<string | null>(clientVaultPath)");
-    expect(ctx).toContain("}, [isClient, clientVault]);");
+  it("remembers a window under the vault it actually shows", () => {
+    const wm = read("services/windowManager.ts");
+    // Both lists are written: leave the record behind and the next start of the
+    // old vault reopens a window that has been looking elsewhere since.
+    expect(wm).toContain("export function noteWindowVault");
+    expect(wm).toContain("if (previous) persistWindows(previous);");
   });
 
   it("makes a client let go of the services it no longer has", () => {
@@ -250,8 +253,17 @@ describe("opening a second window", () => {
 
   it("opens it in the central window and defers from a client", () => {
     const shell = read("AppShell.tsx");
-    expect(shell).toContain("openFullWindow({ vaultPath })");
+    expect(shell).toContain("openFullWindow({ vaultPath: forVault })");
     expect(shell).toContain('defer("new-window")');
+  });
+
+  it("offers the same door on the vault chooser", () => {
+    // The splash is where somebody decides WHICH vault to work in, so it is
+    // where "and keep the one I already have" belongs. It renders only in the
+    // central window, so it calls the opener directly instead of asking.
+    const splash = read("components/SplashScreen.tsx");
+    expect(splash).toContain("openFullWindow({ vaultPath: path })");
+    expect(splash).toContain('t("window.openVaultWindow")');
   });
 
   it("keeps the surface list in one place", () => {

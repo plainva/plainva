@@ -4,7 +4,7 @@ import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "../services/settingsStore";
 import { RUN_IN_TRAY_KEY, enableTray } from "../services/background";
 import { AUTO_OPEN_LAST_VAULT_KEY } from "./VaultContext";
-import { OWNER_LABEL, setBusVaultResolver } from "../services/windowBus";
+import { OWNER_LABEL, getWindowBus, setBusVaultResolver } from "../services/windowBus";
 import { installOwnerAppBus } from "../services/ownerBus";
 import { currentWindowParams } from "../services/windowContext";
 import {
@@ -93,6 +93,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const label = useMemo(() => currentWindowParams().label ?? OWNER_LABEL, []);
 
   useEffect(() => subscribeVaultRuntimes(() => setHeld(heldVaults())), []);
+
+  /**
+   * Bring back the windows of the OTHER vaults that were open (stage D).
+   *
+   * The shown vault's windows are restored in `App`, which waits for its index
+   * to settle. The vaults nobody shows have no such place — and they are the
+   * whole point of the stored list: a window on vault B was simply gone after a
+   * restart, silently, because the app came up looking perfectly normal.
+   *
+   * Restoring the WINDOW is enough to bring the vault back: each one registers
+   * its hold on arrival, and that is what makes the central window build the
+   * runtime. Tied to auto-open on purpose — with it off the user asked for a
+   * clean start, and putting three windows back would not be that.
+   */
+  const restoredOthers = useRef(false);
+  useEffect(() => {
+    if (label !== OWNER_LABEL || isBooting || restoredOthers.current) return;
+    if (!autoOpenLastVault) return;
+    restoredOthers.current = true;
+    void (async () => {
+      try {
+        const { getRestoreWindowsSetting, restoreAuxWindows } = await import("../services/windowManager");
+        if (!(await getRestoreWindowsSetting())) return;
+        for (const path of await loadLastVaultPaths()) {
+          if (path === shownVaultRef.current) continue;
+          await restoreAuxWindows(path);
+        }
+      } catch (e) {
+        // The app is usable without its extra windows, so this never blocks.
+        console.warn("[AppContext] could not restore the windows of the other vaults", e);
+      }
+    })();
+  }, [label, isBooting, autoOpenLastVault]);
+
+  // Tell the other windows how many vaults are open (stage D). Only the central
+  // window knows — a client sees its own and nothing else — and the one thing
+  // they need it for is their window title.
+  useEffect(() => {
+    if (label !== OWNER_LABEL) return;
+    void getWindowBus()
+      .then((bus) => bus.broadcast("vaults-open", { paths: [...held] }, null))
+      .catch(() => {
+        /* no other window listening */
+      });
+  }, [label, held]);
 
   // Every message this window sends carries the vault it is looking at. Read
   // through a function rather than captured, because the central window changes
@@ -309,31 +354,80 @@ export const useApp = () => {
 };
 
 /**
- * An app layer that shows exactly one fixed vault, for a client window.
+ * The app layer of a client window (stage D).
  *
- * An auxiliary window is told which vault it belongs to and cannot change it —
- * the lifecycle calls throw rather than doing nothing, because a button that
- * silently does nothing is the failure mode this whole architecture avoids.
+ * Until stage D this was a fixed vault: an auxiliary window was told which one
+ * it belonged to and every lifecycle call threw. With several vaults open that
+ * is one restriction too many — a full second window is a WORKPLACE, and a
+ * workplace whose vault switcher is greyed out is a workplace you have to leave
+ * to change what you work on.
+ *
+ * What it may do and what it may not follows the same line as everywhere else:
+ * this window decides what IT shows, the central one owns the runtimes. So
+ * `openVault`/`closeVault` change this window (and the hold that goes with it),
+ * while everything that changes the process or the stored settings — forgetting
+ * a recent vault, the auto-open switch — stays with the owner. Those two still
+ * throw rather than doing nothing: a button that silently does nothing is the
+ * failure mode this architecture exists to avoid.
  */
 const ownerOnly = async (): Promise<never> => {
   throw new Error("vault lifecycle is owner-only; an auxiliary window cannot run it");
 };
 
-export const StaticAppProvider: React.FC<{ vaultPath: string | null; children: ReactNode }> = ({ vaultPath, children }) => {
+export const ClientAppProvider: React.FC<{ vaultPath: string | null; children: ReactNode }> = ({ vaultPath, children }) => {
+  const [shown, setShown] = useState<string | null>(vaultPath);
+  const [recents, setRecents] = useState<string[]>([]);
+  const [openVaults, setOpenVaults] = useState<readonly string[]>(() => (vaultPath ? [vaultPath] : []));
+
+  // The whole picture comes from the central window; until it arrives, what
+  // this window shows is the only vault it can honestly claim is open.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void (async () => {
+      try {
+        const bus = await getWindowBus();
+        off = await bus.onBroadcast("vaults-open", ({ paths }) => setOpenVaults(paths));
+      } catch {
+        /* no bus (browser/test) */
+      }
+    })();
+    return () => off?.();
+  }, []);
+
+  // Read-only: the aux capability carries `store:default` for exactly this kind
+  // of lookup. The list is the owner's, written when IT opens a vault — this
+  // window only needs it to offer the switcher something to switch to.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const store = await getSettingsStore();
+        setRecents((await store.get<string[]>("recentVaults")) ?? []);
+      } catch {
+        /* no store: the switcher falls back to picking a folder */
+      }
+    })();
+  }, [shown]);
+
   const value = useMemo<AppContextType>(
     () => ({
-      shownVault: vaultPath,
-      heldVaults: vaultPath ? [vaultPath] : [],
-      recentVaults: [],
+      shownVault: shown,
+      // What the PROCESS holds, as the central window last reported it. This
+      // window still renders only `shownVault`; the list is what the title rule
+      // asks for ("is there a second vault to tell me apart from?").
+      heldVaults: openVaults,
+      recentVaults: recents,
       autoOpenLastVault: false,
       isBooting: false,
-      openVault: ownerOnly,
-      selectVault: ownerOnly,
-      closeVault: ownerOnly,
+      openVault: async (path: string) => setShown(path),
+      selectVault: async () => {
+        const selected = await open({ directory: true, multiple: false });
+        if (typeof selected === "string") setShown(selected);
+      },
+      closeVault: async () => setShown(null),
       removeRecentVault: ownerOnly,
       setAutoOpenLastVault: ownerOnly,
     }),
-    [vaultPath],
+    [shown, recents, openVaults],
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

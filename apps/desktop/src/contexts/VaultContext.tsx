@@ -9,6 +9,7 @@ import { brokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
+import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
@@ -27,7 +28,7 @@ import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, announceVaultChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
@@ -480,6 +481,8 @@ export const VaultProvider: React.FC<{
   /** Client mode: the read/render services, kept for disposal on unmount. */
   const clientServicesRef = useRef<ClientVaultServices | null>(null);
   const isClient = mode === "client";
+  /** This window's label — the key the owner refcounts its runtimes by. */
+  const windowLabel = isClient ? currentWindowParams().label : null;
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
@@ -1293,15 +1296,6 @@ export const VaultProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
 
-  // Owner: which vault this process has open is a fact the other windows need.
-  // Driven from the STATE rather than from the switcher, because the vault also
-  // changes through the splash, through "open recent" and through closing it —
-  // an announcement made at one of those doors is one the others forget (C5).
-  useEffect(() => {
-    if (isClient) return;
-    announceVaultChanged(state.vaultPath);
-  }, [isClient, state.vaultPath]);
-
   // Owner: every status the sync worker reaches goes out to the other windows
   // (C3), addressed with the vault it belongs to — a window on another vault
   // would otherwise draw this one's progress bar (stage D).
@@ -1354,12 +1348,6 @@ export const VaultProvider: React.FC<{
             });
           }),
         );
-        // One process, one open vault (plan E7). When the central window moves,
-        // this one moves with it: the services are rebuilt for the new vault and
-        // the layout — which is keyed by vault AND label — comes back as the one
-        // this window last had THERE. A window that stayed behind would be
-        // holding services on a vault nobody has open (C5).
-        offs.push(await bus.onBroadcast("vault-changed", ({ vaultPath }) => setClientVault(vaultPath)));
         // The watcher lives in the owner. Without this an auxiliary window would
         // never learn that the file under its editor changed on disk — the very
         // case the editor's external-update logic exists for.
@@ -1386,13 +1374,38 @@ export const VaultProvider: React.FC<{
    * runtime) stay null, which is what keeps the effects below inert.
    */
   /**
-   * The vault this window shows. Seeded from the query it was opened with, and
-   * changed by the owner's `vault-changed` broadcast (C5) — one process holds
-   * one open vault, so a window that stayed behind would be drawing a tree that
-   * is no longer there.
+   * The vault this window shows. Seeded from the query it was opened with and
+   * changed by this window's own switcher (stage D) — a window belongs to the
+   * vault it shows and keeps it, whatever any other window does.
    */
   const [clientVault, setClientVault] = useState<string | null>(clientVaultPath);
   useEffect(() => setClientVault(clientVaultPath), [clientVaultPath]);
+
+  /**
+   * Client: tell the central window which vault this one holds (stage D).
+   *
+   * Every runtime lives over there, so a hold that never arrives leaves this
+   * window drawing a tree with no indexer, no watcher and no sync worker behind
+   * it — correct at the moment it opened and never again. The release on the
+   * way out is the other half: a runtime nobody holds has to be able to go.
+   */
+  useEffect(() => {
+    if (!isClient || !windowLabel) return;
+    const tell = (vaultPath: string | null) => {
+      void getWindowBus()
+        .then((bus) => bus.request("hold-vault", { label: windowLabel, vaultPath }))
+        .catch(() => {
+          /* no bus (browser/test): nothing holds anything there */
+        });
+    };
+    tell(clientVault);
+    // Released on the way out, never in the cleanup: this effect re-runs on
+    // every switch, and a release there would tear the old runtime down before
+    // the new hold arrives — for a switch back to the same vault, twice over.
+    const drop = () => tell(null);
+    window.addEventListener("beforeunload", drop);
+    return () => window.removeEventListener("beforeunload", drop);
+  }, [isClient, windowLabel, clientVault]);
 
   const loadClientVault = async (path: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));

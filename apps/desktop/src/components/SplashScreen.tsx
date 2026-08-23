@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database, Download } from "lucide-react";
+import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, CloudCog, Box, Server, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -70,6 +70,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   const [forgetting, setForgetting] = useState(false);
 
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+
+  /**
+   * Opens a known vault in its own window, straight from the chooser (stage D).
+   *
+   * The splash is the one surface where somebody is deciding WHICH vault to
+   * work in, so it is where "and keep the one I already have" belongs. This
+   * window stays on the splash; the new one comes up on the vault.
+   */
+  const openVaultInNewWindow = async (path: string) => {
+    try {
+      const { openFullWindow } = await import("../services/windowManager");
+      await openFullWindow({ vaultPath: path });
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
 
   const handleRemoveOnlyList = async () => {
     if (!removeTarget) return;
@@ -465,6 +481,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
                           <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{getBasename(path)}</div>
                           <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{path}</div>
                         </div>
+                      </button>
+                      <button
+                        className="pv-iconbtn pv-iconbtn--sm"
+                        aria-label={t("window.openVaultWindow")}
+                        data-tip={t("window.openVaultWindow")}
+                        onClick={() => { void openVaultInNewWindow(path); }}
+                      >
+                        <SquareArrowOutUpRight size={ICON.ui} />
                       </button>
                       <button
                         className="pv-iconbtn pv-iconbtn--sm"

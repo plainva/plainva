@@ -76,12 +76,21 @@ export interface BroadcastMap {
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
   /**
+   * Which vaults the process currently has open (stage D).
+   *
+   * App-scoped on purpose: it is a fact ABOUT the process, not about a vault.
+   * A client window knows only its own, and there is one thing it needs the
+   * whole picture for — whether to put the vault name into its window title.
+   * With one vault that would be noise on every taskbar entry; with two it is
+   * the only thing telling two identically named windows apart.
+   */
+  "vaults-open": { paths: string[] };
+  /**
    * The central window is on another vault now (C5). One process holds one open
    * vault (plan E7), so this is not an invitation: a client that stayed behind
    * would be showing a tree that is no longer there, over services pointing at
    * a vault nobody has open. `null` means the owner closed the vault.
    */
-  "vault-changed": { vaultPath: string | null };
   /** Who has what open — the owner keeps the global open-registry from this. */
   "tab-registry": { label: string; contents: string[] };
   /** Owner to one window: bring this content forward (dedup / focus routing). */
@@ -183,13 +192,24 @@ export interface RpcMap {
       | "sync-error"
       | "update-indexes"
       | "backup"
-      | "switch-vault"
       | "new-window";
       provider?: string;
       area?: string;
+      /** `new-window` only: which vault the new window shows (stage D). */
+      vaultPath?: string;
     };
     result: void;
   };
+  /**
+   * A client window says which vault it is looking at (multi-window stage D).
+   *
+   * The runtimes all live in the central window, so a window that shows vault B
+   * has to say so there — otherwise B has no indexer, no watcher and no sync
+   * worker, and the window would draw a tree that nobody is keeping current.
+   * `null` releases: closing a vault in a second window must let its runtime go
+   * when no other window holds it.
+   */
+  "hold-vault": { args: { label: string; vaultPath: string | null }; result: void };
   /**
    * Send a message the writer composed in a compose window. The delayed-send
    * queue belongs to the owner (plan §12.4): a compose window is the most
@@ -289,7 +309,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   // App- or window-scoped: appearance is one setting for the process, and the
   // three window channels address a window by label, not a vault by path.
   "settings-changed": "app",
-  "vault-changed": "app",
+  "vaults-open": "app",
   "tab-registry": "app",
   "focus-content": "app",
   "set-content": "app",
@@ -328,6 +348,9 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "window-bounds": "app",
   "window-contents": "app",
   "window-always-on-top": "app",
+  // About a WINDOW and the process-wide runtime registry, and it names its
+  // vault in the arguments — addressing it by vault would be circular.
+  "hold-vault": "app",
   "owner-surface": "app",
   "draft-record": "app",
   "draft-clear": "app",

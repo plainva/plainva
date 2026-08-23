@@ -59,7 +59,7 @@ describe("the vault line in the sidebar", () => {
     expect(host.textContent).toContain("notes");
   });
 
-  it("opens the menu in the central window", async () => {
+  it("opens the menu in any window that shows a vault", async () => {
     const onOpenChange = vi.fn();
     await mount({ closeVault: () => {}, recentVaults: ["/a/one", "/b/two"], onOpenChange });
     expect(button().disabled).toBe(false);
@@ -75,22 +75,24 @@ describe("the vault line in the sidebar", () => {
     expect(host.querySelectorAll(".pv-menu-item")).toHaveLength(2);
   });
 
-  it("asks the central window instead of switching, in a client", async () => {
-    const deferToOwner = vi.fn();
-    await mount({ deferToOwner });
-    // Not disabled: a dead grey line is the thing this replaces.
-    expect(button().disabled).toBe(false);
-    await act(async () => { button().click(); });
-    expect(deferToOwner).toHaveBeenCalledTimes(1);
+  it("switches a second window to another vault (stage D)", async () => {
+    // A client used to hand this to the central window, because one process
+    // held one vault. It switches its own now — the runtime is still the
+    // owner's, but which vault this WINDOW shows is this window's business.
+    const openVault = vi.fn();
+    await mount({ open: true, closeVault: () => {}, openVault, recentVaults: ["/a/one"] });
+    const entry = [...host.querySelectorAll<HTMLButtonElement>(".pv-menu-item")][0];
+    await act(async () => { entry.click(); });
+    expect(openVault).toHaveBeenCalledWith("/a/one");
   });
 
-  it("never renders the owner menu in a client", async () => {
-    // Even asked to be open: without `closeVault` there is nothing here that
-    // this window may do, and offering it would be a lie.
-    await mount({ open: true, deferToOwner: () => {}, recentVaults: ["/a/one"] });
+  it("stays dead only where there is nothing to switch to", async () => {
+    // No `closeVault` means no app layer behind this line at all (the splash
+    // renders no sidebar) — offering a menu there would be a lie.
+    await mount({ open: true, recentVaults: ["/a/one"] });
     expect(host.querySelector(".pv-menu")).toBeNull();
     expect(host.textContent).not.toContain("one");
-    expect(button().getAttribute("aria-haspopup")).toBeNull();
+    expect(button().disabled).toBe(true);
   });
 
   it("shows the sync state where there is a worker and a folder where there is not", async () => {

@@ -3637,11 +3637,12 @@
     "unpinOnTop": "Stop staying on top",
     "openComms": "Open communications window",
     "openSecond": "Open a second window",
+    "openVaultWindow": "Open vault in a new window",
     "commsTitle": "Communications",
     "settingsGroup": "Windows",
     "restoreWindows": "Restore window layout",
     "restoreWindowsDesc": "Reopens the auxiliary windows you had open when the app starts. Unsent messages are never restored.",
     "noVaultTitle": "No vault open",
-    "noVaultBody": "The central Plainva window is not showing a vault right now. Open one there and this window follows."
+    "noVaultBody": "This window is not showing a vault right now. Pick a recent one or choose a folder."
   }
 }

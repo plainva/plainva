@@ -440,21 +440,38 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
    * Not deduplicated, unlike content: a window is a WORKPLACE, and having two
    * of them is the point. What stays deduplicated is what they SHOW.
    */
-  const openSecondWindow = useStableHandler(() => {
-    if (!vaultPath) return;
+  const openSecondWindow = useStableHandler((target?: string) => {
+    const forVault = target ?? vaultPath;
+    if (!forVault) return;
     void (async () => {
       try {
-        await openFullWindow({ vaultPath });
+        await openFullWindow({ vaultPath: forVault });
       } catch (e: any) {
         toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
       }
     })();
   });
 
+  /**
+   * Opens ANOTHER vault in a window of its own (stage D).
+   *
+   * The owner creates the window itself; a client asks, because creating one is
+   * owner-only by capability. Both doors end in the same `openFullWindow`.
+   */
+  const openVaultInWindow = useStableHandler((path: string) => {
+    if (capabilities.openVaultWindow) {
+      capabilities.openVaultWindow(path);
+      return;
+    }
+    openSecondWindow(path);
+  });
+
   // Asked for from another window (the client has no permission to create one).
   useEffect(() => {
     if (capabilities.deferToOwner) return;
-    const onOpen = () => openSecondWindow();
+    // The detail names the vault when the request came from a window looking at
+    // a different one (stage D); without it, this window's own vault.
+    const onOpen = (e: Event) => openSecondWindow((e as CustomEvent<{ vaultPath?: string }>).detail?.vaultPath);
     window.addEventListener("plainva-open-full-window", onOpen);
     return () => window.removeEventListener("plainva-open-full-window", onOpen);
   }, [capabilities, openSecondWindow]);
@@ -1340,7 +1357,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             recentVaults={capabilities.recentVaults}
             openVault={capabilities.openVault}
             closeVault={capabilities.closeVault}
-            deferToOwner={capabilities.deferToOwner ? () => capabilities.deferToOwner?.("switch-vault") : undefined}
+            openVaultWindow={openVaultInWindow}
             onSyncError={capabilities.openSyncError}
             open={showVaultMenu}
             onOpenChange={setShowVaultMenu}
@@ -1586,6 +1603,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openSecondWindow: vaultPath
               ? () => window.dispatchEvent(new CustomEvent("plainva-open-full-window"))
               : undefined,
+            // Opens the vault line's menu: the switch and the new window sit
+            // side by side there, and the palette is the door that does not
+            // depend on the sidebar being visible.
+            openVaultWindow: vaultPath ? () => setShowVaultMenu(true) : undefined,
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
@@ -1607,7 +1628,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
             refreshVault: () => { void refreshVault(); },
             rebuildIndex: () => { void rebuildIndex(); },
-            switchVault: () => (capabilities.deferToOwner ? capabilities.deferToOwner("switch-vault") : capabilities.closeVault?.()),
+            switchVault: () => capabilities.closeVault?.(),
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
             hasActiveNote: () => activeDocument.get().kind === "markdown",
             exportActiveMarkdown: () => {

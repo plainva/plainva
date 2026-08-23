@@ -14,8 +14,9 @@ import {
   noteWindowAlwaysOnTop,
   openComposeWindow,
   openOrFocusContent,
-  noteVaultChanged,
+  noteWindowVault,
 } from "./windowManager";
+import { setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -87,28 +88,6 @@ export function broadcastIndexChanged(paths: string[], structural: boolean, vaul
     });
 }
 
-/**
- * Tells the other windows that this one moved to another vault (C5).
- *
- * Sent from the owner's vault state, not from the switcher: the vault also
- * changes through the splash, through "open recent" and through closing it, and
- * an announcement made at one of those four doors is an announcement the other
- * three forget.
- */
-export function announceVaultChanged(vaultPath: string | null): void {
-  // The open windows belong to the vault they SHOW, and that is what decides
-  // which list remembers them. Only on a real switch — closing a vault leaves
-  // its windows remembered under it, so reopening brings them back (E5).
-  if (vaultPath) noteVaultChanged(vaultPath);
-  void getWindowBus()
-    // Addressed to nobody in particular on purpose: this says which vault the
-    // CENTRAL window moved to, which is a fact about that window rather than
-    // about the vault, and every other window has to hear it.
-    .then((bus) => bus.broadcast("vault-changed", { vaultPath }, null))
-    .catch(() => {
-      /* no bus (browser/test): a single window needs no broadcast */
-    });
-}
 
 /**
  * Forwards two of the owner's own window events onto the bus.
@@ -449,7 +428,17 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("owner-surface", async ({ surface, provider, area }) => {
+    await bus.handle("hold-vault", async ({ label, vaultPath }) => {
+      // Two things at once, and they have to stay together: the registry decides
+      // whether that vault gets a runtime here, and the window record decides
+      // which vault's list remembers this window for the next start.
+      setHolderVault(vaultPath, label);
+      noteWindowVault(label, vaultPath);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("owner-surface", async ({ surface, provider, area, vaultPath }) => {
       // Bring this window forward first: opening a dialog in a window the user
       // cannot see is the same as doing nothing, only more confusing.
       try {
@@ -469,10 +458,12 @@ export async function installOwnerAppBus(): Promise<() => void> {
         "sync-error": "plainva-show-sync-error",
         "update-indexes": "plainva-update-all-indexes",
         backup: "plainva-backup-now",
-        "switch-vault": "plainva-open-vault-switcher",
         "new-window": "plainva-open-full-window",
       };
-      const detail = surface === "settings" ? { provider, area } : undefined;
+      // `new-window` carries the vault it should show: since stage D the asking
+      // window may be looking at a different one than this window is.
+      const detail =
+        surface === "settings" ? { provider, area } : surface === "new-window" && vaultPath ? { vaultPath } : undefined;
       window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));
     }),
   );

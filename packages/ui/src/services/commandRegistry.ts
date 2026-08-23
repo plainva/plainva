@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Calendar, CalendarDays, Columns2, Database, Download, FileText, FilePlus, FolderPlus,
+  Calendar, CalendarDays, Columns2, Database, Download, FileText, FilePlus, FolderOpen, FolderPlus,
   Gauge, Keyboard, ListChecks, Mail, Moon, Palette, Pencil, Printer, RefreshCw, Replace,
   Rows2, Save, Search, Settings, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
@@ -61,6 +61,13 @@ export interface CommandDeps {
    * only way in, so a missing entry here means the stage is unreachable.
    */
   openSecondWindow?: () => void;
+  /**
+   * Opens the vault line's menu, where another vault can be opened HERE or in
+   * a window of its own (stage D). The palette is the second door to it; the
+   * first is the vault line itself, which is easy to miss at the foot of a
+   * sidebar that may be collapsed.
+   */
+  openVaultWindow?: () => void;
   /** Mail-raus (stage 6): active-note actions, gated like print/export. */
   copyNoteAsEmail?: () => void;
   sendNoteViaMailto?: () => void;
@@ -138,6 +145,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),
     need(d.openSecondWindow, (run) => ({ id: "open-second-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openSecond", titleDefault: "Zweites Fenster öffnen", run })),
+    need(d.openVaultWindow, (run) => ({ id: "open-vault-window", group: "open", icon: FolderOpen, titleKey: "window.openVaultWindow", titleDefault: "Vault in neuem Fenster öffnen", run })),
     need(d.copyNoteAsEmail, (run) => ({ id: "mail-copy-html", group: "note", icon: Mail, titleKey: "mail.copyAsEmail", titleDefault: "Notiz als E-Mail-Text kopieren", run, isAvailable: note })),
     need(d.sendNoteViaMailto, (run) => ({ id: "mail-mailto", group: "note", icon: Mail, titleKey: "mail.sendViaMailto", titleDefault: "Notiz per E-Mail senden (mailto)", run, isAvailable: note })),
     need(d.saveNoteAsMailDraft, (run) => ({ id: "mail-draft", group: "note", icon: Mail, titleKey: "mail.saveDraft", titleDefault: "Notiz als E-Mail-Entwurf ins Postfach", run, isAvailable: note })),

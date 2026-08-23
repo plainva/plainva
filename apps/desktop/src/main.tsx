@@ -19,9 +19,8 @@ import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
-import { VaultProvider } from "./contexts/VaultContext";
-import { AppProvider, StaticAppProvider } from "./contexts/AppContext";
-import { VaultHost } from "./contexts/VaultHost";
+import { AppProvider, ClientAppProvider } from "./contexts/AppContext";
+import { ClientVaultHost, VaultHost } from "./contexts/VaultHost";
 import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
@@ -126,11 +125,11 @@ void i18nReady.then(async () => {
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
-          <StaticAppProvider vaultPath={windowParams.vaultPath}>
-            <VaultProvider mode="client" clientVaultPath={windowParams.vaultPath}>
+          <ClientAppProvider vaultPath={windowParams.vaultPath}>
+            <ClientVaultHost>
               <Shell />
-            </VaultProvider>
-          </StaticAppProvider>
+            </ClientVaultHost>
+          </ClientAppProvider>
           <DialogHost />
           <ToastHost />
           <TooltipHost />

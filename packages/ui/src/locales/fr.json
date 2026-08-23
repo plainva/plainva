@@ -3676,11 +3676,12 @@
     "unpinOnTop": "Ne plus rester au premier plan",
     "openComms": "Ouvrir la fenêtre de communication",
     "openSecond": "Ouvrir une deuxième fenêtre",
+    "openVaultWindow": "Ouvrir le coffre dans une nouvelle fenêtre",
     "commsTitle": "Communication",
     "settingsGroup": "Fenêtres",
     "restoreWindows": "Restaurer la disposition des fenêtres",
     "restoreWindowsDesc": "Rouvre au démarrage les fenêtres supplémentaires qui étaient ouvertes. Les messages non envoyés ne sont jamais restaurés.",
     "noVaultTitle": "Aucun coffre ouvert",
-    "noVaultBody": "La fenêtre principale de Plainva n'affiche aucun coffre pour le moment. Ouvres-en un là-bas et cette fenêtre suivra."
+    "noVaultBody": "Cette fenêtre n'affiche aucun coffre pour le moment. Choisis-en un parmi les récents ou sélectionne un dossier."
   }
 }

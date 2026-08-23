@@ -62,7 +62,7 @@ vi.mock("./VaultContext", async () => {
   };
 });
 
-import { AppProvider, LAST_VAULT_PATHS_KEY, StaticAppProvider, useApp } from "./AppContext";
+import { AppProvider, LAST_VAULT_PATHS_KEY, ClientAppProvider, useApp } from "./AppContext";
 import { VaultHost } from "./VaultHost";
 import { acquireVault, heldVaults, holdersOf, releaseHolder, resetVaultRuntimes } from "../services/vaultRuntimes";
 
@@ -327,13 +327,26 @@ describe("app layer and vault layer (stage D)", () => {
     expect(mounted).toEqual([]);
   });
 
-  it("refuses to change the vault from an auxiliary window", async () => {
-    await mount(<StaticAppProvider vaultPath="/A"><Probe /></StaticAppProvider>);
+  it("lets an auxiliary window change its OWN vault and no runtime", async () => {
+    // Since stage D a window belongs to the vault it shows and may change it.
+    // What it must never do is build the runtime: the switch only moves what
+    // THIS window draws, the indexer and the sync worker stay in the central
+    // window, which is why the held list is untouched here.
+    await mount(<ClientAppProvider vaultPath="/A"><Probe /></ClientAppProvider>);
     expect(api!.shownVault).toBe("/A");
-    // Loud rather than silent: a window that cannot switch vaults has to say
-    // so, because a call that quietly does nothing is unreportable.
-    await expect(api!.openVault("/B")).rejects.toThrow(/owner-only/);
-    await expect(api!.closeVault()).rejects.toThrow(/owner-only/);
+    await act(async () => { await api!.openVault("/B"); });
+    expect(api!.shownVault).toBe("/B");
+    await act(async () => { await api!.closeVault(); });
+    expect(api!.shownVault).toBeNull();
     expect(heldVaults()).toEqual([]);
+    expect(mounted).toEqual([]);
+  });
+
+  it("keeps the app-wide lists owner-only in an auxiliary window", async () => {
+    // Loud rather than silent: recents and auto-open are one list for the whole
+    // process, so a second writer would make it forget what the first wrote.
+    await mount(<ClientAppProvider vaultPath="/A"><Probe /></ClientAppProvider>);
+    await expect(api!.removeRecentVault("/A")).rejects.toThrow(/owner-only/);
+    await expect(api!.setAutoOpenLastVault(true)).rejects.toThrow(/owner-only/);
   });
 });

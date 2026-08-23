@@ -78,8 +78,7 @@ const OWNER_ONLY = [
   // its own — and announce a vault it does not decide.
   "installOwnerBus",
   "installSyncStatusMirror",
-  "announceVaultChanged",
-  "noteVaultChanged",
+  "noteWindowVault",
 ] as const;
 
 describe("client-mode vault (auxiliary windows)", () => {

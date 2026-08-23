@@ -3637,11 +3637,12 @@
     "unpinOnTop": "Nicht mehr im Vordergrund",
     "openComms": "Kommunikations-Fenster öffnen",
     "openSecond": "Zweites Fenster öffnen",
+    "openVaultWindow": "Vault in neuem Fenster öffnen",
     "commsTitle": "Kommunikation",
     "settingsGroup": "Fenster",
     "restoreWindows": "Fensteraufteilung wiederherstellen",
     "restoreWindowsDesc": "Beim Start werden die zuletzt geöffneten Zusatzfenster wieder geöffnet. Verfasste, noch nicht gesendete Nachrichten werden nie wiederhergestellt.",
     "noVaultTitle": "Kein Vault geöffnet",
-    "noVaultBody": "Das Hauptfenster von Plainva zeigt gerade keinen Vault. Öffne dort einen, dann folgt dieses Fenster."
+    "noVaultBody": "Dieses Fenster zeigt gerade keinen Vault. Wähle einen der zuletzt geöffneten oder such einen Ordner aus."
   }
 }
