@@ -3674,6 +3674,7 @@
     "pinOnTop": "Siempre visible",
     "unpinOnTop": "Dejar de mostrar siempre visible",
     "openComms": "Abrir ventana de comunicación",
+    "openSecond": "Abrir una segunda ventana",
     "commsTitle": "Comunicación",
     "settingsGroup": "Ventanas",
     "restoreWindows": "Restaurar la disposición de ventanas",

@@ -232,6 +232,27 @@ below needs a human at a real desktop.
 - [ ] Start the app a second time while it is running: the existing instance
       comes forward instead of a second process opening the same vault.
 
+A **full second window** (command palette, "Open a second window") is the same
+shell again, in client mode. What it adds is a surface where "who owns the
+writes" becomes visible, so the checks below are about the seam rather than
+about the widgets:
+
+- [ ] Open a second window: it comes up with sidebars, ribbon, tabs and status
+      bar — and with the SAME vault. Editing and saving a note there works.
+- [ ] The status bar in the second window shows the sync state of the vault, not
+      "local". Trigger "Sync now" there: the central window's worker runs.
+- [ ] Click the gear in the second window: the CENTRAL window comes forward and
+      opens settings there. Same for the import wizard.
+- [ ] Delete a note in the second window: it is gone in both, and no
+      mass-deletion warning appears in the central window.
+- [ ] Collapse a sidebar in the second window: the central window keeps its own.
+      Close the second window, open a new one — it starts clean rather than with
+      the closed window's sidebar.
+- [ ] Switch the vault in the central window: the second window follows. Close
+      the vault there: the second window says so instead of showing a tree.
+- [ ] Open a note that is already open in the other window: the window holding
+      it comes forward, no second editor appears.
+
 ## Results
 
 | Date | Build/Tag | OS/Provider | Item | Result |

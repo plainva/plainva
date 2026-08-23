@@ -3635,6 +3635,7 @@
     "pinOnTop": "Always on top",
     "unpinOnTop": "Stop staying on top",
     "openComms": "Open communications window",
+    "openSecond": "Open a second window",
     "commsTitle": "Communications",
     "settingsGroup": "Windows",
     "restoreWindows": "Restore window layout",

@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-08-22
+Stan na: 2026-08-23
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -94,9 +94,12 @@ Plainva nie musi zostawać w jednym oknie. To, czego potrzebujesz akurat teraz, 
 - **Kliknij prawym przyciskiem kartę → Otwórz w nowym oknie.** Karta opuszcza to okno i żyje dalej w nowym; kopia nie zostaje.
 - **Kliknij prawym przyciskiem** na **Graf**, **Zadania**, **Kalendarz** lub **E-mail** na pasku akcji, aby dokonać tego samego wyboru. Kliknij ten sam wpis ponownie, a Plainva przywoła to okno na wierzch, zamiast otwierać widok po raz drugi.
 - **Paleta poleceń → Otwórz okno komunikacji** uruchamia okno, które jest już podzielone: poczta po lewej, kalendarz po prawej.
+- **Paleta poleceń → Otwórz drugie okno** ponownie otwiera całą powłokę — paski boczne, pasek akcji, karty, pasek stanu — dla tego samego vaulta. To ten wybór na drugi monitor.
 - Podczas **pisania wiadomości** ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — wraz ze wszystkim, co już wpisałeś.
 
-Okno dodatkowe to pełnoprawne Plainva: ma **karty**, można je **podzielić** i zapisuje przez ten sam łańcuch co okno główne. Czego nie ma, to paski boczne, pasek akcji i ustawienia — te zostają w oknie głównym.
+Wysunięte okno to pełnoprawne Plainva: ma **karty**, można je **podzielić** i zapisuje przez ten sam łańcuch co okno główne. Czego celowo nie ma, to paski boczne i pasek akcji — ma pokazywać jedną rzecz.
+
+**Drugie okno** ma je oba, i pokazuje ten sam vault: jedno Plainva trzyma otwarty jeden vault, a drugie okno podąża za pierwszym. Przełącz lub zamknij vault w oknie głównym, a ono podąży tam też. Ustawienia, kreator importu i przełącznik vaultów również zostają przy oknie głównym — przyciski tam są, a kliknięcie jednego z nich przywołuje okno główne na wierzch i otwiera go **tam**. Wszystko, co dotyczy Twojej pracy, jest takie samo w obu: edycja, zapisywanie, wyszukiwanie i stan synchronizacji na pasku stanu. Szerokość pasków bocznych i to, co zwinąłeś, należą osobno do każdego okna.
 
 **Dana treść jest zawsze otwarta tylko w JEDNYM oknie.** Otwórz notatkę, która jest już gdzieś wyświetlana, a to okno wysunie się na wierzch. To celowe: dwa edytory na tym samym pliku to najpewniejszy sposób na utratę pracy. Pisanie wiadomości jest wyjątkiem — pisanie dwóch wiadomości naraz jest normalne.
 

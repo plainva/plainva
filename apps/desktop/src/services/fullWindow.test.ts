@@ -211,3 +211,34 @@ describe("following the central window's vault", () => {
     expect(full).toContain("window.noVaultTitle");
   });
 });
+
+/**
+ * How a second window is opened at all (stage C6).
+ *
+ * `openFullWindow` existed from C0 and had no caller: the whole stage was
+ * unreachable. It is a palette command in BOTH windows, and it travels as an
+ * event rather than a call — a client capability deliberately carries no
+ * permission to create a window (P0), so calling it there would fail at the
+ * Tauri boundary instead of asking the window that may.
+ */
+describe("opening a second window", () => {
+  it("offers the command and does not call the opener directly", () => {
+    const shell = read("AppShell.tsx");
+    expect(shell).toContain("openSecondWindow:");
+    expect(shell).toContain('new CustomEvent("plainva-open-full-window")');
+  });
+
+  it("opens it in the central window and defers from a client", () => {
+    const shell = read("AppShell.tsx");
+    expect(shell).toContain("openFullWindow({ vaultPath })");
+    expect(shell).toContain('defer("new-window")');
+  });
+
+  it("keeps the surface list in one place", () => {
+    // The client used to spell the union out a second time; a value added on
+    // one side and forgotten on the other fails as a type error at best and as
+    // a silently ignored request at worst.
+    expect(read("FullApp.tsx")).toContain("surface: OwnerSurface");
+    expect(read("services/ownerBus.ts")).toContain('"new-window": "plainva-open-full-window"');
+  });
+});

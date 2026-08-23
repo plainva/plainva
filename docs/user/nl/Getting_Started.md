@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-08-22
+Laatst bijgewerkt: 2026-08-23
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -94,9 +94,12 @@ Plainva hoeft niet in één venster te blijven. Wat je nu nodig hebt, kan naast 
 - **Rechtsklik op een tabblad → In nieuw venster openen.** Het tabblad verlaat dit venster en leeft verder in het nieuwe; er blijft geen kopie achter.
 - **Rechtsklik op Graaf, Taken, Agenda of E-mail in de actiebalk** voor dezelfde keuze. Klik je de vermelding daarna nog eens aan, dan haalt Plainva dat venster naar voren in plaats van de weergave een tweede keer te openen.
 - **Opdrachtenpalet → Communicatievenster openen** start een venster dat al gesplitst is: e-mail links, agenda rechts.
+- **Opdrachtenpalet → Tweede venster openen** opent de hele interface opnieuw — zijbalken, actiebalk, tabbladen, statusbalk — voor dezelfde vault. Dat is de juiste keuze voor een tweede monitor.
 - Tijdens het **opstellen van een bericht** zet het uitklapicoon het opstelvenster om in een eigen venster — met alles wat je al hebt getypt.
 
-Een extra venster is een volwaardige Plainva: het heeft **tabbladen**, kan worden **gesplitst** en slaat op via dezelfde keten als het hoofdvenster. Wat het niet heeft, zijn de zijbalken, de actiebalk en de instellingen — die blijven in het hoofdvenster.
+Een uitgeklapt venster is een volwaardige Plainva: het heeft **tabbladen**, kan worden **gesplitst** en slaat op via dezelfde keten als het hoofdvenster. Wat het bewust niet heeft, zijn de zijbalken en de actiebalk — het is bedoeld om één ding te tonen.
+
+Een **tweede venster** heeft die wel, en het toont dezelfde vault: één Plainva houdt één vault open, en het tweede venster volgt het eerste. Wissel je van vault of sluit je die in het hoofdvenster, dan volgt het tweede venster ook. Instellingen, de importwizard en de vaultwisselaar blijven eveneens bij het hoofdvenster — de knoppen staan er, en op één ervan klikken haalt het hoofdvenster naar voren en opent het **daar**. Alles wat met je werk te maken heeft, is in beide hetzelfde: bewerken, opslaan, zoeken en de synchronisatiestatus in de statusbalk. De breedte van de zijbalken en wat je hebt ingeklapt, horen bij elk venster apart.
 
 **Een stuk inhoud staat altijd maar in ÉÉN venster open.** Open je een notitie die elders al zichtbaar is, dan komt dat venster naar voren. Dat is bewust: twee editors op hetzelfde bestand zijn de zekerste manier om werk kwijt te raken. Opstellen is de uitzondering — twee berichten tegelijk schrijven is heel gewoon.
 

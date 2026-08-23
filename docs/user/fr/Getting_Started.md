@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-08-22
+Dernière mise à jour : 2026-08-23
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -94,9 +94,12 @@ Plainva n'est pas obligé de rester dans une seule fenêtre. Ce dont vous avez b
 - **Clic droit sur un onglet → Ouvrir dans une nouvelle fenêtre.** L'onglet quitte cette fenêtre et continue de vivre dans la nouvelle ; aucune copie ne reste derrière.
 - **Clic droit sur Graphe, Tâches, Calendrier ou E-mail dans la barre d'actions** pour le même choix. Cliquez de nouveau sur l'entrée ensuite et Plainva ramène cette fenêtre au premier plan au lieu d'ouvrir la vue une seconde fois.
 - **Palette de commandes → Ouvrir la fenêtre de communication** démarre une fenêtre déjà scindée : les e-mails à gauche, le calendrier à droite.
+- **Palette de commandes → Ouvrir une deuxième fenêtre** ouvre à nouveau toute l'interface — barres latérales, barre d'actions, onglets, barre d'état — sur le même vault. C'est la solution pour un second écran.
 - Pendant que vous **rédigez un message**, l'icône de détachement en fait une fenêtre indépendante — avec tout ce que vous avez déjà tapé.
 
-Une fenêtre secondaire est un Plainva complet : elle porte des **onglets**, peut être **scindée**, et enregistre par la même chaîne que la fenêtre principale. Ce qu'elle ne porte pas : les barres latérales, la barre d'actions et les paramètres — ceux-ci restent dans la fenêtre principale.
+Une fenêtre détachée est un Plainva complet : elle porte des **onglets**, peut être **scindée**, et enregistre par la même chaîne que la fenêtre principale. Ce qu'elle ne porte volontairement pas, ce sont les barres latérales et la barre d'actions — elle est faite pour montrer une seule chose.
+
+Une **deuxième fenêtre**, elle, les porte, et elle affiche le même vault : un Plainva garde un seul vault ouvert, et la deuxième fenêtre suit le premier. Changez ou fermez le vault dans la fenêtre principale, et elle suit aussi. Les paramètres, l'assistant d'import et le sélecteur de vault restent également dans la fenêtre principale — les boutons sont là, et cliquer dessus ramène la fenêtre principale au premier plan et l'ouvre **là-bas**. Tout ce qui concerne votre travail est identique dans les deux : édition, enregistrement, recherche, et l'état de synchronisation dans la barre d'état. La largeur des barres latérales et ce que vous avez replié appartiennent à chaque fenêtre séparément.
 
 **Un contenu n'est jamais ouvert que dans UNE seule fenêtre.** Ouvrez une note qui s'affiche déjà ailleurs et cette fenêtre revient au premier plan. C'est voulu : deux éditeurs sur le même fichier sont le moyen le plus sûr de perdre du travail. La rédaction fait exception — écrire deux messages à la fois est normal.
 

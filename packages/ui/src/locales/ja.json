@@ -3596,6 +3596,7 @@
     "pinOnTop": "常に最前面",
     "unpinOnTop": "最前面を解除",
     "openComms": "コミュニケーションウィンドウを開く",
+    "openSecond": "2 つ目のウィンドウを開く",
     "commsTitle": "コミュニケーション",
     "settingsGroup": "ウィンドウ",
     "restoreWindows": "ウィンドウ配置を復元",

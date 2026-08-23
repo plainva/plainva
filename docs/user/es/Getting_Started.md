@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-08-22
+Última actualización: 2026-08-23
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -94,9 +94,12 @@ Plainva no tiene por qué quedarse en una sola ventana. Lo que necesites ahora m
 - **Clic derecho en una pestaña → Abrir en una ventana nueva.** La pestaña deja esta ventana y sigue viva en la nueva; no queda ninguna copia atrás.
 - **Clic derecho en Grafo, Tareas, Calendario o Correo dentro de la barra de acciones** ofrece la misma opción. Si después vuelves a hacer clic en la entrada, Plainva trae esa ventana al frente en lugar de abrir la vista por segunda vez.
 - **Paleta de comandos → Abrir ventana de comunicación** inicia una ventana ya dividida: correo a la izquierda, calendario a la derecha.
+- **Paleta de comandos → Abrir una segunda ventana** abre de nuevo toda la interfaz — barras laterales, barra de acciones, pestañas, barra de estado — en el mismo vault. Esa es la opción para un segundo monitor.
 - Mientras **redactas un mensaje**, el icono de Abrir en su propia ventana saca la redacción a una ventana propia — con todo lo que ya has escrito.
 
-Una ventana auxiliar es un Plainva completo: tiene **pestañas**, se puede **dividir** y guarda a través de la misma cadena que la ventana principal. Lo que no tiene son las barras laterales, la barra de acciones ni la configuración — eso se queda en la ventana principal.
+Una ventana independiente es un Plainva completo: tiene **pestañas**, se puede **dividir** y guarda a través de la misma cadena que la ventana principal. Lo que deliberadamente no tiene son las barras laterales y la barra de acciones — está pensada para mostrar una sola cosa.
+
+Una **segunda ventana** sí las tiene, y muestra el mismo vault: un Plainva mantiene abierto un vault, y la segunda ventana sigue al primero. Cambia o cierra el vault en la ventana principal y también le sigue allí. La configuración, el asistente de importación y el selector de vault también se quedan en la ventana principal — los botones están ahí, y al pulsar uno traes la ventana principal al frente y la abres **allí**. Todo lo relacionado con tu trabajo es igual en ambas: editar, guardar, buscar y el estado de sincronización en la barra de estado. El ancho de las barras laterales y lo que hayas colapsado pertenecen a cada ventana por separado.
 
 **Un mismo contenido solo está abierto en UNA ventana a la vez.** Si abres una nota que ya se muestra en otro lugar, esa ventana pasa al frente. Esto es intencionado: dos editores sobre el mismo archivo son la forma más segura de perder trabajo. Redactar es la excepción — escribir dos mensajes a la vez es algo normal.
 

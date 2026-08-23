@@ -412,6 +412,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
         "update-indexes": "plainva-update-all-indexes",
         backup: "plainva-backup-now",
         "switch-vault": "plainva-open-vault-switcher",
+        "new-window": "plainva-open-full-window",
       };
       const detail = surface === "settings" ? { provider, area } : undefined;
       window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));

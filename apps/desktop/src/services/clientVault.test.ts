@@ -73,6 +73,13 @@ const OWNER_ONLY = [
   "startReminderScheduler",
   "recoverOkfConversion",
   "createTokenBroker",
+  // Stage C: the owner side of the window bus. A client INSTALLING it would
+  // answer requests meant for the window that owns the services — including
+  // its own — and announce a vault it does not decide.
+  "installOwnerBus",
+  "installSyncStatusMirror",
+  "announceVaultChanged",
+  "noteVaultChanged",
 ] as const;
 
 describe("client-mode vault (auxiliary windows)", () => {

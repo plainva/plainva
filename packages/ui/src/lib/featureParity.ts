@@ -354,7 +354,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "multi-window",
-    title: "Open notes, databases and views in separate OS windows",
+    title: "Open notes, databases and views in separate OS windows, or a second full one",
     area: "platform",
     kind: "decision",
     desktop: "yes",
@@ -365,7 +365,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "to build. The need behind it — looking at two things at once — is answered " +
       "there by pushed screens, the context sheet and, on tablets, the adaptive " +
       "two-column layout. Permanent by platform, not a backlog item.",
-    verified: "2026-08-22",
+    verified: "2026-08-23",
   },
   {
     id: "share-target",

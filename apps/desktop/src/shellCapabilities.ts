@@ -58,7 +58,7 @@ export interface ShellCapabilities {
    * them differs, and the shell decides that in ONE place rather than at each
    * of the three entry points these runs have (ribbon, palette, tree, settings).
    */
-  deferToOwner?: (run: "update-indexes" | "backup" | "switch-vault") => void;
+  deferToOwner?: (run: "update-indexes" | "backup" | "switch-vault" | "new-window") => void;
   /** Leaves the current vault. Absent in a client: a client follows the owner (E7). */
   closeVault?: () => void;
   /** Opens another known vault. Absent in a client for the same reason (E7). */

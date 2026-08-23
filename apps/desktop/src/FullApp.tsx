@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { EmptyState } from "@plainva/ui";
 import { AppShell } from "./AppShell";
 import { useVault } from "./contexts/VaultContext";
-import { getWindowBus } from "./services/windowBus";
+import { getWindowBus, type OwnerSurface } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { currentWindowParams } from "./services/windowContext";
 import type { ShellCapabilities } from "./shellCapabilities";
@@ -39,7 +39,7 @@ export function FullApp() {
 
   const openOwnerSurface = useCallback(
     (
-      surface: "settings" | "import" | "sync-error" | "update-indexes" | "backup" | "switch-vault",
+      surface: OwnerSurface,
       opts?: { provider?: string; area?: string },
     ) => {
       void (async () => {

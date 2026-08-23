@@ -55,6 +55,12 @@ export interface CommandDeps {
    * phone has one screen, and the mobile shell simply never passes it.
    */
   openCommsWindow?: () => void;
+  /**
+   * Opens a second full window: the same shell again, on another monitor
+   * (multi-window stage C). Desktop only, like the one above — and it is the
+   * only way in, so a missing entry here means the stage is unreachable.
+   */
+  openSecondWindow?: () => void;
   /** Mail-raus (stage 6): active-note actions, gated like print/export. */
   copyNoteAsEmail?: () => void;
   sendNoteViaMailto?: () => void;
@@ -131,6 +137,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),
+    need(d.openSecondWindow, (run) => ({ id: "open-second-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openSecond", titleDefault: "Zweites Fenster öffnen", run })),
     need(d.copyNoteAsEmail, (run) => ({ id: "mail-copy-html", group: "note", icon: Mail, titleKey: "mail.copyAsEmail", titleDefault: "Notiz als E-Mail-Text kopieren", run, isAvailable: note })),
     need(d.sendNoteViaMailto, (run) => ({ id: "mail-mailto", group: "note", icon: Mail, titleKey: "mail.sendViaMailto", titleDefault: "Notiz per E-Mail senden (mailto)", run, isAvailable: note })),
     need(d.saveNoteAsMailDraft, (run) => ({ id: "mail-draft", group: "note", icon: Mail, titleKey: "mail.saveDraft", titleDefault: "Notiz als E-Mail-Entwurf ins Postfach", run, isAvailable: note })),

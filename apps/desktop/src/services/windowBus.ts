@@ -176,7 +176,14 @@ export interface RpcMap {
    */
   "owner-surface": {
     args: {
-      surface: "settings" | "import" | "sync-error" | "update-indexes" | "backup" | "switch-vault";
+      surface:
+      | "settings"
+      | "import"
+      | "sync-error"
+      | "update-indexes"
+      | "backup"
+      | "switch-vault"
+      | "new-window";
       provider?: string;
       area?: string;
     };
@@ -264,6 +271,13 @@ const EV_RPC_REPLY = "pv:rpc-reply";
 
 /** How long an aux window waits for the owner before it reports a failure. */
 export const RPC_TIMEOUT_MS = 15_000;
+
+/**
+ * The owner-only surfaces, derived from the contract above rather than written
+ * out a second time: a client window listing them by hand is how a value gets
+ * added on one side and silently ignored on the other.
+ */
+export type OwnerSurface = RpcMap["owner-surface"]["args"]["surface"];
 
 interface BroadcastEnvelope {
   from: string;

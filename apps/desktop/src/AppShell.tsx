@@ -11,7 +11,7 @@ const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").th
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
 const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
-import { SyncSwitcherIcon } from "./components/SyncSwitcherIcon";
+import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
 import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, parseBookmarksFile, rememberSearch, removeBookmarksOnDisk, SearchField, serializeBookmarksFile, toggleBookmarkOnDisk, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
@@ -58,7 +58,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Settings, Folder, ChevronUp, Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
+import { Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
@@ -66,6 +66,7 @@ import { popOutCompose } from "./services/mail/composeWindow";
 import {
   openOrFocusContent,
   openPresetWindow,
+  openFullWindow,
 } from "./services/windowManager";
 import { currentWindowParams, windowStateKey } from "./services/windowContext";
 import "./App.css";
@@ -179,7 +180,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // A client window follows the owner's vault (plan E7): it shows WHICH vault it
   // is looking at, but the switcher that would change it for the whole process
   // is not offered there at all.
-  const canSwitchVault = !!capabilities.closeVault;
   const [leftSidebarTab, setLeftSidebarTab] = useState<"files" | "tags" | "databases">("files");
   // Whether any tree folder is expanded — drives the collapse/expand-all
   // toggle in the sidebar tab row (E3 2026-07-09; reported by the FileTree).
@@ -435,6 +435,31 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     })();
   });
 
+  /**
+   * A second full window: the same shell again, on another monitor (stage C).
+   *
+   * Not deduplicated, unlike content: a window is a WORKPLACE, and having two
+   * of them is the point. What stays deduplicated is what they SHOW.
+   */
+  const openSecondWindow = useStableHandler(() => {
+    if (!vaultPath) return;
+    void (async () => {
+      try {
+        await openFullWindow({ vaultPath });
+      } catch (e: any) {
+        toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
+      }
+    })();
+  });
+
+  // Asked for from another window (the client has no permission to create one).
+  useEffect(() => {
+    if (capabilities.deferToOwner) return;
+    const onOpen = () => openSecondWindow();
+    window.addEventListener("plainva-open-full-window", onOpen);
+    return () => window.removeEventListener("plainva-open-full-window", onOpen);
+  }, [capabilities, openSecondWindow]);
+
   const reopenClosedTab = useStableHandler(() => {
     const path = closedTabsRef.current.pop();
     setClosedTabCount(closedTabsRef.current.length);
@@ -628,11 +653,17 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     if (!defer) return;
     const onIndexes = () => defer("update-indexes");
     const onBackup = () => defer("backup");
+    // Opening a window is one of them: the client capability deliberately does
+    // not carry `create-webview-window` — only the central window opens windows
+    // (P0), so from here the command asks it to.
+    const onNewWindow = () => defer("new-window");
     window.addEventListener("plainva-update-all-indexes", onIndexes);
     window.addEventListener("plainva-backup-now", onBackup);
+    window.addEventListener("plainva-open-full-window", onNewWindow);
     return () => {
       window.removeEventListener("plainva-update-all-indexes", onIndexes);
       window.removeEventListener("plainva-backup-now", onBackup);
+      window.removeEventListener("plainva-open-full-window", onNewWindow);
     };
   }, [capabilities]);
 
@@ -1303,58 +1334,18 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           )}
         </div>
         <div style={{ padding: '0.5rem', borderTop: '1px solid var(--border-color-light)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {/* Vault Switcher */}
-          <div style={{ position: "relative", width: "100%", marginTop: "auto" }}>
-            {showVaultMenu && canSwitchVault && (
-              <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: "var(--z-menu)" }}>
-                <div className="pv-menu-label">{t("sidebar.recentVaults")}</div>
-                {(capabilities.recentVaults ?? []).filter(p => p !== vaultPath).slice(0, 5).map(path => (
-                  <button
-                    key={path}
-                    onClick={() => { setShowVaultMenu(false); capabilities.openVault?.(path); }}
-                    className="pv-menu-item"
-                  >
-                    <Folder size={ICON.ui} color="var(--accent-color)" />
-                    <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
-                  </button>
-                ))}
-                <button
-                  onClick={() => { setShowVaultMenu(false); capabilities.closeVault?.(); }}
-                  className="pv-menu-item"
-                >
-                  <Settings size={ICON.ui} />
-                  <span className="pv-menu-text">{t("sidebar.switchVault")}</span>
-                </button>
-              </div>
-            )}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              width: '100%', padding: '0.75rem 0.5rem', background: showVaultMenu ? 'var(--bg-hover)' : 'transparent'
-            }}>
-              <button
-                onClick={canSwitchVault ? () => setShowVaultMenu(!showVaultMenu) : undefined}
-                aria-expanded={canSwitchVault ? showVaultMenu : undefined}
-                aria-haspopup={canSwitchVault ? "true" : undefined}
-                disabled={!canSwitchVault}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden',
-                  background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', flex: 1, textAlign: 'left'
-                }}
-              >
-                {syncWorker ? (
-                  <SyncSwitcherIcon syncWorker={syncWorker} onError={capabilities.openSyncError} />
-                ) : (
-                  <Folder size={ICON.ui} color="var(--accent-color)" />
-                )}
-                <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {vaultPath?.split(/[/\\]/).pop()}
-                </span>
-                {canSwitchVault && (
-                  <ChevronUp size={ICON.ui} style={{ transform: showVaultMenu ? 'rotate(180deg)' : 'none', transition: 'transform var(--dur-2) var(--ease-1)', marginLeft: 'auto', flexShrink: 0 }} />
-                )}
-              </button>
-            </div>
-          </div>
+          {/* The one sidebar surface that differs between windows (C6). */}
+          <VaultSwitcher
+            vaultPath={vaultPath}
+            syncWorker={syncWorker}
+            recentVaults={capabilities.recentVaults}
+            openVault={capabilities.openVault}
+            closeVault={capabilities.closeVault}
+            deferToOwner={capabilities.deferToOwner ? () => capabilities.deferToOwner?.("switch-vault") : undefined}
+            onSyncError={capabilities.openSyncError}
+            open={showVaultMenu}
+            onOpenChange={setShowVaultMenu}
+          />
         </div>
       </aside>
       )}
@@ -1586,6 +1577,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openCalendar: () => openView(CALENDAR_TAB_PATH),
             openMail: () => openView(MAIL_TAB_PATH),
             openCommsWindow: vaultPath ? openCommsWindow : undefined,
+            // Dispatched rather than called, so a client window travels the
+            // listener above instead of needing a capability it does not have.
+            openSecondWindow: vaultPath
+              ? () => window.dispatchEvent(new CustomEvent("plainva-open-full-window"))
+              : undefined,
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),

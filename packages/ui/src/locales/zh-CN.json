@@ -3596,6 +3596,7 @@
     "pinOnTop": "始终置顶",
     "unpinOnTop": "取消置顶",
     "openComms": "打开通讯窗口",
+    "openSecond": "打开第二个窗口",
     "commsTitle": "通讯",
     "settingsGroup": "窗口",
     "restoreWindows": "恢复窗口布局",
