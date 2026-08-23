@@ -44,6 +44,21 @@ export interface ShellCapabilities {
    * somebody is typing in.
    */
   routeOpen?: (path: string, openHere: () => void, opts?: { newWindow?: boolean }) => boolean;
+  /**
+   * A run that touches the whole vault (multi-window C2): the index.md sweep,
+   * the manual backup, the vault switcher.
+   *
+   * Present ONLY in a client, where it brings the central window forward and
+   * lets it run there. The reason is not that a client could not write — every
+   * write already travels the bus — but that these runs belong to the window
+   * that holds the indexer and the schedulers, and watching a thousand files
+   * change through a request queue is the slow way to do it.
+   *
+   * The buttons stay where they are in both windows; only what happens behind
+   * them differs, and the shell decides that in ONE place rather than at each
+   * of the three entry points these runs have (ribbon, palette, tree, settings).
+   */
+  deferToOwner?: (run: "update-indexes" | "backup" | "switch-vault") => void;
   /** Leaves the current vault. Absent in a client: a client follows the owner (E7). */
   closeVault?: () => void;
   /** Opens another known vault. Absent in a client for the same reason (E7). */

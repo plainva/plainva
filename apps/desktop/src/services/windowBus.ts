@@ -55,8 +55,21 @@ export interface BroadcastMap {
    * pinboard `.base` in another window would keep showing the old card text.
    */
   "note-saved": { path: string };
-  /** Mirrors the owner's sync status so aux windows can show it. */
-  "sync-status": { status: string; message?: string | null };
+  /**
+   * The owner's sync status, mirrored into every other window (C3).
+   *
+   * Carries the fields the status bar actually draws: without `provider` a
+   * client cannot tell "no sync configured" from "sync running elsewhere", and
+   * it would honestly but wrongly say "local" for a synced vault.
+   */
+  "sync-status": {
+    status: string;
+    message?: string | null;
+    provider?: string | null;
+    retryAt?: number | null;
+    /** Mirrors core's SyncProgress verbatim — see services/syncStatusStore.ts. */
+    progress?: { phase: "pull" | "push"; current: number; total: number } | null;
+  };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
@@ -146,11 +159,20 @@ export interface RpcMap {
    * credentials or write across the whole vault, so they exist in exactly one
    * window. A full second window keeps the buttons that lead to them — a
    * greyed-out gear explains nothing — and this request brings the central
-   * window forward and opens the surface THERE. One request rather than three:
-   * the ask is always the same shape, only the surface differs.
+   * window forward and opens the surface THERE. One request rather than six:
+   * the ask is always the same shape, only the target differs.
+   *
+   * The last three are runs rather than dialogs — the index.md sweep, the
+   * manual backup, the vault switcher — and they belong here for the same
+   * reason (multi-window C2): they touch the whole vault, and the window that
+   * owns the schedulers and the indexer is the one that should be doing it.
    */
   "owner-surface": {
-    args: { surface: "settings" | "import" | "sync-error"; provider?: string; area?: string };
+    args: {
+      surface: "settings" | "import" | "sync-error" | "update-indexes" | "backup" | "switch-vault";
+      provider?: string;
+      area?: string;
+    };
     result: void;
   };
   /**
@@ -208,6 +230,23 @@ export interface RpcMap {
    * asking again.
    */
   reindex: { args: { scope: "refresh" | "rebuild" }; result: void };
+  /**
+   * Ask the central window to sync now, or to retry what failed (C3).
+   *
+   * There is exactly one sync worker per vault, in the owner — that is what the
+   * whole July 2026 hardening assumes. A client therefore SHOWS the status and
+   * asks for the two things a user can trigger from the status bar; the result
+   * comes back as the usual `sync-status` broadcast rather than as a return
+   * value, because the run outlives the request.
+   */
+  /**
+   * Sync control from another window (C3). "now"/"retry" are the two buttons
+   * the status bar offers; "note-deletions" is not a button at all — it is the
+   * record that a HUMAN asked for these deletions, which is what keeps the
+   * owner's mass-deletion guard from stopping the cycle and asking the central
+   * window about a folder somebody deleted in this one.
+   */
+  "sync-control": { args: { what: "now" | "retry" | "note-deletions"; paths?: string[] }; result: void };
 }
 
 export type RpcKind = keyof RpcMap;

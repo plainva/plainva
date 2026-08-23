@@ -20,6 +20,9 @@ import type { ShellCapabilities } from "./shellCapabilities";
  * - **Settings, import, the sync-error dialog** — they start services and bind
  *   credentials. The buttons stay (a greyed-out gear explains nothing); they
  *   bring the central window forward and open the surface there.
+ * - **Runs across the whole vault** — the index.md sweep, the manual backup —
+ *   same treatment, for a different reason: they belong to the window that
+ *   holds the indexer and the schedulers (C2).
  * - **Switching the vault** — one process, one open vault (plan E7). The
  *   switcher still NAMES the vault this window is looking at; it just does not
  *   offer to change it for everyone else.
@@ -30,7 +33,10 @@ export function FullApp() {
   const label = currentWindowParams().label;
 
   const openOwnerSurface = useCallback(
-    (surface: "settings" | "import" | "sync-error", opts?: { provider?: string; area?: string }) => {
+    (
+      surface: "settings" | "import" | "sync-error" | "update-indexes" | "backup" | "switch-vault",
+      opts?: { provider?: string; area?: string },
+    ) => {
       void (async () => {
         try {
           const bus = await getWindowBus();
@@ -76,6 +82,7 @@ export function FullApp() {
     openImport: () => openOwnerSurface("import"),
     reportOpenContents,
     routeOpen: (path, openHere, opts) => routeOpenThroughOwner(path, openHere, { from: label, ...opts }),
+    deferToOwner: (run) => openOwnerSurface(run),
     // Deliberately absent: closeVault, openVault, recentVaults — see the note
     // above (plan E7).
   }), [openOwnerSurface, reportOpenContents, label]);

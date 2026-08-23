@@ -608,9 +608,42 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vaultAdapter, queryService, vaultPath]);
 
+  /**
+   * The vault-wide runs, handed to the central window when this is not it
+   * (multi-window C2).
+   *
+   * They are gated HERE rather than at each button because they have four
+   * entry points between them — ribbon, palette, tree context menu, settings —
+   * and all of them already travel as an event. One listener therefore covers
+   * every present and future dispatcher; `plainva-backup-now` gets a listener
+   * only in a client, because in the central window the scheduler owns it.
+   */
+  useEffect(() => {
+    const defer = capabilities.deferToOwner;
+    if (!defer) return;
+    const onIndexes = () => defer("update-indexes");
+    const onBackup = () => defer("backup");
+    window.addEventListener("plainva-update-all-indexes", onIndexes);
+    window.addEventListener("plainva-backup-now", onBackup);
+    return () => {
+      window.removeEventListener("plainva-update-all-indexes", onIndexes);
+      window.removeEventListener("plainva-backup-now", onBackup);
+    };
+  }, [capabilities]);
+
+  // The vault switcher, asked for from another window: it lives in this
+  // window's sidebar, so the request only has to open it.
+  useEffect(() => {
+    if (capabilities.deferToOwner) return;
+    const onSwitch = () => setShowVaultMenu(true);
+    window.addEventListener("plainva-open-vault-switcher", onSwitch);
+    return () => window.removeEventListener("plainva-open-vault-switcher", onSwitch);
+  }, [capabilities]);
+
   // "Alle index.md aktualisieren" (root context menu + settings, P11).
   useEffect(() => {
     if (!vaultAdapter || !queryService) return;
+    if (capabilities.deferToOwner) return; // handed over above
     const onUpdateAll = () => {
       void (async () => {
         try {
@@ -635,7 +668,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     window.addEventListener("plainva-update-all-indexes", onUpdateAll);
     return () => window.removeEventListener("plainva-update-all-indexes", onUpdateAll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vaultAdapter, queryService, vaultPath, indexer]);
+  }, [vaultAdapter, queryService, vaultPath, indexer, capabilities]);
 
   const handleDeleteFile = async (path: string) => {
     if (!vaultAdapter) return;
@@ -1569,7 +1602,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
             refreshVault: () => { void refreshVault(); },
             rebuildIndex: () => { void rebuildIndex(); },
-            switchVault: () => capabilities.closeVault?.(),
+            switchVault: () => (capabilities.deferToOwner ? capabilities.deferToOwner("switch-vault") : capabilities.closeVault?.()),
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
             hasActiveNote: () => activeDocument.get().kind === "markdown",
             exportActiveMarkdown: () => {

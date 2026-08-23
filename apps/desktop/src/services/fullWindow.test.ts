@@ -22,6 +22,8 @@ import { parseWindowParams, buildWindowQuery, isOwnerWindow, resetWindowParamsFo
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const SRC = join(HERE, "..");
+const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 const CAPS = join(HERE, "..", "..", "src-tauri", "capabilities");
 const clientCaps = JSON.parse(readFileSync(join(CAPS, "auxiliary-window.json"), "utf8"));
 const ownerCaps = JSON.parse(readFileSync(join(CAPS, "default.json"), "utf8"));
@@ -61,5 +63,60 @@ describe("full second window", () => {
       // second window the updater, the watcher and every write permission.
       expect(pattern).toBe("main");
     }
+  });
+});
+
+/**
+ * What the second window does NOT do itself (stage C2).
+ *
+ * The claim is not "the buttons are gone" — they are not, deliberately: a
+ * greyed-out gear explains nothing. It is that the shell decides in ONE place
+ * what happens behind them, so a fourth entry point for the same run cannot
+ * quietly bypass it.
+ */
+describe("runs that stay with the central window", () => {
+  it("hands the vault-wide runs over from the client shell", () => {
+    const shell = read("AppShell.tsx");
+    // Both events, one listener block: index.md sweep and manual backup.
+    expect(shell).toContain('defer("update-indexes")');
+    expect(shell).toContain('defer("backup")');
+    // …and the local run is switched off in the same window, otherwise it
+    // would happen twice.
+    expect(shell).toContain("if (capabilities.deferToOwner) return; // handed over above");
+  });
+
+  it("does not leave the vault switcher as a dead command", () => {
+    // The palette entry existed before this stage and called a capability the
+    // client does not have — a command that silently does nothing.
+    expect(read("AppShell.tsx")).toContain('capabilities.deferToOwner("switch-vault")');
+  });
+
+  it("is the client that defers, never the central window", () => {
+    // If the owner ever carried `deferToOwner` it would ask ITSELF and the run
+    // would never happen.
+    expect(read("FullApp.tsx")).toContain("deferToOwner:");
+    expect(read("App.tsx")).not.toContain("deferToOwner:");
+  });
+});
+
+/**
+ * What the second window shows about the sync (stage C3).
+ *
+ * A client has no worker of its own — there is one per vault, in the central
+ * window. The mistake worth pinning is the shape of the ABSENCE: a null worker
+ * does not read as "ask somebody else", it reads through the whole shell as
+ * "this vault does not sync", and the status bar then says LOCAL for a vault
+ * that syncs.
+ */
+describe("sync as a client window shows it", () => {
+  it("gives a client window a sync worker rather than none", () => {
+    const ctx = read("contexts/VaultContext.tsx");
+    expect(ctx).toContain("syncWorker: createClientSyncWorker()");
+  });
+
+  it("takes the status from the owner instead of inventing one", () => {
+    // Without the mirror the store in this window never leaves "idle".
+    expect(read("contexts/VaultContext.tsx")).toContain('bus.onBroadcast("sync-status"');
+    expect(read("services/ownerBus.ts")).toContain("installSyncStatusMirror");
   });
 });

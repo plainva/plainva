@@ -7,7 +7,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
-import { syncStatusStore } from "../services/syncStatusStore";
+import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
@@ -21,7 +21,8 @@ import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, comp
 import { startBackupScheduler } from "../services/backupScheduler";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus } from "../services/ownerBus";
+import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -1238,6 +1239,14 @@ export const VaultProvider: React.FC<{
       // because it still held yesterday's sync worker.
       refreshVault: () => vaultOpsRef.current.refreshVault(),
       rebuildIndex: () => vaultOpsRef.current.rebuildIndex(),
+      // Same reason, one step further: the worker is created AFTER the vault
+      // has loaded, so a captured one would always be the null it was at
+      // install time — and "sync now" from another window would do nothing.
+      syncWorker: {
+        triggerImmediate: () => vaultOpsRef.current.syncWorker?.triggerImmediate(),
+        retryFailed: () => vaultOpsRef.current.syncWorker?.retryFailed(),
+        noteUserInitiatedDeletion: (paths) => vaultOpsRef.current.syncWorker?.noteUserInitiatedDeletion(paths),
+      },
     })
       .then((off) => {
         if (cancelled) off();
@@ -1250,6 +1259,14 @@ export const VaultProvider: React.FC<{
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
+
+  // Owner: every status the sync worker reaches goes out to the other windows
+  // (C3). Independent of the vault, because the store is reset on a switch and
+  // that reset is itself worth mirroring.
+  useEffect(() => {
+    if (isClient) return;
+    return installSyncStatusMirror();
+  }, [isClient]);
 
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
@@ -1272,6 +1289,22 @@ export const VaultProvider: React.FC<{
         offs.push(
           await bus.onBroadcast("note-saved", ({ path }) => {
             window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+          }),
+        );
+        // There is one sync worker, in the owner. This window has no way to
+        // observe it, so without the mirror its status bar would say "local"
+        // for a vault that syncs — honest-looking and wrong (C3).
+        offs.push(
+          await bus.onBroadcast("sync-status", (s) => {
+            syncStatusStore.set({
+              status: s.status as SyncStatusSnapshot["status"],
+              message: s.message ?? null,
+              provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
+              // `retryAt` is optional, not nullable: null would type-error and
+              // read as "a retry at epoch zero" in the status bar.
+              retryAt: s.retryAt ?? undefined,
+              progress: s.progress ?? null,
+            });
           }),
         );
         // The watcher lives in the owner. Without this an auxiliary window would
@@ -1320,6 +1353,10 @@ export const VaultProvider: React.FC<{
         // database connection; only the provider round trips travel to the owner
         // (one refresh token per account since stage B).
         pimRuntime: createClientPimRuntime(services.dbAdapter),
+        // Not null either, and for a sharper reason than the indexer: null
+        // would make this window claim the vault does not sync at all. See
+        // services/clientSyncWorker.ts.
+        syncWorker: createClientSyncWorker(),
         isLoading: false,
         error: null,
       }));
@@ -1762,9 +1799,13 @@ export const VaultProvider: React.FC<{
 
   // Kept current for the owner bus (C1). Written in an effect, never during
   // render, so the value the handler reads is the one the last render produced.
-  const vaultOpsRef = useRef({ refreshVault, rebuildIndex });
+  const vaultOpsRef = useRef<{
+    refreshVault: typeof refreshVault;
+    rebuildIndex: typeof rebuildIndex;
+    syncWorker: VaultSyncWorker | null;
+  }>({ refreshVault, rebuildIndex, syncWorker: null });
   useEffect(() => {
-    vaultOpsRef.current = { refreshVault, rebuildIndex };
+    vaultOpsRef.current = { refreshVault, rebuildIndex, syncWorker: state.syncWorker };
   });
 
   const removeRecentVault = async (path: string) => {
