@@ -67,7 +67,7 @@ import {
   openOrFocusContent,
   openPresetWindow,
 } from "./services/windowManager";
-import { currentWindowParams } from "./services/windowContext";
+import { currentWindowParams, windowStateKey } from "./services/windowContext";
 import "./App.css";
 
 /**
@@ -217,8 +217,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const SIDEBAR_MIN_LEFT = 150;
   const SIDEBAR_MIN_RIGHT = 200;
   const SIDEBAR_MAX = 600;
+  // Sidebar geometry is WINDOW state, not vault state: each window keeps its
+  // own (multi-window C4, § 5.5), the central one keeps the unscoped key.
   const readSidebarWidth = (key: string, min: number) => {
-    const v = Number(localStorage.getItem(key));
+    const v = Number(localStorage.getItem(windowStateKey(key)));
     // A width stored below the new floor is lifted rather than discarded.
     return v >= min && v <= SIDEBAR_MAX ? v : Math.max(min, 250);
   };
@@ -230,15 +232,18 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const { step: leftStep, ref: leftAsideRef } = useSidebarStep();
   // Collapsible sidebars (plan Designsprache P6/L1): toggled via title-bar
   // buttons and Mod+Alt+B / Mod+Alt+R (Mod+B stays bold in the editor).
-  const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem("plainva-left-sidebar-collapsed") === "1");
+  const [leftCollapsed, setLeftCollapsed] = useState(() => localStorage.getItem(windowStateKey("plainva-left-sidebar-collapsed")) === "1");
   const [rightCollapsed, setRightCollapsed] = useState(() => {
-    const global = localStorage.getItem("plainva-right-sidebar-collapsed");
+    const global = localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed"));
     if (global !== null) return global === "1";
     // One-time migration from the former per-view model: the note/editor
     // preference is the only one with meaningful contextual content.
+    // The legacy key is the central window's alone — a second window did not
+    // exist when it was written, and reading it here would seed every new
+    // window from a preference somebody set years ago in another one.
     const legacyEditor = localStorage.getItem("plainva-right-collapsed-editor");
     if (legacyEditor !== null) {
-      localStorage.setItem("plainva-right-sidebar-collapsed", legacyEditor);
+      localStorage.setItem(windowStateKey("plainva-right-sidebar-collapsed"), legacyEditor);
       return legacyEditor === "1";
     }
     return false;
@@ -250,7 +255,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
   const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail"): boolean => {
     if (kind !== "editor") return true;
-    return localStorage.getItem("plainva-right-sidebar-collapsed") === "1";
+    return localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed")) === "1";
   };
   // Focus mode (P7.4): one command collapses BOTH sidebars; invoking it again
   // restores the layout from before. Transient — nothing is persisted.
@@ -306,7 +311,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const toggleRightSidebar = useCallback(() => {
     setRightCollapsed((c) => {
       const next = !c;
-      if (activeTabKind === "editor") localStorage.setItem("plainva-right-sidebar-collapsed", next ? "1" : "0");
+      if (activeTabKind === "editor") localStorage.setItem(windowStateKey("plainva-right-sidebar-collapsed"), next ? "1" : "0");
       return next;
     });
   }, [activeTabKind]);
@@ -961,9 +966,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   }, [openInNewWindow, openInFocusedPane]);
 
   // Persist user-chosen sidebar widths.
-  useEffect(() => { localStorage.setItem("plainva-left-sidebar-width", String(leftSidebarWidth)); }, [leftSidebarWidth]);
-  useEffect(() => { localStorage.setItem("plainva-right-sidebar-width", String(rightSidebarWidth)); }, [rightSidebarWidth]);
-  useEffect(() => { localStorage.setItem("plainva-left-sidebar-collapsed", leftCollapsed ? "1" : "0"); }, [leftCollapsed]);
+  useEffect(() => { localStorage.setItem(windowStateKey("plainva-left-sidebar-width"), String(leftSidebarWidth)); }, [leftSidebarWidth]);
+  useEffect(() => { localStorage.setItem(windowStateKey("plainva-right-sidebar-width"), String(rightSidebarWidth)); }, [rightSidebarWidth]);
+  useEffect(() => { localStorage.setItem(windowStateKey("plainva-left-sidebar-collapsed"), leftCollapsed ? "1" : "0"); }, [leftCollapsed]);
 
   // Drag-to-resize for the left/right sidebars (clamped to SIDEBAR_MIN..MAX).
   const startSidebarResize = (side: "left" | "right") => (e: ReactMouseEvent) => {

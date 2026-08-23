@@ -586,6 +586,46 @@ describe("window identity across restarts (finding 2026-08-23)", () => {
   });
 });
 
+describe("what a window leaves behind (multi-window C4)", () => {
+  it("drops the sidebar state of an earlier window with the same name", async () => {
+    // Same finding as the tabs above, one surface further: a full window keeps
+    // its own sidebar widths and collapsed state, and a fresh window under a
+    // recycled name would come up wearing them.
+    window.localStorage.setItem("plainva-w-aux-1-plainva-left-sidebar-width", "480");
+    window.localStorage.setItem("plainva-w-aux-1-plainva-right-panel-open-outline", "true");
+    window.localStorage.setItem(`plainva-expanded-${VAULT}-aux-1`, JSON.stringify(["Projects"]));
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Wanted.md" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-1-plainva-left-sidebar-width")).toBeNull();
+    expect(window.localStorage.getItem("plainva-w-aux-1-plainva-right-panel-open-outline")).toBeNull();
+    expect(window.localStorage.getItem(`plainva-expanded-${VAULT}-aux-1`)).toBeNull();
+  });
+
+  it("touches no other window and no other vault", async () => {
+    window.localStorage.setItem("plainva-w-aux-2-plainva-left-sidebar-width", "300");
+    window.localStorage.setItem("plainva-left-sidebar-width", "260");
+    // The reason the label LEADS these keys: with a trailing label, this one —
+    // a second vault whose folder happens to be named like a window — would be
+    // swept away by opening `aux-1`.
+    window.localStorage.setItem("plainva-expanded-D:/notes/aux-1", JSON.stringify(["Inbox"]));
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Wanted.md" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-2-plainva-left-sidebar-width")).toBe("300");
+    expect(window.localStorage.getItem("plainva-left-sidebar-width"), "the central window's own state").toBe("260");
+    expect(window.localStorage.getItem("plainva-expanded-D:/notes/aux-1")).not.toBeNull();
+  });
+
+  it("leaves it alone when the window is restored", async () => {
+    window.localStorage.setItem("plainva-w-aux-7-plainva-left-sidebar-width", "420");
+
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Kept.md", label: "aux-7" });
+
+    expect(window.localStorage.getItem("plainva-w-aux-7-plainva-left-sidebar-width")).toBe("420");
+  });
+});
+
 describe("views may exist more than once (maintainer decision 2026-08-23)", () => {
   it("opens a second window for a view that is already in one", async () => {
     const first = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "plainva://calendar" });

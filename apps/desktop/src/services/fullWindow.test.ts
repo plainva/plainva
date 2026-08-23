@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseWindowParams, buildWindowQuery, isOwnerWindow, resetWindowParamsForTest } from "./windowContext";
+import { parseWindowParams, buildWindowQuery, isOwnerWindow, resetWindowParamsForTest, windowStateKey, windowStatePrefix } from "./windowContext";
 
 /**
  * The full second window (stage C).
@@ -118,5 +118,42 @@ describe("sync as a client window shows it", () => {
     // Without the mirror the store in this window never leaves "idle".
     expect(read("contexts/VaultContext.tsx")).toContain('bus.onBroadcast("sync-status"');
     expect(read("services/ownerBus.ts")).toContain("installSyncStatusMirror");
+  });
+});
+
+/**
+ * What each window keeps to itself (stage C4, § 5.5).
+ *
+ * A second window exists in order to show something else. Sidebar widths, what
+ * is collapsed and which context sections are open therefore belong to the
+ * window, not to the app — while the central window keeps the keys it has
+ * always had, so nobody's settings move on update.
+ */
+describe("window state", () => {
+  it("scopes a client's key and leaves the central window's alone", () => {
+    resetWindowParamsForTest();
+    // An ordinary launch has no query at all: unscoped, byte for byte.
+    expect(windowStateKey("plainva-left-sidebar-width")).toBe("plainva-left-sidebar-width");
+
+    resetWindowParamsForTest("?win=full&vault=/v&label=full-1");
+    expect(windowStateKey("plainva-left-sidebar-width")).toBe(windowStatePrefix("full-1") + "plainva-left-sidebar-width");
+    resetWindowParamsForTest();
+  });
+
+  it("keeps the shell off the raw keys", () => {
+    // The failure mode is silent and one-directional: a call site that writes
+    // the unscoped key from a second window changes the CENTRAL window's
+    // sidebar, and only that window's user notices.
+    const shell = read("AppShell.tsx");
+    for (const key of [
+      "plainva-left-sidebar-width",
+      "plainva-right-sidebar-width",
+      "plainva-left-sidebar-collapsed",
+      "plainva-right-sidebar-collapsed",
+    ]) {
+      expect(shell, `${key} must go through windowStateKey`).not.toContain(`localStorage.getItem("${key}")`);
+      expect(shell, `${key} must go through windowStateKey`).not.toContain(`localStorage.setItem("${key}"`);
+    }
+    expect(read("components/RightSidebar.tsx")).toContain("windowStateKey(");
   });
 });

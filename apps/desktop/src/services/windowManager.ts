@@ -1,4 +1,4 @@
-import { buildWindowQuery, type WindowPreset, type WindowRole } from "./windowContext";
+import { buildWindowQuery, windowStatePrefix, type WindowPreset, type WindowRole } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
@@ -144,16 +144,33 @@ export function findWindowForContent(vaultPath: string, content: string): AuxWin
 }
 
 /**
- * Drops the stored panes/tabs of one window (see `openAuxWindow`).
+ * Drops everything one window left behind (see `openAuxWindow`).
  *
- * The key mirrors `layoutKey` in usePaneLayout, which is deliberately not
- * exported: the layout hook owns the shape, this only needs to be able to
+ * Two shapes, because window state comes in two flavours: keys that carry the
+ * vault (panes/tabs, the tree's expanded folders) and keys that do not (sidebar
+ * geometry, which context sections are open — multi-window C4). Both end in
+ * `-<label>`, so both would otherwise be inherited by the next window that gets
+ * this name: a fresh window would come up with a stranger's collapsed sidebar
+ * and half-open panels, which is the same finding the tabs had, one surface
+ * further.
+ *
+ * The layout key mirrors `layoutKey` in usePaneLayout, which is deliberately
+ * not exported: the layout hook owns the shape, this only needs to be able to
  * clear it. A test pins the two together.
  */
 export function forgetWindowLayout(vaultPath: string, label: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(`plainva-layout-${vaultPath}-${label}`);
+    window.localStorage.removeItem(`plainva-expanded-${vaultPath}-${label}`);
+    // Prefix sweep rather than a list: window state grows with the shell, and a
+    // list is the thing that goes stale silently. See `windowStatePrefix` for
+    // why the label leads the key instead of ending it.
+    const prefix = windowStatePrefix(label);
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(prefix)) window.localStorage.removeItem(key);
+    }
   } catch {
     /* quota/private mode: a stale layout is not worth failing an open for */
   }

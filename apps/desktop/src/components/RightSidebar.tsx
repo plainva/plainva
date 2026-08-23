@@ -10,6 +10,7 @@ import { GraphContextSection } from "./graph/GraphContextSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
+import { windowStateKey } from "../services/windowContext";
 import {
   ICON,
   EMPTY_NOTE_DATABASE_CONTEXT,
@@ -52,7 +53,10 @@ function frontmatterKeyCount(content: string): number {
 
 type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
 const SPEC = barDef("rightSections").spec;
-const openKey = (id: SectionId) => `plainva-right-panel-open-${id}`;
+// Per window (multi-window C4): which context sections are open describes this
+// window's view, and a second window is open in order to look at something
+// else. The central window keeps the unscoped key.
+const openKey = (id: SectionId) => windowStateKey(`plainva-right-panel-open-${id}`);
 
 function readOpen(id: SectionId): boolean {
   const v = localStorage.getItem(openKey(id));
