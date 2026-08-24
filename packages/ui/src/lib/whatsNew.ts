@@ -45,7 +45,8 @@ export type WhatsNewIconName =
   | "link"
   | "upload"
   | "tasks"
-  | "code";
+  | "code"
+  | "windows";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -70,6 +71,21 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.7.0",
+    releaseDate: "2026-08-24",
+    highlights: [
+      // Multi-window is desktop-only, and this dialog shows on both shells --
+      // highlights 1-3 say "on the desktop" in every language for that reason.
+      { icon: "windows" },
+      { icon: "database" },
+      { icon: "layout" },
+      { icon: "import" },
+      { icon: "phone" },
+      { icon: "bell" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-7-0",
+  },
   {
     version: "0.6.8",
     releaseDate: "2026-08-22",

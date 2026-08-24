@@ -7,6 +7,120 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-08-24
+
+A window was never the limit. The limit was that "the vault" was one thing.
+Plainva now holds several windows open at once and — because the same
+separation makes it possible — two vaults at the same time. One process, and
+the central window keeps every background service and every write; auxiliary
+windows read locally and delegate changes over a window bus, so the whole of
+the sync hardening still works against exactly one writer. The load-bearing
+rule is a negative one: a piece of content is open app-wide only once. This is
+a minor version because two product dimensions are new, not because the commit
+count is high.
+
+### Added
+
+- **Auxiliary windows.** Note, database, graph, tasks, calendar, mail and the
+  message composer can each be opened in their own OS window — second monitor,
+  its own taskbar tile, Alt+Tab — from a tab's context menu, a ribbon icon's
+  right-click, or the command palette. Window positions and contents are
+  restored on the next start. A **compose window is never restored**: what is
+  in it lives in memory, and a window claiming to have kept your draft would be
+  worse than no window at all.
+- **A second window is a whole Plainva.** Sidebars, ribbon, search, status bar
+  and the palette. It stays a client: settings, the index.md run, backup and
+  switching vaults are **delegated** — the button brings the central window
+  forward instead of sitting greyed out. Clocks belong to the central window,
+  so a due event still notifies exactly once with two windows open.
+- **Two vaults at the same time.** A window says which vault it shows, and that
+  claim builds the runtime. `vault-changed` is gone: a second window no longer
+  follows the first, which is the only reason it was open. Nested vaults are
+  refused at every door with a named reason, including on restore — folders
+  move between sessions. The **same vault twice is still allowed**.
+- **One cloud sign-in across open vaults.** A refresh token belongs to a
+  *grant* — a confirmed identity plus the OAuth client that issued it — not to
+  a vault, and Microsoft and Dropbox rotate on every renewal. Renewal runs
+  through a gate per grant (two windows in the same second share one round
+  trip) and writes through to every other slot of that grant.
+- **A window that closes a vault drains it.** Pending writes settle, then the
+  cycle finishes. Opening the same vault again waits on that promise, so a fast
+  close-and-open never leaves two runs on one vault.
+- **The tablet navigator folds away.** The two-column layout gave the navigator
+  no way out: a note on a 1024 px screen never got more than 70 % of it. The
+  switch sits in the rail — the one surface that stands next to *every* work
+  area — and the choice is device-local, because a layout decision belongs to
+  the screen it is about.
+
+### Changed
+
+- **A vault's settings now travel unless you say otherwise.** The settings sync
+  was opt-in, and a fresh vault wrote `undefined` into the switch — which meant
+  "off". Daily-note format, template folder and backup rules stayed on each
+  device separately. The rule is now `!== false`: **never asked means on,
+  switched off stays off.** Sign-ins remain opt-in and are unaffected; both
+  shells read the answer through one reader.
+- **The boot watchdog stands down when the app does render.** It made a single
+  claim — "nothing rendered after eight seconds" — and never revisited it. On a
+  busy machine a slow start disproved it a moment later and the full-screen
+  message stayed up, swallowing every click. The error branch is untouched and
+  keeps its screen forever: there the premise was never disproved.
+- **The module-init budget is down to the three entry points.** Nine files no
+  longer read shared tables while a module loads — the shape that shipped a
+  white window twice. An entry module is the start of the graph; there is no
+  chunk order that puts it before itself.
+
+### Fixed
+
+- **A vault with hidden folders opens again** (contributed by
+  [Pedro Algarvio](https://github.com/s0undt3ch),
+  [#71](https://github.com/plainva/plainva/pull/71) and
+  [#72](https://github.com/plainva/plainva/pull/72)). An Obsidian vault holding
+  a Python venv and a linter cache could not be opened: `.attachments/.gitkeep`
+  failed the fs capability scope (two dot segments in a row match no pattern
+  while `require_literal_leading_dot` is on), and a symlinked directory was
+  treated as a file because `readDir` does not resolve `isDirectory` through
+  symlinks.
+- **A developer's vault is not full of things to index.** The exclusion list
+  knew neither `.venv` nor `__pycache__`, and it lived in the desktop shell —
+  so the mobile walk indexed `node_modules/**/*.md`. The rule now lives in the
+  shared core. Adding names alone would have looked like a mass deletion: the
+  full scan reports every file that is in the index and missing on disk, so it
+  now removes them from the index without reporting them to sync.
+- **The same directory reached twice is not two directories.** The cycle guard
+  held paths, and `lib64` looks like a different folder next to `lib` — so
+  every note below it landed twice in the index, in search, in the tree and in
+  the sync queue. `visited` now keys on directory identity (`dev`+`ino`), which
+  costs no extra filesystem call: the `stat()` that yields the identity
+  replaces the `exists()` that guarded the same spot. Windows reports neither,
+  so the path guard and depth cap stay as the fallback there.
+- **A fresh window no longer inherits a stranger's tabs.** Layouts are stored
+  under a window's label, and the label counter restarts at 0 in every process
+  while the layouts outlive it.
+- **Mail shows messages in an auxiliary window.** The offline cache creates its
+  tables on first use, but an auxiliary window attaches the index read-only —
+  and the failure flew from a call *outside* the try, so loading aborted
+  silently: folders visible, message list empty, no error.
+- **A popped-out composer keeps its draft.**
+- **The reminder scheduler no longer rides on the shown vault.** It hung in the
+  shell, which only the vault a window *displays* renders — so a vault held
+  open for another window would have had sync worker, indexer and watcher, and
+  no clock.
+- **Tasks and reminders catch up on the phone.** A phone runs no timer in the
+  background, so the two-minute poll is dead while the app is away; returning
+  ran the *file* sync but not the PIM cycle. Returning to the app and opening
+  the calendar, tasks or calendar accounts now runs a cycle — with its own
+  throttle — and reschedules the reminders with it.
+- **"Only these calendars" opens again.** The list was empty *because* the
+  cycle was missing, and the guard returned silently while the row looked
+  usable. The row now names which empty state it is in.
+- **The parity catalog no longer lists two gaps that were finished work.** Both
+  entries were built; the catalog carried them anyway. What is left are 14
+  entries, all of them decisions.
+- **The Windows signature guard measures what is shipped.** It checked the raw
+  build output, which Tauri never signs, and read the signer without a null
+  guard — so it crashed before its two real assertions ran.
+
 ## [0.6.8] — 2026-08-22
 
 Two of these touch your data and come first: connecting an account a second

@@ -26,6 +26,10 @@ import {
   CloudUpload,
   ListChecks,
   FileCode,
+  // Two offset stacked panes. Columns2 is deliberately NOT the choice: that
+  // glyph already means "open in split" in this app, and reusing it for two
+  // OS windows would be a double meaning.
+  SquareStack,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -53,6 +57,7 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'paperclip' ? Paperclip
     : name === 'wand' ? WandSparkles
     : name === 'tabs' ? AppWindow
+    : name === 'windows' ? SquareStack
     : name === 'bell' ? BellRing
     : name === 'gantt' ? ChartGantt
     : name === 'key' ? KeyRound
