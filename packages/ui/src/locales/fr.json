@@ -3677,6 +3677,8 @@
     "openComms": "Ouvrir la fenêtre de communication",
     "openSecond": "Ouvrir une deuxième fenêtre",
     "openVaultWindow": "Ouvrir le coffre dans une nouvelle fenêtre",
+    "vaultNestedInside": "Ce coffre se trouve dans « {{other}} », qui est déjà ouvert. Deux coffres ne peuvent pas se chevaucher.",
+    "vaultNestedContains": "Ce coffre contient « {{other}} », qui est déjà ouvert. Deux coffres ne peuvent pas se chevaucher.",
     "commsTitle": "Communication",
     "settingsGroup": "Fenêtres",
     "restoreWindows": "Restaurer la disposition des fenêtres",

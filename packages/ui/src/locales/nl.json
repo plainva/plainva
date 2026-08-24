@@ -3638,6 +3638,8 @@
     "openComms": "Communicatievenster openen",
     "openSecond": "Tweede venster openen",
     "openVaultWindow": "Kluis in een nieuw venster openen",
+    "vaultNestedInside": "Deze kluis ligt in „{{other}}”, die al open is. Twee kluizen mogen elkaar niet overlappen.",
+    "vaultNestedContains": "Deze kluis bevat „{{other}}”, die al open is. Twee kluizen mogen elkaar niet overlappen.",
     "commsTitle": "Communicatie",
     "settingsGroup": "Vensters",
     "restoreWindows": "Vensterindeling herstellen",

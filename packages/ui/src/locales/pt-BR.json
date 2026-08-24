@@ -3677,6 +3677,8 @@
     "openComms": "Abrir janela de comunicação",
     "openSecond": "Abrir uma segunda janela",
     "openVaultWindow": "Abrir cofre em uma nova janela",
+    "vaultNestedInside": "Este cofre está dentro de “{{other}}”, que já está aberto. Dois cofres não podem se sobrepor.",
+    "vaultNestedContains": "Este cofre contém “{{other}}”, que já está aberto. Dois cofres não podem se sobrepor.",
     "commsTitle": "Comunicação",
     "settingsGroup": "Janelas",
     "restoreWindows": "Restaurar a disposição das janelas",

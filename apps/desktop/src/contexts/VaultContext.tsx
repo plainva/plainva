@@ -9,6 +9,8 @@ import { brokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
+import { settlePendingWrites } from "../services/pendingWrites";
+import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
@@ -514,6 +516,12 @@ export const VaultProvider: React.FC<{
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
       syncStatusStore.reset(path);
+
+      // A previous runtime for this very vault may still be draining (stage D):
+      // the last window looking away starts the drain and cannot await it, so
+      // the next open does. Without this wait, closing and reopening a vault in
+      // quick succession would put two workers on one queue.
+      await awaitVaultTeardown(path);
 
       // Which extra file types this vault opens as text (C15). It belongs to
       // the vault, so it is installed with the vault and not by whoever first
@@ -1701,9 +1709,12 @@ export const VaultProvider: React.FC<{
    * event from here, so there is only one teardown path to keep correct.
    */
   const teardownVault = async () => {
-    if (state.syncWorker) {
-      state.syncWorker.stop();
-    }
+    const path = state.vaultPath;
+    const worker = state.syncWorker;
+    // Stop the CLOCK synchronously, before anything below awaits: the drain at
+    // the end of this function takes time, and a timer that is still live would
+    // start a fresh cycle right in the middle of it.
+    worker?.stop();
     state.pimRuntime?.stop();
     syncTargetRef.current = null;
     syncProviderRef.current = null;
@@ -1731,6 +1742,21 @@ export const VaultProvider: React.FC<{
       loadingProgress: undefined,
       loadingPath: null
     }));
+
+    // Drain what is already under way, in this order: a note the editor was
+    // still writing when it unmounted must be ON DISK before this vault counts
+    // as gone (that write is also what puts the push into the queue), and only
+    // then may the running cycle finish. `stop()` alone would leave both
+    // hanging in the air while the app keeps running with another vault open.
+    //
+    // The caller is a React unmount cleanup and cannot await, so the promise is
+    // parked: whoever opens this vault next waits for it (`loadVault`).
+    const drain = (async () => {
+      if (path) await settlePendingWrites(path);
+      await worker?.stopAndDrain();
+    })();
+    if (path) noteVaultTeardown(path, drain);
+    await drain;
   };
 
   // Read through a ref so the unmount cleanup always runs the CURRENT teardown:

@@ -3599,6 +3599,8 @@
     "openComms": "コミュニケーションウィンドウを開く",
     "openSecond": "2 つ目のウィンドウを開く",
     "openVaultWindow": "保管庫を新しいウィンドウで開く",
+    "vaultNestedInside": "この保管庫は、すでに開いている「{{other}}」の中にあります。保管庫同士を重ねることはできません。",
+    "vaultNestedContains": "この保管庫は、すでに開いている「{{other}}」を含んでいます。保管庫同士を重ねることはできません。",
     "commsTitle": "コミュニケーション",
     "settingsGroup": "ウィンドウ",
     "restoreWindows": "ウィンドウ配置を復元",

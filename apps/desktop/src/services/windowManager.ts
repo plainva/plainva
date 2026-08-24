@@ -3,7 +3,8 @@ import { getSettingsStore } from "./settingsStore";
 import { getWindowBus } from "./windowBus";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
-import { releaseHolder } from "./vaultRuntimes";
+import { heldVaults, releaseHolder } from "./vaultRuntimes";
+import { vaultNestingConflict, vaultNestingMessage } from "./vaultNesting";
 
 /**
  * Opening, focusing and remembering auxiliary windows (multi-window P0).
@@ -333,6 +334,11 @@ export async function openFullWindow(params: {
   vaultPath: string;
   title?: string;
 }): Promise<AuxWindowRecord> {
+  // Refused here rather than after the window exists: two vaults on overlapping
+  // trees mean two watchers and two indexers on the same files, and the honest
+  // moment to say so is before anything is built (stage D, § 6.6).
+  const clash = vaultNestingConflict(params.vaultPath, heldVaults());
+  if (clash) throw new Error(vaultNestingMessage(clash));
   return openAuxWindow({
     role: "full",
     vaultPath: params.vaultPath,

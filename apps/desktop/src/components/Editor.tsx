@@ -58,12 +58,7 @@ import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
-
-// In-flight writes per file (P1.7). MODULE level on purpose: after a pane is
-// closed and reopened, the NEW editor instance must still wait for a write the
-// previous instance started — otherwise it reads (and later re-saves) the
-// pre-write content. Entries remove themselves once settled.
-const pendingWrites = new Map<string, Promise<void>>();
+import { pendingWriteFor, trackPendingWrite } from "../services/pendingWrites";
 
 export const Editor: React.FC<{
   activePath: string | null;
@@ -399,7 +394,7 @@ export const Editor: React.FC<{
     // In-flight guard (P1.7): saves to the same file are chained, and a newly
     // loading editor waits for the chain — a tab switch mid-write can neither
     // race two writes nor read the pre-write content back.
-    const previous = pendingWrites.get(path);
+    const previous = pendingWriteFor(vaultPath ?? "", path);
     // Draft snapshots taken AFTER this point must survive the journal clear
     // below — fix the covered revision before any awaiting happens.
     const revAtSave = draftRevisionRef.current;
@@ -482,12 +477,7 @@ export const Editor: React.FC<{
       }
     })();
 
-    pendingWrites.set(path, run);
-    try {
-      await run;
-    } finally {
-      if (pendingWrites.get(path) === run) pendingWrites.delete(path);
-    }
+    await trackPendingWrite(vaultPath ?? "", path, run);
   };
 
   const scheduleSave = (getText: () => string) => {
@@ -1394,7 +1384,7 @@ export const Editor: React.FC<{
     if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
     // Wait for an in-flight write to this file (P1.7) — loading mid-write
     // would show the pre-write content and re-save it over the newer text.
-    const inFlight = pendingWrites.get(activePath);
+    const inFlight = pendingWriteFor(vaultPath ?? "", activePath);
     const readAfterWrites = inFlight
       ? inFlight.catch(() => {}).then(() => vaultAdapter.readTextFile(activePath))
       : vaultAdapter.readTextFile(activePath);

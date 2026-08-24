@@ -3638,6 +3638,8 @@
     "openComms": "Open communications window",
     "openSecond": "Open a second window",
     "openVaultWindow": "Open vault in a new window",
+    "vaultNestedInside": "This vault lies inside “{{other}}”, which is already open. Two vaults may not overlap.",
+    "vaultNestedContains": "This vault contains “{{other}}”, which is already open. Two vaults may not overlap.",
     "commsTitle": "Communications",
     "settingsGroup": "Windows",
     "restoreWindows": "Restore window layout",

@@ -3716,6 +3716,8 @@
     "openComms": "Otwórz okno komunikacji",
     "openSecond": "Otwórz drugie okno",
     "openVaultWindow": "Otwórz vault w nowym oknie",
+    "vaultNestedInside": "Ten sejf znajduje się w „{{other}}”, który jest już otwarty. Dwa sejfy nie mogą się pokrywać.",
+    "vaultNestedContains": "Ten sejf zawiera „{{other}}”, który jest już otwarty. Dwa sejfy nie mogą się pokrywać.",
     "commsTitle": "Komunikacja",
     "settingsGroup": "Okna",
     "restoreWindows": "Przywróć układ okien",

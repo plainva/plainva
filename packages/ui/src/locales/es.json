@@ -3677,6 +3677,8 @@
     "openComms": "Abrir ventana de comunicación",
     "openSecond": "Abrir una segunda ventana",
     "openVaultWindow": "Abrir baúl en una ventana nueva",
+    "vaultNestedInside": "Esta bóveda está dentro de «{{other}}», que ya está abierta. Dos bóvedas no pueden solaparse.",
+    "vaultNestedContains": "Esta bóveda contiene «{{other}}», que ya está abierta. Dos bóvedas no pueden solaparse.",
     "commsTitle": "Comunicación",
     "settingsGroup": "Ventanas",
     "restoreWindows": "Restaurar la disposición de ventanas",

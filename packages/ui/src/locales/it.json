@@ -3677,6 +3677,8 @@
     "openComms": "Apri finestra comunicazioni",
     "openSecond": "Apri una seconda finestra",
     "openVaultWindow": "Apri il vault in una nuova finestra",
+    "vaultNestedInside": "Questo vault si trova dentro “{{other}}”, che è già aperto. Due vault non possono sovrapporsi.",
+    "vaultNestedContains": "Questo vault contiene “{{other}}”, che è già aperto. Due vault non possono sovrapporsi.",
     "commsTitle": "Comunicazioni",
     "settingsGroup": "Finestre",
     "restoreWindows": "Ripristina la disposizione delle finestre",

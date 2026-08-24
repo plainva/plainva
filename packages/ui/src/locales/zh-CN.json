@@ -3599,6 +3599,8 @@
     "openComms": "打开通讯窗口",
     "openSecond": "打开第二个窗口",
     "openVaultWindow": "在新窗口中打开仓库",
+    "vaultNestedInside": "此库位于已打开的“{{other}}”内。两个库不能重叠。",
+    "vaultNestedContains": "此库包含已打开的“{{other}}”。两个库不能重叠。",
     "commsTitle": "通讯",
     "settingsGroup": "窗口",
     "restoreWindows": "恢复窗口布局",

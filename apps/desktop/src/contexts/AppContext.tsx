@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import i18n from "@plainva/ui/i18n";
+import { toast } from "@plainva/ui";
 import { getSettingsStore } from "../services/settingsStore";
 import { RUN_IN_TRAY_KEY, enableTray } from "../services/background";
 import { AUTO_OPEN_LAST_VAULT_KEY } from "./VaultContext";
@@ -9,10 +10,12 @@ import { installOwnerAppBus } from "../services/ownerBus";
 import { currentWindowParams } from "../services/windowContext";
 import {
   heldVaults,
+  holdersOf,
   releaseHolder,
   setHolderVault,
   subscribeVaultRuntimes,
 } from "../services/vaultRuntimes";
+import { vaultNestingConflict, vaultNestingMessage } from "../services/vaultNesting";
 
 /**
  * What the APP knows, as opposed to what a vault knows (multi-window stage D).
@@ -118,6 +121,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!(await getRestoreWindowsSetting())) return;
         for (const path of await loadLastVaultPaths()) {
           if (path === shownVaultRef.current) continue;
+          // Folders move between sessions: two vaults remembered as separate
+          // can overlap by the next start, and restoring them both is the one
+          // way this rule could be walked around (§ 6.6). Named, not silent —
+          // a window that does not come back otherwise looks like a bug.
+          const clash = vaultNestingConflict(path, heldVaults());
+          if (clash) {
+            toast.error(vaultNestingMessage(clash));
+            continue;
+          }
           await restoreAuxWindows(path);
         }
       } catch (e) {
@@ -264,6 +276,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const openVault = useCallback(async (path: string) => {
+    // Overlapping vaults are refused, not warned about (stage D, § 6.6). The
+    // vaults this window alone holds do not count: switching from a folder to
+    // one inside it is a move, not an overlap — nothing else is looking at the
+    // one being left.
+    const others = heldVaults().filter((held) => {
+      const holders = holdersOf(held);
+      return holders.some((holder) => holder !== label);
+    });
+    const clash = vaultNestingConflict(path, others);
+    if (clash) {
+      toast.error(vaultNestingMessage(clash));
+      return;
+    }
     const store = await getSettingsStore();
     await store.set("lastVaultPath", path);
     const currentRecents = (await store.get<string[]>("recentVaults")) || [];
@@ -272,7 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await store.save();
     setRecentVaults(newRecents);
     setShownVault(path);
-  }, []);
+  }, [label]);
 
   const selectVault = useCallback(async () => {
     const selected = await open({
