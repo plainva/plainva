@@ -133,6 +133,21 @@ export async function startPim(vault: MobileVault): Promise<void> {
   // Boot: the OS may hold reminders from a previous run whose appointments have
   // since moved or gone. Rebuilt from what the cache holds right now.
   void import("../reminderScheduler").then((m) => m.rescheduleReminders()).catch(() => {});
+  // And tell the surfaces that the cache is readable NOW.
+  //
+  // A screen asks once when it mounts, and `listPimEvents`/`listPimCalendars`
+  // answer `[]` until this runtime exists — the same empty answer they give for
+  // "no appointments", so the calendar drew an empty week and had no reason to
+  // ask again: `m-pim-changed` fires only when a cycle WROTE something, and a
+  // vault whose events are already cached writes nothing. The runtime boots
+  // behind the vault (SQLite has to open first), so a screen mounted at app
+  // start regularly won the race and then kept the empty answer until the user
+  // triggered a sync by hand — maintainer finding 2026-08-24, from the iPad.
+  //
+  // Same class as the resume trigger in `1ad9b995` ("a cycle without news fires
+  // no event"), one step earlier: there it was the missing cycle, here the
+  // missing answer that the cycle's data is reachable at all.
+  window.dispatchEvent(new CustomEvent("m-pim-changed"));
 }
 
 export function stopPim(): void {
