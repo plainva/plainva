@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_SYNC_INTERVAL_SECONDS,
-  VAULT_DEFAULTS,
+  vaultDefaults,
   VAULT_KEYS,
   pickVault,
   stripVaultKeys,
@@ -17,8 +17,8 @@ describe("mobileSettingsScope — per-vault / app-wide partition (package A)", (
     const r = pickVault({ dailyFolder: "Tagebuch", backupMaxPerFile: 5 });
     expect(r.dailyFolder).toBe("Tagebuch");
     expect(r.backupMaxPerFile).toBe(5);
-    expect(r.templateFolder).toBe(VAULT_DEFAULTS.templateFolder);
-    expect(r.backupIntervalSeconds).toBe(VAULT_DEFAULTS.backupIntervalSeconds);
+    expect(r.templateFolder).toBe(vaultDefaults().templateFolder);
+    expect(r.backupIntervalSeconds).toBe(vaultDefaults().backupIntervalSeconds);
   });
 
   it("stripVaultKeys removes exactly the per-vault fields, keeps app-wide, leaves the source intact", () => {
@@ -47,7 +47,7 @@ describe("mobileSettingsScope — per-vault / app-wide partition (package A)", (
     expect(seeded[0].record.templateFolder).toBe("Vorlagen");
     expect(seeded[0].record.backupMaxPerFile).toBe(42);
     // Fields absent from the old blob fall back to defaults…
-    expect(seeded[0].record.inboxFolder).toBe(VAULT_DEFAULTS.inboxFolder);
+    expect(seeded[0].record.inboxFolder).toBe(vaultDefaults().inboxFolder);
     // …and every seeded vault gets its own object (no shared reference).
     expect(seeded[0].record).not.toBe(seeded[1].record);
   });
@@ -58,7 +58,7 @@ describe("mobileSettingsScope — per-vault / app-wide partition (package A)", (
 
   it("vaultRecordsToSeed falls back to the defaults when there is no old blob", () => {
     const [only] = vaultRecordsToSeed(null, ["local"], () => false);
-    expect(only.record).toEqual(VAULT_DEFAULTS);
+    expect(only.record).toEqual(vaultDefaults());
   });
 
   // S2: the cycle interval is now a shared profile default. An existing mobile
@@ -66,7 +66,7 @@ describe("mobileSettingsScope — per-vault / app-wide partition (package A)", (
   // non-default override; fresh/absent state resolves exactly like desktop.
   it("syncIntervalSeconds is per vault, uses the shared 15 s default and survives migration", () => {
     expect(VAULT_KEYS).toContain("syncIntervalSeconds");
-    expect(VAULT_DEFAULTS.syncIntervalSeconds).toBe(15);
+    expect(vaultDefaults().syncIntervalSeconds).toBe(15);
     expect(pickVault({}).syncIntervalSeconds).toBe(15);
     expect(pickVault({ syncIntervalSeconds: 900 }).syncIntervalSeconds).toBe(900);
     // Old blob without the field → default, not undefined (a NaN interval would

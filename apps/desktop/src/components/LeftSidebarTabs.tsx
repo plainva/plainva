@@ -35,7 +35,13 @@ import {
  */
 
 export type LeftTabId = "files" | "tags" | "databases";
-const SPEC = barDef("leftTabs").spec;
+let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
+/**
+ * Read on first use, not while this module LOADS (C20): reaching across a
+ * package boundary at module-init time is the shape that shipped a white
+ * window twice. Memoised — the bar definition is static.
+ */
+const spec = () => (cachedSpec ??= barDef("leftTabs").spec);
 /** Space between the tabs (matches the row gap below). */
 const TAB_GAP_PX = 4;
 /** Rounding safety only — the button's own padding is the breathing room. */
@@ -87,7 +93,7 @@ interface Props {
 
 export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
   const { t } = useTranslation();
-  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [overId, setOverId] = useState<LeftTabId | null>(null);
   const [menuAt, setMenuAt] = useState<{ id: LeftTabId; x: number; y: number } | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -177,7 +183,7 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
       setOverId(null);
       if (!to || to === id) return;
       const target = layout.order.indexOf(to);
-      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+      if (target >= 0) persist(moveArea(layout, id, target, spec()));
     },
     onCancel: () => {
       dropRef.current = null;
@@ -272,7 +278,7 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
           <MenuItem
             icon={<ArrowUp size={ICON.ui} />}
             onClick={() => {
-              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              persist(moveArea(layout, menuAt.id, 0, spec()));
               setMenuAt(null);
             }}
           >
@@ -282,7 +288,7 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
             <MenuItem
               icon={<EyeOff size={ICON.ui} />}
               onClick={() => {
-                persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+                persist(setAreaVisible(layout, menuAt.id, false, spec()));
                 setMenuAt(null);
               }}
             >

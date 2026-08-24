@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PROFILE_FIELDS, profileDefault } from "@plainva/ui";
-import { VAULT_DEFAULTS, VAULT_KEYS, pickVault } from "./services/mobileSettingsScope";
+import { vaultDefaults, VAULT_KEYS, pickVault } from "./services/mobileSettingsScope";
 
 /**
  * The calendar's database selection has to reach the phone (S18b).
@@ -25,7 +25,7 @@ describe("calendar overlay selection travels", () => {
 
   it("is a real per-vault setting on the phone, defaulting to nothing shown", () => {
     expect(VAULT_KEYS).toContain("calendarOverlays");
-    expect(VAULT_DEFAULTS.calendarOverlays).toEqual([]);
+    expect(vaultDefaults().calendarOverlays).toEqual([]);
     expect(profileDefault("calendarOverlays")).toEqual([]);
   });
 

@@ -11,7 +11,7 @@ vi.mock("./services/editorSelection", () => ({ readEditorSelection: () => null }
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? "" } }));
 
 import { parseFolderTemplateRules, parseTypeTemplateRules, resolveTemplateForNewNote } from "@plainva/ui";
-import { VAULT_DEFAULTS, VAULT_KEYS } from "./services/mobileSettingsScope";
+import { vaultDefaults, VAULT_KEYS } from "./services/mobileSettingsScope";
 import { buildNewNoteFromTemplate, templateForNewNote, templatePathOf } from "./services/templateInteractive";
 
 /**
@@ -31,8 +31,8 @@ describe("template rules on mobile", () => {
     // Not app-wide: two vaults may map the same folder to different templates.
     expect(VAULT_KEYS).toContain("folderTemplates");
     expect(VAULT_KEYS).toContain("typeTemplates");
-    expect(VAULT_DEFAULTS.folderTemplates).toEqual([]);
-    expect(VAULT_DEFAULTS.typeTemplates).toEqual([]);
+    expect(vaultDefaults().folderTemplates).toEqual([]);
+    expect(vaultDefaults().typeTemplates).toEqual([]);
   });
 
   it("drops malformed rows instead of failing note creation", () => {

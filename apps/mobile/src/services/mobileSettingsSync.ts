@@ -474,9 +474,16 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
  * entry naming a property this shell does not have fails to compile instead of
  * being written into a field nobody reads.
  */
-const MOBILE_BINDING: Record<string, keyof VaultSettings> = Object.fromEntries(
-  storeBackedFields("mobile").map((f) => [f.logical, f.mobile as keyof VaultSettings])
-);
+let cachedBinding: Record<string, keyof VaultSettings> | null = null;
+
+function mobileBinding(): Record<string, keyof VaultSettings> {
+  // Built on first use rather than at module load (C20): reading the catalog
+  // across a package boundary while THIS module loads is the shape that shipped
+  // a white window twice. Memoised — the catalog cannot change at runtime.
+  return (cachedBinding ??= Object.fromEntries(
+    storeBackedFields("mobile").map((f) => [f.logical, f.mobile as keyof VaultSettings])
+  ));
+}
 
 /**
  * Turns an incoming profile document into a settings patch, and names what it
@@ -535,7 +542,7 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // only says which per-vault property holds each one. Two hand-written
       // lists — one here, one in applyValues — were the reason a field could
       // exist on one shell and quietly never arrive on the other.
-      for (const [logical, prop] of Object.entries(MOBILE_BINDING)) values[logical] = s[prop];
+      for (const [logical, prop] of Object.entries(mobileBinding())) values[logical] = s[prop];
 
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
@@ -682,7 +689,7 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
 
-        const known = new Set([...Object.keys(MOBILE_BINDING), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
+        const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "folderTemplates", "typeTemplates", "calendarOverlays", "barLayoutMobileBar"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));
         const store = await settingsStore();
         await store.set(unknownKey(vaultId), unknown);

@@ -14,7 +14,7 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { getActiveVaultEntry, listVaults, LOCAL_VAULT_ID } from "./vaultRegistry";
 import {
-  VAULT_DEFAULTS,
+  vaultDefaults,
   VAULT_KEYS,
   pickVault,
   stripVaultKeys,
@@ -114,31 +114,56 @@ const KEY = "mobile-settings";
 const MIGRATION_KEY = "mobile-settings-per-vault-migrated";
 const vaultKey = (id: string) => `mobile-vault-${id}`;
 
-const DEFAULTS: MobileSettings = {
-  themeMode: "system",
-  themeName: DEFAULT_THEME_NAME,
-  defaultView: "read",
-  language: "",
-  onboarded: false,
-  // Mirrors of the bar model's own default (S10), so a phone that has never
-  // opened a vault still reads a sane bar.
-  tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
-  barTabCount: 4,
-  unlockedThemes: [],
-  unlockedThemeVariants: [],
-  themeVariants: {},
-  themeBefore: "",
-  contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
-  askBeforeCreateLink: false,
-  contentFontFamily: "theme",
-  contentFontCustom: "",
-  motion: "system",
-  contextPanelDocked: false,
-  navSidebarCollapsed: false,
-  ...VAULT_DEFAULTS,
-};
+let cachedDefaults: MobileSettings | null = null;
 
-let cache: MobileSettings = { ...DEFAULTS };
+/**
+ * The full default record.
+ *
+ * A function, not a constant (C20): it spreads the per-vault defaults, and
+ * those read the shared defaults table across a package boundary. Built while
+ * this module LOADS, that read is one bundler decision away from the crash that
+ * shipped a white window twice — deferring it only inside mobileSettingsScope
+ * would have been theatre, because this module would still have triggered the
+ * whole chain at its own load time.
+ */
+function defaults(): MobileSettings {
+  return (cachedDefaults ??= {
+    themeMode: "system",
+    themeName: DEFAULT_THEME_NAME,
+    defaultView: "read",
+    language: "",
+    onboarded: false,
+    // Mirrors of the bar model's own default (S10), so a phone that has never
+    // opened a vault still reads a sane bar.
+    tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
+    barTabCount: 4,
+    unlockedThemes: [],
+    unlockedThemeVariants: [],
+    themeVariants: {},
+    themeBefore: "",
+    contentFontSize: DEFAULT_CONTENT_FONT_SIZE,
+    askBeforeCreateLink: false,
+    contentFontFamily: "theme",
+    contentFontCustom: "",
+    motion: "system",
+    contextPanelDocked: false,
+    navSidebarCollapsed: false,
+    ...vaultDefaults(),
+  });
+}
+
+/**
+ * The live snapshot. Filled on first READ rather than at module load, so the
+ * defaults chain above stays out of module-init work; `live()` is the only way
+ * in. Between load and initMobileSettings() it holds exactly the defaults,
+ * which is what the old eager initialiser produced too.
+ */
+let cache: MobileSettings | null = null;
+
+function live(): MobileSettings {
+  return (cache ??= { ...defaults() });
+}
+
 let activeVaultId: string = LOCAL_VAULT_ID;
 let media: MediaQueryList | null = null;
 
@@ -187,22 +212,22 @@ function applyTheme(): void {
   // Shared applier (D3): writes data-theme-name AND the resolved data-theme —
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
-  const name = getThemeDef(cache.themeName) ? cache.themeName : DEFAULT_THEME_NAME;
-  applyResolved(cache.themeMode, name, cache.themeVariants[name]);
+  const name = getThemeDef(live().themeName) ? live().themeName : DEFAULT_THEME_NAME;
+  applyResolved(live().themeMode, name, live().themeVariants[name]);
   const root = document.documentElement;
   // The whole shell runs at touch density: the shared primitives size
   // themselves from the density tokens, so mobile does not need a second set of
   // controls — only a different answer to "what is pointing at this?".
   root.setAttribute("data-density", "touch");
   // D6: note content size (chrome text is untouched — desktop contract).
-  root.style.setProperty("--content-font-size", `${clampContentFontSize(cache.contentFontSize)}px`);
+  root.style.setProperty("--content-font-size", `${clampContentFontSize(live().contentFontSize)}px`);
   // The family override is the shared resolver: "theme" removes the override so
   // the theme keeps ownership, a custom name is sanitized before it reaches CSS.
-  applyContentFontFamily(cache.contentFontFamily, cache.contentFontCustom);
+  applyContentFontFamily(live().contentFontFamily, live().contentFontCustom);
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
-  if (cache.motion === "system") root.removeAttribute("data-motion");
-  else root.setAttribute("data-motion", cache.motion);
+  if (live().motion === "system") root.removeAttribute("data-motion");
+  else root.setAttribute("data-motion", live().motion);
   // Drive the native status bar from the RESOLVED theme (applyResolved just
   // wrote data-theme, so mode-pinning/variants are already accounted for) —
   // otherwise a light app under a dark OS shows unreadable white status text.
@@ -212,7 +237,7 @@ function applyTheme(): void {
 export async function initMobileSettings(): Promise<void> {
   media = window.matchMedia("(prefers-color-scheme: dark)");
   media.addEventListener("change", () => {
-    if (cache.themeMode === "system") applyTheme();
+    if (live().themeMode === "system") applyTheme();
   });
   try {
     const store = await getPlatformServices().loadSettings();
@@ -220,13 +245,13 @@ export async function initMobileSettings(): Promise<void> {
     activeVaultId = (await getActiveVaultEntry()).id;
     await migrateToPerVault(store, saved);
     const vaultRec = await loadVaultRecord(store, activeVaultId);
-    cache = { ...DEFAULTS, ...(saved ? stripVaultKeys(saved) : {}), ...vaultRec };
+    cache = { ...defaults(), ...(saved ? stripVaultKeys(saved) : {}), ...vaultRec };
   } catch {
     /* fresh install / plain web — defaults apply */
     activeVaultId = LOCAL_VAULT_ID;
   }
   applyTheme();
-  if (cache.language) await changeAppLanguage(cache.language).catch(() => {});
+  if (live().language) await changeAppLanguage(live().language).catch(() => {});
 }
 
 /**
@@ -238,7 +263,7 @@ export async function reloadMobileSettingsForActiveVault(): Promise<void> {
   try {
     const store = await getPlatformServices().loadSettings();
     activeVaultId = (await getActiveVaultEntry()).id;
-    cache = { ...cache, ...(await loadVaultRecord(store, activeVaultId)) };
+    cache = { ...live(), ...(await loadVaultRecord(store, activeVaultId)) };
   } catch {
     /* keep the current cache */
   }
@@ -247,7 +272,7 @@ export async function reloadMobileSettingsForActiveVault(): Promise<void> {
 }
 
 export function getMobileSettings(): MobileSettings {
-  return cache;
+  return live();
 }
 
 /**
@@ -268,7 +293,7 @@ export async function applyTemplateSettings(ts: VaultTemplateDefinition["setting
 }
 
 export async function updateMobileSettings(patch: Partial<MobileSettings>): Promise<void> {
-  cache = { ...cache, ...patch };
+  cache = { ...live(), ...patch };
   applyTheme();
   if (patch.language !== undefined) {
     // Empty string = back to the system language.
@@ -278,10 +303,10 @@ export async function updateMobileSettings(patch: Partial<MobileSettings>): Prom
   // The app shell re-reads tab slots (and other live settings) on this.
   window.dispatchEvent(new CustomEvent("m-settings-changed"));
   const store = await getPlatformServices().loadSettings();
-  await store.set(KEY, stripVaultKeys(cache));
+  await store.set(KEY, stripVaultKeys(live()));
   // Per-vault fields land in the ACTIVE vault's record only when touched.
   if (VAULT_KEYS.some((k) => k in patch)) {
-    await store.set(vaultKey(activeVaultId), pickVault(cache));
+    await store.set(vaultKey(activeVaultId), pickVault(live()));
   }
   await store.save();
 }
@@ -289,10 +314,10 @@ export async function updateMobileSettings(patch: Partial<MobileSettings>): Prom
 /**
  * Reads a specific vault's per-vault settings (package A / A4). Used by the
  * settings-sync profile port so syncing vault X never touches the active
- * vault's cache. For the active vault the live cache is authoritative.
+ * vault's live(). For the active vault the live cache is authoritative.
  */
 export async function getVaultSettings(vaultId: string): Promise<VaultScopedSettings> {
-  if (vaultId === activeVaultId) return pickVault(cache);
+  if (vaultId === activeVaultId) return pickVault(live());
   const store = await getPlatformServices().loadSettings();
   return loadVaultRecord(store, vaultId);
 }
@@ -304,12 +329,12 @@ export async function getVaultSettings(vaultId: string): Promise<VaultScopedSett
  */
 export async function applyVaultSettings(vaultId: string, patch: Partial<VaultScopedSettings>): Promise<void> {
   const store = await getPlatformServices().loadSettings();
-  const current = vaultId === activeVaultId ? pickVault(cache) : await loadVaultRecord(store, vaultId);
+  const current = vaultId === activeVaultId ? pickVault(live()) : await loadVaultRecord(store, vaultId);
   const next = { ...current, ...patch };
   await store.set(vaultKey(vaultId), next);
   await store.save();
   if (vaultId === activeVaultId) {
-    cache = { ...cache, ...next };
+    cache = { ...live(), ...next };
     applyTheme();
     window.dispatchEvent(new CustomEvent("m-settings-changed"));
   }

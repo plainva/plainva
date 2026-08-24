@@ -48,7 +48,13 @@ import {
  */
 
 type SectionId = "recents" | "bookmarks";
-const SPEC = barDef("leftSections").spec;
+let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
+/**
+ * Read on first use, not while this module LOADS (C20): reaching across a
+ * package boundary at module-init time is the shape that shipped a white
+ * window twice. Memoised — the bar definition is static.
+ */
+const spec = () => (cachedSpec ??= barDef("leftSections").spec);
 // vaultPath comes right after the stem so ONE prefix ("plainva-left-sections-<v>")
 // covers the open keys in vaultForget's per-vault cleanup.
 const openKey = (id: SectionId, v: string) => `plainva-left-sections-${v}-open-${id}`;
@@ -82,7 +88,7 @@ export function LeftPinnedSections({
 }: Props) {
   const { t } = useTranslation();
   const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
-  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
     recents: readOpen("recents", vaultPath),
     bookmarks: readOpen("bookmarks", vaultPath),
@@ -161,7 +167,7 @@ export function LeftPinnedSections({
       setOverId(null);
       if (!to || to === id) return;
       const target = layout.order.indexOf(to);
-      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+      if (target >= 0) persist(moveArea(layout, id, target, spec()));
     },
     onCancel: () => {
       dropRef.current = null;
@@ -321,7 +327,7 @@ export function LeftPinnedSections({
           <MenuItem
             icon={<ArrowUp size={ICON.ui} />}
             onClick={() => {
-              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              persist(moveArea(layout, menuAt.id, 0, spec()));
               setMenuAt(null);
             }}
           >
@@ -330,7 +336,7 @@ export function LeftPinnedSections({
           <MenuItem
             icon={<EyeOff size={ICON.ui} />}
             onClick={() => {
-              persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+              persist(setAreaVisible(layout, menuAt.id, false, spec()));
               setMenuAt(null);
             }}
           >

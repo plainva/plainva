@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { storeBackedFields } from "@plainva/ui";
 import { importVaultSettings } from "./services/mobileSettingsSync";
-import { VAULT_DEFAULTS, MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
+import { vaultDefaults, MIN_SYNC_INTERVAL_SECONDS } from "./services/mobileSettingsScope";
 
 /**
  * Desktop → profile → phone, one field at a time (S16).
@@ -30,7 +30,7 @@ describe("profile roundtrip into mobile settings", () => {
     const { patch } = importVaultSettings(
       Object.fromEntries(storeBackedFields("mobile").map((f) => [f.logical, sampleFor(f.kind)]))
     );
-    for (const prop of Object.keys(patch)) expect(VAULT_DEFAULTS).toHaveProperty(prop);
+    for (const prop of Object.keys(patch)) expect(vaultDefaults()).toHaveProperty(prop);
   });
 
   it("refuses an absolute path — it would point into another machine's file system", () => {
@@ -66,8 +66,8 @@ describe("profile roundtrip into mobile settings", () => {
     const { patch, skipped } = importVaultSettings({ dailyNotesFolder: "Journal" }, true);
     expect(skipped).toEqual([]);
     expect(patch.dailyFolder).toBe("Journal");
-    expect(patch.dailyFormat).toBe(VAULT_DEFAULTS.dailyFormat);
-    expect(patch.syncIntervalSeconds).toBe(VAULT_DEFAULTS.syncIntervalSeconds);
-    expect(patch.mailRemoteImages).toBe(VAULT_DEFAULTS.mailRemoteImages);
+    expect(patch.dailyFormat).toBe(vaultDefaults().dailyFormat);
+    expect(patch.syncIntervalSeconds).toBe(vaultDefaults().syncIntervalSeconds);
+    expect(patch.mailRemoteImages).toBe(vaultDefaults().mailRemoteImages);
   });
 });

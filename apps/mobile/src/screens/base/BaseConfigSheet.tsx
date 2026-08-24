@@ -23,7 +23,9 @@ import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, p
  * carry its own list of seven, which is exactly how `graph` ended up being a
  * type the phone could render but never choose.
  */
-const VIEW_TYPES = BASE_VIEW_TYPES.map((v) => v.type);
+let cachedViewTypes: ReturnType<typeof baseViewTypeMeta>["type"][] | null = null;
+/** Read on first use, not at module load (C20) — see moduleInitBoundary.test.ts. */
+const viewTypes = () => (cachedViewTypes ??= BASE_VIEW_TYPES.map((v) => v.type));
 const FILTER_OPS: FilterOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<=", "empty", "notEmpty"];
 /**
  * Authoring vocabulary for fresh properties. `relation` joined it in S21, when
@@ -643,7 +645,7 @@ export function BaseConfigSheet({
         <>
         <SectionLabel className="m-sectionlabel--inset">{t("database.viewType")}</SectionLabel>
         <div className="m-turninto">
-          {VIEW_TYPES.map((type) => (
+          {viewTypes().map((type) => (
             <Chip
               selected={(view.type ?? "table") === type}
               key={type}
