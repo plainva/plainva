@@ -215,7 +215,24 @@
   /* The quiet failure: no exception, nothing rendered. Without this the screen
      stays white and the guard would have been for nothing. */
   window.setTimeout(function () {
-    if (!appHasMounted()) showStartupFailure();
+    if (appHasMounted()) return;
+    showStartupFailure();
+
+    /* The timeout's claim is "nothing rendered", and a slow boot can disprove
+       it a moment later - a loaded machine, a cold disk, six browsers on one
+       box. An ERROR keeps the screen for good (record() made that call while
+       the state was genuinely unknown); a merely LATE mount does not: the app
+       is demonstrably running, and leaving "Plainva didn't start" on top of it
+       hides a working program and swallows every click into it. Found by the
+       E2E suite, where 47 tests clicked into this overlay over an app that had
+       rendered fine (2026-08-24). */
+    var watch = window.setInterval(function () {
+      if (errors.length || !appHasMounted()) return;
+      window.clearInterval(watch);
+      var box = document.getElementById(OVERLAY_ID);
+      if (box && box.parentNode) box.parentNode.removeChild(box);
+      shown = false;
+    }, 250);
   }, STARTUP_GRACE_MS);
 
   var missingFeatures = missingEngineFeatures();

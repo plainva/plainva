@@ -131,3 +131,27 @@ test('stays out of the way once the app has mounted', async ({ page }) => {
 
   await expect(page.locator(OVERLAY)).toHaveCount(0);
 });
+
+test('a late mount retires the timeout overlay instead of burying the app', async ({ page }) => {
+  // The watchdog's only claim is "nothing rendered after eight seconds", and a
+  // slow boot disproves it a moment later — a loaded machine, a cold disk, six
+  // browsers on one box. Before this, the overlay stayed for good and sat on
+  // top of a perfectly running app, swallowing every click: 47 E2E tests failed
+  // that way in one run (2026-08-24). An ERROR still keeps the screen; the test
+  // above pins that half.
+  for (const pattern of ENTRY_PATTERNS) {
+    await page.route(pattern, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 9000));
+      await route.continue();
+    });
+  }
+
+  await page.goto('/');
+
+  const overlay = page.locator(OVERLAY);
+  await expect(overlay).toBeVisible({ timeout: 15000 });
+  await expect(overlay).toContainText('No error was reported');
+
+  await expect(page.locator('#root > *').first()).toBeAttached({ timeout: 20000 });
+  await expect(overlay).toHaveCount(0, { timeout: 5000 });
+});
