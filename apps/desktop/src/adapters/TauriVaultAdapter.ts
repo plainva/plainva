@@ -20,11 +20,11 @@ const LIST_CONCURRENCY = 8;
  * Hard depth cap for the directory walk. Symlinks/junctions ARE followed now
  * (P1e: a cloud folder mounted into the vault used to be invisible forever,
  * even after a restart), so a link pointing back at an ancestor would recurse
- * without end — the `visited` set cannot catch it because every pass through
- * the loop builds a NEW, longer path string, and the filesystem plugin offers
- * no canonicalisation to compare real targets. The cap terminates such a loop
- * and the walk reports the cut-off point as a skipped entry instead of hanging
- * or silently truncating.
+ * without end. `visited` catches that by directory identity (dev+ino) where the
+ * platform reports one — a path-only guard could not, because every pass through
+ * the loop builds a NEW, longer path string. Windows reports neither, so the cap
+ * stays as the fallback there: it terminates such a loop and the walk reports the
+ * cut-off point as a skipped entry instead of hanging or silently truncating.
  */
 const MAX_WALK_DEPTH = 32;
 
@@ -280,7 +280,29 @@ export class TauriVaultAdapter implements IVaultAdapter {
       return [];
     }
 
-    if (!(await limit.run(() => exists(absPath)))) return [];
+    // Identity guard. `visited` used to hold PATHS, and two different paths can
+    // be the same directory: a venv's `lib64 -> lib` was walked twice, so every
+    // note under it reached the index — and the sync queue — under two paths.
+    // dev+ino name the directory itself, so whichever path arrives first wins
+    // and the order of the walk stops mattering. This stat() REPLACES the
+    // exists() that used to guard here (stat throws for a missing path, which is
+    // what exists() was checking), so the identity costs no extra filesystem
+    // call. dev/ino are null on Windows, where the path guard above and
+    // MAX_WALK_DEPTH below remain the fallback.
+    let dirStat: Awaited<ReturnType<typeof stat>>;
+    try {
+      dirStat = await limit.run(() => stat(absPath));
+    } catch {
+      return [];
+    }
+    if (dirStat.dev != null && dirStat.ino != null) {
+      const identity = `id:${dirStat.dev}:${dirStat.ino}`;
+      if (visited.has(identity)) {
+        skipped.push({ path, reason: "cycle" });
+        return [];
+      }
+      visited.add(identity);
+    }
 
     let entries: Awaited<ReturnType<typeof readDir>>;
     try {
@@ -315,46 +337,54 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // Stat every file (not just .md): attachments need a real mtime/size too, or
     // the indexer's mtime-based change detection treats them as changed every
     // pass and re-reads + re-hashes them. A stat() is far cheaper than that.
-    const results: VaultFileInfo[] = await Promise.all(
+    //
+    // readDir's `isDirectory` doesn't follow symlinks; stat()'s does, and must
+    // win — otherwise a symlinked directory (e.g. a venv's `lib64 -> lib`) is
+    // walked as a "file" and readTextFile crashes on it with EISDIR.
+    type ResolvedEntry = VaultFileInfo & { absPath: string };
+    const resolved: ResolvedEntry[] = await Promise.all(
       validEntries.map((entry) => {
         const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
+        const childAbsPath = basePath + entry.name;
         if (entry.isDirectory) {
-          return Promise.resolve<VaultFileInfo>({
-            name: entry.name!, path: relativeChildPath, isDirectory: true,
+          return Promise.resolve<ResolvedEntry>({
+            name: entry.name!, path: relativeChildPath, absPath: childAbsPath, isDirectory: true,
             mtime: Date.now(), ctime: undefined, size: 0,
           });
         }
-        const childAbsPath = basePath + entry.name;
         return limit.run(async () => {
           let mtime = Date.now();
           let ctime: number | undefined;
           let size = 0;
+          let isDirectory = false;
           try {
             const entryStat = await stat(childAbsPath);
+            isDirectory = entryStat.isDirectory;
             mtime = entryStat.mtime?.getTime() || Date.now();
-            ctime = entryStat.birthtime?.getTime() || undefined;
-            size = entryStat.size;
+            ctime = isDirectory ? undefined : entryStat.birthtime?.getTime() || undefined;
+            size = isDirectory ? 0 : entryStat.size;
           } catch {
             console.warn(`Failed to stat ${childAbsPath}`);
           }
-          return { name: entry.name!, path: relativeChildPath, isDirectory: false, mtime, ctime, size };
+          return { name: entry.name!, path: relativeChildPath, absPath: childAbsPath, isDirectory, mtime, ctime, size };
         });
       })
     );
+
+    const results: VaultFileInfo[] = resolved.map(({ absPath: _absPath, ...info }) => info);
 
     // Recurse into subdirectories concurrently too; the shared limiter keeps the
     // total in-flight FS calls across the whole tree at LIST_CONCURRENCY. No call
     // holds a slot while awaiting children, so there is no deadlock. `visited`
     // guards symlink loops (the check+add is synchronous, before the first await).
+    // Filtered on the resolved isDirectory so a symlinked directory is descended into.
     if (recursive) {
       const childLists = await Promise.all(
-        validEntries
+        resolved
           .filter((e) => e.isDirectory)
-          .map((entry) => {
-            const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
-            const childAbsPath = basePath + entry.name;
-            return this._listDirInternal(relativeChildPath, childAbsPath, true, visited, limit, skipped, depth + 1, insideInternal);
-          })
+          .map((entry) =>
+            this._listDirInternal(entry.path, entry.absPath, true, visited, limit, skipped, depth + 1, insideInternal)
+          )
       );
       for (const cl of childLists) results.push(...cl);
     }

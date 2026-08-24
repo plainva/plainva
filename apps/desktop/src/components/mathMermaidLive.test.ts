@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { ensureSyntaxTree } from "@codemirror/language";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { i18n as I18nInstance } from "i18next";
 import { readFileSync } from "node:fs";
@@ -73,6 +74,14 @@ function makeSession(doc = DOC, mode: "live" | "source" = "live") {
     deps: { current: deps() },
   });
   open.push(session);
+  // lezer parses asynchronously: only a first slice is done synchronously and the
+  // rest follows on idle callbacks. Every widget here hangs off the syntax tree,
+  // so under load (a full parallel suite on a busy machine) the mermaid fence had
+  // not been parsed yet when the assertions ran and the test failed with no code
+  // change -- the flake class documented on 2026-08-20. Force the parse the way
+  // blockModel/listIndent/editorSession already do, then let the plugins rebuild.
+  ensureSyntaxTree(session.view.state, session.view.state.doc.length, 5000);
+  session.view.dispatch({});
   return session;
 }
 

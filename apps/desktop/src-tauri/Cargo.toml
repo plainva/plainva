@@ -79,3 +79,5 @@ tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
 tempfile = "3.27.0"
+# Scope-coverage test only: the same glob the fs plugin matches paths with.
+glob = "0.3"
