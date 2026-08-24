@@ -7,13 +7,14 @@ import { markdownHighlightStyle } from "@plainva/ui";
 // whose module-level `Store.load` needs the Tauri bridge (absent in jsdom).
 vi.mock("../services/CredentialManager", () => ({ credentialManager: {} }));
 
-import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
+import { syntaxTree } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { undoDepth } from "@codemirror/commands";
 import type { i18n as I18nInstance } from "i18next";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { tableLinkHandlers } from "@plainva/ui";
 import { setWikiResolver, buildWikiTargetSet } from "@plainva/ui";
+import { forceFullParse } from "../test-parse";
 
 /**
  * Session-level regression tests for the editor-stability plan (2026-07-05).
@@ -227,7 +228,7 @@ describe("editorSession", () => {
     const { session } = makeSession("live");
     const len = session.view.state.doc.length;
     expect(len).toBeGreaterThan(3000);
-    ensureSyntaxTree(session.view.state, len, 5000);
+    forceFullParse(session.view, len);
     // The state field's snapshot may trail the parse by a fragment boundary;
     // what matters is that it covers far more than the ~3000-char window a
     // language RESET would re-parse synchronously (Work.InitViewport).

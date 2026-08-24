@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { ensureSyntaxTree } from "@codemirror/language";
+import { forceFullParse } from "../test-parse";
 import { isListMarkerLine, listIndentStyle, listDepthAt } from "@plainva/ui";
 
 describe("isListMarkerLine", () => {
@@ -46,7 +46,7 @@ describe("listDepthAt", () => {
     // background parse can trail the deeper list lines, so listDepthAt would read
     // an incomplete tree and report 0. Force a complete parse up front to keep the
     // depth assertions deterministic (mirrors editorSession.test.ts).
-    ensureSyntaxTree(state, state.doc.length, 5000);
+    forceFullParse(state);
     return state;
   };
   // First non-whitespace position of a 1-based line number.

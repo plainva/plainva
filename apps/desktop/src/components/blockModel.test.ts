@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
-import { ensureSyntaxTree } from "@codemirror/language";
+import { forceFullParse } from "../test-parse";
 import { listBlocks, blockAt } from "@plainva/ui";
 
 function st(doc: string) {
   const s = EditorState.create({ doc, extensions: [markdown()] });
-  ensureSyntaxTree(s, s.doc.length, 5000); // force a full parse for the test
+  forceFullParse(s); // force a full parse for the test
   return s;
 }
 

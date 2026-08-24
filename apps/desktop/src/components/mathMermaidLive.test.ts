@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { ensureSyntaxTree } from "@codemirror/language";
+import { forceFullParse } from "../test-parse";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { i18n as I18nInstance } from "i18next";
 import { readFileSync } from "node:fs";
@@ -80,7 +80,7 @@ function makeSession(doc = DOC, mode: "live" | "source" = "live") {
   // not been parsed yet when the assertions ran and the test failed with no code
   // change -- the flake class documented on 2026-08-20. Force the parse the way
   // blockModel/listIndent/editorSession already do, then let the plugins rebuild.
-  ensureSyntaxTree(session.view.state, session.view.state.doc.length, 5000);
+  forceFullParse(session.view);
   session.view.dispatch({});
   return session;
 }
