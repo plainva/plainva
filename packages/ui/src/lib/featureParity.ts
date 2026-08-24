@@ -353,6 +353,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "multi-vault",
+    title: "Work in two vaults at the same time, one per window",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Follows from multi-window: a second vault needs a second window to show it, " +
+      "and the phone has none. Mobile also holds exactly ONE vault container at a " +
+      "time by construction - switching stops the worker, closes the index and " +
+      "boots the next one - which is the right shape for a device that shows one " +
+      "screen anyway. Permanent by platform, not a backlog item.",
+    verified: "2026-08-24",
+  },
+  {
     id: "multi-window",
     title: "Open notes, databases and views in separate OS windows, or a second full one",
     area: "platform",

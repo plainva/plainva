@@ -50,8 +50,17 @@ const OWNER_ONLY_IN_SHELL = [
   "scanVaultOkf",
 ] as const;
 
-/** Capabilities only the central window may supply. */
-const OWNER_ONLY_CAPABILITIES = ["closeVault", "openVault", "recentVaults", "reportOpenContents"] as const;
+/**
+ * What a client window must reach the owner FOR, spelled as the call it makes.
+ *
+ * Stage D moved the vault line itself into every window — `openVault` and
+ * `closeVault` change what a window SHOWS, which is its own business. What a
+ * client still cannot do is create a window or run the process-wide surfaces,
+ * so those go over the bus. A client that called them locally would look like
+ * it worked and quietly do nothing (the window it wants exists only in the
+ * owner's registry).
+ */
+const CLIENT_MUST_ASK = ["openFullWindow(", "restoreAuxWindows(", "openSettingsModal("] as const;
 
 describe("shell capabilities", () => {
   // The scan runs on the TRANSPILED file, so it measures use rather than
@@ -67,12 +76,12 @@ describe("shell capabilities", () => {
     ).toEqual([]);
   });
 
-  it("does not let a client window supply owner-only capabilities", () => {
-    const found = OWNER_ONLY_CAPABILITIES.filter((name) => CLIENT.includes(name + ":"));
+  it("does not let a client window call owner-only services itself", () => {
+    const found = CLIENT_MUST_ASK.filter((call) => CLIENT.includes(call));
     expect(
       found,
-      `FullApp.tsx must not supply: ${found.join(", ")}. One process has one open vault, and the ` +
-        "dedup registry lives in the owner — a second list would make it forget the first.",
+      `FullApp.tsx must not call: ${found.join(", ")}. Creating windows and the process-wide ` +
+        "surfaces live in the central window; a local call looks fine and does nothing.",
     ).toEqual([]);
   });
 

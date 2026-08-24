@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
+import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
@@ -8,6 +9,9 @@ import { brokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
+import { settlePendingWrites } from "../services/pendingWrites";
+import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
+import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm } from "../services/appDialogs";
@@ -19,15 +23,19 @@ import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePe
 import { clearWorkspaceRuntime, getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
+import { startReminderScheduler } from "../services/reminderScheduler";
+import { requestCalendarDay } from "../services/pim/calendarNav";
+import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
+import { showContentInVaultWindow } from "../services/windowManager";
+import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, announceVaultChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
-import { open } from "@tauri-apps/plugin-dialog";
 import { getSettingsStore } from "../services/settingsStore";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
@@ -372,9 +380,6 @@ async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
   }
 }
 
-// Global tracker to prevent double-loads in React Strict Mode
-let activeLoadPath: string | null = null;
-let loadAbortController: AbortController | null = null;
 
 /**
  * How this window runs the vault (multi-window P0).
@@ -404,11 +409,44 @@ type VaultLifecycleApi = Pick<
 const ownerOnly = (name: string) => `${name} is owner-only; an auxiliary window cannot run it`;
 
 export const VaultProvider: React.FC<{
-  children: ReactNode;
+  /** Absent for a background runtime: a vault another window is showing. */
+  children?: ReactNode;
   mode?: VaultMode;
   /** Client mode only: which vault this window shows. */
   clientVaultPath?: string | null;
-}> = ({ children, mode = "owner", clientVaultPath = null }) => {
+  /**
+   * Owner mode: the vault this instance runs (stage D). One provider per held
+   * vault, so the path is fixed for the life of the instance — switching vaults
+   * mounts another provider rather than reloading this one, which is why the
+   * runtime can be torn down by simply unmounting.
+   */
+  vaultPath?: string | null;
+  /**
+   * The app layer is still reading which vault to reopen. Without it the very
+   * first paint would be the splash for the few milliseconds the settings read
+   * takes, and an auto-opening start would flash it before the loading screen.
+   */
+  appBooting?: boolean;
+}> = ({ children, mode = "owner", clientVaultPath = null, vaultPath: ownerVaultPath = null, appBooting = false }) => {
+  // Per instance, not per process (stage D): with one provider per held vault
+  // a module-level tracker would let the second vault's load abort the first.
+  // It still does what it always did — swallow React Strict Mode's double call.
+  const activeLoadPathRef = useRef<string | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  // Recents, the last-vault memory, auto-open and the three lifecycle entry
+  // points live one level up (contexts/AppContext.tsx) — they outlive any
+  // single vault. They are re-exported through this context so the sixty-one
+  // useVault() consumers keep the shape they already had.
+  const {
+    shownVault,
+    recentVaults,
+    autoOpenLastVault,
+    openVault,
+    selectVault,
+    closeVault,
+    removeRecentVault,
+    setAutoOpenLastVault,
+  } = useApp();
   const [state, setState] = useState<VaultState>({
     vaultPath: null,
     vaultAdapter: null,
@@ -445,6 +483,8 @@ export const VaultProvider: React.FC<{
   /** Client mode: the read/render services, kept for disposal on unmount. */
   const clientServicesRef = useRef<ClientVaultServices | null>(null);
   const isClient = mode === "client";
+  /** This window's label — the key the owner refcounts its runtimes by. */
+  const windowLabel = isClient ? currentWindowParams().label : null;
 
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
@@ -458,26 +498,30 @@ export const VaultProvider: React.FC<{
     if (isClient) throw new Error(ownerOnly("loadVault"));
 
     // If we're already loading this exact path, ignore the duplicate call
-    if (activeLoadPath === path) {
+    if (activeLoadPathRef.current === path) {
       console.log(`[VaultContext] Already loading ${path}, skipping duplicate call`);
       return;
     }
     
     // If we are loading a DIFFERENT path, abort the old one (basic tracking)
-    if (activeLoadPath && activeLoadPath !== path) {
-      console.log(`[VaultContext] Aborting previous load of ${activeLoadPath} in favor of ${path}`);
-      if (loadAbortController) {
-        loadAbortController.abort();
-      }
+    if (activeLoadPathRef.current && activeLoadPathRef.current !== path) {
+      console.log(`[VaultContext] Aborting previous load of ${activeLoadPathRef.current} in favor of ${path}`);
+      loadAbortRef.current?.abort();
     }
 
-    activeLoadPath = path;
-    loadAbortController = new AbortController();
-    const currentAbortSignal = loadAbortController.signal;
+    activeLoadPathRef.current = path;
+    loadAbortRef.current = new AbortController();
+    const currentAbortSignal = loadAbortRef.current.signal;
 
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
-      syncStatusStore.reset();
+      syncStatusStore.reset(path);
+
+      // A previous runtime for this very vault may still be draining (stage D):
+      // the last window looking away starts the drain and cannot await it, so
+      // the next open does. Without this wait, closing and reopening a vault in
+      // quick succession would put two workers on one queue.
+      await awaitVaultTeardown(path);
 
       // Which extra file types this vault opens as text (C15). It belongs to
       // the vault, so it is installed with the vault and not by whoever first
@@ -979,7 +1023,7 @@ export const VaultProvider: React.FC<{
               const lockedStatus: WorkspaceSecurityPublicStatus = { ...workspaceSecurityStatus, phase: "locked" };
               resolvedWorkspaceSecurityStatus = lockedStatus;
               await saveWorkspaceSecurityStatus(path, lockedStatus);
-              syncStatusStore.set({ status: "error", message: i18n.t("workspaceSecurity.lockedMessage"), provider: syncProvider });
+              syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.lockedMessage"), provider: syncProvider });
             } else {
               if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
                 throw new Error("The stored workspace key bundle does not match this vault.");
@@ -1015,7 +1059,7 @@ export const VaultProvider: React.FC<{
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
                 });
                 worker.onStatusChange = (status, errorMsg) => {
-                  syncStatusStore.set({ status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
+                  syncStatusStore.set(path, { status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });
                   void workspaceStateStore.loadMeta().then(async (meta) => {
                     if (!meta) return;
                     const publicStatus: WorkspaceSecurityPublicStatus = {
@@ -1027,7 +1071,7 @@ export const VaultProvider: React.FC<{
                     setState((s) => s.vaultPath === path ? { ...s, workspaceSecurityStatus: publicStatus } : s);
                   });
                 };
-                worker.onProgress = (progress) => syncStatusStore.set({ progress });
+                worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
                 worker.onFilesChanged = (paths) => {
                   for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
                   indexQueue.enqueue(paths);
@@ -1052,7 +1096,7 @@ export const VaultProvider: React.FC<{
                     const message = e instanceof Error ? e.message : String(e);
                     const errored = { ...activeSecurityStatus, phase: "error" as const, lastError: message.slice(0, 1000) };
                     await saveWorkspaceSecurityStatus(path, errored).catch(() => undefined);
-                    syncStatusStore.set({ status: "error", message, provider: syncProvider });
+                    syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
                     setState((s) => (s.vaultPath === path ? { ...s, workspaceSecurityStatus: errored } : s));
                   });
               } else {
@@ -1086,18 +1130,18 @@ export const VaultProvider: React.FC<{
             // carries a human file name and two Unicode forms of one cannot
             // exist (finding 2026-08-21).
             syncWorker.onNameCollisions = (collisions) => {
-              syncStatusStore.set({ collisions });
+              syncStatusStore.set(path, { collisions });
             };
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`
               // (a fatal-protocol kind) rides along so the error dialog can offer
               // a connection-specific encryption reset (Stilllegen P2).
-              syncStatusStore.set({ status, message: errorMsg || null, reason, retryAt, ...(status !== "syncing" ? { progress: null } : {}) });
+              syncStatusStore.set(path, { status, message: errorMsg || null, reason, retryAt, ...(status !== "syncing" ? { progress: null } : {}) });
             };
             syncWorker.onProgress = (progress) => {
               // Coarse cycle progress for the status bar (WP6); throttled in core.
-              syncStatusStore.set({ progress });
+              syncStatusStore.set(path, { progress });
             };
             syncWorker.onFirstCycleComplete = () => {
               // The vault has its remote content now, so anchored notes exist
@@ -1162,7 +1206,7 @@ export const VaultProvider: React.FC<{
           const message = e instanceof Error ? e.message : String(e);
           resolvedWorkspaceSecurityStatus = { ...workspaceSecurityStatus, phase: "error", lastError: message.slice(0, 1000) };
           await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(() => undefined);
-          syncStatusStore.set({ status: "error", message, provider: syncProvider });
+          syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
         }
       }
 
@@ -1175,14 +1219,14 @@ export const VaultProvider: React.FC<{
           // Saying nothing here is what made the failure invisible: the card
           // still read "connected", the status bar stayed idle, and only the
           // absence of arriving files gave it away.
-          syncStatusStore.set({
+          syncStatusStore.set(path, {
             status: "error",
             message: i18n.t("sync.noFileAccess"),
             provider: unusableProvider,
             authRecoverable: true,
           });
         } else {
-          syncStatusStore.set({ status: "idle", message: null, provider: syncWorker ? syncProvider : null });
+          syncStatusStore.set(path, { status: "idle", message: null, provider: syncWorker ? syncProvider : null });
         }
       }
       setState(s => ({
@@ -1207,15 +1251,15 @@ export const VaultProvider: React.FC<{
         loadingPath: null,
       }));
       
-      if (activeLoadPath === path) {
-        activeLoadPath = null;
+      if (activeLoadPathRef.current === path) {
+        activeLoadPathRef.current = null;
       }
     } catch (error: any) {
       if (currentAbortSignal.aborted) return;
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
-      if (activeLoadPath === path) {
-        activeLoadPath = null;
+      if (activeLoadPathRef.current === path) {
+        activeLoadPathRef.current = null;
       }
     }
   };
@@ -1260,22 +1304,13 @@ export const VaultProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, state.vaultPath, state.vaultAdapter, state.indexer, state.pimRuntime]);
 
-  // Owner: which vault this process has open is a fact the other windows need.
-  // Driven from the STATE rather than from the switcher, because the vault also
-  // changes through the splash, through "open recent" and through closing it —
-  // an announcement made at one of those doors is one the others forget (C5).
-  useEffect(() => {
-    if (isClient) return;
-    announceVaultChanged(state.vaultPath);
-  }, [isClient, state.vaultPath]);
-
   // Owner: every status the sync worker reaches goes out to the other windows
-  // (C3). Independent of the vault, because the store is reset on a switch and
-  // that reset is itself worth mirroring.
+  // (C3), addressed with the vault it belongs to — a window on another vault
+  // would otherwise draw this one's progress bar (stage D).
   useEffect(() => {
-    if (isClient) return;
-    return installSyncStatusMirror();
-  }, [isClient]);
+    if (isClient || !state.vaultPath) return;
+    return installSyncStatusMirror(state.vaultPath);
+  }, [isClient, state.vaultPath]);
 
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
@@ -1304,8 +1339,13 @@ export const VaultProvider: React.FC<{
         // observe it, so without the mirror its status bar would say "local"
         // for a vault that syncs — honest-looking and wrong (C3).
         offs.push(
-          await bus.onBroadcast("sync-status", (s) => {
-            syncStatusStore.set({
+          await bus.onBroadcast("sync-status", (s, _from, vault) => {
+            // Filed under the vault the OWNER named, not under whatever this
+            // window last knew: the two can differ for a moment while a window
+            // moves, and a status filed under the wrong vault outlives that
+            // moment (stage D).
+            if (!vault) return;
+            syncStatusStore.set(vault, {
               status: s.status as SyncStatusSnapshot["status"],
               message: s.message ?? null,
               provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
@@ -1316,12 +1356,6 @@ export const VaultProvider: React.FC<{
             });
           }),
         );
-        // One process, one open vault (plan E7). When the central window moves,
-        // this one moves with it: the services are rebuilt for the new vault and
-        // the layout — which is keyed by vault AND label — comes back as the one
-        // this window last had THERE. A window that stayed behind would be
-        // holding services on a vault nobody has open (C5).
-        offs.push(await bus.onBroadcast("vault-changed", ({ vaultPath }) => setClientVault(vaultPath)));
         // The watcher lives in the owner. Without this an auxiliary window would
         // never learn that the file under its editor changed on disk — the very
         // case the editor's external-update logic exists for.
@@ -1348,13 +1382,38 @@ export const VaultProvider: React.FC<{
    * runtime) stay null, which is what keeps the effects below inert.
    */
   /**
-   * The vault this window shows. Seeded from the query it was opened with, and
-   * changed by the owner's `vault-changed` broadcast (C5) — one process holds
-   * one open vault, so a window that stayed behind would be drawing a tree that
-   * is no longer there.
+   * The vault this window shows. Seeded from the query it was opened with and
+   * changed by this window's own switcher (stage D) — a window belongs to the
+   * vault it shows and keeps it, whatever any other window does.
    */
   const [clientVault, setClientVault] = useState<string | null>(clientVaultPath);
   useEffect(() => setClientVault(clientVaultPath), [clientVaultPath]);
+
+  /**
+   * Client: tell the central window which vault this one holds (stage D).
+   *
+   * Every runtime lives over there, so a hold that never arrives leaves this
+   * window drawing a tree with no indexer, no watcher and no sync worker behind
+   * it — correct at the moment it opened and never again. The release on the
+   * way out is the other half: a runtime nobody holds has to be able to go.
+   */
+  useEffect(() => {
+    if (!isClient || !windowLabel) return;
+    const tell = (vaultPath: string | null) => {
+      void getWindowBus()
+        .then((bus) => bus.request("hold-vault", { label: windowLabel, vaultPath }))
+        .catch(() => {
+          /* no bus (browser/test): nothing holds anything there */
+        });
+    };
+    tell(clientVault);
+    // Released on the way out, never in the cleanup: this effect re-runs on
+    // every switch, and a release there would tear the old runtime down before
+    // the new hold arrives — for a switch back to the same vault, twice over.
+    const drop = () => tell(null);
+    window.addEventListener("beforeunload", drop);
+    return () => window.removeEventListener("beforeunload", drop);
+  }, [isClient, windowLabel, clientVault]);
 
   const loadClientVault = async (path: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
@@ -1423,46 +1482,20 @@ export const VaultProvider: React.FC<{
   }, [isClient, clientVault]);
 
   useEffect(() => {
-    // Recents, the last-vault memory and auto-open belong to the central
-    // window; an auxiliary window is told which vault to show.
+    // The owner runs the vault it was mounted for (stage D). The path never
+    // changes for an instance: showing a different vault mounts a different
+    // provider, which is what makes the teardown below a plain unmount.
     if (isClient) return;
-    const initStore = async () => {
-      try {
-        const store = await getSettingsStore();
-        const savedPath = await store.get<string>("lastVaultPath");
-        let savedRecents = await store.get<string[]>("recentVaults") || [];
-        
-        // Legacy migration: If we have a savedPath but it's not in recentVaults, add it
-        if (savedPath && !savedRecents.includes(savedPath)) {
-          savedRecents = [savedPath, ...savedRecents].slice(0, 10);
-          await store.set("recentVaults", savedRecents);
-          await store.save();
-        }
-
-        const savedLanguage = await store.get<string>("appLanguage");
-        if (savedLanguage) {
-          // Loads the bundle on demand first — locales are lazy chunks (P2.8).
-          import("@plainva/ui/i18n").then(({ changeAppLanguage }) => {
-            changeAppLanguage(savedLanguage).catch(console.error);
-          });
-        }
-
-        const autoOpen = (await store.get<boolean>(AUTO_OPEN_LAST_VAULT_KEY)) ?? false;
-        setState(s => ({ ...s, recentVaults: savedRecents, autoOpenLastVault: autoOpen }));
-
-        if (savedPath && autoOpen) {
-          await loadVault(savedPath);
-        } else {
-          setState(s => ({ ...s, isLoading: false }));
-        }
-      } catch (e) {
-        console.error("Store error:", e);
-        setState(s => ({ ...s, isLoading: false }));
-      }
+    if (!ownerVaultPath) {
+      if (!appBooting) setState(s => ({ ...s, isLoading: false }));
+      return;
+    }
+    void loadVault(ownerVaultPath);
+    return () => {
+      void teardownVaultRef.current?.();
     };
-    initStore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isClient, ownerVaultPath, appBooting]);
 
   useEffect(() => {
     if (!state.vaultAdapter || !state.indexQueue) return;
@@ -1545,6 +1578,44 @@ export const VaultProvider: React.FC<{
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.vaultAdapter]);
+
+  // Reminders belong to the RUNTIME, not to the shell (stage D).
+  //
+  // They used to hang in AppShell, which only the vault a window SHOWS renders.
+  // With two vaults open that meant the one the other window shows had a sync
+  // worker, an indexer and a watcher — and no clock: its appointments would
+  // simply never have fired. A scheduler that runs where the vault runs cannot
+  // be forgotten by whichever window happens to look elsewhere.
+  useEffect(() => {
+    if (isClient) return;
+    const vaultPath = state.vaultPath;
+    const adapter = state.vaultAdapter;
+    if (!vaultPath || !adapter) return;
+    const ownerShows = shownVault === vaultPath;
+    const show = (path: string) => {
+      void showContentInVaultWindow({ vaultPath, path, ownerShows }).catch((e) =>
+        console.warn("[VaultContext] could not show the reminder's note", e),
+      );
+    };
+    const stop = startReminderScheduler({
+      vaultPath,
+      cache: state.pimRuntime?.cache ?? null,
+      vaultAdapter: adapter,
+      queryService: state.queryService ?? null,
+      openNote: show,
+      onNextChanged: (text, at) => reportTrayNext(vaultPath, text, at),
+      openCalendar: (day) => {
+        // Park the day first: the calendar tab reads it when it mounts, so a
+        // tab that is not open yet still lands on the right day.
+        requestCalendarDay(day);
+        show(CALENDAR_TAB_PATH);
+      },
+    });
+    return () => {
+      stop();
+      forgetTrayNext(vaultPath);
+    };
+  }, [isClient, shownVault, state.vaultPath, state.vaultAdapter, state.queryService, state.pimRuntime]);
 
   // Retention settings changed in the settings modal: push the new policy into
   // the live BackupVaultAdapter without reloading the vault.
@@ -1631,42 +1702,27 @@ export const VaultProvider: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.syncWorker, isClient]);
 
-  const openVault = async (path: string) => {
-    const store = await getSettingsStore();
-    await store.set("lastVaultPath", path);
-    
-    const currentRecents = await store.get<string[]>("recentVaults") || [];
-    const newRecents = [path, ...currentRecents.filter(p => p !== path)].slice(0, 10);
-    await store.set("recentVaults", newRecents);
-    await store.save();
-    
-    setState(s => ({ ...s, recentVaults: newRecents }));
-    await loadVault(path);
-  };
-
-  const selectVault = async () => {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: i18n.t("splash.selectVaultFolderTitle")
-    });
-
-    if (selected && typeof selected === "string") {
-      await openVault(selected);
-    }
-  };
-
-  const closeVault = async () => {
-    if (state.syncWorker) {
-      state.syncWorker.stop();
-    }
+  /**
+   * Stops everything this vault runs. Called when the provider unmounts, which
+   * happens when the last window showing this vault looks away — closing the
+   * vault, switching to another one, or the window going away are all the same
+   * event from here, so there is only one teardown path to keep correct.
+   */
+  const teardownVault = async () => {
+    const path = state.vaultPath;
+    const worker = state.syncWorker;
+    // Stop the CLOCK synchronously, before anything below awaits: the drain at
+    // the end of this function takes time, and a timer that is still live would
+    // start a fresh cycle right in the middle of it.
+    worker?.stop();
     state.pimRuntime?.stop();
     syncTargetRef.current = null;
     syncProviderRef.current = null;
     workspaceStateRef.current = null;
-    
-    // Update state IMMEDIATELY so the UI responds even if Rust/IPC is deadlocked
-    syncStatusStore.reset();
+    loadAbortRef.current?.abort();
+    activeLoadPathRef.current = null;
+
+    if (state.vaultPath) syncStatusStore.reset(state.vaultPath);
     setState(s => ({
       ...s,
       vaultPath: null,
@@ -1687,14 +1743,28 @@ export const VaultProvider: React.FC<{
       loadingPath: null
     }));
 
-    try {
-      const store = await getSettingsStore();
-      await store.set("lastVaultPath", null);
-      await store.save();
-    } catch (e) {
-      console.error("Failed to update store on closeVault:", e);
-    }
+    // Drain what is already under way, in this order: a note the editor was
+    // still writing when it unmounted must be ON DISK before this vault counts
+    // as gone (that write is also what puts the push into the queue), and only
+    // then may the running cycle finish. `stop()` alone would leave both
+    // hanging in the air while the app keeps running with another vault open.
+    //
+    // The caller is a React unmount cleanup and cannot await, so the promise is
+    // parked: whoever opens this vault next waits for it (`loadVault`).
+    const drain = (async () => {
+      if (path) await settlePendingWrites(path);
+      await worker?.stopAndDrain();
+    })();
+    if (path) noteVaultTeardown(path, drain);
+    await drain;
   };
+
+  // Read through a ref so the unmount cleanup always runs the CURRENT teardown:
+  // the effect that owns it is keyed on the vault path, not on every render.
+  const teardownVaultRef = useRef(teardownVault);
+  useEffect(() => {
+    teardownVaultRef.current = teardownVault;
+  });
 
   const bumpTree = () =>
     setState(s => ({
@@ -1828,7 +1898,11 @@ export const VaultProvider: React.FC<{
     // forget to tell the other windows. Only the owner broadcasts: a client's
     // own bump is a consequence, not a cause, and re-broadcasting it would
     // bounce between auxiliary windows.
-    if (!isClient) broadcastIndexChanged(paths ?? [], !paths || paths.length === 0);
+    // Addressed with the vault of THIS runtime (stage D): with two of them in
+    // the process, an unaddressed "the index moved" would refresh the other
+    // window's tree over a vault that never changed.
+    if (!isClient && state.vaultPath)
+      broadcastIndexChanged(paths ?? [], !paths || paths.length === 0, state.vaultPath);
     if (paths && paths.length > 0) {
       // File-only refresh (P2.5): no folder-structure walk, and consumers may
       // skip refreshes whose paths cannot affect them (P2.7).
@@ -1848,30 +1922,6 @@ export const VaultProvider: React.FC<{
   useEffect(() => {
     vaultOpsRef.current = { refreshVault, rebuildIndex, syncWorker: state.syncWorker };
   });
-
-  const removeRecentVault = async (path: string) => {
-    const store = await getSettingsStore();
-    const currentRecents = (await store.get<string[]>("recentVaults")) || [];
-    const newRecents = currentRecents.filter(p => p !== path);
-    await store.set("recentVaults", newRecents);
-    const last = await store.get<string>("lastVaultPath");
-    if (last === path) {
-      await store.set("lastVaultPath", null);
-    }
-    await store.save();
-    setState(s => ({ ...s, recentVaults: newRecents }));
-  };
-
-  const setAutoOpenLastVault = async (value: boolean) => {
-    setState(s => ({ ...s, autoOpenLastVault: value }));
-    try {
-      const store = await getSettingsStore();
-      await store.set(AUTO_OPEN_LAST_VAULT_KEY, value);
-      await store.save();
-    } catch (e) {
-      console.error("Failed to persist autoOpenLastVault:", e);
-    }
-  };
 
   // Build recovery material before any remote state is created. Activation is a
   // separate, recovery-confirmed step in the Security Center.
@@ -2274,9 +2324,9 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, isClient, clientLifecycle]
+    [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );
 
   return (

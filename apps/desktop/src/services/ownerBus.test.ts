@@ -63,7 +63,7 @@ vi.mock("./windowBus", async (importOriginal) => {
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { syncStatusStore } from "./syncStatusStore";
-import { installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import {
   findWindowForContent,
   listAuxWindows,
@@ -123,6 +123,26 @@ function createAdapter(calls: string[]): IVaultAdapter {
   } as unknown as IVaultAdapter;
 }
 
+/** An adapter with real file contents -- bookmarks are read-modify-write. */
+function createFileAdapter(files: Map<string, string>): IVaultAdapter {
+  return {
+    initialize: async () => {},
+    dispose: async () => {},
+    readTextFile: async (path: string) => {
+      const found = files.get(path);
+      if (found === undefined) throw new Error("not found: " + path);
+      return found;
+    },
+    writeTextFile: async (path: string, content: string) => {
+      files.set(path, content);
+    },
+    exists: async (path: string) => files.has(path),
+    listDir: async () => [],
+    createDir: async () => {},
+    getFileInfo: async (path: string) => ({ path, name: path, isDirectory: false, mtime: 1, size: 0 }),
+  } as unknown as IVaultAdapter;
+}
+
 /** A provider target that records what it was asked to do. */
 function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
   return {
@@ -147,8 +167,10 @@ function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
 
 async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean } = {}) {
   const wire = createWire();
-  const owner = createWindowBus(wire(OWNER_LABEL));
-  const aux = createWindowBus(wire("aux-1"), opts.auxTimeoutMs);
+  const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/vault");
+  // The aux window belongs to a vault and says so on every message — that is
+  // what picks the runtime once a second vault is open (stage D).
+  const aux = createWindowBus(wire("aux-1"), opts.auxTimeoutMs, () => "/vault");
   busForTest = owner;
 
   const calls: string[] = [];
@@ -211,12 +233,26 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
       },
     },
   });
+  // The app-scoped half is installed once for the process, not per vault.
+  const disposeApp = await installOwnerAppBus();
 
-  return { aux, calls, refreshed, indexed, triggered, reindexed, syncCalls, dispose };
+  return {
+    aux,
+    calls,
+    refreshed,
+    indexed,
+    triggered,
+    reindexed,
+    syncCalls,
+    dispose: () => {
+      dispose();
+      disposeApp();
+    },
+  };
 }
 
 beforeEach(() => {
-  syncStatusStore.reset();
+  syncStatusStore.resetAll();
   resetWindowRegistryForTest();
   setOwnerOpenContents([]);
   focusedWindows.length = 0;
@@ -453,7 +489,7 @@ describe("surfaces and runs that belong to the central window", () => {
     ["sync-error", "plainva-show-sync-error"],
     ["update-indexes", "plainva-update-all-indexes"],
     ["backup", "plainva-backup-now"],
-    ["switch-vault", "plainva-open-vault-switcher"],
+    ["new-window", "plainva-open-full-window"],
   ] as const;
 
   for (const [surface, event] of targets) {
@@ -473,6 +509,21 @@ describe("surfaces and runs that belong to the central window", () => {
       dispose();
     });
   }
+
+  it("names the vault a new window should show (stage D)", async () => {
+    // Since stage D the asking window may be looking at a different vault than
+    // this one: without the target the new window would open on the owner's.
+    const { aux, dispose } = await setup();
+    let detail: unknown = null;
+    const on = (e: Event) => { detail = (e as CustomEvent).detail; };
+    window.addEventListener("plainva-open-full-window", on);
+
+    await aux.request("owner-surface", { surface: "new-window", vaultPath: "/vaults/B" });
+
+    expect(detail).toEqual({ vaultPath: "/vaults/B" });
+    window.removeEventListener("plainva-open-full-window", on);
+    dispose();
+  });
 
   it("carries the settings target along", async () => {
     const { aux, dispose } = await setup();
@@ -559,11 +610,11 @@ describe("the sync status the other windows see", () => {
     const { aux, dispose } = await setup();
     const seen: Array<{ status: string; message?: string | null }> = [];
     const off = await aux.onBroadcast("sync-status", (p) => seen.push(p));
-    const stop = installSyncStatusMirror();
+    const stop = installSyncStatusMirror("/vault");
 
-    syncStatusStore.set({ status: "syncing", message: null });
-    syncStatusStore.set({ status: "syncing", message: null });
-    syncStatusStore.set({ status: "error", message: "no route to host" });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    syncStatusStore.set("/vault", { status: "error", message: "no route to host" });
     await new Promise((r) => setTimeout(r, 0));
 
     // The middle set is a no-op for the reader, and the store fires on every
@@ -574,5 +625,120 @@ describe("the sync status the other windows see", () => {
     stop();
     off();
     dispose();
+  });
+});
+
+/**
+ * Two open vaults, one process (stage D).
+ *
+ * This is the assertion the whole addressing package exists for: with a runtime
+ * per open vault, both of them register `write`, and a write that reached the
+ * wrong one would go through the wrong adapter chain — into another vault's
+ * backup history, another vault's sync queue, another vault's files.
+ */
+describe("owner bus with two vaults open", () => {
+  it("writes through the chain of the vault the caller named", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onB = createWindowBus(wire("full-2"), 200, () => "/B");
+    busForTest = owner;
+
+    const callsA: string[] = [];
+    const callsB: string[] = [];
+    const runtime = (vaultPath: string, calls: string[]) =>
+      installOwnerBus({
+        vaultPath,
+        vaultAdapter: createAdapter(calls),
+        indexer: null,
+        pimRuntime: null,
+        refresh: () => {},
+        refreshVault: async () => {},
+        rebuildIndex: async () => {},
+        syncWorker: null,
+      });
+
+    const stopA = await runtime("/A", callsA);
+    const stopB = await runtime("/B", callsB);
+    try {
+      await onB.request("write", { path: "Note.md", content: "from B" });
+      expect(callsB).toEqual(["write:Note.md"]);
+      expect(callsA).toEqual([]);
+    } finally {
+      stopA();
+      stopB();
+    }
+  });
+
+  it("stars a note in the vault the request named, not the one the owner is drawing", async () => {
+    const wire = createWire();
+    // The owner window draws A; the auxiliary window was popped out of B.
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onB = createWindowBus(wire("aux-2"), 200, () => "/B");
+    busForTest = owner;
+
+    const filesA = new Map<string, string>();
+    const filesB = new Map<string, string>();
+    const announced: Array<{ vaultPath?: string; bookmarks?: string[] }> = [];
+    const onChanged = (e: Event) =>
+      announced.push((e as CustomEvent<{ vaultPath?: string; bookmarks?: string[] }>).detail);
+    window.addEventListener("plainva-bookmarks-changed", onChanged);
+
+    const runtime = (vaultPath: string, files: Map<string, string>) =>
+      installOwnerBus({
+        vaultPath,
+        vaultAdapter: createFileAdapter(files),
+        indexer: null,
+        pimRuntime: null,
+        refresh: () => {},
+        refreshVault: async () => {},
+        rebuildIndex: async () => {},
+        syncWorker: null,
+      });
+
+    const stopA = await runtime("/A", filesA);
+    const stopB = await runtime("/B", filesB);
+    try {
+      await onB.request("toggle-bookmark", { path: "Deep/Note.md" });
+
+      // The star lands in B's list. Until D6 the handler only shouted into the
+      // owner's DOM, and the shell of the vault that window was SHOWING answered
+      // -- writing a B path into A's bookmarks.
+      expect(filesB.get(".plainva/bookmarks.json")).toContain("Deep/Note.md");
+      expect(filesA.has(".plainva/bookmarks.json")).toBe(false);
+      // And the news carries its address, so a window drawing another vault can
+      // tell that it is not meant.
+      expect(announced).toEqual([{ vaultPath: "/B", bookmarks: ["Deep/Note.md"] }]);
+    } finally {
+      window.removeEventListener("plainva-bookmarks-changed", onChanged);
+      stopA();
+      stopB();
+    }
+  });
+
+  it("answers a request from a window whose vault is closed instead of hanging", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onGone = createWindowBus(wire("full-3"), 120, () => "/gone");
+    busForTest = owner;
+
+    const calls: string[] = [];
+    const stop = await installOwnerBus({
+      vaultPath: "/A",
+      vaultAdapter: createAdapter(calls),
+      indexer: null,
+      pimRuntime: null,
+      refresh: () => {},
+      refreshVault: async () => {},
+      rebuildIndex: async () => {},
+      syncWorker: null,
+    });
+    try {
+      // Nobody holds "/gone" any more. The open vault must not stand in for it:
+      // a write answered by the wrong runtime is worse than one that fails.
+      await expect(onGone.request("write", { path: "N.md", content: "x" })).rejects.toThrow();
+      expect(calls).toEqual([]);
+    } finally {
+      stop();
+    }
   });
 });

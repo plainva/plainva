@@ -30,7 +30,6 @@ import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
-import { ReminderHost } from "./components/ReminderHost";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
 import { requestCascadeDelete } from "./services/cascadeDelete";
@@ -441,21 +440,38 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
    * Not deduplicated, unlike content: a window is a WORKPLACE, and having two
    * of them is the point. What stays deduplicated is what they SHOW.
    */
-  const openSecondWindow = useStableHandler(() => {
-    if (!vaultPath) return;
+  const openSecondWindow = useStableHandler((target?: string) => {
+    const forVault = target ?? vaultPath;
+    if (!forVault) return;
     void (async () => {
       try {
-        await openFullWindow({ vaultPath });
+        await openFullWindow({ vaultPath: forVault });
       } catch (e: any) {
         toast.error(t("dialogs.errorTitle", { defaultValue: "Fehler" }) + ": " + (e?.message ?? String(e)));
       }
     })();
   });
 
+  /**
+   * Opens ANOTHER vault in a window of its own (stage D).
+   *
+   * The owner creates the window itself; a client asks, because creating one is
+   * owner-only by capability. Both doors end in the same `openFullWindow`.
+   */
+  const openVaultInWindow = useStableHandler((path: string) => {
+    if (capabilities.openVaultWindow) {
+      capabilities.openVaultWindow(path);
+      return;
+    }
+    openSecondWindow(path);
+  });
+
   // Asked for from another window (the client has no permission to create one).
   useEffect(() => {
     if (capabilities.deferToOwner) return;
-    const onOpen = () => openSecondWindow();
+    // The detail names the vault when the request came from a window looking at
+    // a different one (stage D); without it, this window's own vault.
+    const onOpen = (e: Event) => openSecondWindow((e as CustomEvent<{ vaultPath?: string }>).detail?.vaultPath);
     window.addEventListener("plainva-open-full-window", onOpen);
     return () => window.removeEventListener("plainva-open-full-window", onOpen);
   }, [capabilities, openSecondWindow]);
@@ -596,17 +612,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       });
   };
 
-  // An auxiliary window (multi-window P2) has the star in its graph but not
-  // the list: it asks over the bus, the owner handler turns the request into
-  // this event, and the toggle runs where the state lives.
+  // An auxiliary window (multi-window P2) has the star in its graph but not the
+  // list: it asks over the bus, and the owner handler writes the file of the
+  // vault it is bound to. What arrives here is the RESULT -- and it is checked,
+  // because since stage D this window may well be drawing a different vault.
   useEffect(() => {
-    const onToggle = (e: Event) => {
-      const path = (e as CustomEvent<{ path?: string }>).detail?.path;
-      if (path) toggleBookmark(path);
+    const onChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ vaultPath?: string; bookmarks?: string[] }>).detail;
+      if (!detail || detail.vaultPath !== vaultPath) return;
+      if (Array.isArray(detail.bookmarks)) setBookmarks(detail.bookmarks);
     };
-    window.addEventListener("plainva-toggle-bookmark", onToggle);
-    return () => window.removeEventListener("plainva-toggle-bookmark", onToggle);
-  });
+    window.addEventListener("plainva-bookmarks-changed", onChanged);
+    return () => window.removeEventListener("plainva-bookmarks-changed", onChanged);
+  }, [vaultPath]);
 
   // index.md auto-update (plan UI-UX P11): file operations report themselves
   // via "plainva-file-ops" AFTER their reindex; managed listings of the
@@ -1341,7 +1359,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             recentVaults={capabilities.recentVaults}
             openVault={capabilities.openVault}
             closeVault={capabilities.closeVault}
-            deferToOwner={capabilities.deferToOwner ? () => capabilities.deferToOwner?.("switch-vault") : undefined}
+            openVaultWindow={openVaultInWindow}
             onSyncError={capabilities.openSyncError}
             open={showVaultMenu}
             onOpenChange={setShowVaultMenu}
@@ -1526,15 +1544,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       </div>
 
-      {/* Clocks belong to the central window (stage C). The shell is shared, so
-          a second window would start a SECOND reminder scheduler on the same
-          vault: the same appointment notified twice, and two windows writing
-          the tray's "next up" text. Unlike the handed-over runs this one has no
-          button — it fires by itself — so it is not deferred, it simply does
-          not run here. */}
-      {!capabilities.deferToOwner && (
-        <ReminderHost onOpenNote={openInFocusedPane} onOpenCalendar={() => openView(CALENDAR_TAB_PATH)} />
-      )}
+      {/* No clock here. The shell is shared, so everything it MOUNTS runs in
+          every window — and since stage D it does not even run for every open
+          vault, because only the vault a window SHOWS renders a shell. The
+          reminder scheduler therefore lives in the runtime (VaultContext), one
+          per open vault, where neither a second window nor a window looking
+          elsewhere can double it or drop it. */}
       <StatusBar />
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
@@ -1590,6 +1605,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openSecondWindow: vaultPath
               ? () => window.dispatchEvent(new CustomEvent("plainva-open-full-window"))
               : undefined,
+            // Opens the vault line's menu: the switch and the new window sit
+            // side by side there, and the palette is the door that does not
+            // depend on the sidebar being visible.
+            openVaultWindow: vaultPath ? () => setShowVaultMenu(true) : undefined,
             split: splitEditor,
             toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
             toggleRightSidebar: () => toggleRightSidebar(),
@@ -1611,7 +1630,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
             refreshVault: () => { void refreshVault(); },
             rebuildIndex: () => { void rebuildIndex(); },
-            switchVault: () => (capabilities.deferToOwner ? capabilities.deferToOwner("switch-vault") : capabilities.closeVault?.()),
+            switchVault: () => capabilities.closeVault?.(),
             printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
             hasActiveNote: () => activeDocument.get().kind === "markdown",
             exportActiveMarkdown: () => {

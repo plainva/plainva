@@ -19,7 +19,8 @@ import { getWindowBus } from "./windowBus";
  */
 export function notifyAppearanceChanged(): void {
   void getWindowBus()
-    .then((bus) => bus.broadcast("settings-changed", { domain: "appearance" }))
+    // One appearance for the process, so this message belongs to no vault.
+    .then((bus) => bus.broadcast("settings-changed", { domain: "appearance" }, null))
     .catch(() => {
       /* no bus (browser/test) — the local apply already happened */
     });

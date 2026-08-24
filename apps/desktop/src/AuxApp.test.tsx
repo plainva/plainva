@@ -46,6 +46,14 @@ const vault = {
 };
 vi.mock("./contexts/VaultContext", () => ({ useVault: () => vault }));
 
+/**
+ * The app layer, stubbed to the one thing this shell reads from it: how many
+ * vaults the process holds, which decides whether the window title names one
+ * (stage D). The rule itself is pinned in `services/windowTitle.test.ts`.
+ */
+const app = { heldVaults: ["/vault"] as readonly string[] };
+vi.mock("./contexts/AppContext", () => ({ useApp: () => app }));
+
 import { AuxApp } from "./AuxApp";
 import { resetWindowParamsForTest } from "./services/windowContext";
 

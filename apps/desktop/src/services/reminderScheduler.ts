@@ -56,7 +56,8 @@ export interface ReminderSchedulerDeps {
   openCalendar: (day: string) => void;
   /** The next upcoming appointment, as one line — the tray menu shows it
    * (S11c). Called on every plan, so it also reports "nothing in sight". */
-  onNextChanged?: (text: string) => void;
+  /** The tray line plus WHEN it is, so several vaults can be merged (stage D). */
+  onNextChanged?: (text: string, at: number | null) => void;
 }
 
 /** Identity of one planned reminder — the appointment AND the moment, so two
@@ -194,7 +195,7 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
       const windowEndTs = now + WINDOW_DAYS * 86_400_000;
       const collected = await collectSubjects(deps, settings, now, windowEndTs);
       const subjects = collected.subjects;
-      deps.onNextChanged?.(nextLine(subjects, now));
+      deps.onNextChanged?.(nextLine(subjects, now), nextStart(subjects, now));
       const result = planReminders(subjects, settings.rule, { now, windowEndTs });
       const tasksPlanned = result.reminders.filter((r) => r.subject.kind === "task").length;
       setReminderState({
@@ -260,6 +261,14 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
  * Appointments only: a task is due on a day, not at a place in the day's
  * sequence, and mixing the two would make "next" mean two things.
  */
+/** When the next appointment starts, or null when there is none. */
+export function nextStart(subjects: readonly ReminderSubject[], now: number): number | null {
+  const next = subjects
+    .filter((s) => s.kind !== "task" && s.startTs >= now)
+    .sort((a, b) => a.startTs - b.startTs)[0];
+  return next ? next.startTs : null;
+}
+
 export function nextLine(subjects: readonly ReminderSubject[], now: number): string {
   const next = subjects
     .filter((s) => s.kind !== "task" && s.startTs >= now)

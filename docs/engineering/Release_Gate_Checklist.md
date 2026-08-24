@@ -248,10 +248,34 @@ about the widgets:
 - [ ] Collapse a sidebar in the second window: the central window keeps its own.
       Close the second window, open a new one — it starts clean rather than with
       the closed window's sidebar.
-- [ ] Switch the vault in the central window: the second window follows. Close
-      the vault there: the second window says so instead of showing a tree.
 - [ ] Open a note that is already open in the other window: the window holding
       it comes forward, no second editor appears.
+
+Stage D gives every window its own vault. The checks below need two windows and
+two DISTINCT vault folders; the automated suites hold at most one runtime
+because they hold at most one window.
+
+- [ ] Switch the vault in the second window: the central window keeps its own.
+      Tree, search and status bar in each window belong to that window's vault.
+- [ ] Edit and save in both windows within the same minute: each note lands in
+      its own vault, and neither status bar reports the other's sync.
+- [ ] Two vaults on the SAME cloud account (both on OneDrive, say): both sync and
+      neither signs the other out. Leave them open long enough for a real token
+      renewal — an hour is the usual window.
+- [ ] Try to open a vault that lies INSIDE an open one, and one that CONTAINS an
+      open one: Plainva refuses both with a named reason instead of opening them.
+      Repeat after a restart with the nesting already in place — the restore is
+      the one door folders can move behind between sessions.
+- [ ] Point the second window back at the central window's vault: both show it,
+      nothing is torn down, and a note still only opens in one of them.
+- [ ] Close the second window while it holds the ONLY view of vault B: the
+      central window keeps working on A, and B's pending push arrives when B is
+      opened again.
+- [ ] A reminder due in vault B fires exactly ONCE while both are open, and the
+      tray's "next" line names the vault it belongs to.
+- [ ] Restart with two vaults open: both come back, each in its own window.
+- [ ] Close the vault in the central window while the second window shows a
+      different one: the second window keeps working.
 
 ## Results
 

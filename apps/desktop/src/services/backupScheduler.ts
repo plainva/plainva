@@ -36,8 +36,8 @@ export function startBackupScheduler(opts: { vaultPath: string; adapter: IVaultA
       const store = await getSettingsStore();
       const settings = await loadZipBackupSettings(store, vaultPath);
       const due = manual
-        ? !isZipRunning() // manual runs bypass the 24h check, never the guard
-        : shouldRunZip({ enabled: settings.enabled, lastRun: settings.lastRun, now: Date.now(), running: isZipRunning() });
+        ? !isZipRunning(vaultPath) // manual runs bypass the 24h check, never the guard
+        : shouldRunZip({ enabled: settings.enabled, lastRun: settings.lastRun, now: Date.now(), running: isZipRunning(vaultPath) });
       if (due) {
         await runVaultZipBackup({ vaultPath, store });
       }

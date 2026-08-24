@@ -3494,6 +3494,7 @@
     "trayQuit": "終了",
     "trayNoNext": "予定はありません",
     "trayNext": "次: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "バックグラウンドに残しますか？",
     "offerBody": "リマインダーは Plainva が動いているあいだだけ表示されます。ウィンドウを閉じたあとも通知領域で動かし続けますか。",
     "offerYes": "はい、残す",
@@ -3597,11 +3598,14 @@
     "unpinOnTop": "最前面を解除",
     "openComms": "コミュニケーションウィンドウを開く",
     "openSecond": "2 つ目のウィンドウを開く",
+    "openVaultWindow": "保管庫を新しいウィンドウで開く",
+    "vaultNestedInside": "この保管庫は、すでに開いている「{{other}}」の中にあります。保管庫同士を重ねることはできません。",
+    "vaultNestedContains": "この保管庫は、すでに開いている「{{other}}」を含んでいます。保管庫同士を重ねることはできません。",
     "commsTitle": "コミュニケーション",
     "settingsGroup": "ウィンドウ",
     "restoreWindows": "ウィンドウ配置を復元",
     "restoreWindowsDesc": "起動時に、前回開いていた追加ウィンドウを開き直します。未送信のメッセージは復元されません。",
     "noVaultTitle": "Vault が開かれていません",
-    "noVaultBody": "Plainva のメインウィンドウは現在どの Vault も表示していません。そちらで開くと、このウィンドウも追随します。"
+    "noVaultBody": "このウィンドウは現在どの Vault も表示していません。最近使ったものを選ぶか、フォルダーを指定してください。"
   }
 }

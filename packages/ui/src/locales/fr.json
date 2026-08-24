@@ -3568,6 +3568,7 @@
     "trayQuit": "Quitter",
     "trayNoNext": "Aucun rendez-vous en vue",
     "trayNext": "Prochain : {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Rester en arrière-plan ?",
     "offerBody": "Les rappels n'apparaissent que tant que Plainva fonctionne. Plainva doit-il continuer dans la zone de notification lorsque vous fermez la fenêtre ?",
     "offerYes": "Oui, rester en arrière-plan",
@@ -3675,11 +3676,14 @@
     "unpinOnTop": "Ne plus rester au premier plan",
     "openComms": "Ouvrir la fenêtre de communication",
     "openSecond": "Ouvrir une deuxième fenêtre",
+    "openVaultWindow": "Ouvrir le coffre dans une nouvelle fenêtre",
+    "vaultNestedInside": "Ce coffre se trouve dans « {{other}} », qui est déjà ouvert. Deux coffres ne peuvent pas se chevaucher.",
+    "vaultNestedContains": "Ce coffre contient « {{other}} », qui est déjà ouvert. Deux coffres ne peuvent pas se chevaucher.",
     "commsTitle": "Communication",
     "settingsGroup": "Fenêtres",
     "restoreWindows": "Restaurer la disposition des fenêtres",
     "restoreWindowsDesc": "Rouvre au démarrage les fenêtres supplémentaires qui étaient ouvertes. Les messages non envoyés ne sont jamais restaurés.",
     "noVaultTitle": "Aucun coffre ouvert",
-    "noVaultBody": "La fenêtre principale de Plainva n'affiche aucun coffre pour le moment. Ouvres-en un là-bas et cette fenêtre suivra."
+    "noVaultBody": "Cette fenêtre n'affiche aucun coffre pour le moment. Choisis-en un parmi les récents ou sélectionne un dossier."
   }
 }

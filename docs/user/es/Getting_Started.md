@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-08-23
+Última actualización: 2026-08-24
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -94,18 +94,28 @@ Plainva no tiene por qué quedarse en una sola ventana. Lo que necesites ahora m
 - **Clic derecho en una pestaña → Abrir en una ventana nueva.** La pestaña deja esta ventana y sigue viva en la nueva; no queda ninguna copia atrás.
 - **Clic derecho en Grafo, Tareas, Calendario o Correo dentro de la barra de acciones** ofrece la misma opción. Si después vuelves a hacer clic en la entrada, Plainva trae esa ventana al frente en lugar de abrir la vista por segunda vez.
 - **Paleta de comandos → Abrir ventana de comunicación** inicia una ventana ya dividida: correo a la izquierda, calendario a la derecha.
-- **Paleta de comandos → Abrir una segunda ventana** abre de nuevo toda la interfaz — barras laterales, barra de acciones, pestañas, barra de estado — en el mismo vault. Esa es la opción para un segundo monitor.
+- **Paleta de comandos → Abrir una segunda ventana** abre de nuevo toda la interfaz — barras laterales, barra de acciones, pestañas, barra de estado. Esa es la opción para un segundo monitor.
 - Mientras **redactas un mensaje**, el icono de Abrir en su propia ventana saca la redacción a una ventana propia — con todo lo que ya has escrito.
 
 Una ventana independiente es un Plainva completo: tiene **pestañas**, se puede **dividir** y guarda a través de la misma cadena que la ventana principal. Lo que deliberadamente no tiene son las barras laterales y la barra de acciones — está pensada para mostrar una sola cosa.
 
-Una **segunda ventana** sí las tiene, y muestra el mismo vault: un Plainva mantiene abierto un vault, y la segunda ventana sigue al primero. Cambia o cierra el vault en la ventana principal y también le sigue allí. La configuración, el asistente de importación y el selector de vault también se quedan en la ventana principal — los botones están ahí, y al pulsar uno traes la ventana principal al frente y la abres **allí**. Todo lo relacionado con tu trabajo es igual en ambas: editar, guardar, buscar y el estado de sincronización en la barra de estado. El ancho de las barras laterales y lo que hayas colapsado pertenecen a cada ventana por separado.
+Una **segunda ventana** sí las tiene — y tiene su **propio vault**. Se abre con el vault de la ventana principal; el selector de vaults, abajo a la izquierda, la cambia a otro sin arrastrar la ventana principal consigo. La configuración, el asistente de importación y **crear** un vault se quedan en la ventana principal — los botones están ahí, y al pulsar uno traes la ventana principal al frente y la abres **allí**. Todo lo relacionado con tu trabajo es igual en ambas: editar, guardar, buscar y el estado de sincronización en la barra de estado. El ancho de las barras laterales y lo que hayas colapsado pertenecen a cada ventana por separado.
 
 **Un mismo contenido solo está abierto en UNA ventana a la vez.** Si abres una nota que ya se muestra en otro lugar, esa ventana pasa al frente. Esto es intencionado: dos editores sobre el mismo archivo son la forma más segura de perder trabajo. Redactar es la excepción — escribir dos mensajes a la vez es algo normal.
 
 El botón **Siempre visible** en el título de la ventana la mantiene en primer plano mientras trabajas en la otra.
 
-Al iniciar de nuevo, las ventanas auxiliares de un vault vuelven a aparecer donde estaban. Si prefieres que no sea así: **Configuración → Inicio y comportamiento → Ventanas**. Un **mensaje sin enviar** nunca se restaura — lo que hay en una ventana de redacción vive en memoria, y una ventana que afirmara haberlo conservado sería peor que ninguna ventana.
+Al iniciar de nuevo, todos los vaults que tenían una ventana regresan, y sus ventanas auxiliares vuelven a aparecer donde estaban. Si prefieres que no sea así: **Configuración → Inicio y comportamiento → Ventanas**. Un **mensaje sin enviar** nunca se restaura — lo que hay en una ventana de redacción vive en memoria, y una ventana que afirmara haberlo conservado sería peor que ninguna ventana.
+
+## Varios vaults a la vez
+
+Dos vaults uno junto al otro — trabajo y privado, proyecto y archivo — necesitan dos ventanas: **una ventana muestra exactamente un vault**. Abre una segunda ventana (paleta de comandos → **Abrir una segunda ventana**) y cambia su vault abajo a la izquierda. A partir de ahí ambas funcionan por su cuenta: su propia búsqueda, su propia sincronización, sus propios recordatorios.
+
+- **Cada vault sincroniza por su cuenta.** El estado en la barra de estado siempre pertenece al vault de la ventana en la que estás.
+- **La misma cuenta en ambos vaults no es un problema.** Plainva renueva el inicio de sesión una sola vez y se lo pasa al otro vault en lugar de dejar que se invaliden mutuamente.
+- **Un vault dentro de otro vault se rechaza.** Si la carpeta está **dentro** de un vault que ya está abierto — o al revés — Plainva te lo dice y explica por qué: ambos vigilarían y sincronizarían los mismos archivos.
+- **El mismo vault en dos ventanas** está permitido; las ventanas lo comparten, y una nota sigue abriéndose solo en una de ellas.
+- **La última mirada lo cierra.** En cuanto ninguna ventana vuelve a mirar un vault, Plainva lo guarda — antes termina lo que se esté escribiendo.
 
 ## Barras y áreas
 

@@ -3531,6 +3531,7 @@
     "trayQuit": "Beenden",
     "trayNoNext": "Kein Termin in Sicht",
     "trayNext": "Nächster: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Im Hintergrund bleiben?",
     "offerBody": "Erinnerungen erscheinen nur, solange Plainva läuft. Soll Plainva beim Schließen des Fensters im Infobereich weiterlaufen?",
     "offerYes": "Ja, im Hintergrund bleiben",
@@ -3636,11 +3637,14 @@
     "unpinOnTop": "Nicht mehr im Vordergrund",
     "openComms": "Kommunikations-Fenster öffnen",
     "openSecond": "Zweites Fenster öffnen",
+    "openVaultWindow": "Vault in neuem Fenster öffnen",
+    "vaultNestedInside": "Dieser Vault liegt innerhalb von „{{other}}“, der bereits offen ist. Zwei Vaults dürfen sich nicht überlappen.",
+    "vaultNestedContains": "Dieser Vault enthält „{{other}}“, der bereits offen ist. Zwei Vaults dürfen sich nicht überlappen.",
     "commsTitle": "Kommunikation",
     "settingsGroup": "Fenster",
     "restoreWindows": "Fensteraufteilung wiederherstellen",
     "restoreWindowsDesc": "Beim Start werden die zuletzt geöffneten Zusatzfenster wieder geöffnet. Verfasste, noch nicht gesendete Nachrichten werden nie wiederhergestellt.",
     "noVaultTitle": "Kein Vault geöffnet",
-    "noVaultBody": "Das Hauptfenster von Plainva zeigt gerade keinen Vault. Öffne dort einen, dann folgt dieses Fenster."
+    "noVaultBody": "Dieses Fenster zeigt gerade keinen Vault. Wähle einen der zuletzt geöffneten oder such einen Ordner aus."
   }
 }

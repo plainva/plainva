@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-08-23
+Dernière mise à jour : 2026-08-24
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -94,18 +94,28 @@ Plainva n'est pas obligé de rester dans une seule fenêtre. Ce dont vous avez b
 - **Clic droit sur un onglet → Ouvrir dans une nouvelle fenêtre.** L'onglet quitte cette fenêtre et continue de vivre dans la nouvelle ; aucune copie ne reste derrière.
 - **Clic droit sur Graphe, Tâches, Calendrier ou E-mail dans la barre d'actions** pour le même choix. Cliquez de nouveau sur l'entrée ensuite et Plainva ramène cette fenêtre au premier plan au lieu d'ouvrir la vue une seconde fois.
 - **Palette de commandes → Ouvrir la fenêtre de communication** démarre une fenêtre déjà scindée : les e-mails à gauche, le calendrier à droite.
-- **Palette de commandes → Ouvrir une deuxième fenêtre** ouvre à nouveau toute l'interface — barres latérales, barre d'actions, onglets, barre d'état — sur le même vault. C'est la solution pour un second écran.
+- **Palette de commandes → Ouvrir une deuxième fenêtre** ouvre à nouveau toute l'interface — barres latérales, barre d'actions, onglets, barre d'état. C'est la solution pour un second écran.
 - Pendant que vous **rédigez un message**, l'icône de détachement en fait une fenêtre indépendante — avec tout ce que vous avez déjà tapé.
 
 Une fenêtre détachée est un Plainva complet : elle porte des **onglets**, peut être **scindée**, et enregistre par la même chaîne que la fenêtre principale. Ce qu'elle ne porte volontairement pas, ce sont les barres latérales et la barre d'actions — elle est faite pour montrer une seule chose.
 
-Une **deuxième fenêtre**, elle, les porte, et elle affiche le même vault : un Plainva garde un seul vault ouvert, et la deuxième fenêtre suit le premier. Changez ou fermez le vault dans la fenêtre principale, et elle suit aussi. Les paramètres, l'assistant d'import et le sélecteur de vault restent également dans la fenêtre principale — les boutons sont là, et cliquer dessus ramène la fenêtre principale au premier plan et l'ouvre **là-bas**. Tout ce qui concerne votre travail est identique dans les deux : édition, enregistrement, recherche, et l'état de synchronisation dans la barre d'état. La largeur des barres latérales et ce que vous avez replié appartiennent à chaque fenêtre séparément.
+Une **deuxième fenêtre**, elle, les porte — et elle porte son **propre vault**. Elle s'ouvre sur le vault de la fenêtre principale ; le sélecteur de vault en bas à gauche la fait basculer vers un autre, sans entraîner la fenêtre principale. Les paramètres, l'assistant d'import et **la création** d'un vault restent dans la fenêtre principale — les boutons sont là, et cliquer dessus ramène la fenêtre principale au premier plan et l'ouvre **là-bas**. Tout ce qui concerne votre travail est identique dans les deux : édition, enregistrement, recherche, et l'état de synchronisation dans la barre d'état. La largeur des barres latérales et ce que vous avez replié appartiennent à chaque fenêtre séparément.
 
 **Un contenu n'est jamais ouvert que dans UNE seule fenêtre.** Ouvrez une note qui s'affiche déjà ailleurs et cette fenêtre revient au premier plan. C'est voulu : deux éditeurs sur le même fichier sont le moyen le plus sûr de perdre du travail. La rédaction fait exception — écrire deux messages à la fois est normal.
 
 L'**épingle** dans le titre de la fenêtre la maintient au premier plan pendant que vous travaillez dans l'autre.
 
-Au démarrage suivant, les fenêtres secondaires d'un vault reviennent là où elles étaient. Si vous préférez qu'il n'en soit rien : **Paramètres → Démarrage et comportement → Fenêtres**. Un **message non envoyé** n'est jamais restauré — ce qui se trouve dans une fenêtre de rédaction vit dans la mémoire, et une fenêtre qui prétendrait l'avoir conservé serait pire que pas de fenêtre du tout.
+Au démarrage suivant, chaque vault qui avait une fenêtre revient, et ses fenêtres secondaires reviennent là où elles étaient. Si vous préférez qu'il n'en soit rien : **Paramètres → Démarrage et comportement → Fenêtres**. Un **message non envoyé** n'est jamais restauré — ce qui se trouve dans une fenêtre de rédaction vit dans la mémoire, et une fenêtre qui prétendrait l'avoir conservé serait pire que pas de fenêtre du tout.
+
+## Plusieurs vaults à la fois
+
+Deux vaults côte à côte — travail et personnel, projet et archive — ont besoin de deux fenêtres : **une fenêtre affiche exactement un vault**. Ouvrez une deuxième fenêtre (palette de commandes → **Ouvrir une deuxième fenêtre**) et changez son vault avec le sélecteur en bas à gauche. À partir de là, les deux tournent : leur propre recherche, leur propre synchronisation, leurs propres rappels.
+
+- **Chaque vault synchronise pour lui-même.** L'état dans la barre d'état appartient toujours au vault de la fenêtre où vous vous trouvez.
+- **Le même compte dans les deux vaults ne pose pas de problème.** Plainva renouvelle la connexion une seule fois et la transmet à l'autre vault au lieu de laisser les deux s'invalider mutuellement.
+- **Un vault à l'intérieur d'un autre vault est refusé.** Si le dossier se trouve **à l'intérieur** d'un vault déjà ouvert — ou l'inverse — Plainva vous le dit et vous explique pourquoi : les deux surveilleraient et synchroniseraient les mêmes fichiers.
+- **Le même vault dans deux fenêtres** est autorisé ; les fenêtres le partagent, et une note ne s'ouvre toujours que dans l'une d'elles.
+- **Le dernier regard le referme.** Dès qu'aucune fenêtre ne regarde plus un vault, Plainva le range — ce qui est en train d'être écrit est d'abord terminé.
 
 ## Barres et zones
 

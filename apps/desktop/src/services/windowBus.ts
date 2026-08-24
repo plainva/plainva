@@ -27,6 +27,7 @@
 import type { PimEventDraft, PimEventRef } from "@plainva/core";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
+import { currentWindowParams } from "./windowContext";
 
 /** Label of the window that owns the services. Tauri's own default label. */
 export const OWNER_LABEL = "main";
@@ -75,12 +76,21 @@ export interface BroadcastMap {
   /** A setting the other windows must re-apply (theme, density, font, zoom). */
   "settings-changed": { domain: string };
   /**
+   * Which vaults the process currently has open (stage D).
+   *
+   * App-scoped on purpose: it is a fact ABOUT the process, not about a vault.
+   * A client window knows only its own, and there is one thing it needs the
+   * whole picture for — whether to put the vault name into its window title.
+   * With one vault that would be noise on every taskbar entry; with two it is
+   * the only thing telling two identically named windows apart.
+   */
+  "vaults-open": { paths: string[] };
+  /**
    * The central window is on another vault now (C5). One process holds one open
    * vault (plan E7), so this is not an invitation: a client that stayed behind
    * would be showing a tree that is no longer there, over services pointing at
    * a vault nobody has open. `null` means the owner closed the vault.
    */
-  "vault-changed": { vaultPath: string | null };
   /** Who has what open — the owner keeps the global open-registry from this. */
   "tab-registry": { label: string; contents: string[] };
   /** Owner to one window: bring this content forward (dedup / focus routing). */
@@ -182,13 +192,24 @@ export interface RpcMap {
       | "sync-error"
       | "update-indexes"
       | "backup"
-      | "switch-vault"
       | "new-window";
       provider?: string;
       area?: string;
+      /** `new-window` only: which vault the new window shows (stage D). */
+      vaultPath?: string;
     };
     result: void;
   };
+  /**
+   * A client window says which vault it is looking at (multi-window stage D).
+   *
+   * The runtimes all live in the central window, so a window that shows vault B
+   * has to say so there — otherwise B has no indexer, no watcher and no sync
+   * worker, and the window would draw a tree that nobody is keeping current.
+   * `null` releases: closing a vault in a second window must let its runtime go
+   * when no other window holds it.
+   */
+  "hold-vault": { args: { label: string; vaultPath: string | null }; result: void };
   /**
    * Send a message the writer composed in a compose window. The delayed-send
    * queue belongs to the owner (plan §12.4): a compose window is the most
@@ -265,6 +286,77 @@ export interface RpcMap {
 
 export type RpcKind = keyof RpcMap;
 
+/**
+ * Which messages are ABOUT a vault, and which are about the app or a window.
+ *
+ * Stage D opens a second vault in the same process, and from that moment a bus
+ * message without an address is a guess: "the index changed" is true of one
+ * vault and false of the other, and a window told about the wrong one refreshes
+ * a tree that never moved. So every channel and every request kind is
+ * classified here, once.
+ *
+ * The shape is a `Record` over the map keys on purpose: a channel that nobody
+ * classified is a compile error, not a runtime surprise. That matters more than
+ * it sounds — the local `plainva-*` event surface grew from ~45 to 89 in a
+ * month, and the same drift on the bus would reopen exactly this hole.
+ */
+export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
+  "index-changed": "vault",
+  "file-changed": "vault",
+  "note-saved": "vault",
+  "sync-status": "vault",
+  "pim-changed": "vault",
+  // App- or window-scoped: appearance is one setting for the process, and the
+  // three window channels address a window by label, not a vault by path.
+  "settings-changed": "app",
+  "vaults-open": "app",
+  "tab-registry": "app",
+  "focus-content": "app",
+  "set-content": "app",
+};
+
+/**
+ * The same classification for requests, and here it decides who ANSWERS.
+ *
+ * With one runtime per open vault, every runtime installs the same handlers.
+ * A vault-scoped request must therefore be served by exactly one of them — the
+ * one whose vault the caller named — or two vaults would race to write the same
+ * file. App-scoped requests are installed once for the process instead, which
+ * is why they cannot be answered N times either.
+ */
+export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
+  write: "vault",
+  "write-binary": "vault",
+  rename: "vault",
+  delete: "vault",
+  mkdir: "vault",
+  "sync-control": "vault",
+  reindex: "vault",
+  "pim-write": "vault",
+  "pim-refresh": "vault",
+  // Touches the bookmark list of one vault, so it is addressed like a write.
+  "toggle-bookmark": "vault",
+  // Answered once for the process: these route windows, hand over drafts, open
+  // owner surfaces or carry their vault in the arguments already.
+  "focus-content": "app",
+  "open-content": "app",
+  "mail-send": "app",
+  "mail-draft": "app",
+  "mail-token": "app",
+  "compose-draft": "app",
+  "compose-popout": "app",
+  "window-bounds": "app",
+  "window-contents": "app",
+  "window-always-on-top": "app",
+  // About a WINDOW and the process-wide runtime registry, and it names its
+  // vault in the arguments — addressing it by vault would be circular.
+  "hold-vault": "app",
+  "owner-surface": "app",
+  "draft-record": "app",
+  "draft-clear": "app",
+  "flush-pending": "app",
+};
+
 const EV_BROADCAST = "pv:broadcast";
 const EV_RPC = "pv:rpc";
 const EV_RPC_REPLY = "pv:rpc-reply";
@@ -282,6 +374,8 @@ export type OwnerSurface = RpcMap["owner-surface"]["args"]["surface"];
 interface BroadcastEnvelope {
   from: string;
   channel: string;
+  /** The vault this concerns; null for the app- and window-scoped channels. */
+  vaultPath: string | null;
   payload: unknown;
 }
 
@@ -289,6 +383,8 @@ interface RpcEnvelope {
   from: string;
   id: string;
   kind: string;
+  /** The vault the CALLER is looking at — this is what picks the runtime. */
+  vaultPath: string | null;
   args: unknown;
 }
 
@@ -301,22 +397,43 @@ interface RpcReply {
 
 export interface WindowBus {
   readonly label: string;
-  /** Owner side: tell every other window something happened. */
-  broadcast<C extends BroadcastChannel>(channel: C, payload: BroadcastMap[C]): Promise<void>;
+  /**
+   * Owner side: tell every other window something happened.
+   *
+   * `vaultPath` is required rather than optional, and that is the whole point:
+   * a new emitter cannot compile without deciding which vault its message is
+   * about. `null` is a valid answer for the app- and window-scoped channels,
+   * but it is an answer, not an omission.
+   */
+  broadcast<C extends BroadcastChannel>(
+    channel: C,
+    payload: BroadcastMap[C],
+    vaultPath: string | null,
+  ): Promise<void>;
   /** Any side: react to a broadcast. Own emissions are filtered out. */
   onBroadcast<C extends BroadcastChannel>(
     channel: C,
-    handler: (payload: BroadcastMap[C], from: string) => void,
+    handler: (payload: BroadcastMap[C], from: string, vaultPath: string | null) => void,
   ): Promise<() => void>;
   /** Aux side: ask the owner to do something and wait for the outcome. */
   request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"]): Promise<RpcMap[K]["result"]>;
-  /** Owner side: answer one request kind. Throwing rejects the caller's promise. */
+  /**
+   * Owner side: answer one request kind. Throwing rejects the caller's promise.
+   *
+   * `opts.vaultPath` binds this handler to one vault: with a runtime per open
+   * vault every one of them registers the same kinds, and without the binding
+   * they would all answer — the fastest reply would win and it might belong to
+   * the wrong vault. The handler also receives the caller's vault, for the few
+   * app-scoped kinds that route by it.
+   */
   handle<K extends RpcKind>(
     kind: K,
     handler: (
       args: RpcMap[K]["args"],
       from: string,
+      vaultPath: string | null,
     ) => Promise<RpcMap[K]["result"]> | RpcMap[K]["result"],
+    opts?: { vaultPath?: string | null },
   ): Promise<() => void>;
   /** Drops every subscription this bus made. */
   dispose(): Promise<void>;
@@ -324,7 +441,15 @@ export interface WindowBus {
 
 let rpcCounter = 0;
 
-export function createWindowBus(transport: BusTransport, timeoutMs = RPC_TIMEOUT_MS): WindowBus {
+/**
+ * @param vaultPathOf Which vault THIS window is looking at. Read per call, not
+ *   captured: the central window changes vaults while the bus stays the same.
+ */
+export function createWindowBus(
+  transport: BusTransport,
+  timeoutMs = RPC_TIMEOUT_MS,
+  vaultPathOf: () => string | null = () => null,
+): WindowBus {
   const unlisteners: Array<() => void> = [];
   const pending = new Map<
     string,
@@ -357,8 +482,8 @@ export function createWindowBus(transport: BusTransport, timeoutMs = RPC_TIMEOUT
   return {
     label: transport.label,
 
-    async broadcast(channel, payload) {
-      const envelope: BroadcastEnvelope = { from: transport.label, channel, payload };
+    async broadcast(channel, payload, vaultPath) {
+      const envelope: BroadcastEnvelope = { from: transport.label, channel, vaultPath, payload };
       await transport.emit(EV_BROADCAST, envelope);
     },
 
@@ -368,7 +493,15 @@ export function createWindowBus(transport: BusTransport, timeoutMs = RPC_TIMEOUT
         // Tauri delivers an emit to the sender as well; a window reacting to
         // its own broadcast would double every effect.
         if (!env || env.channel !== channel || env.from === transport.label) return;
-        handler(env.payload as never, env.from);
+        // The address filter, in one place rather than at every subscriber: a
+        // window on vault B must not re-query its tree because vault A's index
+        // moved. Filtered here so a new subscriber inherits it instead of
+        // having to remember it.
+        if (BROADCAST_SCOPE[channel] === "vault") {
+          const mine = vaultPathOf();
+          if (mine && env.vaultPath && env.vaultPath !== mine) return;
+        }
+        handler(env.payload as never, env.from, env.vaultPath ?? null);
       });
       unlisteners.push(un);
       return un;
@@ -378,7 +511,7 @@ export function createWindowBus(transport: BusTransport, timeoutMs = RPC_TIMEOUT
       await ensureReplyListener();
       rpcCounter += 1;
       const id = `${transport.label}-${rpcCounter}-${Math.random().toString(36).slice(2, 8)}`;
-      const envelope: RpcEnvelope = { from: transport.label, id, kind, args };
+      const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath: vaultPathOf(), args };
       const result = new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           pending.delete(id);
@@ -390,14 +523,19 @@ export function createWindowBus(transport: BusTransport, timeoutMs = RPC_TIMEOUT
       return (await result) as never;
     },
 
-    async handle(kind, handler) {
+    async handle(kind, handler, opts) {
+      const boundVault = opts?.vaultPath ?? null;
       const un = await transport.listen(EV_RPC, (raw) => {
         const env = raw as RpcEnvelope;
         if (!env || env.kind !== kind || env.from === transport.label) return;
+        // Exact match, deliberately including the unaddressed case: a request
+        // that names no vault is not something a vault-bound handler may guess
+        // at, and answering it would mean one of several runtimes wins a race.
+        if (boundVault !== null && env.vaultPath !== boundVault) return;
         void (async () => {
           let reply: RpcReply;
           try {
-            const value = await handler(env.args as never, env.from);
+            const value = await handler(env.args as never, env.from, env.vaultPath ?? null);
             reply = { id: env.id, ok: true, value };
           } catch (e) {
             // The caller gets the message, not a silent no-op: an aux window
@@ -452,9 +590,28 @@ export async function createTauriTransport(): Promise<BusTransport> {
 
 let busPromise: Promise<WindowBus> | null = null;
 
+/**
+ * Which vault this window is looking at, for the address on every message.
+ *
+ * A client window is told its vault in the URL and cannot change it, so the
+ * default is the honest answer there. The central window shows a vault that
+ * changes while the bus stays the same, so it overrides this — read through a
+ * function rather than captured, or the bus would keep announcing the vault
+ * that was open when it was created.
+ */
+let vaultResolver: () => string | null = () => currentWindowParams().vaultPath;
+
+/** The central window points this at the vault it currently shows (stage D). */
+export function setBusVaultResolver(fn: () => string | null): void {
+  vaultResolver = fn;
+}
+
 /** The bus of this window. One per window, created on first use. */
 export function getWindowBus(): Promise<WindowBus> {
-  if (!busPromise) busPromise = createTauriTransport().then((t) => createWindowBus(t));
+  if (!busPromise)
+    busPromise = createTauriTransport().then((t) =>
+      createWindowBus(t, RPC_TIMEOUT_MS, () => vaultResolver()),
+    );
   return busPromise;
 }
 

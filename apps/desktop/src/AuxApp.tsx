@@ -7,6 +7,8 @@ import { PaneTabStrip } from "./components/PaneTabStrip";
 import { useVault } from "./contexts/VaultContext";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { currentWindowParams } from "./services/windowContext";
+import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useApp } from "./contexts/AppContext";
 import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
@@ -31,6 +33,7 @@ const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then(
  * to draw (plan E2).
  */
 export function AuxApp() {
+  const { heldVaults } = useApp();
   const { t } = useTranslation();
   const params = currentWindowParams();
   const { vaultAdapter, vaultPath, isLoading, error } = useVault();
@@ -104,21 +107,17 @@ export function AuxApp() {
 
   // The OS title bar and the taskbar entry follow the content, not the window
   // it started with — after following a link the taskbar would otherwise still
-  // show the note the window was popped out with.
-  useEffect(() => {
-    // A compose window keeps the title the owner gave it: the SUBJECT of the
-    // message. Two composers in the taskbar are otherwise two entries called
-    // "Plainva", and this window never learns a file name to replace it with.
-    if (params.role === "compose") return;
-    void (async () => {
-      try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        await getCurrentWindow().setTitle(`${title} — Plainva`);
-      } catch {
-        /* browser/test: no OS window to name */
-      }
-    })();
-  }, [title, params.role]);
+  // show the note the window was popped out with. Since stage D the vault joins
+  // in as soon as a second one is open (see composeWindowTitle).
+  //
+  // A compose window keeps the title the owner gave it: the SUBJECT of the
+  // message. Two composers in the taskbar are otherwise two entries called
+  // "Plainva", and this window never learns a file name to replace it with.
+  useOsWindowTitle(
+    params.role === "compose"
+      ? null
+      : composeWindowTitle({ subject: title, vaultPath: params.vaultPath, vaultCount: heldVaults.length }),
+  );
 
   /**
    * Where a click should land. The owner decides — it is the only participant

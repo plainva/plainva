@@ -3531,6 +3531,7 @@
     "trayQuit": "Quit",
     "trayNoNext": "No appointment in sight",
     "trayNext": "Next: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Stay in the background?",
     "offerBody": "Reminders only appear while Plainva is running. Should Plainva keep running in the tray when you close the window?",
     "offerYes": "Yes, stay in the background",
@@ -3636,11 +3637,14 @@
     "unpinOnTop": "Stop staying on top",
     "openComms": "Open communications window",
     "openSecond": "Open a second window",
+    "openVaultWindow": "Open vault in a new window",
+    "vaultNestedInside": "This vault lies inside “{{other}}”, which is already open. Two vaults may not overlap.",
+    "vaultNestedContains": "This vault contains “{{other}}”, which is already open. Two vaults may not overlap.",
     "commsTitle": "Communications",
     "settingsGroup": "Windows",
     "restoreWindows": "Restore window layout",
     "restoreWindowsDesc": "Reopens the auxiliary windows you had open when the app starts. Unsent messages are never restored.",
     "noVaultTitle": "No vault open",
-    "noVaultBody": "The central Plainva window is not showing a vault right now. Open one there and this window follows."
+    "noVaultBody": "This window is not showing a vault right now. Pick a recent one or choose a folder."
   }
 }

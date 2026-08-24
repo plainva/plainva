@@ -3568,6 +3568,7 @@
     "trayQuit": "Sair",
     "trayNoNext": "Nenhum compromisso à vista",
     "trayNext": "Próximo: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Permanecer em segundo plano?",
     "offerBody": "Os lembretes só aparecem enquanto o Plainva estiver em execução. O Plainva deve continuar na área de notificação ao fechar a janela?",
     "offerYes": "Sim, permanecer em segundo plano",
@@ -3675,11 +3676,14 @@
     "unpinOnTop": "Não manter sempre visível",
     "openComms": "Abrir janela de comunicação",
     "openSecond": "Abrir uma segunda janela",
+    "openVaultWindow": "Abrir cofre em uma nova janela",
+    "vaultNestedInside": "Este cofre está dentro de “{{other}}”, que já está aberto. Dois cofres não podem se sobrepor.",
+    "vaultNestedContains": "Este cofre contém “{{other}}”, que já está aberto. Dois cofres não podem se sobrepor.",
     "commsTitle": "Comunicação",
     "settingsGroup": "Janelas",
     "restoreWindows": "Restaurar a disposição das janelas",
     "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas.",
     "noVaultTitle": "Nenhum cofre aberto",
-    "noVaultBody": "A janela principal do Plainva não está mostrando nenhum cofre no momento. Abra um lá e esta janela vai acompanhar."
+    "noVaultBody": "Esta janela não está mostrando nenhum cofre no momento. Escolha um dos recentes ou selecione uma pasta."
   }
 }

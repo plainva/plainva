@@ -28,6 +28,11 @@ test.beforeEach(async ({ page }) => {
         lastVaultPath: '/test-vault',
         recentVaults: ['/test-vault'],
         autoOpenLastVault: true,
+        // Stage D remounts `App` when the shown vault arrives, which is when
+        // the release dialog finally gets a vault to render over. A marker
+        // equal to the running version means "already seen" - this suite tests
+        // the themes, not the first five seconds.
+        whatsNewSeenVersion: '9.9.9',
       });
     }
 
@@ -48,6 +53,8 @@ test.beforeEach(async ({ page }) => {
 
         // --- STORE PLUGIN (persistent within the test via localStorage) ---
         if (cmd === 'plugin:store|load') return 1;
+        // The version the marker above is compared against.
+        if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
           const store = readStore();
           if (args.key in store) return [store[args.key], true];

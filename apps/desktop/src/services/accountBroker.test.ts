@@ -18,20 +18,42 @@ vi.mock("./CredentialManager", () => ({
     },
   },
 }));
-vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => cloudRecords }));
+/**
+ * Per-vault registries, for the stage-D cases. Everything written before
+ * multi-window used one vault, so an unknown path keeps answering with the
+ * shared list rather than making every existing test name a vault.
+ */
+const cloudByVault = new Map<string, CloudAccountRecord[]>();
+vi.mock("./cloudAccounts", () => ({
+  loadCloudAccounts: async (vaultPath: string) => cloudByVault.get(vaultPath) ?? cloudRecords,
+}));
+
+const settings = new Map<string, unknown>();
+vi.mock("./settingsStore", () => ({
+  getSettingsStore: async () => ({
+    get: async <T,>(k: string) => settings.get(k) as T | undefined,
+    set: async (k: string, v: unknown) => {
+      settings.set(k, v);
+    },
+    save: async () => {},
+  }),
+}));
 vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn(async () => tokenReply("AT-MICROSOFT")) }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn(async () => tokenReply("AT-GOOGLE")) }));
 
+import { microsoftAuthFetch } from "./authFetch";
 import {
   accountSecretKey,
   brokerFamily,
   brokerTokenProvider,
   describeBrokerLookup,
   forgetAccountBroker,
+  getAccountBroker,
   googleScopeFor,
   microsoftScopeFor,
   microsoftUnionScope,
   replaceAccountClientRegistration,
+  resetGrantSharingForTests,
   setPendingBrokerAccount,
 } from "./accountBroker";
 
@@ -247,5 +269,167 @@ describe("the broker answers for the account that is asking", () => {
       const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
       expect(await provider?.(false)).toBe("AT-MICROSOFT");
     });
+  });
+});
+
+/**
+ * TWO VAULTS, ONE ACCOUNT (multi-window stage D, plan § 5.5).
+ *
+ * A refresh token does not belong to a vault, it belongs to a GRANT: the
+ * provider-verified identity plus the local OAuth client that minted it. Two
+ * vaults holding the same account therefore hold the same grant in two slots —
+ * and Microsoft and Dropbox rotate on every refresh, so the second vault's
+ * renewal invalidates the first vault's stored token. Before stage D that could
+ * not happen, because only one vault was ever open.
+ *
+ * Both halves are needed, and neither replaces the other: the gate covers the
+ * CONCURRENT case (both windows renew in the same second — one round trip, one
+ * answer), the write-through covers the SEQUENTIAL one (an hour later the other
+ * vault renews from a token that has since been rotated away, and it also heals
+ * a vault that is currently closed).
+ */
+describe("two vaults holding the same account", () => {
+  const A = "/vault-a";
+  const B = "/vault-b";
+  // What the provider itself confirmed — issuer + subject, not the label.
+  const IDENTITY = { issuer: "https://login.microsoftonline.com/common/v2.0", subject: "aad-42" };
+
+  /** The same account, connected in both vaults, with the same client. */
+  function given(opts?: { identityInB?: unknown; clientIdInB?: string }) {
+    const inB = opts && "identityInB" in opts ? opts.identityInB : IDENTITY;
+    cloudByVault.set(A, [
+      {
+        id: "a1",
+        family: "microsoft",
+        label: "marco@outlook.com",
+        verifiedProviderIdentity: IDENTITY,
+        services: { files: { provider: "onedrive" } },
+      } as CloudAccountRecord,
+    ]);
+    cloudByVault.set(B, [
+      {
+        id: "b1",
+        family: "microsoft",
+        label: "marco@outlook.com",
+        ...(inB ? { verifiedProviderIdentity: inB } : {}),
+        services: { files: { provider: "onedrive" } },
+      } as CloudAccountRecord,
+    ]);
+    secrets.set(accountSecretKey(A, "a1"), { clientId: "cid", refreshToken: "RT-1" });
+    secrets.set(accountSecretKey(B, "b1"), { clientId: (opts && opts.clientIdInB) || "cid", refreshToken: "RT-1" });
+    settings.set("lastVaultPaths", [A, B]);
+  }
+
+  /** A Microsoft answer that rotates the refresh token, as it really does. */
+  function rotatesOnce() {
+    vi.mocked(microsoftAuthFetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "AT-1", refresh_token: "RT-2", expires_in: 3600 }),
+    } as never);
+  }
+
+  beforeEach(() => {
+    cloudRecords.length = 0;
+    cloudByVault.clear();
+    secrets.clear();
+    settings.clear();
+    forgetAccountBroker(A, "a1");
+    forgetAccountBroker(B, "b1");
+    resetGrantSharingForTests();
+    vi.mocked(microsoftAuthFetch).mockClear();
+  });
+
+  afterEach(() => {
+    vi.mocked(microsoftAuthFetch).mockReset();
+    vi.mocked(microsoftAuthFetch).mockImplementation(async () => tokenReply("AT-MICROSOFT") as never);
+  });
+
+  it("renews the shared sign-in once, not once per vault", async () => {
+    given();
+    const [tokenA, tokenB] = await Promise.all([
+      getAccountBroker(A, "a1").getAccessToken("files"),
+      getAccountBroker(B, "b1").getAccessToken("files"),
+    ]);
+    expect(tokenA).toBe("AT-MICROSOFT");
+    expect(tokenB).toBe("AT-MICROSOFT");
+    // One round trip: the second window waits for the first one's answer
+    // instead of asking Microsoft for a grant that is being rotated right now.
+    expect(vi.mocked(microsoftAuthFetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a rotated sign-in into the other vault's slot", async () => {
+    given();
+    rotatesOnce();
+
+    await getAccountBroker(A, "a1").getAccessToken("files");
+
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("RT-2");
+    // The other vault was never asked and may not even be open — its slot still
+    // has to hold the token that works, or its next sync fails with a sign-in
+    // error nobody caused.
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-2");
+  });
+
+  it("heals a vault that is only in the recents list", async () => {
+    given();
+    settings.set("lastVaultPaths", [A]);
+    settings.set("recentVaults", [B]);
+    rotatesOnce();
+
+    await getAccountBroker(A, "a1").getAccessToken("files");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-2");
+  });
+
+  /**
+   * A refresh token is bound to the client that minted it, so a slot with a
+   * different client ID is a different grant even for the same person — handing
+   * it the rotated token would swap a working sign-in for one the provider
+   * rejects.
+   *
+   * The protection lies TWICE (the grant key carries the client id, and the
+   * slot is compared again before it is written), so the red counter-check only
+   * falls when both are removed. That is deliberate: this test measures the
+   * behaviour, not one particular guard.
+   */
+  it("leaves a slot with a different client registration alone", async () => {
+    given({ clientIdInB: "other-cid" });
+    rotatesOnce();
+
+    await getAccountBroker(A, "a1").getAccessToken("files");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-1");
+  });
+
+  /**
+   * A label is not an identity. Two people in one company are easily called the
+   * same thing, and the settings sync refuses to merge on a label for exactly
+   * that reason — so an account without a provider-confirmed identity shares
+   * nothing.
+   */
+  it("shares nothing when the identity is not provider-confirmed", async () => {
+    given({ identityInB: null });
+    rotatesOnce();
+
+    await getAccountBroker(A, "a1").getAccessToken("files");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-1");
+    // The vault that DID the refresh keeps its own working token regardless.
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("RT-2");
+  });
+
+  /**
+   * The fan-out is a courtesy to the other vaults; the home slot is the one that
+   * must not be lost. A registry that cannot be read (a vault on a drive that is
+   * not plugged in) may therefore not take the refresh down with it.
+   */
+  it("still finishes the refresh when another vault cannot be read", async () => {
+    given();
+    cloudByVault.set(B, new Proxy([] as CloudAccountRecord[], {
+      get() {
+        throw new Error("drive is not there");
+      },
+    }));
+    rotatesOnce();
+
+    await expect(getAccountBroker(A, "a1").getAccessToken("files")).resolves.toBe("AT-1");
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("RT-2");
   });
 });

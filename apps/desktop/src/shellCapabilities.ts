@@ -46,7 +46,7 @@ export interface ShellCapabilities {
   routeOpen?: (path: string, openHere: () => void, opts?: { newWindow?: boolean }) => boolean;
   /**
    * A run that touches the whole vault (multi-window C2): the index.md sweep,
-   * the manual backup, the vault switcher.
+   * the manual backup.
    *
    * Present ONLY in a client, where it brings the central window forward and
    * lets it run there. The reason is not that a client could not write — every
@@ -58,11 +58,19 @@ export interface ShellCapabilities {
    * them differs, and the shell decides that in ONE place rather than at each
    * of the three entry points these runs have (ribbon, palette, tree, settings).
    */
-  deferToOwner?: (run: "update-indexes" | "backup" | "switch-vault" | "new-window") => void;
-  /** Leaves the current vault. Absent in a client: a client follows the owner (E7). */
+  deferToOwner?: (run: "update-indexes" | "backup" | "new-window") => void;
+  /** Leaves the vault THIS window shows (stage D: every window has its own). */
   closeVault?: () => void;
-  /** Opens another known vault. Absent in a client for the same reason (E7). */
+  /** Shows another known vault in THIS window. */
   openVault?: (path: string) => void;
-  /** The vaults offered in the switcher; empty in a client (E7). */
+  /** The vaults offered in the switcher. */
   recentVaults?: readonly string[];
+  /**
+   * Opens a known vault in a window of its own (stage D).
+   *
+   * Present only in a CLIENT: creating a window is owner-only by capability, so
+   * a second window asks. The owner shell opens it directly and leaves this
+   * absent, which is also what tells the two apart at the call site.
+   */
+  openVaultWindow?: (vaultPath: string) => void;
 }

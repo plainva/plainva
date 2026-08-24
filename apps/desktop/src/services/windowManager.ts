@@ -1,7 +1,10 @@
 import { buildWindowQuery, windowStatePrefix, type WindowPreset, type WindowRole } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
+import { getWindowBus } from "./windowBus";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
+import { heldVaults, releaseHolder } from "./vaultRuntimes";
+import { vaultNestingConflict, vaultNestingMessage } from "./vaultNesting";
 
 /**
  * Opening, focusing and remembering auxiliary windows (multi-window P0).
@@ -192,31 +195,33 @@ export function persistWindows(vaultPath: string): void {
 }
 
 /**
- * The owner moved to another vault; the open windows move with it (C5).
+ * A window changed which vault it shows (C5, per window since stage D).
  *
- * Only for a real switch: CLOSING the vault leaves the records where they are,
- * so reopening that vault brings its windows back (E5). The client windows are
- * told either way — that is the broadcast, not this.
+ * Only for a real switch: a window that CLOSES its vault keeps its record, so
+ * reopening that vault brings the window back (E5). Passing `null` is the other
+ * case — the window is gone, and a record left behind reopens it empty on the
+ * next start.
+ *
+ * Until stage D a switch moved every window in the process, because one process
+ * held one vault. With several open that is exactly wrong: a second window
+ * exists to show something else, and moving it takes away the only reason it is
+ * open.
  *
  * A window's record carries the vault it belongs to, and that is what decides
- * which list it is remembered in and which windows a start restores. Leave the
- * records behind on a switch and two things go wrong at once: the windows that
- * are visibly showing the NEW vault are remembered under the old one, and the
- * old vault's list keeps promising windows that no longer show it.
- *
- * Both lists are written: the new one gains the windows, the old one loses
- * them — otherwise the next start of the old vault reopens windows that have
- * been looking at something else since.
+ * which list it is remembered in and which windows a start restores. Both lists
+ * are written: the new one gains the window, the old one loses it — otherwise
+ * the next start of the old vault reopens a window that has been looking at
+ * something else since.
  */
-export function noteVaultChanged(vaultPath: string): void {
-  const previous = new Set<string>();
-  for (const rec of open.values()) {
-    if (rec.vaultPath === vaultPath) continue;
-    previous.add(rec.vaultPath);
-    rec.vaultPath = vaultPath;
-  }
-  for (const old of previous) persistWindows(old);
-  persistWindows(vaultPath);
+export function noteWindowVault(label: string, vaultPath: string | null): void {
+  const rec = open.get(label);
+  if (!rec) return;
+  const previous = rec.vaultPath;
+  if (previous === vaultPath) return;
+  if (vaultPath) rec.vaultPath = vaultPath;
+  else open.delete(label);
+  if (previous) persistWindows(previous);
+  if (vaultPath) persistWindows(vaultPath);
 }
 
 /** What was open last time. Malformed content is dropped, never thrown. */
@@ -302,8 +307,15 @@ export async function openAuxWindow(params: {
   // A window can also be closed by the OS (Alt+F4, the system menu), so the
   // registry follows the window rather than the code path that closed it.
   void win.onCloseRequested(() => {
+    // Its CURRENT vault, not the one it opened with: since stage D a window can
+    // switch, and persisting the old list would leave the record it just lost
+    // in place while the list it actually belongs to keeps a stale entry.
+    const shown = open.get(label)?.vaultPath ?? params.vaultPath;
     open.delete(label);
-    persistWindows(params.vaultPath);
+    persistWindows(shown);
+    // And let go of the runtime: a vault only this window held has no reason to
+    // keep indexing, watching and syncing for a window that is gone.
+    releaseHolder(label);
     params.onClosed?.();
   });
 
@@ -322,6 +334,11 @@ export async function openFullWindow(params: {
   vaultPath: string;
   title?: string;
 }): Promise<AuxWindowRecord> {
+  // Refused here rather than after the window exists: two vaults on overlapping
+  // trees mean two watchers and two indexers on the same files, and the honest
+  // moment to say so is before anything is built (stage D, § 6.6).
+  const clash = vaultNestingConflict(params.vaultPath, heldVaults());
+  if (clash) throw new Error(vaultNestingMessage(clash));
   return openAuxWindow({
     role: "full",
     vaultPath: params.vaultPath,
@@ -577,6 +594,41 @@ export async function openOrFocusContent(opts: {
 
   if (ownerHasContent(opts.path)) return { where: "owner" };
   return { where: "caller" };
+}
+
+/**
+ * Shows content in whichever window has that vault open (stage D).
+ *
+ * A reminder fires in the runtime, and the runtime has no window — with two
+ * vaults open the one it belongs to may well be a window the central one is
+ * not showing. Clicking the notification then has to land where that vault
+ * IS, not where the central window happens to be looking, because opening it
+ * centrally would silently switch the vault out from under the other window.
+ *
+ * A held vault always has a window: that is what holding means. So the only
+ * two answers are "the central window, locally" and "that window, brought
+ * forward" — there is no third case to invent a fallback for.
+ */
+export async function showContentInVaultWindow(opts: {
+  vaultPath: string;
+  path: string;
+  /** True when the central window is the one showing this vault. */
+  ownerShows: boolean;
+}): Promise<boolean> {
+  if (opts.ownerShows) {
+    window.dispatchEvent(new CustomEvent("plainva-window-show-content", { detail: { path: opts.path } }));
+    return true;
+  }
+  const target =
+    findWindowForContent(opts.vaultPath, opts.path) ??
+    listAuxWindows().find((w) => w.vaultPath === opts.vaultPath && (w.role === "aux" || w.role === "full")) ??
+    null;
+  if (!target) return false;
+  const focused = await focusAuxWindow(target.label);
+  if (!focused) return false;
+  const bus = await getWindowBus();
+  await bus.broadcast("set-content", { label: target.label, path: opts.path }, opts.vaultPath);
+  return true;
 }
 
 /** Remembers where a window is, so a later start can put it back (P4/E5). */

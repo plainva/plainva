@@ -3531,6 +3531,7 @@
     "trayQuit": "Afsluiten",
     "trayNoNext": "Geen afspraak in zicht",
     "trayNext": "Volgende: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Op de achtergrond blijven?",
     "offerBody": "Herinneringen verschijnen alleen zolang Plainva draait. Moet Plainva bij het sluiten van het venster in het systeemvak doorlopen?",
     "offerYes": "Ja, op de achtergrond blijven",
@@ -3636,11 +3637,14 @@
     "unpinOnTop": "Niet meer op de voorgrond",
     "openComms": "Communicatievenster openen",
     "openSecond": "Tweede venster openen",
+    "openVaultWindow": "Kluis in een nieuw venster openen",
+    "vaultNestedInside": "Deze kluis ligt in „{{other}}”, die al open is. Twee kluizen mogen elkaar niet overlappen.",
+    "vaultNestedContains": "Deze kluis bevat „{{other}}”, die al open is. Twee kluizen mogen elkaar niet overlappen.",
     "commsTitle": "Communicatie",
     "settingsGroup": "Vensters",
     "restoreWindows": "Vensterindeling herstellen",
     "restoreWindowsDesc": "Opent bij het starten de extra vensters die openstonden. Niet-verzonden berichten worden nooit hersteld.",
     "noVaultTitle": "Geen kluis geopend",
-    "noVaultBody": "Het hoofdvenster van Plainva toont op dit moment geen kluis. Open er daar een, dan volgt dit venster."
+    "noVaultBody": "Dit venster toont op dit moment geen kluis. Kies er een uit de recente of selecteer een map."
   }
 }

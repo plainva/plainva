@@ -107,7 +107,7 @@ const sourceNeeds = (id: ImportSourceId) => {
 };
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaultPath, onClose }) => {
-  const { vaultAdapter, triggerFileTreeUpdate, openVault } = useVault();
+  const { vaultAdapter, triggerFileTreeUpdate, openVault, vaultPath } = useVault();
   const { t } = useTranslation();
 
   const [selectedSourceId, setSelectedSourceId] = useState<ImportSourceId>('generic_markdown');
@@ -151,7 +151,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
    * A subfolder import writes into a synced vault, so every note becomes an
    * upload. Plainva guards mass DELETES but has never mentioned mass uploads.
    */
-  const syncProvider = syncStatusStore.get().provider;
+  const syncProvider = syncStatusStore.get(vaultPath).provider;
 
   // Each source brings its own switches; a new source starts at its defaults.
   // The list is looked up inside the effect rather than passed in: it is a

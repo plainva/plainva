@@ -9,10 +9,15 @@ import {
   type CloudServiceId,
   type CloudProviderFamily,
   type OAuthClientRegistration,
+  logDiagnostic,
+  normalizeVerifiedProviderIdentity,
+  verifiedProviderIdentityKey,
+  type RefreshResult,
   type TokenBroker,
   type StoredAccountToken,
 } from "@plainva/ui";
 import { loadCloudAccounts } from "./cloudAccounts";
+import { getSettingsStore } from "./settingsStore";
 import {
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
@@ -119,6 +124,123 @@ export function microsoftUnionScope(audiences: readonly string[]): string {
 }
 
 /**
+ * ONE GRANT, SEVERAL VAULTS (multi-window stage D, plan § 5.5).
+ *
+ * A refresh token does not belong to a vault. It belongs to a GRANT — the
+ * identity the provider confirmed, plus the local OAuth client that minted it —
+ * and the same account connected in two vaults holds that one grant in two
+ * keychain slots. Microsoft and Dropbox rotate the refresh token on every
+ * renewal, so the second vault's renewal invalidates the first vault's copy.
+ * Until stage D only one vault was ever open, so the case could not arise.
+ *
+ * Two halves, and neither can replace the other:
+ *
+ * - the **gate** below covers the concurrent case (two windows renew in the
+ *   same second — they share one round trip and one answer);
+ * - the **write-through** in `getAccountBroker`'s store covers the sequential
+ *   one (an hour later, another vault renews from a token that has since been
+ *   rotated away) — and it also heals a vault that is closed right now.
+ *
+ * A label is not an identity: two people in one company are easily called the
+ * same thing, which is why the settings sync refuses to merge on a label. And
+ * the client id must match too, because a refresh token is bound to the client
+ * that issued it — the same person under a different registration is a
+ * different grant.
+ */
+function grantKeyOf(identity: unknown, clientId: string): string | null {
+  const verified = normalizeVerifiedProviderIdentity(identity);
+  if (!verified || !clientId) return null;
+  return verifiedProviderIdentityKey(verified) + " " + clientId;
+}
+
+async function grantKeyFor(vaultPath: string, accountId: string, clientId: string): Promise<string | null> {
+  try {
+    const record = (await loadCloudAccounts(vaultPath)).find((r) => r.id === accountId);
+    return grantKeyOf(record?.verifiedProviderIdentity, clientId);
+  } catch {
+    return null;
+  }
+}
+
+/** Renewals in flight, keyed by grant rather than by vault. */
+const refreshInFlight = new Map<string, Promise<RefreshResult>>();
+
+async function sharedRefresh(key: string | null, run: () => Promise<RefreshResult>): Promise<RefreshResult> {
+  // No provable grant: no sharing. Renewing on its own is the behaviour that
+  // existed before, and it is the safe side of this decision.
+  if (!key) return run();
+  const running = refreshInFlight.get(key);
+  if (running) return running;
+  const started = run().finally(() => {
+    refreshInFlight.delete(key);
+  });
+  refreshInFlight.set(key, started);
+  return started;
+}
+
+/** Every vault this installation knows about — open ones first. */
+async function knownVaultPaths(): Promise<string[]> {
+  const store = await getSettingsStore();
+  const open = (await store.get<string[]>("lastVaultPaths")) ?? [];
+  const recents = (await store.get<string[]>("recentVaults")) ?? [];
+  return [...new Set([...open, ...recents])];
+}
+
+/**
+ * Carries a rotated refresh token into every other slot that holds the same
+ * grant.
+ *
+ * Best effort on purpose: the home slot is written (and awaited) by the broker
+ * itself, and losing THAT is what locks an account out. A vault whose registry
+ * cannot be read — one on a drive that is not plugged in — must not take the
+ * renewal down with it; it is simply healed the next time it is reachable.
+ *
+ * `credentialManager.writeSecret` rather than `saveAccountToken`: the latter
+ * also drops the Graph mail runtimes app-wide, which is right after a reconnect
+ * and pure noise for an hourly rotation.
+ */
+async function shareRotatedToken(homeVault: string, accountId: string, next: StoredAccountToken): Promise<void> {
+  if (!next.refreshToken) return;
+  const key = await grantKeyFor(homeVault, accountId, next.clientId);
+  if (!key) return;
+
+  for (const vaultPath of await knownVaultPaths()) {
+    if (vaultPath === homeVault) continue;
+    try {
+      for (const record of await loadCloudAccounts(vaultPath)) {
+        if (grantKeyOf(record.verifiedProviderIdentity, next.clientId) !== key) continue;
+        const stored = await getAccountToken(vaultPath, record.id);
+        if (!stored?.refreshToken || stored.clientId !== next.clientId) continue;
+        if (stored.refreshToken === next.refreshToken) continue;
+        await credentialManager.writeSecret(accountSecretKey(vaultPath, record.id), {
+          ...stored,
+          refreshToken: next.refreshToken,
+        });
+      }
+    } catch (err) {
+      logDiagnostic(
+        "sync",
+        "could not carry a rotated sign-in into " + vaultPath + ": " + (err instanceof Error ? err.message : String(err)),
+      );
+    }
+  }
+}
+
+async function sharedRefreshFor(
+  vaultPath: string,
+  accountId: string,
+  clientId: string,
+  run: () => Promise<RefreshResult>,
+): Promise<RefreshResult> {
+  return sharedRefresh(await grantKeyFor(vaultPath, accountId, clientId), run);
+}
+
+/** Test seam: forgets which renewals are in flight. */
+export function resetGrantSharingForTests(): void {
+  refreshInFlight.clear();
+}
+
+/**
  * One broker instance per (vault, account) so the single-flight guarantee
  * actually holds across the three subsystems — a fresh instance per call would
  * give every consumer its own in-flight map and defeat the purpose.
@@ -135,9 +257,10 @@ export function getAccountBroker(vaultPath: string, accountId: string, family: "
       read: () => getAccountToken(vaultPath, accountId),
       write: async (next) => {
         await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), next);
+        await shareRotatedToken(vaultPath, accountId, next);
       },
     },
-    refresh: async ({ clientId, clientSecret, refreshToken, scope }) => {
+    refresh: ({ clientId, clientSecret, refreshToken, scope }) => sharedRefreshFor(vaultPath, accountId, clientId, async () => {
       if (family === "google") {
         // Google does not rotate refresh tokens, so nothing comes back to
         // persist — but the single-flight and the one shared copy are what
@@ -154,7 +277,7 @@ export function getAccountBroker(vaultPath: string, accountId: string, family: "
         refreshToken: tokens.refreshToken,
         expiresIn: tokens.expiresIn,
       };
-    },
+    }),
     scopeFor: family === "google" ? googleScopeFor : microsoftScopeFor,
   });
   brokers.set(key, broker);

@@ -3494,6 +3494,7 @@
     "trayQuit": "退出",
     "trayNoNext": "暂无日程",
     "trayNext": "下一个：{{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "留在后台？",
     "offerBody": "提醒只在 Plainva 运行时出现。关闭窗口后，是否让 Plainva 在通知区域继续运行？",
     "offerYes": "好，留在后台",
@@ -3597,11 +3598,14 @@
     "unpinOnTop": "取消置顶",
     "openComms": "打开通讯窗口",
     "openSecond": "打开第二个窗口",
+    "openVaultWindow": "在新窗口中打开仓库",
+    "vaultNestedInside": "此库位于已打开的“{{other}}”内。两个库不能重叠。",
+    "vaultNestedContains": "此库包含已打开的“{{other}}”。两个库不能重叠。",
     "commsTitle": "通讯",
     "settingsGroup": "窗口",
     "restoreWindows": "恢复窗口布局",
     "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。",
     "noVaultTitle": "未打开任何知识库",
-    "noVaultBody": "Plainva 主窗口当前没有显示任何知识库。在那里打开一个，此窗口就会跟随。"
+    "noVaultBody": "此窗口当前没有显示任何知识库。请选择最近使用的一个，或指定一个文件夹。"
   }
 }

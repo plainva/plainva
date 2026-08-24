@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState } from "@plainva/ui";
+import { Button, EmptyState, ICON } from "@plainva/ui";
+import { FolderOpen } from "lucide-react";
 import { AppShell } from "./AppShell";
 import { useVault } from "./contexts/VaultContext";
+import { useApp } from "./contexts/AppContext";
 import { getWindowBus, type OwnerSurface } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { currentWindowParams } from "./services/windowContext";
+import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
 import type { ShellCapabilities } from "./shellCapabilities";
 
 /**
@@ -26,9 +29,11 @@ import type { ShellCapabilities } from "./shellCapabilities";
  * - **Runs across the whole vault** — the index.md sweep, the manual backup —
  *   same treatment, for a different reason: they belong to the window that
  *   holds the indexer and the schedulers (C2).
- * - **Switching the vault** — one process, one open vault (plan E7). The
- *   switcher still NAMES the vault this window is looking at; it just does not
- *   offer to change it for everyone else.
+ * - Switching the vault is NOT on this list any more (stage D): several vaults
+ *   can be open at once, so this window switches its own. What it still cannot
+ *   do is CREATE one — scaffolding a vault writes a tree and touches the
+ *   settings, which is the owner's job; the chooser below therefore offers the
+ *   known vaults and a folder, not the full splash.
  * - **Deciding where content opens** — the owner knows every window, this one
  *   knows only itself. Every door into a pane asks first (C1).
  */
@@ -36,6 +41,12 @@ export function FullApp() {
   const label = currentWindowParams().label;
   const { t } = useTranslation();
   const { vaultPath } = useVault();
+  const { openVault, closeVault, selectVault, recentVaults, heldVaults } = useApp();
+
+  // A full window is a WORKPLACE, not a piece of content: its name is the vault
+  // it shows. With a second vault open that is also what tells two of these
+  // apart in the taskbar (stage D).
+  useOsWindowTitle(composeWindowTitle({ vaultPath, vaultCount: heldVaults.length }));
 
   const openOwnerSurface = useCallback(
     (
@@ -88,16 +99,40 @@ export function FullApp() {
     reportOpenContents,
     routeOpen: (path, openHere, opts) => routeOpenThroughOwner(path, openHere, { from: label, ...opts }),
     deferToOwner: (run) => openOwnerSurface(run),
-    // Deliberately absent: closeVault, openVault, recentVaults — see the note
-    // above (plan E7).
-  }), [openOwnerSurface, reportOpenContents, label]);
+    // Present since stage D: this window's own vault line. The calls change
+    // what THIS window shows; the runtime behind it is still the owner's.
+    openVault: (path) => { void openVault(path); },
+    closeVault: () => { void closeVault(); },
+    recentVaults,
+    openVaultWindow: (path) => {
+      void (async () => {
+        try {
+          const bus = await getWindowBus();
+          await bus.request("owner-surface", { surface: "new-window", vaultPath: path });
+        } catch {
+          /* no owner listening (browser/test) */
+        }
+      })();
+    },
+  }), [openOwnerSurface, reportOpenContents, label, openVault, closeVault, recentVaults]);
 
-  // One process holds one open vault (plan E7), so this window's vault is the
-  // central window's. When that one closes it, drawing an empty tree over
-  // disposed services would look like a broken window rather than an empty one
-  // — and this window has no "open vault" of its own to offer (C5).
+  // No vault here: offer the ones that are known, and a folder. Deliberately
+  // not the splash — that one creates vaults, imports and sets up cloud
+  // connections, all of which write and belong to the central window.
   if (!vaultPath) {
-    return <EmptyState title={t("window.noVaultTitle")}>{t("window.noVaultBody")}</EmptyState>;
+    return (
+      <EmptyState title={t("window.noVaultTitle")} icon={<FolderOpen size={ICON.empty} />}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", alignItems: "center" }}>
+          <span>{t("window.noVaultBody")}</span>
+          {recentVaults.slice(0, 5).map((path) => (
+            <Button key={path} variant="ghost" onClick={() => { void openVault(path); }}>
+              {path.split(/[/\\]/).filter(Boolean).pop() ?? path}
+            </Button>
+          ))}
+          <Button variant="primary" onClick={() => { void selectVault(); }}>{t("splash.openVault")}</Button>
+        </div>
+      </EmptyState>
+    );
   }
 
   return <AppShell capabilities={capabilities} />;

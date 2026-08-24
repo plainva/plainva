@@ -3605,6 +3605,7 @@
     "trayQuit": "Zakończ",
     "trayNoNext": "Żadnego spotkania w zasięgu",
     "trayNext": "Następne: {{title}} · {{time}}",
+    "trayNextInVault": "{{line}} · {{vault}}",
     "offerTitle": "Zostać w tle?",
     "offerBody": "Przypomnienia pojawiają się tylko wtedy, gdy Plainva działa. Czy Plainva ma po zamknięciu okna działać dalej w obszarze powiadomień?",
     "offerYes": "Tak, zostań w tle",
@@ -3714,11 +3715,14 @@
     "unpinOnTop": "Nie trzymaj na wierzchu",
     "openComms": "Otwórz okno komunikacji",
     "openSecond": "Otwórz drugie okno",
+    "openVaultWindow": "Otwórz vault w nowym oknie",
+    "vaultNestedInside": "Ten sejf znajduje się w „{{other}}”, który jest już otwarty. Dwa sejfy nie mogą się pokrywać.",
+    "vaultNestedContains": "Ten sejf zawiera „{{other}}”, który jest już otwarty. Dwa sejfy nie mogą się pokrywać.",
     "commsTitle": "Komunikacja",
     "settingsGroup": "Okna",
     "restoreWindows": "Przywróć układ okien",
     "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane.",
     "noVaultTitle": "Nie otwarto żadnego sejfu",
-    "noVaultBody": "Główne okno Plainvy nie pokazuje teraz żadnego sejfu. Otwórz go tam, a to okno podąży za nim."
+    "noVaultBody": "To okno nie pokazuje teraz żadnego sejfu. Wybierz jeden z ostatnich albo wskaż folder."
   }
 }
