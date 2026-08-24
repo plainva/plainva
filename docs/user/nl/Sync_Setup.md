@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-08-24
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -109,7 +109,7 @@ Open **Instellingen → Synchronisatie → Sync-wachtwoordzin en versleuteling**
 
 De ontgrendelde sleutel wordt op elk apparaat in de cache bewaard. Zet **Wachtwoordzin bij elke start vereisen** aan om deze in plaats daarvan na elke herstart opnieuw in te voeren, en gebruik **Vergrendelen** om de gecachete sleutel op dit apparaat te verwijderen.
 
-**Accounts op al je apparaten** bestaat uit drie stappen. **1 · Instellingen en accounts**: zet kluisinstellingen *en je accounts* (agenda’s, postvakken, agendaselectie) als klein bestand in de kluis — zolang er geen wachtwoordzin is ingesteld is er **geen** nodig; zodra er een is, moet elk apparaat hem invoeren voordat instellingen daarvandaan meereizen. **2 · Sync-wachtwoordzin** (optioneel): alleen nodig als ook aanmeldingen mee moeten reizen; dit versleutelt bovendien de instellingen uit stap 1. **3 · Aanmeldingen meenemen**: neemt daarnaast statische IMAP- en CalDAV-wachtwoorden versleuteld mee en kan pas aan als stap 1 draait en de wachtwoordzin ontgrendeld is — een wachtwoord kan alleen naar een account dat het apparaat al kent. Niet meegenomen: apparaatspecifieke paden en OAuth-aanmeldingen (Microsoft, Google); hun tokens zijn apparaatgebonden, dus het account verschijnt op het nieuwe apparaat en heeft daar één keer **Aanmelden** nodig.
+**Accounts op al je apparaten** bestaat uit drie stappen. **1 · Instellingen en accounts**: zet kluisinstellingen *en je accounts* (agenda’s, postvakken, agendaselectie) als klein bestand in de kluis — zolang er geen wachtwoordzin is ingesteld is er **geen** nodig; zodra er een is, moet elk apparaat hem invoeren voordat instellingen daarvandaan meereizen. Deze stap staat **standaard aan** — instellingen en accounts zijn geen geheimen; je kunt hem per kluis altijd uitzetten. **2 · Sync-wachtwoordzin** (optioneel): alleen nodig als ook aanmeldingen mee moeten reizen; dit versleutelt bovendien de instellingen uit stap 1. **3 · Aanmeldingen meenemen**: neemt daarnaast statische IMAP- en CalDAV-wachtwoorden versleuteld mee en kan pas aan als stap 1 draait en de wachtwoordzin ontgrendeld is — een wachtwoord kan alleen naar een account dat het apparaat al kent. Niet meegenomen: apparaatspecifieke paden en OAuth-aanmeldingen (Microsoft, Google); hun tokens zijn apparaatgebonden, dus het account verschijnt op het nieuwe apparaat en heeft daar één keer **Aanmelden** nodig.
 
 Op de **telefoon** vind je dezelfde keten op de kluispagina — dezelfde drie stappen en dezelfde vergrendeling. Accounts die van een ander apparaat komen, worden daar aangemaakt; je voert ze niet meer handmatig in. Met **Nu overnemen van een ander apparaat** haal je ze meteen op in plaats van op de volgende ronde te wachten.
 

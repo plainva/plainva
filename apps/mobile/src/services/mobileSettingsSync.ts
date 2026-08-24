@@ -191,8 +191,15 @@ async function saveState(state: ConnectionE2EState): Promise<void> {
   await store.save();
 }
 
+/**
+ * Twin of the desktop's `isSettingsSyncEnabled`, down to the `!== false`:
+ * settings travel by default, a stored `false` stays off, and only step 3 of
+ * the chain (sign-ins) remains opt-in. Both shells have to answer this the same
+ * way — one saying yes and the other no is a vault whose two devices disagree
+ * about what "synchronised" means.
+ */
 export async function isMobileSettingsSyncEnabled(vaultId: string): Promise<boolean> {
-  return (await (await settingsStore()).get<boolean>(enabledKey(vaultId))) === true;
+  return (await (await settingsStore()).get<boolean>(enabledKey(vaultId))) !== false;
 }
 
 /**

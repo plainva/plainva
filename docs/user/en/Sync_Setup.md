@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-08-21
+Last updated: 2026-08-24
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -109,7 +109,7 @@ Open **Settings → Synchronisation → Sync passphrase & encryption**:
 
 The unlocked key is cached on each device. Turn on **Require passphrase at every start** to re-enter it after each restart instead, and use **Lock** to remove the cached key from this device.
 
-**Accounts on all your devices** is three steps. **1 · Settings and accounts**: puts vault settings *and your accounts* (calendars, mailboxes, calendar selection) into a small file in the vault — as long as no passphrase is set up this needs **none**; once there is one, every device has to enter it before settings travel from there. **2 · Sync passphrase** (optional): only needed if sign-ins should travel too; it additionally encrypts the settings from step 1. **3 · Carry sign-ins**: additionally carries static IMAP and CalDAV passwords, encrypted, and can only be switched on once step 1 runs and the passphrase is unlocked — a password can only travel to an account the device already knows. Not carried: device-specific paths and OAuth sign-ins (Microsoft, Google); their tokens are device-bound, so the account appears on the new device and needs **Sign in** there once.
+**Accounts on all your devices** is three steps. **1 · Settings and accounts**: puts vault settings *and your accounts* (calendars, mailboxes, calendar selection) into a small file in the vault — as long as no passphrase is set up this needs **none**; once there is one, every device has to enter it before settings travel from there. This step is **on by default** — settings and accounts are not secrets; you can switch it off per vault at any time. **2 · Sync passphrase** (optional): only needed if sign-ins should travel too; it additionally encrypts the settings from step 1. **3 · Carry sign-ins**: additionally carries static IMAP and CalDAV passwords, encrypted, and can only be switched on once step 1 runs and the passphrase is unlocked — a password can only travel to an account the device already knows. Not carried: device-specific paths and OAuth sign-ins (Microsoft, Google); their tokens are device-bound, so the account appears on the new device and needs **Sign in** there once.
 
 On the **phone** you find the same chain on the vault page — the same three steps and the same lock. Accounts arriving from another device are created there; you no longer enter them by hand. **Take over from another device now** fetches them at once instead of waiting for the next round.
 

@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-08-21
+Stand: 2026-08-24
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -109,7 +109,7 @@ Plainva kann verschlüsseln, was Deinen Rechner in Richtung Sync-Server verläss
 
 Der entsperrte Schlüssel wird auf jedem Gerät zwischengespeichert. Schalte **Passphrase bei jedem Start verlangen** ein, um sie stattdessen nach jedem Neustart erneut einzugeben, und nutze **Sperren**, um den zwischengespeicherten Schlüssel auf diesem Gerät zu entfernen.
 
-**Konten auf all Deinen Geräten** sind drei Schritte. **1 · Einstellungen und Konten**: legt Vault-Einstellungen *und Deine Konten* (Kalender, Postfächer, Kalenderauswahl) als kleine Datei in den Vault — solange keine Passphrase eingerichtet ist, brauchst Du dafür **keine**; sobald es eine gibt, muss jedes Gerät sie eingeben, bevor von dort Einstellungen mitreisen. **2 · Sync-Passphrase** (optional): nur nötig, wenn auch Anmeldungen mitreisen sollen; sie verschlüsselt zusätzlich die Einstellungen aus Schritt 1. **3 · Anmeldungen mitnehmen**: nimmt statische IMAP- und CalDAV-Passwörter verschlüsselt mit und lässt sich erst einschalten, wenn Schritt 1 läuft und die Passphrase entsperrt ist — ein Passwort kann nur zu einem Konto reisen, das das Gerät schon kennt. Nicht mitgenommen werden gerätespezifische Pfade und OAuth-Anmeldungen (Microsoft, Google): deren Tokens sind gerätegebunden, das Konto erscheint auf dem neuen Gerät und braucht dort einmal **Anmelden**.
+**Konten auf all Deinen Geräten** sind drei Schritte. **1 · Einstellungen und Konten**: legt Vault-Einstellungen *und Deine Konten* (Kalender, Postfächer, Kalenderauswahl) als kleine Datei in den Vault — solange keine Passphrase eingerichtet ist, brauchst Du dafür **keine**; sobald es eine gibt, muss jedes Gerät sie eingeben, bevor von dort Einstellungen mitreisen. Dieser Schritt ist **standardmäßig eingeschaltet** — Einstellungen und Konten sind keine Geheimnisse; ausschalten kannst Du ihn pro Vault jederzeit. **2 · Sync-Passphrase** (optional): nur nötig, wenn auch Anmeldungen mitreisen sollen; sie verschlüsselt zusätzlich die Einstellungen aus Schritt 1. **3 · Anmeldungen mitnehmen**: nimmt statische IMAP- und CalDAV-Passwörter verschlüsselt mit und lässt sich erst einschalten, wenn Schritt 1 läuft und die Passphrase entsperrt ist — ein Passwort kann nur zu einem Konto reisen, das das Gerät schon kennt. Nicht mitgenommen werden gerätespezifische Pfade und OAuth-Anmeldungen (Microsoft, Google): deren Tokens sind gerätegebunden, das Konto erscheint auf dem neuen Gerät und braucht dort einmal **Anmelden**.
 
 Auf dem **Telefon** findest Du dieselbe Kette auf der Vault-Seite — mit denselben drei Schritten und derselben Sperre. Konten, die von einem anderen Gerät kommen, werden dort angelegt; Du musst sie nicht erneut von Hand eintragen. Über **Jetzt von einem anderen Gerät übernehmen** holst Du sie sofort, statt auf den nächsten Abgleich zu warten.
 

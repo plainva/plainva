@@ -389,10 +389,22 @@ export async function getDeviceId(store?: ISettingsStore): Promise<string> {
   return id;
 }
 
-/** Whether profile-sync is opted in for the given vault. */
+/**
+ * Whether this vault's settings travel with it. ON unless the user switched it
+ * off (maintainer decision 2026-08-24) — settings and account METADATA are not
+ * secrets, and a second device that has to be told every preference by hand is
+ * a second device that drifts. What stays opt-in is step 3 of the chain, the
+ * one that carries sign-ins; that flag keeps its `=== true`.
+ *
+ * `!== false`, not `?? true`: an absent value means "never asked", a stored
+ * `false` means "switched off", and only the first may be turned on by an
+ * update. Same distinction `secretsSyncStance` draws above — the alternative
+ * would be a device whose owner deliberately silenced it starting to exchange
+ * settings again after installing a new version.
+ */
 export async function isSettingsSyncEnabled(vaultPath: string, store?: ISettingsStore): Promise<boolean> {
   const s = store ?? (await getSettingsStore());
-  return (await s.get<boolean>(settingsSyncEnabledKey(vaultPath))) === true;
+  return (await s.get<boolean>(settingsSyncEnabledKey(vaultPath))) !== false;
 }
 
 /**

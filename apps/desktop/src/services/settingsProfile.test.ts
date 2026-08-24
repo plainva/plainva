@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
 import type { ISettingsStore } from "@plainva/ui";
-import { exportProfileValues, applyProfileValues, sanitizeProfileValues, isMemberProfileField, legacyToastFor, secretsSyncStance } from "./settingsProfile";
+import {
+  exportProfileValues,
+  applyProfileValues,
+  sanitizeProfileValues,
+  isMemberProfileField,
+  legacyToastFor,
+  secretsSyncStance,
+  isSettingsSyncEnabled,
+  isSecretsSyncEnabled,
+  settingsSyncEnabledKey,
+  secretsSyncEnabledKey,
+} from "./settingsProfile";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -286,5 +297,34 @@ describe("secretsSyncStance (E5)", () => {
     // that would do nothing.
     expect(secretsSyncStance(undefined, { ...ready, settingsSync: false })).toBe("leave-alone");
     expect(secretsSyncStance(undefined, { ...ready, unlocked: false })).toBe("leave-alone");
+  });
+});
+
+describe("what travels by default", () => {
+  it("syncs a vault's settings without being asked", () => {
+    // Maintainer decision 2026-08-24: settings and account metadata are not
+    // secrets, and a device that has to be told every preference by hand
+    // drifts away from the others.
+    const store = fakeStore();
+    return expect(isSettingsSyncEnabled(V, store)).resolves.toBe(true);
+  });
+
+  it("leaves a vault switched off switched off", async () => {
+    // The distinction the update must not lose: absent means "never asked",
+    // stored `false` means "the user said no".
+    const store = fakeStore();
+    await store.set(settingsSyncEnabledKey(V), false);
+    expect(await isSettingsSyncEnabled(V, store)).toBe(false);
+    await store.set(settingsSyncEnabledKey(V), true);
+    expect(await isSettingsSyncEnabled(V, store)).toBe(true);
+  });
+
+  it("keeps sign-ins opt-in", async () => {
+    // Step 3 of the chain carries credentials, so absence stays "no" here —
+    // the asymmetry is the point, not an oversight to be tidied away.
+    const store = fakeStore();
+    expect(await isSecretsSyncEnabled(V, store)).toBe(false);
+    await store.set(secretsSyncEnabledKey(V), true);
+    expect(await isSecretsSyncEnabled(V, store)).toBe(true);
   });
 });

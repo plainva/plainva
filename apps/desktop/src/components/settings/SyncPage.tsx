@@ -29,6 +29,7 @@ import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
 import {
   settingsSyncEnabledKey,
+  isSettingsSyncEnabled,
   secretsSyncEnabledKey,
   loadSyncDiagnostics,
   requestLegacySecretsCleanup,
@@ -165,7 +166,9 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
 
   useEffect(() => {
     void getSettingsStore().then(async (s) => {
-      setSettingsSyncOn((await s.get<boolean>(settingsSyncEnabledKey(p.selectedVault))) === true);
+      // Through the shared reader, not a raw store read: the default lives in
+      // ONE place, so the switch can never show "off" while the sideband syncs.
+      setSettingsSyncOn(await isSettingsSyncEnabled(p.selectedVault, s));
       const secrets = await s.get<boolean>(secretsSyncEnabledKey(p.selectedVault));
       setSecretsSyncOn(secrets === true);
       // E5: "never asked" is not "switched off". The distinction is what lets a

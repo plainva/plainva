@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-21
+Última revisão: 2026-08-24
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -109,7 +109,7 @@ Abra **Configurações → Sincronização → Senha de sincronização e cripto
 
 A chave desbloqueada fica em cache em cada dispositivo. Ative **Exigir senha a cada início** para digitá-la novamente após cada reinicialização em vez disso, e use **Bloquear** para remover a chave em cache deste dispositivo.
 
-**Contas em todos os seus dispositivos** são três etapas. **1 · Configurações e contas**: coloca as configurações do cofre *e suas contas* (agendas, caixas de correio, seleção de agendas) em um arquivo pequeno no cofre — enquanto não houver senha configurada não é preciso **nenhuma**; assim que existir uma, cada dispositivo precisa inseri-la antes que as configurações viajem a partir dele. **2 · Senha de sincronização** (opcional): só é necessária se os logins também devem viajar; ela criptografa ainda as configurações da etapa 1. **3 · Levar os logins**: leva também as senhas estáticas de IMAP e CalDAV, criptografadas, e só pode ser ativada quando a etapa 1 estiver funcionando e a senha estiver desbloqueada — uma senha só pode chegar a uma conta que o dispositivo já conhece. Não são levados: caminhos específicos do dispositivo e logins OAuth (Microsoft, Google); seus tokens são presos ao dispositivo, então a conta aparece no novo dispositivo e lá precisa de **Entrar** uma vez.
+**Contas em todos os seus dispositivos** são três etapas. **1 · Configurações e contas**: coloca as configurações do cofre *e suas contas* (agendas, caixas de correio, seleção de agendas) em um arquivo pequeno no cofre — enquanto não houver senha configurada não é preciso **nenhuma**; assim que existir uma, cada dispositivo precisa inseri-la antes que as configurações viajem a partir dele. Esta etapa fica **ativada por padrão** — configurações e contas não são segredos; você pode desativá-la por cofre a qualquer momento. **2 · Senha de sincronização** (opcional): só é necessária se os logins também devem viajar; ela criptografa ainda as configurações da etapa 1. **3 · Levar os logins**: leva também as senhas estáticas de IMAP e CalDAV, criptografadas, e só pode ser ativada quando a etapa 1 estiver funcionando e a senha estiver desbloqueada — uma senha só pode chegar a uma conta que o dispositivo já conhece. Não são levados: caminhos específicos do dispositivo e logins OAuth (Microsoft, Google); seus tokens são presos ao dispositivo, então a conta aparece no novo dispositivo e lá precisa de **Entrar** uma vez.
 
 No **telefone** você encontra a mesma cadeia na página do cofre — as mesmas três etapas e o mesmo bloqueio. Contas vindas de outro dispositivo são criadas ali; você não as digita mais à mão. Com **Trazer de outro dispositivo agora** você as obtém na hora, em vez de esperar a próxima rodada.
 

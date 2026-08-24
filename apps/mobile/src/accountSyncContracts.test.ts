@@ -56,7 +56,7 @@ vi.mock("./services/pim/pimCredentials", () => ({
   pimSecretKey: (vaultId: string, accountId: string) => `pim_${vaultId}_${accountId}`,
 }));
 
-import { createMobileProfilePort } from "./services/mobileSettingsSync";
+import { createMobileProfilePort, isMobileSettingsSyncEnabled } from "./services/mobileSettingsSync";
 import { mobileCandidates } from "./services/mobileSecretsPort";
 import { loadCloudAccounts } from "./services/cloudAccountsStore";
 import type { MobileVault } from "./services/vaultService";
@@ -367,5 +367,20 @@ describe("mobile account-sync regression contracts", () => {
     // The imported bookmarks did land; the rollback took them back.
     expect(await vault.adapter.readTextFile(".plainva/bookmarks.json")).toContain("Mine.md");
     expect(journalFiles.size).toBe(0);
+  });
+});
+
+describe("what travels by default (mobile)", () => {
+  // Twin of the desktop assertion in settingsProfile.test.ts. Both shells have
+  // to answer this the same way: one syncing and the other not is a vault whose
+  // devices disagree about what "synchronised" means.
+  it("syncs settings unless the user switched it off", async () => {
+    const store = fakeStore();
+    install(store);
+    expect(await isMobileSettingsSyncEnabled("fixture-vault")).toBe(true);
+    await store.set("settingsSyncMobile_fixture-vault", false);
+    expect(await isMobileSettingsSyncEnabled("fixture-vault")).toBe(false);
+    await store.set("settingsSyncMobile_fixture-vault", true);
+    expect(await isMobileSettingsSyncEnabled("fixture-vault")).toBe(true);
   });
 });

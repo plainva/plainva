@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-08-24
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -109,7 +109,7 @@ Apri **Impostazioni → Sincronizzazione → Passphrase di sincronizzazione e cr
 
 La chiave sbloccata viene memorizzata nella cache su ogni dispositivo. Attiva **Richiedi la passphrase a ogni avvio** per reinserirla invece dopo ogni riavvio, e usa **Blocca** per rimuovere la chiave in cache da questo dispositivo.
 
-**Account su tutti i tuoi dispositivi** sono tre passaggi. **1 · Impostazioni e account**: mette le impostazioni del vault *e i tuoi account* (calendari, caselle di posta, selezione dei calendari) in un piccolo file nel vault — finché non è configurata alcuna passphrase non ne serve **nessuna**; non appena esiste, ogni dispositivo deve inserirla prima che le impostazioni viaggino da lì. **2 · Passphrase di sincronizzazione** (facoltativo): serve solo se devono viaggiare anche gli accessi; cifra inoltre le impostazioni del passaggio 1. **3 · Portare gli accessi**: porta inoltre le password statiche IMAP e CalDAV, cifrate, e si può attivare solo quando il passaggio 1 è in funzione e la passphrase è sbloccata — una password può raggiungere solo un account che il dispositivo già conosce. Non vengono portati: i percorsi specifici del dispositivo e gli accessi OAuth (Microsoft, Google); i loro token sono legati al dispositivo, quindi l’account compare sul nuovo dispositivo e lì richiede una volta **Accedi**.
+**Account su tutti i tuoi dispositivi** sono tre passaggi. **1 · Impostazioni e account**: mette le impostazioni del vault *e i tuoi account* (calendari, caselle di posta, selezione dei calendari) in un piccolo file nel vault — finché non è configurata alcuna passphrase non ne serve **nessuna**; non appena esiste, ogni dispositivo deve inserirla prima che le impostazioni viaggino da lì. Questo passaggio è **attivo per impostazione predefinita** — impostazioni e account non sono segreti; puoi disattivarlo per singolo vault in qualsiasi momento. **2 · Passphrase di sincronizzazione** (facoltativo): serve solo se devono viaggiare anche gli accessi; cifra inoltre le impostazioni del passaggio 1. **3 · Portare gli accessi**: porta inoltre le password statiche IMAP e CalDAV, cifrate, e si può attivare solo quando il passaggio 1 è in funzione e la passphrase è sbloccata — una password può raggiungere solo un account che il dispositivo già conosce. Non vengono portati: i percorsi specifici del dispositivo e gli accessi OAuth (Microsoft, Google); i loro token sono legati al dispositivo, quindi l’account compare sul nuovo dispositivo e lì richiede una volta **Accedi**.
 
 Sul **telefono** trovi la stessa catena nella pagina del vault, con gli stessi tre passaggi e lo stesso blocco. Gli account che arrivano da un altro dispositivo vengono creati lì; non devi più inserirli a mano. Con **Prendi ora da un altro dispositivo** li ottieni subito invece di attendere il giro successivo.
 

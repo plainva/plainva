@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-08-21
+Stan na: 2026-08-24
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -109,7 +109,7 @@ Otwórz **Ustawienia → Synchronizacja → Hasło synchronizacji i szyfrowanie*
 
 Odblokowany klucz jest przechowywany w pamięci podręcznej na każdym urządzeniu. Włącz **Wymagaj hasła przy każdym uruchomieniu**, aby zamiast tego wpisywać je ponownie po każdym restarcie, oraz użyj **Zablokuj**, aby usunąć zapamiętany klucz z tego urządzenia.
 
-**Konta na wszystkich Twoich urządzeniach** to trzy kroki. **1 · Ustawienia i konta**: zapisuje ustawienia sejfu *oraz Twoje konta* (kalendarze, skrzynki pocztowe, wybór kalendarzy) w małym pliku w sejfie — dopóki hasło nie jest ustawione, nie jest potrzebne **żadne**; gdy już istnieje, każde urządzenie musi je wprowadzić, zanim ustawienia zaczną z niego podróżować. **2 · Hasło synchronizacji** (opcjonalnie): potrzebne tylko wtedy, gdy mają wędrować także logowania; dodatkowo szyfruje ustawienia z kroku 1. **3 · Przenoszenie logowań**: dodatkowo przenosi statyczne hasła IMAP i CalDAV, zaszyfrowane, i można je włączyć dopiero, gdy działa krok 1 i hasło jest odblokowane — hasło może trafić tylko do konta, które urządzenie już zna. Nie są przenoszone: ścieżki specyficzne dla urządzenia oraz logowania OAuth (Microsoft, Google); ich tokeny są powiązane z urządzeniem, więc konto pojawia się na nowym urządzeniu i wymaga tam jednorazowego **Zaloguj się**.
+**Konta na wszystkich Twoich urządzeniach** to trzy kroki. **1 · Ustawienia i konta**: zapisuje ustawienia sejfu *oraz Twoje konta* (kalendarze, skrzynki pocztowe, wybór kalendarzy) w małym pliku w sejfie — dopóki hasło nie jest ustawione, nie jest potrzebne **żadne**; gdy już istnieje, każde urządzenie musi je wprowadzić, zanim ustawienia zaczną z niego podróżować. Ten krok jest **domyślnie włączony** — ustawienia i konta nie są tajemnicami; możesz go wyłączyć w każdym sejfie w dowolnym momencie. **2 · Hasło synchronizacji** (opcjonalnie): potrzebne tylko wtedy, gdy mają wędrować także logowania; dodatkowo szyfruje ustawienia z kroku 1. **3 · Przenoszenie logowań**: dodatkowo przenosi statyczne hasła IMAP i CalDAV, zaszyfrowane, i można je włączyć dopiero, gdy działa krok 1 i hasło jest odblokowane — hasło może trafić tylko do konta, które urządzenie już zna. Nie są przenoszone: ścieżki specyficzne dla urządzenia oraz logowania OAuth (Microsoft, Google); ich tokeny są powiązane z urządzeniem, więc konto pojawia się na nowym urządzeniu i wymaga tam jednorazowego **Zaloguj się**.
 
 Na **telefonie** ten sam łańcuch znajdziesz na stronie sejfu — te same trzy kroki i ta sama blokada. Konta przychodzące z innego urządzenia są tam zakładane; nie wpisujesz ich już ręcznie. Przycisk **Pobierz teraz z innego urządzenia** pobiera je od razu, zamiast czekać na kolejną rundę.
 
