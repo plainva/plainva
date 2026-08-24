@@ -113,6 +113,16 @@ export function EditorHost({
   const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
   /** A `.csv` or `.py` opened as text (C15, S14) — not a note. */
   const isPlainText = resolveOpenAction(path) === "text";
+  /**
+   * Whether the docked formatting bar is on screen. It is `position: fixed`
+   * at the bottom edge, so the editor has to end above it — but ONLY while
+   * it is there. The reserve used to be unconditional, which left a dead
+   * strip of `--m-docked-h` under every note in read mode and under every
+   * plain-text file (maintainer finding 2026-08-24: content cut off at the
+   * bottom). One flag decides both the bar and its reserve, so the two can
+   * no longer drift apart.
+   */
+  const showEditToolbar = editable && !isPlainText;
   const [bases, setBases] = useState<{ path: string; title: string }[]>([]);
   const [colorPick, setColorPick] = useState(false);
   /**
@@ -988,7 +998,7 @@ export function EditorHost({
           <code>{conflict.copyPath}</code>
         </Banner>
       )}
-      <div className="m-editor" ref={containerRef} />
+      <div className={`m-editor${showEditToolbar ? " is-docked" : ""}`} ref={containerRef} />
       {/* The formatting toolbar over a selection (S18). It was desktop-only,
           so on a phone the six most common formats needed the docked toolbar
           and a second look away from the text. */}
@@ -1019,7 +1029,7 @@ export function EditorHost({
             {t("statusbar.chars")}
           </p>
         )}
-        {!isPlainText && <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
+        {showEditToolbar && <DockedToolbar aria-label={t("mobile.editToolbar")} className="m-edit-toolbar">
           {/* Insert menu (slash commands) sits FIRST and reads as a ＋ — the
               trailing "/" glyph was unintuitive (maintainer feedback). */}
           <button aria-label={t("mobile.insertMenu")} className="is-primary" onClick={() => run(openSlashMenu)}>

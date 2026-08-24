@@ -106,6 +106,9 @@ textarea {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  /* How far the surface stays clear of the bottom bar — the block below
+     derives the variants from this base. */
+  --m-page-bottom: var(--m-bar-space);
 }
 
 .m-screen {
@@ -146,28 +149,38 @@ textarea {
      that shrinking would change the scroll height mid-gesture — the shake.
      No top padding: the sticky .m-appbar (below) sits flush under the status
      bar and is its scrim (package B, Punkt 10). */
-  padding: 0 max(var(--m-edge), env(safe-area-inset-right)) calc(var(--m-bar-space) + env(safe-area-inset-bottom)) max(var(--m-edge), env(safe-area-inset-left));
+  padding: 0 max(var(--m-edge), env(safe-area-inset-right))
+    calc(var(--m-page-bottom, var(--m-bar-space)) + env(safe-area-inset-bottom))
+    max(var(--m-edge), env(safe-area-inset-left));
 }
 
-.m-app.has-fab .m-page {
-  padding-bottom: calc(var(--m-fab-space) + env(safe-area-inset-bottom));
+/* HOW TALL that strip is belongs to the app, not to this selector. The
+   reservations therefore set `--m-page-bottom` on `.m-app` (base above,
+   variants here) instead of writing `padding-bottom` on `.m-page` — so a page
+   that decides its own bottom edge
+   (--note, --pimcal, --basegraph, --wizard) states it ONCE, on the same
+   specificity level, and does not have to defend it against the cascade.
+   It used to: those reservations sat on `.m-page` behind two or three
+   selectors and beat every variant except in a single combination (compact
+   without the FAB). Measured on 2026-08-24, after the maintainer reported
+   content cut off at the bottom on the iPad: the note page came out at 64px
+   and the calendar at 84px on a tablet, the calendar at 164px on a phone —
+   each a dead strip under a surface that does not scroll, so the editor and
+   the time grid ended that far above the screen edge. */
+.m-app.has-fab {
+  --m-page-bottom: var(--m-fab-space);
 }
-/* From medium the bar stands beside the work and the button drops to the
-   screen edge, so the strip is that much shorter — derived, not a third
-   number to keep in step. */
-[data-window="medium"] .m-app.has-fab .m-page,
-[data-window="expanded"] .m-app.has-fab .m-page {
-  padding-bottom: calc(
-    var(--m-fab-space) - var(--m-bar-space) + var(--m-bar-inset) + env(safe-area-inset-bottom)
-  );
+/* From medium the bar stands beside the work rather than over it, so the
+   surface stops reserving a strip for it — only the FAB's overhang remains,
+   and the button drops to the screen edge, so that strip is shorter as well:
+   derived, not a third number to keep in step. */
+[data-window="medium"] .m-app,
+[data-window="expanded"] .m-app {
+  --m-page-bottom: 64px;
 }
-
-/* From the medium class the bar stands beside the work rather than over it, so
-   the surface stops reserving a bottom strip for it — only the FAB's overhang
-   remains. */
-[data-window="medium"] .m-page,
-[data-window="expanded"] .m-page {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+[data-window="medium"] .m-app.has-fab,
+[data-window="expanded"] .m-app.has-fab {
+  --m-page-bottom: calc(var(--m-fab-space) - var(--m-bar-space) + var(--m-bar-inset));
 }
 
 /* The security wizards (S37) run without the navigation bar — they are their
@@ -1310,7 +1323,12 @@ textarea {
 .m-edit-toolbar button:active {
   background: var(--state-press);
 }
-.m-page--note .m-editor {
+/* The formatting bar is `position: fixed` at the bottom edge, so the editor
+   ends above it — but only while it is on screen (`is-docked`, set by the same
+   flag that renders the bar). Unconditional, this reserve left a dead strip
+   under every note in read mode; that was half of what the maintainer saw cut
+   off at the bottom on 2026-08-24 (the other half was the page reservation). */
+.m-page--note .m-editor.is-docked {
   padding-bottom: var(--m-docked-h);
 }
 /* The note page carries no inset of its own (see .m-page--note) — this is

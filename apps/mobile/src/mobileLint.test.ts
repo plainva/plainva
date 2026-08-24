@@ -110,7 +110,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { zIndexRaw: 1, spacingRaw: 81, gapRaw: 36, sizeRaw: 62 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 80, gapRaw: 36, sizeRaw: 62 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -2824,19 +2824,51 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
  * menu on a `.py` write markdown into a file that is not markdown, and the
  * toolbar is the most reachable control on the screen.
  *
- * The guard reads the intent (a branch on the shared rule), not a literal, so
- * moving the toolbar or renaming the flag keeps it honest.
+ * The guard follows the CHAIN from the shared rule to the tag: whatever gates
+ * `<DockedToolbar` is either the negated flag itself or a binding derived from
+ * it. It used to demand `!flag &&` in the 40 characters before the tag — the
+ * mechanism rather than the intent — and broke on 2026-08-24 the moment one
+ * flag started driving both the bar and the space it needs, though a text file
+ * still got no toolbar. Twice before in this project a ratchet written that way
+ * pinned a defect in place (the `.eml` guard, the `c.pop()` guard).
  */
 describe("plain text files do not get the note toolbar", () => {
+  /** The condition the `<DockedToolbar` tag renders behind. */
+  function toolbarGate(src: string): string {
+    const toolbar = src.indexOf("<DockedToolbar");
+    expect(toolbar, "the docked toolbar moved — re-point this guard").toBeGreaterThan(0);
+    const cond = /\{\s*([A-Za-z0-9_!.]+)\s*&&\s*$/.exec(src.slice(Math.max(0, toolbar - 120), toolbar));
+    expect(cond, "the docked toolbar is no longer rendered behind a condition").not.toBeNull();
+    return cond![1];
+  }
+
   it("branches the docked toolbar on the shared open rule", () => {
     const src = stripComments(readFileSync(join(SRC, "EditorHost.tsx"), "utf8"));
     const flag = /const (\w+) = resolveOpenAction\(path\) === "text"/.exec(src);
     expect(flag, "EditorHost no longer asks resolveOpenAction for the text case").not.toBeNull();
-    const toolbar = src.indexOf("<DockedToolbar");
-    expect(toolbar, "the docked toolbar moved — re-point this guard").toBeGreaterThan(0);
-    // The 40 characters before the tag must carry the negated flag: the toolbar
-    // renders only when this is NOT a text file.
-    expect(src.slice(Math.max(0, toolbar - 40), toolbar)).toMatch(new RegExp(`!${flag![1]}\\s*&&`));
+    const name = flag![1];
+    const gate = toolbarGate(src);
+    if (gate !== `!${name}`) {
+      // An indirection is fine as long as it carries the rule: the binding the
+      // tag reads has to be defined from the negated flag. Read as text, not as
+      // a regex — a guard about escaping should not itself hinge on a backslash.
+      const decl = src.split("\n").find((l) => l.includes(`const ${gate}`) && l.includes("="));
+      expect(decl, `${gate} gates the toolbar but has no visible definition`).toBeTruthy();
+      expect(decl!, `${gate} must be derived from !${name}`).toContain(`!${name}`);
+    }
+  });
+
+  it("lets the same flag decide the bar AND the space it needs", () => {
+    // The editor ends above the fixed bar through `.m-editor.is-docked`. When
+    // that class and the bar are decided separately they drift, and the reserve
+    // survives in read mode as a dead strip under the note — half of what the
+    // maintainer saw cut off at the bottom on 2026-08-24.
+    const src = stripComments(readFileSync(join(SRC, "EditorHost.tsx"), "utf8"));
+    const gate = toolbarGate(src).replace("!", "");
+    const editor = /className=\{`m-editor\$\{([^}]+)\}`\}/.exec(src);
+    expect(editor, "the editor container no longer builds its class from a flag").not.toBeNull();
+    expect(editor![1], "the docked reserve must hang off the flag that renders the bar").toContain(gate);
+    expect(editor![1]).toContain("is-docked");
   });
 
   it("hands the file name to the session so the grammar can be resolved", () => {
