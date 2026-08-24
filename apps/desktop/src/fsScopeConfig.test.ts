@@ -11,6 +11,11 @@ import { resolve } from "node:path";
  * rejected: no combination of glob patterns in capabilities/default.json covers
  * two dot-segments in a row (issue #70). Turning the flag off here matches the
  * Windows default everywhere and makes the existing `**` pattern sufficient.
+ *
+ * This is the fast guard: it runs in the pre-push hook and fails the moment the
+ * flag disappears. It cannot see whether the PATTERNS still cover the path —
+ * that is what src-tauri/tests/fs_scope.rs does, against the real patterns and
+ * the real glob, in the CI's Rust job.
  */
 describe("fs plugin scope config", () => {
   it("disables the Unix leading-dot glob restriction", () => {
