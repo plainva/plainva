@@ -40,10 +40,19 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:path|join') return args.paths.join('/').replace(/\\/g, '/').replace(/\/+/g, '/');
         if (cmd === 'plugin:store|load') return 1;
+        // The version the marker above is compared against. Without it the
+        // command falls through to `null` and every start looks like an update.
+        if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
           if (args.key === 'recentVaults') return [['/test-vault'], true];
           if (args.key === 'autoOpenLastVault') return [true, true];
+          // Stage D remounts `App` when the shown vault arrives, which is when
+          // the release dialog finally gets a vault to render over. A marker
+          // equal to the running version means "already seen" - this suite
+          // tests the app, not its first five seconds (onboarding.spec covers
+          // those on purpose).
+          if (args.key === 'whatsNewSeenVersion') return ['9.9.9', true];
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
           // Standard task database (PIM 1a): a test opts in by setting

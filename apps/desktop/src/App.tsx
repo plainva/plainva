@@ -13,7 +13,7 @@ import { IndexMdModal } from "./components/IndexMdModal";
 import { WindowChromeStrip } from "./components/WindowControls";
 import { ImportWizardModal } from "./components/import/ImportWizardModal";
 import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
-import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcomeOnNextStart, shouldShowWhatsNew, takeWelcomeRequest } from "./services/whatsNew";
+import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcomeOnNextStart, shouldShowWhatsNew, takeReleaseDialogSlot, takeWelcomeRequest } from "./services/whatsNew";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
 import { SplashScreen } from "./components/SplashScreen";
 import { getRestoreWindowsSetting, listAuxWindows, restoreAuxWindows, setOwnerOpenContents } from "./services/windowManager";
@@ -47,7 +47,7 @@ function App() {
     openVault, closeVault, recentVaults,
     vaultAdapter, queryService, syncWorker, resetConnectionEncryption,
   } = useVault();
-  const { heldVaults } = useApp();
+  const { heldVaults, isBooting, shownVault, recentVaults: appRecentVaults } = useApp();
 
   // The central window is a workplace too: with a second vault open, its
   // taskbar entry says which one it is (stage D).
@@ -190,15 +190,23 @@ function App() {
   // After an update, show existing users what changed; show newcomers a short
   // welcome instead. Both write the same marker, so neither reappears.
   // Runs once per app start, before any vault is required.
-  const whatsNewChecked = useRef(false);
   useEffect(() => {
-    if (whatsNewChecked.current) return;
-    whatsNewChecked.current = true;
+    // Module-level on purpose, and gated on the boot being over.
+    //
+    // Both halves are stage D. `App` now lives under a `VaultProvider` keyed by
+    // the shown vault, so it REMOUNTS when that vault changes - including the
+    // null -> vault step of an ordinary start. A component-local ref therefore
+    // no longer means "once per app start", it means "once per mount", and the
+    // dialog came back on every vault switch. And the branch below needs to
+    // know whether this start has a vault at all, which is only true once the
+    // boot has read the stored list - before that every start looked like a
+    // first run.
+    if (isBooting || !takeReleaseDialogSlot()) return;
 
-    // The ref is the only guard on purpose. There used to be a `cancelled`
+    // The slot is the only guard on purpose. There used to be a `cancelled`
     // flag set from the cleanup as well, and under StrictMode the two cancelled
-    // each other out: the first pass armed the ref and started the read, the
-    // cleanup set `cancelled`, the second pass returned at the ref — so the
+    // each other out: the first pass took the slot and started the read, the
+    // cleanup set `cancelled`, the second pass returned at the slot — so the
     // resolved read always found `cancelled` and NEITHER dialog ever appeared
     // in dev or in any E2E. Production has no StrictMode, which is why the
     // dialogs worked there and this stayed invisible.
@@ -219,14 +227,17 @@ function App() {
       if (!shouldShowWhatsNew(seen, version)) return;
 
       // No marker AND no vault history means this is a first run, not an update.
-      const isFirstRun = !seen && recentVaults.length === 0 && !vaultPath;
+      // The app-level answer, not the vault-level one: `shownVault` is set the
+      // moment the boot decides to auto-open, while `vaultPath` only follows
+      // once that vault has finished loading.
+      const isFirstRun = !seen && appRecentVaults.length === 0 && !shownVault;
       if (isFirstRun) setShowFirstRun(true);
       else setShowWhatsNew(true);
     })();
-    // Intentionally start-only: recentVaults/vaultPath are read once, as they
-    // are already populated by the time this effect runs.
+    // Intentionally start-only: the values are read once, after the boot has
+    // settled, and the module-level flag keeps it at once per app start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isBooting]);
 
   const dismissReleaseDialog = useStableHandler(async () => {
     setShowWhatsNew(false);

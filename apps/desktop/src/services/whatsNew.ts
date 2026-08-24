@@ -23,6 +23,28 @@ export async function readWhatsNewSeenVersion(): Promise<string | null> {
   }
 }
 
+/**
+ * The release dialogs are decided ONCE per app start.
+ *
+ * This lives here rather than in a component ref because `App` remounts
+ * whenever the shown vault changes (stage D put it under a `VaultProvider`
+ * keyed by that vault, so the null -> vault step of an ordinary start
+ * remounts it too). A ref therefore means "once per mount", which brought the
+ * dialog back on every vault switch. Returns true for the first caller of this
+ * app start and false for every later one.
+ */
+let releaseDialogSlotTaken = false;
+export function takeReleaseDialogSlot(): boolean {
+  if (releaseDialogSlotTaken) return false;
+  releaseDialogSlotTaken = true;
+  return true;
+}
+
+/** Tests only: a fresh app start. */
+export function resetReleaseDialogSlot(): void {
+  releaseDialogSlotTaken = false;
+}
+
 export async function markWhatsNewSeen(version: string): Promise<void> {
   try {
     const store = await getSettingsStore();

@@ -1398,7 +1398,9 @@ test('Sync error dialog: preserves a transient failure while a retry succeeds', 
 
   await page.evaluate(async () => {
     const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
-    syncStatusStore.set({
+    // Keyed by vault since stage D: the store holds one status per open
+    // vault, so a setter has to say which one it means.
+    syncStatusStore.set('/test-vault', {
       status: 'error',
       message: 'Google Drive folder lookup failed (HTTP 503): backend unavailable',
       provider: 'drive',
@@ -1415,7 +1417,7 @@ test('Sync error dialog: preserves a transient failure while a retry succeeds', 
   // failure that the user opened the dialog to inspect.
   await page.evaluate(async () => {
     const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
-    syncStatusStore.set({ status: 'idle', message: null });
+    syncStatusStore.set('/test-vault', { status: 'idle', message: null });
   });
   await expect(page.getByText('Google Drive folder lookup failed (HTTP 503): backend unavailable')).toBeVisible();
   await expect(page.getByText(/beim erneuten Versuch erfolgreich|succeeded on the next attempt/)).toBeVisible();
@@ -1427,7 +1429,7 @@ test('Sync auth error dialog: deep-links into the provider settings', async ({ p
 
   await page.evaluate(async () => {
     const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
-    syncStatusStore.set({ status: 'error', message: 'Google Drive HTTP 401: token expired', provider: 'drive' });
+    syncStatusStore.set('/test-vault', { status: 'error', message: 'Google Drive HTTP 401: token expired', provider: 'drive' });
   });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-show-sync-error')));
   await expect(page.getByRole('heading', { name: /Sync-Fehler|Sync Error/ })).toBeVisible();
