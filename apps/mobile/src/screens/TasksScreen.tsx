@@ -18,7 +18,7 @@ import { getMobileSettings } from "../services/mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
-import { pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
+import { pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -169,6 +169,11 @@ export function TasksScreen({
     }),
     [vault]
   );
+
+  // Mirrored provider tasks reach this list through the task sync, and that
+  // runs at the END of a PIM cycle — which is asleep while the app is away
+  // (plan Mobile-PIM-Auffrischung, P3). Opening the list asks for one.
+  useEffect(() => { pimForegroundSync(); }, []);
 
   useEffect(() => {
     const service = vault.queryService;

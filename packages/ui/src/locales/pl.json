@@ -2789,7 +2789,11 @@
     "diagPlanned": "Zaplanowano: {{events}} terminów · {{tasks}} zadań (ostatnie uruchomienie {{time}})",
     "diagNoTaskDb": "Brak bazy zadań na tym urządzeniu — trafia tu przez synchronizację ustawień.",
     "diagTaskDbUnreadable": "Nie udało się odczytać bazy zadań.",
-    "diagTaskDueNotDate": "Kolumna terminu nie jest typu data — zmień to w Konfiguruj → Właściwości."
+    "diagTaskDueNotDate": "Kolumna terminu nie jest typu data — zmień to w Konfiguruj → Właściwości.",
+    "calendarsNoAccount": "Nie połączono żadnego konta",
+    "calendarsNone": "Jeszcze bez kalendarzy",
+    "calendarsNoAccountHint": "Przypomnienia można ograniczyć do wybranych kalendarzy, gdy tylko połączysz konto kalendarza. Możesz je dodać niżej na tej stronie.",
+    "calendarsNoneHint": "Z tego konta nie dotarł jeszcze żaden kalendarz. Pobierze je następna synchronizacja — albo uruchom ją teraz."
   },
   "mail": {
     "title": "E-mail",

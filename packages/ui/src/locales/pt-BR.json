@@ -2766,7 +2766,11 @@
     "diagPlanned": "Agendado: {{events}} compromissos · {{tasks}} tarefas (última execução {{time}})",
     "diagNoTaskDb": "Nenhum banco de tarefas neste aparelho — ele chega pela sincronização das configurações.",
     "diagTaskDbUnreadable": "Não foi possível ler o banco de tarefas.",
-    "diagTaskDueNotDate": "A coluna de vencimento não está tipada como data — altere em Configurar → Propriedades."
+    "diagTaskDueNotDate": "A coluna de vencimento não está tipada como data — altere em Configurar → Propriedades.",
+    "calendarsNoAccount": "Nenhuma conta conectada",
+    "calendarsNone": "Ainda sem calendários",
+    "calendarsNoAccountHint": "Os lembretes podem ser limitados a determinados calendários assim que uma conta de calendário estiver conectada. Você pode adicionar uma mais abaixo nesta página.",
+    "calendarsNoneHint": "Nenhum calendário chegou desta conta ainda. A próxima sincronização vai buscá-los — ou você pode iniciá-la agora."
   },
   "mail": {
     "title": "E-mail",

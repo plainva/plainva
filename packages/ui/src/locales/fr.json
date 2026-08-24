@@ -2766,7 +2766,11 @@
     "diagPlanned": "Planifié : {{events}} rendez-vous · {{tasks}} tâches (dernière exécution {{time}})",
     "diagNoTaskDb": "Aucune base de tâches sur cet appareil — elle arrive par la synchronisation des réglages.",
     "diagTaskDbUnreadable": "La base de tâches n’a pas pu être lue.",
-    "diagTaskDueNotDate": "La colonne d'échéance n'est pas typée comme une date — à changer dans Configurer → Propriétés."
+    "diagTaskDueNotDate": "La colonne d'échéance n'est pas typée comme une date — à changer dans Configurer → Propriétés.",
+    "calendarsNoAccount": "Aucun compte connecté",
+    "calendarsNone": "Aucun agenda pour l’instant",
+    "calendarsNoAccountHint": "Les rappels peuvent être limités à certains agendas dès qu’un compte d’agenda est connecté. Vous pouvez en ajouter un plus bas sur cette page.",
+    "calendarsNoneHint": "Aucun agenda n’est encore arrivé de ce compte. La prochaine synchronisation les récupérera — ou vous pouvez la lancer maintenant."
   },
   "mail": {
     "title": "E-mail",

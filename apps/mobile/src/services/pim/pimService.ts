@@ -150,6 +150,41 @@ export function pimSyncNow(): void {
   void runtime?.worker.triggerImmediate();
 }
 
+/**
+ * Throttle for the triggers that fire on their own — returning to the app,
+ * opening a screen that shows PIM data (plan Mobile-PIM-Auffrischung, P1/P3).
+ *
+ * A phone runs no timers in the background, so the worker's two-minute interval
+ * is dead for exactly as long as the app is away and the cycle resumes at some
+ * unpredictable later point. That is why an appointment or a task created
+ * elsewhere took so long to appear, and why task reminders never got planned at
+ * all: the reminder run reads the task DATABASE, which is only filled by the
+ * mirror at the END of a cycle.
+ *
+ * The file sync learned this on 2026-08-10 and got `foregroundSync()`; the PIM
+ * cycle was never brought along. Deliberately its OWN counter rather than a
+ * shared one: the two cycles cost different things and answer to different
+ * triggers, and one shared counter would let either suppress the other.
+ */
+const PIM_FOREGROUND_THROTTLE_MS = 60_000;
+let lastForegroundPimAt = 0;
+
+export function pimForegroundSync(now: number = Date.now()): void {
+  if (!runtime) return;
+  if (now - lastForegroundPimAt < PIM_FOREGROUND_THROTTLE_MS) return;
+  lastForegroundPimAt = now;
+  void runtime.worker.triggerImmediate();
+  // The clock moved on even when the cycle finds nothing new: the rolling
+  // reminder window slid, and the OS may have dropped what was scheduled. A
+  // quiet cycle fires no `onDataChanged`, so this cannot wait for one.
+  void import("../reminderScheduler").then((m) => m.rescheduleReminders()).catch(() => {});
+}
+
+/** Test seam: lets a suite start from a known throttle state. */
+export function resetPimForegroundThrottle(): void {
+  lastForegroundPimAt = 0;
+}
+
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
   return (await runtime?.cache.listAccounts()) ?? [];
 }

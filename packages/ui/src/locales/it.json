@@ -2766,7 +2766,11 @@
     "diagPlanned": "Pianificato: {{events}} appuntamenti · {{tasks}} attività (ultima esecuzione {{time}})",
     "diagNoTaskDb": "Nessun database delle attività su questo dispositivo: arriva con la sincronizzazione delle impostazioni.",
     "diagTaskDbUnreadable": "Non è stato possibile leggere il database delle attività.",
-    "diagTaskDueNotDate": "La colonna di scadenza non è tipizzata come data — modificala in Configura → Proprietà."
+    "diagTaskDueNotDate": "La colonna di scadenza non è tipizzata come data — modificala in Configura → Proprietà.",
+    "calendarsNoAccount": "Nessun account collegato",
+    "calendarsNone": "Ancora nessun calendario",
+    "calendarsNoAccountHint": "I promemoria possono essere limitati a determinati calendari non appena è collegato un account calendario. Puoi aggiungerne uno più in basso in questa pagina.",
+    "calendarsNoneHint": "Da questo account non è ancora arrivato alcun calendario. La prossima sincronizzazione li recupererà, oppure puoi avviarla ora."
   },
   "mail": {
     "title": "E-mail",

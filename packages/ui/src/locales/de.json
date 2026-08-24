@@ -2743,7 +2743,11 @@
     "diagPlanned": "Geplant: {{events}} Termine · {{tasks}} Aufgaben (zuletzt {{time}})",
     "diagNoTaskDb": "Keine Aufgaben-Datenbank auf diesem Gerät — sie kommt über die Einstellungs-Synchronisation.",
     "diagTaskDbUnreadable": "Die Aufgaben-Datenbank konnte nicht gelesen werden.",
-    "diagTaskDueNotDate": "Die Fälligkeitsspalte ist nicht als Datum typisiert — in Konfigurieren → Eigenschaften umstellen."
+    "diagTaskDueNotDate": "Die Fälligkeitsspalte ist nicht als Datum typisiert — in Konfigurieren → Eigenschaften umstellen.",
+    "calendarsNoAccount": "Kein Konto verbunden",
+    "calendarsNone": "Noch keine Kalender",
+    "calendarsNoAccountHint": "Erinnerungen lassen sich auf einzelne Kalender beschränken, sobald ein Kalenderkonto verbunden ist. Weiter unten auf dieser Seite kannst Du eines hinzufügen.",
+    "calendarsNoneHint": "Von diesem Konto sind noch keine Kalender geladen. Das holt der nächste Abgleich nach — oder Du stößt ihn jetzt an."
   },
   "mail": {
     "title": "E-Mail",

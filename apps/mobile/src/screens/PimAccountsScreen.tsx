@@ -11,6 +11,8 @@ import {
   listPimAccounts,
   listPimCalendars,
   listPimTaskLists,
+  pimForegroundSync,
+  pimSyncNow,
   setPimCalendarSelected,
   setPimTaskListSelected,
   addPimAccount,
@@ -217,6 +219,10 @@ export function PimAccountsScreen({
   }, []);
 
   useEffect(() => { reload(); }, [reload, bump]);
+  // Same reason as the calendar (plan Mobile-PIM-Auffrischung, P3): this
+  // screen lists the calendars an account holds, and that list only ever
+  // fills from a cycle. Opening it is the moment to ask.
+  useEffect(() => { pimForegroundSync(); }, []);
   useEffect(() => {
     const onChanged = () => reload();
     window.addEventListener("m-pim-changed", onChanged);
@@ -332,8 +338,48 @@ export function PimAccountsScreen({
    * `minSelected: 1` makes the last tick refuse rather than silently mean the
    * opposite.
    */
+  /**
+   * What the row says BEFORE it is tapped (D9, 2026-08-24).
+   *
+   * It used to read "Alle" whenever the stored list was empty — which is true
+   * for "every calendar reminds" and equally true for "there is not one
+   * calendar", two states that could not look more different to a reader. The
+   * second one is exactly the one where tapping did nothing.
+   */
+  const calendarsValueLabel =
+    calendars.length === 0
+      ? accounts.length === 0
+        ? t("reminders.calendarsNoAccount")
+        : t("reminders.calendarsNone")
+      : reminderCalendars.length === 0
+        ? t("reminders.calendarsAll")
+        : t("reminders.calendarsSome", { count: reminderCalendars.length, total: calendars.length });
+
   const pickCalendars = useCallback(async () => {
-    if (calendars.length === 0) return;
+    // An empty list used to return here without a word, while the row went on
+    // looking exactly as operable as any other — chevron, value, the lot. That
+    // is the finding (D9, 2026-08-24) and the same class as the mail empty
+    // state: a control whose reservation you cannot see. It answers now, and
+    // the answer differs by WHY the list is empty.
+    if (calendars.length === 0) {
+      if (accounts.length === 0) {
+        await mConfirm({
+          title: t("reminders.calendars"),
+          message: t("reminders.calendarsNoAccountHint"),
+          confirmLabel: t("common.ok"),
+        });
+        return;
+      }
+      const refresh = await mConfirm({
+        title: t("reminders.calendars"),
+        message: t("reminders.calendarsNoneHint"),
+        confirmLabel: t("pim.refreshNow"),
+      });
+      // An explicit ask bypasses the foreground throttle: the person in front of
+      // the phone just said "now", and a silent no-op is what got us here.
+      if (refresh) pimSyncNow();
+      return;
+    }
     const all = calendars.map((c) => `${c.accountId} ${c.id}`);
     const active = reminderCalendars.length === 0 ? all : reminderCalendars;
     const picked = await mMultiSelect({
@@ -348,7 +394,7 @@ export function PimAccountsScreen({
     // existed.
     const stored = picked.length === calendars.length ? [] : picked;
     saveReminder({ reminderCalendars: stored }, () => setReminderCalendars(stored));
-  }, [calendars, reminderCalendars, saveReminder, t]);
+  }, [accounts, calendars, reminderCalendars, saveReminder, t]);
 
   const pickDefaultCalendar = async () => {
     const options = [
@@ -599,7 +645,7 @@ export function PimAccountsScreen({
               />
             ) : null}
             <Row
-              end={<><span className="m-prop-val">{reminderCalendars.length === 0 ? t("reminders.calendarsAll") : t("reminders.calendarsSome", { count: reminderCalendars.length, total: calendars.length })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              end={<><span className="m-prop-val">{calendarsValueLabel}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={() => void pickCalendars()}
               title={t("reminders.calendars")}
             />

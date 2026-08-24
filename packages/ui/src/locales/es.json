@@ -2766,7 +2766,11 @@
     "diagPlanned": "Programado: {{events}} citas · {{tasks}} tareas (última ejecución {{time}})",
     "diagNoTaskDb": "No hay base de tareas en este dispositivo: llega con la sincronización de ajustes.",
     "diagTaskDbUnreadable": "No se pudo leer la base de tareas.",
-    "diagTaskDueNotDate": "La columna de vencimiento no está tipada como fecha — cámbiala en Configurar → Propiedades."
+    "diagTaskDueNotDate": "La columna de vencimiento no está tipada como fecha — cámbiala en Configurar → Propiedades.",
+    "calendarsNoAccount": "Ninguna cuenta conectada",
+    "calendarsNone": "Aún no hay calendarios",
+    "calendarsNoAccountHint": "Los recordatorios pueden limitarse a determinados calendarios en cuanto haya una cuenta de calendario conectada. Puedes añadir una más abajo en esta página.",
+    "calendarsNoneHint": "Todavía no ha llegado ningún calendario de esta cuenta. La próxima sincronización los traerá, o puedes iniciarla ahora."
   },
   "mail": {
     "title": "Correo",

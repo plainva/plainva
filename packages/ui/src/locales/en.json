@@ -2743,7 +2743,11 @@
     "diagPlanned": "Planned: {{events}} appointments · {{tasks}} tasks (last run {{time}})",
     "diagNoTaskDb": "No task database on this device — it arrives through the settings sync.",
     "diagTaskDbUnreadable": "The task database could not be read.",
-    "diagTaskDueNotDate": "The due column is not typed as a date — change it under Configure → Properties."
+    "diagTaskDueNotDate": "The due column is not typed as a date — change it under Configure → Properties.",
+    "calendarsNoAccount": "No account connected",
+    "calendarsNone": "No calendars yet",
+    "calendarsNoAccountHint": "Reminders can be limited to particular calendars once a calendar account is connected. You can add one further down this page.",
+    "calendarsNoneHint": "No calendars have arrived from this account yet. The next sync will fetch them — or you can start one now."
   },
   "mail": {
     "title": "Email",

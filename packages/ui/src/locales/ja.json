@@ -2720,7 +2720,11 @@
     "diagPlanned": "予定済み: 予定 {{events}} 件 · タスク {{tasks}} 件（前回実行 {{time}}）",
     "diagNoTaskDb": "この端末にはタスクデータベースがありません — 設定の同期で届きます。",
     "diagTaskDbUnreadable": "タスクデータベースを読み取れませんでした。",
-    "diagTaskDueNotDate": "期限の列は日付として型付けされていません — 設定 → プロパティで変更してください。"
+    "diagTaskDueNotDate": "期限の列は日付として型付けされていません — 設定 → プロパティで変更してください。",
+    "calendarsNoAccount": "アカウントが未接続です",
+    "calendarsNone": "予定表がまだありません",
+    "calendarsNoAccountHint": "予定表アカウントを接続すると、リマインダーを特定の予定表だけに絞り込めます。このページの下の方から追加できます。",
+    "calendarsNoneHint": "このアカウントからはまだ予定表が届いていません。次回の同期で取得されます。今すぐ同期することもできます。"
   },
   "mail": {
     "title": "メール",

@@ -13,6 +13,7 @@ import {
   listPimCalendars,
   listPimAccounts,
   pimSyncNow,
+  pimForegroundSync,
   getPimCache,
 } from "../services/pim/pimService";
 import { useEventEditor } from "../components/useEventEditor";
@@ -168,6 +169,12 @@ export function PimCalendarScreen({
   }, [rangeStart, rangeEnd]);
 
   useEffect(() => { reload(); }, [reload, bump]);
+  // Opening a screen that shows PIM data pulls fresh (plan
+  // Mobile-PIM-Auffrischung, P3). The worker comment promised exactly this
+  // — "opening the calendar tab" — and it was never wired; the two-minute
+  // interval is dead while the app is away, so without it the first thing a
+  // reader sees can be minutes old. Throttled inside the service.
+  useEffect(() => { pimForegroundSync(); }, []);
   useEffect(() => {
     const onChanged = () => reload();
     window.addEventListener("m-pim-changed", onChanged);

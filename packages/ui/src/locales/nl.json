@@ -2743,7 +2743,11 @@
     "diagPlanned": "Gepland: {{events}} afspraken · {{tasks}} taken (laatst uitgevoerd {{time}})",
     "diagNoTaskDb": "Geen takendatabase op dit apparaat — die komt via de instellingensynchronisatie.",
     "diagTaskDbUnreadable": "De takendatabase kon niet worden gelezen.",
-    "diagTaskDueNotDate": "De vervalkolom is niet als datum getypeerd — pas dit aan onder Configureren → Eigenschappen."
+    "diagTaskDueNotDate": "De vervalkolom is niet als datum getypeerd — pas dit aan onder Configureren → Eigenschappen.",
+    "calendarsNoAccount": "Geen account verbonden",
+    "calendarsNone": "Nog geen agenda’s",
+    "calendarsNoAccountHint": "Herinneringen kunnen tot bepaalde agenda’s worden beperkt zodra er een agenda-account is verbonden. Verderop op deze pagina kun je er een toevoegen.",
+    "calendarsNoneHint": "Van dit account zijn nog geen agenda’s binnengekomen. De volgende synchronisatie haalt ze op — of je start er nu een."
   },
   "mail": {
     "title": "E-mail",

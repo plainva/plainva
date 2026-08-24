@@ -47,7 +47,13 @@ import { describe, expect, it } from "vitest";
 // one - into hooks/useAdaptiveSplit. The switch would have grown the shell by
 // thirteen lines; the block it grew was the one the shell should have been
 // asking for rather than holding, and it came out smaller than before.
-const APP_TSX_LINE_BUDGET = 806;
+// Lowered from 806 with the PIM refresh (2026-08-24): what the app does when it
+// changes hands with the OS moved into services/appLifecycle. Adding the PIM
+// cycle to the resume handler broke this budget by six lines - and rightly, as
+// that handler is a LIST that keeps growing, one entry per cycle a phone cannot
+// run in the background. A list of behaviours belongs somewhere it can be named
+// and tested, not inside a listener callback in the shell.
+const APP_TSX_LINE_BUDGET = 791;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

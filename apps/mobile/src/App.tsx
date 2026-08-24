@@ -25,10 +25,11 @@ import {
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
-import { createProviderFolder, foregroundSync, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
+import { createProviderFolder, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { startPim, stopPim } from "./services/pim/pimService";
+import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
@@ -329,29 +330,13 @@ export default function App() {
     void CapApp.getLaunchUrl().then((r) => {
       if (r?.url) void routeAppUrl(r.url);
     });
-    // Returning to the app pulls a fresh full listing (throttled to once a
-    // minute in foregroundSync): WebView timers pause in the background, so
-    // without this a user could wait for new remote files (they only arrive
-    // through listings).
+    // A WebView pauses its timers in the background, so every cycle that would
+    // tick on its own has to be caught up on return. What that means in detail
+    // lives in services/appLifecycle.
     let stateHandle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener("appStateChange", ({ isActive }) => {
-      if (isActive) {
-        foregroundSync();
-        // The scheduled archive (S36) is a CATCH-UP, not a clock: a phone gets
-        // no background timer, so "due" is checked whenever the app is in front.
-        window.dispatchEvent(new CustomEvent("m-backup-due"));
-        // Share target (package J): a warm share foregrounds the app.
-        window.dispatchEvent(new CustomEvent("m-poll-share"));
-      }
-      // Going to the background: Android may kill the process without any
-      // further callback (M1) — flush pending editor saves NOW, best-effort.
-      else {
-        void import("./services/vaultService").then(({ noteSaver }) => noteSaver.flushAll()).catch(() => {});
-        // P7.3: drop every pooled IMAP session. The OS suspends the sockets, and
-        // a resumed connection is dead without saying so — reusing it would hang
-        // the next mail action instead of failing fast.
-        void import("@plainva/ui/mail").then(({ releaseMailSessions }) => releaseMailSessions()).catch(() => {});
-      }
+      if (isActive) onAppForeground();
+      else onAppBackground();
     }).then((h) => {
       if (removed) void h.remove();
       else stateHandle = h;
