@@ -20,11 +20,11 @@ const LIST_CONCURRENCY = 8;
  * Hard depth cap for the directory walk. Symlinks/junctions ARE followed now
  * (P1e: a cloud folder mounted into the vault used to be invisible forever,
  * even after a restart), so a link pointing back at an ancestor would recurse
- * without end — the `visited` set cannot catch it because every pass through
- * the loop builds a NEW, longer path string, and the filesystem plugin offers
- * no canonicalisation to compare real targets. The cap terminates such a loop
- * and the walk reports the cut-off point as a skipped entry instead of hanging
- * or silently truncating.
+ * without end. `visited` catches that by directory identity (dev+ino) where the
+ * platform reports one — a path-only guard could not, because every pass through
+ * the loop builds a NEW, longer path string. Windows reports neither, so the cap
+ * stays as the fallback there: it terminates such a loop and the walk reports the
+ * cut-off point as a skipped entry instead of hanging or silently truncating.
  */
 const MAX_WALK_DEPTH = 32;
 
@@ -280,7 +280,29 @@ export class TauriVaultAdapter implements IVaultAdapter {
       return [];
     }
 
-    if (!(await limit.run(() => exists(absPath)))) return [];
+    // Identity guard. `visited` used to hold PATHS, and two different paths can
+    // be the same directory: a venv's `lib64 -> lib` was walked twice, so every
+    // note under it reached the index — and the sync queue — under two paths.
+    // dev+ino name the directory itself, so whichever path arrives first wins
+    // and the order of the walk stops mattering. This stat() REPLACES the
+    // exists() that used to guard here (stat throws for a missing path, which is
+    // what exists() was checking), so the identity costs no extra filesystem
+    // call. dev/ino are null on Windows, where the path guard above and
+    // MAX_WALK_DEPTH below remain the fallback.
+    let dirStat: Awaited<ReturnType<typeof stat>>;
+    try {
+      dirStat = await limit.run(() => stat(absPath));
+    } catch {
+      return [];
+    }
+    if (dirStat.dev != null && dirStat.ino != null) {
+      const identity = `id:${dirStat.dev}:${dirStat.ino}`;
+      if (visited.has(identity)) {
+        skipped.push({ path, reason: "cycle" });
+        return [];
+      }
+      visited.add(identity);
+    }
 
     let entries: Awaited<ReturnType<typeof readDir>>;
     try {
