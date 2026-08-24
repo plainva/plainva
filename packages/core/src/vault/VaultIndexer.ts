@@ -37,9 +37,30 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
  * copies are deliberately NOT excluded here: they are indexed so they stay visible and
  * resolvable in the tree; the sync targets already keep `.CONFLICT` local-only on push.
  */
+const INTERNAL_SEGMENTS = new Set([
+  // Plainva / vault tooling
+  ".plainva", ".obsidian", ".trash", ".smart-env",
+  // version control and package managers
+  ".git", "node_modules",
+  // language and build tooling that lives next to notes in a developer's vault
+  ".venv", "__pycache__", ".tox", ".turbo", ".cache",
+  // editor metadata
+  ".idea", ".vscode",
+]);
+
 export function isInternalPath(path: string): boolean {
   const segments = path.replace(/\\/g, "/").split("/");
-  return segments.some((s) => s === ".plainva" || s === ".git" || s === "node_modules" || s === ".obsidian" || s === ".trash" || s === ".smart-env" || s.startsWith(".stfolder"));
+  return segments.some((s) => {
+    if (INTERNAL_SEGMENTS.has(s)) return true;
+    if (s.startsWith(".stfolder")) return true;
+    // Tool caches name themselves: .mypy_cache, .pytest_cache, .ruff_cache,
+    // .rumdl_cache (issue #70) — and the next linter will follow the same shape.
+    // Deliberately anchored on a LEADING DOT: a user's own "read_cache" folder of
+    // notes is not tooling, and neither is "Build" or "Target". Only names that
+    // already declare themselves hidden are excluded by pattern.
+    if (s.length > 1 && s.startsWith(".") && s.endsWith("_cache")) return true;
+    return false;
+  });
 }
 
 /** Re-exported so the many existing importers keep their path. */
@@ -618,7 +639,13 @@ export class VaultIndexer {
     } else {
       diskFiles = await this.vaultAdapter.listDir("", true);
     }
-    const mdFiles = diskFiles.filter(f => !f.isDirectory && f.name.endsWith(".md"));
+    // The exclusion has to hold HERE, in the shared core, not only in an adapter:
+    // only TauriVaultAdapter skips internal folders during the walk, so on mobile
+    // (and any host whose adapter lists everything) a `node_modules/pkg/README.md`
+    // used to reach the index — markdown was filtered nowhere, attachments were.
+    // The adapter-side skip stays as what it is: an optimisation that avoids
+    // descending into the folder at all.
+    const mdFiles = diskFiles.filter(f => !f.isDirectory && f.name.endsWith(".md") && !isInternalPath(f.path));
     // Non-markdown attachments (images, PDFs, …) are tracked for sync too, except
     // internal/VCS data. Conflict copies ARE indexed (kept visible); push targets skip them.
     const attachmentFiles = diskFiles.filter(f => !f.isDirectory && !f.name.endsWith(".md") && !isInternalPath(f.path));
@@ -635,10 +662,18 @@ export class VaultIndexer {
     const attachmentsToIndex = attachmentFiles.filter(changed);
     const filesToDelete: string[] = [];
 
-    // Find deleted files (gone from disk but still in the index).
+    // Paths that are indexed but no longer on the disk listing. Two very
+    // different reasons land here, and telling them apart is a data-safety
+    // matter: a file the user deleted must be mirrored to the remote, while a
+    // file that merely became INTERNAL (because a name was added to the
+    // exclusion list — issue #70 brought `.venv` and `.rumdl_cache`) must not.
+    // Reporting the latter as a deletion would queue thousands of remote
+    // deletes for a venv and trip the mass-deletion guard on an existing vault.
+    const vanishedFromDisk: string[] = [];
     for (const dbPath of dbFileMap.keys()) {
       if (!diskFilePaths.has(dbPath)) {
         filesToDelete.push(dbPath);
+        if (!isInternalPath(dbPath)) vanishedFromDisk.push(dbPath);
       }
     }
 
@@ -740,7 +775,9 @@ export class VaultIndexer {
     // inside it.
     this.flushCallbacks();
     if (this.options?.onLocalFileDeleted) {
-      for (const path of filesToDelete) this.options.onLocalFileDeleted(path);
+      // Only genuinely vanished files — a newly excluded path is de-indexed
+      // silently (see the split above).
+      for (const path of vanishedFromDisk) this.options.onLocalFileDeleted(path);
     }
     return report();
   }
