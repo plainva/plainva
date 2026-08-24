@@ -18,17 +18,31 @@ import { credentialManager } from "./CredentialManager";
  * keys by vault id. Same rule, different names — which is precisely why the
  * builders are injected instead of restated inside the rule.
  */
-const desktop = createDeviceSignIn({
-  pim: pimSecretKey,
-  mail: mailSecretKey,
-  // P6: a rename that could not finish leaves the credential under its old
-  // name — reading only the new one would call a working account "not signed in".
-  legacy: { pim: legacySlot.calendar, mail: legacySlot.mail },
-});
+let cached: ReturnType<typeof createDeviceSignIn> | null = null;
 
-export const deviceCredentialKey = desktop.credentialKey;
-export const deviceSignInState = desktop.state;
-export const deviceSignInStates = desktop.states;
+/**
+ * Built on first use, not while this module LOADS (C20). The factory itself is
+ * cheap, but calling anything across a package boundary at module-init time is
+ * the shape that shipped a white window twice: the bundler may evaluate this
+ * chunk before the one that holds `createDeviceSignIn`, and then the whole app
+ * dies before it mounts. Memoised, so callers still see one instance.
+ */
+function desktop(): ReturnType<typeof createDeviceSignIn> {
+  return (cached ??= createDeviceSignIn({
+    pim: pimSecretKey,
+    mail: mailSecretKey,
+    // P6: a rename that could not finish leaves the credential under its old
+    // name — reading only the new one would call a working account "not signed in".
+    legacy: { pim: legacySlot.calendar, mail: legacySlot.mail },
+  }));
+}
+
+export const deviceCredentialKey: ReturnType<typeof createDeviceSignIn>["credentialKey"] = (...a) =>
+  desktop().credentialKey(...a);
+export const deviceSignInState: ReturnType<typeof createDeviceSignIn>["state"] = (...a) =>
+  desktop().state(...a);
+export const deviceSignInStates: ReturnType<typeof createDeviceSignIn>["states"] = (...a) =>
+  desktop().states(...a);
 
 export { accountRowState, isOAuthProvider } from "@plainva/ui";
 export type { DeviceAccountKind, DeviceSignInState } from "@plainva/ui";

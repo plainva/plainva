@@ -27,11 +27,19 @@ import { fileURLToPath } from "node:url";
  * property off a binding imported from another package. Inside a function body
  * the same code is fine — by the time anything calls it, every chunk is loaded.
  *
- * The budget below freezes what exists today. It is NOT a clean bill of health:
- * these fourteen files carry the very pattern that broke twice, they simply
- * have not been hit by a chunk order that exposes it. The budget only ever
- * shrinks; a new entry needs a reason in the same commit, and the honest fix is
- * to move the work into a function and call it from one.
+ * The budget below is down to the three ENTRY points, and that is a decision
+ * rather than a leftover: an entry module is where the graph starts, so every
+ * import it names is evaluated before its own body runs. There is no chunk
+ * order that puts it ahead of itself, which is precisely the reordering both
+ * white windows needed. Everything else was moved into a function and cleared
+ * (2026-08-24) — including the twenty-one sites in mobileSettingsScope, whose
+ * caller had to be deferred in the same breath: the scanner only sees
+ * `@plainva/*` imports, so deferring one hop while its same-package caller
+ * still ran the chain at ITS load time would have been theatre AND a hole the
+ * guard cannot see.
+ *
+ * The budget only ever shrinks; a new entry needs a reason in the same commit,
+ * and the honest fix is to move the work into a function and call it from one.
  *
  * A related but different cycle risk — a module in packages/ui importing from
  * its own barrel — has its own rule in sharedUiPurity.test.ts, since that one
@@ -44,26 +52,12 @@ const ROOTS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packag
 
 /** Per file: how many cross-boundary module-init sites are tolerated today. */
 const BUDGET: Record<string, number> = {
-  // Four bar definitions built from a shared factory while the module loads.
-  "apps/desktop/src/components/AppRibbon.tsx": 1,
-  "apps/desktop/src/components/LeftPinnedSections.tsx": 1,
-  "apps/desktop/src/components/LeftSidebarTabs.tsx": 1,
-  "apps/desktop/src/components/RightSidebar.tsx": 1,
-  // Twenty-one of them in this one file — the S20 shape, at scale.
-  "apps/mobile/src/services/mobileSettingsScope.ts": 21,
-  "apps/mobile/src/services/mobileSettingsSync.ts": 1,
-  // Entry points: these run first by construction, so their chunk cannot be
-  // reordered ahead of themselves. The least risky of the lot. Down from 6 with
-  // multi-window P0: the mail platform registration and the two token resolvers
-  // now run inside the owner-window branch, so they are no longer module-init
-  // work at all.
+  // Entry points, and only entry points. They run first by construction: their
+  // imports are evaluated before their own body, so no chunk order can put them
+  // ahead of the thing they reach for. Nothing else belongs in this map.
   "apps/desktop/src/main.tsx": 4,
   "apps/mobile/src/main.tsx": 2,
   "apps/desktop/src/test-setup.ts": 4,
-  // Shape of the v0.3.0 defect: reading off an imported constant at load time.
-  "apps/mobile/src/screens/base/BaseConfigSheet.tsx": 2,
-  "apps/desktop/src/services/deviceSignIn.ts": 1,
-  "apps/mobile/src/services/deviceSignIn.ts": 1,
 };
 
 interface Finding {

@@ -52,7 +52,13 @@ function frontmatterKeyCount(content: string): number {
 }
 
 type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
-const SPEC = barDef("rightSections").spec;
+let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
+/**
+ * Read on first use, not while this module LOADS (C20): reaching across a
+ * package boundary at module-init time is the shape that shipped a white
+ * window twice. Memoised — the bar definition is static.
+ */
+const spec = () => (cachedSpec ??= barDef("rightSections").spec);
 // Per window (multi-window C4): which context sections are open describes this
 // window's view, and a second window is open in order to look at something
 // else. The central window keeps the unscoped key.
@@ -82,7 +88,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
   // global default until this vault is adapted (plan § 3).
-  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
     calendar: readOpen("calendar"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
   }));
@@ -193,7 +199,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       setOverId(null);
       if (!to || to === id) return;
       const target = layout.order.indexOf(to);
-      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+      if (target >= 0) persist(moveArea(layout, id, target, spec()));
     },
     onCancel: () => {
       dropRef.current = null;
@@ -317,7 +323,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           <MenuItem
             icon={<ArrowUp size={ICON.ui} />}
             onClick={() => {
-              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              persist(moveArea(layout, menuAt.id, 0, spec()));
               setMenuAt(null);
             }}
           >
@@ -326,7 +332,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           <MenuItem
             icon={<EyeOff size={ICON.ui} />}
             onClick={() => {
-              persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+              persist(setAreaVisible(layout, menuAt.id, false, spec()));
               setMenuAt(null);
             }}
           >

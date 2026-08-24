@@ -43,7 +43,13 @@ import {
 /** Derived, not written out again: a second hand-kept list of the same ids
  *  drifts the moment the rail gains an action — as it just did. */
 type RibbonId = (typeof RIBBON_AREA_IDS)[number];
-const SPEC = barDef("ribbon").spec;
+let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
+/**
+ * Read on first use, not while this module LOADS (C20): reaching across a
+ * package boundary at module-init time is the shape that shipped a white
+ * window twice. Memoised — the bar definition is static.
+ */
+const spec = () => (cachedSpec ??= barDef("ribbon").spec);
 
 export interface AppRibbonProps {
   onNewNote: () => void;
@@ -80,7 +86,7 @@ interface RibbonAction {
 export function AppRibbon(props: AppRibbonProps) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
-  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, SPEC));
+  const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [overId, setOverId] = useState<RibbonId | null>(null);
   const [menuAt, setMenuAt] = useState<{ id: RibbonId; x: number; y: number } | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
@@ -173,7 +179,7 @@ export function AppRibbon(props: AppRibbonProps) {
       setOverId(null);
       if (!to || to === id) return;
       const target = layout.order.indexOf(to);
-      if (target >= 0) persist(moveArea(layout, id, target, SPEC));
+      if (target >= 0) persist(moveArea(layout, id, target, spec()));
     },
     onCancel: () => {
       dropRef.current = null;
@@ -270,7 +276,7 @@ export function AppRibbon(props: AppRibbonProps) {
           <MenuItem
             icon={<ArrowUp size={ICON.ui} />}
             onClick={() => {
-              persist(moveArea(layout, menuAt.id, 0, SPEC));
+              persist(moveArea(layout, menuAt.id, 0, spec()));
               setMenuAt(null);
             }}
           >
@@ -279,7 +285,7 @@ export function AppRibbon(props: AppRibbonProps) {
           <MenuItem
             icon={<EyeOff size={ICON.ui} />}
             onClick={() => {
-              persist(setAreaVisible(layout, menuAt.id, false, SPEC));
+              persist(setAreaVisible(layout, menuAt.id, false, spec()));
               setMenuAt(null);
             }}
           >
