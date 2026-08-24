@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+
+// Walks the whole source tree from disk: about half a second on its own, but past
+// the 5 s unit-test default under the full suite's parallel load — six of these
+// guards timed out at once and passed in isolation (2026-08-24). A default meant
+// for unit tests is the wrong yardstick for a check whose runtime grows with the
+// repo; 30 s still catches a hang.
+vi.setConfig({ testTimeout: 30_000 });
 
 /**
  * Source hygiene guard: no RAW control characters in any TypeScript/TSX/CSS

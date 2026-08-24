@@ -346,6 +346,9 @@ describe("the desktop creation path", () => {
     }
   });
 
+  // The only assertion in this file that reads the component tree from disk, so
+  // the only one that outgrows the 5 s default under the full suite's load
+  // (2026-08-24). The rest are pure and stay on the default.
   it("leaves no way of creating a task that skips the provider", () => {
     // The drift guard. Three call sites today; a fourth added without this
     // route would silently create tasks that never reach the list — and it
@@ -368,7 +371,7 @@ describe("the desktop creation path", () => {
         /sendToProvider\(|sendTaskToProviderList\(/
       );
     }
-  });
+  }, 30_000);
 
   it("never lets a provider failure cost the note", () => {
     // The note exists on disk when the service runs. Its own error path must
