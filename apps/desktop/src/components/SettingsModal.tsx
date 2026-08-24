@@ -26,7 +26,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, DEFAULT_SYNC_INTERVAL_SECONDS, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
+import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -125,7 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
   const [themeName, setThemeName] = useState<string>(() => document.documentElement.getAttribute("data-theme-name") || "petrol");
-  const [intervalSec, setIntervalSec] = useState(String(DEFAULT_SYNC_INTERVAL_SECONDS));
+  const [intervalSec, setIntervalSec] = useState(String(defaultSyncIntervalSeconds()));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
   // reuses the sync picker UI with a listing that walks the OPEN vault, so the
@@ -387,7 +387,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       if (store) {
         const perVault = await store.get<number>(syncIntervalKey(section));
         const global = await store.get<number>("syncIntervalSeconds");
-        setIntervalSec(String(perVault ?? global ?? DEFAULT_SYNC_INTERVAL_SECONDS));
+        setIntervalSec(String(perVault ?? global ?? defaultSyncIntervalSeconds()));
 
         setDailyNotesFolder(await store.get<string>(dailyNotesFolderKey(section)) ?? "");
         setDailyNotesFormat(await store.get<string>(dailyNotesFormatKey(section)) ?? "YYYY-MM-DD");
@@ -610,7 +610,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       intervalTimer.current = null;
       intervalFlush.current = null;
       const parsed = parseInt(raw, 10);
-      const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : DEFAULT_SYNC_INTERVAL_SECONDS;
+      const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : defaultSyncIntervalSeconds();
       void (async () => {
         const store = await getSettingsStore();
         await store.set(syncIntervalKey(target), seconds);
@@ -627,7 +627,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   /** Blur normalizes the visible value the same way the save clamps it. */
   const normalizeIntervalDisplay = () => {
     const parsed = parseInt(intervalSec, 10);
-    const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : DEFAULT_SYNC_INTERVAL_SECONDS;
+    const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : defaultSyncIntervalSeconds();
     setIntervalSec(String(seconds));
   };
 

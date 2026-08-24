@@ -184,6 +184,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // vault. A start that fails — the environment can change between sessions —
   // turns the setting off rather than leaving a switch that claims a way back
   // which is not there.
+  //
+  // The trailing catch is not decoration. This effect used to sit in
+  // ReminderHost, which mounts only once a vault is open; here it runs on every
+  // start, splash included, and there the settings store may not answer at all.
+  // Unguarded, that rejection left the production bundle throwing on startup.
   useEffect(() => {
     if (!isOwner) return;
     void (async () => {
@@ -195,7 +200,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await store.set(RUN_IN_TRAY_KEY, false);
         await store.save();
       }
-    })();
+    })().catch((e) => console.warn("[AppContext] could not restore the tray", e));
   }, [isOwner]);
 
   // Remembers the open set, never an empty one: the last window to close drains

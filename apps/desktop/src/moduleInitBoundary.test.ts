@@ -49,8 +49,6 @@ const BUDGET: Record<string, number> = {
   "apps/desktop/src/components/LeftPinnedSections.tsx": 1,
   "apps/desktop/src/components/LeftSidebarTabs.tsx": 1,
   "apps/desktop/src/components/RightSidebar.tsx": 1,
-  // The exact shape of the S20 defect, in two more places.
-  "apps/desktop/src/contexts/VaultContext.tsx": 1,
   // Twenty-one of them in this one file — the S20 shape, at scale.
   "apps/mobile/src/services/mobileSettingsScope.ts": 21,
   "apps/mobile/src/services/mobileSettingsSync.ts": 1,

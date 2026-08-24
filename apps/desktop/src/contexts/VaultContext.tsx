@@ -230,8 +230,20 @@ export const VaultContext = createContext<VaultContextType | undefined>(undefine
 // re-exported here because many modules import their store KEYS from this hub.
 export { STORE_KEY } from "../services/settingsStore";
 
-/** Default sync poll interval in seconds, and the lowest value we allow. */
-export const DEFAULT_SYNC_INTERVAL_SECONDS = profileDefault<number>("syncIntervalSeconds")!;
+/**
+ * Default sync poll interval in seconds, and the lowest value we allow.
+ *
+ * A FUNCTION rather than a constant on purpose (C20). Reading the shared
+ * defaults table while THIS module loads reaches across a package boundary, and
+ * stage D gave the bundler a chunk order that evaluates this module before the
+ * one holding the table: the production bundle then died on startup with an
+ * empty window, which is precisely the failure moduleInitBoundary.test.ts
+ * describes and its budget used to tolerate here. Inside a function the same
+ * read is safe - by the time anything calls it, every chunk is loaded.
+ */
+export function defaultSyncIntervalSeconds(): number {
+  return profileDefault<number>("syncIntervalSeconds")!;
+}
 export const MIN_SYNC_INTERVAL_SECONDS = 5;
 
 // Snapshot failures (full disk, blocked .plainva dir) must be visible but not
@@ -1016,7 +1028,7 @@ export const VaultProvider: React.FC<{
           const perVaultInterval = await settingsStore.get<number>(syncIntervalKey(path));
           const globalInterval = await settingsStore.get<number>("syncIntervalSeconds");
           const savedInterval = perVaultInterval ?? globalInterval;
-          const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? DEFAULT_SYNC_INTERVAL_SECONDS) * 1000;
+          const intervalMs = Math.max(MIN_SYNC_INTERVAL_SECONDS, savedInterval ?? defaultSyncIntervalSeconds()) * 1000;
           if (workspaceSecurityStatus && workspaceStateStore) {
             const runtime = workspaceRuntime;
             if (!runtime) {
