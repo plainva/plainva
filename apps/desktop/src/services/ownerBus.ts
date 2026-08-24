@@ -5,6 +5,7 @@ import { getWindowBus } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
+import { toggleBookmarkOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -305,9 +306,21 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
 
   offs.push(
     await bus.handle("toggle-bookmark", async ({ path }) => {
-      // App.tsx owns the list and its optimistic state; the bus only carries
-      // the request across the window boundary.
-      window.dispatchEvent(new CustomEvent("plainva-toggle-bookmark", { detail: { path } }));
+      // The write belongs to the vault this handler is bound to, never to the
+      // vault the owner window happens to SHOW (multi-window D6). Since stage D
+      // the two can differ: an auxiliary window on vault B addresses B's
+      // handler while the owner draws A. Doing the read-modify-write here means
+      // the star can never land in the wrong vault's list -- and a vault that
+      // nobody is looking at still gets it.
+      const bookmarks = await toggleBookmarkOnDisk(deps.vaultAdapter, path);
+      // What travels is the RESULT, addressed. A window drawing this vault
+      // mirrors it; one drawing another ignores it. The DOM event is
+      // window-global, the address is not.
+      window.dispatchEvent(
+        new CustomEvent("plainva-bookmarks-changed", {
+          detail: { vaultPath: deps.vaultPath, bookmarks },
+        }),
+      );
     }, { vaultPath: deps.vaultPath }),
   );
 

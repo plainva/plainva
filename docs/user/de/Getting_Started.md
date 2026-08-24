@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-08-23
+Stand: 2026-08-24
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -94,18 +94,28 @@ Plainva muss nicht in einem Fenster bleiben. Was Du gerade brauchst, kann danebe
 - **Rechtsklick auf einen Tab → In neuem Fenster öffnen.** Der Tab verlässt dieses Fenster und lebt im neuen weiter; eine Kopie bleibt nicht zurück.
 - **Rechtsklick in der Aktionsleiste** auf **Graph**, **Aufgaben**, **Kalender** oder **E-Mail** → dieselbe Wahl. Klickst Du den Eintrag danach wieder an, holt Plainva das Fenster nach vorn, statt die Ansicht ein zweites Mal zu öffnen.
 - **Befehls-Palette → Kommunikations-Fenster öffnen** startet ein Fenster, das gleich geteilt ist: E-Mail links, Kalender rechts.
-- **Befehls-Palette → Zweites Fenster öffnen** startet die ganze Oberfläche noch einmal — Seitenleisten, Aktionsleiste, Reiter, Statusleiste — auf demselben Vault. Das ist die Wahl für den zweiten Bildschirm.
+- **Befehls-Palette → Zweites Fenster öffnen** startet die ganze Oberfläche noch einmal — Seitenleisten, Aktionsleiste, Reiter, Statusleiste. Das ist die Wahl für den zweiten Bildschirm.
 - Beim **Verfassen einer Nachricht** löst das Ausklapp-Symbol das Fenster heraus — mitsamt allem, was Du schon getippt hast.
 
 Ein herausgelöstes Fenster ist ein vollwertiges Plainva: es hat **Reiter**, lässt sich **teilen** und speichert über dieselbe Kette wie das Hauptfenster. Was es bewusst nicht hat, sind Seitenleisten und Aktionsleiste — es soll eine Sache zeigen.
 
-Ein **zweites Fenster** hat beides, und es zeigt denselben Vault: ein Plainva hält einen Vault offen, und das zweite Fenster folgt dem ersten. Wechselst oder schließt Du den Vault im Hauptfenster, folgt es auch dorthin. Einstellungen, Import-Assistent und Vault-Wechsler bleiben ebenfalls beim Hauptfenster — die Knöpfe sind da, und ein Druck darauf holt das Hauptfenster nach vorn und öffnet die Fläche **dort**. Alles, was mit Deiner Arbeit zu tun hat, ist in beiden gleich: Bearbeiten, Speichern, Suchen und der Sync-Zustand in der Statusleiste. Breite der Seitenleisten und was Du eingeklappt hast, gehören jedem Fenster für sich.
+Ein **zweites Fenster** hat beides — und es hat seinen **eigenen Vault**. Beim Öffnen zeigt es den des Hauptfensters; über den Vault-Wechsler unten links schaltet es auf einen anderen um, ohne das Hauptfenster mitzunehmen. Einstellungen, Import-Assistent und das **Anlegen** eines neuen Vaults bleiben beim Hauptfenster — die Knöpfe sind da, und ein Druck darauf holt das Hauptfenster nach vorn und öffnet die Fläche **dort**. Alles, was mit Deiner Arbeit zu tun hat, ist in beiden gleich: Bearbeiten, Speichern, Suchen und der Sync-Zustand in der Statusleiste. Breite der Seitenleisten und was Du eingeklappt hast, gehören jedem Fenster für sich.
 
 **Ein Inhalt ist immer nur in EINEM Fenster offen.** Öffnest Du eine Notiz, die woanders schon aufgeschlagen ist, kommt dieses Fenster nach vorn. Das ist Absicht: zwei Editoren auf derselben Datei sind der sicherste Weg, Arbeit zu verlieren. Beim Verfassen von Nachrichten gilt das nicht — zwei Mails gleichzeitig zu schreiben ist normal.
 
 Die **Nadel** im Fenstertitel hält ein Fenster im Vordergrund, während Du im anderen arbeitest.
 
-Beim nächsten Start kommen die Zusatzfenster eines Vaults dorthin zurück, wo sie waren. Wenn Du das nicht möchtest: **Einstellungen → Start & Verhalten → Fenster**. Eine **noch nicht gesendete Nachricht** wird nie wiederhergestellt — was in einem Verfassen-Fenster steht, lebt im Arbeitsspeicher, und ein Fenster, das behauptet, es aufbewahrt zu haben, wäre schlimmer als keins.
+Beim nächsten Start kommen alle Vaults zurück, die ein Fenster hatten, und ihre Zusatzfenster dorthin, wo sie waren. Wenn Du das nicht möchtest: **Einstellungen → Start & Verhalten → Fenster**. Eine **noch nicht gesendete Nachricht** wird nie wiederhergestellt — was in einem Verfassen-Fenster steht, lebt im Arbeitsspeicher, und ein Fenster, das behauptet, es aufbewahrt zu haben, wäre schlimmer als keins.
+
+## Mehrere Vaults gleichzeitig
+
+Zwei Vaults nebeneinander — Arbeit und Privat, Projekt und Archiv — brauchen zwei Fenster: **ein Fenster zeigt genau einen Vault**. Öffne ein zweites Fenster (Befehls-Palette → **Zweites Fenster öffnen**) und wechsle darin unten links den Vault. Ab dann laufen beide: eigene Suche, eigener Sync, eigene Erinnerungen.
+
+- **Jeder Vault synchronisiert für sich.** Der Zustand in der Statusleiste gehört immer dem Vault des Fensters, in dem Du gerade bist.
+- **Dasselbe Konto in beiden Vaults ist in Ordnung.** Plainva erneuert die Anmeldung einmal und reicht sie an den anderen Vault weiter, statt sie sich gegenseitig ungültig zu machen.
+- **Ein Vault in einem anderen Vault geht nicht.** Liegt der Ordner **innerhalb** eines schon geöffneten Vaults — oder umgekehrt —, lehnt Plainva ab und sagt warum: beide würden dieselben Dateien beobachten und synchronisieren.
+- **Derselbe Vault in zwei Fenstern** ist dagegen erlaubt; die Fenster teilen ihn sich, und jede Notiz bleibt trotzdem nur in einem davon offen.
+- **Der letzte Blick schließt.** Sobald kein Fenster mehr auf einen Vault schaut, räumt Plainva ihn ab — was gerade geschrieben wird, wird vorher zu Ende geschrieben.
 
 ## Leisten & Bereiche anpassen
 

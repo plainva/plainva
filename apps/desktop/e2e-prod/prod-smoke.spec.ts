@@ -153,3 +153,26 @@ test('production bundle boots the full second window', async ({ page }) => {
 
   expect(pageErrors, `Uncaught page errors in the full window:\n${pageErrors.join('\n')}`).toEqual([]);
 });
+
+/**
+ * A full window on a DIFFERENT vault than the central one (stage D).
+ *
+ * With two vaults open at once the vault is no longer a constant of the app but
+ * a parameter of the window, and it travels through the query string. This is
+ * the boot with a foreign one - deliberately a Windows path, because the vault
+ * string now passes through path handling (the nesting check, the per-vault
+ * storage keys) before anything renders, and a mistake there fails the way the
+ * white window did: not with a message, with nothing.
+ */
+test('production bundle boots a full window on a foreign vault', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.stack || err.message));
+
+  await page.goto('/?win=full&vault=C%3A%5CVaults%5CProject%20B&label=full-2');
+
+  await expect(page.locator('#root > *').first()).toBeVisible({ timeout: 15000 });
+  const empty = page.getByRole('status').filter({ hasText: /No vault open|Kein Vault/ });
+  await expect(empty).toBeVisible({ timeout: 15000 });
+
+  expect(pageErrors, `Uncaught page errors in the foreign-vault window:\n${pageErrors.join('\n')}`).toEqual([]);
+});

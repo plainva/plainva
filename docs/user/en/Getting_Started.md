@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-23
+Last updated: 2026-08-24
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -94,18 +94,28 @@ Plainva does not have to stay in one window. Whatever you need right now can sit
 - **Right-click a tab → Open in new window.** The tab leaves this window and lives on in the new one; no copy stays behind.
 - **Right-click Graph, Tasks, Calendar or Email in the ribbon** for the same choice. Click the entry again afterwards and Plainva brings that window forward instead of opening the view a second time.
 - **Command palette → Open communications window** starts a window that is already split: mail on the left, calendar on the right.
-- **Command palette → Open a second window** opens the whole shell again — sidebars, ribbon, tabs, status bar — on the same vault. That is the one for a second monitor.
+- **Command palette → Open a second window** opens the whole shell again — sidebars, ribbon, tabs, status bar. That is the one for a second monitor.
 - While **composing a message**, the pop-out icon lifts the composer into its own window — with everything you have already typed.
 
 A popped-out window is a full Plainva: it carries **tabs**, can be **split**, and saves through the same chain as the main window. What it deliberately does not carry are the sidebars and the ribbon — it is meant to show one thing.
 
-A **second window** does carry them, and it shows the same vault: one Plainva holds one vault open, and the second window follows the first. Switch or close the vault in the main window and it follows there too. Settings, the import wizard and the vault switcher stay with the main window as well — the buttons are there, and pressing one brings the main window forward and opens it **there**. Everything about your work is the same in both: editing, saving, searching, and the sync state in the status bar. Sidebar widths and what you collapsed belong to each window separately.
+A **second window** does carry them — and it carries its **own vault**. It opens on the main window's vault; the vault switcher at the bottom left moves it to another one without dragging the main window along. Settings, the import wizard and **creating** a vault stay with the main window — the buttons are there, and pressing one brings the main window forward and opens it **there**. Everything about your work is the same in both: editing, saving, searching, and the sync state in the status bar. Sidebar widths and what you collapsed belong to each window separately.
 
 **A piece of content is only ever open in ONE window.** Open a note that is already showing somewhere else and that window comes forward. This is deliberate: two editors on the same file are the surest way to lose work. Composing is the exception — writing two messages at once is ordinary.
 
 The **pin** in the window title keeps a window on top while you work in the other one.
 
-On the next start, a vault's auxiliary windows come back where they were. If you would rather they did not: **Settings → Startup & behavior → Windows**. An **unsent message** is never restored — what sits in a composer lives in memory, and a window claiming to have kept it would be worse than no window.
+On the next start, every vault that had a window comes back, and its auxiliary windows come back where they were. If you would rather they did not: **Settings → Startup & behavior → Windows**. An **unsent message** is never restored — what sits in a composer lives in memory, and a window claiming to have kept it would be worse than no window.
+
+## Several vaults at once
+
+Two vaults side by side — work and private, project and archive — need two windows: **one window shows exactly one vault**. Open a second window (command palette → **Open a second window**) and switch its vault at the bottom left. From then on both run: their own search, their own sync, their own reminders.
+
+- **Each vault syncs for itself.** The state in the status bar always belongs to the vault of the window you are in.
+- **The same account in both vaults is fine.** Plainva renews the sign-in once and hands it to the other vault instead of letting the two invalidate each other.
+- **A vault inside another vault is refused.** If the folder sits **inside** a vault that is already open — or the other way round — Plainva says so and why: both would watch and sync the same files.
+- **The same vault in two windows** is allowed; the windows share it, and a note still only ever opens in one of them.
+- **The last look closes it.** Once no window is looking at a vault any more, Plainva puts it away — whatever is being written is finished first.
 
 ## Arranging bars & areas
 

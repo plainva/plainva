@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-08-23
+Stan na: 2026-08-24
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -94,18 +94,28 @@ Plainva nie musi zostawać w jednym oknie. To, czego potrzebujesz akurat teraz, 
 - **Kliknij prawym przyciskiem kartę → Otwórz w nowym oknie.** Karta opuszcza to okno i żyje dalej w nowym; kopia nie zostaje.
 - **Kliknij prawym przyciskiem** na **Graf**, **Zadania**, **Kalendarz** lub **E-mail** na pasku akcji, aby dokonać tego samego wyboru. Kliknij ten sam wpis ponownie, a Plainva przywoła to okno na wierzch, zamiast otwierać widok po raz drugi.
 - **Paleta poleceń → Otwórz okno komunikacji** uruchamia okno, które jest już podzielone: poczta po lewej, kalendarz po prawej.
-- **Paleta poleceń → Otwórz drugie okno** ponownie otwiera całą powłokę — paski boczne, pasek akcji, karty, pasek stanu — dla tego samego vaulta. To ten wybór na drugi monitor.
+- **Paleta poleceń → Otwórz drugie okno** ponownie otwiera całą powłokę — paski boczne, pasek akcji, karty, pasek stanu. To ten wybór na drugi monitor.
 - Podczas **pisania wiadomości** ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — wraz ze wszystkim, co już wpisałeś.
 
 Wysunięte okno to pełnoprawne Plainva: ma **karty**, można je **podzielić** i zapisuje przez ten sam łańcuch co okno główne. Czego celowo nie ma, to paski boczne i pasek akcji — ma pokazywać jedną rzecz.
 
-**Drugie okno** ma je oba, i pokazuje ten sam vault: jedno Plainva trzyma otwarty jeden vault, a drugie okno podąża za pierwszym. Przełącz lub zamknij vault w oknie głównym, a ono podąży tam też. Ustawienia, kreator importu i przełącznik vaultów również zostają przy oknie głównym — przyciski tam są, a kliknięcie jednego z nich przywołuje okno główne na wierzch i otwiera go **tam**. Wszystko, co dotyczy Twojej pracy, jest takie samo w obu: edycja, zapisywanie, wyszukiwanie i stan synchronizacji na pasku stanu. Szerokość pasków bocznych i to, co zwinąłeś, należą osobno do każdego okna.
+**Drugie okno** rzeczywiście je ma — i ma **własny vault**. Otwiera vault okna głównego; przełącznik vaultów w lewym dolnym rogu przenosi je na inny, nie ciągnąc za sobą okna głównego. Ustawienia, kreator importu i **tworzenie** vaultu zostają przy oknie głównym — przyciski tam są, a kliknięcie jednego z nich przywołuje okno główne na wierzch i otwiera go **tam**. Wszystko, co dotyczy Twojej pracy, jest takie samo w obu: edycja, zapisywanie, wyszukiwanie i stan synchronizacji na pasku stanu. Szerokość pasków bocznych i to, co zwinąłeś, należą osobno do każdego okna.
 
 **Dana treść jest zawsze otwarta tylko w JEDNYM oknie.** Otwórz notatkę, która jest już gdzieś wyświetlana, a to okno wysunie się na wierzch. To celowe: dwa edytory na tym samym pliku to najpewniejszy sposób na utratę pracy. Pisanie wiadomości jest wyjątkiem — pisanie dwóch wiadomości naraz jest normalne.
 
 **Pinezka** w tytule okna trzyma je na wierzchu, podczas gdy pracujesz w drugim.
 
-Przy następnym uruchomieniu okna dodatkowe vaultu wracają tam, gdzie były. Jeśli wolisz inaczej: **Ustawienia → Uruchamianie i zachowanie → Okna**. **Niewysłana wiadomość** nigdy nie jest przywracana — to, co znajduje się w oknie tworzenia wiadomości, żyje w pamięci, a okno twierdzące, że to zachowało, byłoby gorsze niż brak okna.
+Przy następnym uruchomieniu wraca każdy vault, który miał okno, a jego okna dodatkowe wracają tam, gdzie były. Jeśli wolisz inaczej: **Ustawienia → Uruchamianie i zachowanie → Okna**. **Niewysłana wiadomość** nigdy nie jest przywracana — to, co znajduje się w oknie tworzenia wiadomości, żyje w pamięci, a okno twierdzące, że to zachowało, byłoby gorsze niż brak okna.
+
+## Kilka vaultów naraz
+
+Dwa vaulty obok siebie — praca i prywatne, projekt i archiwum — potrzebują dwóch okien: **jedno okno pokazuje dokładnie jeden vault**. Otwórz drugie okno (paleta poleceń → **Otwórz drugie okno**) i przełącz jego vault w lewym dolnym rogu. Od tej chwili oba działają: własne wyszukiwanie, własna synchronizacja, własne przypomnienia.
+
+- **Każdy vault synchronizuje się osobno.** Stan na pasku stanu zawsze należy do vaultu okna, w którym właśnie jesteś.
+- **To samo konto w obu vaultach jest w porządku.** Plainva odnawia logowanie raz i przekazuje je drugiemu vaultowi, zamiast pozwalać, by oba się nawzajem unieważniały.
+- **Vault wewnątrz innego vaultu zostaje odrzucony.** Jeśli folder znajduje się **wewnątrz** vaultu, który jest już otwarty — albo odwrotnie — Plainva zgłasza to i wyjaśnia dlaczego: oba obserwowałyby i synchronizowały te same pliki.
+- **Ten sam vault w dwóch oknach** jest dozwolony; okna go współdzielą, a notatka nadal otwiera się zawsze tylko w jednym z nich.
+- **Ostatnie spojrzenie go zamyka.** Gdy żadne okno nie patrzy już na dany vault, Plainva go odkłada — to, co jest właśnie zapisywane, zostaje najpierw dokończone.
 
 ## Paski i obszary
 

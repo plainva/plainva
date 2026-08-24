@@ -612,17 +612,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       });
   };
 
-  // An auxiliary window (multi-window P2) has the star in its graph but not
-  // the list: it asks over the bus, the owner handler turns the request into
-  // this event, and the toggle runs where the state lives.
+  // An auxiliary window (multi-window P2) has the star in its graph but not the
+  // list: it asks over the bus, and the owner handler writes the file of the
+  // vault it is bound to. What arrives here is the RESULT -- and it is checked,
+  // because since stage D this window may well be drawing a different vault.
   useEffect(() => {
-    const onToggle = (e: Event) => {
-      const path = (e as CustomEvent<{ path?: string }>).detail?.path;
-      if (path) toggleBookmark(path);
+    const onChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ vaultPath?: string; bookmarks?: string[] }>).detail;
+      if (!detail || detail.vaultPath !== vaultPath) return;
+      if (Array.isArray(detail.bookmarks)) setBookmarks(detail.bookmarks);
     };
-    window.addEventListener("plainva-toggle-bookmark", onToggle);
-    return () => window.removeEventListener("plainva-toggle-bookmark", onToggle);
-  });
+    window.addEventListener("plainva-bookmarks-changed", onChanged);
+    return () => window.removeEventListener("plainva-bookmarks-changed", onChanged);
+  }, [vaultPath]);
 
   // index.md auto-update (plan UI-UX P11): file operations report themselves
   // via "plainva-file-ops" AFTER their reindex; managed listings of the

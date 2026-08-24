@@ -123,6 +123,26 @@ function createAdapter(calls: string[]): IVaultAdapter {
   } as unknown as IVaultAdapter;
 }
 
+/** An adapter with real file contents -- bookmarks are read-modify-write. */
+function createFileAdapter(files: Map<string, string>): IVaultAdapter {
+  return {
+    initialize: async () => {},
+    dispose: async () => {},
+    readTextFile: async (path: string) => {
+      const found = files.get(path);
+      if (found === undefined) throw new Error("not found: " + path);
+      return found;
+    },
+    writeTextFile: async (path: string, content: string) => {
+      files.set(path, content);
+    },
+    exists: async (path: string) => files.has(path),
+    listDir: async () => [],
+    createDir: async () => {},
+    getFileInfo: async (path: string) => ({ path, name: path, isDirectory: false, mtime: 1, size: 0 }),
+  } as unknown as IVaultAdapter;
+}
+
 /** A provider target that records what it was asked to do. */
 function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
   return {
@@ -644,6 +664,52 @@ describe("owner bus with two vaults open", () => {
       expect(callsB).toEqual(["write:Note.md"]);
       expect(callsA).toEqual([]);
     } finally {
+      stopA();
+      stopB();
+    }
+  });
+
+  it("stars a note in the vault the request named, not the one the owner is drawing", async () => {
+    const wire = createWire();
+    // The owner window draws A; the auxiliary window was popped out of B.
+    const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/A");
+    const onB = createWindowBus(wire("aux-2"), 200, () => "/B");
+    busForTest = owner;
+
+    const filesA = new Map<string, string>();
+    const filesB = new Map<string, string>();
+    const announced: Array<{ vaultPath?: string; bookmarks?: string[] }> = [];
+    const onChanged = (e: Event) =>
+      announced.push((e as CustomEvent<{ vaultPath?: string; bookmarks?: string[] }>).detail);
+    window.addEventListener("plainva-bookmarks-changed", onChanged);
+
+    const runtime = (vaultPath: string, files: Map<string, string>) =>
+      installOwnerBus({
+        vaultPath,
+        vaultAdapter: createFileAdapter(files),
+        indexer: null,
+        pimRuntime: null,
+        refresh: () => {},
+        refreshVault: async () => {},
+        rebuildIndex: async () => {},
+        syncWorker: null,
+      });
+
+    const stopA = await runtime("/A", filesA);
+    const stopB = await runtime("/B", filesB);
+    try {
+      await onB.request("toggle-bookmark", { path: "Deep/Note.md" });
+
+      // The star lands in B's list. Until D6 the handler only shouted into the
+      // owner's DOM, and the shell of the vault that window was SHOWING answered
+      // -- writing a B path into A's bookmarks.
+      expect(filesB.get(".plainva/bookmarks.json")).toContain("Deep/Note.md");
+      expect(filesA.has(".plainva/bookmarks.json")).toBe(false);
+      // And the news carries its address, so a window drawing another vault can
+      // tell that it is not meant.
+      expect(announced).toEqual([{ vaultPath: "/B", bookmarks: ["Deep/Note.md"] }]);
+    } finally {
+      window.removeEventListener("plainva-bookmarks-changed", onChanged);
       stopA();
       stopB();
     }
