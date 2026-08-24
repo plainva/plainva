@@ -147,7 +147,10 @@ export async function startPim(vault: MobileVault): Promise<void> {
   // Same class as the resume trigger in `1ad9b995` ("a cycle without news fires
   // no event"), one step earlier: there it was the missing cycle, here the
   // missing answer that the cycle's data is reachable at all.
-  window.dispatchEvent(new CustomEvent("m-pim-changed"));
+  // Guarded like every other dispatch in this layer (accountLogin fires the
+  // SAME event that way): mobile vitest runs in node, where there is no window,
+  // and a service must not need a DOM to boot.
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-pim-changed"));
 }
 
 export function stopPim(): void {
