@@ -189,7 +189,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // typing does not fire one FTS query per keystroke (plan Suche P3).
   const leftQueryDebounced = useDebouncedValue(leftQuery, 150);
   const leftSearchRef = useRef<HTMLInputElement>(null);
-  // Recent searches (parity gap recent-searches): offered while the field is
+  // Recent searches (parity with the phone since 4ec8cd76): offered while the field is
   // focused and empty. Remembering happens on blur, not per keystroke — every
   // prefix on the way to a word would otherwise eat the five slots.
   const [leftSearchFocused, setLeftSearchFocused] = useState(false);

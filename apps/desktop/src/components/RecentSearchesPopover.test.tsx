@@ -6,7 +6,7 @@ import { rememberSearch, setPlatformServices } from "@plainva/ui";
 import { RecentSearchesPopover } from "./RecentSearchesPopover";
 
 /**
- * The desktop side of the `recent-searches` parity gap.
+ * The desktop side of the recent-search list the phone has had since S16.
  *
  * Runs against the REAL shared store (with a fake settings backend under it),
  * not a stubbed loader: the point of closing the gap was that both shells read

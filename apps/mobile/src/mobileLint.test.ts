@@ -1224,11 +1224,21 @@ describe("mail files, says and deletes carefully", () => {
     expect(screen).toMatch(/data-testid="mail-message-menu"/);
   });
 
-  // @parity-mobile note-to-mail
-  it("offers the note itself as mail", () => {
+  /*
+   * All THREE routes, not two. The catalog carried `note-to-mail` as a gap
+   * until 2026-08-24 on the grounds that only the attachment was desktop-only
+   * — while the phone had grown it on 2026-08-20 (draft field, composer, send
+   * path) and this assertion, pinning the other two, never noticed. The entry
+   * is gone; what keeps the capability from quietly leaving is this line.
+   */
+  it("offers the note itself as mail — handoff, body and attachment", () => {
     const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
     expect(note).toMatch(/buildMailtoUrl\(/);
     expect(note).toMatch(/onComposeMail\?\.\(/);
+    // The note as a FILE on the draft, so the composer needs no second trip
+    // through the picker.
+    expect(note).toMatch(/mail\.sendNoteAsAttachment/);
+    expect(note).toMatch(/attachments: \[a\]/);
   });
 });
 

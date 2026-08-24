@@ -179,6 +179,23 @@ export interface ParityGuardMarker {
  * Deliberately NOT inferred from titles or file names: a fuzzy match would
  * either miss the real case or fire on unrelated ones, and a guard that cries
  * wolf gets silenced within a week.
+ *
+ * Its reach, measured on 2026-08-24 when the SAME class slipped past it twice:
+ *
+ *  - **A marker is only as sharp as the assertion it names.** `note-to-mail`
+ *    survived as a gap because the guard pinned two of the three routes and the
+ *    entry claimed the third (the attachment) was missing — which the phone had
+ *    grown on 2026-08-20, in the very commit that wrote the marker. No
+ *    contradiction, because the marker never spoke about that route.
+ *  - **It only looks one way.** `recent-searches` was a DESKTOP gap
+ *    (`desktop: null`) closed by `4ec8cd76`, and there is no `@parity-desktop`
+ *    counterpart to notice. Not built here: with the catalog holding no gaps at
+ *    all any more, a second mechanism would have nothing to guard.
+ *
+ * What actually keeps this honest is the shape of what is left: every remaining
+ * entry is a `decision`, and a decision describes a platform limit — those do
+ * not quietly get built. A `gap` is the entry that rots, because the work
+ * happens and the line stays.
  */
 export function findGuardContradictions(
   features: readonly ParityFeatureDef[],
@@ -281,22 +298,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "it; a finger-sized reimplementation of crop handles would be worse than the " +
       "one the platform already has.",
     verified: "2026-08-19",
-  },
-  {
-    id: "note-to-mail",
-    title: "Send the open note by mail",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Two of the three routes exist on both shells over the same helpers: the " +
-      "mailto handoff (buildMailtoUrl) and the composer with the note as the " +
-      "body. Only sending the note AS AN ATTACHMENT is desktop-only, and it is " +
-      "not a menu entry away: the mobile MailDraft carries accountId, to, " +
-      "subject and body and has no attachments field, so the draft type, the " +
-      "compose screen and the send path all have to grow one.",
-    verified: "2026-08-20",
   },
   {
     id: "print-note",
@@ -408,21 +409,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "adaptive answer to the same need rather than a smaller version of the " +
       "desktop's split.",
     verified: "2026-08-19",
-  },
-  {
-    id: "recent-searches",
-    title: "Recently used search terms",
-    area: "search",
-    kind: "gap",
-    desktop: null,
-    desktopReason:
-      "The phone remembers recent search terms; the desktop does not, although " +
-      "typing a long query again is no more pleasant with a keyboard. The store " +
-      "now sits in the shared layer (lib/recentSearches, speaking only through " +
-      "getPlatformServices().loadSettings()); the work left is the desktop " +
-      "surface under the search field.",
-    mobile: "yes",
-    verified: "2026-08-20",
   },
   {
     id: "connect-metering",

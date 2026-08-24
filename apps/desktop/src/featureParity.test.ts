@@ -84,10 +84,27 @@ describe("the catalog and the mobile guards agree", () => {
    * have. Two guards in the same repo said opposite things and both stayed
    * green, because neither could see the other. The marker is the seam.
    */
-  it("finds at least one marker", () => {
-    // Without this, deleting every marker would silently turn the check into a
-    // no-op that keeps passing.
-    expect(readMobileGuardMarkers().length).toBeGreaterThan(0);
+  it("carries a marker for every entry that could contradict one", () => {
+    /*
+     * This used to demand at least one marker, so that deleting them all could
+     * not silently turn the check into a no-op. On 2026-08-24 the last two
+     * `gap` entries turned out to be describing work that was long done, and
+     * removing them left nothing for a marker to contradict: a `decision` says
+     * the phone deliberately does NOT have something, so pinning it as required
+     * would be the opposite claim.
+     *
+     * So the demand follows the catalog instead of a fixed number. With no gaps
+     * the mechanism is dormant, not dead — the fixtures below still prove its
+     * teeth on every run, and the moment someone writes a gap back in, this
+     * asks for the marker again.
+     */
+    const gaps = PARITY_FEATURES.filter((f) => f.kind === "gap");
+    if (gaps.length > 0) {
+      expect(
+        readMobileGuardMarkers().length,
+        `the catalog carries ${gaps.length} gap(s) — pin them with @parity-mobile`,
+      ).toBeGreaterThan(0);
+    }
   });
 
   it("has no contradiction", () => {

@@ -13,9 +13,8 @@ import {
  * focused and empty.
  *
  * The phone has had this since S16; the desktop did not, although typing a
- * long query again is no more pleasant with a keyboard (parity gap
- * `recent-searches`). The store is the shared one — same rules, same cap of
- * five, still device-local.
+ * long query again is no more pleasant with a keyboard. The store is the
+ * shared one — same rules, same cap of five, still device-local.
  *
  * A popover rather than a strip above the tree: a strip would push the whole
  * file tree down every time the field takes focus, which is a lot of movement
