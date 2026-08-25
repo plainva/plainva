@@ -3460,7 +3460,14 @@
     "joinPollFailed": "Nachfragen fehlgeschlagen: {{reason}}",
     "joinExpires": "Anfrage läuft ab",
     "joinExpired": "Diese Anfrage ist abgelaufen. Wenn niemand rechtzeitig freigegeben hat, brich ab und frage erneut an.",
-    "joinCompareFingerprint": "Lies diesen Fingerprint dem genehmigenden Gerät vor. Dort muss exakt derselbe stehen."
+    "joinCompareFingerprint": "Lies diesen Fingerprint dem genehmigenden Gerät vor. Dort muss exakt derselbe stehen.",
+    "changePassphrase": "Passphrase ändern",
+    "currentPassphrase": "Aktuelle Passphrase",
+    "newPassphrase": "Neue Passphrase (mindestens 10 Zeichen)",
+    "confirmPassphrase": "Neue Passphrase wiederholen",
+    "passphraseChangeNote": "Nur die Schlüssel auf diesem Gerät werden neu versiegelt. Deine Wiederherstellungsdatei und ihr Code bleiben gültig.",
+    "passphraseChanged": "Passphrase geändert.",
+    "passphraseChangeFailed": "Passphrase konnte nicht geändert werden. Stimmt die aktuelle Passphrase?"
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

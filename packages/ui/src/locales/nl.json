@@ -3460,7 +3460,14 @@
     "joinPollFailed": "Controleren op goedkeuring mislukt: {{reason}}",
     "joinExpires": "Verzoek verloopt",
     "joinExpired": "Dit verzoek is verlopen. Heeft niemand het op tijd goedgekeurd, annuleer dan en vraag opnieuw aan.",
-    "joinCompareFingerprint": "Lees deze vingerafdruk voor aan het goedkeurende apparaat. Daar moet exact dezelfde staan."
+    "joinCompareFingerprint": "Lees deze vingerafdruk voor aan het goedkeurende apparaat. Daar moet exact dezelfde staan.",
+    "changePassphrase": "Wachtwoordzin wijzigen",
+    "currentPassphrase": "Huidige wachtwoordzin",
+    "newPassphrase": "Nieuwe wachtwoordzin (minimaal 10 tekens)",
+    "confirmPassphrase": "Nieuwe wachtwoordzin herhalen",
+    "passphraseChangeNote": "Alleen de sleutels op dit apparaat worden opnieuw verzegeld. Je herstelbestand en de bijbehorende code blijven geldig.",
+    "passphraseChanged": "Wachtwoordzin gewijzigd.",
+    "passphraseChangeFailed": "Kon de wachtwoordzin niet wijzigen. Klopt de huidige wachtwoordzin?"
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

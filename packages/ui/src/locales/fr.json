@@ -3488,7 +3488,14 @@
     "joinPollFailed": "Échec de la vérification : {{reason}}",
     "joinExpires": "La demande expire",
     "joinExpired": "Cette demande a expiré. Si personne ne l’a approuvée à temps, annulez et redemandez.",
-    "joinCompareFingerprint": "Lisez cette empreinte à l’appareil qui approuve. Il doit afficher exactement la même."
+    "joinCompareFingerprint": "Lisez cette empreinte à l’appareil qui approuve. Il doit afficher exactement la même.",
+    "changePassphrase": "Modifier la phrase secrète",
+    "currentPassphrase": "Phrase secrète actuelle",
+    "newPassphrase": "Nouvelle phrase secrète (10 caractères minimum)",
+    "confirmPassphrase": "Répéter la nouvelle phrase secrète",
+    "passphraseChangeNote": "Seules les clés de cet appareil sont rescellées. Votre fichier de récupération et son code restent valides.",
+    "passphraseChanged": "Phrase secrète modifiée.",
+    "passphraseChangeFailed": "Impossible de modifier la phrase secrète. La phrase actuelle est-elle correcte ?"
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

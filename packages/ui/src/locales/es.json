@@ -3488,7 +3488,14 @@
     "joinPollFailed": "No se pudo comprobar la aprobación: {{reason}}",
     "joinExpires": "La solicitud caduca",
     "joinExpired": "Esta solicitud ha caducado. Si nadie la aprobó a tiempo, cancela y vuelve a solicitarla.",
-    "joinCompareFingerprint": "Lee esta huella al dispositivo que aprueba. Allí debe aparecer exactamente la misma."
+    "joinCompareFingerprint": "Lee esta huella al dispositivo que aprueba. Allí debe aparecer exactamente la misma.",
+    "changePassphrase": "Cambiar la frase de contraseña",
+    "currentPassphrase": "Frase de contraseña actual",
+    "newPassphrase": "Nueva frase de contraseña (mínimo 10 caracteres)",
+    "confirmPassphrase": "Repetir la nueva frase de contraseña",
+    "passphraseChangeNote": "Solo se vuelven a sellar las claves de este dispositivo. Tu archivo de recuperación y su código siguen siendo válidos.",
+    "passphraseChanged": "Frase de contraseña cambiada.",
+    "passphraseChangeFailed": "No se pudo cambiar la frase de contraseña. ¿Es correcta la actual?"
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

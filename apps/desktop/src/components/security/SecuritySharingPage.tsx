@@ -40,6 +40,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     activatePersonalWorkspace,
     unlockPersonalWorkspace,
     lockPersonalWorkspace,
+    changeWorkspacePassphrase,
     removeRemotePlaintext,
     resumePersonalWorkspaceSetup,
     decommissionWorkspace,
@@ -73,6 +74,20 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [showDetails, setShowDetails] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [showUnlock, setShowUnlock] = useState(false);
+  /**
+   * Changing the local key passphrase (decision E6).
+   *
+   * A workspace whose keys are sealed by a passphrase rather than the system
+   * keychain could set that passphrase three times - during setup, when joining
+   * and when recovering - and never change it afterwards. The control plane has
+   * been able to do it since the keychain service was written; nothing called
+   * it. Content encryption offered the change all along, so the asymmetry was
+   * an oversight, not a decision.
+   */
+  const [showPassphraseChange, setShowPassphraseChange] = useState(false);
+  const [currentPassphrase, setCurrentPassphrase] = useState("");
+  const [nextPassphrase, setNextPassphrase] = useState("");
+  const [nextPassphraseConfirm, setNextPassphraseConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [passphrase, setPassphrase] = useState("");
   const [governance, setGovernance] = useState<Governance | null>(null);
@@ -150,6 +165,25 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       .catch((error) => toast.error(error instanceof Error ? error.message : String(error)));
     setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
+  };
+
+  const closePassphraseChange = () => {
+    setShowPassphraseChange(false);
+    setCurrentPassphrase("");
+    setNextPassphrase("");
+    setNextPassphraseConfirm("");
+  };
+
+  const applyPassphraseChange = async () => {
+    setBusy(true);
+    try {
+      await changeWorkspacePassphrase(currentPassphrase, nextPassphrase);
+      closePassphraseChange();
+      toast.info(t("workspaceSecurity.passphraseChanged"));
+    } catch (error) {
+      console.error("[SecuritySharingPage] passphrase change failed", error);
+      toast.error(t("workspaceSecurity.passphraseChangeFailed"));
+    } finally { setBusy(false); }
   };
 
   const unlock = async () => {
@@ -392,7 +426,14 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               {status.phase === "locked" ? (
                 <Button variant="primary" onClick={() => setShowUnlock(true)}>{t("workspaceSecurity.unlock")}</Button>
               ) : (
-                <Button variant="ghost" disabled={busy} onClick={() => void lockPersonalWorkspace()}>{t("workspaceSecurity.lock")}</Button>
+                <>
+                  {status.keyStorage === "passphrase" && (
+                    <Button variant="secondary" disabled={busy} onClick={() => setShowPassphraseChange(true)} data-testid="workspace-change-passphrase">
+                      {t("workspaceSecurity.changePassphrase")}
+                    </Button>
+                  )}
+                  <Button variant="ghost" disabled={busy} onClick={() => void lockPersonalWorkspace()}>{t("workspaceSecurity.lock")}</Button>
+                </>
               )}
             </SettingRow>
             {status.lastError && <Banner kind="error" rounded>{status.lastError}</Banner>}
@@ -590,6 +631,39 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             <div className="pv-security-actions">
               <Button variant="ghost" disabled={busy} onClick={() => setShowUnlock(false)}>{t("common.cancel")}</Button>
               <Button variant="primary" disabled={busy || (status.keyStorage === "passphrase" && !passphrase)} onClick={() => void unlock()}>{t("workspaceSecurity.unlock")}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {showPassphraseChange && (
+        <Modal title={t("workspaceSecurity.changePassphrase")} onClose={() => { if (!busy) closePassphraseChange(); }} size="sm" testId="workspace-passphrase-dialog">
+          <div className="pv-security-wizard">
+            {/* The old passphrase is asked for, not assumed from the unlocked
+                session: an unlocked machine left alone is exactly the case where
+                a silent change would lock its owner out. */}
+            <label className="pv-security-field">
+              <span>{t("workspaceSecurity.currentPassphrase")}</span>
+              <TextInput type="password" autoFocus value={currentPassphrase} onChange={(event) => setCurrentPassphrase(event.target.value)} />
+            </label>
+            <label className="pv-security-field">
+              <span>{t("workspaceSecurity.newPassphrase")}</span>
+              <TextInput type="password" value={nextPassphrase} onChange={(event) => setNextPassphrase(event.target.value)} />
+            </label>
+            <label className="pv-security-field">
+              <span>{t("workspaceSecurity.confirmPassphrase")}</span>
+              <TextInput type="password" value={nextPassphraseConfirm} onChange={(event) => setNextPassphraseConfirm(event.target.value)} />
+            </label>
+            <SettingCardNote>{t("workspaceSecurity.passphraseChangeNote")}</SettingCardNote>
+            <div className="pv-security-actions">
+              <Button variant="ghost" disabled={busy} onClick={closePassphraseChange}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                data-testid="workspace-passphrase-confirm"
+                disabled={busy || !currentPassphrase || nextPassphrase.length < 10 || nextPassphrase !== nextPassphraseConfirm}
+                onClick={() => void applyPassphraseChange()}
+              >
+                {t("workspaceSecurity.changePassphrase")}
+              </Button>
             </div>
           </div>
         </Modal>

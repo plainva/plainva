@@ -3432,7 +3432,14 @@
     "joinPollFailed": "无法检查批准状态：{{reason}}",
     "joinExpires": "请求过期时间",
     "joinExpired": "此请求已过期。如果没有人及时批准，请取消并重新请求。",
-    "joinCompareFingerprint": "把这个指纹读给批准设备。那里必须显示完全相同的指纹。"
+    "joinCompareFingerprint": "把这个指纹读给批准设备。那里必须显示完全相同的指纹。",
+    "changePassphrase": "更改密码短语",
+    "currentPassphrase": "当前密码短语",
+    "newPassphrase": "新密码短语（至少 10 个字符）",
+    "confirmPassphrase": "再次输入新密码短语",
+    "passphraseChangeNote": "仅重新封装此设备上的密钥。你的恢复文件及其代码仍然有效。",
+    "passphraseChanged": "密码短语已更改。",
+    "passphraseChangeFailed": "无法更改密码短语。当前密码短语是否正确？"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

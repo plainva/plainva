@@ -28,6 +28,10 @@ type Revoke = (id: string, reason: string, mode: "future" | "full") => Promise<v
 const revokeWorkspaceMember = vi.fn<Revoke>(async () => undefined);
 const revokeWorkspaceDevice = vi.fn<Revoke>(async () => undefined);
 
+// Same reasoning: both arguments are the assertion.
+type ChangePassphrase = (current: string, next: string) => Promise<void>;
+const changeWorkspacePassphrase = vi.fn<ChangePassphrase>(async () => undefined);
+
 const governance = {
   memberId: "me",
   deviceId: "this-device",
@@ -55,6 +59,7 @@ const vaultValues: Record<string, unknown> = {
   workspaceSecurityStatus: { phase: "active", workspaceId: "ws-1", fingerprint: "ab:cd" },
   revokeWorkspaceMember,
   revokeWorkspaceDevice,
+  changeWorkspacePassphrase,
   getWorkspaceGovernance: vi.fn(async () => governance),
   getWorkspaceDiagnostics: vi.fn(async () => ({ meta: {}, legacyPlaintextPaths: 0 })),
   detectJoinableWorkspace: vi.fn(async () => null),
@@ -90,6 +95,36 @@ async function renderMembersArea(): Promise<void> {
   });
   // The governance effect resolves a promise; let it land before asserting.
   await act(async () => { await Promise.resolve(); });
+}
+
+/** The device row lives on the overview, not inside an admin area. */
+async function renderOverview(keyStorage: "native" | "passphrase"): Promise<void> {
+  vaultValues.workspaceSecurityStatus = { phase: "active", workspaceId: "ws-1", fingerprint: "ab:cd", deviceName: "Laptop", keyStorage };
+  const { SecuritySharingPage } = await import("./SecuritySharingPage");
+  await act(async () => {
+    root.render(
+      <SecuritySharingPage
+        selectedVault="/vault"
+        isActiveVault
+        hasSyncConnection
+        securityArea={null}
+        onOpenSecurityArea={() => {}}
+      />,
+    );
+  });
+  await act(async () => { await Promise.resolve(); });
+}
+
+function type(element: Element | null, value: string): Promise<void> {
+  expect(element, "the field this test fills has to exist").not.toBeNull();
+  const input = element as HTMLInputElement;
+  // React listens for the bubbled input event, and its own value tracker would
+  // swallow a plain assignment as "unchanged".
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  return act(async () => {
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 function click(element: Element | null): Promise<void> {
@@ -134,5 +169,56 @@ describe("removing someone carries the chosen mode to the vault", () => {
     await renderMembersArea();
     const buttons = container.querySelectorAll('[data-testid="workspace-revoke-member"]');
     expect(buttons, "only the other member can be removed from here").toHaveLength(1);
+  });
+});
+
+/**
+ * Changing the local passphrase (E6).
+ *
+ * This is the finding the whole plan is named after, in miniature: the control
+ * plane could change the passphrase since the keychain service was written and
+ * nothing called it. A test that presses the button and reads what arrived is
+ * what keeps that from happening again — and it pins the second guarantee too,
+ * that the OLD passphrase is asked for rather than assumed from the session.
+ */
+describe("changing the passphrase that seals the keys here", () => {
+  beforeEach(() => {
+    changeWorkspacePassphrase.mockClear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    container.remove();
+    vaultValues.workspaceSecurityStatus = { phase: "active", workspaceId: "ws-1", fingerprint: "ab:cd" };
+  });
+
+  it("sends the old and the new passphrase in that order", async () => {
+    await renderOverview("passphrase");
+    await click(container.querySelector('[data-testid="workspace-change-passphrase"]'));
+    const fields = container.querySelectorAll('[data-testid="workspace-passphrase-dialog"] input[type="password"]');
+    expect(fields, "current, new and repeat").toHaveLength(3);
+    await type(fields[0], "old-one-here");
+    await type(fields[1], "new-one-here");
+    await type(fields[2], "new-one-here");
+    await click(container.querySelector('[data-testid="workspace-passphrase-confirm"]'));
+    expect(changeWorkspacePassphrase.mock.calls[0]).toEqual(["old-one-here", "new-one-here"]);
+  });
+
+  it("will not send a new passphrase that was mistyped the second time", async () => {
+    await renderOverview("passphrase");
+    await click(container.querySelector('[data-testid="workspace-change-passphrase"]'));
+    const fields = container.querySelectorAll('[data-testid="workspace-passphrase-dialog"] input[type="password"]');
+    await type(fields[0], "old-one-here");
+    await type(fields[1], "new-one-here");
+    await type(fields[2], "new-one-typo");
+    await click(container.querySelector('[data-testid="workspace-passphrase-confirm"]'));
+    expect(changeWorkspacePassphrase).not.toHaveBeenCalled();
+  });
+
+  it("is not offered when the system keychain holds the keys", async () => {
+    await renderOverview("native");
+    expect(container.querySelector('[data-testid="workspace-change-passphrase"]')).toBeNull();
   });
 });

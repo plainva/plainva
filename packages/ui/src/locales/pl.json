@@ -3516,7 +3516,14 @@
     "joinPollFailed": "Nie udało się sprawdzić zatwierdzenia: {{reason}}",
     "joinExpires": "Prośba wygasa",
     "joinExpired": "Ta prośba wygasła. Jeśli nikt nie zatwierdził jej na czas, anuluj i poproś ponownie.",
-    "joinCompareFingerprint": "Przeczytaj ten odcisk urządzeniu zatwierdzającemu. Musi tam być dokładnie taki sam."
+    "joinCompareFingerprint": "Przeczytaj ten odcisk urządzeniu zatwierdzającemu. Musi tam być dokładnie taki sam.",
+    "changePassphrase": "Zmień hasło dostępu",
+    "currentPassphrase": "Bieżące hasło dostępu",
+    "newPassphrase": "Nowe hasło dostępu (co najmniej 10 znaków)",
+    "confirmPassphrase": "Powtórz nowe hasło dostępu",
+    "passphraseChangeNote": "Ponownie zapieczętowane zostają tylko klucze na tym urządzeniu. Plik odzyskiwania i jego kod pozostają ważne.",
+    "passphraseChanged": "Hasło dostępu zmienione.",
+    "passphraseChangeFailed": "Nie udało się zmienić hasła dostępu. Czy bieżące hasło jest poprawne?"
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

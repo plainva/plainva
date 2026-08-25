@@ -3488,7 +3488,14 @@
     "joinPollFailed": "Impossibile verificare l’approvazione: {{reason}}",
     "joinExpires": "La richiesta scade",
     "joinExpired": "Questa richiesta è scaduta. Se nessuno l’ha approvata in tempo, annulla e richiedi di nuovo.",
-    "joinCompareFingerprint": "Leggi questa impronta al dispositivo che approva. Lì deve comparire esattamente la stessa."
+    "joinCompareFingerprint": "Leggi questa impronta al dispositivo che approva. Lì deve comparire esattamente la stessa.",
+    "changePassphrase": "Cambia la passphrase",
+    "currentPassphrase": "Passphrase attuale",
+    "newPassphrase": "Nuova passphrase (almeno 10 caratteri)",
+    "confirmPassphrase": "Ripeti la nuova passphrase",
+    "passphraseChangeNote": "Vengono risigillate solo le chiavi su questo dispositivo. Il file di ripristino e il suo codice restano validi.",
+    "passphraseChanged": "Passphrase cambiata.",
+    "passphraseChangeFailed": "Impossibile cambiare la passphrase. Quella attuale è corretta?"
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",

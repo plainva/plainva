@@ -3488,7 +3488,14 @@
     "joinPollFailed": "Não foi possível verificar a aprovação: {{reason}}",
     "joinExpires": "A solicitação expira",
     "joinExpired": "Esta solicitação expirou. Se ninguém aprovou a tempo, cancele e solicite de novo.",
-    "joinCompareFingerprint": "Leia esta impressão digital para o dispositivo que aprova. Lá deve aparecer exatamente a mesma."
+    "joinCompareFingerprint": "Leia esta impressão digital para o dispositivo que aprova. Lá deve aparecer exatamente a mesma.",
+    "changePassphrase": "Alterar a frase secreta",
+    "currentPassphrase": "Frase secreta atual",
+    "newPassphrase": "Nova frase secreta (no mínimo 10 caracteres)",
+    "confirmPassphrase": "Repetir a nova frase secreta",
+    "passphraseChangeNote": "Somente as chaves deste dispositivo são seladas novamente. Seu arquivo de recuperação e o código dele continuam válidos.",
+    "passphraseChanged": "Frase secreta alterada.",
+    "passphraseChangeFailed": "Não foi possível alterar a frase secreta. A atual está correta?"
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

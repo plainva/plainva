@@ -428,6 +428,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "workspace-passphrase-change",
+    title: "Change the passphrase that seals the keys on this device",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "There is no passphrase on the phone to change. A workspace falls back to a " +
+      "passphrase only where no system keychain answers - a headless Linux desktop - " +
+      "and the Capacitor shell always has the Android/iOS keystore, so its key " +
+      "storage is invariably native (mobileWorkspaceSecurity.ts persists through " +
+      "secureCredentialStore and carries no fallback branch). The desktop shows the " +
+      "control on the same condition: only when its own storage is the passphrase.",
+    verified: "2026-08-25",
+  },
+  {
     id: "workspace-slice-kinds",
     title: "Which kinds of Vault Slice can be created",
     area: "security",

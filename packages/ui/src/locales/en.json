@@ -3460,7 +3460,14 @@
     "joinPollFailed": "Could not check for approval: {{reason}}",
     "joinExpires": "Request expires",
     "joinExpired": "This request has expired. If nobody approved it in time, cancel and request again.",
-    "joinCompareFingerprint": "Read this fingerprint out to the approving device. It has to show exactly the same one."
+    "joinCompareFingerprint": "Read this fingerprint out to the approving device. It has to show exactly the same one.",
+    "changePassphrase": "Change passphrase",
+    "currentPassphrase": "Current passphrase",
+    "newPassphrase": "New passphrase (at least 10 characters)",
+    "confirmPassphrase": "Repeat new passphrase",
+    "passphraseChangeNote": "Only the keys on this device are resealed. Your recovery file and its code stay valid.",
+    "passphraseChanged": "Passphrase changed.",
+    "passphraseChangeFailed": "Could not change the passphrase. Is the current one correct?"
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

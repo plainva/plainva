@@ -3432,7 +3432,14 @@
     "joinPollFailed": "承認の確認に失敗しました: {{reason}}",
     "joinExpires": "リクエストの有効期限",
     "joinExpired": "このリクエストは期限切れです。時間内に誰も承認しなかった場合は、キャンセルしてもう一度リクエストしてください。",
-    "joinCompareFingerprint": "このフィンガープリントを承認する端末に読み上げてください。そちらにも全く同じものが表示されている必要があります。"
+    "joinCompareFingerprint": "このフィンガープリントを承認する端末に読み上げてください。そちらにも全く同じものが表示されている必要があります。",
+    "changePassphrase": "パスフレーズを変更",
+    "currentPassphrase": "現在のパスフレーズ",
+    "newPassphrase": "新しいパスフレーズ（10 文字以上）",
+    "confirmPassphrase": "新しいパスフレーズをもう一度",
+    "passphraseChangeNote": "再封印されるのはこの端末の鍵だけです。復旧ファイルとそのコードは有効なままです。",
+    "passphraseChanged": "パスフレーズを変更しました。",
+    "passphraseChangeFailed": "パスフレーズを変更できませんでした。現在のパスフレーズは正しいですか？"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",
