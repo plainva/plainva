@@ -3461,6 +3461,29 @@
       "number": "Numero",
       "boolean": "Sì/No",
       "empty": "Vuoto"
+    },
+    "active": "Attivo",
+    "keyEpoch": "epoca della chiave",
+    "memberCount": "{{count}} membri",
+    "rekeyCard": "Ricifratura in corso",
+    "rekeyResumes": "Prosegue dopo un riavvio.",
+    "rekeyPhase": {
+      "queued": "In coda",
+      "rewriting": "Ricifratura degli oggetti",
+      "failed": "Non riuscita"
+    },
+    "revokeConfirm": "Rimuovi",
+    "revokeIntro": "{{name}} perde l'accesso in ogni caso. Scegli che cosa succede ai contenuti già esistenti.",
+    "revokeMode": "Come termina l'accesso",
+    "roleMatrix": "Che cosa permettono i ruoli",
+    "roleProviderNote": "I permessi presso il fornitore sono una seconda serratura; non sostituiscono mai la cifratura. Chi raggiunge i file lì non può comunque leggerli senza una chiave.",
+    "roleName": {
+      "Owner": "Proprietario",
+      "Admin": "Admin",
+      "Editor": "Editor",
+      "Commenter": "Commentatore",
+      "Reader": "Lettore",
+      "Contributor": "Collaboratore"
     }
   },
   "cascade": {

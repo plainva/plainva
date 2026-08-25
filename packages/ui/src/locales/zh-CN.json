@@ -3405,6 +3405,29 @@
       "number": "数字",
       "boolean": "是/否",
       "empty": "空"
+    },
+    "active": "活跃",
+    "keyEpoch": "密钥世代",
+    "memberCount": "{{count}} 位成员",
+    "rekeyCard": "正在重新加密",
+    "rekeyResumes": "重启后会继续。",
+    "rekeyPhase": {
+      "queued": "排队中",
+      "rewriting": "正在重新加密对象",
+      "failed": "失败"
+    },
+    "revokeConfirm": "移除",
+    "revokeIntro": "无论选哪一项，{{name}} 都会失去访问权限。请选择已有内容将如何处理。",
+    "revokeMode": "访问如何结束",
+    "roleMatrix": "各角色的权限",
+    "roleProviderNote": "服务商处的权限是第二道锁，永远不能替代加密。即使有人在那里拿到文件，没有密钥仍然读不到内容。",
+    "roleName": {
+      "Owner": "所有者",
+      "Admin": "管理员",
+      "Editor": "编辑者",
+      "Commenter": "评论者",
+      "Reader": "阅读者",
+      "Contributor": "贡献者"
     }
   },
   "cascade": {

@@ -3489,6 +3489,29 @@
       "number": "Liczba",
       "boolean": "Tak/Nie",
       "empty": "Puste"
+    },
+    "active": "Aktywny",
+    "keyEpoch": "epoka klucza",
+    "memberCount": "Liczba członków: {{count}}",
+    "rekeyCard": "Trwa ponowne szyfrowanie",
+    "rekeyResumes": "Jest kontynuowane po ponownym uruchomieniu.",
+    "rekeyPhase": {
+      "queued": "W kolejce",
+      "rewriting": "Ponowne szyfrowanie obiektów",
+      "failed": "Niepowodzenie"
+    },
+    "revokeConfirm": "Usuń",
+    "revokeIntro": "{{name}} traci dostęp w obu przypadkach. Wybierz, co stanie się z treścią, która już istnieje.",
+    "revokeMode": "Jak kończy się dostęp",
+    "roleMatrix": "Co pozwalają role",
+    "roleProviderNote": "Uprawnienia u dostawcy to drugi zamek; nigdy nie zastępują szyfrowania. Kto dotrze tam do plików, i tak nie odczyta ich bez klucza.",
+    "roleName": {
+      "Owner": "Właściciel",
+      "Admin": "Administrator",
+      "Editor": "Edytor",
+      "Commenter": "Komentujący",
+      "Reader": "Czytelnik",
+      "Contributor": "Współtwórca"
     }
   },
   "cascade": {

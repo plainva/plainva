@@ -3405,6 +3405,29 @@
       "number": "数値",
       "boolean": "はい/いいえ",
       "empty": "空"
+    },
+    "active": "有効",
+    "keyEpoch": "鍵の世代",
+    "memberCount": "メンバー {{count}} 人",
+    "rekeyCard": "再暗号化を実行中",
+    "rekeyResumes": "再起動後も続行します。",
+    "rekeyPhase": {
+      "queued": "待機中",
+      "rewriting": "オブジェクトを再暗号化中",
+      "failed": "失敗"
+    },
+    "revokeConfirm": "削除",
+    "revokeIntro": "どちらを選んでも {{name}} はアクセスできなくなります。既存のコンテンツをどう扱うか選んでください。",
+    "revokeMode": "アクセスの終わり方",
+    "roleMatrix": "各ロールでできること",
+    "roleProviderNote": "プロバイダー側の権限は二番目の鍵であり、暗号化の代わりにはなりません。そこでファイルに到達できても、鍵がなければ中身は読めません。",
+    "roleName": {
+      "Owner": "オーナー",
+      "Admin": "管理者",
+      "Editor": "編集者",
+      "Commenter": "コメント者",
+      "Reader": "閲覧者",
+      "Contributor": "投稿者"
     }
   },
   "cascade": {

@@ -163,6 +163,12 @@
   .pv-security-rules { display:flex; flex-direction:column; gap:var(--space-2); }
   .pv-security-rule { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) auto; gap:var(--space-2); align-items:end; }
   .pv-security-rule[data-property="true"] { grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,0.9fr) minmax(0,1.4fr) auto; }
+  .pv-security-choices { display:flex; flex-direction:column; gap:var(--space-2); }
+  .pv-security-choices label { display:flex; align-items:flex-start; gap:var(--space-2); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--surface-container); cursor:pointer; }
+  .pv-security-choices label > span { display:flex; flex-direction:column; gap:var(--space-1); }
+  .pv-security-choices label > span > span { color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-progress { height:6px; margin:var(--space-2) 0; overflow:hidden; background:var(--bg-secondary); border-radius:var(--radius-xs); }
+  .pv-security-progress-bar { height:100%; background:var(--accent-color); border-radius:var(--radius-xs); }
   .pv-security-recovery-demo { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); }
   .pv-security-recovery-task { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
   .pv-security-task-number { display:grid; place-items:center; width:var(--control-md); height:var(--control-md); border-radius:var(--radius-pill); background:var(--accent-container); color:var(--on-accent-container); font-weight:700; }
@@ -837,6 +843,25 @@
         <button class="pvbtn ghost">+ Add rule</button>
       </div>
       <details class="pv-security-tech"><summary>Technical details</summary><input class="field" value='{"all":[{"field":"path","operator":"startsWith","value":"Projects/"}]}'></details>
+    </div>
+    <div class="card">
+      <strong>Consequence as a labelled choice, not two danger buttons</strong>
+      <p class="lede">Removing a member either changes one key epoch or rewrites every readable object. That difference used to live in the confirmation AFTER the click; here the choice carries its own sentence.</p>
+      <div class="pv-security-choices" role="radiogroup" aria-label="How should access be removed?">
+        <label><input type="radio" name="sg-revoke" checked><span><strong>Only future changes</strong><span>Remove Anna Lee from the workspace? Existing objects keep their current key.</span></span></label>
+        <label><input type="radio" name="sg-revoke"><span><strong>Re-encrypt everything</strong><span>Re-encrypt every object so Anna Lee cannot read anything they already copied? This runs in the background and cannot be undone.</span></span></label>
+      </div>
+    </div>
+    <div class="card">
+      <strong>A long-running job is a card, not a line in a collapsed block</strong>
+      <p class="lede">A full rekey rewrites every readable object; its cursor is durable, so the card says the run survives a restart.</p>
+      <div class="pv-security-progress" role="progressbar" aria-valuenow="38" aria-valuemin="0" aria-valuemax="100" aria-label="Re-encrypting"><div class="pv-security-progress-bar" style="width:38%"></div></div>
+      <p class="lede">Re-encrypting · 142/376 · Continues after a restart.</p>
+    </div>
+    <div class="card">
+      <strong>Machine values gather in ONE disclosure per area</strong>
+      <p class="lede">Hex identities, key epochs and remote object keys leave the reading line — reachable for a support question, absent from a sentence about a colleague.</p>
+      <details class="pv-security-tech"><summary>Technical details</summary><dl class="pv-security-details"><dt>Anna Lee</dt><dd><code>7f3c1a08d2e94b60</code></dd><dt>Editors</dt><dd><code>a19b… · key epoch 4</code></dd></dl></details>
     </div>
     <div id="security-recovery" class="pv-security-recovery-demo">
       <strong>Recovery setup · explicit three-task flow</strong>

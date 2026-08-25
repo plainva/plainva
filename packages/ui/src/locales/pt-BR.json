@@ -3461,6 +3461,29 @@
       "number": "Número",
       "boolean": "Sim/Não",
       "empty": "Vazio"
+    },
+    "active": "Ativo",
+    "keyEpoch": "época da chave",
+    "memberCount": "{{count}} membros",
+    "rekeyCard": "Recriptografia em andamento",
+    "rekeyResumes": "Continua após reiniciar.",
+    "rekeyPhase": {
+      "queued": "Na fila",
+      "rewriting": "Recriptografando objetos",
+      "failed": "Falhou"
+    },
+    "revokeConfirm": "Remover",
+    "revokeIntro": "{{name}} perde o acesso de qualquer forma. Escolha o que acontece com o conteúdo que já existe.",
+    "revokeMode": "Como o acesso termina",
+    "roleMatrix": "O que os papéis permitem",
+    "roleProviderNote": "As permissões no provedor são uma segunda tranca; elas nunca substituem a criptografia. Quem alcançar os arquivos lá ainda não consegue lê-los sem uma chave.",
+    "roleName": {
+      "Owner": "Proprietário",
+      "Admin": "Administrador",
+      "Editor": "Editor",
+      "Commenter": "Comentarista",
+      "Reader": "Leitor",
+      "Contributor": "Colaborador"
     }
   },
   "cascade": {

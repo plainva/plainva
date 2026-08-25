@@ -3461,6 +3461,29 @@
       "number": "Número",
       "boolean": "Sí/No",
       "empty": "Vacío"
+    },
+    "active": "Activo",
+    "keyEpoch": "época de clave",
+    "memberCount": "{{count}} miembros",
+    "rekeyCard": "Recifrado en curso",
+    "rekeyResumes": "Continúa tras reiniciar.",
+    "rekeyPhase": {
+      "queued": "En cola",
+      "rewriting": "Recifrando objetos",
+      "failed": "Fallido"
+    },
+    "revokeConfirm": "Quitar",
+    "revokeIntro": "{{name}} pierde el acceso en cualquier caso. Elige qué ocurre con el contenido que ya existe.",
+    "revokeMode": "Cómo termina el acceso",
+    "roleMatrix": "Qué permiten los roles",
+    "roleProviderNote": "Los permisos del proveedor añaden un segundo candado; nunca sustituyen al cifrado. Quien alcance los archivos allí sigue sin poder leerlos sin una clave.",
+    "roleName": {
+      "Owner": "Propietario",
+      "Admin": "Administrador",
+      "Editor": "Editor",
+      "Commenter": "Comentarista",
+      "Reader": "Lector",
+      "Contributor": "Colaborador"
     }
   },
   "cascade": {

@@ -3433,6 +3433,29 @@
       "number": "Number",
       "boolean": "Yes/No",
       "empty": "Empty"
+    },
+    "active": "Active",
+    "keyEpoch": "key epoch",
+    "memberCount": "{{count}} members",
+    "rekeyCard": "Re-encryption running",
+    "rekeyResumes": "Continues after a restart.",
+    "rekeyPhase": {
+      "queued": "Queued",
+      "rewriting": "Re-encrypting objects",
+      "failed": "Failed"
+    },
+    "revokeConfirm": "Remove",
+    "revokeIntro": "{{name}} loses access either way. Choose what happens to content that already exists.",
+    "revokeMode": "How access ends",
+    "roleMatrix": "What the roles allow",
+    "roleProviderNote": "Permissions at the provider add a second lock; they never replace the encryption. Someone who can reach the files there still cannot read them without a key.",
+    "roleName": {
+      "Owner": "Owner",
+      "Admin": "Admin",
+      "Editor": "Editor",
+      "Commenter": "Commenter",
+      "Reader": "Reader",
+      "Contributor": "Contributor"
     }
   },
   "cascade": {

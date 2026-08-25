@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const page = readFileSync(new URL("./SecuritySharingPage.tsx", import.meta.url), "utf8");
 const dialog = readFileSync(new URL("./WorkspaceGovernanceDialog.tsx", import.meta.url), "utf8");
 const wizard = readFileSync(new URL("./WorkspaceSetupWizard.tsx", import.meta.url), "utf8");
+const panels = readFileSync(new URL("./securityPanels.tsx", import.meta.url), "utf8");
 // The security centre was split into a page + governance dialog + setup wizard
 // (package B3); the assertions below target the file that owns each surface.
 const mobile = readFileSync(new URL("../../../../mobile/src/screens/SecurityAreaScreen.tsx", import.meta.url), "utf8");
@@ -40,8 +41,12 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(nav).toContain("SECURITY_AREA_GROUPS");
     expect(nav).toContain("workspaceSecurity.overview");
     // Member rotation depth (future vs full) still routes through the gateway.
-    expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "future")');
-    expect(page).toContain('revokeWorkspaceMember(member.memberId, "Removed in Security Center", "full")');
+    // Since P5 it arrives as the mode a labelled choice produced, not as two
+    // differently coloured buttons whose difference was explained afterwards.
+    expect(page).toContain('revokeWorkspaceMember(subject.id, "Removed in Security Center", mode)');
+    expect(page).toContain('revokeWorkspaceDevice(subject.id, "Removed in Security Center", mode)');
+    expect(panels).toContain('setMode("future")');
+    expect(panels).toContain('setMode("full")');
     // Every picker is the themed Select primitive — no OS-rendered native <select>.
     expect(dialog).not.toContain("<select");
     expect(dialog).toContain("roleOptions(t)");
@@ -141,7 +146,8 @@ describe("P8-P11 security-centre interaction contract", () => {
     // The boundary is deliberate, so it is asserted from BOTH sides: the
     // desktop owns these three, and the phone must not grow them quietly.
     expect(page).toContain("transferOwner");
-    expect(page).toContain("fullRekey");
+    // The full-rotation depth is a desktop surface one file over since P5.
+    expect(panels).toContain("fullRekey");
     for (const call of ["startWorkspaceRekey", "transferWorkspaceOwnership"]) {
       expect(mobile, call).not.toContain(call);
     }

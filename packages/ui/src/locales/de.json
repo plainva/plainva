@@ -3433,6 +3433,29 @@
       "number": "Zahl",
       "boolean": "Ja/Nein",
       "empty": "Leer"
+    },
+    "active": "Aktiv",
+    "keyEpoch": "Schlüssel-Epoche",
+    "memberCount": "{{count}} Mitglieder",
+    "rekeyCard": "Neuverschlüsselung läuft",
+    "rekeyResumes": "Läuft nach einem Neustart weiter.",
+    "rekeyPhase": {
+      "queued": "In der Warteschlange",
+      "rewriting": "Objekte werden neu verschlüsselt",
+      "failed": "Fehlgeschlagen"
+    },
+    "revokeConfirm": "Entfernen",
+    "revokeIntro": "{{name}} verliert so oder so den Zugriff. Wähle, was mit bereits vorhandenen Inhalten passiert.",
+    "revokeMode": "Wie der Zugriff endet",
+    "roleMatrix": "Was die Rollen erlauben",
+    "roleProviderNote": "Berechtigungen beim Anbieter sind ein zweites Schloss; sie ersetzen die Verschlüsselung nie. Wer dort an die Dateien kommt, kann sie ohne Schlüssel trotzdem nicht lesen.",
+    "roleName": {
+      "Owner": "Eigentümer",
+      "Admin": "Admin",
+      "Editor": "Bearbeiter",
+      "Commenter": "Kommentator",
+      "Reader": "Leser",
+      "Contributor": "Beitragender"
     }
   },
   "cascade": {

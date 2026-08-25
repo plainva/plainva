@@ -3461,6 +3461,29 @@
       "number": "Nombre",
       "boolean": "Oui/Non",
       "empty": "Vide"
+    },
+    "active": "Actif",
+    "keyEpoch": "époque de clé",
+    "memberCount": "{{count}} membres",
+    "rekeyCard": "Rechiffrement en cours",
+    "rekeyResumes": "Se poursuit après un redémarrage.",
+    "rekeyPhase": {
+      "queued": "En file d'attente",
+      "rewriting": "Rechiffrement des objets",
+      "failed": "Échec"
+    },
+    "revokeConfirm": "Retirer",
+    "revokeIntro": "{{name}} perd l'accès dans les deux cas. Choisissez ce qu'il advient du contenu déjà existant.",
+    "revokeMode": "Comment l'accès prend fin",
+    "roleMatrix": "Ce que permettent les rôles",
+    "roleProviderNote": "Les autorisations chez le fournisseur ajoutent un second verrou ; elles ne remplacent jamais le chiffrement. Qui accède aux fichiers là-bas ne peut toujours pas les lire sans clé.",
+    "roleName": {
+      "Owner": "Propriétaire",
+      "Admin": "Admin",
+      "Editor": "Éditeur",
+      "Commenter": "Commentateur",
+      "Reader": "Lecteur",
+      "Contributor": "Contributeur"
     }
   },
   "cascade": {

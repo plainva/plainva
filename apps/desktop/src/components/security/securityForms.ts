@@ -37,12 +37,25 @@ export function parseSliceForm(form: GovernanceForm) {
       : { kind: "dynamic" as const, definition: JSON.parse(form.definition) as WorkspaceDynamicSliceDefinition };
 }
 
+/**
+ * The translated name of a role.
+ *
+ * Deliberately `roleName.<Role>` and not `role.<Role>`: `workspaceSecurity.role`
+ * is the leaf string "Role" (the field label), and i18next cannot have one key
+ * be both a string and a namespace. The old lookup therefore never resolved and
+ * every language showed the English capability constant - invisible, because a
+ * template-literal key is not seen by the locale parity scanner (P5).
+ */
+export function roleName(t: TFunction, role: WorkspaceRole): string {
+  return t(`workspaceSecurity.roleName.${role}`, { defaultValue: role });
+}
+
 /** Localized role options WITH a one-line capability description (Mockup 3).
  * The `value` stays the exact backend capability string. */
 export function roleOptions(t: TFunction): SelectOption<WorkspaceRole>[] {
   return WORKSPACE_ROLES.map((role) => ({
     value: role,
-    label: t(`workspaceSecurity.role.${role}`, { defaultValue: role }),
+    label: roleName(t, role),
     description: t(`workspaceSecurity.roleDesc.${role}`, { defaultValue: "" }) || undefined,
   }));
 }

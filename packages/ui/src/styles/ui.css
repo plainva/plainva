@@ -2422,6 +2422,14 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-security-progress { height: 6px; margin: var(--space-2) 0; overflow: hidden; background: var(--bg-secondary); border-radius: var(--radius-xs); }
 .pv-security-progress-bar { height: 100%; background: var(--accent-color); border-radius: var(--radius-xs); transition: width var(--dur-1) var(--ease-1); }
 .pv-security-progress-label { font-size: var(--text-sm); color: var(--text-muted); }
+/* Consequences as a labelled choice, not as two danger buttons (plan P5, B9).
+   Removing a member can change one key epoch or rewrite every object; that
+   difference used to live in the confirmation AFTER the click. Each option
+   carries its own sentence, so the choice IS the explanation. */
+.pv-security-choices { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-security-choices .pv-checkrow { align-items: flex-start; padding: var(--space-3); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-container); }
+.pv-security-choices .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); }
+.pv-security-choices .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
 /* Pickers instead of machine input (plan P5, finding B8): a group takes its
    members from the member list, a selection slice from the object list, and a
    dynamic slice from a rule builder. Each keeps the stored value reachable

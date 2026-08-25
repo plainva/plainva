@@ -3433,6 +3433,29 @@
       "number": "Getal",
       "boolean": "Ja/Nee",
       "empty": "Leeg"
+    },
+    "active": "Actief",
+    "keyEpoch": "sleutel-epoch",
+    "memberCount": "{{count}} leden",
+    "rekeyCard": "Hersleuteling bezig",
+    "rekeyResumes": "Gaat verder na een herstart.",
+    "rekeyPhase": {
+      "queued": "In wachtrij",
+      "rewriting": "Objecten opnieuw versleutelen",
+      "failed": "Mislukt"
+    },
+    "revokeConfirm": "Verwijderen",
+    "revokeIntro": "{{name}} verliest hoe dan ook toegang. Kies wat er gebeurt met inhoud die al bestaat.",
+    "revokeMode": "Hoe de toegang eindigt",
+    "roleMatrix": "Wat de rollen toestaan",
+    "roleProviderNote": "Rechten bij de aanbieder zijn een tweede slot; ze vervangen de versleuteling nooit. Wie daar bij de bestanden komt, kan ze zonder sleutel nog steeds niet lezen.",
+    "roleName": {
+      "Owner": "Eigenaar",
+      "Admin": "Beheerder",
+      "Editor": "Bewerker",
+      "Commenter": "Reageerder",
+      "Reader": "Lezer",
+      "Contributor": "Bijdrager"
     }
   },
   "cascade": {
