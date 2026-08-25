@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, MessageSquare, FileX } from "lucide-react";
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -24,7 +24,8 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, type VaultFileInfo } from "@plainva/core";
+import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspacePolicyMember } from "@plainva/core";
+import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -87,7 +88,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -96,7 +97,13 @@ export const Editor: React.FC<{
   const [saveError, setSaveError] = useState<string | null>(null);
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
   const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
-  const [commentDraft, setCommentDraft] = useState("");
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  // The quote a NEW comment would attach to. Held as text, not as a range: the
+  // selection moves on every keystroke, and re-rendering the editor that often
+  // is the fan-out class this project has fought before. Only a changed quote
+  // reaches React.
+  const [selectionQuote, setSelectionQuote] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<EditorViewMode>(() => resolveViewModeForPath(activePath));
   // Remembers the last editing sub-mode (live/source) so Mod+E restores it when
   // toggling back out of reading mode (default: live preview).
@@ -147,6 +154,32 @@ export const Editor: React.FC<{
     refresh(); window.addEventListener("plainva-workspace-comments-changed", listener);
     return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
   }, [activePath, listWorkspaceComments, workspaceCanReadComments]);
+
+  useEffect(() => {
+    let active = true;
+    if (!workspaceCanReadComments) { setWorkspaceMembers([]); return; }
+    void listWorkspaceMembers().then((members) => { if (active) setWorkspaceMembers(members); }).catch(() => { if (active) setWorkspaceMembers([]); });
+    return () => { active = false; };
+  }, [listWorkspaceMembers, workspaceCanReadComments]);
+
+  // A name is a CLAIM the policy carries, not a verified identity - the card
+  // keeps the member id reachable, so nobody has to take the name on faith.
+  const memberNames = useMemo(() => new Map(workspaceMembers.map((member) => [member.memberId, member.displayName])), [workspaceMembers]);
+
+  /**
+   * Where each anchored comment currently lands, in RAW offsets - which is what
+   * the editor document holds, so a resolution feeds a decoration directly.
+   * Recomputed whenever the text or the comment list changes: that is what makes
+   * a comment survive an edit above it without storing a position.
+   */
+  const anchorResolutions = useMemo(() => {
+    const map = new Map<string, WorkspaceCommentAnchorResolution>();
+    for (const comment of workspaceComments) {
+      if (!comment.anchor) continue;
+      map.set(comment.commentId, resolveCommentAnchor(content, comment.anchor as WorkspaceCommentAnchor));
+    }
+    return map;
+  }, [workspaceComments, content]);
 
   useEffect(() => {
     if (managedIndex && viewMode !== 'read') setViewMode('read');
@@ -1665,6 +1698,13 @@ export const Editor: React.FC<{
       // owns the global channel publishes, so split panes (and floating peeks)
       // don't fight over the shared channel.
       onSelectionStats: (stats) => { if (ownsGlobalStats && isActivePane) activeDocument.setSelectionStats(stats); },
+      onSelectionRange: (range) => {
+        // Only a CHANGED quote is worth a render - see the state declaration.
+        const view = sessionRef.current?.view;
+        const next = range && view ? view.state.sliceDoc(range.from, Math.min(range.to, range.from + 120)) : null;
+        setSelectionQuote((previous) => (previous === next ? previous : next));
+      },
+      onAnchorActivate: (commentId) => setActiveCommentId(commentId),
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
@@ -1762,6 +1802,57 @@ export const Editor: React.FC<{
 
   useEffect(() => { sessionRef.current?.setEditable(!workspaceReadOnly); }, [workspaceReadOnly]);
 
+  // Push the resolved ranges into the editor. An orphan contributes nothing -
+  // its card says so instead; tinting a random place would be worse than none.
+  useEffect(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    const highlights = [];
+    for (const comment of workspaceComments) {
+      if (comment.resolvedAt) continue;
+      const resolution = anchorResolutions.get(comment.commentId);
+      if (!resolution || resolution.status === "orphan") continue;
+      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId });
+    }
+    session.setAnchorHighlights(highlights);
+  }, [workspaceComments, anchorResolutions, activeCommentId, viewMode, isLoading]);
+
+  /**
+   * Attaches a comment, minting the marker pair when the member may write.
+   *
+   * A comment-only member gets the SOFT anchor alone (quote plus context):
+   * inserting markers would be a content write, which that capability does not
+   * carry. Resolution stages 2 and 3 are built for exactly that case.
+   */
+  const postComment = useCallback(async (body: string, parentCommentId: string | null) => {
+    if (!activePath) return;
+    const view = sessionRef.current?.view;
+    const range = view?.state.selection.main;
+    // A reply belongs to its thread, not to a place: it inherits the root anchor.
+    if (parentCommentId !== null || !view || !range || range.empty) {
+      await postWorkspaceComment(activePath, body, parentCommentId, null);
+      return;
+    }
+    const raw = view.state.doc.toString();
+    const markerId = mintAnchorMarkerId(raw);
+    const anchor = buildCommentAnchor(raw, range.from, range.to, markerId);
+    if (!anchor.quote) { await postWorkspaceComment(activePath, body, null, null); return; }
+    const marked = !workspaceReadOnly;
+    if (marked) view.dispatch({ changes: [{ from: range.from, insert: openAnchorMarker(markerId) }, { from: range.to, insert: closeAnchorMarker(markerId) }] });
+    try {
+      await postWorkspaceComment(activePath, body, null, anchor);
+    } catch (error) {
+      // The markers were an act of writing. If the comment never reached the
+      // workspace, the note must not keep a pair nothing points at.
+      if (marked) {
+        const current = sessionRef.current?.view;
+        const found = current ? findAnchorMarker(current.state.doc.toString(), markerId) : null;
+        if (current && found) current.dispatch({ changes: [{ from: found.from - openAnchorMarker(markerId).length, to: found.from }, { from: found.to, to: found.to + closeAnchorMarker(markerId).length }] });
+      }
+      throw error;
+    }
+  }, [activePath, postWorkspaceComment, workspaceReadOnly]);
+
   // Live <-> source switches swap ONE compartment — the parser state survives,
   // so nothing collapses or jumps.
   useEffect(() => {
@@ -1780,13 +1871,6 @@ export const Editor: React.FC<{
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {workspaceReadOnly && <div className="pv-banner pv-banner--info">{workspaceCanComment ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
-      {workspaceCanReadComments && <details className="pv-workspace-comments">
-        <summary><MessageSquare size={ICON.ui} /> {t("workspaceSecurity.comments", { defaultValue: "Comments" })} ({workspaceComments.length})</summary>
-        <div className="pv-workspace-comments__body">
-          {workspaceComments.map((comment) => <div key={comment.commentId} className={`pv-workspace-comment${comment.resolvedAt ? " is-resolved" : ""}`}><small>{comment.authorMemberId.slice(0, 8)} · {new Date(comment.createdAt).toLocaleString()}</small><span>{comment.body}</span>{comment.resolvedAt ? <small>{t("workspaceSecurity.resolved", { defaultValue: "Resolved" })}</small> : workspaceCanComment && <button onClick={() => void resolveWorkspaceComment(activePath, comment.commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error)))}>{t("workspaceSecurity.resolve", { defaultValue: "Resolve" })}</button>}</div>)}
-          {workspaceCanComment && <div className="pv-workspace-comment-compose"><input value={commentDraft} placeholder={t("workspaceSecurity.addComment", { defaultValue: "Add a comment…" })} onChange={(event) => setCommentDraft(event.target.value)} /><button disabled={!commentDraft.trim()} onClick={() => { const body = commentDraft.trim(); setCommentDraft(""); void postWorkspaceComment(activePath, body).catch((error) => { setCommentDraft(body); toast.error(error instanceof Error ? error.message : String(error)); }); }}>{t("workspaceSecurity.send", { defaultValue: "Send" })}</button></div>}
-        </div>
-      </details>}
       {!peek && (
       <div className="pv-appbar pv-appbar--split" data-testid="editor-toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -2037,6 +2121,7 @@ export const Editor: React.FC<{
         </div>
       )}
 
+      <div className={workspaceCanReadComments ? "pv-comment-layout" : undefined} style={workspaceCanReadComments ? undefined : { display: "contents" }}>
       <div ref={readScrollRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: "var(--bg-primary)", overflowY: viewMode === 'read' ? "auto" : "hidden" }}>
         {viewMode === 'read' ? (
           <>
@@ -2141,6 +2226,20 @@ export const Editor: React.FC<{
           />
           </>
         )}
+      </div>
+      {workspaceCanReadComments && (
+        <WorkspaceCommentsColumn
+          comments={workspaceComments}
+          memberNames={memberNames}
+          resolutions={anchorResolutions}
+          canComment={workspaceCanComment}
+          activeCommentId={activeCommentId}
+          selectionQuote={selectionQuote}
+          onSelect={setActiveCommentId}
+          onSubmit={postComment}
+          onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+        />
+      )}
       </div>
 
       {tablePicker && (

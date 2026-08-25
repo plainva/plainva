@@ -53,12 +53,19 @@ export async function prepareWorkspaceComment(input: {
   now?: string;
 }): Promise<PreparedWorkspaceComment> {
   const now = input.now ?? new Date().toISOString();
-  protocolAssert(utf8Encode(input.body).length >= 1 && utf8Encode(input.body).length <= 64 * 1024, "bounds", "comment body size is invalid");
+  const resolvedCommentId = input.resolvedCommentId ?? null;
+  // A resolve marker carries no text of its own. Demanding one forced the UI to
+  // invent a word - which is how the literal English "Resolved" ended up in
+  // every language. The READER has never required a non-empty body (see
+  // openWorkspaceComment below), so an older device opens such a marker
+  // unchanged: this relaxes the writer, it does not change the protocol.
+  const bodyBytes = utf8Encode(input.body).length;
+  protocolAssert(bodyBytes <= 64 * 1024 && (bodyBytes >= 1 || resolvedCommentId !== null), "bounds", "comment body size is invalid");
   if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, resolvedCommentId: input.resolvedCommentId ?? null, createdAt: now };
+  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, resolvedCommentId, createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,

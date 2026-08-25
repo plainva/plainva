@@ -182,6 +182,15 @@
   .pv-security-code-group[data-requested="true"] small { color:inherit; }
   .pv-security-challenge-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-2); }
   .pv-security-next { padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--surface-container-low); color:var(--text-main); }
+  .pv-comment-demo { display:grid; grid-template-columns:minmax(0,1fr) 17rem; gap:0; border:1px solid var(--border-color); border-radius:var(--radius-lg); overflow:hidden; }
+  .pv-comment-demo__note { padding:var(--space-4); background:var(--bg-primary); }
+  .pv-comment-demo__note mark { background:var(--accent-container); color:var(--on-accent-container); }
+  .pv-comment-demo__col { display:flex; flex-direction:column; gap:var(--space-2); padding:var(--space-3); border-left:1px solid var(--border-color); background:var(--bg-secondary); }
+  .pv-comment-demo__card { display:grid; gap:var(--space-1); padding:var(--space-2) var(--space-3); border-left:2px solid transparent; border-radius:var(--radius-md); }
+  .pv-comment-demo__card[data-active="true"] { border-left-color:var(--accent-color); background:var(--accent-container); color:var(--on-accent-container); }
+  .pv-comment-demo__card blockquote { margin:0; padding-left:var(--space-2); border-left:2px solid var(--accent-color); color:var(--text-muted); font-size:var(--text-xs); }
+  .pv-comment-demo__card small { color:var(--text-muted); font-size:var(--text-xs); }
+  .pv-comment-demo__state { color:var(--warning-text); font-size:var(--text-xs); }
   .splitbtn { display: inline-flex; }
   .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
@@ -870,6 +879,17 @@
       <article class="pv-security-recovery-task"><span class="pv-security-task-number">3</span><div class="pv-security-task-body"><div><strong>Check that you can read the code</strong><p>Enter groups 2 and 4 from the highlighted list above.</p></div><div class="pv-security-challenge-grid"><input class="field" aria-label="Group 2" value="OVJK" readonly><input class="field" aria-label="Group 4" placeholder="Group 4"></div></div></article>
       <div class="pv-security-next"><strong>Next:</strong> Enter the remaining highlighted code group.</div>
     </div>
+    <div class="card">
+      <strong>A comment sits BESIDE the place it talks about</strong>
+      <p class="lede">The column is a sibling of the note body, not a stack above it: the note keeps its own scrolling and its readable measure. The active card and its range in the text are ONE thing seen twice — same accent pair, either one selects the other. An anchor that no longer resolves tints nothing and says so.</p>
+      <div class="pv-comment-demo">
+        <div class="pv-comment-demo__note"><p>The migration runs in the background. <mark>Existing objects keep their current key</mark> until a full rekey completes.</p></div>
+        <aside class="pv-comment-demo__col">
+          <article class="pv-comment-demo__card" data-active="true"><blockquote>Existing objects keep their current key</blockquote><small>Anna Lee &middot; today, 09:14</small><span>Is that still true after a member leaves?</span></article>
+          <article class="pv-comment-demo__card"><span class="pv-comment-demo__state">The commented text is gone.</span><small>Ben Roth &middot; yesterday</small><span>Add the epoch number here.</span></article>
+        </aside>
+      </div>
+    </div>
     <div class="card spec">
       <div class="schema"><span class="blk">Identität</span><span class="blk hi">Recovery-Datei + separater Code</span><span class="blk">Bestätigung</span><span class="gap">→</span><span class="blk hi">Verschlüsselte Migration</span></div>
       <ul class="tight">
@@ -877,7 +897,7 @@
         <li>Recovery-Setup als drei nummerierte Aufgaben: Datei speichern, Code getrennt sichern, zwei sichtbar markierte und nummerierte Code-Gruppen eingeben. Der nächste fehlende Schritt steht immer direkt vor der Aktivierungsaktion.</li>
         <li>Maschinenwerte werden nie eingetippt: Mitglieder und Objekte kommen aus einer <code>.pv-security-picker</code>-Liste, dynamische Slices aus einem <code>.pv-security-rule</code>-Baukasten. Der rohe Wert bleibt darunter in „Technische Details“ erreichbar — was der Baukasten nicht abbilden kann, bleibt dort das einzige Eingabefeld.</li>
         <li>Pairing zeigt vor der Freigabe den Geräte-Fingerprint. Rollen + Geltungsbereich sind explizite Feld-Controls; Slices erhalten eine lokale Pfad-Vorschau.</li>
-        <li>Reader/Commenter: Banner + hart schreibgeschützter Editor; Kommentare als kompakter Seiten-Stack, verschlüsselte Historie im bestehenden Versionsmodal.</li>
+        <li>Reader/Commenter: Banner + hart schreibgeschützter Editor; Kommentare in einer Randspalte neben der Notiz (<code>.pv-comment-column</code>, Stufe D/D2 — vorher eine Aufklappliste ÜBER dem Text), verschlüsselte Historie im bestehenden Versionsmodal.</li>
         <li>Quarantäne: Retry/Export/Repariert/Ignorieren als sekundäre Aktionen. Zugriffsverlust durch Verschieben verlangt einen App-Bestätigungsdialog.</li>
         <li>Alten Remote-Klartext entfernt nur ein bestätigter Danger-Flow nach erfolgreicher Migration.</li>
       </ul>

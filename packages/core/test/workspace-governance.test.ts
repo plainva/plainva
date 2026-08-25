@@ -175,6 +175,24 @@ describe("workspace governance P4-P7 contracts", () => {
     expect(await state.listComments(original.targetObjectId)).toEqual([expect.objectContaining({ body: "Please clarify", resolvedAt: "2026-07-22T10:05:00.000Z" })]);
   });
 
+  it("accepts a resolve marker without a body, and only then an empty one", async () => {
+    // A resolve marker carries no text of its own. Demanding one forced the UI
+    // to invent a word - which is how the literal English "Resolved" reached
+    // every language. The relaxation is narrow on purpose: empty is allowed
+    // ONLY together with resolvedCommentId, so a plain comment still cannot be
+    // posted blank.
+    const { runtime } = await workspace();
+    const recipients = [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }];
+    const base = { runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), recipients, now: "2026-08-25T10:00:00.000Z" };
+    const marker = await prepareWorkspaceComment({ ...base, body: "", resolvedCommentId: "43".repeat(16) });
+    expect(marker.comment.body).toBe("");
+    // The reader never demanded a body either, so an older device opens this
+    // marker unchanged - the relaxation touches the writer, not the protocol.
+    const opened = await openWorkspaceComment({ objectBytes: marker.objectBytes, operation: marker.operation, readerKeys: runtime.groupKeys });
+    expect(opened.resolvedCommentId).toBe("43".repeat(16));
+    await expect(prepareWorkspaceComment({ ...base, body: "" })).rejects.toThrow(/body size/);
+  });
+
   it("carries the anchor through sealing, opening and the stored record", async () => {
     const { runtime } = await workspace();
     const note = "Der Vertrag laeuft bis Ende des Jahres.";

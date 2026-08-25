@@ -17,6 +17,7 @@ import {
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
+import { anchorHighlightExtension, setAnchorHighlights, type AnchorHighlight } from "./anchorHighlight";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -132,8 +133,16 @@ export interface EditorSessionDeps {
   /** A real (non-external) document edit happened. */
   onDocChanged: (view: EditorView) => void;
   onSelectionToolbar: (state: { x: number; y: number; above: boolean } | null) => void;
+  /** Click inside a highlighted range → host selects that comment card. */
+  onAnchorActivate?: (commentId: string) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
+  /**
+   * The main selection, or null when it is empty. Fires on every selection
+   * change - the HOST decides what is worth a re-render (D2 shows the quote a
+   * new comment would attach to, and only re-renders when that quote changes).
+   */
+  onSelectionRange?: (range: { from: number; to: number } | null) => void;
   onPickIcon: (anchor: { x: number; y: number }) => void;
   onPickColor: (anchor: { x: number; y: number }) => void;
 }
@@ -203,6 +212,13 @@ export interface EditorSession {
    * programmatic `applyExternalText`.
    */
   setEditable(on: boolean): void;
+  /**
+   * Show where the comments of this note sit. Ranges are RESOLVED offsets, not
+   * stored ones: the host recomputes them whenever the text or the comment list
+   * changes. A StateField carries them, so they map through edits and survive a
+   * mode swap — the tint neither drifts while typing nor flickers on live↔source.
+   */
+  setAnchorHighlights(highlights: readonly AnchorHighlight[]): void;
   /**
    * Adopt external text as a minimal range change; identical text is a no-op.
    * Never enters the undo history (E4) and never marks the editor dirty.
@@ -321,6 +337,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       }
       deps.current.onSelectionStats(chars > 0 ? { chars, words } : null);
     }
+    const main = v.state.selection.main;
+    deps.current.onSelectionRange?.(main.empty ? null : { from: main.from, to: main.to });
     const range = v.state.selection.main;
     if (range.empty || !v.hasFocus) {
       deps.current.onSelectionToolbar(null);
@@ -449,6 +467,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
     }),
+    anchorHighlightExtension((commentId) => deps.current.onAnchorActivate?.(commentId)),
     editableComp.of(editableExtensions(cfg.editable !== false)),
     modeComp.of(modeExtensions(cfg.mode)),
   ];
@@ -472,6 +491,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       if (on === currentEditable) return;
       currentEditable = on;
       view.dispatch({ effects: editableComp.reconfigure(editableExtensions(on)) });
+    },
+    setAnchorHighlights(highlights) {
+      view.dispatch({ effects: setAnchorHighlights.of(highlights) });
     },
     applyExternalText(text) {
       const change = minimalDocChange(view.state.doc.toString(), text);

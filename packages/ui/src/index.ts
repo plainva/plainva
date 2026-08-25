@@ -197,6 +197,7 @@ export * from "./hooks/useHoldDrag";
 // Shell capabilities (file access, note embeds, URL opening) arrive through
 // EditorSessionDeps / PlatformServices — never through direct shell imports.
 export * from "./adapters/pathGuard";
+export * from "./components/anchorHighlight";
 export * from "./components/AtMentionPlugin";
 export * from "./components/DocIcon";
 export * from "./components/ImagePreviewPlugin";

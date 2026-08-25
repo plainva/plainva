@@ -785,3 +785,17 @@
   font-family: var(--font-ui);
   letter-spacing: 0.1em;
 }
+
+/* D2 comment column. The panel docks like the side sections: an amber rail
+   instead of a hairline, and the quote well carries the same bar. The active
+   card needs nothing here — it already draws the accent PAIR, which this theme
+   redefines to Okuda amber. */
+[data-theme-name="lcars"] .pv-comment-column {
+  border-left: 4px solid var(--lcars-4);
+}
+[data-theme-name="lcars"] .pv-comment-card__quote {
+  border-left-color: var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-comment-card.is-active {
+  border-left-color: var(--lcars-4);
+}
