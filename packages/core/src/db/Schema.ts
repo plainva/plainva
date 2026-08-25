@@ -163,6 +163,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       payload_hash      TEXT NOT NULL,
       body              TEXT NOT NULL,
       anchor            TEXT,
+      suggestion        TEXT,
+      suggestion_applied_at TEXT,
+      suggestion_applied_by TEXT,
+      suggestion_declined_at TEXT,
       created_at        TEXT NOT NULL,
       resolved_comment_id TEXT,
       resolved_at       TEXT
@@ -350,6 +354,17 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`ALTER TABLE workspace_comment ADD COLUMN anchor TEXT;`);
   } catch {
     // Column might already exist
+  }
+
+  // The proposed replacement text (NULL = a plain remark, "" = a deletion) and
+  // what became of it. Four additive nullable columns: a vault written before
+  // suggestions existed reads back unchanged.
+  for (const column of ["suggestion TEXT", "suggestion_applied_at TEXT", "suggestion_applied_by TEXT", "suggestion_declined_at TEXT"]) {
+    try {
+      await db.execute(`ALTER TABLE workspace_comment ADD COLUMN ${column};`);
+    } catch {
+      // Column might already exist
+    }
   }
 
   try {

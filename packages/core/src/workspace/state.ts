@@ -46,6 +46,8 @@ export interface WorkspaceCommentRecord {
   anchor: WorkspaceCommentAnchor | null;
   createdAt: string;
   /** Present only on an immutable resolution marker. */
+  suggestion: { replacement: string; appliedAt: string | null; appliedBy: string | null; declinedAt: string | null } | null;
+  suggestionOutcome?: "applied" | "declined" | null;
   resolvedCommentId: string | null;
   resolvedAt: string | null;
 }
@@ -412,7 +414,7 @@ function parseCommentAnchor(value: string | null): WorkspaceCommentAnchor | null
 interface CommentRow {
   comment_id: string; target_object_id: string; target_revision_id: string; parent_comment_id: string | null;
   author_member_id: string; author_device_id: string; operation_hash: string; payload_hash: string;
-  body: string; anchor: string | null; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
+  body: string; anchor: string | null; suggestion: string | null; suggestion_applied_at: string | null; suggestion_applied_by: string | null; suggestion_declined_at: string | null; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
 }
 
 interface QuarantineRow {
@@ -530,11 +532,18 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
     const rows = await this.db.query<CommentRow>(`SELECT * FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
-    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
+    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
-    if (comment.resolvedCommentId) await this.db.execute(`UPDATE workspace_comment SET resolved_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
+    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
+    if (comment.resolvedCommentId) {
+      await this.db.execute(`UPDATE workspace_comment SET resolved_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
+      // Accepting and declining both resolve; only the outcome tells a second
+      // device which of the two happened, because the accepted write itself
+      // carries nothing that points back at the suggestion.
+      if (comment.suggestionOutcome === "applied") await this.db.execute(`UPDATE workspace_comment SET suggestion_applied_at = ?, suggestion_applied_by = ? WHERE comment_id = ?`, [comment.createdAt, comment.authorMemberId, comment.resolvedCommentId]);
+      else if (comment.suggestionOutcome === "declined") await this.db.execute(`UPDATE workspace_comment SET suggestion_declined_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
+    }
     else await this.db.execute(`UPDATE workspace_comment SET resolved_at = (SELECT MAX(created_at) FROM workspace_comment WHERE resolved_comment_id = ?) WHERE comment_id = ? AND EXISTS (SELECT 1 FROM workspace_comment WHERE resolved_comment_id = ?)`, [comment.commentId, comment.commentId, comment.commentId]);
   }
   async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {

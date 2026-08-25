@@ -24,8 +24,42 @@ export interface WorkspaceCommentBody {
    * the others nor changes an older comment's bytes: no protocol version bump.
    */
   anchor?: WorkspaceCommentAnchor | null;
+  /**
+   * A proposed replacement for the anchored passage, or null for a plain remark.
+   *
+   * The proposal only ever describes a change - it never touches the note. That
+   * is what keeps "Markdown stays Markdown" true: until someone accepts, the
+   * file on disk is exactly what it was and a foreign editor sees no trace. An
+   * empty string is a deletion. Optional for the same reason as anchor.
+   */
+  suggestion?: { replacement: string } | null;
+  /**
+   * What became of the suggestion this marker closes - only ever set together
+   * with resolvedCommentId. Accepting and declining both resolve the thread;
+   * without this field a second device could not tell them apart, because the
+   * write that accepting produces is an ordinary note revision with nothing in
+   * it that points back here.
+   */
+  suggestionOutcome?: "applied" | "declined" | null;
   resolvedCommentId: string | null;
   createdAt: string;
+}
+
+/**
+ * A suggestion needs a passage to replace, and an outcome needs a suggestion to
+ * be about. Both rules live here rather than in the UI because a device that
+ * accepted a suggestion without a range would have to guess where to write.
+ */
+export function assertWorkspaceSuggestion(suggestion: { replacement: string } | null | undefined, anchor: WorkspaceCommentAnchor | null | undefined, outcome: "applied" | "declined" | null | undefined, resolvedCommentId: string | null): void {
+  if (suggestion !== null && suggestion !== undefined) {
+    protocolAssert(typeof suggestion.replacement === "string" && utf8Encode(suggestion.replacement).length <= 64 * 1024, "bounds", "suggestion replacement is invalid");
+    protocolAssert(!!anchor, "integrity", "a suggestion needs an anchored passage");
+    protocolAssert(resolvedCommentId === null, "integrity", "a suggestion cannot also resolve a thread");
+  }
+  if (outcome !== null && outcome !== undefined) {
+    protocolAssert(outcome === "applied" || outcome === "declined", "format", "suggestion outcome is invalid");
+    protocolAssert(resolvedCommentId !== null, "integrity", "a suggestion outcome needs the suggestion it closes");
+  }
 }
 
 export interface PreparedWorkspaceComment {
@@ -48,6 +82,8 @@ export async function prepareWorkspaceComment(input: {
   body: string;
   parentCommentId?: string | null;
   anchor?: WorkspaceCommentAnchor | null;
+  suggestion?: { replacement: string } | null;
+  suggestionOutcome?: "applied" | "declined" | null;
   resolvedCommentId?: string | null;
   recipients: Pvo1Recipient[];
   now?: string;
@@ -60,12 +96,14 @@ export async function prepareWorkspaceComment(input: {
   // openWorkspaceComment below), so an older device opens such a marker
   // unchanged: this relaxes the writer, it does not change the protocol.
   const bodyBytes = utf8Encode(input.body).length;
-  protocolAssert(bodyBytes <= 64 * 1024 && (bodyBytes >= 1 || resolvedCommentId !== null), "bounds", "comment body size is invalid");
+  const suggestion = input.suggestion ?? null;
+  protocolAssert(bodyBytes <= 64 * 1024 && (bodyBytes >= 1 || resolvedCommentId !== null || suggestion !== null), "bounds", "comment body size is invalid");
   if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
+  assertWorkspaceSuggestion(suggestion, input.anchor, input.suggestionOutcome, resolvedCommentId);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, resolvedCommentId, createdAt: now };
+  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, resolvedCommentId, createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,
@@ -116,11 +154,12 @@ export async function openWorkspaceComment(input: {
   protocolAssert(canonicalJson(body) === text && body.version === 1 && body.commentId === input.operation.payload.objectId && body.targetRevisionId === input.operation.payload.parentRevisionIds[0], "integrity", "comment content binding is invalid");
   protocolAssert(typeof body.body === "string" && utf8Encode(body.body).length <= 64 * 1024, "bounds", "comment body is too large");
   if (body.anchor !== undefined && body.anchor !== null) assertWorkspaceCommentAnchor(body.anchor);
+  assertWorkspaceSuggestion(body.suggestion, body.anchor, body.suggestionOutcome, body.resolvedCommentId);
   return body;
 }
 
 export function workspaceCommentRecord(body: WorkspaceCommentBody, operation: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>, operationHash: string): WorkspaceCommentRecord {
-  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, resolvedAt: null };
+  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, resolvedAt: null };
 }
 
 export class WorkspaceRevisionHistoryService {
