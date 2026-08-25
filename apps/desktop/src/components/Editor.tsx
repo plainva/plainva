@@ -4,7 +4,7 @@ import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
-import { attachmentFolderKey, useVault } from "../contexts/VaultContext";
+import { attachmentFolderKey, commentAnchorsKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
@@ -341,6 +341,33 @@ export const Editor: React.FC<{
       alive = false;
     };
   }, [activePath, vaultPath]);
+  /**
+   * May a comment write its anchor pair into the Markdown (Stufe D, SD2)?
+   *
+   * Default ON: an anchor that survives an edit is the point of anchoring. Off,
+   * the comment still keeps its quote and still resolves - it just drifts once
+   * the passage around it changes, which is the trade somebody makes who does
+   * not want HTML comments in their files.
+   */
+  const [commentAnchorsEnabled, setCommentAnchorsEnabled] = useState(true);
+  useEffect(() => {
+    if (!vaultPath) return;
+    let alive = true;
+    const read = () => {
+      void getSettingsStore()
+        .then((store) => store.get<boolean>(commentAnchorsKey(vaultPath)))
+        .then((value) => {
+          if (alive) setCommentAnchorsEnabled(value !== false);
+        })
+        .catch(() => {});
+    };
+    read();
+    window.addEventListener("plainva-features-saved", read);
+    return () => {
+      alive = false;
+      window.removeEventListener("plainva-features-saved", read);
+    };
+  }, [vaultPath]);
   // Floating formatting toolbar over a non-empty selection (#5).
   const [selToolbar, setSelToolbar] = useState<{ x: number; y: number; above: boolean } | null>(null);
   // Block handle menu (#7): opened from a block's drag grip.
@@ -1844,7 +1871,10 @@ export const Editor: React.FC<{
       await postWorkspaceComment(activePath, body, null, null);
       return;
     }
-    const marked = !workspaceReadOnly;
+    // Read-only means we may not write the note at all; the vault switch means
+    // this vault has asked us not to. Both fall back to the quote, which still
+    // resolves - the comment is never refused because of it.
+    const marked = !workspaceReadOnly && commentAnchorsEnabled;
     if (marked) view.dispatch({ changes: [{ from: range.from, insert: openAnchorMarker(markerId) }, { from: range.to, insert: closeAnchorMarker(markerId) }] });
     try {
       await postWorkspaceComment(activePath, body, null, anchor, suggestion);
@@ -1858,7 +1888,7 @@ export const Editor: React.FC<{
       }
       throw error;
     }
-  }, [activePath, postWorkspaceComment, workspaceReadOnly]);
+  }, [activePath, postWorkspaceComment, workspaceReadOnly, commentAnchorsEnabled]);
 
   /**
    * Writes the proposed text into the note, then closes the thread.

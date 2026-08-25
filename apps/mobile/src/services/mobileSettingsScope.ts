@@ -106,6 +106,8 @@ export interface VaultScopedSettings {
   /** Load remote images in mail bodies. Default OFF: a remote image is a
    *  tracking beacon. Mirrors the desktop's per-vault opt-in. */
   mailRemoteImages: boolean;
+  /** Whether a comment may write its anchor pair into the Markdown (Stufe D, SD2). */
+  commentAnchors: boolean;
   /**
    * Group the message list into conversations (findings P9.3). Default OFF, so
    * an update never rearranges someone's mail; per vault and syncable with the
@@ -190,6 +192,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "calendarOverlays",
   "mailFolder",
   "mailRemoteImages",
+  "commentAnchors",
   "mailThreads",
   "mailSnoozed",
   "mailAccountId",
@@ -248,6 +251,7 @@ export function vaultDefaults(): VaultScopedSettings {
     meetingFolder: profileDefault<string>("meetingFolder")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
+    commentAnchors: profileDefault<boolean>("commentAnchors")!,
     mailThreads: false,
     mailSnoozed: [],
     mailAccountId: "",
@@ -292,6 +296,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
+    commentAnchors: src.commentAnchors ?? d.commentAnchors,
     mailThreads: src.mailThreads ?? d.mailThreads,
     mailSnoozed: Array.isArray(src.mailSnoozed) ? src.mailSnoozed : d.mailSnoozed,
     mailAccountId: src.mailAccountId ?? d.mailAccountId,

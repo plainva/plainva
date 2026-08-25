@@ -55,6 +55,8 @@ export * from "./settingsSync/paths.js";
 export * from "./settingsSync/profileFile.js";
 export * from "./settingsSync/SettingsSyncStep.js";
 export * from "./settingsSync/SecretsSyncStep.js";
+export * from "./comments/commentsBundle.js";
+export * from "./comments/CommentsSyncStep.js";
 export * from "./settingsSync/KeyfileSyncStep.js";
 export * from "./settingsSync/manifestGuard.js";
 export * from "./settingsSync/connectionId.js";

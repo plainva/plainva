@@ -30,6 +30,17 @@ export const memberProfilePath = (memberId: string, sealed: boolean): string =>
 /** Sealed account-secrets bundle (K_secrets). */
 export const SECRETS_SYNC_PATH = ".plainva/sync/secrets.enc";
 /**
+ * Comments and suggestions for a vault WITHOUT an encrypted workspace (Stufe D).
+ *
+ * Two paths, never both in use: plaintext until a passphrase exists, sealed
+ * afterwards (under K_settings — the frame carries the purpose as a byte, so a
+ * new one would be a protocol change older devices could not open). The content
+ * deliberately never touches the note: a typed reply must not become a write to
+ * the Markdown, or every answer would land in the version history of the note.
+ */
+export const COMMENTS_SYNC_PATH = ".plainva/sync/comments.json";
+export const COMMENTS_ENC_PATH = ".plainva/sync/comments.enc";
+/**
  * Local-only recovery copy written before an explicitly confirmed removal of
  * legacy entries from the remote secrets bundle. `.plainva` is excluded from
  * content sync and no sideband step transports this path.

@@ -19,6 +19,7 @@
 import {
   SettingsSyncStep,
   SecretsSyncStep,
+  CommentsSyncStep,
   KeyfileSyncStep,
   sealBlob,
   openBlob,
@@ -27,6 +28,7 @@ import {
   isEncryptedState,
   type ProfileSettingsPort,
   type ProfileCrypto,
+  type CommentsCrypto,
   type SettingsSyncRunner,
   type ISyncTarget,
   type IVaultAdapter,
@@ -121,6 +123,7 @@ const textFileExtensionsKey = (v: string) => `textFileExtensions_${b64(v)}`;
 const defaultNoteTypeKey = (v: string) => `defaultNoteType_${b64(v)}`;
 const taskDatabaseKey = (v: string) => `taskDatabase_${b64(v)}`;
 const extendedDatabasesKey = (v: string) => `extendedDatabases_${b64(v)}`;
+const commentAnchorsKey = (v: string) => `commentAnchors_${b64(v)}`;
 const meetingFolderKey = (v: string) => `meetingFolder_${b64(v)}`;
 export const calendarOverlaysKey = (v: string) => `calendarOverlays_${b64(v)}`;
 const mailFolderKey = (v: string) => `mailFolder_${b64(v)}`;
@@ -249,6 +252,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   taskDatabase: taskDatabaseKey,
   textFileExtensions: textFileExtensionsKey,
   extendedDatabases: extendedDatabasesKey,
+  commentAnchors: commentAnchorsKey,
   meetingFolder: meetingFolderKey,
   calendarOverlays: calendarOverlaysKey,
   mailFolder: mailFolderKey,
@@ -643,7 +647,7 @@ export async function recoverProfileImportIfNeeded(store: ISettingsStore, vaultP
 }
 
 const PATH_FIELDS = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "taskDatabase", "meetingFolder", "mailFolder"]);
-const BOOLEAN_FIELDS = new Set(["extendedDatabases", "mailRemoteImages", "backupZipEnabled"]);
+const BOOLEAN_FIELDS = new Set(["extendedDatabases", "mailRemoteImages", "backupZipEnabled", "commentAnchors"]);
 const NUMBER_FIELDS = new Set(["syncIntervalSeconds", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "backupZipKeep"]);
 
 function validVaultPath(value: string): boolean {
@@ -837,6 +841,18 @@ function profileCryptoFor(mk: { keyId: string; masterKey: Uint8Array }): Profile
   };
 }
 
+/**
+ * The same key for the comment bundle (Stufe D, D4).
+ *
+ * Deliberately K_settings and not a purpose of its own: the purpose is a byte in
+ * the PVE1 frame, so minting a `comments` purpose would be a protocol change
+ * that older devices could not open. The comment bundle is a settings-class
+ * sideband document and shares the key of that class.
+ */
+export function commentsCryptoFor(mk: { keyId: string; masterKey: Uint8Array }): CommentsCrypto {
+  return profileCryptoFor(mk);
+}
+
 /** The active sync connection's fingerprint (provider + remote root), or null. */
 export async function getActiveConnectionId(vaultPath: string): Promise<string | null> {
   const records = await loadCloudAccounts(vaultPath);
@@ -966,6 +982,18 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
       // place that can act on it.
       await this.runLegacyCleanupIfRequested(secrets, target, vault);
     }
+    // Comments are content, so a failure here must not take the profile or the
+    // credentials down with it — but it must not be invisible either. The user
+    // typed something for somebody else; if it did not travel, the honest answer
+    // is a message, not silence.
+    const comments = await this.steps.comments(vault);
+    if (comments) {
+      try {
+        await comments.run(target, vault);
+      } catch (error) {
+        toast.error(i18n.t("settingsSync.commentsFailed", { error: error instanceof Error ? error.message : String(error) }));
+      }
+    }
   }
 
   private async runLegacyCleanupIfRequested(
@@ -1059,10 +1087,11 @@ async function reportLegacyPublisher(vaultPath: string, reason: LegacyClientDiag
     recordLegacyClient(diagnostics, new Date().toISOString(), reason));
 }
 
-/** The two optional steps, rebuilt for every cycle (see `run` above). */
+/** The optional steps, rebuilt for every cycle (see `run` above). */
 interface DesktopSidebandSteps {
   profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null>;
   secrets(): Promise<SecretsSyncStep | null>;
+  comments(raw: IVaultAdapter): Promise<CommentsSyncStep | null>;
 }
 
 /**
@@ -1159,6 +1188,22 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         },
       });
     },
+    async comments(raw: IVaultAdapter): Promise<CommentsSyncStep | null> {
+      // Not opt-in, unlike the profile and the secrets: a comment is content
+      // somebody typed for somebody else, and a reply that only ever reaches the
+      // device it was written on is not a comment. The step itself stays silent
+      // for a vault that never carried one — it returns before creating a file.
+      const mk = await loadCachedMasterKey(vaultPath);
+      if (!mk && (await hasLocalKeyfile(raw))) {
+        // Same refusal as the profile, for two reasons. The user asked for a
+        // passphrase, so writing comment text in the clear beside the sealed
+        // bundle would quietly undo that; and a locked device would keep
+        // recreating the plaintext file that every unlocked device folds in and
+        // deletes — a create/delete ping-pong with no end.
+        return null;
+      }
+      return new CommentsSyncStep({ crypto: mk ? commentsCryptoFor(mk) : undefined });
+    },
   };
 }
 
@@ -1166,7 +1211,9 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
  * Builds the sideband runner for a vault, or null when nothing is engaged.
  * Called during vault open and on the toggle/encryption-changed events. A runner
  * is built whenever the vault has a sync connection (for the fail-closed guard),
- * profile-sync is opted in, or a master key is unlocked.
+ * profile-sync is opted in, or a master key is unlocked. The comment step needs
+ * no switch of its own: without a connection there is no target to carry a
+ * comment to, and with one this gate has already passed.
  */
 export async function buildSettingsSyncStep(vaultPath: string, context: DesktopProfileContext = {}): Promise<SettingsSyncRunner | null> {
   const store = await getSettingsStore();

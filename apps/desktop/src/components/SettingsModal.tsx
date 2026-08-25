@@ -26,7 +26,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
+import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, commentAnchorsKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -182,6 +182,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [dailyNoteTemplate, setDailyNoteTemplate] = useState("");
   const [templateFiles, setTemplateFiles] = useState<string[]>([]);
   const [extendedDatabases, setExtendedDatabases] = useState(true);
+  const [commentAnchors, setCommentAnchors] = useState(true);
   // Standard task database (PIM plan 1a): the `.base` promoted tasks land in.
   const [taskDatabase, setTaskDatabase] = useState("");
   const [baseFiles, setBaseFiles] = useState<{ path: string; title: string }[]>([]);
@@ -401,6 +402,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setTaskDatabase(await store.get<string>(taskDatabaseKey(section)) ?? "");
         const extDb = await store.get<boolean>(extendedDatabasesKey(section));
         setExtendedDatabases(extDb ?? true);
+        setCommentAnchors((await store.get<boolean>(commentAnchorsKey(section))) !== false);
         setDefaultNoteType((await store.get<string>(defaultNoteTypeKey(section))) || DEFAULT_NOTE_TYPE);
         setDailyNoteType((await store.get<string>(dailyNoteTypeKey(section))) || DEFAULT_DAILY_NOTE_TYPE);
         setVerifierName((await store.get<string>(verifierNameKey(section))) ?? "");
@@ -923,6 +925,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
                       extendedDatabases={extendedDatabases}
                       onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
+                      commentAnchors={commentAnchors}
+                      onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "bars"}>

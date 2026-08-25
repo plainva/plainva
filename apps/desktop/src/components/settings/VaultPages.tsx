@@ -111,6 +111,8 @@ export interface ContentPageProps {
   onShowIndexManager: () => void;
   onUpdateAllIndexes: () => void;
   extendedDatabases: boolean;
+  commentAnchors: boolean;
+  onCommentAnchors: (v: boolean) => void;
   onExtendedDatabases: (v: boolean) => void;
 }
 
@@ -439,6 +441,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         )}
         <SettingRow label={t("settings.allowExtendedDb")} desc={t("settings.allowExtendedDbDesc")}>
           <input type="checkbox" id="extDb" checked={p.extendedDatabases} onChange={(e) => p.onExtendedDatabases(e.target.checked)} />
+        </SettingRow>
+        <SettingRow label={t("settings.commentAnchors")} desc={t("settings.commentAnchorsDesc")}>
+          <input type="checkbox" id="commentAnchors" checked={p.commentAnchors} onChange={(e) => p.onCommentAnchors(e.target.checked)} />
         </SettingRow>
       </SettingCard>
     </div>

@@ -18,6 +18,7 @@ import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settingsProfile";
+import { LOCAL_COMMENT_CAPABILITIES, listLocalCommentAuthors, listLocalComments, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { changeWorkspaceFallbackPassphrase, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
@@ -327,6 +328,15 @@ export const DEFAULT_MAIL_FOLDER = "Mail";
 /** Per-vault opt-in: always load remote https images in the mail viewer.
  * Default OFF — loading a remote image is a tracking beacon by definition. */
 export const mailRemoteImagesKey = (vaultPath: string) => `mailRemoteImages_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/**
+ * Per-vault: may a comment write its anchor pair into the Markdown (Stufe D,
+ * SD2)? Default ON - an anchor that survives an edit is the whole point of
+ * anchoring. Off falls back to the stored quote, which still resolves but
+ * drifts once the passage around it changes. A VAULT setting, not a per-device
+ * one: the markers land in the note, so one device writing them while another
+ * does not would leave the same vault half-marked.
+ */
+export const commentAnchorsKey = (vaultPath: string) => `commentAnchors_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the
@@ -2288,8 +2298,26 @@ export const VaultProvider: React.FC<{
     return new WorkspaceQuarantineService(workspaceState, () => state.syncWorker?.triggerImmediate()).exportCiphertext(quarantineId);
   };
 
+  /**
+   * The plain-vault storage path for comments (Stufe D, D4).
+   *
+   * Deliberately the BACKUP adapter, exactly what the sync worker hands the
+   * sideband step: the conflict-aware app adapter would mint sync_state rows and
+   * `.CONFLICT` copies of the comment bundle. `BackupVaultAdapter` skips
+   * `.plainva` for snapshots anyway, so nothing here lands in the version
+   * history either.
+   */
+  const localCommentContext = (): { vaultPath: string; raw: IVaultAdapter } | null => {
+    if (state.workspaceSecurityStatus || !state.vaultPath || !state.backupAdapter) return null;
+    return { vaultPath: state.vaultPath, raw: state.backupAdapter };
+  };
+
   const getWorkspaceCapabilities = async (path: string): Promise<WorkspaceCapability[] | null> => {
-    if (!state.workspaceSecurityStatus) return null;
+    // A vault without a workspace still gets the comment surface — the same
+    // threads, anchors and suggestions, only stored in the sideband bundle
+    // instead of signed objects. Returning null here would switch the whole
+    // column off for everyone who never set up an encrypted workspace.
+    if (!state.workspaceSecurityStatus) return localCommentContext() ? [...LOCAL_COMMENT_CAPABILITIES] : null;
     const { runtime, workspaceState } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
     const objectId = object?.objectId ?? createWorkspaceObjectId();
@@ -2298,18 +2326,39 @@ export const VaultProvider: React.FC<{
   };
 
   const listWorkspaceComments = async (path: string): Promise<WorkspaceCommentRecord[]> => {
-    if (!state.workspaceSecurityStatus) return [];
+    if (!state.workspaceSecurityStatus) {
+      const local = localCommentContext();
+      return local ? listLocalComments(local.vaultPath, local.raw, path) : [];
+    }
     const { workspaceState } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
     return object ? workspaceState.listComments(object.objectId) : [];
   };
 
   const listWorkspaceMembers = async (): Promise<WorkspacePolicyMember[]> => {
-    if (!state.workspaceSecurityStatus) return [];
+    if (!state.workspaceSecurityStatus) {
+      // Without a policy a DEVICE is the author, and its self-chosen name is the
+      // only honest thing to show. Never a claim about who somebody is — just
+      // what that device calls itself.
+      const local = localCommentContext();
+      if (!local) return [];
+      const names = await listLocalCommentAuthors(local.vaultPath, local.raw);
+      return [...names].map(([memberId, displayName]) => ({ memberId, displayName, state: "active" as const }));
+    }
     return workspaceControlPlane().runtime.policy.payload.members;
   };
 
   const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null): Promise<void> => {
+    const local = localCommentContext();
+    if (local) {
+      // The reviewer field this vault already carries — the person at this
+      // keyboard, device-local — rather than asking the same question twice.
+      const authorName = await (await getSettingsStore()).get<string>(verifierNameKey(local.vaultPath));
+      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, authorName });
+      state.syncWorker?.triggerImmediate();
+      window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+      return;
+    }
     const { runtime, workspaceState, store } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
     if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");

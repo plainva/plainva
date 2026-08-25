@@ -86,6 +86,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   folderTemplates: Object.freeze([]),
   typeTemplates: Object.freeze([]),
   extendedDatabases: true,
+  commentAnchors: true,
   meetingFolder: "Meetings",
   calendarOverlays: Object.freeze([]),
   mailFolder: "Mail",
@@ -214,6 +215,12 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
     mobileGap: "extended databases are a desktop-only configuration surface" },
+  // Whether a comment may write its anchor pair into the Markdown (Stufe D,
+  // SD2). A VAULT field, not a member one: the markers land in the note itself,
+  // so one device writing them while another does not would leave the same vault
+  // half-marked. Default on — an anchor that survives an edit is the point of
+  // anchoring; off falls back to the quote, which still resolves but drifts.
+  { logical: "commentAnchors", scope: "vault", kind: "boolean", area: "content", desktop: "store", mobile: "commentAnchors" },
   { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: "meetingFolder" },
   // Which database views the calendar shows (S18). A vault field on purpose:
   // the calendar of one vault should look the same on both machines, and a

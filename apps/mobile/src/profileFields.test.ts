@@ -60,6 +60,9 @@ describe("profile field catalog", () => {
       // S36: the phone gained the scheduled archive, so these two carry now.
       "backupZipEnabled",
       "backupZipKeep",
+      // D4: the anchor switch is a vault convention, not a per-device one - the
+      // markers land in the note, so both shells have to agree on it.
+      "commentAnchors",
       "dailyNoteTemplate",
       "dailyNoteType",
       "dailyNotesFolder",
