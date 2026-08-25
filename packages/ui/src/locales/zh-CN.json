@@ -131,7 +131,10 @@
     "undo": "撤销",
     "back": "后退",
     "next": "下一步",
-    "redo": "重做"
+    "redo": "重做",
+    "remove": "移除",
+    "yes": "是",
+    "no": "否"
   },
   "import": {
     "contextAction": "从其他应用导入…",
@@ -3371,7 +3374,38 @@
     "revealCode": "显示代码",
     "keyBundleMissingMessage": "本设备没有此工作区的密钥。",
     "resumeSetup": "继续设置",
-    "resumeSetupDesc": "加密已开始但未完成。密钥保存在本设备上。"
+    "resumeSetupDesc": "加密已开始但未完成。密钥保存在本设备上。",
+    "groupMembers": "成员",
+    "noMembersYet": "还没有成员，请先邀请他人。",
+    "noObjectsYet": "此工作区还没有加密对象。",
+    "technicalDetails": "技术细节",
+    "ruleRawOnly": "此规则是手动编写的，将保持原样。请在下方编辑。",
+    "ruleFieldLabel": "字段",
+    "ruleOperator": "比较",
+    "ruleValue": "值",
+    "ruleValueKind": "值类型",
+    "ruleValueEmpty": "未设置值",
+    "rulePropertyKey": "属性",
+    "addRule": "添加规则",
+    "ruleField": {
+      "path": "路径",
+      "tag": "标签",
+      "property": "属性",
+      "mime": "文件类型",
+      "contentKind": "种类"
+    },
+    "ruleOp": {
+      "equals": "等于",
+      "startsWith": "开头是",
+      "endsWith": "结尾是",
+      "contains": "包含"
+    },
+    "ruleValueType": {
+      "text": "文本",
+      "number": "数字",
+      "boolean": "是/否",
+      "empty": "空"
+    }
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

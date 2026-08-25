@@ -135,7 +135,10 @@
     "undo": "Deshacer",
     "back": "Atrás",
     "next": "Siguiente",
-    "redo": "Rehacer"
+    "redo": "Rehacer",
+    "remove": "Quitar",
+    "yes": "Sí",
+    "no": "No"
   },
   "import": {
     "contextAction": "Importar de otra aplicación...",
@@ -3427,7 +3430,38 @@
     "revealCode": "Mostrar codigo",
     "keyBundleMissingMessage": "Este dispositivo no tiene ninguna clave para este espacio.",
     "resumeSetup": "Reanudar configuracion",
-    "resumeSetupDesc": "El cifrado comenzo pero no termino. La clave esta en este dispositivo."
+    "resumeSetupDesc": "El cifrado comenzo pero no termino. La clave esta en este dispositivo.",
+    "groupMembers": "Miembros",
+    "noMembersYet": "Aún no hay miembros: invita primero a alguien.",
+    "noObjectsYet": "Este espacio de trabajo todavía no tiene objetos cifrados.",
+    "technicalDetails": "Detalles técnicos",
+    "ruleRawOnly": "Esta regla se escribió a mano y se mantiene tal cual. Edítala abajo.",
+    "ruleFieldLabel": "Campo",
+    "ruleOperator": "Comparación",
+    "ruleValue": "Valor",
+    "ruleValueKind": "Tipo de valor",
+    "ruleValueEmpty": "sin valor definido",
+    "rulePropertyKey": "Propiedad",
+    "addRule": "Añadir regla",
+    "ruleField": {
+      "path": "Ruta",
+      "tag": "Etiqueta",
+      "property": "Propiedad",
+      "mime": "Tipo de archivo",
+      "contentKind": "Clase"
+    },
+    "ruleOp": {
+      "equals": "es",
+      "startsWith": "empieza por",
+      "endsWith": "termina en",
+      "contains": "contiene"
+    },
+    "ruleValueType": {
+      "text": "Texto",
+      "number": "Número",
+      "boolean": "Sí/No",
+      "empty": "Vacío"
+    }
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

@@ -135,7 +135,10 @@
     "undo": "Desfazer",
     "back": "Voltar",
     "next": "Avançar",
-    "redo": "Refazer"
+    "redo": "Refazer",
+    "remove": "Remover",
+    "yes": "Sim",
+    "no": "Não"
   },
   "import": {
     "contextAction": "Importar de outro aplicativo...",
@@ -3427,7 +3430,38 @@
     "revealCode": "Mostrar codigo",
     "keyBundleMissingMessage": "Este dispositivo nao possui chave para este espaco.",
     "resumeSetup": "Retomar configuracao",
-    "resumeSetupDesc": "A criptografia comecou, mas nao terminou. A chave esta neste dispositivo."
+    "resumeSetupDesc": "A criptografia comecou, mas nao terminou. A chave esta neste dispositivo.",
+    "groupMembers": "Membros",
+    "noMembersYet": "Ainda não há membros: convide alguém primeiro.",
+    "noObjectsYet": "Este espaço de trabalho ainda não tem objetos criptografados.",
+    "technicalDetails": "Detalhes técnicos",
+    "ruleRawOnly": "Esta regra foi escrita à mão e permanece como está. Edite-a abaixo.",
+    "ruleFieldLabel": "Campo",
+    "ruleOperator": "Comparação",
+    "ruleValue": "Valor",
+    "ruleValueKind": "Tipo de valor",
+    "ruleValueEmpty": "sem valor definido",
+    "rulePropertyKey": "Propriedade",
+    "addRule": "Adicionar regra",
+    "ruleField": {
+      "path": "Caminho",
+      "tag": "Tag",
+      "property": "Propriedade",
+      "mime": "Tipo de arquivo",
+      "contentKind": "Categoria"
+    },
+    "ruleOp": {
+      "equals": "é",
+      "startsWith": "começa com",
+      "endsWith": "termina com",
+      "contains": "contém"
+    },
+    "ruleValueType": {
+      "text": "Texto",
+      "number": "Número",
+      "boolean": "Sim/Não",
+      "empty": "Vazio"
+    }
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

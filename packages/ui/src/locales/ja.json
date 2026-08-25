@@ -131,7 +131,10 @@
     "undo": "元に戻す",
     "back": "戻る",
     "next": "次へ",
-    "redo": "やり直す"
+    "redo": "やり直す",
+    "remove": "削除",
+    "yes": "はい",
+    "no": "いいえ"
   },
   "import": {
     "contextAction": "他のアプリからインポート...",
@@ -3371,7 +3374,38 @@
     "revealCode": "コードを表示",
     "keyBundleMissingMessage": "この端末にはこのワークスペースの鍵がありません。",
     "resumeSetup": "セットアップを再開",
-    "resumeSetupDesc": "暗号化は開始されましたが完了していません。鍵はこの端末にあります。"
+    "resumeSetupDesc": "暗号化は開始されましたが完了していません。鍵はこの端末にあります。",
+    "groupMembers": "メンバー",
+    "noMembersYet": "まだメンバーがいません。まず誰かを招待してください。",
+    "noObjectsYet": "このワークスペースにはまだ暗号化されたオブジェクトがありません。",
+    "technicalDetails": "技術的な詳細",
+    "ruleRawOnly": "このルールは手動で書かれており、そのまま保持されます。下で編集してください。",
+    "ruleFieldLabel": "フィールド",
+    "ruleOperator": "比較",
+    "ruleValue": "値",
+    "ruleValueKind": "値の種類",
+    "ruleValueEmpty": "値が設定されていません",
+    "rulePropertyKey": "プロパティ",
+    "addRule": "ルールを追加",
+    "ruleField": {
+      "path": "パス",
+      "tag": "タグ",
+      "property": "プロパティ",
+      "mime": "ファイル種別",
+      "contentKind": "種類"
+    },
+    "ruleOp": {
+      "equals": "と一致する",
+      "startsWith": "で始まる",
+      "endsWith": "で終わる",
+      "contains": "を含む"
+    },
+    "ruleValueType": {
+      "text": "テキスト",
+      "number": "数値",
+      "boolean": "はい/いいえ",
+      "empty": "空"
+    }
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

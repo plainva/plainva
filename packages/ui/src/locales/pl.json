@@ -137,7 +137,10 @@
     "undo": "Cofnij",
     "back": "Wstecz",
     "next": "Dalej",
-    "redo": "Ponów"
+    "redo": "Ponów",
+    "remove": "Usuń",
+    "yes": "Tak",
+    "no": "Nie"
   },
   "import": {
     "contextAction": "Importuj z innej aplikacji...",
@@ -3455,7 +3458,38 @@
     "revealCode": "Pokaz kod",
     "keyBundleMissingMessage": "To urzadzenie nie ma klucza do tej przestrzeni.",
     "resumeSetup": "Wznow konfiguracje",
-    "resumeSetupDesc": "Szyfrowanie rozpoczeto, ale go nie ukonczono. Klucz jest na tym urzadzeniu."
+    "resumeSetupDesc": "Szyfrowanie rozpoczeto, ale go nie ukonczono. Klucz jest na tym urzadzeniu.",
+    "groupMembers": "Członkowie",
+    "noMembersYet": "Brak członków – najpierw kogoś zaproś.",
+    "noObjectsYet": "Ta przestrzeń robocza nie ma jeszcze zaszyfrowanych obiektów.",
+    "technicalDetails": "Szczegóły techniczne",
+    "ruleRawOnly": "Ta reguła została napisana ręcznie i pozostaje bez zmian. Edytuj ją poniżej.",
+    "ruleFieldLabel": "Pole",
+    "ruleOperator": "Porównanie",
+    "ruleValue": "Wartość",
+    "ruleValueKind": "Typ wartości",
+    "ruleValueEmpty": "brak wartości",
+    "rulePropertyKey": "Właściwość",
+    "addRule": "Dodaj regułę",
+    "ruleField": {
+      "path": "Ścieżka",
+      "tag": "Tag",
+      "property": "Właściwość",
+      "mime": "Typ pliku",
+      "contentKind": "Rodzaj"
+    },
+    "ruleOp": {
+      "equals": "jest",
+      "startsWith": "zaczyna się od",
+      "endsWith": "kończy się na",
+      "contains": "zawiera"
+    },
+    "ruleValueType": {
+      "text": "Tekst",
+      "number": "Liczba",
+      "boolean": "Tak/Nie",
+      "empty": "Puste"
+    }
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

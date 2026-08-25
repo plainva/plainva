@@ -4,6 +4,7 @@ import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { Banner, Button, ICON, Modal, QrImage, SettingCard, SettingCardNote, SettingRow, TextInput, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
+import type { WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
@@ -52,6 +53,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     createWorkspaceGroup,
     createWorkspaceSlice,
     previewWorkspaceSlice,
+    listWorkspaceSliceObjects,
     restoreWorkspaceRecovery,
     rotateWorkspaceRecovery,
     activateWorkspaceRecovery,
@@ -75,6 +77,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [governance, setGovernance] = useState<Governance | null>(null);
   const [dialog, setDialog] = useState<"pair" | "invite" | "group" | "slice" | "recovery" | "rotate" | "owner" | null>(null);
   const [slicePreview, setSlicePreview] = useState<Array<{ objectId: string; path: string }> | null>(null);
+  // Candidates the slice pickers choose FROM. Loaded when the wizard opens, not
+  // with the page: the list walks the whole encrypted object index, and most
+  // visits to this page never build a slice. `null` means "still loading".
+  const [sliceObjects, setSliceObjects] = useState<WorkspaceSliceObject[] | null>(null);
   const [pairPreview, setPairPreview] = useState<Awaited<ReturnType<typeof inspectWorkspacePairingRequest>> | null>(null);
   const [rotatedRecoveryCode, setRotatedRecoveryCode] = useState<string | null>(null);
   // The security area is owned by the settings modal now (IA v2, P1): the left
@@ -134,6 +140,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
    */
   const openSliceWizard = (): void => {
     setSlicePreview(null);
+    setSliceObjects(null);
+    void listWorkspaceSliceObjects()
+      .then(setSliceObjects)
+      .catch((error) => toast.error(error instanceof Error ? error.message : String(error)));
     setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
   };
@@ -579,9 +589,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           governance={governance}
           pairPreview={pairPreview}
           slicePreview={slicePreview}
+          sliceObjects={sliceObjects}
           rotatedRecoveryCode={rotatedRecoveryCode}
           setForm={setForm}
-          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); setRotatedRecoveryCode(null); }}
+          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); setSliceObjects(null); setRotatedRecoveryCode(null); }}
           onPreview={() => void previewSlice()}
           onSubmit={() => void submitGovernanceDialog()}
         />

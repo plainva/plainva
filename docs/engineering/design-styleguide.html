@@ -156,6 +156,13 @@
   .pv-security-choice span { color:var(--text-muted); font-size:var(--text-sm); }
   .pv-security-choice.is-active { border-color:var(--accent-color); background:var(--accent-container); color:var(--on-accent-container); }
   .pv-security-choice.is-active span { color:inherit; opacity:.8; }
+  /* Pickers instead of machine input (P5, B8): members, objects and rule rows. */
+  .pv-security-picker { display:flex; max-height:14rem; flex-direction:column; gap:var(--space-1); overflow:auto; padding:var(--space-2); border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--bg-primary); }
+  .pv-security-picker-empty { color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-security-picker-path { color:var(--text-muted); font-size:var(--text-xs); overflow-wrap:anywhere; }
+  .pv-security-rules { display:flex; flex-direction:column; gap:var(--space-2); }
+  .pv-security-rule { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) auto; gap:var(--space-2); align-items:end; }
+  .pv-security-rule[data-property="true"] { grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,0.9fr) minmax(0,1.4fr) auto; }
   .pv-security-recovery-demo { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); }
   .pv-security-recovery-task { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
   .pv-security-task-number { display:grid; place-items:center; width:var(--control-md); height:var(--control-md); border-radius:var(--radius-pill); background:var(--accent-container); color:var(--on-accent-container); font-weight:700; }
@@ -824,6 +831,12 @@
     <div class="pv-security-wizard pv-security-slice-wizard">
       <div class="pv-security-steps"><span>Details</span><span data-active="true">Content</span><span>Permissions</span><span>Review</span></div>
       <div class="pv-security-choice-grid"><button class="pv-security-choice is-active"><strong>Folder</strong><span>A folder and optional descendants</span></button><button class="pv-security-choice"><strong>Selection</strong><span>Explicit notes and attachments</span></button><button class="pv-security-choice"><strong>Dynamic</strong><span>Materialized rule result</span></button></div>
+      <div class="pv-security-rules">
+        <div class="pv-security-rule"><label>Field<select class="field"><option>Path</option></select></label><label>Comparison<select class="field"><option>starts with</option></select></label><label>Value<input class="field" value="Projects/"></label><button class="pvbtn ghost">&times;</button></div>
+        <div class="pv-security-rule" data-property="true"><label>Field<select class="field"><option>Property</option></select></label><label>Property<input class="field" value="status"></label><label>Comparison<select class="field"><option>is</option></select></label><label>Value type<select class="field"><option>Text</option></select></label><label>Value<input class="field" value="active"></label><button class="pvbtn ghost">&times;</button></div>
+        <button class="pvbtn ghost">+ Add rule</button>
+      </div>
+      <details class="pv-security-tech"><summary>Technical details</summary><input class="field" value='{"all":[{"field":"path","operator":"startsWith","value":"Projects/"}]}'></details>
     </div>
     <div id="security-recovery" class="pv-security-recovery-demo">
       <strong>Recovery setup · explicit three-task flow</strong>
@@ -837,6 +850,7 @@
       <ul class="tight">
         <li>Quiet Cards für Status, Recovery, Geräte, Mitglieder/Gruppen/Slices und Integrität; technische Fakten als zweispaltige Definitionen.</li>
         <li>Recovery-Setup als drei nummerierte Aufgaben: Datei speichern, Code getrennt sichern, zwei sichtbar markierte und nummerierte Code-Gruppen eingeben. Der nächste fehlende Schritt steht immer direkt vor der Aktivierungsaktion.</li>
+        <li>Maschinenwerte werden nie eingetippt: Mitglieder und Objekte kommen aus einer <code>.pv-security-picker</code>-Liste, dynamische Slices aus einem <code>.pv-security-rule</code>-Baukasten. Der rohe Wert bleibt darunter in „Technische Details“ erreichbar — was der Baukasten nicht abbilden kann, bleibt dort das einzige Eingabefeld.</li>
         <li>Pairing zeigt vor der Freigabe den Geräte-Fingerprint. Rollen + Geltungsbereich sind explizite Feld-Controls; Slices erhalten eine lokale Pfad-Vorschau.</li>
         <li>Reader/Commenter: Banner + hart schreibgeschützter Editor; Kommentare als kompakter Seiten-Stack, verschlüsselte Historie im bestehenden Versionsmodal.</li>
         <li>Quarantäne: Retry/Export/Repariert/Ignorieren als sekundäre Aktionen. Zugriffsverlust durch Verschieben verlangt einen App-Bestätigungsdialog.</li>

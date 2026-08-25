@@ -135,7 +135,10 @@
     "undo": "Annuler",
     "back": "Retour",
     "next": "Suivant",
-    "redo": "Rétablir"
+    "redo": "Rétablir",
+    "remove": "Retirer",
+    "yes": "Oui",
+    "no": "Non"
   },
   "import": {
     "contextAction": "Importer depuis une autre application…",
@@ -3427,7 +3430,38 @@
     "revealCode": "Afficher le code",
     "keyBundleMissingMessage": "Cet appareil ne detient aucune cle pour cet espace.",
     "resumeSetup": "Reprendre la configuration",
-    "resumeSetupDesc": "Le chiffrement a commence sans se terminer. La cle est sur cet appareil."
+    "resumeSetupDesc": "Le chiffrement a commence sans se terminer. La cle est sur cet appareil.",
+    "groupMembers": "Membres",
+    "noMembersYet": "Aucun membre pour l’instant – invitez d’abord quelqu’un.",
+    "noObjectsYet": "Cet espace de travail ne contient encore aucun objet chiffré.",
+    "technicalDetails": "Détails techniques",
+    "ruleRawOnly": "Cette règle a été écrite à la main et reste inchangée. Modifiez-la ci-dessous.",
+    "ruleFieldLabel": "Champ",
+    "ruleOperator": "Comparaison",
+    "ruleValue": "Valeur",
+    "ruleValueKind": "Type de valeur",
+    "ruleValueEmpty": "aucune valeur définie",
+    "rulePropertyKey": "Propriété",
+    "addRule": "Ajouter une règle",
+    "ruleField": {
+      "path": "Chemin",
+      "tag": "Tag",
+      "property": "Propriété",
+      "mime": "Type de fichier",
+      "contentKind": "Nature"
+    },
+    "ruleOp": {
+      "equals": "est",
+      "startsWith": "commence par",
+      "endsWith": "se termine par",
+      "contains": "contient"
+    },
+    "ruleValueType": {
+      "text": "Texte",
+      "number": "Nombre",
+      "boolean": "Oui/Non",
+      "empty": "Vide"
+    }
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

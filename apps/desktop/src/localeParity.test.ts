@@ -359,9 +359,13 @@ const VERBATIM_ALLOWED = new Set<string>([
   "themes.variants.resistance",
   "themes.variants.space-frontier",
   "themes.variants.tea",
+  // "Tag" is the app's own established term in de/fr/nl/pt-BR and the singular of
+  // pl "Tagi" - the slice rule field names the same thing the sidebar already
+  // calls a tag, so translating it here would invent a second word for one idea.
+  "workspaceSecurity.ruleField.tag",
   "workspaceSecurity.slice",
   "workspaceSecurity.slices",
-// count: 76
+// count: 78
 ]);
 
 describe("verbatim English carry-over (D8)", () => {

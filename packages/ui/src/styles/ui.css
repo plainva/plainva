@@ -2422,6 +2422,17 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-security-progress { height: 6px; margin: var(--space-2) 0; overflow: hidden; background: var(--bg-secondary); border-radius: var(--radius-xs); }
 .pv-security-progress-bar { height: 100%; background: var(--accent-color); border-radius: var(--radius-xs); transition: width var(--dur-1) var(--ease-1); }
 .pv-security-progress-label { font-size: var(--text-sm); color: var(--text-muted); }
+/* Pickers instead of machine input (plan P5, finding B8): a group takes its
+   members from the member list, a selection slice from the object list, and a
+   dynamic slice from a rule builder. Each keeps the stored value reachable
+   under a .pv-security-tech disclosure — a rule the builder cannot express must
+   stay editable rather than be silently rewritten. */
+.pv-security-picker { display: flex; max-height: 14rem; flex-direction: column; gap: var(--space-1); overflow: auto; padding: var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-primary); }
+.pv-security-picker-empty { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-security-picker-path { color: var(--text-muted); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.pv-security-rules { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-security-rule { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: var(--space-2); align-items: end; }
+.pv-security-rule[data-property="true"] { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 0.9fr) minmax(0, 1.4fr) auto; }
 .pv-security-model { margin: 0 0 var(--space-3); padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--text-sm); }
 .pv-security-model li { line-height: 1.5; }
 @media (max-width: 760px) {

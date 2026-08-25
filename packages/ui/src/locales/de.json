@@ -133,7 +133,10 @@
     "undo": "Rückgängig",
     "back": "Zurück",
     "next": "Weiter",
-    "redo": "Wiederholen"
+    "redo": "Wiederholen",
+    "remove": "Entfernen",
+    "yes": "Ja",
+    "no": "Nein"
   },
   "import": {
     "contextAction": "Aus anderer App importieren...",
@@ -3399,7 +3402,38 @@
     "revealCode": "Code anzeigen",
     "keyBundleMissingMessage": "Auf diesem Geraet liegt kein Schluessel fuer diesen Workspace.",
     "resumeSetup": "Einrichtung fortsetzen",
-    "resumeSetupDesc": "Die Verschluesselung wurde begonnen, aber nicht zu Ende gefuehrt. Der Schluessel liegt auf diesem Geraet."
+    "resumeSetupDesc": "Die Verschluesselung wurde begonnen, aber nicht zu Ende gefuehrt. Der Schluessel liegt auf diesem Geraet.",
+    "groupMembers": "Mitglieder",
+    "noMembersYet": "Noch keine Mitglieder – lade zuerst jemanden ein.",
+    "noObjectsYet": "Dieser Workspace enthält noch keine verschlüsselten Objekte.",
+    "technicalDetails": "Technische Details",
+    "ruleRawOnly": "Diese Regel wurde von Hand geschrieben und bleibt unverändert. Bearbeite sie unten.",
+    "ruleFieldLabel": "Feld",
+    "ruleOperator": "Vergleich",
+    "ruleValue": "Wert",
+    "ruleValueKind": "Werttyp",
+    "ruleValueEmpty": "kein Wert gesetzt",
+    "rulePropertyKey": "Eigenschaft",
+    "addRule": "Regel hinzufügen",
+    "ruleField": {
+      "path": "Pfad",
+      "tag": "Tag",
+      "property": "Eigenschaft",
+      "mime": "Dateityp",
+      "contentKind": "Art"
+    },
+    "ruleOp": {
+      "equals": "ist",
+      "startsWith": "beginnt mit",
+      "endsWith": "endet mit",
+      "contains": "enthält"
+    },
+    "ruleValueType": {
+      "text": "Text",
+      "number": "Zahl",
+      "boolean": "Ja/Nein",
+      "empty": "Leer"
+    }
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

@@ -133,7 +133,10 @@
     "undo": "Undo",
     "back": "Back",
     "next": "Next",
-    "redo": "Redo"
+    "redo": "Redo",
+    "remove": "Remove",
+    "yes": "Yes",
+    "no": "No"
   },
   "import": {
     "contextAction": "Import from another app...",
@@ -3399,7 +3402,38 @@
     "revealCode": "Show code",
     "keyBundleMissingMessage": "This device holds no key for this workspace.",
     "resumeSetup": "Resume setup",
-    "resumeSetupDesc": "Encryption started but did not finish. The key is on this device."
+    "resumeSetupDesc": "Encryption started but did not finish. The key is on this device.",
+    "groupMembers": "Members",
+    "noMembersYet": "No members yet - invite someone first.",
+    "noObjectsYet": "This workspace has no encrypted objects yet.",
+    "technicalDetails": "Technical details",
+    "ruleRawOnly": "This rule was written by hand and is kept exactly as it is. Edit it below.",
+    "ruleFieldLabel": "Field",
+    "ruleOperator": "Comparison",
+    "ruleValue": "Value",
+    "ruleValueKind": "Value type",
+    "ruleValueEmpty": "no value set",
+    "rulePropertyKey": "Property",
+    "addRule": "Add rule",
+    "ruleField": {
+      "path": "Path",
+      "tag": "Tag",
+      "property": "Property",
+      "mime": "File type",
+      "contentKind": "Kind"
+    },
+    "ruleOp": {
+      "equals": "is",
+      "startsWith": "starts with",
+      "endsWith": "ends with",
+      "contains": "contains"
+    },
+    "ruleValueType": {
+      "text": "Text",
+      "number": "Number",
+      "boolean": "Yes/No",
+      "empty": "Empty"
+    }
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

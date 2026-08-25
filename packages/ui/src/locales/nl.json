@@ -133,7 +133,10 @@
     "undo": "Ongedaan maken",
     "back": "Terug",
     "next": "Volgende",
-    "redo": "Opnieuw"
+    "redo": "Opnieuw",
+    "remove": "Verwijderen",
+    "yes": "Ja",
+    "no": "Nee"
   },
   "import": {
     "contextAction": "Importeren uit een andere app...",
@@ -3399,7 +3402,38 @@
     "revealCode": "Code tonen",
     "keyBundleMissingMessage": "Dit apparaat heeft geen sleutel voor deze workspace.",
     "resumeSetup": "Installatie hervatten",
-    "resumeSetupDesc": "De versleuteling is begonnen maar niet voltooid. De sleutel staat op dit apparaat."
+    "resumeSetupDesc": "De versleuteling is begonnen maar niet voltooid. De sleutel staat op dit apparaat.",
+    "groupMembers": "Leden",
+    "noMembersYet": "Nog geen leden – nodig eerst iemand uit.",
+    "noObjectsYet": "Deze werkruimte heeft nog geen versleutelde objecten.",
+    "technicalDetails": "Technische details",
+    "ruleRawOnly": "Deze regel is met de hand geschreven en blijft ongewijzigd. Bewerk hem hieronder.",
+    "ruleFieldLabel": "Veld",
+    "ruleOperator": "Vergelijking",
+    "ruleValue": "Waarde",
+    "ruleValueKind": "Type waarde",
+    "ruleValueEmpty": "geen waarde ingesteld",
+    "rulePropertyKey": "Eigenschap",
+    "addRule": "Regel toevoegen",
+    "ruleField": {
+      "path": "Pad",
+      "tag": "Tag",
+      "property": "Eigenschap",
+      "mime": "Bestandstype",
+      "contentKind": "Soort"
+    },
+    "ruleOp": {
+      "equals": "is",
+      "startsWith": "begint met",
+      "endsWith": "eindigt op",
+      "contains": "bevat"
+    },
+    "ruleValueType": {
+      "text": "Tekst",
+      "number": "Getal",
+      "boolean": "Ja/Nee",
+      "empty": "Leeg"
+    }
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

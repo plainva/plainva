@@ -135,7 +135,10 @@
     "undo": "Annulla",
     "back": "Indietro",
     "next": "Avanti",
-    "redo": "Ripeti"
+    "redo": "Ripeti",
+    "remove": "Rimuovi",
+    "yes": "Sì",
+    "no": "No"
   },
   "import": {
     "contextAction": "Importa da un'altra app...",
@@ -3427,7 +3430,38 @@
     "revealCode": "Mostra codice",
     "keyBundleMissingMessage": "Questo dispositivo non ha alcuna chiave per questo spazio.",
     "resumeSetup": "Riprendi configurazione",
-    "resumeSetupDesc": "La cifratura e iniziata ma non e stata completata. La chiave e su questo dispositivo."
+    "resumeSetupDesc": "La cifratura e iniziata ma non e stata completata. La chiave e su questo dispositivo.",
+    "groupMembers": "Membri",
+    "noMembersYet": "Ancora nessun membro: invita prima qualcuno.",
+    "noObjectsYet": "Questo spazio di lavoro non ha ancora oggetti cifrati.",
+    "technicalDetails": "Dettagli tecnici",
+    "ruleRawOnly": "Questa regola è stata scritta a mano e resta invariata. Modificala qui sotto.",
+    "ruleFieldLabel": "Campo",
+    "ruleOperator": "Confronto",
+    "ruleValue": "Valore",
+    "ruleValueKind": "Tipo di valore",
+    "ruleValueEmpty": "nessun valore impostato",
+    "rulePropertyKey": "Proprietà",
+    "addRule": "Aggiungi regola",
+    "ruleField": {
+      "path": "Percorso",
+      "tag": "Tag",
+      "property": "Proprietà",
+      "mime": "Tipo di file",
+      "contentKind": "Categoria"
+    },
+    "ruleOp": {
+      "equals": "è",
+      "startsWith": "inizia con",
+      "endsWith": "finisce con",
+      "contains": "contiene"
+    },
+    "ruleValueType": {
+      "text": "Testo",
+      "number": "Numero",
+      "boolean": "Sì/No",
+      "empty": "Vuoto"
+    }
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",
