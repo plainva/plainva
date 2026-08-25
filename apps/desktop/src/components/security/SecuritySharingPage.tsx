@@ -124,9 +124,16 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     finally { setBusy(false); }
   };
 
-  const openSliceWizard = (publication: boolean): void => {
+  /**
+   * Opens the slice wizard. The publication mode is PINNED to "private" until
+   * Stufe B builds the publishing path: `createWorkspaceSlice` would otherwise
+   * persist a publication whose four core primitives have no caller, and the
+   * success toast would report a share that never happens (B1, P1 2026-08-25).
+   * Stufe B restores the caller-chosen mode here.
+   */
+  const openSliceWizard = (): void => {
     setSlicePreview(null);
-    setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: publication ? "sanitized" : "private" }));
+    setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
   };
 
@@ -446,7 +453,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           {area === "slices" && (
             <SettingCard label={t("workspaceSecurity.slices", { defaultValue: "Slices" })}>
               <SettingRow label={t("workspaceSecurity.slices", { defaultValue: "Slices" })} desc={t("workspaceSecurity.slicesDesc", { defaultValue: "Folder, explicit selection or dynamic rule." })}>
-                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard(false))}>{t("workspaceSecurity.addSlice", { defaultValue: "Add slice" })}</Button>
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard())}>{t("workspaceSecurity.addSlice", { defaultValue: "Add slice" })}</Button>
               </SettingRow>
               {governance?.slices.map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.kind} · ${slice.materializedObjectIds.length} objects${slice.publication ? ` · ${slice.publication.mode}/${slice.publication.access}` : ""}`}><code>{slice.definition.slice(0, 64)}</code></SettingRow>)}
             </SettingCard>
@@ -470,11 +477,18 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           )}
           {area === "publications" && (
             <SettingCard label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}>
+              {/* Publishing does not exist yet (B1): `projectPublishedMarkdown`,
+                  `PublishedSliceObjectStore`, `publishedSliceAccessCapabilities` and
+                  `publishedSliceProviderInstructions` are tested and have no caller.
+                  Until Stufe B wires them, this surface says so and the action is
+                  disabled — it used to print `.pvws/publications/<id>/` as a fact
+                  about a directory nothing writes to. */}
+              <Banner kind="warning" rounded>{t("workspaceSecurity.publicationPreviewOnly", { defaultValue: "Preview only: you can see how publishing will work, but nothing is shared yet." })}</Banner>
               <Banner kind="info" rounded>{t("workspaceSecurity.publicationIsolation", { defaultValue: "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption." })}</Banner>
               <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} desc={t("workspaceSecurity.publishDesc", { defaultValue: "Choose exact or sanitized content, read/comment/suggestion access and a provider." })}>
-                <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard(true))}>{t("workspaceSecurity.createPublication", { defaultValue: "Create publication" })}</Button>
+                <Button variant="primary" disabled>{t("workspaceSecurity.createPublication", { defaultValue: "Create publication" })}</Button>
               </SettingRow>
-              {governance?.slices.filter((slice) => slice.publication).map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.publication!.mode} · ${slice.publication!.access} · ${slice.publication!.provider}`}><code>.pvws/publications/{slice.sliceId}/</code></SettingRow>)}
+              {governance?.slices.filter((slice) => slice.publication).map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.publication!.mode} · ${slice.publication!.access} · ${slice.publication!.provider}`} />)}
             </SettingCard>
           )}
         </div>

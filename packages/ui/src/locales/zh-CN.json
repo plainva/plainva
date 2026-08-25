@@ -3099,6 +3099,7 @@
     "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
     "publications": "发布",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPreviewOnly": "仅为预览：你可以看到发布将如何运作，但目前还不会共享任何内容。",
     "publishSlice": "发布仓库切片",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "创建发布",

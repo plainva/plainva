@@ -3126,6 +3126,7 @@
     "revokeFullQuestion": "Access is removed immediately and all current encrypted content is queued for a resumable full rekey. Previously downloaded plaintext cannot be taken back.",
     "publications": "Publications",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption.",
+    "publicationPreviewOnly": "Preview only: you can see how publishing will work, but nothing is shared yet.",
     "publishSlice": "Publish a Vault Slice",
     "publishDesc": "Choose exact or sanitized content, read/comment/suggestion access and a provider.",
     "createPublication": "Create publication",

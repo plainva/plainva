@@ -3155,6 +3155,7 @@
     "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
     "publications": "Pubblicazioni",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPreviewOnly": "Solo un’anteprima: puoi vedere come funzionerà la pubblicazione, ma non viene ancora condiviso nulla.",
     "publishSlice": "Pubblica uno slice del vault",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "Crea pubblicazione",

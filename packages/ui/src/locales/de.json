@@ -3126,6 +3126,7 @@
     "revokeFullQuestion": "Der Zugriff endet sofort. Alle aktuellen verschlüsselten Inhalte werden für eine fortsetzbare vollständige Neuverschlüsselung eingereiht. Bereits heruntergeladener Klartext kann nicht zurückgeholt werden.",
     "publications": "Veröffentlichungen",
     "publicationIsolation": "Veröffentlichte Slices verwenden einen getrennten verschlüsselten Workspace-Namensraum. Anbieterrechte sind nur zusätzlicher Schutz.",
+    "publicationPreviewOnly": "Nur eine Vorschau: Du siehst, wie das Veröffentlichen aussehen wird — weitergegeben wird noch nichts.",
     "publishSlice": "Vault Slice veröffentlichen",
     "publishDesc": "Wähle exakte oder bereinigte Inhalte, Lesen/Kommentieren/Vorschlagen und einen Anbieter.",
     "createPublication": "Veröffentlichung erstellen",

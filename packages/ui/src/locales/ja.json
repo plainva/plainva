@@ -3099,6 +3099,7 @@
     "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
     "publications": "公開",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPreviewOnly": "プレビューのみ: 公開の仕組みを確認できますが、まだ何も共有されません。",
     "publishSlice": "保管庫スライスを公開",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "公開を作成",

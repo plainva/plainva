@@ -190,4 +190,33 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).not.toContain("setMemberId");
     expect(mobile).not.toContain('t("workspaceSecurity.memberId"');
   });
+  it("says the publication does not exist yet instead of pretending it does (P1, B1)", () => {
+    // Four core primitives are tested and have NO caller: projectPublishedMarkdown,
+    // PublishedSliceObjectStore, publishedSliceAccessCapabilities and
+    // publishedSliceProviderInstructions. Until Stufe B wires them, no surface may
+    // suggest that publishing happens.
+    //
+    // The guarantee is structural, not cosmetic: opening the wizard PINS the mode to
+    // "private" in state, so the submit path below cannot construct a publication even
+    // if a `disabled` attribute were lost in a refactor.
+    expect(page).toContain('const openSliceWizard = (): void => {');
+    expect(page).toMatch(/openSliceWizard[\s\S]{0,400}?publicationMode: "private"/);
+    // The publications area no longer prints a directory nothing writes to,
+    // and its action is disabled.
+    // Comments may still name the path (they explain why it left); what must not
+    // survive is the path being RENDERED.
+    const pageCode = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(pageCode).not.toContain(".pvws/publications/");
+    expect(page).toContain("workspaceSecurity.publicationPreviewOnly");
+    expect(page).toMatch(/createPublication[\s\S]{0,200}?disabled|disabled[\s\S]{0,200}?createPublication/);
+    // Both shells say the same sentence — otherwise the desktop is honest and
+    // the phone is not.
+    expect(mobile).toContain("workspaceSecurity.publicationPreviewOnly");
+    // The three wizard decisions stay VISIBLE (so the shape is known) but are
+    // disabled; the old `publicationMode !== "private"` gate that hid access and
+    // provider is gone.
+    expect(dialog).toContain("workspaceSecurity.publicationPreviewOnly");
+    expect(dialog).not.toContain('form.publicationMode !== "private" &&');
+    expect(dialog.match(/<Select disabled/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
 });
