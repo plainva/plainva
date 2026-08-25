@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-24
+Última revisão: 2026-08-25
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -180,6 +180,8 @@ Cada cartão também informa o que *não* viaja: os logins sempre ficam no dispo
 As duas configurações — o espaço de trabalho criptografado e a frase secreta de sincronização — agora funcionam como **um fluxo próprio, sem barra de navegação**: enquanto uma delas está aberta, existe exatamente uma saída, e ela pergunta antes. Isso não é enfeite. Até a última etapa, sua chave existe só na memória, e sair a descarta; antes, um toque na barra podia fazer isso sem dizer nada. A última etapa mostra uma barra de progresso quando há algo a contar — o espaço de trabalho volta a criptografar cada arquivo, enquanto a frase secreta de sincronização consiste em duas gravações, e inventar uma porcentagem para esta última seria uma mentira em forma de barra.
 
 **Os compartilhamentos são gerenciados aqui agora**, não apenas no desktop: em **Pessoas e permissões** você convida um membro com um papel (**Convidar** o cria — o dispositivo dele você pareia depois), cria um grupo e altera o papel de um grupo direto na linha dele. Em **Slices** você cria um compartilhamento para uma **Pasta**. Deliberadamente fora do celular: slices a partir de uma seleção livre ou de uma regra dinâmica — ambos exigiriam telas que não existem aqui.
+
+**Deixar outro app sincronizar a pasta (iPhone e iPad).** A pasta do Plainva aparece no app **Arquivos**, em **No meu iPhone** → **Plainva**. Assim, outro programa — um cliente Syncthing, por exemplo — pode selecioná-la e mantê-la sincronizada entre seus dispositivos sem que o Plainva se conecte a nenhum serviço de nuvem. O vault que você criou no dispositivo fica ali como `vault`; cada conexão na nuvem ganha sua própria subpasta em `vaults`. O contrário não vale: o Plainva trabalha na própria pasta, não na de outro app. No Android essa pasta não fica visível para outros programas.
 
 ## Rede de segurança
 

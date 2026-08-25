@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-24
+Stand: 2026-08-25
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -180,6 +180,8 @@ Jede Karte sagt auch, was *nicht* mitreist: Anmeldungen bleiben immer auf dem Ge
 Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase — laufen jetzt als **eigener Ablauf ohne Navigationsleiste**: solange sie läuft, gibt es genau einen Weg hinaus, und der fragt nach. Das ist kein Zierrat. Bis zum letzten Schritt existiert Dein Schlüssel nur im Arbeitsspeicher, und Verlassen verwirft ihn; vorher konnte ein Tipp auf die Leiste das wortlos tun. Der letzte Schritt zeigt einen Fortschrittsbalken, wenn es etwas zu zählen gibt — beim Workspace wird jede Datei neu verschlüsselt, bei der Sync-Passphrase sind es zwei Schreibvorgänge, und dafür eine Prozentzahl zu erfinden wäre eine Lüge in Balkenform.
 
 **Freigaben verwaltest Du jetzt hier**, nicht mehr nur am Desktop: unter **Personen & Rechte** lädst Du ein Mitglied mit einer Rolle ein (**Einladen** legt es an — sein Gerät koppelst Du danach), legst eine Gruppe an und änderst die Rolle einer Gruppe direkt in ihrer Zeile. Unter **Slices** erstellst Du eine Freigabe für einen **Ordner**. Bewusst nicht auf dem Telefon: Slices aus einer freien Auswahl oder einer dynamischen Regel — beide bräuchten Flächen, die es hier nicht gibt.
+
+**Von einer anderen App synchronisieren lassen (iPhone und iPad).** Plainvas Ordner erscheint in der **Dateien**-App unter **Auf meinem iPhone** → **Plainva**. Ein anderes Programm — etwa ein Syncthing-Client — kann ihn damit auswählen und über Deine Geräte hinweg synchron halten, ganz ohne Cloud-Verbindung in Plainva. Der Vault, den Du auf dem Gerät angelegt hast, liegt darin als `vault`, jede Cloud-Verbindung als eigener Unterordner unter `vaults`. Umgekehrt gilt das nicht: Plainva arbeitet in seinem eigenen Ordner, nicht in dem einer anderen App. Unter Android ist dieser Ordner für andere Programme nicht sichtbar.
 
 ## Sicherheitsnetz
 

@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-08-24
+Dernière mise à jour : 2026-08-25
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -180,6 +180,8 @@ Chaque carte précise aussi ce qui *ne* voyage *pas* : les connexions restent to
 Les deux configurations — l'espace de travail chiffré et la phrase secrète de synchronisation — s'exécutent désormais comme **leur propre parcours, sans barre de navigation** : tant que l'une des deux est en cours, il n'y a qu'une seule sortie, et elle demande confirmation d'abord. Ce n'est pas un ornement. Jusqu'à la dernière étape, votre clé n'existe qu'en mémoire, et quitter la supprime ; auparavant, un simple appui sur la barre pouvait le faire sans un mot. La dernière étape affiche une barre de progression là où il y a quelque chose à compter — l'espace de travail rechiffre chaque fichier, tandis que la phrase secrète de synchronisation représente deux écritures, et inventer un pourcentage pour cette dernière serait un mensonge en forme de barre.
 
 **Les partages se gèrent désormais ici**, et plus seulement sur le bureau : dans **Personnes et droits**, vous invitez un membre avec un rôle (**Inviter** le crée — son appareil est appairé ensuite), vous créez un groupe et vous changez le rôle d'un groupe directement dans sa ligne. Dans **Slices**, vous créez un partage pour un **Dossier**. Délibérément absents du téléphone : les slices issus d'une sélection libre ou d'une règle dynamique — les deux exigeraient des surfaces qui n'existent pas ici.
+
+**Laisser une autre app synchroniser le dossier (iPhone et iPad).** Le dossier de Plainva apparaît dans l'app **Fichiers**, sous **Sur mon iPhone** → **Plainva**. Un autre programme — un client Syncthing, par exemple — peut donc le sélectionner et le garder synchronisé entre vos appareils, sans que Plainva soit relié à un service cloud. Le vault que vous avez créé sur l'appareil s'y trouve sous `vault` ; chaque connexion cloud reçoit son propre sous-dossier dans `vaults`. L'inverse n'est pas vrai : Plainva travaille dans son propre dossier, pas dans celui d'une autre app. Sous Android, ce dossier n'est pas visible pour les autres programmes.
 
 ## Filet de sécurité
 

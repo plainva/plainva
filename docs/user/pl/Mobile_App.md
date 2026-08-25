@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-24
+Stan na: 2026-08-25
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -180,6 +180,8 @@ Każda karta podaje też, co *nie* podróżuje: logowania zawsze pozostają na u
 Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacji — działają teraz jako **osobny proces, bez paska nawigacji**: dopóki jedna z nich jest otwarta, istnieje dokładnie jedno wyjście, i ono pyta o potwierdzenie. To nie jest ozdobnik. Aż do ostatniego kroku Twój klucz istnieje wyłącznie w pamięci, a wyjście go odrzuca; wcześniej dotknięcie paska mogło to zrobić bez słowa. Ostatni krok pokazuje pasek postępu tam, gdzie jest coś do policzenia — obszar roboczy szyfruje na nowo każdy plik, podczas gdy fraza hasłowa synchronizacji to dwa zapisy, a wymyślanie dla niej procentu byłoby kłamstwem w kształcie paska.
 
 **Udostępnieniami zarządzasz teraz tutaj**, a nie tylko na komputerze: w sekcji **Osoby i uprawnienia** zapraszasz członka z rolą (**Zaproś** go tworzy — jego urządzenie parujesz później), tworzysz grupę i zmieniasz rolę grupy bezpośrednio w jej wierszu. W sekcji **Slices** tworzysz udostępnienie dla **Folder**. Świadomie nie na telefonie: slices z dowolnego wyboru lub z reguły dynamicznej — obie potrzebowałyby ekranów, których tu nie ma.
+
+**Synchronizacja folderu przez inną aplikację (iPhone i iPad).** Folder Plainvy pojawia się w aplikacji **Pliki**, w sekcji **Na moim iPhonie** → **Plainva**. Inny program — na przykład klient Syncthing — może go tam wskazać i utrzymywać w synchronizacji między Twoimi urządzeniami, bez łączenia Plainvy z jakąkolwiek usługą w chmurze. Vault utworzony na urządzeniu leży w nim jako `vault`; każde połączenie z chmurą dostaje własny podfolder w `vaults`. W drugą stronę to nie działa: Plainva pracuje we własnym folderze, nie w folderze innej aplikacji. Na Androidzie ten folder nie jest widoczny dla innych programów.
 
 ## Sieć bezpieczeństwa
 
