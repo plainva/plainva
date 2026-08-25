@@ -4,7 +4,7 @@ import { QrCode } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { credentialManager } from "../../services/CredentialManager";
-import { decodeWorkspaceInvite } from "../../services/workspaceSecurity/workspacePairing";
+import { decodeWorkspaceInvite, type PendingJoin } from "../../services/workspaceSecurity/workspacePairing";
 
 /**
  * Desktop device-join flow (package C1): paste the invitation code the owner
@@ -27,7 +27,7 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
   const [deviceName, setDeviceName] = useState(() => navigator.platform || "Desktop");
   const [fallbackRequired, setFallbackRequired] = useState(false);
   const [fallbackPassphrase, setFallbackPassphrase] = useState("");
-  const [pending, setPending] = useState<{ shortCode: string; fingerprint: string } | null>(null);
+  const [pending, setPending] = useState<PendingJoin | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -37,14 +37,41 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
     void getPendingWorkspaceJoin().then((existing) => { if (existing) setPending(existing); });
   }, [getPendingWorkspaceJoin]);
 
+  /*
+   * Asking whether the join was approved can fail - no network, a remote that
+   * rejects, a wrong fallback passphrase - and every failure used to end in the
+   * console. On screen nothing moved, so a broken connection looked exactly
+   * like "nobody has approved yet". The reason is now shown, and a later
+   * successful check clears it again: the auto-poll runs every few seconds, so
+   * a stale error would otherwise outlive the problem it describes.
+   */
   const poll = React.useCallback(async () => {
     try {
       const joined = await pollWorkspaceJoin(fallbackPassphrase || undefined);
-      if (joined) { toast.info(t("workspaceSecurity.joinDone", { defaultValue: "Joined. Opening the vault…" })); onClose(); }
+      if (joined) { toast.info(t("workspaceSecurity.joinDone", { defaultValue: "Joined. Opening the vault…" })); onClose(); return; }
+      setError(null);
     } catch (cause) {
       console.error("[WorkspaceJoinDialog] poll failed", cause);
+      setError(t("workspaceSecurity.joinPollFailed", { reason: cause instanceof Error ? cause.message : String(cause) }));
     }
   }, [pollWorkspaceJoin, fallbackPassphrase, t, onClose]);
+
+  /*
+   * A pairing request dies at a fixed time. A screen that still says "waiting"
+   * afterwards states something untrue, and the person has no way to see it -
+   * the approving side has shown that deadline all along. It is scheduled, not
+   * polled: one timeout that fires exactly when the request becomes worthless.
+   */
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    const deadline = pending?.expiresAt ? Date.parse(pending.expiresAt) : Number.NaN;
+    if (!Number.isFinite(deadline)) { setExpired(false); return; }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) { setExpired(true); return; }
+    setExpired(false);
+    const timer = setTimeout(() => setExpired(true), remaining);
+    return () => clearTimeout(timer);
+  }, [pending]);
 
   // Auto-poll every few seconds while waiting for approval.
   useEffect(() => {
@@ -95,7 +122,16 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
           <>
             <Banner kind="info" rounded>{t("workspaceSecurity.joinWaiting", { defaultValue: "Waiting for an existing device to approve this join. Keep Plainva open." })}</Banner>
             <div className="pv-security-field"><span>{t("workspaceSecurity.joinShortCodeHint", { defaultValue: "Give this code to the approving device" })}</span><code className="pv-security-code">{pending.shortCode}</code></div>
+            {pending.expiresAt && (
+              <div className="pv-security-field"><span>{t("workspaceSecurity.joinExpires")}</span><span>{new Date(pending.expiresAt).toLocaleString()}</span></div>
+            )}
+            {expired && <Banner kind="warning" rounded>{t("workspaceSecurity.joinExpired")}</Banner>}
             <div className="pv-security-field"><span>{t("workspaceSecurity.fingerprint", { defaultValue: "Fingerprint" })}</span><code className="pv-security-code">{pending.fingerprint}</code></div>
+            {/* Both sides of a pairing carry the same instruction - that is what
+                makes comparing the fingerprint worth anything. The approving
+                side says "approve only if it matches"; from here the same check
+                reads the other way round. */}
+            <Banner kind="warning" rounded>{t("workspaceSecurity.joinCompareFingerprint")}</Banner>
           </>
         )}
         {scanning && (

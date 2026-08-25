@@ -41,6 +41,14 @@ interface StoredPendingPairing {
   hpkePublicKey: string;
 }
 
+/** What a waiting join shows: the code to read out, the fingerprint to compare,
+ * and the deadline after which neither of them is worth anything any more. */
+export interface PendingJoin {
+  shortCode: string;
+  fingerprint: string;
+  expiresAt: string | null;
+}
+
 const pendingKey = (vaultPath: string) => `workspace_join_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 /** Reads and hashes the remote genesis so a join can be verified against the
@@ -61,7 +69,7 @@ export async function beginWorkspaceJoin(input: {
   store: WorkspaceObjectStore;
   invite: WorkspaceInvite;
   deviceName: string;
-}): Promise<{ shortCode: string; fingerprint: string; token: string }> {
+}): Promise<PendingJoin & { token: string }> {
   const remote = await detectRemoteWorkspace(input.store);
   if (!remote) throw new Error("join-no-remote-workspace");
   if (remote.workspaceId !== input.invite.workspaceId || remote.fingerprint !== input.invite.fingerprint) {
@@ -85,12 +93,36 @@ export async function beginWorkspaceJoin(input: {
     hpkePublicKey: toBase64(created.device.secrets.hpke.publicKey),
   };
   await credentialManager.writeSecret(pendingKey(input.vaultPath), pending);
-  return { shortCode: created.shortCode, fingerprint: created.fingerprint, token: created.token };
+  return { shortCode: created.shortCode, fingerprint: created.fingerprint, expiresAt: created.request.payload.expiresAt, token: created.token };
 }
 
-export async function hasPendingWorkspaceJoin(vaultPath: string): Promise<{ shortCode: string; fingerprint: string } | null> {
+/**
+ * Reads the expiry out of the stored request (P5, finding B10).
+ *
+ * A pairing request expires, and until now the joining side never said when -
+ * it waited on a screen that looked identical an hour after the request had
+ * become unusable, while the approving side showed the deadline all along. The
+ * expiry needs no storage change: it is a signed field of the token we already
+ * keep, and `parseWorkspacePairingRequest` is the same reader the approving
+ * side uses. `allowExpired` is deliberate here - an expired request is exactly
+ * what we want to be able to display.
+ *
+ * null means the stored token cannot be read at all. Then the request is dead
+ * anyway; the dialog still shows code and fingerprint rather than throwing, so
+ * "cancel and start again" stays reachable.
+ */
+function storedExpiry(stored: StoredPendingPairing): string | null {
+  try {
+    return parseWorkspacePairingRequest(stored.token, { allowExpired: true }).payload.expiresAt;
+  } catch (cause) {
+    console.error("[workspacePairing] pending join token unreadable", cause);
+    return null;
+  }
+}
+
+export async function hasPendingWorkspaceJoin(vaultPath: string): Promise<PendingJoin | null> {
   const pending = await credentialManager.readSecret<StoredPendingPairing>(pendingKey(vaultPath));
-  return pending ? { shortCode: pending.shortCode, fingerprint: pending.fingerprint } : null;
+  return pending ? { shortCode: pending.shortCode, fingerprint: pending.fingerprint, expiresAt: storedExpiry(pending) } : null;
 }
 
 export async function cancelWorkspaceJoin(vaultPath: string): Promise<void> {

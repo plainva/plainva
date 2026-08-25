@@ -3484,7 +3484,11 @@
       "Commenter": "Comentarista",
       "Reader": "Leitor",
       "Contributor": "Colaborador"
-    }
+    },
+    "joinPollFailed": "Não foi possível verificar a aprovação: {{reason}}",
+    "joinExpires": "A solicitação expira",
+    "joinExpired": "Esta solicitação expirou. Se ninguém aprovou a tempo, cancele e solicite de novo.",
+    "joinCompareFingerprint": "Leia esta impressão digital para o dispositivo que aprova. Lá deve aparecer exatamente a mesma."
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

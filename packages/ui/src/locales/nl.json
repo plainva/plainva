@@ -3456,7 +3456,11 @@
       "Commenter": "Reageerder",
       "Reader": "Lezer",
       "Contributor": "Bijdrager"
-    }
+    },
+    "joinPollFailed": "Controleren op goedkeuring mislukt: {{reason}}",
+    "joinExpires": "Verzoek verloopt",
+    "joinExpired": "Dit verzoek is verlopen. Heeft niemand het op tijd goedgekeurd, annuleer dan en vraag opnieuw aan.",
+    "joinCompareFingerprint": "Lees deze vingerafdruk voor aan het goedkeurende apparaat. Daar moet exact dezelfde staan."
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

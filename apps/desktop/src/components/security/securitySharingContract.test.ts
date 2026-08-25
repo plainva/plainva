@@ -104,6 +104,33 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(join).toContain("pv-security-model");
   });
 
+  it("tells a waiting join what went wrong, when it dies, and what to compare (P5, B10)", () => {
+    const join = readFileSync(new URL("./WorkspaceJoinDialog.tsx", import.meta.url), "utf8");
+    const pairing = readFileSync(new URL("../../services/workspaceSecurity/workspacePairing.ts", import.meta.url), "utf8");
+    // A failing poll used to end in the console, so a broken connection looked
+    // exactly like "nobody has approved yet".
+    expect(join).toContain('t("workspaceSecurity.joinPollFailed"');
+    // ... and a later success has to take the banner away again, or one dropped
+    // request would leave a permanent error on a screen that is working.
+    expect(join).toMatch(/if \(joined\)[\s\S]{0,200}?setError\(null\)/);
+    // The deadline is read back out of the signed token that is already stored,
+    // which is why a pending join from before this change also shows it.
+    expect(pairing).toMatch(/function storedExpiry\([\s\S]{0,400}?allowExpired: true/);
+    expect(pairing).toMatch(/hasPendingWorkspaceJoin[\s\S]{0,400}?expiresAt: storedExpiry\(pending\)/);
+    // Expiry is scheduled, not polled: the screen stops claiming to wait at the
+    // moment the request dies, not at the next re-render.
+    expect(join).toContain("setTimeout(() => setExpired(true), remaining)");
+    expect(join).toContain('t("workspaceSecurity.joinExpires")');
+    expect(join).toContain('t("workspaceSecurity.joinExpired")');
+    // Comparing a fingerprint is only worth something when both sides are told
+    // to compare it - the approving side always was, the waiting side was not.
+    expect(join).toContain('t("workspaceSecurity.joinCompareFingerprint")');
+    expect(mobile).toContain('t("workspaceSecurity.pairingVerifyLabel"');
+    // Same deadline on the phone, or the desktop is honest and the phone is not.
+    expect(mobile).toContain('t("workspaceSecurity.joinExpires")');
+    expect(mobile).toContain('t("workspaceSecurity.joinExpired")');
+  });
+
   it("offers a confirmed workspace decommission + orphan recovery (Stilllegen P4)", () => {
     expect(page).toContain("decommissionWorkspace");
     expect(page).toContain('data-testid="workspace-decommission"');

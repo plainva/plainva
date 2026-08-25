@@ -62,7 +62,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [status, setStatus] = useState<MobileWorkspaceStatus | null>(null);
   const [inviteCode, setInviteCode] = useState("");
   const [deviceName, setDeviceName] = useState(() => navigator.platform || "Mobile");
-  const [request, setRequest] = useState<{ token: string; shortCode: string; fingerprint: string } | null>(null);
+  const [request, setRequest] = useState<{ token: string; shortCode: string; fingerprint: string; expiresAt: string } | null>(null);
+  /* A pairing request dies at a fixed time; scheduled, not polled, so the screen
+   * stops claiming to wait the moment the request is worthless (P5, B10). */
+  const [requestExpired, setRequestExpired] = useState(false);
   const [recoveryBytes, setRecoveryBytes] = useState<Uint8Array | null>(null);
   const [recoveryFileName, setRecoveryFileName] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
@@ -114,6 +117,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     if (store && rt) await refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects: await sliceObjects() }).catch(() => false);
   }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const deadline = request ? Date.parse(request.expiresAt) : Number.NaN;
+    if (!Number.isFinite(deadline)) { setRequestExpired(false); return; }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) { setRequestExpired(true); return; }
+    setRequestExpired(false);
+    const timer = setTimeout(() => setRequestExpired(true), remaining);
+    return () => clearTimeout(timer);
+  }, [request]);
 
   /** One remote probe decides what this screen may claim. */
   const probeConnection = useCallback(async () => {
@@ -693,6 +706,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             </div>
           </div>
           <p className="m-hint">{t("workspaceSecurity.pairingShareExplain", { defaultValue: "Send this code to the approver. Once they confirm it, this device joins and unlocks." })}</p>
+          <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.joinExpires")}</span><code className="m-code">{new Date(request.expiresAt).toLocaleString()}</code></div>
+          {requestExpired && <Banner kind="warning" rounded>{t("workspaceSecurity.joinExpired")}</Banner>}
           <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{request.fingerprint}</code></div>
           <GroupCard><RowList><Row
             disabled={busy}

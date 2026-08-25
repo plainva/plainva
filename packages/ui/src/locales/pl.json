@@ -3512,7 +3512,11 @@
       "Commenter": "Komentujący",
       "Reader": "Czytelnik",
       "Contributor": "Współtwórca"
-    }
+    },
+    "joinPollFailed": "Nie udało się sprawdzić zatwierdzenia: {{reason}}",
+    "joinExpires": "Prośba wygasa",
+    "joinExpired": "Ta prośba wygasła. Jeśli nikt nie zatwierdził jej na czas, anuluj i poproś ponownie.",
+    "joinCompareFingerprint": "Przeczytaj ten odcisk urządzeniu zatwierdzającemu. Musi tam być dokładnie taki sam."
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

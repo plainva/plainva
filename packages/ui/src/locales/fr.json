@@ -3484,7 +3484,11 @@
       "Commenter": "Commentateur",
       "Reader": "Lecteur",
       "Contributor": "Contributeur"
-    }
+    },
+    "joinPollFailed": "Échec de la vérification : {{reason}}",
+    "joinExpires": "La demande expire",
+    "joinExpired": "Cette demande a expiré. Si personne ne l’a approuvée à temps, annulez et redemandez.",
+    "joinCompareFingerprint": "Lisez cette empreinte à l’appareil qui approuve. Il doit afficher exactement la même."
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

@@ -3484,7 +3484,11 @@
       "Commenter": "Commentatore",
       "Reader": "Lettore",
       "Contributor": "Collaboratore"
-    }
+    },
+    "joinPollFailed": "Impossibile verificare l’approvazione: {{reason}}",
+    "joinExpires": "La richiesta scade",
+    "joinExpired": "Questa richiesta è scaduta. Se nessuno l’ha approvata in tempo, annulla e richiedi di nuovo.",
+    "joinCompareFingerprint": "Leggi questa impronta al dispositivo che approva. Lì deve comparire esattamente la stessa."
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",

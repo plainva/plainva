@@ -21,7 +21,7 @@ import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settin
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { changeWorkspaceFallbackPassphrase, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
-import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
+import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
 import { requestCalendarDay } from "../services/pim/calendarNav";
@@ -205,9 +205,9 @@ interface VaultContextType extends VaultState {
   approveWorkspaceDevice: (tokenOrCode: string) => Promise<string>;
   inspectWorkspacePairingRequest: (tokenOrCode: string) => Promise<{ token: string; deviceName: string; platform: string; memberId: string; fingerprint: string; expiresAt: string }>;
   detectJoinableWorkspace: () => Promise<{ workspaceId: string; fingerprint: string } | null>;
-  beginWorkspaceJoin: (invite: WorkspaceInvite, deviceName: string) => Promise<{ shortCode: string; fingerprint: string }>;
+  beginWorkspaceJoin: (invite: WorkspaceInvite, deviceName: string) => Promise<PendingJoin>;
   pollWorkspaceJoin: (fallbackPassphrase?: string) => Promise<boolean>;
-  getPendingWorkspaceJoin: () => Promise<{ shortCode: string; fingerprint: string } | null>;
+  getPendingWorkspaceJoin: () => Promise<PendingJoin | null>;
   cancelPendingWorkspaceJoin: () => Promise<void>;
   revokeWorkspaceDevice: (deviceId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
   revokeWorkspaceMember: (memberId: string, reason: string, mode?: WorkspaceRekeyMode) => Promise<void>;
@@ -2136,10 +2136,10 @@ export const VaultProvider: React.FC<{
     catch (error) { console.warn("[VaultContext] detectJoinableWorkspace failed", error); return null; }
   };
 
-  const beginWorkspaceJoin = async (invite: WorkspaceInvite, deviceName: string): Promise<{ shortCode: string; fingerprint: string }> => {
+  const beginWorkspaceJoin = async (invite: WorkspaceInvite, deviceName: string): Promise<PendingJoin> => {
     const { store, vaultPath } = joinObjectStore();
     const result = await beginWorkspaceJoinFlow({ vaultPath, store, invite, deviceName });
-    return { shortCode: result.shortCode, fingerprint: result.fingerprint };
+    return { shortCode: result.shortCode, fingerprint: result.fingerprint, expiresAt: result.expiresAt };
   };
 
   const pollWorkspaceJoin = async (fallbackPassphrase?: string): Promise<boolean> => {

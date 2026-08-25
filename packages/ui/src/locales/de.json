@@ -3456,7 +3456,11 @@
       "Commenter": "Kommentator",
       "Reader": "Leser",
       "Contributor": "Beitragender"
-    }
+    },
+    "joinPollFailed": "Nachfragen fehlgeschlagen: {{reason}}",
+    "joinExpires": "Anfrage läuft ab",
+    "joinExpired": "Diese Anfrage ist abgelaufen. Wenn niemand rechtzeitig freigegeben hat, brich ab und frage erneut an.",
+    "joinCompareFingerprint": "Lies diesen Fingerprint dem genehmigenden Gerät vor. Dort muss exakt derselbe stehen."
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

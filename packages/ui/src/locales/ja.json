@@ -3428,7 +3428,11 @@
       "Commenter": "コメント者",
       "Reader": "閲覧者",
       "Contributor": "投稿者"
-    }
+    },
+    "joinPollFailed": "承認の確認に失敗しました: {{reason}}",
+    "joinExpires": "リクエストの有効期限",
+    "joinExpired": "このリクエストは期限切れです。時間内に誰も承認しなかった場合は、キャンセルしてもう一度リクエストしてください。",
+    "joinCompareFingerprint": "このフィンガープリントを承認する端末に読み上げてください。そちらにも全く同じものが表示されている必要があります。"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

@@ -209,7 +209,11 @@ export async function activatePreparedMobileWorkspace(input: {
   }
 }
 
-export async function beginMobileWorkspacePairing(input: { vaultId: string; store: WorkspaceObjectStore; workspaceId: string; fingerprint: string; memberId: string; deviceName: string }): Promise<{ token: string; shortCode: string; fingerprint: string }> {
+/** The expiry travels with the request (P5, finding B10): it is a signed field
+ * of the token, and the approving side has always shown it. The requesting side
+ * says it too now, so a screen that still says "waiting" can be recognised as
+ * one that is waiting for nothing. */
+export async function beginMobileWorkspacePairing(input: { vaultId: string; store: WorkspaceObjectStore; workspaceId: string; fingerprint: string; memberId: string; deviceName: string }): Promise<{ token: string; shortCode: string; fingerprint: string; expiresAt: string }> {
   const created = await createWorkspacePairingRequest({ workspaceId: input.workspaceId, workspaceFingerprint: input.fingerprint, memberId: input.memberId, deviceDisplayName: input.deviceName, platform: Capacitor.getPlatform() === "ios" ? "ios" : "android" });
   await publishWorkspacePairingRequest(input.store, created);
   await secureCredentialStore.writeSecret<StoredPendingPairing>(pendingKey(input.vaultId), {
@@ -218,7 +222,7 @@ export async function beginMobileWorkspacePairing(input: { vaultId: string; stor
     hpkePrivateKey: toBase64(created.device.secrets.hpke.privateKey), hpkePublicKey: toBase64(created.device.secrets.hpke.publicKey),
   });
   await saveStatus(input.vaultId, { version: 1, workspaceId: input.workspaceId, fingerprint: input.fingerprint, deviceName: input.deviceName, phase: "pairing", lastError: null });
-  return { token: created.token, shortCode: created.shortCode, fingerprint: created.fingerprint };
+  return { token: created.token, shortCode: created.shortCode, fingerprint: created.fingerprint, expiresAt: created.request.payload.expiresAt };
 }
 
 function restoreCreated(stored: StoredPendingPairing): CreatedWorkspacePairingRequest {

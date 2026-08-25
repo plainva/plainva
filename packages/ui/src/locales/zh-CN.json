@@ -3428,7 +3428,11 @@
       "Commenter": "评论者",
       "Reader": "阅读者",
       "Contributor": "贡献者"
-    }
+    },
+    "joinPollFailed": "无法检查批准状态：{{reason}}",
+    "joinExpires": "请求过期时间",
+    "joinExpired": "此请求已过期。如果没有人及时批准，请取消并重新请求。",
+    "joinCompareFingerprint": "把这个指纹读给批准设备。那里必须显示完全相同的指纹。"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

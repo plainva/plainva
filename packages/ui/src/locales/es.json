@@ -3484,7 +3484,11 @@
       "Commenter": "Comentarista",
       "Reader": "Lector",
       "Contributor": "Colaborador"
-    }
+    },
+    "joinPollFailed": "No se pudo comprobar la aprobación: {{reason}}",
+    "joinExpires": "La solicitud caduca",
+    "joinExpired": "Esta solicitud ha caducado. Si nadie la aprobó a tiempo, cancela y vuelve a solicitarla.",
+    "joinCompareFingerprint": "Lee esta huella al dispositivo que aprueba. Allí debe aparecer exactamente la misma."
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

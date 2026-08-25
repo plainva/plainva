@@ -3456,7 +3456,11 @@
       "Commenter": "Commenter",
       "Reader": "Reader",
       "Contributor": "Contributor"
-    }
+    },
+    "joinPollFailed": "Could not check for approval: {{reason}}",
+    "joinExpires": "Request expires",
+    "joinExpired": "This request has expired. If nobody approved it in time, cancel and request again.",
+    "joinCompareFingerprint": "Read this fingerprint out to the approving device. It has to show exactly the same one."
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",
