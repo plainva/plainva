@@ -397,6 +397,12 @@ function validatePolicy(payload: unknown): asserts payload is WorkspacePolicyPay
       assertExactKeys(publication, ["mode", "access", "provider", "propertyAllowlist", "privateProperties"], "slice.publication");
       protocolAssert(publication.mode === "exact" || publication.mode === "sanitized", "format", "invalid publication mode");
       protocolAssert(publication.access === "read" || publication.access === "comment" || publication.access === "suggest", "format", "invalid publication access");
+      // A suggestion names a passage in the published file and proposes what
+      // should stand there instead. Sanitizing REMOVES passages, so the range a
+      // suggestion points at may not exist on the other side - the proposal
+      // would arrive unapplicable. A remark needs no range, which is why
+      // comment access survives sanitizing and suggest access does not.
+      protocolAssert(publication.access !== "suggest" || publication.mode === "exact", "integrity", "a sanitized publication cannot grant suggest access");
       protocolAssert(["google-drive", "onedrive", "nextcloud", "dropbox", "webdav", "s3"].includes(publication.provider as string), "format", "invalid publication provider");
       if (publication.propertyAllowlist !== null) {
         const allowlist = asArray(publication.propertyAllowlist, 256, "slice.publication.propertyAllowlist") as string[];

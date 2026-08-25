@@ -45,9 +45,15 @@ export interface WorkspaceCommentRecord {
   /** Where in the note it sits, or null for the note as a whole. */
   anchor: WorkspaceCommentAnchor | null;
   createdAt: string;
-  /** Present only on an immutable resolution marker. */
+  /**
+   * A proposal for the anchored passage. `appliedAt`/`declinedAt` are the local
+   * verdict, written when the closing marker arrives - the sealed body carries
+   * only the replacement, so the outcome never has to be re-signed.
+   */
   suggestion: { replacement: string; appliedAt: string | null; appliedBy: string | null; declinedAt: string | null } | null;
+  /** Present only on an immutable resolution marker that closes a suggestion. */
   suggestionOutcome?: "applied" | "declined" | null;
+  /** Present only on an immutable resolution marker. */
   resolvedCommentId: string | null;
   resolvedAt: string | null;
 }

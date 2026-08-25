@@ -650,7 +650,8 @@
   border: 1px solid #808080;
   box-shadow: inset 1px 1px 0 #FFFFFF;
 }
-[data-theme-name="win95"] .pv-comment-card__quote {
+[data-theme-name="win95"] .pv-comment-card__quote,
+[data-theme-name="win95"] .pv-comment-card__replacement {
   box-shadow:
     inset 1px 1px 0 #808080,
     inset -1px -1px 0 #FFFFFF;

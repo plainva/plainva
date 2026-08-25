@@ -59,19 +59,21 @@ function comment(over: Partial<WorkspaceCommentRecord> & { commentId: string }):
     targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), parentCommentId: null,
     authorMemberId: "aabbccdd11223344", authorDeviceId: "de".repeat(16), operationHash: "ff".repeat(32),
     payloadHash: "ee".repeat(32), body: "-", anchor: null, createdAt: NOW,
-    resolvedCommentId: null, resolvedAt: null, ...over,
+    suggestion: null, resolvedCommentId: null, resolvedAt: null, ...over,
   } as WorkspaceCommentRecord;
 }
 
 const ANCHOR = { markerId: "7f3a", quote: "bis Ende des Jahres", before: "Der Vertrag laeuft ", after: ".", approximateOffset: 19 };
+const SUGGESTION = { replacement: "bis zum 31.12.2026", appliedAt: null, appliedBy: null, declinedAt: null };
 const NAMES = new Map([["aabbccdd11223344", "Marco"]]);
 const NO_RESOLUTIONS = new Map<string, WorkspaceCommentAnchorResolution>();
 
 function props(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn>> = {}) {
   return {
-    comments: [], memberNames: NAMES, resolutions: NO_RESOLUTIONS, canComment: true,
+    comments: [], memberNames: NAMES, resolutions: NO_RESOLUTIONS, canComment: true, canWrite: true,
     activeCommentId: null, selectionQuote: null,
     onSelect: vi.fn(), onSubmit: vi.fn(async () => {}), onResolve: vi.fn(),
+    onApplySuggestion: vi.fn(), onDeclineSuggestion: vi.fn(),
     ...over,
   } as React.ComponentProps<typeof WorkspaceCommentsColumn>;
 }
@@ -167,6 +169,90 @@ describe("workspace comment column", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ canComment: false, comments: [comment({ commentId: "aa".repeat(16) })] })} />);
     expect(host.querySelector(".pv-comment-compose")).toBeNull();
     expect([...host.querySelectorAll("button")]).toHaveLength(0);
+    unmount();
+  });
+
+  it("shows a suggestion as before and after, not as a sentence about the text", () => {
+    // The whole point of a suggestion over a comment is that the reader does
+    // not have to reconstruct the proposal from prose: the quoted passage is
+    // struck through and what would replace it stands directly underneath.
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, body: "zu vage", suggestion: SUGGESTION })],
+    })} />);
+    expect(host.querySelector(".pv-comment-card__quote--replaced")?.textContent).toBe("bis Ende des Jahres");
+    expect(host.querySelector(".pv-comment-card__replacement")?.textContent).toContain("bis zum 31.12.2026");
+    unmount();
+  });
+
+  it("names a deletion instead of showing an empty line", () => {
+    // An empty replacement is a proposal too - "remove this". Rendered as-is it
+    // would be a blank strip that says nothing.
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, suggestion: { replacement: "", appliedAt: null, appliedBy: null, declinedAt: null } })],
+    })} />);
+    expect(host.querySelector(".pv-comment-card__replacement")?.textContent).toContain(tr("workspaceSecurity.suggestionDeletes"));
+    unmount();
+  });
+
+  it("offers accepting only to someone who may write the note", () => {
+    // Accepting swaps text in the note; declining only closes the thread. A
+    // commenter therefore gets one of the two buttons, not both - and the one
+    // they get must not be the one that writes.
+    const open = comment({ commentId: "aa".repeat(16), anchor: ANCHOR, suggestion: SUGGESTION });
+    const writer = render(<WorkspaceCommentsColumn {...props({ comments: [open] })} />);
+    const writerLabels = [...writer.host.querySelectorAll("button")].map((b) => b.textContent?.trim());
+    expect(writerLabels).toContain(tr("workspaceSecurity.suggestionApply"));
+    expect(writerLabels).toContain(tr("workspaceSecurity.suggestionDecline"));
+    writer.unmount();
+
+    const commenter = render(<WorkspaceCommentsColumn {...props({ comments: [open], canWrite: false })} />);
+    const commenterLabels = [...commenter.host.querySelectorAll("button")].map((b) => b.textContent?.trim());
+    expect(commenterLabels).not.toContain(tr("workspaceSecurity.suggestionApply"));
+    expect(commenterLabels).toContain(tr("workspaceSecurity.suggestionDecline"));
+    commenter.unmount();
+  });
+
+  it("says which way a decided suggestion went", () => {
+    // Accepting and declining both resolve the thread. The plain "resolved"
+    // word would read the same either way and hide the one fact that matters.
+    const applied = render(<WorkspaceCommentsColumn {...props({
+      comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, appliedAt: NOW, appliedBy: "aabbccdd11223344" } })],
+    })} />);
+    expect(applied.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionApplied"));
+    applied.unmount();
+
+    const declined = render(<WorkspaceCommentsColumn {...props({
+      comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, declinedAt: NOW } })],
+    })} />);
+    expect(declined.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionDeclined"));
+    declined.unmount();
+  });
+
+  it("offers a suggestion only where there is a passage to replace", async () => {
+    // A proposal names the text it replaces. Without a selection there is
+    // nothing to propose against, so the switch must not even appear - the
+    // protocol would refuse the comment, and the refusal would arrive as an
+    // error after the writing.
+    const without = render(<WorkspaceCommentsColumn {...props()} />);
+    expect([...without.host.querySelectorAll("button")].map((b) => b.textContent?.trim())).not.toContain(tr("workspaceSecurity.suggestionStart"));
+    without.unmount();
+
+    const onSubmit = vi.fn(async () => {});
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ selectionQuote: "bis Ende des Jahres", onSubmit })} />);
+    const start = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === tr("workspaceSecurity.suggestionStart"));
+    expect(start).toBeDefined();
+    act(() => { start!.click(); });
+
+    // The proposal starts as the selected text - a suggestion is nearly always
+    // an edit of the passage, not a blank page.
+    const field = host.querySelector<HTMLTextAreaElement>(".pv-comment-compose__replacement");
+    expect(field?.value).toBe("bis Ende des Jahres");
+
+    const send = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === tr("workspaceSecurity.suggestionSend"));
+    // A suggestion may carry no sentence at all: the replacement IS the content.
+    expect(send?.hasAttribute("disabled")).toBe(false);
+    await act(async () => { send!.click(); });
+    expect(onSubmit).toHaveBeenCalledWith("", null, { replacement: "bis Ende des Jahres" });
     unmount();
   });
 });

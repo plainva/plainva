@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspacePolicyMember } from "@plainva/core";
+import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { BasePicker } from "./BasePicker";
 
@@ -1824,23 +1824,30 @@ export const Editor: React.FC<{
    * inserting markers would be a content write, which that capability does not
    * carry. Resolution stages 2 and 3 are built for exactly that case.
    */
-  const postComment = useCallback(async (body: string, parentCommentId: string | null) => {
+  const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
     const view = sessionRef.current?.view;
     const range = view?.state.selection.main;
     // A reply belongs to its thread, not to a place: it inherits the root anchor.
     if (parentCommentId !== null || !view || !range || range.empty) {
+      // A proposal without a passage has nothing to replace - the protocol
+      // refuses it, so the column never offers one. Fail loudly if it slips.
+      if (suggestion) throw new Error("workspace-suggestion-needs-selection");
       await postWorkspaceComment(activePath, body, parentCommentId, null);
       return;
     }
     const raw = view.state.doc.toString();
     const markerId = mintAnchorMarkerId(raw);
     const anchor = buildCommentAnchor(raw, range.from, range.to, markerId);
-    if (!anchor.quote) { await postWorkspaceComment(activePath, body, null, null); return; }
+    if (!anchor.quote) {
+      if (suggestion) throw new Error("workspace-suggestion-needs-selection");
+      await postWorkspaceComment(activePath, body, null, null);
+      return;
+    }
     const marked = !workspaceReadOnly;
     if (marked) view.dispatch({ changes: [{ from: range.from, insert: openAnchorMarker(markerId) }, { from: range.to, insert: closeAnchorMarker(markerId) }] });
     try {
-      await postWorkspaceComment(activePath, body, null, anchor);
+      await postWorkspaceComment(activePath, body, null, anchor, suggestion);
     } catch (error) {
       // The markers were an act of writing. If the comment never reached the
       // workspace, the note must not keep a pair nothing points at.
@@ -1852,6 +1859,47 @@ export const Editor: React.FC<{
       throw error;
     }
   }, [activePath, postWorkspaceComment, workspaceReadOnly]);
+
+  /**
+   * Writes the proposed text into the note, then closes the thread.
+   *
+   * This is an ORDINARY edit: it goes through the editor and therefore through
+   * the normal save path, so the version history covers the undo the same way
+   * it covers anything else typed here. The anchor markers stay where they are -
+   * accepting is a write plus a resolve, nothing more.
+   */
+  const applySuggestion = useCallback(async (comment: WorkspaceCommentRecord) => {
+    if (!activePath || !comment.suggestion) return;
+    const view = sessionRef.current?.view;
+    const resolution = anchorResolutions.get(comment.commentId);
+    // An orphan has no passage left to replace. Guessing a spot would write the
+    // proposal into a place nobody proposed it for.
+    if (!view || !resolution || resolution.status === "orphan") {
+      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      return;
+    }
+    const previous = view.state.doc.sliceString(resolution.from, resolution.to);
+    const replacement = comment.suggestion.replacement;
+    view.dispatch({ changes: { from: resolution.from, to: resolution.to, insert: replacement } });
+    try {
+      await resolveWorkspaceComment(activePath, comment.commentId, "applied");
+    } catch (error) {
+      // The swap already happened in the buffer. If the workspace never learned
+      // of it, the note must not silently keep a change nobody agreed to.
+      const current = sessionRef.current?.view;
+      if (current) current.dispatch({ changes: { from: resolution.from, to: resolution.from + replacement.length, insert: previous } });
+      toast.error(errorText(error));
+    }
+  }, [activePath, anchorResolutions, resolveWorkspaceComment, t]);
+
+  const declineSuggestion = useCallback(async (comment: WorkspaceCommentRecord) => {
+    if (!activePath) return;
+    try {
+      await resolveWorkspaceComment(activePath, comment.commentId, "declined");
+    } catch (error) {
+      toast.error(errorText(error));
+    }
+  }, [activePath, resolveWorkspaceComment]);
 
   // Live <-> source switches swap ONE compartment — the parser state survives,
   // so nothing collapses or jumps.
@@ -2237,6 +2285,9 @@ export const Editor: React.FC<{
           selectionQuote={selectionQuote}
           onSelect={setActiveCommentId}
           onSubmit={postComment}
+          canWrite={!workspaceReadOnly}
+          onApplySuggestion={(comment) => { void applySuggestion(comment); }}
+          onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
         />
       )}

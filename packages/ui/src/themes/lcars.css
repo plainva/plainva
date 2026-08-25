@@ -796,6 +796,9 @@
 [data-theme-name="lcars"] .pv-comment-card__quote {
   border-left-color: var(--lcars-1);
 }
+[data-theme-name="lcars"] .pv-comment-card__replacement {
+  border-left-color: var(--lcars-2);
+}
 [data-theme-name="lcars"] .pv-comment-card.is-active {
   border-left-color: var(--lcars-4);
 }

@@ -34,9 +34,19 @@ describe("encrypted workspace P8-P11 contracts", () => {
 
   it("stores publication mode, access, provider and scrub policy in the signed slice policy", async () => {
     const runtime = personalWorkspaceRuntime(await createPersonalWorkspaceBootstrap({ ownerDisplayName: "Owner", deviceDisplayName: "Desktop", platform: "desktop", minimumClientVersion: "0.4.2" }));
-    const created = createWorkspaceSlice({ runtime, name: "Partner", definition: { kind: "folder", folder: "Partner" }, materializedObjectIds: [], publication: { mode: "sanitized", access: "suggest", provider: "nextcloud", privateProperties: ["token", "secret"] } });
-    expect(created.policy.payload.slices[0].publication).toEqual({ mode: "sanitized", access: "suggest", provider: "nextcloud", propertyAllowlist: null, privateProperties: ["secret", "token"] });
+    const created = createWorkspaceSlice({ runtime, name: "Partner", definition: { kind: "folder", folder: "Partner" }, materializedObjectIds: [], publication: { mode: "sanitized", access: "comment", provider: "nextcloud", privateProperties: ["token", "secret"] } });
+    expect(created.policy.payload.slices[0].publication).toEqual({ mode: "sanitized", access: "comment", provider: "nextcloud", propertyAllowlist: null, privateProperties: ["secret", "token"] });
     expect(parseWorkspaceDocument(encodeWorkspaceDocument(created.policy)).payload).toEqual(created.policy.payload);
+  });
+
+  it("refuses to grant suggest access on a sanitized publication", async () => {
+    // A suggestion names a passage and proposes a replacement for it.
+    // Sanitizing removes passages, so the range could be missing on the other
+    // side and the proposal would arrive unapplicable. A remark needs no range
+    // - which is why the same slice may still be published for comments.
+    const runtime = personalWorkspaceRuntime(await createPersonalWorkspaceBootstrap({ ownerDisplayName: "Owner", deviceDisplayName: "Desktop", platform: "desktop", minimumClientVersion: "0.4.2" }));
+    expect(() => createWorkspaceSlice({ runtime, name: "Partner", definition: { kind: "folder", folder: "Partner" }, materializedObjectIds: [], publication: { mode: "sanitized", access: "suggest", provider: "nextcloud", privateProperties: [] } })).toThrow(/sanitized publication cannot grant suggest/);
+    expect(() => createWorkspaceSlice({ runtime, name: "Partner", definition: { kind: "folder", folder: "Partner" }, materializedObjectIds: [], publication: { mode: "exact", access: "suggest", provider: "nextcloud", privateProperties: [] } })).not.toThrow();
   });
 
   it("persists and idempotently resumes a full-rekey cursor", async () => {

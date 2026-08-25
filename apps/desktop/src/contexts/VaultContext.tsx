@@ -233,8 +233,8 @@ interface VaultContextType extends VaultState {
    * work for a label the editor needs on every note it opens.
    */
   listWorkspaceMembers: () => Promise<WorkspacePolicyMember[]>;
-  postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null) => Promise<void>;
-  resolveWorkspaceComment: (path: string, commentId: string) => Promise<void>;
+  postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null, suggestion?: { replacement: string } | null) => Promise<void>;
+  resolveWorkspaceComment: (path: string, commentId: string, suggestionOutcome?: "applied" | "declined" | null) => Promise<void>;
   listWorkspaceRevisions: (path: string) => Promise<WorkspaceRevisionRecord[] | null>;
   readWorkspaceRevision: (revisionId: string) => Promise<Uint8Array>;
 }
@@ -2309,7 +2309,7 @@ export const VaultProvider: React.FC<{
     return workspaceControlPlane().runtime.policy.payload.members;
   };
 
-  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null): Promise<void> => {
+  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null): Promise<void> => {
     const { runtime, workspaceState, store } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
     if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
@@ -2319,18 +2319,20 @@ export const VaultProvider: React.FC<{
     if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
     const groupIds = workspaceRecipientGroupIds(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
     const recipients = groupIds.map((groupId) => { const group = runtime.policy.payload.groups.find((entry) => entry.groupId === groupId)!; return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") }; });
-    const prepared = await prepareWorkspaceComment({ runtime, policyHash: meta.policyHash, sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash, targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId, body, parentCommentId, resolvedCommentId, anchor, recipients });
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: meta.policyHash, sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash, targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, recipients });
     await publishWorkspaceComment(store, prepared);
     await commitPublishedWorkspaceComment(workspaceState, prepared, meta);
     state.syncWorker?.triggerImmediate();
     window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
   };
 
-  const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor);
+  const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor, suggestion);
   // A resolve marker is a fact, not a message: it carries no body. The literal
   // English "Resolved" that used to travel here appeared verbatim in all ten
   // languages, on every device, for good — a marker has no text to translate.
-  const resolveWorkspaceComment = (path: string, commentId: string) => postWorkspaceCommentRecord(path, "", null, commentId);
+  // Accepting and declining close the thread the same way a plain resolve does;
+  // the outcome rides ALONG on the marker instead of re-signing the proposal.
+  const resolveWorkspaceComment = (path: string, commentId: string, suggestionOutcome: "applied" | "declined" | null = null) => postWorkspaceCommentRecord(path, "", null, commentId, null, null, suggestionOutcome);
 
   const listWorkspaceRevisions = async (path: string): Promise<WorkspaceRevisionRecord[] | null> => {
     if (!state.workspaceSecurityStatus) return null;
