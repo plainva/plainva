@@ -114,6 +114,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       plaintext_sha256    TEXT,
       content_kind        TEXT NOT NULL,
       deleted             INTEGER NOT NULL DEFAULT 0,
+      author_member_id    TEXT NOT NULL DEFAULT '',
       created_at          TEXT NOT NULL,
       modified_at         TEXT NOT NULL
     );`,
@@ -322,6 +323,16 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   try {
     await db.execute(`ALTER TABLE workspace_revision ADD COLUMN created_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z';`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Who created this object. The Contributor role grants `content.create` but not
+    // `content.write`, so without an author the first autosave of a contributor's own
+    // note was denied. Existing rows default to '' — an unknown author stays denied,
+    // which is the same answer the code gave before the column existed.
+    await db.execute(`ALTER TABLE workspace_object ADD COLUMN author_member_id TEXT NOT NULL DEFAULT '';`);
   } catch {
     // Column might already exist
   }

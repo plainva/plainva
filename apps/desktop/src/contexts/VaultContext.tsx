@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, workspaceRecipientGroupIds, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -193,6 +193,8 @@ interface VaultContextType extends VaultState {
     groups: PersonalWorkspaceRuntime["policy"]["payload"]["groups"];
     assignments: PersonalWorkspaceRuntime["policy"]["payload"]["assignments"];
     slices: PersonalWorkspaceRuntime["policy"]["payload"]["slices"];
+    /** Slices whose definition cannot be read — they grant nothing and the surface says so. */
+    brokenSlices: ReturnType<typeof listBrokenWorkspaceSlices>;
     quarantine: Awaited<ReturnType<SqlWorkspaceStateStore["listQuarantine"]>>;
     localForks: Awaited<ReturnType<SqlWorkspaceStateStore["listLocalForks"]>>;
   }>;
@@ -606,21 +608,40 @@ export const VaultProvider: React.FC<{
         const existing = await workspaceStateStore.getObjectByPath(request.path);
         const objectId = existing?.objectId ?? createWorkspaceObjectId();
         const policy = workspaceRuntime.policy.payload;
+        const sliceObject = (path: string) => ({ objectId, path, contentKind: existing?.contentKind });
         const access = (path: string, capability: WorkspaceCapability) => evaluateWorkspaceAccess(policy, {
           memberId: workspaceRuntime.memberId,
           deviceId: workspaceRuntime.device.publicIdentity.deviceId,
           capability,
           objectId,
-          sliceIds: workspaceSliceIdsForObject(policy, { objectId, path, contentKind: existing?.contentKind }),
+          sliceIds: workspaceSliceIdsForObject(policy, sliceObject(path)),
+          object: sliceObject(path),
+          objectAuthorMemberId: existing?.authorMemberId ?? null,
         });
         const sourceDecision = access(request.path, request.capability);
         if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
         const targetDecision = access(request.newPath, request.capability);
         if (!targetDecision.allowed) return targetDecision;
-        if (access(request.path, "content.read").allowed && !access(request.newPath, "content.read").allowed) {
+        // A move can change who can read a file. Asking only "do I still see it?" misses the
+        // case that costs other people their access while the mover notices nothing — that is
+        // what previewWorkspaceMoveAccess was written for (finding 2026-08-25).
+        const impact = previewWorkspaceMoveAccess(policy, sliceObject(request.path), request.newPath, workspaceRuntime.memberId);
+        if (impact.removesActorAccess) {
           return await appConfirm({
             title: i18n.t("workspaceSecurity.moveAccessLossTitle"),
             message: i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath }),
+            kind: "warning",
+            confirmLabel: i18n.t("workspaceSecurity.moveAnyway"),
+            cancelLabel: i18n.t("common.cancel"),
+          });
+        }
+        if (impact.removedGroupIds.length > 0) {
+          return await appConfirm({
+            title: i18n.t("workspaceSecurity.moveGroupLossTitle"),
+            message: i18n.t("workspaceSecurity.moveGroupLossMessage", {
+              groups: workspaceGroupNames(policy, impact.removedGroupIds).join(", "),
+              path: request.newPath,
+            }),
             kind: "warning",
             confirmLabel: i18n.t("workspaceSecurity.moveAnyway"),
             cancelLabel: i18n.t("common.cancel"),
@@ -2022,6 +2043,7 @@ export const VaultProvider: React.FC<{
   };
 
   const getWorkspaceGovernance = async () => {
+    await refreshWorkspaceSliceCounts();
     const { runtime, workspaceState } = workspaceControlPlane();
     return {
       memberId: runtime.memberId,
@@ -2031,6 +2053,7 @@ export const VaultProvider: React.FC<{
       groups: runtime.policy.payload.groups,
       assignments: runtime.policy.payload.assignments,
       slices: runtime.policy.payload.slices,
+      brokenSlices: listBrokenWorkspaceSlices(runtime.policy.payload),
       quarantine: await workspaceState.listQuarantine(),
       localForks: await workspaceState.listLocalForks(),
     };
@@ -2127,23 +2150,31 @@ export const VaultProvider: React.FC<{
     return result.sliceId;
   };
 
-  const previewSlice = async (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }): Promise<Array<{ objectId: string; path: string }>> => {
+  /** Every workspace object with the tags and properties a dynamic slice rule can ask about. */
+  const workspaceSliceObjects = async () => {
     const { workspaceState } = workspaceControlPlane();
-    const objects = await workspaceState.listObjects();
-    const tagRows = state.dbAdapter ? await state.dbAdapter.query<{ path: string; tag: string }>(`SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id`) : [];
-    const propertyRows = state.dbAdapter ? await state.dbAdapter.query<{ path: string; key: string; value: string; type: string }>(`SELECT f.path AS path, p.key AS key, p.value AS value, p.type AS type FROM properties p JOIN files f ON f.id = p.file_id`) : [];
-    const tags = new Map<string, string[]>();
-    for (const row of tagRows) tags.set(row.path, [...(tags.get(row.path) ?? []), row.tag]);
-    const properties = new Map<string, Record<string, string | number | boolean | null>>();
-    for (const row of propertyRows) {
-      const values = properties.get(row.path) ?? {};
-      values[row.key] = row.type === "number" ? Number(row.value) : row.type === "boolean" ? row.value === "true" : row.value;
-      properties.set(row.path, values);
-    }
-    const previewObjects = objects.map((object) => ({ ...object, tags: tags.get(object.path) ?? [], properties: properties.get(object.path) ?? {} }));
+    return loadWorkspaceSliceObjects(await workspaceState.listObjects(), state.dbAdapter);
+  };
+
+  const previewSlice = async (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }): Promise<Array<{ objectId: string; path: string }>> => {
+    const previewObjects = await workspaceSliceObjects();
     const preview = previewWorkspaceSlice({ sliceId: createWorkspaceObjectId(), name: "Preview", kind: definition.kind, definition: createWorkspaceSliceDefinition(definition), materializedObjectIds: definition.kind === "selection" ? [...definition.objectIds].sort() : [] }, previewObjects);
     const matched = new Set(preview.matchedObjectIds);
-    return objects.filter((object) => matched.has(object.objectId)).map(({ objectId, path }) => ({ objectId, path }));
+    return previewObjects.filter((object) => matched.has(object.objectId)).map(({ objectId, path }) => ({ objectId, path }));
+  };
+
+  /**
+   * Brings the slice counters back in line with the vault before anyone reads them.
+   * `materializeWorkspaceSlices` had no caller since it was written, so a folder slice kept
+   * showing the object count it had on the day it was created (finding 2026-08-25).
+   * Publishes only when a list actually changed.
+   */
+  const refreshWorkspaceSliceCounts = async (): Promise<void> => {
+    const { runtime } = workspaceControlPlane();
+    if (runtime.policy.payload.slices.length === 0) return;
+    const refreshed = refreshWorkspaceSliceMaterialization({ runtime, objects: await workspaceSliceObjects() });
+    if (!refreshed) return;
+    await commitGovernance({ policy: refreshed.policy, grants: [], groupKeys: runtime.groupKeys });
   };
 
   const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {

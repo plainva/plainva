@@ -506,7 +506,7 @@ export class EncryptedWorkspaceWorker {
       if (setCurrent && current) await this.materializeDelete(current, operationHash);
       const object: WorkspaceObjectRecord = current
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
-        : { objectId: operation.objectId, path: `deleted-${operation.objectId}`, currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, createdAt: operation.createdAt, modifiedAt: operation.createdAt };
+        : { objectId: operation.objectId, path: `deleted-${operation.objectId}`, currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
       await this.state.recordIncoming({ object, revision: null, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
       return setCurrent ? [object.path] : [];
     }
@@ -553,7 +553,7 @@ export class EncryptedWorkspaceWorker {
     const isDirectory = opened.metadata.mime === "inode/directory";
     const incomingSliceObject = sliceObjectWithContent(operation.objectId, targetPath, isDirectory ? "directory" : opened.metadata.contentKind, plaintext);
     const targetSlices = workspaceSliceIdsForObject(this.activePolicy.payload, incomingSliceObject);
-    protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: operation.capability, objectId: operation.objectId, sliceIds: targetSlices }).allowed, "authorization", "operation capability is not granted for the encrypted object path");
+    protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: operation.capability, objectId: operation.objectId, sliceIds: targetSlices, object: incomingSliceObject, objectAuthorMemberId: current?.authorMemberId ?? null }).allowed, "authorization", "operation capability is not granted for the encrypted object path");
     const fastForward = !current || (current.currentRevisionId !== null && operation.parentRevisionIds.includes(current.currentRevisionId));
     const pathOwner = await this.state.getObjectByPath(targetPath);
     const pathCollision = !!pathOwner && pathOwner.objectId !== operation.objectId && !pathOwner.deleted;
@@ -570,6 +570,7 @@ export class EncryptedWorkspaceWorker {
       plaintextSha256: opened.metadata.plaintextSha256,
       contentKind: isDirectory ? "directory" : opened.metadata.contentKind,
       deleted: false,
+      authorMemberId: current?.authorMemberId || operation.memberId,
       createdAt: opened.metadata.createdAt,
       modifiedAt: opened.metadata.modifiedAt,
     };
@@ -702,7 +703,7 @@ export class EncryptedWorkspaceWorker {
     const policy = this.activePolicy.payload;
     const accessObject: WorkspaceSliceObject = { ...sliceObjectWithContent(objectId, targetPath, directory ? "directory" : isTextFile(targetPath) ? "text" : "binary", plaintext), mime: mimeForPath(targetPath, directory) };
     const sliceIds = workspaceSliceIdsForObject(policy, accessObject);
-    protocolAssert(evaluateWorkspaceAccess(policy, { memberId: meta.memberId, deviceId: meta.deviceId, capability: operationCapability(operationName), objectId, sliceIds }).allowed, "authorization", "local mutation is not permitted by the active workspace policy");
+    protocolAssert(evaluateWorkspaceAccess(policy, { memberId: meta.memberId, deviceId: meta.deviceId, capability: operationCapability(operationName), objectId, sliceIds, object: accessObject, objectAuthorMemberId: source?.authorMemberId ?? null }).allowed, "authorization", "local mutation is not permitted by the active workspace policy");
     if (item.operation === "rename" && source) {
       const sourceSliceIds = workspaceSliceIdsForObject(policy, { objectId, path: source.path, contentKind: source.contentKind });
       protocolAssert(evaluateWorkspaceAccess(policy, { memberId: meta.memberId, deviceId: meta.deviceId, capability: "content.rename", objectId, sliceIds: sourceSliceIds }).allowed, "authorization", "source object cannot be renamed by the current member");
@@ -795,6 +796,7 @@ export class EncryptedWorkspaceWorker {
           plaintextSha256: sha256Hex(plaintext),
           contentKind: directory ? "directory" : isTextFile(targetPath) ? "text" : "binary",
           deleted: false,
+          authorMemberId: source?.authorMemberId || meta.memberId,
           createdAt,
           modifiedAt,
         };

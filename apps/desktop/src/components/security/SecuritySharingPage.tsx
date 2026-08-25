@@ -455,7 +455,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               <SettingRow label={t("workspaceSecurity.slices", { defaultValue: "Slices" })} desc={t("workspaceSecurity.slicesDesc", { defaultValue: "Folder, explicit selection or dynamic rule." })}>
                 <Button variant="secondary" size="sm" disabled={busy} onClick={() => void requireWorkspace(() => openSliceWizard())}>{t("workspaceSecurity.addSlice", { defaultValue: "Add slice" })}</Button>
               </SettingRow>
-              {governance?.slices.map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.kind} · ${slice.materializedObjectIds.length} objects${slice.publication ? ` · ${slice.publication.mode}/${slice.publication.access}` : ""}`}><code>{slice.definition.slice(0, 64)}</code></SettingRow>)}
+              {/* A slice whose definition cannot be read grants nothing (fail-closed, P3). It says
+                  so here, because "0 objects" reads like an empty share rather than a broken one. */}
+              {governance?.slices.map((slice) => {
+                const broken = governance.brokenSlices.find((entry) => entry.sliceId === slice.sliceId);
+                return <SettingRow key={slice.sliceId} label={slice.name} desc={broken ? t("workspaceSecurity.sliceBroken") : `${slice.kind} · ${slice.materializedObjectIds.length} objects${slice.publication ? ` · ${slice.publication.mode}/${slice.publication.access}` : ""}`}><code>{slice.definition.slice(0, 64)}</code></SettingRow>;
+              })}
             </SettingCard>
           )}
           {area === "devices" && (

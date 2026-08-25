@@ -10,6 +10,8 @@ import {
   SqlWorkspaceStateStore,
   evaluateWorkspaceAccess,
   workspaceSliceIdsForObject,
+  previewWorkspaceMoveAccess,
+  workspaceGroupNames,
   createWorkspaceObjectId,
   SyncQueue,
   SyncStateRepository,
@@ -377,26 +379,47 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       const existing = await workspaceState!.getObjectByPath(request.path);
       const objectId = existing?.objectId ?? createWorkspaceObjectId();
       const policy = workspaceRuntime.policy.payload;
+      const sliceObject = (path: string) => ({ objectId, path, contentKind: existing?.contentKind });
       const access = (path: string, capability: Parameters<typeof evaluateWorkspaceAccess>[1]["capability"]) => evaluateWorkspaceAccess(policy, {
         memberId: workspaceRuntime.memberId,
         deviceId: workspaceRuntime.device.publicIdentity.deviceId,
         capability,
         objectId,
-        sliceIds: workspaceSliceIdsForObject(policy, { objectId, path, contentKind: existing?.contentKind }),
+        sliceIds: workspaceSliceIdsForObject(policy, sliceObject(path)),
+        object: sliceObject(path),
+        objectAuthorMemberId: existing?.authorMemberId ?? null,
       });
       const sourceDecision = access(request.path, request.capability);
       if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
       const targetDecision = access(request.newPath, request.capability);
       if (!targetDecision.allowed) return targetDecision;
-      if (access(request.path, "content.read").allowed && !access(request.newPath, "content.read").allowed) {
+      // Same question the desktop asks (finding 2026-08-25): a move can take the file out of
+      // other people's reach without the mover noticing anything.
+      const impact = previewWorkspaceMoveAccess(policy, sliceObject(request.path), request.newPath, workspaceRuntime.memberId);
+      const confirmMove = async (title: string, message: string) => {
         const { Dialog } = await import("@capacitor/dialog");
         const answer = await Dialog.confirm({
-          title: i18n.t("workspaceSecurity.moveAccessLossTitle"),
-          message: i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath }),
+          title,
+          message,
           okButtonTitle: i18n.t("workspaceSecurity.moveAnyway"),
           cancelButtonTitle: i18n.t("common.cancel"),
         });
         return answer.value;
+      };
+      if (impact.removesActorAccess) {
+        return await confirmMove(
+          i18n.t("workspaceSecurity.moveAccessLossTitle"),
+          i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath })
+        );
+      }
+      if (impact.removedGroupIds.length > 0) {
+        return await confirmMove(
+          i18n.t("workspaceSecurity.moveGroupLossTitle"),
+          i18n.t("workspaceSecurity.moveGroupLossMessage", {
+            groups: workspaceGroupNames(policy, impact.removedGroupIds).join(", "),
+            path: request.newPath,
+          })
+        );
       }
       return targetDecision;
     }, async (request) => {

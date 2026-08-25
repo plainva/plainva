@@ -28,6 +28,12 @@ export interface WorkspaceSlicePreview {
   removedObjectIds: string[];
 }
 
+/** Why a slice definition cannot be read. Named, because "0 objects" is not an explanation. */
+export type WorkspaceSliceDefinitionError =
+  | "folder-not-a-path"
+  | "selection-not-json"
+  | "rules-unreadable";
+
 function dynamicDefinition(value: string): WorkspaceDynamicSliceDefinition {
   let parsed: unknown;
   try { parsed = JSON.parse(value); }
@@ -68,14 +74,53 @@ export function createWorkspaceSliceDefinition(input:
   return canonicalJson(input.definition);
 }
 
+/**
+ * Can this slice definition be read at all? `null` means yes.
+ *
+ * Every caller below asks this first, because a definition nobody can check must not decide
+ * who may read a note (finding 2026-08-25, B3).
+ */
+export function workspaceSliceDefinitionError(slice: WorkspacePolicySlice): WorkspaceSliceDefinitionError | null {
+  try {
+    if (slice.kind === "folder") {
+      if (slice.definition) assertCanonicalVaultPath(slice.definition);
+      return null;
+    }
+    if (slice.kind === "selection") {
+      const ids: unknown = JSON.parse(slice.definition);
+      return Array.isArray(ids) && ids.every((id) => typeof id === "string") ? null : "selection-not-json";
+    }
+    dynamicDefinition(slice.definition);
+    return null;
+  } catch {
+    return slice.kind === "folder" ? "folder-not-a-path" : slice.kind === "selection" ? "selection-not-json" : "rules-unreadable";
+  }
+}
+
+/** The slices whose definition cannot be read — they grant nothing, and a surface can say so. */
+export function listBrokenWorkspaceSlices(
+  policy: WorkspacePolicyPayload
+): Array<{ sliceId: string; name: string; reason: WorkspaceSliceDefinitionError }> {
+  const broken: Array<{ sliceId: string; name: string; reason: WorkspaceSliceDefinitionError }> = [];
+  for (const slice of policy.slices) {
+    const reason = workspaceSliceDefinitionError(slice);
+    if (reason) broken.push({ sliceId: slice.sliceId, name: slice.name, reason });
+  }
+  return broken;
+}
+
+/**
+ * Does the slice RULE describe this object? Fail-closed: an unreadable definition matches
+ * nothing rather than throwing at the caller or falling back to the materialized list.
+ */
 export function workspaceSliceMatches(slice: WorkspacePolicySlice, object: WorkspaceSliceObject): boolean {
+  if (workspaceSliceDefinitionError(slice)) return false;
   if (slice.kind === "folder") {
     const folder = slice.definition ? assertCanonicalVaultPath(slice.definition).replace(/\/$/, "") : "";
     return folder === "" || object.path === folder || object.path.startsWith(`${folder}/`);
   }
   if (slice.kind === "selection") {
-    let ids: unknown;
-    try { ids = JSON.parse(slice.definition); } catch { ids = slice.materializedObjectIds; }
+    const ids: unknown = JSON.parse(slice.definition);
     return Array.isArray(ids) && ids.includes(object.objectId);
   }
   return matchesDynamic(object, dynamicDefinition(slice.definition));
@@ -100,8 +145,34 @@ export function materializeWorkspaceSlices(policy: WorkspacePolicyPayload, objec
   return next;
 }
 
+/**
+ * Does this slice cover this object? The single answer, used by authorization AND by the
+ * recipient set that decides who gets the key.
+ *
+ * A slice covers an object when its rule matches OR the object is in the materialized list —
+ * the list keeps a selection slice working for objects a rule could never describe. But a
+ * slice whose definition cannot be read covers NOTHING, materialized list included: otherwise
+ * a stale list would keep granting access on behalf of a definition nobody can check.
+ *
+ * The two used to disagree (finding 2026-08-25, B5): the recipient set accepted a rule match,
+ * authorization demanded a materialized id. The key reached the right people while the
+ * permission check said no.
+ */
+export function workspaceSliceCoversObject(slice: WorkspacePolicySlice, object: WorkspaceSliceObject): boolean {
+  if (workspaceSliceDefinitionError(slice)) return false;
+  return slice.materializedObjectIds.includes(object.objectId) || workspaceSliceMatches(slice, object);
+}
+
 export function workspaceSliceIdsForObject(policy: WorkspacePolicyPayload, object: WorkspaceSliceObject): string[] {
-  return policy.slices.filter((slice) => slice.materializedObjectIds.includes(object.objectId) || workspaceSliceMatches(slice, object)).map((slice) => slice.sliceId).sort();
+  return policy.slices.filter((slice) => workspaceSliceCoversObject(slice, object)).map((slice) => slice.sliceId).sort();
+}
+
+/**
+ * Group names for a set of ids, for a surface that has to tell someone what a move costs.
+ * An id we cannot resolve is returned as-is — better evidence than a silently shorter list.
+ */
+export function workspaceGroupNames(policy: WorkspacePolicyPayload, groupIds: readonly string[]): string[] {
+  return groupIds.map((groupId) => policy.groups.find((group) => group.groupId === groupId)?.name ?? groupId);
 }
 
 /** Groups whose members can read the object. This is the authoritative PVO1 recipient set. */

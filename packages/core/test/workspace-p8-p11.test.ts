@@ -42,7 +42,7 @@ describe("encrypted workspace P8-P11 contracts", () => {
   it("persists and idempotently resumes a full-rekey cursor", async () => {
     const state = new MemoryWorkspaceStateStore();
     const initial = meta(); await state.saveMeta(initial);
-    await state.recordIncoming({ object: { objectId: "10".repeat(16), path: "Project/Plan.md", currentRevisionId: "11".repeat(16), payloadHash: "12".repeat(32), plaintextSha256: "13".repeat(32), contentKind: "text", deleted: false, createdAt: initial.recoveryConfirmedAt, modifiedAt: initial.recoveryConfirmedAt }, revision: { revisionId: "11".repeat(16), objectId: "10".repeat(16), payloadHash: "12".repeat(32), parentRevisionIds: [], operationHash: "14".repeat(32), deviceId: initial.deviceId, sequence: 1, materializedPath: "Project/Plan.md", plaintextSha256: "13".repeat(32) }, operationHash: "14".repeat(32), operationDocument: "document", deviceId: initial.deviceId, sequence: 1 }, true, initial);
+    await state.recordIncoming({ object: { objectId: "10".repeat(16), path: "Project/Plan.md", currentRevisionId: "11".repeat(16), payloadHash: "12".repeat(32), plaintextSha256: "13".repeat(32), contentKind: "text", deleted: false, authorMemberId: "", createdAt: initial.recoveryConfirmedAt, modifiedAt: initial.recoveryConfirmedAt }, revision: { revisionId: "11".repeat(16), objectId: "10".repeat(16), payloadHash: "12".repeat(32), parentRevisionIds: [], operationHash: "14".repeat(32), deviceId: initial.deviceId, sequence: 1, materializedPath: "Project/Plan.md", plaintextSha256: "13".repeat(32) }, operationHash: "14".repeat(32), operationDocument: "document", deviceId: initial.deviceId, sequence: 1 }, true, initial);
     const started = await startWorkspaceRekey({ state, mode: "full", subjectKind: "member", subjectId: "20".repeat(16) });
     expect(started).toMatchObject({ phase: "rewriting", total: 1, completed: 0 });
     expect(await state.listQueue()).toHaveLength(1);
@@ -56,7 +56,7 @@ describe("encrypted workspace P8-P11 contracts", () => {
   it("includes encrypted directory metadata in a full rekey", async () => {
     const state = new MemoryWorkspaceStateStore();
     const initial = meta(); await state.saveMeta(initial);
-    await state.recordIncoming({ object: { objectId: "30".repeat(16), path: "Project", currentRevisionId: "31".repeat(16), payloadHash: "32".repeat(32), plaintextSha256: "33".repeat(32), contentKind: "directory", deleted: false, createdAt: initial.recoveryConfirmedAt, modifiedAt: initial.recoveryConfirmedAt }, revision: null, operationHash: "34".repeat(32), operationDocument: "directory", deviceId: initial.deviceId, sequence: 1 }, true, initial);
+    await state.recordIncoming({ object: { objectId: "30".repeat(16), path: "Project", currentRevisionId: "31".repeat(16), payloadHash: "32".repeat(32), plaintextSha256: "33".repeat(32), contentKind: "directory", deleted: false, authorMemberId: "", createdAt: initial.recoveryConfirmedAt, modifiedAt: initial.recoveryConfirmedAt }, revision: null, operationHash: "34".repeat(32), operationDocument: "directory", deviceId: initial.deviceId, sequence: 1 }, true, initial);
     const job = await startWorkspaceRekey({ state, mode: "full", subjectKind: "member", subjectId: "35".repeat(16) });
     expect(job.total).toBe(1);
     expect(await state.listQueue()).toEqual([expect.objectContaining({ operation: "mkdir", path: "Project" })]);

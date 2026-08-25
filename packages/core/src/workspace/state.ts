@@ -12,6 +12,8 @@ export interface WorkspaceObjectRecord {
   plaintextSha256: string | null;
   contentKind: "text" | "binary" | "directory";
   deleted: boolean;
+  /** Member who created the object. Empty for rows written before the column existed. */
+  authorMemberId: string;
   createdAt: string;
   modifiedAt: string;
 }
@@ -368,6 +370,7 @@ interface ObjectRow {
   plaintext_sha256: string | null;
   content_kind: WorkspaceObjectRecord["contentKind"];
   deleted: number;
+  author_member_id?: string | null;
   created_at: string;
   modified_at: string;
 }
@@ -422,6 +425,7 @@ function objectFromRow(row: ObjectRow): WorkspaceObjectRecord {
     contentKind: row.content_kind,
     deleted: row.deleted === 1,
     createdAt: row.created_at,
+    authorMemberId: row.author_member_id ?? "",
     modifiedAt: row.modified_at,
   };
 }
@@ -443,13 +447,15 @@ function revisionFromRow(row: RevisionRow): WorkspaceRevisionRecord {
 
 function objectWrite(record: WorkspaceObjectRecord) {
   return {
+    // author_member_id is deliberately absent from DO UPDATE, like created_at: who made an
+    // object never changes, and a later writer must not be able to claim authorship of it.
     sql: `INSERT INTO workspace_object
-      (object_id,path,current_revision_id,payload_hash,plaintext_sha256,content_kind,deleted,created_at,modified_at)
-      VALUES (?,?,?,?,?,?,?,?,?)
+      (object_id,path,current_revision_id,payload_hash,plaintext_sha256,content_kind,deleted,author_member_id,created_at,modified_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(object_id) DO UPDATE SET path=excluded.path,current_revision_id=excluded.current_revision_id,
         payload_hash=excluded.payload_hash,plaintext_sha256=excluded.plaintext_sha256,content_kind=excluded.content_kind,
         deleted=excluded.deleted,modified_at=excluded.modified_at`,
-    params: [record.objectId, record.path, record.currentRevisionId, record.payloadHash, record.plaintextSha256, record.contentKind, record.deleted ? 1 : 0, record.createdAt, record.modifiedAt],
+    params: [record.objectId, record.path, record.currentRevisionId, record.payloadHash, record.plaintextSha256, record.contentKind, record.deleted ? 1 : 0, record.authorMemberId, record.createdAt, record.modifiedAt],
   };
 }
 

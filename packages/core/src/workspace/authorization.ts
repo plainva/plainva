@@ -6,6 +6,7 @@ import type {
   WorkspacePolicyPayload,
 } from "./documents.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
+import { workspaceSliceCoversObject, workspaceSliceDefinitionError, type WorkspaceSliceObject } from "./slices.js";
 
 export type WorkspaceRole = "Owner" | "Admin" | "Editor" | "Commenter" | "Reader" | "Contributor";
 
@@ -35,6 +36,13 @@ export interface WorkspaceAccessContext {
   capability: WorkspaceCapability;
   objectId?: string | null;
   sliceIds?: readonly string[];
+  /**
+   * The object itself, where the caller has it. Lets a slice rule decide membership instead of
+   * relying on a materialized list that may be older than the vault.
+   */
+  object?: WorkspaceSliceObject;
+  /** Who created the object, for the Contributor rule below. Unknown authorship stays denied. */
+  objectAuthorMemberId?: string | null;
 }
 
 export interface WorkspaceAccessDecision {
@@ -42,7 +50,7 @@ export interface WorkspaceAccessDecision {
   capability: WorkspaceCapability;
   roleNames: WorkspaceRole[];
   assignmentIds: string[];
-  reason: "allowed" | "member-inactive" | "device-inactive" | "not-granted";
+  reason: "allowed" | "allowed-own-content" | "member-inactive" | "device-inactive" | "not-granted";
 }
 
 function isSubjectMatch(policy: WorkspacePolicyPayload, assignment: WorkspacePolicyAssignment, memberId: string): boolean {
@@ -56,7 +64,31 @@ function isScopeMatch(policy: WorkspacePolicyPayload, assignment: WorkspacePolic
   if (!assignment.scopeId) return false;
   if (context.sliceIds?.includes(assignment.scopeId)) return true;
   const slice = policy.slices.find((entry) => entry.sliceId === assignment.scopeId);
-  return !!context.objectId && !!slice?.materializedObjectIds.includes(context.objectId);
+  if (!slice) return false;
+  // The same answer the recipient set uses (finding 2026-08-25, B5). Without the object we can
+  // only consult the materialized list — but a broken definition still grants nothing.
+  if (context.object) return workspaceSliceCoversObject(slice, context.object);
+  if (workspaceSliceDefinitionError(slice)) return false;
+  return !!context.objectId && slice.materializedObjectIds.includes(context.objectId);
+}
+
+/**
+ * May this actor write an object they created themselves? (finding 2026-08-25, B4.)
+ *
+ * A Contributor holds `content.create` but not `content.write`, and the adapter maps a write to
+ * an EXISTING file to `content.write` — so the first autosave of a Contributor's own note was
+ * denied and the note was lost on the way to disk. Authorship is recorded per object, and an
+ * object whose author is unknown stays denied: the answer the code gave before the column
+ * existed is the safe one.
+ */
+function ownContentWrite(policy: WorkspacePolicyPayload, context: WorkspaceAccessContext): boolean {
+  if (context.capability !== "content.write") return false;
+  if (!context.objectAuthorMemberId || context.objectAuthorMemberId !== context.memberId) return false;
+  return policy.assignments.some((assignment) =>
+    isSubjectMatch(policy, assignment, context.memberId) &&
+    assignment.capabilities.includes("content.create") &&
+    isScopeMatch(policy, assignment, context)
+  );
 }
 
 /** Default-deny capability evaluation shared by UI, adapters and worker. */
@@ -82,6 +114,20 @@ export function evaluateWorkspaceAccess(policy: WorkspacePolicyPayload, context:
       ? entry.subjectId === context.memberId
       : policy.groups.some((group) => group.groupId === entry.subjectId && group.memberIds?.includes(context.memberId)))
   ) : false;
+  if (assignments.length === 0 && !override && ownContentWrite(policy, context)) {
+    const creators = policy.assignments.filter((assignment) =>
+      isSubjectMatch(policy, assignment, context.memberId) &&
+      assignment.capabilities.includes("content.create") &&
+      isScopeMatch(policy, assignment, context)
+    );
+    return {
+      allowed: true,
+      capability: context.capability,
+      roleNames: [...new Set(creators.map((entry) => entry.role).filter((role): role is WorkspaceRole => role in WORKSPACE_ROLE_CAPABILITIES))],
+      assignmentIds: creators.map((entry) => entry.assignmentId).sort(),
+      reason: "allowed-own-content",
+    };
+  }
   return {
     allowed: assignments.length > 0 || override,
     capability: context.capability,

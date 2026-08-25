@@ -6,6 +6,10 @@ import {
   createPersonalWorkspaceBootstrap,
   createWorkspaceGroup,
   createWorkspaceSlice,
+  createWorkspaceSliceDefinition,
+  previewWorkspaceSlice,
+  refreshWorkspaceSliceMaterialization,
+  type WorkspaceSliceObject,
   inviteWorkspaceMember,
   createWorkspacePairingRequest,
   createWorkspaceRecoveryPackage,
@@ -320,6 +324,8 @@ export async function createMobileWorkspaceSlice(input: {
   runtime: PersonalWorkspaceRuntime;
   name: string;
   folder: string;
+  /** The vault as the rule sees it — see `materializedObjectIds` below. */
+  objects: readonly WorkspaceSliceObject[];
   publication?: { mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3" };
 }): Promise<string> {
   // Folder slices only on the phone: a selection slice needs a multi-select
@@ -330,13 +336,37 @@ export async function createMobileWorkspaceSlice(input: {
     runtime: input.runtime,
     name: input.name,
     definition: { kind: "folder", folder: input.folder },
-    materializedObjectIds: [],
+    // Not `[]` any more (finding 2026-08-25): authorization reads this list, so a slice
+    // created here used to be permanently empty — the phone could hand out a share that
+    // covered nothing. It is materialized at creation and refreshed by the call below.
+    materializedObjectIds: previewWorkspaceSlice(
+      { sliceId: "preview", name: input.name, kind: "folder", definition: createWorkspaceSliceDefinition({ kind: "folder", folder: input.folder }), materializedObjectIds: [] },
+      input.objects
+    ).matchedObjectIds,
     ...(input.publication
       ? { publication: { ...input.publication, propertyAllowlist: null, privateProperties: ["apiKey", "password", "private", "secret", "token"] } }
       : {}),
   });
   await commitGovernance(input.vaultId, input.store, input.runtime, { policy, grants: [] });
   return sliceId;
+}
+
+/**
+ * Keeps the slice object lists in step with the vault. Same reason as on the desktop:
+ * `materializeWorkspaceSlices` never had a caller, so a folder slice kept the count it
+ * had on the day it was made — and on this shell that count was zero (finding 2026-08-25).
+ */
+export async function refreshMobileWorkspaceSliceCounts(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  objects: readonly WorkspaceSliceObject[];
+}): Promise<boolean> {
+  if (input.runtime.policy.payload.slices.length === 0) return false;
+  const refreshed = refreshWorkspaceSliceMaterialization({ runtime: input.runtime, objects: input.objects });
+  if (!refreshed) return false;
+  await commitGovernance(input.vaultId, input.store, input.runtime, { policy: refreshed.policy, grants: [] });
+  return true;
 }
 
 export async function assignMobileWorkspaceRole(input: {

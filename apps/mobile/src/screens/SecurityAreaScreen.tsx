@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
-import { decodeWorkspaceInvite, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
+import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -98,11 +98,21 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
 
+  /** The vault as a slice rule sees it — shared with the desktop so both count the same. */
+  const sliceObjects = useCallback(
+    async () => (vault.workspaceState ? loadWorkspaceSliceObjects(await vault.workspaceState.listObjects(), vault.db) : []),
+    [vault.workspaceState, vault.db]
+  );
+
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
-  }, [vault.vaultId, vault.workspaceState]);
+    // Bring the object counts in line before anyone reads them (finding 2026-08-25).
+    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    const rt = vault.workspaceRuntime;
+    if (store && rt) await refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects: await sliceObjects() }).catch(() => false);
+  }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
 
   /** One remote probe decides what this screen may claim. */
@@ -263,7 +273,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       .then(() => setGroupName("")), t("workspaceSecurity.groupCreated"));
 
   const addSlice = () => void runGovernance("slice", (store, rt) =>
-    createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim() })
+    sliceObjects().then((objects) => createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim(), objects }))
       .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
 
   /**
@@ -387,6 +397,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   };
 
   const runtime = status?.phase === "locked" ? null : vault.workspaceRuntime;
+  const brokenSlices = runtime ? listBrokenWorkspaceSlices(runtime.policy.payload) : [];
   /** Status row text for a device that has NOT joined a workspace. */
   const connectionLabel = () =>
     connection.kind === "checking" ? t("workspaceSecurity.stateChecking", { defaultValue: "Checking this connection …" })
@@ -552,7 +563,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           </Button>
         </>}
         {area === "slices" && <>
-          <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => <Row key={slice.sliceId} subtitle={`${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />)}</RowList></GroupCard>
+          {/* A slice whose definition cannot be read grants nothing (fail-closed, P3) — so it
+              says so, instead of showing "0 objects" as if it were merely empty. */}
+          <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => {
+            const broken = brokenSlices.find((entry) => entry.sliceId === slice.sliceId);
+            return <Row key={slice.sliceId} subtitle={broken ? t("workspaceSecurity.sliceBroken") : `${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />;
+          })}</RowList></GroupCard>
           {/* Folder slices only here (S38): a selection slice needs a multi-select
               over objects and a dynamic one the query builder — neither surface
               exists on the phone, and a half-built one would be worse than the

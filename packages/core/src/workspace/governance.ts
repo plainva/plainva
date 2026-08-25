@@ -7,7 +7,7 @@ import { WORKSPACE_ROLE_CAPABILITIES, type WorkspaceRole } from "./authorization
 import { decodeBase64Exact, sha256Hex, toBase64 } from "./encoding.js";
 import { protocolAssert } from "./errors.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
-import { createWorkspaceSliceDefinition, type WorkspaceDynamicSliceDefinition } from "./slices.js";
+import { createWorkspaceSliceDefinition, previewWorkspaceSlice, workspaceSliceDefinitionError, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject } from "./slices.js";
 import type { PublishedSliceAccess, PublishedSliceMode, PublishedSliceProvider } from "./publishedSlices.js";
 
 export interface WorkspaceGovernanceUpdate {
@@ -72,6 +72,45 @@ export function createWorkspaceSlice(input: {
     draft.slices.push({ sliceId, name: input.name, kind: input.definition.kind, definition: createWorkspaceSliceDefinition(input.definition), materializedObjectIds: [...new Set(input.materializedObjectIds)].sort(), ...(input.publication ? { publication: { mode: input.publication.mode, access: input.publication.access, provider: input.publication.provider, propertyAllowlist: input.publication.propertyAllowlist ? [...new Set(input.publication.propertyAllowlist)].sort() : null, privateProperties: [...new Set(input.publication.privateProperties ?? [])].sort() } } : {}) });
   } });
   return { sliceId, policy };
+}
+
+/**
+ * Brings every slice's materialized list back in line with the vault (P3, 2026-08-25).
+ *
+ * `materializeWorkspaceSlices` existed from the start and had no caller. The desktop stamped
+ * a list once, when the slice was created; mobile stamped an empty one. Nothing ever refreshed
+ * them. The rule-match path kept access itself correct, so this never locked anyone out — but
+ * both shells print `materializedObjectIds.length` as "N objects", and that number quietly
+ * stopped counting: a folder slice showed the size it had on the day it was made, forever.
+ *
+ * Returns null when nothing changed, so callers can run this on every policy revision without
+ * signing and uploading a revision that says the same thing as the one before it.
+ *
+ * Slices with an unreadable definition are skipped rather than emptied: they already grant
+ * nothing (`workspaceSliceCoversObject`), and keeping their stale list is worth more for
+ * diagnosis than a zero that looks like a legitimately empty rule.
+ */
+export function refreshWorkspaceSliceMaterialization(input: {
+  runtime: PersonalWorkspaceRuntime;
+  objects: readonly WorkspaceSliceObject[];
+}): { policy: WorkspaceGovernanceUpdate["policy"]; changedSliceIds: string[] } | null {
+  const current = input.runtime.policy.payload.slices;
+  const next = new Map<string, string[]>();
+  for (const slice of current) {
+    if (workspaceSliceDefinitionError(slice)) continue;
+    const matched = previewWorkspaceSlice(slice, input.objects).matchedObjectIds;
+    const before = [...slice.materializedObjectIds].sort();
+    if (matched.length === before.length && matched.every((id, index) => id === before[index])) continue;
+    next.set(slice.sliceId, matched);
+  }
+  if (next.size === 0) return null;
+  const policy = createWorkspacePolicySuccessor({ current: input.runtime.policy, signer: runtimeSigner(input.runtime), mutate: (draft) => {
+    for (const slice of draft.slices) {
+      const matched = next.get(slice.sliceId);
+      if (matched) slice.materializedObjectIds = matched;
+    }
+  } });
+  return { policy, changedSliceIds: [...next.keys()].sort() };
 }
 
 export function assignWorkspaceRole(input: {
