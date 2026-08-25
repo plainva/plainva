@@ -3176,7 +3176,8 @@
       "migrating": "Wird verschlüsselt",
       "active": "Geschützt",
       "locked": "Gesperrt",
-      "error": "Handlung erforderlich"
+      "error": "Handlung erforderlich",
+      "setup-incomplete": "Einrichtung unvollstaendig"
     },
     "lockedMessage": "Der verschlüsselte Workspace ist auf diesem Gerät gesperrt.",
     "reconcileProgress": "Verschlüsselter Workspace wird vorbereitet…",
@@ -3391,7 +3392,14 @@
     "markRepaired": "Repariert",
     "repaired": "Als repariert markiert",
     "renewConfirmTitle": "Wiederherstellung erneuern?",
-    "renewConfirmBody": "Die Datei und der Code, die Du jetzt hast, funktionieren danach nicht mehr. Speichere die neue Datei und den neuen Code, bevor Du die alten wegwirfst."
+    "renewConfirmBody": "Die Datei und der Code, die Du jetzt hast, funktionieren danach nicht mehr. Speichere die neue Datei und den neuen Code, bevor Du die alten wegwirfst.",
+    "recoveryHiddenHint": "Der Code ist ausgeblendet, solange er abgefragt wird.",
+    "recoveryHiddenLabel": "Ausgeblendet",
+    "recoveryInVaultRefused": "Die Wiederherstellungsdatei darf nicht in dem Vault liegen, den sie entsperrt. Waehle einen Ort ausserhalb.",
+    "revealCode": "Code anzeigen",
+    "keyBundleMissingMessage": "Auf diesem Geraet liegt kein Schluessel fuer diesen Workspace.",
+    "resumeSetup": "Einrichtung fortsetzen",
+    "resumeSetupDesc": "Die Verschluesselung wurde begonnen, aber nicht zu Ende gefuehrt. Der Schluessel liegt auf diesem Geraet."
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

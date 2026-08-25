@@ -3205,7 +3205,8 @@
       "migrating": "Cifrando",
       "active": "Protegido",
       "locked": "Bloqueado",
-      "error": "Acción necesaria"
+      "error": "Acción necesaria",
+      "setup-incomplete": "Configuracion incompleta"
     },
     "lockedMessage": "El espacio de trabajo cifrado está bloqueado en este dispositivo.",
     "reconcileProgress": "Preparando el espacio cifrado…",
@@ -3419,7 +3420,14 @@
     "markRepaired": "Reparado",
     "repaired": "Marcado como reparado",
     "renewConfirmTitle": "¿Renovar la recuperación?",
-    "renewConfirmBody": "El archivo y el código que tienes ahora dejarán de funcionar. Guarda el nuevo archivo y el nuevo código antes de descartar los antiguos."
+    "renewConfirmBody": "El archivo y el código que tienes ahora dejarán de funcionar. Guarda el nuevo archivo y el nuevo código antes de descartar los antiguos.",
+    "recoveryHiddenHint": "El codigo permanece oculto mientras se comprueba.",
+    "recoveryHiddenLabel": "Oculto",
+    "recoveryInVaultRefused": "El archivo de recuperacion no debe estar dentro del vault que desbloquea. Elige una ubicacion fuera.",
+    "revealCode": "Mostrar codigo",
+    "keyBundleMissingMessage": "Este dispositivo no tiene ninguna clave para este espacio.",
+    "resumeSetup": "Reanudar configuracion",
+    "resumeSetupDesc": "El cifrado comenzo pero no termino. La clave esta en este dispositivo."
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

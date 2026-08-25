@@ -3205,7 +3205,8 @@
       "migrating": "Criptografando",
       "active": "Protegido",
       "locked": "Bloqueado",
-      "error": "Ação necessária"
+      "error": "Ação necessária",
+      "setup-incomplete": "Configuracao incompleta"
     },
     "lockedMessage": "O workspace criptografado está bloqueado neste dispositivo.",
     "reconcileProgress": "Preparando o workspace criptografado…",
@@ -3419,7 +3420,14 @@
     "markRepaired": "Reparado",
     "repaired": "Marcado como reparado",
     "renewConfirmTitle": "Renovar a recuperação?",
-    "renewConfirmBody": "O arquivo e o código que você tem agora deixarão de funcionar. Salve o novo arquivo e o novo código antes de descartar os antigos."
+    "renewConfirmBody": "O arquivo e o código que você tem agora deixarão de funcionar. Salve o novo arquivo e o novo código antes de descartar os antigos.",
+    "recoveryHiddenHint": "O codigo fica oculto enquanto e verificado.",
+    "recoveryHiddenLabel": "Oculto",
+    "recoveryInVaultRefused": "O arquivo de recuperacao nao pode ficar dentro do vault que ele desbloqueia. Escolha um local fora dele.",
+    "revealCode": "Mostrar codigo",
+    "keyBundleMissingMessage": "Este dispositivo nao possui chave para este espaco.",
+    "resumeSetup": "Retomar configuracao",
+    "resumeSetupDesc": "A criptografia comecou, mas nao terminou. A chave esta neste dispositivo."
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

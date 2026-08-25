@@ -39,6 +39,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     unlockPersonalWorkspace,
     lockPersonalWorkspace,
     removeRemotePlaintext,
+    resumePersonalWorkspaceSetup,
     decommissionWorkspace,
     liftWorkspaceEncryption,
     getWorkspaceDiagnostics,
@@ -146,6 +147,24 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     } catch (error) {
       console.error("[SecuritySharingPage] unlock failed", error);
       toast.error(t("workspaceSecurity.unlockFailed"));
+    } finally { setBusy(false); }
+  };
+
+  /**
+   * Picks the conversion back up where it stopped (finding 2026-08-25, B7).
+   *
+   * The key bundle is already on this device — this is the one state that must NOT offer
+   * decommissioning, which is what the old `error` phase led people to.
+   */
+  const resumeSetup = async () => {
+    setBusy(true);
+    try {
+      const result = await resumePersonalWorkspaceSetup();
+      toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued }));
+      await refreshDiagnostics();
+    } catch (error) {
+      console.error("[SecuritySharingPage] resuming setup failed", error);
+      toast.error(t("workspaceSecurity.setupFailed"));
     } finally { setBusy(false); }
   };
 
@@ -363,6 +382,16 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               )}
             </SettingRow>
             {status.lastError && <Banner kind="error" rounded>{status.lastError}</Banner>}
+            {status.phase === "setup-incomplete" && (
+              <SettingRow
+                label={t("workspaceSecurity.resumeSetup")}
+                desc={t("workspaceSecurity.resumeSetupDesc")}
+              >
+                <Button variant="primary" disabled={busy} onClick={() => void resumeSetup()}>
+                  {t("workspaceSecurity.resumeSetup")}
+                </Button>
+              </SettingRow>
+            )}
             {status.phase === "error" && (
               <Banner kind="warning" rounded>{t("workspaceSecurity.orphanRecovery", { defaultValue: "If the encrypted workspace was deleted or damaged in the cloud, sync stays stopped to protect your data. Decommission the workspace on this device below to reset it." })}</Banner>
             )}

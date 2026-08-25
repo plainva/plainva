@@ -3149,7 +3149,8 @@
       "migrating": "暗号化中",
       "active": "保護済み",
       "locked": "ロック中",
-      "error": "操作が必要"
+      "error": "操作が必要",
+      "setup-incomplete": "セットアップ未完了"
     },
     "lockedMessage": "このデバイスでは暗号化ワークスペースがロックされています。",
     "reconcileProgress": "暗号化ワークスペースを準備しています…",
@@ -3363,7 +3364,14 @@
     "markRepaired": "修復済み",
     "repaired": "修復済みとしてマーク",
     "renewConfirmTitle": "復旧情報を更新しますか？",
-    "renewConfirmBody": "いま持っているファイルとコードは使えなくなります。古いものを破棄する前に、新しいファイルと新しいコードを保存してください。"
+    "renewConfirmBody": "いま持っているファイルとコードは使えなくなります。古いものを破棄する前に、新しいファイルと新しいコードを保存してください。",
+    "recoveryHiddenHint": "確認中はコードを非表示にします。",
+    "recoveryHiddenLabel": "非表示",
+    "recoveryInVaultRefused": "復旧ファイルは、それが解除するVault内に保存できません。外部の場所を選んでください。",
+    "revealCode": "コードを表示",
+    "keyBundleMissingMessage": "この端末にはこのワークスペースの鍵がありません。",
+    "resumeSetup": "セットアップを再開",
+    "resumeSetupDesc": "暗号化は開始されましたが完了していません。鍵はこの端末にあります。"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, Modal, SettingCardNote, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, Modal, SettingCardNote, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { credentialManager } from "../../services/CredentialManager";
 import { discardPreparedPersonalWorkspace, type PreparedPersonalWorkspace } from "../../services/workspaceSecurity/workspaceLifecycle";
+import { isInsideVault } from "../../services/workspaceSecurity/recoveryFileTarget";
 
 interface WorkspaceSetupWizardProps {
   vaultPath: string;
@@ -29,6 +30,7 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
   const [codeCopied, setCodeCopied] = useState(false);
   const [challenge, setChallenge] = useState<[number, number]>([0, 1]);
   const [challengeAnswers, setChallengeAnswers] = useState<[string, string]>(["", ""]);
+  const [codeRevealed, setCodeRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -45,14 +47,10 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
     setBusy(true); setError(null);
     try {
       const result = await prepare({ ownerDisplayName: ownerName, deviceDisplayName: deviceName, fallbackPassphrase: fallbackPassphrase || undefined });
-      const groups = result.recoveryCode.split("-").slice(1);
-      const random = crypto.getRandomValues(new Uint32Array(2));
-      const first = random[0] % groups.length;
-      let second = random[1] % groups.length;
-      if (second === first) second = (second + 1) % groups.length;
-      setChallenge([first, second]);
+      setChallenge(pickRecoveryChallenge(result.recoveryCode.split("-").slice(1).length));
       setChallengeAnswers(["", ""]);
       setCodeCopied(false);
+      setCodeRevealed(false);
       setPrepared(result); setStep(2);
     } catch (cause) {
       console.error("[WorkspaceSetupWizard] preparation failed", cause);
@@ -64,6 +62,10 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
     if (!prepared) return;
     const target = await save({ defaultPath: "Plainva-Recovery.pvrecovery", filters: [{ name: "Plainva Recovery", extensions: ["pvrecovery"] }] });
     if (!target) return;
+    if (isInsideVault(target, vaultPath)) {
+      setError(t("workspaceSecurity.recoveryInVaultRefused"));
+      return;
+    }
     try {
       await writeFile(target, prepared.recoveryPackage);
       setSaved(true);
@@ -103,9 +105,21 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
 
   const recoveryGroups = prepared?.recoveryCode.split("-").slice(1) ?? [];
   const recoveryPrefix = prepared?.recoveryCode.split("-")[0] ?? "PVR1";
-  const challengeConfirmed = recoveryGroups.length > 1 && challenge.every((groupIndex, answerIndex) =>
-    challengeAnswers[answerIndex].trim().toUpperCase() === recoveryGroups[groupIndex]?.toUpperCase()
-  );
+  const answerIsCorrect = (answerIndex: 0 | 1) =>
+    challengeAnswers[answerIndex].trim().toUpperCase() === recoveryGroups[challenge[answerIndex]]?.toUpperCase();
+  const challengeConfirmed = recoveryGroups.length > 1 && answerIsCorrect(0) && answerIsCorrect(1);
+  const groupIsHidden = (groupIndex: number) => isRecoveryGroupHidden({
+    groupIndex,
+    challenge,
+    revealed: codeRevealed,
+    answeredCorrectly: challenge.some((index, answerIndex) => index === groupIndex && answerIsCorrect(answerIndex as 0 | 1)),
+  });
+  /** Looking is allowed, but it costs a fresh pair — otherwise it is a way around the check. */
+  const revealAndReroll = () => {
+    setCodeRevealed(true);
+    setChallenge(pickRecoveryChallenge(recoveryGroups.length));
+    setChallengeAnswers(["", ""]);
+  };
   const recoveryNext = !saved
     ? t("workspaceSecurity.recoveryNextSave")
     : !challengeConfirmed
@@ -158,9 +172,16 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
                   <code className="pv-security-code-group pv-security-code-prefix" role="listitem"><small>{t("workspaceSecurity.recoveryPrefix")}</small><span>{recoveryPrefix}</span></code>
                   {recoveryGroups.map((group, groupIndex) => {
                     const requested = challenge.includes(groupIndex);
-                    return <code className="pv-security-code-group" data-requested={requested} role="listitem" key={`${groupIndex}-${group}`}><small>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}{requested ? ` · ${t("workspaceSecurity.recoveryRequested")}` : ""}</small><span>{group}</span></code>;
+                    const hidden = groupIsHidden(groupIndex);
+                    return <code className="pv-security-code-group" data-requested={requested} data-hidden={hidden} role="listitem" key={`${groupIndex}-${group}`}><small>{t("workspaceSecurity.recoveryGroup", { number: groupIndex + 1 })}{requested ? ` · ${t("workspaceSecurity.recoveryRequested")}` : ""}</small><span aria-label={hidden ? t("workspaceSecurity.recoveryHiddenLabel") : undefined}>{hidden ? maskRecoveryGroup(group) : group}</span></code>;
                   })}
                 </div>
+                {recoveryGroups.some((_, index) => groupIsHidden(index)) && (
+                  <div className="pv-security-code-hidden">
+                    <span>{t("workspaceSecurity.recoveryHiddenHint")}</span>
+                    <Button variant="ghost" size="sm" onClick={revealAndReroll}>{t("workspaceSecurity.revealCode")}</Button>
+                  </div>
+                )}
               </div>
             </section>
             <section className="pv-security-recovery-task" data-complete={challengeConfirmed}>

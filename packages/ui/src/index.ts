@@ -12,6 +12,7 @@ export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";
 export * from "./lib/familyTarget";
 export * from "./lib/attachmentPath";
+export * from "./lib/recoveryChallenge";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";
 export * from "./lib/dailyNotePath";

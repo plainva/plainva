@@ -3205,7 +3205,8 @@
       "migrating": "Cifratura",
       "active": "Protetto",
       "locked": "Bloccato",
-      "error": "Azione richiesta"
+      "error": "Azione richiesta",
+      "setup-incomplete": "Configurazione incompleta"
     },
     "lockedMessage": "Il workspace cifrato è bloccato su questo dispositivo.",
     "reconcileProgress": "Preparazione del workspace cifrato…",
@@ -3419,7 +3420,14 @@
     "markRepaired": "Riparato",
     "repaired": "Contrassegnato come riparato",
     "renewConfirmTitle": "Rinnovare il ripristino?",
-    "renewConfirmBody": "Il file e il codice che hai ora smetteranno di funzionare. Salva il nuovo file e il nuovo codice prima di eliminare quelli vecchi."
+    "renewConfirmBody": "Il file e il codice che hai ora smetteranno di funzionare. Salva il nuovo file e il nuovo codice prima di eliminare quelli vecchi.",
+    "recoveryHiddenHint": "Il codice resta nascosto mentre viene verificato.",
+    "recoveryHiddenLabel": "Nascosto",
+    "recoveryInVaultRefused": "Il file di ripristino non deve trovarsi nel vault che sblocca. Scegli una posizione esterna.",
+    "revealCode": "Mostra codice",
+    "keyBundleMissingMessage": "Questo dispositivo non ha alcuna chiave per questo spazio.",
+    "resumeSetup": "Riprendi configurazione",
+    "resumeSetupDesc": "La cifratura e iniziata ma non e stata completata. La chiave e su questo dispositivo."
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",

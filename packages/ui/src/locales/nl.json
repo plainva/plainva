@@ -3177,7 +3177,8 @@
       "migrating": "Versleutelen",
       "active": "Beveiligd",
       "locked": "Vergrendeld",
-      "error": "Actie vereist"
+      "error": "Actie vereist",
+      "setup-incomplete": "Installatie onvolledig"
     },
     "lockedMessage": "De versleutelde workspace is op dit apparaat vergrendeld.",
     "reconcileProgress": "Versleutelde workspace wordt voorbereid…",
@@ -3391,7 +3392,14 @@
     "markRepaired": "Gerepareerd",
     "repaired": "Als gerepareerd gemarkeerd",
     "renewConfirmTitle": "Herstel vernieuwen?",
-    "renewConfirmBody": "Het bestand en de code die je nu hebt, werken daarna niet meer. Sla het nieuwe bestand en de nieuwe code op voordat je de oude weggooit."
+    "renewConfirmBody": "Het bestand en de code die je nu hebt, werken daarna niet meer. Sla het nieuwe bestand en de nieuwe code op voordat je de oude weggooit.",
+    "recoveryHiddenHint": "De code blijft verborgen zolang hij wordt gecontroleerd.",
+    "recoveryHiddenLabel": "Verborgen",
+    "recoveryInVaultRefused": "Het herstelbestand mag niet in de vault staan die het ontgrendelt. Kies een locatie erbuiten.",
+    "revealCode": "Code tonen",
+    "keyBundleMissingMessage": "Dit apparaat heeft geen sleutel voor deze workspace.",
+    "resumeSetup": "Installatie hervatten",
+    "resumeSetupDesc": "De versleuteling is begonnen maar niet voltooid. De sleutel staat op dit apparaat."
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

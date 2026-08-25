@@ -19,6 +19,7 @@ import {
   WorkspaceRecoveryIdentity,
 } from "./identity.js";
 import { createWorkspaceGrant } from "./grant.js";
+import { wipeBytes } from "../crypto/cryptoPrimitives.js";
 import { decodeBase64Exact, toBase64 } from "./encoding.js";
 
 export const PERSONAL_WORKSPACE_OWNER_CAPABILITIES: readonly WorkspaceCapability[] = [
@@ -235,4 +236,24 @@ export function personalWorkspaceRuntime(bootstrap: PersonalWorkspaceBootstrap):
     genesis: bootstrap.genesis,
     grants: bootstrap.grants,
   };
+}
+
+/**
+ * Zeroes every private key a runtime holds, in place.
+ *
+ * Locking a workspace used to drop the cache reference and nothing else (finding 2026-08-25,
+ * B6): the signing key, the HPKE key and every group catalog key stayed readable in the heap
+ * for as long as the process lived. Dropping a reference is not forgetting a key.
+ *
+ * `ownerGroup` is usually the same object as one entry of `groupKeys`; wiping twice is
+ * harmless. The array matters on its own for a joined device, which decrypts several group
+ * epochs — the setup path's own teardown only ever knew about `ownerGroup`.
+ */
+export function wipeWorkspaceRuntimeSecrets(runtime: PersonalWorkspaceRuntime): void {
+  wipeBytes(runtime.device.secrets.signing.privateKey);
+  wipeBytes(runtime.device.secrets.hpke.privateKey);
+  for (const group of [runtime.ownerGroup, ...runtime.groupKeys]) {
+    wipeBytes(group.hpke.privateKey);
+    wipeBytes(group.catalogKey);
+  }
 }

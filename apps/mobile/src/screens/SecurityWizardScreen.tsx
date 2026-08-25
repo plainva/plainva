@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, ShieldCheck, Upload } from "lucide-react";
-import { Button, ICON, TextInput, toast } from "@plainva/ui";
+import { Button, ICON, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
 import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -49,14 +49,6 @@ export type SecurityWizardFlow = "workspace" | "encryption";
 const MIN_PASSPHRASE = 8;
 
 /** Two random groups of the recovery code, never the same one twice. */
-function pickChallenge(groupCount: number): [number, number] {
-  const random = crypto.getRandomValues(new Uint32Array(2));
-  const first = random[0] % groupCount;
-  let second = random[1] % groupCount;
-  if (second === first) second = (second + 1) % groupCount;
-  return [first, second];
-}
-
 export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
   flow: SecurityWizardFlow;
   vault: MobileVault;
@@ -81,6 +73,7 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
   const [codeCopied, setCodeCopied] = useState(false);
   const [challenge, setChallenge] = useState<[number, number]>([0, 1]);
   const [answers, setAnswers] = useState<[string, string]>(["", ""]);
+  const [codeRevealed, setCodeRevealed] = useState(false);
 
   // Step 3 — the sweep, where there is one to measure.
   const [migration, setMigration] = useState<{ done: number; total: number } | null>(null);
@@ -92,9 +85,21 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
   const groups = recoveryCode ? (flow === "workspace" ? recoveryCode.split("-").slice(1) : recoveryCode.split("-")) : [];
   const prefix = flow === "workspace" ? recoveryCode.split("-")[0] : null;
 
-  const verified = groups.length > 1 && challenge.every(
-    (group, index) => answers[index].trim().toUpperCase() === groups[group]?.toUpperCase(),
-  );
+  const answerIsCorrect = (index: 0 | 1) => answers[index].trim().toUpperCase() === groups[challenge[index]]?.toUpperCase();
+  const verified = groups.length > 1 && answerIsCorrect(0) && answerIsCorrect(1);
+  // Same rule as the desktop wizard, from the same helper (finding 2026-08-25, B6): a group
+  // printed above its own input field checks transcription, not possession.
+  const groupIsHidden = (groupIndex: number) => isRecoveryGroupHidden({
+    groupIndex,
+    challenge,
+    revealed: codeRevealed,
+    answeredCorrectly: challenge.some((index, answerIndex) => index === groupIndex && answerIsCorrect(answerIndex as 0 | 1)),
+  });
+  const revealAndReroll = () => {
+    setCodeRevealed(true);
+    setChallenge(pickRecoveryChallenge(groups.length));
+    setAnswers(["", ""]);
+  };
   // The workspace flow additionally requires the recovery FILE to be saved —
   // it is the one artefact that cannot be regenerated later.
   const readyToActivate = verified && (flow === "encryption" || recoverySaved);
@@ -117,18 +122,19 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
           ownerDisplayName: ownerName,
           deviceDisplayName: deviceName,
         });
-        setChallenge(pickChallenge(result.recoveryCode.split("-").slice(1).length));
+        setChallenge(pickRecoveryChallenge(result.recoveryCode.split("-").slice(1).length));
         setWorkspaceDraft(result);
       } else {
         if (pass.length < MIN_PASSPHRASE) { toast.warning(t("encryption.tooShort", { min: MIN_PASSPHRASE })); return; }
         if (pass !== confirm) { toast.warning(t("encryption.mismatch")); return; }
         const result = await prepareMobileEncryption(vault, pass, (path) => remoteSidebandFileExists(vault.vaultId, path));
-        setChallenge(pickChallenge(result.recoveryCode.split("-").length));
+        setChallenge(pickRecoveryChallenge(result.recoveryCode.split("-").length));
         setEncryptionDraft({ draftId: result.draftId, recoveryCode: result.recoveryCode });
       }
       setAnswers(["", ""]);
       setRecoverySaved(false);
       setCodeCopied(false);
+      setCodeRevealed(false);
       setStep(2);
     } catch (error) {
       if (error instanceof KeyfileAlreadyExistsError) toast.warning(t("encryption.mobileAlreadySetUp"));
@@ -268,10 +274,17 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
           <small>{t("workspaceSecurity.recoveryTaskCodeDesc")}</small>
           <div className="m-codegroups" role="list" aria-label={t("workspaceSecurity.recoveryCodeGroupsLabel")}>
             {prefix && <code className="m-codegroup" role="listitem"><small>{t("workspaceSecurity.recoveryPrefix")}</small>{prefix}</code>}
-            {groups.map((group, index) => <code className="m-codegroup" data-requested={challenge.includes(index)} role="listitem" key={`${index}-${group}`}>
-              <small>{t("workspaceSecurity.recoveryGroup", { number: index + 1 })}</small>{group}
+            {groups.map((group, index) => <code className="m-codegroup" data-requested={challenge.includes(index)} data-hidden={groupIsHidden(index)} role="listitem" key={`${index}-${group}`}>
+              <small>{t("workspaceSecurity.recoveryGroup", { number: index + 1 })}</small>
+              <span aria-label={groupIsHidden(index) ? t("workspaceSecurity.recoveryHiddenLabel") : undefined}>{groupIsHidden(index) ? maskRecoveryGroup(group) : group}</span>
             </code>)}
           </div>
+          {groups.some((_, index) => groupIsHidden(index)) && (
+            <div className="m-code-hidden">
+              <small>{t("workspaceSecurity.recoveryHiddenHint")}</small>
+              <Button variant="ghost" className="m-onramp-action" onClick={revealAndReroll}>{t("workspaceSecurity.revealCode")}</Button>
+            </div>
+          )}
           <Button variant="ghost" className="m-onramp-action" disabled={busy} onClick={() => void copyCode()}>
             <Copy size={ICON.ui} />{codeCopied ? t("workspaceSecurity.copied") : t("workspaceSecurity.copyCode")}
           </Button>

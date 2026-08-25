@@ -3149,7 +3149,8 @@
       "migrating": "加密中",
       "active": "已保护",
       "locked": "已锁定",
-      "error": "需要处理"
+      "error": "需要处理",
+      "setup-incomplete": "设置未完成"
     },
     "lockedMessage": "此设备上的加密工作区已锁定。",
     "reconcileProgress": "正在准备加密工作区…",
@@ -3363,7 +3364,14 @@
     "markRepaired": "已修复",
     "repaired": "已标记为修复",
     "renewConfirmTitle": "更新恢复信息？",
-    "renewConfirmBody": "你现在持有的文件和代码将不再有效。请先保存新的文件和新的代码，再丢弃旧的。"
+    "renewConfirmBody": "你现在持有的文件和代码将不再有效。请先保存新的文件和新的代码，再丢弃旧的。",
+    "recoveryHiddenHint": "验证期间代码保持隐藏。",
+    "recoveryHiddenLabel": "已隐藏",
+    "recoveryInVaultRefused": "恢复文件不能保存在它所解锁的保险库中。请选择外部位置。",
+    "revealCode": "显示代码",
+    "keyBundleMissingMessage": "本设备没有此工作区的密钥。",
+    "resumeSetup": "继续设置",
+    "resumeSetupDesc": "加密已开始但未完成。密钥保存在本设备上。"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

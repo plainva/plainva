@@ -3233,7 +3233,8 @@
       "migrating": "Szyfrowanie",
       "active": "Chroniony",
       "locked": "Zablokowany",
-      "error": "Wymagane działanie"
+      "error": "Wymagane działanie",
+      "setup-incomplete": "Konfiguracja niekompletna"
     },
     "lockedMessage": "Szyfrowany workspace jest zablokowany na tym urządzeniu.",
     "reconcileProgress": "Przygotowywanie szyfrowanego workspace…",
@@ -3447,7 +3448,14 @@
     "markRepaired": "Naprawione",
     "repaired": "Oznaczono jako naprawione",
     "renewConfirmTitle": "Odnowić odzyskiwanie?",
-    "renewConfirmBody": "Plik i kod, które masz teraz, przestaną działać. Zapisz nowy plik i nowy kod, zanim wyrzucisz stare."
+    "renewConfirmBody": "Plik i kod, które masz teraz, przestaną działać. Zapisz nowy plik i nowy kod, zanim wyrzucisz stare.",
+    "recoveryHiddenHint": "Kod pozostaje ukryty podczas weryfikacji.",
+    "recoveryHiddenLabel": "Ukryty",
+    "recoveryInVaultRefused": "Plik odzyskiwania nie moze znajdowac sie w sejfie, ktory odblokowuje. Wybierz lokalizacje poza nim.",
+    "revealCode": "Pokaz kod",
+    "keyBundleMissingMessage": "To urzadzenie nie ma klucza do tej przestrzeni.",
+    "resumeSetup": "Wznow konfiguracje",
+    "resumeSetupDesc": "Szyfrowanie rozpoczeto, ale go nie ukonczono. Klucz jest na tym urzadzeniu."
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

@@ -363,6 +363,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-qr-frame": "aiming frame in --qr-light — see pv-qr-scanner",
   "pv-qr-bar": "caption row over the stream — see pv-qr-scanner",
   "pv-qr-fallback": "camera-unavailable message over the same dark ground — see pv-qr-scanner",
+  "pv-security-code-hidden": "hint row + a ghost Button; the text is --text-muted, which every theme overrides",
   "pv-fixed-ghost": "positioning utility, no visual surface",
   "pv-click-catch": "invisible utility, no visual surface",
   "pv-overlay": "backdrop dim only — themes restyle the panels, not the dim",

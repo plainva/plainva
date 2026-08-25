@@ -3176,7 +3176,8 @@
       "migrating": "Encrypting",
       "active": "Protected",
       "locked": "Locked",
-      "error": "Action required"
+      "error": "Action required",
+      "setup-incomplete": "Setup incomplete"
     },
     "lockedMessage": "The encrypted workspace is locked on this device.",
     "reconcileProgress": "Preparing encrypted workspace…",
@@ -3391,7 +3392,14 @@
     "markRepaired": "Repaired",
     "repaired": "Marked as repaired",
     "renewConfirmTitle": "Renew recovery?",
-    "renewConfirmBody": "The file and code you have now will stop working. Save the new file and the new code before you discard the old ones."
+    "renewConfirmBody": "The file and code you have now will stop working. Save the new file and the new code before you discard the old ones.",
+    "recoveryHiddenHint": "The code stays hidden while it is being checked.",
+    "recoveryHiddenLabel": "Hidden",
+    "recoveryInVaultRefused": "The recovery file must not live inside the vault it unlocks. Pick a location outside it.",
+    "revealCode": "Show code",
+    "keyBundleMissingMessage": "This device holds no key for this workspace.",
+    "resumeSetup": "Resume setup",
+    "resumeSetupDesc": "Encryption started but did not finish. The key is on this device."
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

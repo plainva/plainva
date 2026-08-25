@@ -2080,6 +2080,9 @@ textarea {
   color: var(--on-accent-container);
 }
 .m-codegroup[data-requested="true"] small { color: inherit; opacity: 0.8; }
+.m-codegroup[data-hidden="true"] > span { color: var(--text-faint); letter-spacing: 0.12em; }
+.m-code-hidden { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--text-muted); }
+.m-code-hidden small { font-size: var(--text-xs); }
 .m-fieldstatus { font-size: var(--text-xs); color: var(--text-muted); }
 .m-fieldstatus[data-state="correct"] { color: var(--accent-color); }
 .m-fieldstatus[data-state="mismatch"] { color: var(--error-text); }

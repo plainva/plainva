@@ -3205,7 +3205,8 @@
       "migrating": "Chiffrement",
       "active": "Protégé",
       "locked": "Verrouillé",
-      "error": "Action requise"
+      "error": "Action requise",
+      "setup-incomplete": "Configuration incomplete"
     },
     "lockedMessage": "L’espace chiffré est verrouillé sur cet appareil.",
     "reconcileProgress": "Préparation de l’espace chiffré…",
@@ -3419,7 +3420,14 @@
     "markRepaired": "Réparé",
     "repaired": "Marqué comme réparé",
     "renewConfirmTitle": "Renouveler la récupération ?",
-    "renewConfirmBody": "Le fichier et le code que vous avez actuellement cesseront de fonctionner. Enregistrez le nouveau fichier et le nouveau code avant de jeter les anciens."
+    "renewConfirmBody": "Le fichier et le code que vous avez actuellement cesseront de fonctionner. Enregistrez le nouveau fichier et le nouveau code avant de jeter les anciens.",
+    "recoveryHiddenHint": "Le code reste masque pendant la verification.",
+    "recoveryHiddenLabel": "Masque",
+    "recoveryInVaultRefused": "Le fichier de recuperation ne doit pas se trouver dans le coffre qu'il deverrouille. Choisis un emplacement exterieur.",
+    "revealCode": "Afficher le code",
+    "keyBundleMissingMessage": "Cet appareil ne detient aucune cle pour cet espace.",
+    "resumeSetup": "Reprendre la configuration",
+    "resumeSetupDesc": "Le chiffrement a commence sans se terminer. La cle est sur cet appareil."
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

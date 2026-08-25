@@ -19,8 +19,8 @@ import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settingsProfile";
 import { saveConnectionState } from "../services/encryptionManifest";
-import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { clearWorkspaceRuntime, getWorkspaceSecurityStatus, loadWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
+import { changeWorkspaceFallbackPassphrase, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
@@ -158,7 +158,11 @@ interface VaultContextType extends VaultState {
   activatePersonalWorkspace: (draftId: string, onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
   lockPersonalWorkspace: () => Promise<void>;
-  removeRemotePlaintext: () => Promise<number>;
+  removeRemotePlaintext: (onProgress?: (done: number, total: number) => void) => Promise<number>;
+  /** Resumes a `setup-incomplete` conversion using the key bundle already on this device. */
+  resumePersonalWorkspaceSetup: (onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
+  changeWorkspacePassphrase: (currentPassphrase: string, nextPassphrase: string) => Promise<void>;
+  getWorkspaceKeyStorage: () => Promise<{ stored: WorkspaceKeyStorage | null; available: WorkspaceKeyStorage }>;
   /**
    * Reset content-E2E for the active sync connection (Stilllegen P2): un-brick a
    * connection whose remote `encryption.json` is missing or invalid by dropping
@@ -597,7 +601,10 @@ export const VaultProvider: React.FC<{
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await getWorkspaceSecurityStatus(path);
-      const workspaceRuntime = workspaceSecurityStatus ? await loadWorkspaceRuntime(path) : null;
+      // "Locked" and "no key bundle here" are different answers and need different offers
+      // (finding 2026-08-25, B6). They used to arrive as the same null.
+      const workspaceAccess = workspaceSecurityStatus ? await readWorkspaceRuntime(path) : null;
+      const workspaceRuntime = workspaceAccess?.state === "unlocked" ? workspaceAccess.runtime : null;
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
       const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
@@ -1053,10 +1060,20 @@ export const VaultProvider: React.FC<{
           if (workspaceSecurityStatus && workspaceStateStore) {
             const runtime = workspaceRuntime;
             if (!runtime) {
-              const lockedStatus: WorkspaceSecurityPublicStatus = { ...workspaceSecurityStatus, phase: "locked" };
-              resolvedWorkspaceSecurityStatus = lockedStatus;
-              await saveWorkspaceSecurityStatus(path, lockedStatus);
-              syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.lockedMessage"), provider: syncProvider });
+              // A locked workspace can be opened with what is on this device; a missing key
+              // bundle cannot, and offering "enter your passphrase" for a bundle that is not
+              // there sends the user looking for the wrong thing (finding 2026-08-25, B6).
+              const missing = workspaceAccess?.state === "absent";
+              const nextStatus: WorkspaceSecurityPublicStatus = missing
+                ? { ...workspaceSecurityStatus, phase: "error", lastError: "workspace-key-bundle-missing" }
+                : { ...workspaceSecurityStatus, phase: "locked" };
+              resolvedWorkspaceSecurityStatus = nextStatus;
+              await saveWorkspaceSecurityStatus(path, nextStatus);
+              syncStatusStore.set(path, {
+                status: "error",
+                message: i18n.t(missing ? "workspaceSecurity.keyBundleMissingMessage" : "workspaceSecurity.lockedMessage"),
+                provider: syncProvider,
+              });
             } else {
               if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
                 throw new Error("The stored workspace key bundle does not match this vault.");
@@ -2008,9 +2025,39 @@ export const VaultProvider: React.FC<{
     await openVault(state.vaultPath);
   };
 
-  const cleanupRemotePlaintext = async (): Promise<number> => {
+  const cleanupRemotePlaintext = async (onProgress?: (done: number, total: number) => void): Promise<number> => {
     if (!syncTargetRef.current) throw new Error("workspace-no-connection");
-    return removeLegacyRemotePlaintext(syncTargetRef.current);
+    return removeLegacyRemotePlaintext(syncTargetRef.current, onProgress);
+  };
+
+  /** Picks an interrupted conversion back up; the key bundle is already on this device. */
+  const resumeWorkspaceSetup = async (onProgress?: (done: number, total: number) => void): Promise<{ queued: number; total: number }> => {
+    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
+      throw new Error("workspace-no-connection");
+    }
+    await state.syncWorker?.stopAndDrain();
+    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
+    workspaceStateRef.current = workspaceState;
+    const result = await resumePersonalWorkspaceSetup({
+      vaultPath: state.vaultPath,
+      provider: workspaceProviderName(syncProviderRef.current),
+      rawTarget: syncTargetRef.current,
+      rawVault: state.backupAdapter,
+      state: workspaceState,
+      onProgress,
+    });
+    await openVault(state.vaultPath);
+    return { queued: result.queued, total: result.total };
+  };
+
+  const changeWorkspacePassphrase = async (currentPassphrase: string, nextPassphrase: string): Promise<void> => {
+    if (!state.vaultPath) throw new Error("workspace-not-configured");
+    await changeWorkspaceFallbackPassphrase(state.vaultPath, currentPassphrase, nextPassphrase);
+  };
+
+  const workspaceKeyStorage = async (): Promise<{ stored: WorkspaceKeyStorage | null; available: WorkspaceKeyStorage }> => {
+    if (!state.vaultPath) throw new Error("workspace-not-configured");
+    return describeWorkspaceKeyStorage(state.vaultPath);
   };
 
   const getWorkspaceDiagnostics = async (): Promise<{ meta: WorkspaceRuntimeMeta | null; queuedMutations: number; legacyPlaintextPaths: number; quarantine: number; localForks: number }> => {
@@ -2367,7 +2414,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );
