@@ -3,6 +3,7 @@ import type { WorkspaceObjectStore } from "./objectStore.js";
 import { createWorkspaceObjectId, createWorkspaceRevisionId, type WorkspaceGroupKeyEpoch } from "./identity.js";
 import { encodeWorkspaceDocument, signWorkspaceDocument, workspaceDocumentHash, type WorkspaceOperationPayload, type WorkspaceSignedDocument } from "./documents.js";
 import { openPvc1Chunk, openPvo1Frame, sealInlinePvo1, verifyChunkedPlaintextHash, type Pvo1Recipient } from "./pvo1.js";
+import { assertWorkspaceCommentAnchor, type WorkspaceCommentAnchor } from "./commentAnchor.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import { fromBase64, sha256Hex, toBase64, utf8DecodeFatal, utf8Encode } from "./encoding.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
@@ -15,6 +16,14 @@ export interface WorkspaceCommentBody {
   targetRevisionId: string;
   parentCommentId: string | null;
   body: string;
+  /**
+   * Where in the note the comment sits, or null for the note as a whole.
+   *
+   * Absent on comments written before anchors existed - those mean the whole
+   * note too. Because canonicalJson sorts keys, adding the field neither moves
+   * the others nor changes an older comment's bytes: no protocol version bump.
+   */
+  anchor?: WorkspaceCommentAnchor | null;
   resolvedCommentId: string | null;
   createdAt: string;
 }
@@ -38,16 +47,18 @@ export async function prepareWorkspaceComment(input: {
   targetRevisionId: string;
   body: string;
   parentCommentId?: string | null;
+  anchor?: WorkspaceCommentAnchor | null;
   resolvedCommentId?: string | null;
   recipients: Pvo1Recipient[];
   now?: string;
 }): Promise<PreparedWorkspaceComment> {
   const now = input.now ?? new Date().toISOString();
   protocolAssert(utf8Encode(input.body).length >= 1 && utf8Encode(input.body).length <= 64 * 1024, "bounds", "comment body size is invalid");
+  if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, resolvedCommentId: input.resolvedCommentId ?? null, createdAt: now };
+  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, resolvedCommentId: input.resolvedCommentId ?? null, createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,
@@ -97,11 +108,12 @@ export async function openWorkspaceComment(input: {
   catch (cause) { throw new WorkspaceProtocolError("format", "comment payload is not JSON", { cause }); }
   protocolAssert(canonicalJson(body) === text && body.version === 1 && body.commentId === input.operation.payload.objectId && body.targetRevisionId === input.operation.payload.parentRevisionIds[0], "integrity", "comment content binding is invalid");
   protocolAssert(typeof body.body === "string" && utf8Encode(body.body).length <= 64 * 1024, "bounds", "comment body is too large");
+  if (body.anchor !== undefined && body.anchor !== null) assertWorkspaceCommentAnchor(body.anchor);
   return body;
 }
 
 export function workspaceCommentRecord(body: WorkspaceCommentBody, operation: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>, operationHash: string): WorkspaceCommentRecord {
-  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, resolvedAt: null };
+  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, resolvedAt: null };
 }
 
 export class WorkspaceRevisionHistoryService {

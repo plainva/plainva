@@ -162,6 +162,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       operation_hash    TEXT NOT NULL UNIQUE,
       payload_hash      TEXT NOT NULL,
       body              TEXT NOT NULL,
+      anchor            TEXT,
       created_at        TEXT NOT NULL,
       resolved_comment_id TEXT,
       resolved_at       TEXT
@@ -339,6 +340,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   try {
     await db.execute(`ALTER TABLE workspace_comment ADD COLUMN resolved_comment_id TEXT;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
+    // Where a comment sits inside the note, as JSON. NULL means the whole note,
+    // which is what every comment written before anchors existed meant.
+    await db.execute(`ALTER TABLE workspace_comment ADD COLUMN anchor TEXT;`);
   } catch {
     // Column might already exist
   }

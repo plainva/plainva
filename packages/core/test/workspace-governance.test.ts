@@ -8,6 +8,11 @@ import {
   acceptWorkspacePairing,
   applyWorkspaceGovernanceUpdate,
   approveWorkspacePairing,
+  buildCommentAnchor,
+  canonicalJson,
+  sealInlinePvo1,
+  signWorkspaceDocument,
+  workspaceSha256Hex,
   createPersonalWorkspaceBootstrap,
   createWorkspacePairingRequest,
   createWorkspacePolicySuccessor,
@@ -168,6 +173,69 @@ describe("workspace governance P4-P7 contracts", () => {
     const resolvedBody = await openWorkspaceComment({ objectBytes: resolution.objectBytes, operation: resolution.operation, readerKeys: runtime.groupKeys });
     await state.saveComment(workspaceCommentRecord(resolvedBody, resolution.operation, resolution.operationHash));
     expect(await state.listComments(original.targetObjectId)).toEqual([expect.objectContaining({ body: "Please clarify", resolvedAt: "2026-07-22T10:05:00.000Z" })]);
+  });
+
+  it("carries the anchor through sealing, opening and the stored record", async () => {
+    const { runtime } = await workspace();
+    const note = "Der Vertrag laeuft bis Ende des Jahres.";
+    const anchor = buildCommentAnchor(note, note.indexOf("bis"), note.length - 1, "7f3a");
+    const recipients = [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }];
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), body: "Welches Jahr?", anchor, recipients, now: "2026-08-25T10:00:00.000Z" });
+    const opened = await openWorkspaceComment({ objectBytes: prepared.objectBytes, operation: prepared.operation, readerKeys: runtime.groupKeys });
+    expect(opened.anchor).toEqual(anchor);
+    const state = new MemoryWorkspaceStateStore();
+    await state.saveComment(workspaceCommentRecord(opened, prepared.operation, prepared.operationHash));
+    expect((await state.listComments("41".repeat(16)))[0].anchor).toEqual(anchor);
+  });
+
+  it("keeps a comment on the whole note when no anchor was given", async () => {
+    const { runtime } = await workspace();
+    const recipients = [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }];
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), body: "Passt so", recipients, now: "2026-08-25T10:00:00.000Z" });
+    const opened = await openWorkspaceComment({ objectBytes: prepared.objectBytes, operation: prepared.operation, readerKeys: runtime.groupKeys });
+    expect(opened.anchor).toBeNull();
+    const state = new MemoryWorkspaceStateStore();
+    await state.saveComment(workspaceCommentRecord(opened, prepared.operation, prepared.operationHash));
+    expect((await state.listComments("41".repeat(16)))[0].anchor).toBeNull();
+  });
+
+  it("refuses an anchor that arrives malformed from another device", async () => {
+    const { runtime } = await workspace();
+    const recipients = [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }];
+    const base = { runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), body: "Welches Jahr?", recipients, now: "2026-08-25T10:00:00.000Z" };
+    const good = buildCommentAnchor("Der Vertrag laeuft.", 4, 11, "7f3a");
+    await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, markerId: "ZZZZ" } })).rejects.toThrow(/marker id/);
+    await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, quote: "" } })).rejects.toThrow(/quote/);
+  });
+
+  it("refuses a forged anchor that never passed through our own prepare step", async () => {
+    // The device that seals a comment is not necessarily ours - prepare only
+    // guards the authoring side. This is the reader-side guard on its own.
+    const { runtime } = await workspace();
+    const recipients = [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }];
+    const prepared = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), body: "Welches Jahr?", anchor: buildCommentAnchor("Der Vertrag laeuft.", 4, 11, "7f3a"), recipients, now: "2026-08-25T10:00:00.000Z" });
+    const forged = { ...prepared.comment, anchor: { ...prepared.comment.anchor!, markerId: "ZZZZ" } };
+    const { objectId, revisionId, createdAt } = prepared.operation.payload;
+    const objectBytes = await sealInlinePvo1({
+      workspaceId: runtime.workspaceId, objectId, revisionId: revisionId!, recipients,
+      metadata: { path: `.plainva/workspace/comments/${forged.targetObjectId}/${objectId}.pvcomment`, mime: "application/vnd.plainva.comment+json", parentObjectId: forged.targetObjectId, createdAt, modifiedAt: createdAt, contentKind: "text" },
+      plaintext: new TextEncoder().encode(canonicalJson(forged)),
+    });
+    const payload = { ...prepared.operation.payload, payloadHash: workspaceSha256Hex(objectBytes) };
+    const operation = signWorkspaceDocument({ kind: "operation" as const, protocolVersion: 1 as const, workspaceId: runtime.workspaceId, payload }, { algorithm: "Ed25519" as const, signerId: runtime.device.publicIdentity.deviceId, signerKind: "device" as const }, runtime.device.secrets.signing.privateKey);
+    await expect(openWorkspaceComment({ objectBytes, operation, readerKeys: runtime.groupKeys })).rejects.toThrow(/marker id/);
+  });
+
+  it("adds the anchor without moving the other fields of a comment", () => {
+    // canonicalJson sorts keys, so an additive field neither reorders the rest
+    // nor changes what a comment written before anchors existed serialises to -
+    // which is why this needs no protocol version bump.
+    const legacy = { version: 1, commentId: "a", targetObjectId: "b", targetRevisionId: "c", parentCommentId: null, body: "x", resolvedCommentId: null, createdAt: "2026-08-25T10:00:00.000Z" };
+    const withAnchor = { ...legacy, anchor: null };
+    expect(canonicalJson(JSON.parse(canonicalJson(legacy)))).toBe(canonicalJson(legacy));
+    expect(canonicalJson(legacy).includes('"anchor"')).toBe(false);
+    // The only difference is the inserted key; everything around it is untouched.
+    expect(canonicalJson(withAnchor).replace('"anchor":null,', "")).toBe(canonicalJson(legacy));
   });
 
   it("keeps syncing valid work when one remote operation is malformed and records ciphertext quarantine", async () => {

@@ -1,5 +1,6 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
+import type { WorkspaceCommentAnchor } from "./commentAnchor.js";
 
 export type WorkspaceLifecyclePhase = "preparing" | "migrating" | "active" | "locked" | "error";
 export type WorkspaceQueueOperation = "write" | "mkdir" | "rename" | "delete";
@@ -41,6 +42,8 @@ export interface WorkspaceCommentRecord {
   operationHash: string;
   payloadHash: string;
   body: string;
+  /** Where in the note it sits, or null for the note as a whole. */
+  anchor: WorkspaceCommentAnchor | null;
   createdAt: string;
   /** Present only on an immutable resolution marker. */
   resolvedCommentId: string | null;
@@ -399,10 +402,17 @@ interface QueueRow {
   prepared_json: string | null;
 }
 
+/** A stored anchor, or null. A row written before anchors existed has none. */
+function parseCommentAnchor(value: string | null): WorkspaceCommentAnchor | null {
+  if (!value) return null;
+  try { return JSON.parse(value) as WorkspaceCommentAnchor; }
+  catch { return null; }
+}
+
 interface CommentRow {
   comment_id: string; target_object_id: string; target_revision_id: string; parent_comment_id: string | null;
   author_member_id: string; author_device_id: string; operation_hash: string; payload_hash: string;
-  body: string; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
+  body: string; anchor: string | null; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
 }
 
 interface QuarantineRow {
@@ -520,10 +530,10 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
     const rows = await this.db.query<CommentRow>(`SELECT * FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
-    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
+    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
+    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
     if (comment.resolvedCommentId) await this.db.execute(`UPDATE workspace_comment SET resolved_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
     else await this.db.execute(`UPDATE workspace_comment SET resolved_at = (SELECT MAX(created_at) FROM workspace_comment WHERE resolved_comment_id = ?) WHERE comment_id = ? AND EXISTS (SELECT 1 FROM workspace_comment WHERE resolved_comment_id = ?)`, [comment.commentId, comment.commentId, comment.commentId]);
   }
