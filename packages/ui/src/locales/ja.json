@@ -3099,7 +3099,7 @@
     "manage": "管理",
     "rekey": "再暗号化",
     "noRekey": "実行中の再暗号化はありません",
-    "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
+    "revokeFullQuestion": "アクセスはすぐに終了し、現在の暗号化コンテンツはすべて、再開可能な完全再暗号化のキューに入ります。すでにダウンロードされた平文を取り戻すことはできません。",
     "publications": "公開",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
     "publicationPreviewOnly": "プレビューのみ: 公開の仕組みを確認できますが、まだ何も共有されません。",

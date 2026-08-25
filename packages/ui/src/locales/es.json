@@ -3155,7 +3155,7 @@
     "manage": "Gestionar",
     "rekey": "Recifrar",
     "noRekey": "Sin recifrado activo",
-    "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
+    "revokeFullQuestion": "El acceso termina de inmediato y todo el contenido cifrado actual entra en cola para un recifrado completo reanudable. El texto plano ya descargado no se puede recuperar.",
     "publications": "Publicaciones",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
     "publicationPreviewOnly": "Solo una vista previa: puedes ver cómo funcionará la publicación, pero todavía no se comparte nada.",
@@ -3209,7 +3209,7 @@
       "active": "Protegido",
       "locked": "Bloqueado",
       "error": "Acción necesaria",
-      "setup-incomplete": "Configuracion incompleta"
+      "setup-incomplete": "Configuración incompleta"
     },
     "lockedMessage": "El espacio de trabajo cifrado está bloqueado en este dispositivo.",
     "reconcileProgress": "Preparando el espacio cifrado…",
@@ -3429,8 +3429,8 @@
     "recoveryInVaultRefused": "El archivo de recuperacion no debe estar dentro del vault que desbloquea. Elige una ubicacion fuera.",
     "revealCode": "Mostrar codigo",
     "keyBundleMissingMessage": "Este dispositivo no tiene ninguna clave para este espacio.",
-    "resumeSetup": "Reanudar configuracion",
-    "resumeSetupDesc": "El cifrado comenzo pero no termino. La clave esta en este dispositivo.",
+    "resumeSetup": "Reanudar configuración",
+    "resumeSetupDesc": "El cifrado comenzó pero no terminó. La clave está en este dispositivo.",
     "groupMembers": "Miembros",
     "noMembersYet": "Aún no hay miembros: invita primero a alguien.",
     "noObjectsYet": "Este espacio de trabajo todavía no tiene objetos cifrados.",

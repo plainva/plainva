@@ -3099,7 +3099,7 @@
     "manage": "管理",
     "rekey": "重新加密",
     "noRekey": "没有正在进行的重新加密",
-    "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
+    "revokeFullQuestion": "访问权限立即结束，当前所有已加密内容会排入可续跑的完全重新加密队列。对方已经下载过的明文无法收回。",
     "publications": "发布",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
     "publicationPreviewOnly": "仅为预览：你可以看到发布将如何运作，但目前还不会共享任何内容。",

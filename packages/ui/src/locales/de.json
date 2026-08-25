@@ -3180,7 +3180,7 @@
       "active": "Geschützt",
       "locked": "Gesperrt",
       "error": "Handlung erforderlich",
-      "setup-incomplete": "Einrichtung unvollstaendig"
+      "setup-incomplete": "Einrichtung unvollständig"
     },
     "lockedMessage": "Der verschlüsselte Workspace ist auf diesem Gerät gesperrt.",
     "reconcileProgress": "Verschlüsselter Workspace wird vorbereitet…",
@@ -3400,9 +3400,9 @@
     "recoveryHiddenLabel": "Ausgeblendet",
     "recoveryInVaultRefused": "Die Wiederherstellungsdatei darf nicht in dem Vault liegen, den sie entsperrt. Waehle einen Ort ausserhalb.",
     "revealCode": "Code anzeigen",
-    "keyBundleMissingMessage": "Auf diesem Geraet liegt kein Schluessel fuer diesen Workspace.",
+    "keyBundleMissingMessage": "Auf diesem Gerät liegt kein Schlüssel für diesen Workspace.",
     "resumeSetup": "Einrichtung fortsetzen",
-    "resumeSetupDesc": "Die Verschluesselung wurde begonnen, aber nicht zu Ende gefuehrt. Der Schluessel liegt auf diesem Geraet.",
+    "resumeSetupDesc": "Die Verschlüsselung wurde begonnen, aber nicht zu Ende geführt. Der Schlüssel liegt auf diesem Gerät.",
     "groupMembers": "Mitglieder",
     "noMembersYet": "Noch keine Mitglieder – lade zuerst jemanden ein.",
     "noObjectsYet": "Dieser Workspace enthält noch keine verschlüsselten Objekte.",

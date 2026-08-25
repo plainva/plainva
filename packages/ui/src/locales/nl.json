@@ -3127,7 +3127,7 @@
     "manage": "Beheren",
     "rekey": "Opnieuw versleutelen",
     "noRekey": "Geen actieve hersleuteling",
-    "revokeFullQuestion": "Access is removed immediately and current content is queued for a resumable full rekey.",
+    "revokeFullQuestion": "De toegang eindigt meteen en alle huidige versleutelde inhoud wordt in de wachtrij gezet voor een hervatbare volledige hersleuteling. Al gedownloade platte tekst kan niet worden teruggehaald.",
     "publications": "Publicaties",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
     "publicationPreviewOnly": "Alleen een voorbeeld: je ziet hoe publiceren gaat werken, maar er wordt nog niets gedeeld.",
