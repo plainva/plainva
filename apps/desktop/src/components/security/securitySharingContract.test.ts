@@ -9,8 +9,19 @@ const panels = readFileSync(new URL("./securityPanels.tsx", import.meta.url), "u
 // (package B3); the assertions below target the file that owns each surface.
 const mobile = readFileSync(new URL("../../../../mobile/src/screens/SecurityAreaScreen.tsx", import.meta.url), "utf8");
 
-describe("P8-P11 security-centre interaction contract", () => {
-  it("keeps prerequisite actions actionable and routes them through the workspace gateway", () => {
+/**
+ * These are SOURCE assertions, and the names say so.
+ *
+ * Every check below greps a component file for a call, a prop or a string.
+ * That catches a surface being deleted, renamed or quietly unwired - it proves
+ * nothing about what happens when a person clicks. The names used to read like
+ * behaviour ("mobile joins an encrypted workspace..."), which invites the next
+ * session to treat a green run as proof the flow works; it never was. What the
+ * flows actually do is covered by `e2e/security.spec.ts`.
+ */
+
+describe("security centre: what the source still wires (source guard, not behaviour)", () => {
+  it("source: prerequisite actions stay actionable and go through the workspace gateway", () => {
     expect(page).not.toContain("disabled={!governance");
     expect(page).not.toContain("disabled={!hasSyncConnection");
     expect(page).toContain("const requireWorkspace = async");
@@ -18,7 +29,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).toContain("await openVault(selectedVault)");
   });
 
-  it("moves the second-level area navigation into the settings left column (IA v2, P1)", () => {
+  it("source: the second-level area navigation lives in the settings left column (IA v2, P1)", () => {
     // The overview (first level) keeps the hero, summary cards and area detail.
     for (const className of ["pv-security-hero", "pv-security-summary-grid", "pv-security-summary-card", "pv-security-detail"]) expect(page).toContain(className);
     // The old in-content admin rail / internal drill-in state is gone — the
@@ -53,7 +64,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(dialog).toContain("providerOptions()");
   });
 
-  it("overview shows entry cards + encryption disconnect; recovery is a split area; add-device does not create a member (P2/P3)", () => {
+  it("source: overview keeps entry cards + encryption disconnect, recovery is a split area, add-device never creates a member (P2/P3)", () => {
     // Two named entry cards replace the three navigating summary cards.
     expect(page).toContain("workspaceSecurity.manageAccess");
     expect(page).toContain("workspaceSecurity.manageSharing");
@@ -75,12 +86,12 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).toContain("setInviteFor({ memberId, displayName: form.name");
   });
 
-  it("keeps the four-step slice wizard with content-type cards", () => {
+  it("source: the slice wizard still has four steps and content-type cards", () => {
     for (const className of ["pv-security-slice-wizard", "pv-security-choice-grid"]) expect(dialog).toContain(className);
     expect(dialog).toContain('["details", "content", "permissions", "review"]');
   });
 
-  it("makes recovery setup a self-explanatory numbered verification flow", () => {
+  it("source: recovery setup still renders a numbered verification flow", () => {
     for (const className of ["pv-security-recovery-task", "pv-security-task-number", "pv-security-code-groups", "pv-security-code-group", "pv-security-challenge-grid", "pv-security-next"]) expect(wizard).toContain(className);
     expect(wizard).toContain("data-requested={requested}");
     expect(wizard).toContain('t("workspaceSecurity.recoveryTaskCheckDesc", { first: challenge[0] + 1, second: challenge[1] + 1 })');
@@ -90,7 +101,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(wizard).toContain('t("workspaceSecurity.recoveryReady")');
   });
 
-  it("offers a desktop join flow and a copyable invitation artifact (package C1/C3/C4)", () => {
+  it("source: a desktop join flow and a copyable invitation artifact are wired (package C1/C3/C4)", () => {
     // The page detects a joinable remote workspace and opens the join dialog.
     expect(page).toContain("detectJoinableWorkspace");
     expect(page).toContain("WorkspaceJoinDialog");
@@ -104,7 +115,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(join).toContain("pv-security-model");
   });
 
-  it("tells a waiting join what went wrong, when it dies, and what to compare (P5, B10)", () => {
+  it("source: a waiting join renders its reason, its expiry and its fingerprint (P5, B10)", () => {
     const join = readFileSync(new URL("./WorkspaceJoinDialog.tsx", import.meta.url), "utf8");
     const pairing = readFileSync(new URL("../../services/workspaceSecurity/workspacePairing.ts", import.meta.url), "utf8");
     // A failing poll used to end in the console, so a broken connection looked
@@ -131,7 +142,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain('t("workspaceSecurity.joinExpired")');
   });
 
-  it("offers a confirmed workspace decommission + orphan recovery (Stilllegen P4)", () => {
+  it("source: workspace decommission + orphan recovery are wired behind a confirmation (Stilllegen P4)", () => {
     expect(page).toContain("decommissionWorkspace");
     expect(page).toContain('data-testid="workspace-decommission"');
     expect(page).toContain('t("workspaceSecurity.orphanRecovery"');
@@ -139,7 +150,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(page).toContain('kind: "danger"');
   });
 
-  it("offers a full lift-encryption action that re-uploads plaintext and leaves .pvws for manual deletion (E8)", () => {
+  it("source: the lift-encryption action re-uploads plaintext and leaves .pvws for manual deletion (E8)", () => {
     // A distinct overview action next to the device-local disconnect.
     expect(page).toContain("liftWorkspaceEncryption");
     expect(page).toContain('data-testid="workspace-lift-encryption"');
@@ -152,7 +163,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(ctx).toContain("loadVault(path, true)");
   });
 
-  it("provides mobile master/detail areas and QR fingerprint approval", () => {
+  it("source: the mobile screen wires master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
@@ -169,7 +180,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).toContain("assignMobileWorkspaceRole");
   });
 
-  it("keeps rekey, ownership transfer and decommission on the desktop (E8 / C14)", () => {
+  it("source: rekey, ownership transfer and decommission appear on the desktop only (E8 / C14)", () => {
     // The boundary is deliberate, so it is asserted from BOTH sides: the
     // desktop owns these three, and the phone must not grow them quietly.
     expect(page).toContain("transferOwner");
@@ -180,7 +191,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     }
   });
 
-  it("renders real QR codes for the invitation and the mobile pairing request (P6)", () => {
+  it("source: invitation and mobile pairing request both use the shared QR component (P6)", () => {
     // Desktop invitation modal shows the code AND a scannable QR of the same code.
     expect(page).toContain("QrImage");
     expect(page).toContain("<QrImage value={inviteCode}");
@@ -214,7 +225,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(scan).toContain("BarcodeDetector");
   });
 
-  it("mobile joins an encrypted workspace by pasting the invitation code, not a raw member id", () => {
+  it("source: the mobile join field takes an invitation code, not a raw member id", () => {
     // The join flow decodes the same PVINVITE1 code the desktop shows — the old
     // "type a member id" field (which surfaced an id no desktop screen exposes)
     // is gone.
@@ -223,7 +234,7 @@ describe("P8-P11 security-centre interaction contract", () => {
     expect(mobile).not.toContain("setMemberId");
     expect(mobile).not.toContain('t("workspaceSecurity.memberId"');
   });
-  it("says the publication does not exist yet instead of pretending it does (P1, B1)", () => {
+  it("source: the publication surface says it does not exist yet (P1, B1)", () => {
     // Four core primitives are tested and have NO caller: projectPublishedMarkdown,
     // PublishedSliceObjectStore, publishedSliceAccessCapabilities and
     // publishedSliceProviderInstructions. Until Stufe B wires them, no surface may

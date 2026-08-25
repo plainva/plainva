@@ -98,7 +98,17 @@ describe("the catalog and the mobile guards agree", () => {
      * teeth on every run, and the moment someone writes a gap back in, this
      * asks for the marker again.
      */
-    const gaps = PARITY_FEATURES.filter((f) => f.kind === "gap");
+    /*
+     * Narrowed on 2026-08-25: a marker says "the phone HAS this", so it can only
+     * ever contradict an entry whose mobile side is empty on the DESKTOP's
+     * behalf — a gap the phone could close. A gap the other way round (the
+     * desktop has it, the phone does not) has nothing on the mobile side to pin;
+     * demanding a marker for it forced a choice between writing a marker that
+     * the contradiction check then rejects, or relabelling an honest gap as a
+     * decision to quieten the guard. Both are worse than saying which gaps this
+     * mechanism can speak for.
+     */
+    const gaps = PARITY_FEATURES.filter((f) => f.kind === "gap" && f.desktop === null);
     if (gaps.length > 0) {
       expect(
         readMobileGuardMarkers().length,

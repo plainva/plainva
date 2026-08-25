@@ -411,6 +411,39 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "lift-encryption",
+    title: "Turn encryption off and go back to plain files",
+    area: "security",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells can decommission a workspace — that is local, works offline and " +
+      "leaves the encrypted objects in the cloud untouched. Lifting encryption is the " +
+      "other half: it re-uploads every file of the vault as plaintext into the same " +
+      "folder, which is the heaviest network operation this app has and the one the " +
+      "phone deliberately meters (see connect-metering). It needs a surface that can " +
+      "show a long, resumable whole-vault upload; until then the phone offers the " +
+      "decommission it can finish rather than a start it cannot.",
+    verified: "2026-08-25",
+  },
+  {
+    id: "workspace-slice-kinds",
+    title: "Which kinds of Vault Slice can be created",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Folder slices only. A selection slice needs a multi-select across every " +
+      "encrypted object in the vault, and a dynamic one needs the rule builder — " +
+      "both are choosing surfaces that only make sense at desktop width. A folder is " +
+      "the share people actually ask for and it is expressible in one field, so the " +
+      "phone offers exactly that instead of a cramped version of the other two. " +
+      "Slices of any kind made elsewhere are listed, previewed and honoured here.",
+    verified: "2026-08-25",
+  },
+  {
     id: "connect-metering",
     title: "Consent and queue for metered network work",
     area: "sync",

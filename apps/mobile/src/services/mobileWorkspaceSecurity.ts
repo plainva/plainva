@@ -322,6 +322,28 @@ export async function createMobileWorkspaceGroup(input: {
   return update.groupId;
 }
 
+/**
+ * What a folder slice would actually cover, before it is published (P6).
+ *
+ * The desktop has always been able to answer this; the phone created a share and
+ * only then said how many objects it held. The answer comes from the same call
+ * that materializes the slice at creation, so the number shown is the number
+ * that will be signed — not an estimate of it.
+ */
+export function previewMobileWorkspaceSlice(input: {
+  name: string;
+  folder: string;
+  objects: readonly WorkspaceSliceObject[];
+}): { objectId: string; path: string }[] {
+  const matched = new Set(
+    previewWorkspaceSlice(
+      { sliceId: "preview", name: input.name, kind: "folder", definition: createWorkspaceSliceDefinition({ kind: "folder", folder: input.folder }), materializedObjectIds: [] },
+      input.objects
+    ).matchedObjectIds
+  );
+  return input.objects.filter((object) => matched.has(object.objectId)).map((object) => ({ objectId: object.objectId, path: object.path }));
+}
+
 export async function createMobileWorkspaceSlice(input: {
   vaultId: string;
   store: WorkspaceObjectStore;

@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -98,6 +98,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [groupName, setGroupName] = useState("");
   const [sliceName, setSliceName] = useState("");
   const [sliceFolder, setSliceFolder] = useState("");
+  const [slicePreview, setSlicePreview] = useState<{ objectId: string; path: string }[] | null>(null);
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
 
@@ -287,7 +288,23 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const addSlice = () => void runGovernance("slice", (store, rt) =>
     sliceObjects().then((objects) => createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim(), objects }))
-      .then(() => { setSliceName(""); setSliceFolder(""); }), t("workspaceSecurity.sliceCreated"));
+      .then(() => { setSliceName(""); setSliceFolder(""); setSlicePreview(null); }), t("workspaceSecurity.sliceCreated"));
+
+  /**
+   * What the folder would hand out, asked before it is signed (P6).
+   *
+   * The same preview the desktop has had. It reads the local encrypted object
+   * index, so it costs no network and can be asked as often as the folder is
+   * corrected; every edit drops the answer, because a count that outlives the
+   * rule it was computed for is worse than no count.
+   */
+  const previewSlice = () => {
+    setBusyAction("slicePreview");
+    void sliceObjects()
+      .then((objects) => setSlicePreview(previewMobileWorkspaceSlice({ name: sliceName.trim(), folder: sliceFolder.trim(), objects })))
+      .catch((error: unknown) => { console.error("[SecurityAreaScreen] slice preview failed", error); toast.error(t("workspaceSecurity.setupFailed")); })
+      .finally(() => setBusyAction(null));
+  };
 
   /**
    * Taking access away (S11, C14). Two questions, not one: "future only" ends
@@ -587,9 +604,19 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               exists on the phone, and a half-built one would be worse than the
               desktop link this replaces. */}
           <GroupCard><RowList>
-            <SettingField label={t("workspaceSecurity.name")}><TextInput value={sliceName} onChange={(event) => setSliceName(event.target.value)} /></SettingField>
-            <SettingField label={t("database.folder")}><TextInput value={sliceFolder} onChange={(event) => setSliceFolder(event.target.value)} /></SettingField>
+            <SettingField label={t("workspaceSecurity.name")}><TextInput value={sliceName} onChange={(event) => { setSliceName(event.target.value); setSlicePreview(null); }} /></SettingField>
+            <SettingField label={t("database.folder")}><TextInput value={sliceFolder} onChange={(event) => { setSliceFolder(event.target.value); setSlicePreview(null); }} /></SettingField>
           </RowList></GroupCard>
+          <Banner kind="info" rounded>{t("workspaceSecurity.slicePreview")}</Banner>
+          {slicePreview && (
+            <GroupCard><RowList>
+              <Row title={t("workspaceSecurity.previewCount", { count: slicePreview.length })} />
+              {slicePreview.slice(0, 20).map((entry) => <Row key={entry.objectId} title={entry.path} />)}
+            </RowList></GroupCard>
+          )}
+          <Button variant="ghost" disabled={busy || !sliceFolder.trim()} onClick={previewSlice}>
+            {busyAction === "slicePreview" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.preview")}
+          </Button>
           <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
             {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
           </Button>
