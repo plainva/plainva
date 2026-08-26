@@ -119,6 +119,7 @@ export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
 export * from "./lib/commentMentions";
 export * from "./lib/commentExport";
+export * from "./lib/commentTask";
 export * from "./lib/commentThreads";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";

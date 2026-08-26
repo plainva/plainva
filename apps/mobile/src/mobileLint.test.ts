@@ -2923,6 +2923,7 @@ describe("tasks created on the phone reach the provider list", () => {
   const service = stripComments(readFileSync(join(SRC, "services/pim/taskToProvider.ts"), "utf8"));
   const tasks = stripComments(readFileSync(join(SRC, "screens/TasksScreen.tsx"), "utf8"));
   const mail = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+  const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
   const sheet = stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
 
   it("uses the shared rule rather than deciding on its own", () => {
@@ -2952,6 +2953,9 @@ describe("tasks created on the phone reach the provider list", () => {
     for (const [name, src, creator] of [
       ["TasksScreen", tasks, /createTaskInDatabase\(\{|promoteTask\(\{/g],
       ["MailMessageScreen", mail, /createTaskInDatabase\(\{/g],
+      // D11: a comment that became work. The reply that names the task is part
+      // of the deliverable too, so the provider call comes after both.
+      ["NoteScreen", note, /createTaskInDatabase\(\{/g],
     ] as const) {
       const notes = [...src.matchAll(creator)].map((m) => m.index ?? -1);
       const sends = [...src.matchAll(/await sendTaskToProviderList\(/g)].map((m) => m.index ?? -1);

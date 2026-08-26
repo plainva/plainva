@@ -3541,7 +3541,11 @@
     "suggestionPending": "Sugerencia abierta",
     "commentReplyCount_one": "{{count}} respuesta",
     "commentReplyCount_many": "{{count}} respuestas",
-    "commentReplyCount_other": "{{count}} respuestas"
+    "commentReplyCount_other": "{{count}} respuestas",
+    "commentToTask": "Crear tarea",
+    "commentTaskSource": "De un comentario en",
+    "commentTaskCreated": "Convertido en tarea",
+    "commentTaskFallback": "Comentario"
   },
   "cascade": {
     "titleNote": "Eliminar «{{name}}»",

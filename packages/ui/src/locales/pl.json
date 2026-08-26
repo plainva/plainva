@@ -3570,7 +3570,11 @@
     "commentReplyCount_one": "{{count}} odpowiedź",
     "commentReplyCount_few": "{{count}} odpowiedzi",
     "commentReplyCount_many": "{{count}} odpowiedzi",
-    "commentReplyCount_other": "{{count}} odpowiedzi"
+    "commentReplyCount_other": "{{count}} odpowiedzi",
+    "commentToTask": "Utwórz zadanie",
+    "commentTaskSource": "Z komentarza w",
+    "commentTaskCreated": "Zamieniono w zadanie",
+    "commentTaskFallback": "Komentarz"
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

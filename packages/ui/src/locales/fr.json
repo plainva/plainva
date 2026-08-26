@@ -3541,7 +3541,11 @@
     "suggestionPending": "Suggestion ouverte",
     "commentReplyCount_one": "{{count}} réponse",
     "commentReplyCount_many": "{{count}} réponses",
-    "commentReplyCount_other": "{{count}} réponses"
+    "commentReplyCount_other": "{{count}} réponses",
+    "commentToTask": "Créer une tâche",
+    "commentTaskSource": "D'un commentaire dans",
+    "commentTaskCreated": "Transformé en tâche",
+    "commentTaskFallback": "Commentaire"
   },
   "cascade": {
     "titleNote": "Supprimer « {{name}} »",

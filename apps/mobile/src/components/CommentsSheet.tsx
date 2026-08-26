@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Check, MessageSquare } from "lucide-react";
+import { AtSign, Check, ListChecks, MessageSquare } from "lucide-react";
 import { Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions } from "@plainva/ui";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
@@ -27,6 +27,14 @@ export interface CommentsSheetProps {
   onResolve(commentId: string): void;
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   onDeclineSuggestion(comment: WorkspaceCommentRecord): void;
+  /**
+   * Turns the thread into a task in the default task database (D11).
+   *
+   * Gated on `canComment` like the desktop, and for the same reason: what
+   * happens HERE is the reply that links to the task - the task note itself
+   * lands in a different note, in the database's own folder.
+   */
+  onPromoteToTask(comment: WorkspaceCommentRecord): void;
   /** Tapping an anchored quote reveals the passage in the note (D6). */
   onRevealAnchor(comment: WorkspaceCommentRecord): void;
   onClose(): void;
@@ -71,6 +79,7 @@ export function CommentsSheet({
   onResolve,
   onApplySuggestion,
   onDeclineSuggestion,
+  onPromoteToTask,
   onRevealAnchor,
   onClose,
 }: CommentsSheetProps) {
@@ -159,6 +168,14 @@ export function CommentsSheet({
                       <Button size="sm" variant="ghost" onClick={() => setReplyTo(root.commentId)}>
                         {t("workspaceSecurity.commentReply")}
                       </Button>
+                      {/* A remark and a proposal alike can turn out to be
+                          work, so this sits outside the `!state` branch. */}
+                      {!root.resolvedAt && (
+                        <Button size="sm" variant="ghost" onClick={() => onPromoteToTask(root)}>
+                          <ListChecks size={ICON.meta} aria-hidden="true" />
+                          {t("workspaceSecurity.commentToTask")}
+                        </Button>
+                      )}
                       {!state && !root.resolvedAt && (
                         <Button size="sm" variant="ghost" onClick={() => onResolve(root.commentId)}>
                           <Check size={ICON.meta} aria-hidden="true" />

@@ -3541,7 +3541,11 @@
     "suggestionPending": "Sugestão aberta",
     "commentReplyCount_one": "{{count}} resposta",
     "commentReplyCount_many": "{{count}} respostas",
-    "commentReplyCount_other": "{{count}} respostas"
+    "commentReplyCount_other": "{{count}} respostas",
+    "commentToTask": "Criar tarefa",
+    "commentTaskSource": "De um comentário em",
+    "commentTaskCreated": "Convertido em tarefa",
+    "commentTaskFallback": "Comentário"
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

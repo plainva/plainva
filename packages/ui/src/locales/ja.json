@@ -3483,7 +3483,11 @@
     "commentOverviewNone": "この保管庫に未解決のコメントはありません。",
     "commentOverviewNoneMine": "今のところあなたを待っている人はいません。",
     "suggestionPending": "未処理の提案",
-    "commentReplyCount_other": "返信 {{count}} 件"
+    "commentReplyCount_other": "返信 {{count}} 件",
+    "commentToTask": "タスクにする",
+    "commentTaskSource": "コメントの出典",
+    "commentTaskCreated": "タスクにしました",
+    "commentTaskFallback": "コメント"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

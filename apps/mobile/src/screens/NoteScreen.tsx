@@ -25,11 +25,12 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { Banner, Button, EmptyState, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
+import { Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
+import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, resolveCommentAnchor, stripPlainvaIndexMarker, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentRecord } from "@plainva/core";
+import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, resolveCommentAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -287,6 +288,59 @@ export function NoteScreen({
 
 
   /**
+   * A comment that became work (D11, desktop parity).
+   *
+   * The thread stays and gains a reply naming the task - the only honest link,
+   * because the comment log is append-only and a body cannot be rewritten. It
+   * stays OPEN too: promoting says "this became work", not "this is settled".
+   *
+   * The task goes through the SAME creation path as a promoted checkbox and as
+   * "+ Entry", so a task born from a comment is not subtly unlike the others.
+   */
+  const promoteCommentToTask = async (comment: WorkspaceCommentRecord) => {
+    const dbPath = getMobileSettings().taskDatabase.trim();
+    if (!dbPath) {
+      toast.info(t("tasks.promoteNoDb"));
+      return;
+    }
+    const notes = vault.queryService
+      ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
+      : [];
+    const title = commentTaskTitle(comment.body, t("workspaceSecurity.commentTaskFallback"));
+    const res = await createTaskInDatabase({
+      adapter: vault.files,
+      dbPath,
+      title,
+      noteType: getMobileSettings().defaultNoteType,
+      trailer: commentTaskTrailer({
+        body: comment.body,
+        quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,
+        noteTarget: wikiTargetForPath(path, notes),
+        sourceLabel: t("workspaceSecurity.commentTaskSource"),
+      }),
+    });
+    if (!res.ok) {
+      toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteNoDb"));
+      return;
+    }
+    // The new note exists now, so its own wiki target is computed against a
+    // list that contains it - otherwise the reply names a target that could
+    // collide with a note added a moment later.
+    await postMobileComment(vault, {
+      path,
+      body: commentTaskReply(
+        wikiTargetForPath(res.notePath, [...notes, res.notePath]),
+        t("workspaceSecurity.commentTaskCreated"),
+      ),
+      parentCommentId: comment.commentId,
+      authorName: getMobileSettings().verifierName,
+    });
+    setCommentTick((n) => n + 1);
+    await sendTaskToProviderList(vault.files, dbPath, res.notePath, title).catch(() => undefined);
+    toast.info(t("workspaceSecurity.commentTaskCreated"));
+  };
+
+  /**
    * Accepting a proposal is an ORDINARY edit plus a resolve (desktop parity).
    *
    * The passage is found by resolving the anchor against the text as it stands
@@ -500,6 +554,7 @@ export function NoteScreen({
             void postMobileComment(vault, { path, body: "", resolvedCommentId: commentId, authorName: getMobileSettings().verifierName })
               .then(() => setCommentTick((n) => n + 1));
           }}
+          onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           onRevealAnchor={revealAnchor}

@@ -4,13 +4,13 @@ import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
-import { attachmentFolderKey, commentAnchorsKey, useVault } from "../contexts/VaultContext";
+import { attachmentFolderKey, commentAnchorsKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
-  errorText, importAttachment, useStableHandler,
+  commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
 } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { BasePicker } from "./BasePicker";
 
@@ -42,6 +42,7 @@ import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
+import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
@@ -88,7 +89,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -1859,6 +1860,66 @@ export const Editor: React.FC<{
    * inserting markers would be a content write, which that capability does not
    * carry. Resolution stages 2 and 3 are built for exactly that case.
    */
+  /**
+   * A comment that became work (D11).
+   *
+   * The thread stays where it is and gains a reply naming the task - the only
+   * honest link, because the comment log is append-only and an existing body
+   * cannot be rewritten. It also stays OPEN: promoting says "this became work",
+   * not "this is settled", and closing it automatically would hide the very
+   * reply that explains where the work went.
+   *
+   * The task is created through the SAME path as every other task (S30): the
+   * database's template, its storage folder and its checkbox pre-fill all
+   * apply, so a task born from a comment is not subtly unlike the rest.
+   */
+  const promoteCommentToTask = useCallback(async (comment: WorkspaceCommentRecord) => {
+    if (!activePath || !vaultAdapter || !vaultPath) return;
+    const store = await getSettingsStore();
+    const dbPath = ((await store.get<string>(taskDatabaseKey(vaultPath))) ?? "").trim();
+    if (!dbPath) {
+      toast.info(t("tasks.promoteNoDb"));
+      return;
+    }
+    const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
+    const title = commentTaskTitle(comment.body, t("workspaceSecurity.commentTaskFallback"));
+    const res = await createTaskInDatabase({
+      adapter: vaultAdapter,
+      dbPath,
+      title,
+      noteType: "Task",
+      trailer: commentTaskTrailer({
+        body: comment.body,
+        quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,
+        noteTarget: wikiTargetForPath(activePath, allNotePaths),
+        sourceLabel: t("workspaceSecurity.commentTaskSource"),
+      }),
+    });
+    if (!res.ok) {
+      toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteNoDb"));
+      return;
+    }
+    if (indexer) await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => undefined);
+    triggerFileTreeUpdate([res.notePath]);
+    // ...and, like every other task in that database, on to the provider list
+    // it names (C4/S17). A failure there never costs the note or the reply -
+    // both are already written.
+    await sendTaskToProviderList({ adapter: vaultAdapter, dbPath, notePath: res.notePath, title, pimRuntime })
+      .catch(() => undefined);
+    // The new note is in the vault now, so its own wiki target has to be
+    // computed against a list that contains it - otherwise the reply links to
+    // a name that could collide with a note added a moment later.
+    const reply = commentTaskReply(
+      wikiTargetForPath(res.notePath, [...allNotePaths, res.notePath]),
+      t("workspaceSecurity.commentTaskCreated"),
+    );
+    await postWorkspaceComment(activePath, reply, comment.commentId, null);
+    // Not the checkbox wording ("moved"): nothing moved here. The comment is
+    // still where it was, and saying otherwise would send the user looking for
+    // a passage that never left.
+    toast.info(t("workspaceSecurity.commentTaskCreated"));
+  }, [activePath, vaultAdapter, vaultPath, queryService, indexer, pimRuntime, triggerFileTreeUpdate, postWorkspaceComment, t]);
+
   const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
     const view = sessionRef.current?.view;
@@ -2327,6 +2388,7 @@ export const Editor: React.FC<{
           canWrite={!workspaceReadOnly}
           onApplySuggestion={(comment) => { void applySuggestion(comment); }}
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
+          onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
           onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
         />
       )}

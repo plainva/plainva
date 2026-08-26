@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Check, CornerDownRight, MessageSquare, Replace, X } from "lucide-react";
+import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, X } from "lucide-react";
 import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
 import { Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
 
@@ -41,6 +41,14 @@ export interface WorkspaceCommentsColumnProps {
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   /** Closes the thread without touching the note. */
   onDeclineSuggestion(comment: WorkspaceCommentRecord): void;
+  /**
+   * Turns the thread into a task in the default task database (D11).
+   *
+   * Gated on `canComment` rather than on write access: what it does HERE is
+   * post the reply that links to the task - the task note itself lands in a
+   * different note entirely, in the database's own folder.
+   */
+  onPromoteToTask(comment: WorkspaceCommentRecord): void;
 }
 
 /**
@@ -55,7 +63,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask,
 }: WorkspaceCommentsColumnProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -149,6 +157,13 @@ export function WorkspaceCommentsColumn({
               </Button>
             )}
             {suggestionState(root)}
+            {/* Available on a plain remark and on a proposal alike: both can
+                turn out to be work, and which one it was does not change that. */}
+            {canComment && !root.resolvedAt && (
+              <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onPromoteToTask(root); }}>
+                <ListChecks size={ICON.meta} /> {t("workspaceSecurity.commentToTask")}
+              </Button>
+            )}
             {root.resolvedAt
               ? !root.suggestion && <span className="pv-comment-card__state"><Check size={ICON.meta} /> {t("workspaceSecurity.resolved")}</span>
               : root.suggestion

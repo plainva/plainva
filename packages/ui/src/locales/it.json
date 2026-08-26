@@ -3541,7 +3541,11 @@
     "suggestionPending": "Proposta aperta",
     "commentReplyCount_one": "{{count}} risposta",
     "commentReplyCount_many": "{{count}} risposte",
-    "commentReplyCount_other": "{{count}} risposte"
+    "commentReplyCount_other": "{{count}} risposte",
+    "commentToTask": "Crea attività",
+    "commentTaskSource": "Da un commento in",
+    "commentTaskCreated": "Trasformato in attività",
+    "commentTaskFallback": "Commento"
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",

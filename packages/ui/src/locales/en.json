@@ -3512,7 +3512,11 @@
     "commentOverviewNoneMine": "Nobody is waiting on you right now.",
     "suggestionPending": "Open suggestion",
     "commentReplyCount_one": "{{count}} reply",
-    "commentReplyCount_other": "{{count}} replies"
+    "commentReplyCount_other": "{{count}} replies",
+    "commentToTask": "Make a task",
+    "commentTaskSource": "From a comment in",
+    "commentTaskCreated": "Made into a task",
+    "commentTaskFallback": "Comment"
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

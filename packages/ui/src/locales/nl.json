@@ -3512,7 +3512,11 @@
     "commentOverviewNoneMine": "Op dit moment wacht niemand op jou.",
     "suggestionPending": "Openstaand voorstel",
     "commentReplyCount_one": "{{count}} reactie",
-    "commentReplyCount_other": "{{count}} reacties"
+    "commentReplyCount_other": "{{count}} reacties",
+    "commentToTask": "Taak maken",
+    "commentTaskSource": "Uit een opmerking in",
+    "commentTaskCreated": "Omgezet in taak",
+    "commentTaskFallback": "Opmerking"
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

@@ -3483,7 +3483,11 @@
     "commentOverviewNone": "这个仓库里没有未处理的评论。",
     "commentOverviewNoneMine": "现在没有人在等你。",
     "suggestionPending": "未处理的建议",
-    "commentReplyCount_other": "{{count}} 条回复"
+    "commentReplyCount_other": "{{count}} 条回复",
+    "commentToTask": "创建任务",
+    "commentTaskSource": "来自以下笔记的评论",
+    "commentTaskCreated": "已转为任务",
+    "commentTaskFallback": "评论"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

@@ -3512,7 +3512,11 @@
     "commentOverviewNoneMine": "Niemand wartet gerade auf Dich.",
     "suggestionPending": "Offener Vorschlag",
     "commentReplyCount_one": "{{count}} Antwort",
-    "commentReplyCount_other": "{{count}} Antworten"
+    "commentReplyCount_other": "{{count}} Antworten",
+    "commentToTask": "Als Aufgabe",
+    "commentTaskSource": "Aus einem Kommentar in",
+    "commentTaskCreated": "Als Aufgabe angelegt",
+    "commentTaskFallback": "Kommentar"
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",
