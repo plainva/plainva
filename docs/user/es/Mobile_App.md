@@ -205,7 +205,7 @@ Los eventos y las notas diarias están deliberadamente separados: **Calendario**
 
 Además de notas y bases de datos, el navegador muestra ahora los **adjuntos**: imágenes, PDF y cualquier otro archivo de la carpeta. Una imagen se abre dentro de Plainva; el resto se entrega al sistema, que sabe qué es un PDF y Plainva no. **Compartir** pasa un archivo a cualquier otra app.
 
-El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archivo al panel de compartir del sistema, donde encuentras Imprimir, «Guardar en Archivos» y todos los editores instalados. **Compartir**, encima, envía solo el texto de la nota.
+El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archivo al panel de compartir del sistema, donde encuentras Imprimir, «Guardar en Archivos» y todos los editores instalados. **Compartir**, encima, envía solo el texto de la nota. Si la nota tiene anotaciones abiertas, Plainva pregunta antes **¿Incluir las anotaciones?**: **Como lista al final (legible en todas partes)** o **Marcadas en el texto (CriticMarkup)**; las marcas de anclaje invisibles se eliminan en todos los casos.
 
 ## Deslizar
 

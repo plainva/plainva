@@ -205,7 +205,7 @@ Events and daily notes are deliberately separate: **Calendar** shows the connect
 
 Besides notes and databases the navigator now shows **attachments** — images, PDFs, whatever else lies in the folder. An image opens inside Plainva; everything else is handed to the system, which knows what a PDF is and Plainva does not. **Share** passes a file to any other app.
 
-A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to the system share sheet, where you find Print, “Save to Files” and every editor you have installed. **Share** above it sends only the note's text.
+A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to the system share sheet, where you find Print, “Save to Files” and every editor you have installed. **Share** above it sends only the note's text. If the note carries open annotations, Plainva asks first: **Include annotations?** — **As a list at the end (readable everywhere)** or **Marked in the text (CriticMarkup)**; the invisible anchor markers come out either way.
 
 ## Swiping
 

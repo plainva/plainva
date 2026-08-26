@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-08-26
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -152,7 +152,7 @@ Il menu **⋮** dell'editor e la palette dei comandi (`Ctrl+P`) hanno **Stampa /
 
 ## Esportare una nota
 
-- **Esporta come Markdown…** (menu **⋮** dell'editor o palette dei comandi): salva una copia della nota in qualsiasi posizione tramite la finestra di dialogo di sistema — ad esempio per consegnarla a un altro programma. Gli allegati collegati (immagini) non vengono copiati insieme; se la nota ne referenzia, Plainva mostra un breve avviso.
+- **Esporta come Markdown…** (menu **⋮** dell'editor o palette dei comandi): salva una copia della nota in qualsiasi posizione tramite la finestra di dialogo di sistema — ad esempio per consegnarla a un altro programma. Gli allegati collegati (immagini) non vengono copiati insieme; se la nota ne referenzia, Plainva mostra un breve avviso. Se la nota ha annotazioni aperte, Plainva chiede prima **Includere le annotazioni?** — **Come elenco alla fine (leggibile ovunque)** o **Marcate nel testo (CriticMarkup)**; i marcatori di ancoraggio invisibili vengono rimossi in ogni caso.
 - **PDF**: usa **Stampa / Salva come PDF…** (sopra) e scegli "Salva come PDF" nella finestra di dialogo di sistema.
 
 ## Aprire una nota in un altro editor

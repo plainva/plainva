@@ -205,7 +205,7 @@ Wydarzenia i notatki dzienne są celowo rozdzielone: **Kalendarz** pokazuje poł
 
 Oprócz notatek i baz nawigator pokazuje teraz **załączniki** — obrazy, pliki PDF i wszystko inne, co leży w folderze. Obraz otwiera się w Plainvie; resztę aplikacja przekazuje systemowi, który wie, czym jest PDF, a Plainva nie. Przez **Udostępnij** plik trafia do dowolnej innej aplikacji.
 
-W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam plik do systemowego panelu udostępniania, gdzie są Drukuj, „Zapisz w Plikach” i każdy zainstalowany edytor. **Udostępnij** powyżej wysyła tylko tekst notatki.
+W menu ⋮ notatki znajdziesz **Eksportuj jako Markdown…**: przekazuje sam plik do systemowego panelu udostępniania, gdzie są Drukuj, „Zapisz w Plikach” i każdy zainstalowany edytor. **Udostępnij** powyżej wysyła tylko tekst notatki. Jeśli notatka ma otwarte adnotacje, Plainva najpierw pyta **Dołączyć adnotacje?** — **Jako lista na końcu (czytelna wszędzie)** lub **Oznaczone w tekście (CriticMarkup)**; niewidoczne znaczniki kotwic znikają w każdym przypadku.
 
 ## Przesuwanie
 

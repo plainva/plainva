@@ -205,7 +205,7 @@ Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbunden
 
 Der Navigator zeigt neben Notizen und Datenbanken auch **Anhänge** — Bilder, PDFs, alles, was sonst im Ordner liegt. Ein Bild öffnet sich in Plainva; alles andere reicht die App an das System weiter, das mit einem PDF umgehen kann und Plainva nicht. Über **Teilen** geht eine Datei an jede andere App.
 
-Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt die Datei selbst an das Teilen-Blatt des Systems — dort findest Du Drucken, „In Dateien sichern“ und jeden installierten Editor. **Teilen** darüber verschickt dagegen nur den Text der Notiz.
+Im ⋮-Menü einer Notiz steht **Als Markdown exportieren…**: Das übergibt die Datei selbst an das Teilen-Blatt des Systems — dort findest Du Drucken, „In Dateien sichern“ und jeden installierten Editor. **Teilen** darüber verschickt dagegen nur den Text der Notiz. Trägt die Notiz offene Anmerkungen, fragt Plainva vorher **Anmerkungen mitexportieren?** — **Als Liste am Ende (überall lesbar)** oder **Im Text markieren (CriticMarkup)**; die unsichtbaren Anker-Markierungen fallen in jedem Fall weg.
 
 ## Wischen
 

@@ -205,7 +205,7 @@ Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppeld
 
 Naast notities en databases toont de navigator nu ook **bijlagen** — afbeeldingen, pdf’s, alles wat verder in de map ligt. Een afbeelding opent in Plainva; de rest geeft de app door aan het systeem, dat weet wat een pdf is en Plainva niet. Via **Delen** gaat een bestand naar elke andere app.
 
-In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft het bestand zelf aan het deelvenster van het systeem, waar je Afdrukken, ‘Bewaar in Bestanden’ en elke geïnstalleerde editor vindt. **Delen** daarboven verstuurt alleen de tekst van de notitie.
+In het ⋮-menu van een notitie staat **Exporteren als Markdown…**: dat geeft het bestand zelf aan het deelvenster van het systeem, waar je Afdrukken, ‘Bewaar in Bestanden’ en elke geïnstalleerde editor vindt. **Delen** daarboven verstuurt alleen de tekst van de notitie. Heeft de notitie open annotaties, dan vraagt Plainva eerst **Annotaties meenemen?** — **Als lijst aan het einde (overal leesbaar)** of **Gemarkeerd in de tekst (CriticMarkup)**; de onzichtbare ankermarkeringen verdwijnen in elk geval.
 
 ## Vegen
 

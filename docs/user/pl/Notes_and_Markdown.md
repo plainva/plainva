@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-08-21
+Stan na: 2026-08-26
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -152,7 +152,7 @@ Menu **⋮** edytora oraz paleta poleceń (`Ctrl+P`) zawierają **Drukuj / Zapis
 
 ## Eksportowanie notatki
 
-- **Eksportuj jako Markdown…** (menu **⋮** edytora lub paleta poleceń): zapisuje kopię notatki w dowolnym miejscu za pomocą systemowego okna dialogowego — na przykład, aby przekazać ją innemu programowi. Powiązane załączniki (obrazy) nie są kopiowane razem z notatką; jeśli notatka się do nich odwołuje, Plainva pokazuje krótki komunikat.
+- **Eksportuj jako Markdown…** (menu **⋮** edytora lub paleta poleceń): zapisuje kopię notatki w dowolnym miejscu za pomocą systemowego okna dialogowego — na przykład, aby przekazać ją innemu programowi. Powiązane załączniki (obrazy) nie są kopiowane razem z notatką; jeśli notatka się do nich odwołuje, Plainva pokazuje krótki komunikat. Jeśli notatka ma otwarte adnotacje, Plainva najpierw pyta **Dołączyć adnotacje?** — **Jako lista na końcu (czytelna wszędzie)** lub **Oznaczone w tekście (CriticMarkup)**; niewidoczne znaczniki kotwic znikają w każdym przypadku.
 - **PDF**: użyj **Drukuj / Zapisz jako PDF…** (powyżej) i wybierz w oknie dialogowym systemu „Zapisz jako PDF".
 
 ## Otwieranie notatki w innym edytorze

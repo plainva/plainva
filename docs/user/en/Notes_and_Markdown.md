@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-08-21
+Last updated: 2026-08-26
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -152,7 +152,7 @@ The editor's **⋮** menu and the command palette (`Ctrl+P`) have **Print / Save
 
 ## Exporting a note
 
-- **Export as Markdown…** (editor **⋮** menu or command palette): saves a copy of the note anywhere via the system dialog — for example to hand it to another program. Linked attachments (images) are not copied along; Plainva shows a short notice when the note references any.
+- **Export as Markdown…** (editor **⋮** menu or command palette): saves a copy of the note anywhere via the system dialog — for example to hand it to another program. Linked attachments (images) are not copied along; Plainva shows a short notice when the note references any. If the note carries open annotations, Plainva asks first: **Include annotations?** — **As a list at the end (readable everywhere)** or **Marked in the text (CriticMarkup)**; the invisible anchor markers come out either way.
 - **PDF**: use **Print / Save as PDF…** (above) and choose "Save as PDF" in the system dialog.
 
 ## Opening a note in another editor

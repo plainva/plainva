@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-08-26
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -152,7 +152,7 @@ Het **⋮**-menu van de editor en de opdrachtenpalet (`Ctrl+P`) bevatten **Afdru
 
 ## Notitie exporteren
 
-- **Exporteren als Markdown…** (**⋮**-menu van de editor of opdrachtenpalet): slaat via het systeemdialoogvenster een kopie van de notitie op naar een locatie naar keuze — bijvoorbeeld om de notitie aan een ander programma te geven. Gekoppelde bijlagen (afbeeldingen) worden niet meegekopieerd; als de notitie daarnaar verwijst, toont Plainva een korte melding.
+- **Exporteren als Markdown…** (**⋮**-menu van de editor of opdrachtenpalet): slaat via het systeemdialoogvenster een kopie van de notitie op naar een locatie naar keuze — bijvoorbeeld om de notitie aan een ander programma te geven. Gekoppelde bijlagen (afbeeldingen) worden niet meegekopieerd; als de notitie daarnaar verwijst, toont Plainva een korte melding. Heeft de notitie open annotaties, dan vraagt Plainva eerst **Annotaties meenemen?** — **Als lijst aan het einde (overal leesbaar)** of **Gemarkeerd in de tekst (CriticMarkup)**; de onzichtbare ankermarkeringen verdwijnen in elk geval.
 - **PDF**: gebruik **Afdrukken / Opslaan als PDF…** (hierboven) en kies in het systeemdialoogvenster "Opslaan als PDF".
 
 ## Notitie openen in een andere editor

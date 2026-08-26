@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-08-21
+Stand: 2026-08-26
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -152,7 +152,7 @@ Im **⋮**-Menü des Editors und in der Befehls-Palette (`Strg+P`) findest Du **
 
 ## Notiz exportieren
 
-- **Als Markdown exportieren…** (⋮-Menü des Editors oder Befehls-Palette): speichert über den Systemdialog eine Kopie der Notiz an einen beliebigen Ort — zum Beispiel für ein anderes Programm. Verknüpfte Anhänge (Bilder) werden nicht mitkopiert; verweist die Notiz auf welche, zeigt Plainva einen kurzen Hinweis.
+- **Als Markdown exportieren…** (⋮-Menü des Editors oder Befehls-Palette): speichert über den Systemdialog eine Kopie der Notiz an einen beliebigen Ort — zum Beispiel für ein anderes Programm. Verknüpfte Anhänge (Bilder) werden nicht mitkopiert; verweist die Notiz auf welche, zeigt Plainva einen kurzen Hinweis. Trägt die Notiz offene Anmerkungen, fragt Plainva vorher **Anmerkungen mitexportieren?** — **Als Liste am Ende (überall lesbar)** oder **Im Text markieren (CriticMarkup)**; die unsichtbaren Anker-Markierungen fallen in jedem Fall weg.
 - **PDF**: Nutze **Drucken / Als PDF…** (oben) und wähle im Systemdialog „Als PDF speichern".
 
 ## Notiz in einer anderen App öffnen

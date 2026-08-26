@@ -205,7 +205,7 @@ Les événements et les notes quotidiennes sont délibérément séparés : **Ca
 
 Outre les notes et les bases, le navigateur affiche désormais les **pièces jointes** : images, PDF, tout ce qui se trouve dans le dossier. Une image s’ouvre dans Plainva ; le reste est confié au système, qui sait ce qu’est un PDF et Plainva non. **Partager** transmet un fichier à n’importe quelle autre application.
 
-Le menu ⋮ d’une note propose **Exporter en Markdown…** : le fichier lui-même passe à la feuille de partage du système, où vous trouvez Imprimer, « Enregistrer dans Fichiers » et tous les éditeurs installés. **Partager**, au-dessus, n’envoie que le texte de la note.
+Le menu ⋮ d’une note propose **Exporter en Markdown…** : le fichier lui-même passe à la feuille de partage du système, où vous trouvez Imprimer, « Enregistrer dans Fichiers » et tous les éditeurs installés. **Partager**, au-dessus, n’envoie que le texte de la note. Si la note porte des annotations ouvertes, Plainva demande d'abord **Inclure les annotations ?** — **En liste à la fin (lisible partout)** ou **Marquées dans le texte (CriticMarkup)** ; les marqueurs d'ancrage invisibles disparaissent dans tous les cas.
 
 ## Glissement
 
