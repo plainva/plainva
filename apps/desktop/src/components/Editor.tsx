@@ -88,7 +88,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -98,6 +98,7 @@ export const Editor: React.FC<{
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
   const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
+  const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   // The quote a NEW comment would attach to. Held as text, not as a range: the
   // selection moves on every keystroke, and re-rendering the editor that often
@@ -161,6 +162,13 @@ export const Editor: React.FC<{
     void listWorkspaceMembers().then((members) => { if (active) setWorkspaceMembers(members); }).catch(() => { if (active) setWorkspaceMembers([]); });
     return () => { active = false; };
   }, [listWorkspaceMembers, workspaceCanReadComments]);
+
+  useEffect(() => {
+    let active = true;
+    if (!workspaceCanReadComments) { setCommentSelfId(null); return; }
+    void getCommentSelfId().then((id) => { if (active) setCommentSelfId(id); }).catch(() => { if (active) setCommentSelfId(null); });
+    return () => { active = false; };
+  }, [getCommentSelfId, workspaceCanReadComments]);
 
   // A name is a CLAIM the policy carries, not a verified identity - the card
   // keeps the member id reachable, so nobody has to take the name on faith.
@@ -2309,6 +2317,7 @@ export const Editor: React.FC<{
         <WorkspaceCommentsColumn
           comments={workspaceComments}
           memberNames={memberNames}
+          selfMemberId={commentSelfId}
           resolutions={anchorResolutions}
           canComment={workspaceCanComment}
           activeCommentId={activeCommentId}

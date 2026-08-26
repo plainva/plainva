@@ -39,7 +39,7 @@ import { NoteContextSheet, type ContextTab } from "../components/NoteContextShee
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
-import { listMobileComments, listMobileCommentAuthors, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
+import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 
@@ -136,6 +136,9 @@ export function NoteScreen({
   const [commentNames, setCommentNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentTick, setCommentTick] = useState(0);
+  // Read once and kept: the device id does not change while a screen is open,
+  // and null until it is here means nothing counts as addressed to you.
+  const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const commentCaps = workspaceCapabilities ?? MOBILE_COMMENT_CAPABILITIES;
   const canComment = commentCaps.includes("comment.create");
   useEffect(() => {
@@ -145,6 +148,13 @@ export function NoteScreen({
       .catch(() => { if (!stale) { setComments([]); setCommentNames(new Map()); } });
     return () => { stale = true; };
   }, [vault, path, commentTick]);
+  useEffect(() => {
+    let stale = false;
+    void mobileCommentSelfId()
+      .then((id) => { if (!stale) setCommentSelfId(id); })
+      .catch(() => { if (!stale) setCommentSelfId(null); });
+    return () => { stale = true; };
+  }, []);
   /**
    * A Plainva-managed overview is read-only until the reader says otherwise
    * (desktop parity). Without the guard the next auto-update run silently
@@ -478,6 +488,7 @@ export function NoteScreen({
         <CommentsSheet
           comments={comments}
           memberNames={commentNames}
+          selfMemberId={commentSelfId}
           canComment={canComment}
           canWrite={workspaceCanWrite}
           onClose={() => setCommentsOpen(false)}

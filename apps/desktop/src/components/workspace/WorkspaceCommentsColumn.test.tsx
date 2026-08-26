@@ -65,12 +65,12 @@ function comment(over: Partial<WorkspaceCommentRecord> & { commentId: string }):
 
 const ANCHOR = { markerId: "7f3a", quote: "bis Ende des Jahres", before: "Der Vertrag laeuft ", after: ".", approximateOffset: 19 };
 const SUGGESTION = { replacement: "bis zum 31.12.2026", appliedAt: null, appliedBy: null, declinedAt: null };
-const NAMES = new Map([["aabbccdd11223344", "Marco"]]);
+const NAMES = new Map([["aabbccdd11223344", "Marco"], ["9999888877776666", "Anna"]]);
 const NO_RESOLUTIONS = new Map<string, WorkspaceCommentAnchorResolution>();
 
 function props(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn>> = {}) {
   return {
-    comments: [], memberNames: NAMES, resolutions: NO_RESOLUTIONS, canComment: true, canWrite: true,
+    comments: [], memberNames: NAMES, selfMemberId: null, resolutions: NO_RESOLUTIONS, canComment: true, canWrite: true,
     activeCommentId: null, selectionQuote: null,
     onSelect: vi.fn(), onSubmit: vi.fn(async () => {}), onResolve: vi.fn(),
     onApplySuggestion: vi.fn(), onDeclineSuggestion: vi.fn(),
@@ -125,7 +125,7 @@ describe("workspace comment column", () => {
 
   it("names the author from the policy and keeps the member id reachable", () => {
     const known = comment({ commentId: "aa".repeat(16), body: "Von Marco" });
-    const stranger = comment({ commentId: "bb".repeat(16), authorMemberId: "9999888877776666", body: "Von wem?" });
+    const stranger = comment({ commentId: "bb".repeat(16), authorMemberId: "1234123412341234", body: "Von wem?" });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [known, stranger] })} />);
     const metas = [...host.querySelectorAll(".pv-comment-card__meta")];
     expect(metas[0].textContent).toContain("Marco");
@@ -133,7 +133,7 @@ describe("workspace comment column", () => {
     // A name is a claim the policy carries. Where it carries none, the column
     // says so in words - it does not print eight characters of an id.
     expect(metas[1].textContent).toContain(tr("workspaceSecurity.commentUnknownAuthor"));
-    expect(metas[1].textContent).not.toContain("9999");
+    expect(metas[1].textContent).not.toContain("1234");
     unmount();
   });
 
@@ -253,6 +253,67 @@ describe("workspace comment column", () => {
     expect(send?.hasAttribute("disabled")).toBe(false);
     await act(async () => { send!.click(); });
     expect(onSubmit).toHaveBeenCalledWith("", null, { replacement: "bis Ende des Jahres" });
+    unmount();
+  });
+  it("marks a thread that names you and lifts it to the top", () => {
+    // A mention exists to pull attention. A card that carries the name but
+    // sits fourth in the column has done nothing the writer intended.
+    const other = comment({ commentId: "aa".repeat(16), body: "Nur eine Notiz" });
+    const forMe = comment({ commentId: "bb".repeat(16), body: "Bitte @Anna schauen" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [other, forMe], selfMemberId: "9999888877776666",
+    })} />);
+    const cards = [...host.querySelectorAll(".pv-comment-card")];
+    expect(cards[0].textContent).toContain("Bitte @Anna schauen");
+    expect(cards[0].querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.commentMentionsYou"));
+    // ...and the other card keeps quiet, or the badge would say nothing.
+    expect(cards[1].querySelector(".pv-comment-card__state")).toBeNull();
+    unmount();
+  });
+
+  it("counts a mention in a reply, not just in the first comment", () => {
+    const root = comment({ commentId: "aa".repeat(16), body: "Wer weiss das?" });
+    const reply = comment({ commentId: "bb".repeat(16), parentCommentId: root.commentId, body: "@Anna weiss es" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [root, reply], selfMemberId: "9999888877776666",
+    })} />);
+    expect(host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.commentMentionsYou"));
+    unmount();
+  });
+
+  it("leaves a resolved thread where it is, even when it names you", () => {
+    // Resolved means it needs no attention any more. Floating it would push
+    // the open threads down for nothing.
+    const open = comment({ commentId: "aa".repeat(16), body: "Offen" });
+    const done = comment({ commentId: "bb".repeat(16), body: "@Anna, erledigt", resolvedAt: NOW });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [open, done], selfMemberId: "9999888877776666",
+    })} />);
+    const cards = [...host.querySelectorAll(".pv-comment-card")];
+    expect(cards[0].textContent).toContain("Offen");
+    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentMentionsYou"));
+    unmount();
+  });
+
+  it("claims nothing while this device cannot say who it is", () => {
+    const forSomeone = comment({ commentId: "aa".repeat(16), body: "Bitte @Anna schauen" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [forSomeone] })} />);
+    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentMentionsYou"));
+    unmount();
+  });
+
+  it("lifts @Name out of the body without changing a character of it", () => {
+    const body = "Bitte @Anna und @Niemand schauen";
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
+      comments: [comment({ commentId: "aa".repeat(16), body })],
+    })} />);
+    const rendered = host.querySelector(".pv-comment-card__body");
+    // The text is what the file says - the highlight is the only difference.
+    expect(rendered?.textContent).toBe(body);
+    const mentions = [...host.querySelectorAll(".pv-comment-card__mention")];
+    expect(mentions.map((m) => m.textContent)).toEqual(["@Anna"]);
+    // The id rides along so an ambiguous name is still identifiable on hover.
+    expect(mentions[0].getAttribute("data-tip")).toBe("9999888877776666");
     unmount();
   });
 });

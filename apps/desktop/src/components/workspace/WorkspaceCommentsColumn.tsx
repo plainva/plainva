@@ -1,19 +1,27 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CornerDownRight, MessageSquare, Replace, X } from "lucide-react";
+import { AtSign, Check, CornerDownRight, MessageSquare, Replace, X } from "lucide-react";
 import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, TextArea } from "@plainva/ui";
+import { Button, ICON, MentionTextArea, TextArea, mentionsMember, parseCommentMentions } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 interface CommentThread {
   root: WorkspaceCommentRecord;
   replies: WorkspaceCommentRecord[];
+  /** Somebody wrote `@` and your name in here, and the thread is still open. */
+  addressed: boolean;
 }
 
 export interface WorkspaceCommentsColumnProps {
   comments: readonly WorkspaceCommentRecord[];
   /** memberId -> display name from the workspace policy. */
   memberNames: ReadonlyMap<string, string>;
+  /**
+   * Who this device is - the member id in a workspace, the device id in a plain
+   * vault. Null while that is still being read, and then nothing counts as
+   * addressed: claiming every mention is yours would be worse than claiming none.
+   */
+  selfMemberId: string | null;
   /** commentId -> where its anchor currently lands; absent means note-wide. */
   resolutions: ReadonlyMap<string, WorkspaceCommentAnchorResolution>;
   canComment: boolean;
@@ -52,7 +60,7 @@ export interface WorkspaceCommentsColumnProps {
  * on old comments; anything else would falsify the record.
  */
 export function WorkspaceCommentsColumn({
-  comments, memberNames, resolutions, canComment, canWrite, activeCommentId, selectionQuote,
+  comments, memberNames, selfMemberId, resolutions, canComment, canWrite, activeCommentId, selectionQuote,
   onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion,
 }: WorkspaceCommentsColumnProps) {
   const { t } = useTranslation();
@@ -76,8 +84,24 @@ export function WorkspaceCommentsColumn({
     // A reply whose root has not arrived yet (partial sync) would otherwise
     // vanish; showing it as its own thread keeps every comment reachable.
     const roots = comments.filter((entry) => entry.parentCommentId === null || !known.has(entry.parentCommentId));
-    return roots.map((root) => ({ root, replies: byParent.get(root.commentId) ?? [] }));
-  }, [comments]);
+    const list = roots.map<CommentThread>((root) => {
+      const replies = byParent.get(root.commentId) ?? [];
+      return {
+        root,
+        replies,
+        // A resolved thread is deliberately never "addressed": it needs no
+        // attention any more, and floating it would push the open ones down
+        // for nothing.
+        addressed:
+          !root.resolvedAt &&
+          mentionsMember([root.body, ...replies.map((reply) => reply.body)], selfMemberId, memberNames),
+      };
+    });
+    // A thread that names you comes first - that is what a mention is FOR. The
+    // badge on the card says why it jumped, so the order never looks arbitrary.
+    if (!list.some((thread) => thread.addressed)) return list;
+    return [...list.filter((thread) => thread.addressed), ...list.filter((thread) => !thread.addressed)];
+  }, [comments, memberNames, selfMemberId]);
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
@@ -119,7 +143,7 @@ export function WorkspaceCommentsColumn({
   return (
     <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
       {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {threads.map(({ root, replies }) => (
+      {threads.map(({ root, replies, addressed }) => (
         <div
           key={root.commentId}
           className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}`}
@@ -134,11 +158,16 @@ export function WorkspaceCommentsColumn({
                 : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
             </p>
           )}
+          {addressed && (
+            <span className="pv-comment-card__state">
+              <AtSign size={ICON.meta} /> {t("workspaceSecurity.commentMentionsYou")}
+            </span>
+          )}
           {anchorNote(root)}
-          <CommentBody comment={root} author={authorOf(root)} />
+          <CommentBody comment={root} author={authorOf(root)} names={memberNames} />
           {replies.map((reply) => (
             <div key={reply.commentId} className="pv-comment-card__reply">
-              <CommentBody comment={reply} author={authorOf(reply)} />
+              <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} />
             </div>
           ))}
           <div className="pv-comment-card__actions">
@@ -179,11 +208,13 @@ export function WorkspaceCommentsColumn({
           </div>
           {replyTo === root.commentId && (
             <div className="pv-comment-compose" onClick={(event) => event.stopPropagation()}>
-              <TextArea
+              <MentionTextArea
                 value={replyDraft}
                 rows={2}
+                names={memberNames}
+                pickerLabel={t("workspaceSecurity.commentMentionPicker")}
                 placeholder={t("workspaceSecurity.commentReplyPlaceholder")}
-                onChange={(event) => setReplyDraft(event.target.value)}
+                onChange={setReplyDraft}
               />
               <Button size="sm" disabled={busy || !replyDraft.trim()} onClick={() => void post(replyDraft.trim(), root.commentId)}>
                 {t("workspaceSecurity.send")}
@@ -199,6 +230,9 @@ export function WorkspaceCommentsColumn({
               ? t("workspaceSecurity.commentOnSelection", { quote: selectionQuote })
               : t("workspaceSecurity.commentOnNote")}
           </p>
+          {/* Deliberately a plain field: this text becomes the NOTE. An `@Name`
+              picked in here would be written into the document, where it means
+              nothing and nobody would ever be notified. */}
           {replacement !== null && (
             <TextArea
               value={replacement}
@@ -208,11 +242,13 @@ export function WorkspaceCommentsColumn({
               onChange={(event) => setReplacement(event.target.value)}
             />
           )}
-          <TextArea
+          <MentionTextArea
             value={draft}
             rows={3}
+            names={memberNames}
+            pickerLabel={t("workspaceSecurity.commentMentionPicker")}
             placeholder={replacement !== null ? t("workspaceSecurity.suggestionWhyPlaceholder") : t("workspaceSecurity.addComment")}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={setDraft}
           />
           <div className="pv-comment-compose__actions">
             {/* A proposal has to name the passage it replaces - without a
@@ -239,13 +275,37 @@ export function WorkspaceCommentsColumn({
   );
 }
 
-function CommentBody({ comment, author }: { comment: WorkspaceCommentRecord; author: string }) {
+/**
+ * One comment, with `@Name` lifted out of the text.
+ *
+ * The mentions are DERIVED here, never stored: the body is the single truth, so
+ * a renamed member changes what this shows and nothing has to be migrated.
+ */
+function CommentBody({
+  comment,
+  author,
+  names,
+}: {
+  comment: WorkspaceCommentRecord;
+  author: string;
+  names: ReadonlyMap<string, string>;
+}) {
   return (
     <>
       <small className="pv-comment-card__meta" data-tip={comment.authorMemberId}>
         {author} · {new Date(comment.createdAt).toLocaleString()}
       </small>
-      <span className="pv-comment-card__body">{comment.body}</span>
+      <span className="pv-comment-card__body">
+        {parseCommentMentions(comment.body, names).map((segment, index) =>
+          segment.kind === "mention" ? (
+            <span key={index} className="pv-comment-card__mention" data-tip={segment.memberId}>
+              {segment.text}
+            </span>
+          ) : (
+            <Fragment key={index}>{segment.text}</Fragment>
+          ),
+        )}
+      </span>
     </>
   );
 }

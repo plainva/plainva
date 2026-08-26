@@ -7,6 +7,7 @@ export { ScrollEdge, type ScrollEdgeProps } from "./ScrollEdge";
 export { DockedToolbar, type DockedToolbarProps } from "./DockedToolbar";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { TextInput, SelectField, TextArea } from "./Field";
+export { MentionTextArea, type MentionTextAreaProps } from "./MentionTextArea";
 export { Select, type SelectProps, type SelectOption } from "./Select";
 export { SearchField, type SearchFieldProps } from "./SearchField";
 export { Chip, type ChipProps } from "./Chip";

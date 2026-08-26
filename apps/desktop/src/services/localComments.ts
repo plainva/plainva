@@ -92,6 +92,18 @@ export async function listLocalCommentAuthors(vaultPath: string, raw: IVaultAdap
   return localCommentAuthorNames(await readLocalComments(raw, cryptoOf(mode)));
 }
 
+/**
+ * Who this device is, as a comment author.
+ *
+ * The SAME id `postLocalComment` writes into `authorDeviceId` below - which is
+ * what the surface maps into `authorMemberId`. Reading it from anywhere else
+ * would be a second answer to one question, and "is this comment mine?" would
+ * start disagreeing with the byline right above it.
+ */
+export async function localCommentSelfId(): Promise<string> {
+  return getDeviceId(await getSettingsStore());
+}
+
 export interface PostLocalCommentInput {
   path: string;
   body: string;

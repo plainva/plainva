@@ -64,6 +64,20 @@ export async function listMobileCommentAuthors(vault: MobileVault): Promise<Map<
   return localCommentAuthorNames(await readLocalComments(vault.adapter, cryptoOf(mode)));
 }
 
+/**
+ * Who this device is, as a comment author.
+ *
+ * The SAME id `postMobileComment` writes into `authorDeviceId` below - which is
+ * what the surface maps into `authorMemberId`. There is deliberately no
+ * workspace branch here as there is on the desktop: the phone writes comments
+ * through the local path in every vault, so a member id would be an id nobody
+ * ever signs with, and "is this comment mine?" would disagree with the byline
+ * right above it.
+ */
+export async function mobileCommentSelfId(): Promise<string> {
+  return deviceId();
+}
+
 export interface PostMobileCommentInput {
   path: string;
   body: string;

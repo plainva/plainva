@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, MessageSquare } from "lucide-react";
-import { Button, ICON, TextArea } from "@plainva/ui";
+import { AtSign, Check, MessageSquare } from "lucide-react";
+import { Button, ICON, MentionTextArea, mentionsMember, parseCommentMentions } from "@plainva/ui";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -19,6 +19,8 @@ import { SheetGrip } from "./SheetGrip";
 export interface CommentsSheetProps {
   comments: readonly WorkspaceCommentRecord[];
   memberNames: ReadonlyMap<string, string>;
+  /** Who this device is - the member id in a workspace, the device id otherwise. */
+  selfMemberId: string | null;
   canComment: boolean;
   canWrite: boolean;
   onSubmit(body: string, parentCommentId: string | null): Promise<void>;
@@ -33,25 +35,64 @@ export interface CommentsSheetProps {
 interface Thread {
   root: WorkspaceCommentRecord;
   replies: WorkspaceCommentRecord[];
+  /** Somebody wrote `@` and your name in here, and the thread is still open. */
+  addressed: boolean;
 }
 
 /**
  * A reply whose root has not arrived yet (partial sync) becomes its own thread
  * rather than disappearing: every comment must stay reachable.
  */
-function buildThreads(comments: readonly WorkspaceCommentRecord[]): Thread[] {
+function buildThreads(
+  comments: readonly WorkspaceCommentRecord[],
+  selfMemberId: string | null,
+  names: ReadonlyMap<string, string>,
+): Thread[] {
   const byId = new Map(comments.map((c) => [c.commentId, c]));
   const threads = new Map<string, Thread>();
   for (const comment of comments) {
     if (!comment.parentCommentId || !byId.has(comment.parentCommentId)) {
-      threads.set(comment.commentId, { root: comment, replies: [] });
+      threads.set(comment.commentId, { root: comment, replies: [], addressed: false });
     }
   }
   for (const comment of comments) {
     if (!comment.parentCommentId) continue;
     threads.get(comment.parentCommentId)?.replies.push(comment);
   }
-  return [...threads.values()];
+  const list = [...threads.values()];
+  for (const thread of list) {
+    // A resolved thread is deliberately never "addressed": it needs no attention
+    // any more, and floating it would push the open ones down for nothing.
+    thread.addressed =
+      !thread.root.resolvedAt &&
+      mentionsMember([thread.root.body, ...thread.replies.map((reply) => reply.body)], selfMemberId, names);
+  }
+  // A thread that names you comes first - that is what a mention is FOR. The
+  // badge on the card says why it jumped, so the order never looks arbitrary.
+  if (!list.some((thread) => thread.addressed)) return list;
+  return [...list.filter((thread) => thread.addressed), ...list.filter((thread) => !thread.addressed)];
+}
+
+/**
+ * A comment body with `@Name` lifted out of the text.
+ *
+ * Derived on every render, never stored: the body is the single truth, so a
+ * renamed member changes what this shows and nothing has to be migrated.
+ */
+function CommentBody({ body, names }: { body: string; names: ReadonlyMap<string, string> }) {
+  return (
+    <p className="pv-comment-card__body">
+      {parseCommentMentions(body, names).map((segment, index) =>
+        segment.kind === "mention" ? (
+          <span key={index} className="pv-comment-card__mention">
+            {segment.text}
+          </span>
+        ) : (
+          <Fragment key={index}>{segment.text}</Fragment>
+        ),
+      )}
+    </p>
+  );
 }
 
 function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | "declined" | null {
@@ -64,6 +105,7 @@ function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | 
 export function CommentsSheet({
   comments,
   memberNames,
+  selfMemberId,
   canComment,
   canWrite,
   onSubmit,
@@ -77,7 +119,10 @@ export function CommentsSheet({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
-  const threads = useMemo(() => buildThreads(comments), [comments]);
+  const threads = useMemo(
+    () => buildThreads(comments, selfMemberId, memberNames),
+    [comments, memberNames, selfMemberId],
+  );
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
 
   const send = async () => {
@@ -100,11 +145,16 @@ export function CommentsSheet({
         <p className="m-sheet-title">{t("workspaceSecurity.comments")}</p>
         {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
         <div className="pv-comment-list">
-          {threads.map(({ root, replies }) => {
+          {threads.map(({ root, replies, addressed }) => {
             const state = suggestionState(root);
             return (
               <div key={root.commentId} className="pv-comment-card">
                 <p className="pv-comment-card__meta">{nameOf(root.authorMemberId)}</p>
+                {addressed && (
+                  <span className="pv-comment-card__state">
+                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}
+                  </span>
+                )}
                 {root.anchor && (
                   <button
                     type="button"
@@ -114,7 +164,7 @@ export function CommentsSheet({
                     {root.anchor.quote}
                   </button>
                 )}
-                {root.body && <p className="pv-comment-card__body">{root.body}</p>}
+                {root.body && <CommentBody body={root.body} names={memberNames} />}
                 {state && (
                   <p className="pv-comment-card__replacement">
                     <span className="pv-comment-card__quote pv-comment-card__quote--replaced">{root.anchor?.quote}</span>
@@ -125,7 +175,7 @@ export function CommentsSheet({
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
                     <p className="pv-comment-card__meta">{nameOf(reply.authorMemberId)}</p>
-                    <p className="pv-comment-card__body">{reply.body}</p>
+                    <CommentBody body={reply.body} names={memberNames} />
                   </div>
                 ))}
                 <div className="pv-comment-card__actions">
@@ -165,9 +215,11 @@ export function CommentsSheet({
         </div>
         {canComment && (
           <div className="pv-comment-compose">
-            <TextArea
+            <MentionTextArea
               aria-label={t(replyTo ? "workspaceSecurity.commentReply" : "workspaceSecurity.addComment")}
-              onChange={(e) => setBody(e.target.value)}
+              names={memberNames}
+              onChange={setBody}
+              pickerLabel={t("workspaceSecurity.commentMentionPicker")}
               placeholder={t(replyTo ? "workspaceSecurity.commentReplyPlaceholder" : "workspaceSecurity.addComment")}
               rows={3}
               value={body}

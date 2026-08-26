@@ -34,6 +34,16 @@ export interface MenuSurfaceProps {
   minWidth?: number;
   ariaLabel?: string;
   className?: string;
+  /**
+   * Whether opening moves focus into the menu (default true).
+   *
+   * False is for a menu that COMPLETES a field the caret is in - the mention
+   * picker. There the roving focus would be the bug: taking the caret out of
+   * the textarea is exactly what stops typing from narrowing the list, which is
+   * the whole point of that surface. The owner then drives the highlight from
+   * the field via `active` on MenuItem.
+   */
+  autoFocus?: boolean;
   children: ReactNode;
 }
 
@@ -48,6 +58,7 @@ export function MenuSurface({
   minWidth = 180,
   ariaLabel,
   className,
+  autoFocus = true,
   children,
 }: MenuSurfaceProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -80,8 +91,10 @@ export function MenuSurface({
     top = Math.min(Math.max(MARGIN, top), Math.max(MARGIN, window.innerHeight - h - MARGIN));
     setPos({ left, top });
     // Roving focus starts on the first enabled item.
-    const first = el.querySelector<HTMLElement>(".pv-menu-item:not(:disabled)");
-    first?.focus();
+    if (autoFocus) {
+      const first = el.querySelector<HTMLElement>(".pv-menu-item:not(:disabled)");
+      first?.focus();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -172,6 +185,14 @@ export interface MenuItemButtonProps extends ButtonHTMLAttributes<HTMLButtonElem
   /** Action; the surrounding menu closes afterwards unless keepOpen is set. */
   onSelect?: () => void;
   keepOpen?: boolean;
+  /**
+   * Highlighted without holding focus.
+   *
+   * Only for a menu opened with `autoFocus={false}`: there the keyboard lives in
+   * the field below, so :focus-visible can never mark the row the arrow keys
+   * are on.
+   */
+  active?: boolean;
 }
 
 export function MenuItem({
@@ -180,6 +201,7 @@ export function MenuItem({
   danger,
   onSelect,
   keepOpen,
+  active,
   className,
   children,
   onClick,
@@ -190,7 +212,7 @@ export function MenuItem({
     <button
       type="button"
       role="menuitem"
-      className={cx("pv-menu-item", danger && "pv-menu-item--danger", className)}
+      className={cx("pv-menu-item", danger && "pv-menu-item--danger", active && "is-active", className)}
       onClick={(e) => {
         onClick?.(e);
         onSelect?.();

@@ -191,6 +191,8 @@
   .pv-comment-demo__card blockquote { margin:0; padding-left:var(--space-2); border-left:2px solid var(--accent-color); color:var(--text-muted); font-size:var(--text-xs); }
   .pv-comment-demo__card small { color:var(--text-muted); font-size:var(--text-xs); }
   .pv-comment-demo__state { color:var(--warning-text); font-size:var(--text-xs); }
+  .pv-comment-demo__mention { padding:0 var(--space-1); border-radius:var(--radius-xs); background:var(--accent-container); color:var(--on-accent-container); font-weight:500; }
+  .pv-comment-demo__badge { display:inline-flex; align-items:center; gap:var(--space-1); color:var(--accent-color); font-size:var(--text-xs); }
   .splitbtn { display: inline-flex; }
   .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
@@ -601,6 +603,7 @@
         </div>
       </div>
       <p><b>Menü-Anatomie (bindend):</b> thematische Gruppen mit <code>MenuSeparator</code> (in verankerten Eigenbauten <code>.pv-menu-sep</code>/<code>.pv-popover-label</code>); das <b>Danger-Item steht immer als letzte Gruppe hinter einem Trenner</b>. Homogene Listen-Menüs (Verschieben-nach-Ordner, Kanten-Bündel) bleiben bewusst ungruppiert. Tooltips tragen nur ZUSATZ-Information: Datei-Tabs den Vault-Pfad, virtuelle Tabs (plainva://…) gar keinen — nie das sichtbare Label wiederholen, nie interne Pseudo-Pfade zeigen.</p>
+      <p><b>Picker mit Caret im Feld:</b> Ein Menü, das die Tastatur durchläuft, während der Caret woanders steht — der <code>@</code>-Erwähnungs-Picker ist der Fall — markiert seine aktuelle Zeile mit <code>MenuItem active</code> (<code>.pv-menu-item.is-active</code>, dasselbe <code>--accent-container</code>-Paar wie jede ausgewählte Zeile) und öffnet mit <code>autoFocus={false}</code>; die Zeile muss zusätzlich <code>mousedown</code> schlucken, sonst verliert das Feld den Fokus, bevor die Auswahl ankommt.</p>
     </div>
   </section>
 
@@ -881,10 +884,11 @@
     </div>
     <div class="card">
       <strong>A comment sits BESIDE the place it talks about</strong>
-      <p class="lede">The column is a sibling of the note body, not a stack above it: the note keeps its own scrolling and its readable measure. The active card and its range in the text are ONE thing seen twice — same accent pair, either one selects the other. An anchor that no longer resolves tints nothing and says so.</p>
+      <p class="lede">The column is a sibling of the note body, not a stack above it: the note keeps its own scrolling and its readable measure. The active card and its range in the text are ONE thing seen twice — same accent pair, either one selects the other. An anchor that no longer resolves tints nothing and says so. A thread that names you sorts to the top and says why; a resolved one deliberately does neither.</p>
       <div class="pv-comment-demo">
         <div class="pv-comment-demo__note"><p>The migration runs in the background. <mark>Existing objects keep their current key</mark> until a full rekey completes.</p></div>
         <aside class="pv-comment-demo__col">
+          <article class="pv-comment-demo__card"><span class="pv-comment-demo__badge">@ Mentions you</span><small>Ben Roth &middot; yesterday</small><span>Could <span class="pv-comment-demo__mention">@Anna Lee</span> confirm the epoch number?</span></article>
           <article class="pv-comment-demo__card" data-active="true"><blockquote>Existing objects keep their current key</blockquote><small>Anna Lee &middot; today, 09:14</small><span>Is that still true after a member leaves?</span></article>
           <article class="pv-comment-demo__card"><span class="pv-comment-demo__state">The commented text is gone.</span><small>Ben Roth &middot; yesterday</small><span>Add the epoch number here.</span></article>
         </aside>

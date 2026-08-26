@@ -3370,6 +3370,8 @@
     "commentReply": "返信",
     "commentReplyPlaceholder": "返信を書く…",
     "commentsNone": "まだコメントはありません。",
+    "commentMentionPicker": "メンバーをメンション",
+    "commentMentionsYou": "あなたへの言及",
     "suggestionDeletes": "この箇所を削除します",
     "suggestionApply": "適用",
     "suggestionDecline": "却下",

@@ -483,6 +483,11 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   cursor: pointer;
 }
 .pv-menu-item:hover:not(:disabled), .pv-menu-item:focus-visible { background: var(--state-hover); }
+/* Keyboard highlight for a menu whose focus stays in the field below it (the
+   mention picker): :focus-visible can never mark that row, so the owner sets
+   .is-active. Same token as hover on purpose - it IS the hover of the arrow
+   keys, not a selected state. */
+.pv-menu-item.is-active:not(:disabled) { background: var(--state-hover); }
 .pv-menu-item:active:not(:disabled) { background: var(--state-press); }
 .pv-menu-item:disabled { opacity: 0.45; cursor: default; }
 .pv-menu-item--danger, .pv-menu-item--danger .pv-menu-ic { color: var(--error-text); }
@@ -2895,6 +2900,9 @@ tr.is-selected > td { color: var(--on-accent-container); }
 }
 .pv-comment-card__meta { color: var(--text-muted); font-size: var(--text-sm); }
 .pv-comment-card__body { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* An @mention inside a comment body (D8). Tinted rather than boxed: it sits in
+   running text, and a chip per name would turn a sentence into a row of pills. */
+.pv-comment-card__mention { color: var(--accent-color); font-weight: 600; }
 .pv-comment-card__state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-faint); font-size: var(--text-sm); }
 .pv-comment-card__reply { display: grid; gap: var(--space-1); margin-left: var(--space-3); padding-left: var(--space-2); border-left: 1px solid var(--border-color-light); }
 .pv-comment-card__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }

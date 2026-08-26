@@ -3370,6 +3370,8 @@
     "commentReply": "回复",
     "commentReplyPlaceholder": "写下回复…",
     "commentsNone": "还没有评论。",
+    "commentMentionPicker": "提及成员",
+    "commentMentionsYou": "提到了你",
     "suggestionDeletes": "删除此段落",
     "suggestionApply": "采纳",
     "suggestionDecline": "拒绝",

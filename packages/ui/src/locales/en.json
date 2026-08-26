@@ -3398,6 +3398,8 @@
     "commentReply": "Reply",
     "commentReplyPlaceholder": "Write a reply…",
     "commentsNone": "No comments yet.",
+    "commentMentionPicker": "Mention a member",
+    "commentMentionsYou": "Mentions you",
     "suggestionDeletes": "deletes this passage",
     "suggestionApply": "Accept",
     "suggestionDecline": "Decline",
