@@ -120,13 +120,21 @@ export function projectPublishedMarkdown(input: {
  * sliceId` reveals neither, while staying stable for the same pair - which is
  * what makes a refresh find its own publication again.
  *
- * Sixteen hex characters: the id is a namespace, not a secret. It is derived
- * from two values the recipient already knows nothing about, and the encryption
- * - not the folder name - is what keeps the content closed.
+ * Thirty-two hex characters - sixteen bytes - because a publication IS a
+ * workspace, and this id is its `workspaceId` (S2). The invite code carries a
+ * workspace id and nothing else, so making the two the same lets a recipient
+ * derive the folder from the code alone; `assertWorkspaceId` demands sixteen
+ * bytes, and a shorter namespace would force a second id and a second field to
+ * hand over. It also makes a publication folder look like every other workspace
+ * id rather than like a distinctly shorter special case.
+ *
+ * The id is a namespace, not a secret: it is derived from two values the
+ * recipient knows nothing about, and the encryption - not the folder name - is
+ * what keeps the content closed.
  */
 export function derivePublicationId(workspaceId: string, sliceId: string): string {
   protocolAssert(workspaceId.length > 0 && sliceId.length > 0, "format", "publication id needs a workspace and a slice");
-  return sha256Hex(utf8Encode(`${workspaceId}/${sliceId}`)).slice(0, 16);
+  return sha256Hex(utf8Encode(`${workspaceId}/${sliceId}`)).slice(0, 32);
 }
 
 /** Namespaces an independently bootstrapped encrypted workspace on one provider. */

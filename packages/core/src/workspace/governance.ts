@@ -5,7 +5,7 @@ import { createWorkspaceGroupKeyEpoch, createWorkspaceMemberId, type WorkspaceGr
 import { addWorkspaceMemberToPolicy, createWorkspacePolicySuccessor, revokeWorkspaceDeviceInPolicy } from "./policy.js";
 import { WORKSPACE_ROLE_CAPABILITIES, type WorkspaceRole } from "./authorization.js";
 import { decodeBase64Exact, sha256Hex, toBase64 } from "./encoding.js";
-import { protocolAssert } from "./errors.js";
+import { WorkspaceProtocolError, protocolAssert } from "./errors.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
 import { createWorkspaceSliceDefinition, previewWorkspaceSlice, workspaceSliceDefinitionError, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject } from "./slices.js";
 import type { PublishedSliceAccess, PublishedSliceMode, PublishedSliceProvider } from "./publishedSlices.js";
@@ -211,6 +211,42 @@ export async function grantsForGroup(runtime: PersonalWorkspaceRuntime, policy: 
     policyHash, purpose, groupId: group.groupId, keyEpoch: group.keyEpoch, key: purpose === "group-hpke-private-key" ? group.hpke.privateKey : group.catalogKey, createdAt: new Date().toISOString(),
   }));
   return grants.sort((a, b) => workspaceDocumentHash(a).localeCompare(workspaceDocumentHash(b)));
+}
+
+/**
+ * Writes the three documents that make a workspace EXIST on a remote.
+ *
+ * Lifted out of the migration in Stufe B, because the publication needs exactly
+ * this and the migration is not the only caller any more. The distinction to
+ * `publishWorkspaceGovernanceUpdate` below matters more than it looks: that one
+ * writes policies and grants, and a remote carrying only those is invisible.
+ * Every detect path in both shells probes `.pvws/genesis.pvgen` - a publication
+ * bootstrapped without it would be a folder full of objects that nothing ever
+ * offers to open.
+ *
+ * The genesis is checked before it is written: two different workspaces in one
+ * folder is the one mistake this layer cannot recover from later, because both
+ * sides would keep signing against a root the other one does not have.
+ */
+export async function publishWorkspaceBootstrap(store: WorkspaceObjectStore, runtime: PersonalWorkspaceRuntime, signal?: AbortSignal): Promise<void> {
+  // Written out rather than delegated to the update below: a bootstrap runtime
+  // types its grants with an unknown payload, and the paths have to stay
+  // byte-identical to what the migration produced before this was lifted.
+  const policyBytes = encodeWorkspaceDocument(runtime.policy);
+  const policyHash = workspaceDocumentHash(runtime.policy);
+  await store.putImmutable(`.pvws/policies/${policyHash}.pvpol`, policyBytes, policyHash, { signal });
+  for (const grant of runtime.grants) {
+    const bytes = encodeWorkspaceDocument(grant);
+    const hash = workspaceDocumentHash(grant);
+    const recipient = (grant.payload as { recipientDeviceId: string }).recipientDeviceId;
+    await store.putImmutable(`.pvws/grants/${recipient}/${hash}.pvgrant`, bytes, hash, { signal });
+  }
+  const genesisBytes = encodeWorkspaceDocument(runtime.genesis);
+  const existing = await store.get(".pvws/genesis.pvgen", { signal });
+  if (existing && sha256Hex(existing) !== sha256Hex(genesisBytes)) {
+    throw new WorkspaceProtocolError("conflict", "the selected remote already contains another encrypted workspace");
+  }
+  await store.putImmutable(".pvws/genesis.pvgen", genesisBytes, sha256Hex(genesisBytes), { signal });
 }
 
 export async function publishWorkspaceGovernanceUpdate(store: WorkspaceObjectStore, update: Pick<WorkspaceGovernanceUpdate, "policy" | "grants">, signal?: AbortSignal): Promise<void> {

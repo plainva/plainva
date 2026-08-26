@@ -1,10 +1,11 @@
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
-import { encodeWorkspaceDocument, workspaceDocumentHash } from "./documents.js";
+import { workspaceDocumentHash } from "./documents.js";
 import { sha256Hex } from "./encoding.js";
+import { publishWorkspaceBootstrap } from "./governance.js";
 import { WorkspaceObjectStore } from "./objectStore.js";
 import { PersonalWorkspaceRuntime } from "./personal.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
-import { WorkspaceProtocolError, protocolAssert } from "./errors.js";
+import { protocolAssert } from "./errors.js";
 import { WorkspaceLocalProbe, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 
 export interface PersonalWorkspaceMigrationResult {
@@ -42,24 +43,6 @@ function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: str
   };
 }
 
-async function putBootstrap(store: WorkspaceObjectStore, runtime: PersonalWorkspaceRuntime, signal?: AbortSignal): Promise<void> {
-  const policyBytes = encodeWorkspaceDocument(runtime.policy);
-  const policyHash = workspaceDocumentHash(runtime.policy);
-  await store.putImmutable(`.pvws/policies/${policyHash}.pvpol`, policyBytes, policyHash, { signal });
-  for (const grant of runtime.grants) {
-    const bytes = encodeWorkspaceDocument(grant);
-    const hash = workspaceDocumentHash(grant);
-    const recipient = (grant.payload as { recipientDeviceId: string }).recipientDeviceId;
-    await store.putImmutable(`.pvws/grants/${recipient}/${hash}.pvgrant`, bytes, hash, { signal });
-  }
-  const genesisBytes = encodeWorkspaceDocument(runtime.genesis);
-  const existing = await store.get(".pvws/genesis.pvgen", { signal });
-  if (existing && sha256Hex(existing) !== sha256Hex(genesisBytes)) {
-    throw new WorkspaceProtocolError("conflict", "the selected remote already contains another encrypted workspace");
-  }
-  await store.putImmutable(".pvws/genesis.pvgen", genesisBytes, sha256Hex(genesisBytes), { signal });
-}
-
 /**
  * Builds `.pvws/` side by side and fills the durable queue. Existing remote
  * plaintext is deliberately untouched; the desktop asks for an explicit,
@@ -82,7 +65,7 @@ export async function initializePersonalWorkspaceMigration(input: {
     await input.state.saveMeta(meta);
   }
   protocolAssert(meta.workspaceId === input.runtime.workspaceId, "conflict", "local state belongs to another encrypted workspace");
-  await putBootstrap(input.store, input.runtime, input.signal);
+  await publishWorkspaceBootstrap(input.store, input.runtime, input.signal);
   meta.phase = "migrating";
 
   const inventory = (await input.vault.listDir("", true))

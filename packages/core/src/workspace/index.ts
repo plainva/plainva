@@ -51,4 +51,5 @@ export * from "./migration.js";
 export * from "./worker.js";
 export * from "./rotation.js";
 export * from "./publishedSlices.js";
+export * from "./publication.js";
 export * from "./securityGate.js";
