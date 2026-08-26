@@ -1,4 +1,5 @@
 import { parseDocument, stringify } from "yaml";
+import { sha256Hex, utf8Encode } from "./encoding.js";
 import { protocolAssert } from "./errors.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
@@ -101,6 +102,33 @@ export function projectPublishedMarkdown(input: {
   return { markdown, report };
 }
 
+/**
+ * The folder a publication lives in, derived rather than stored.
+ *
+ * The obvious design would be a `publicationId` field on the config - and the
+ * config already declares one. It cannot be written: `assertExactKeys` pins the
+ * publication document to exactly the five keys it has today, and the protocol
+ * has no schema evolution (every document is checked against an exact key set,
+ * and `protocolVersion` is compared for equality). Adding a field is a protocol
+ * change, and a protocol change is blocked behind the pending crypto review.
+ *
+ * Deriving it costs nothing and buys something the stored id would not: the
+ * folder name under `.pvws/publications/` is visible to the provider and to
+ * every recipient. Using the slice id there would tell them which internal row
+ * of the main vault this share belongs to, and two shares of the same slice
+ * would be recognisably the same slice. A hash over `workspaceId + "/" +
+ * sliceId` reveals neither, while staying stable for the same pair - which is
+ * what makes a refresh find its own publication again.
+ *
+ * Sixteen hex characters: the id is a namespace, not a secret. It is derived
+ * from two values the recipient already knows nothing about, and the encryption
+ * - not the folder name - is what keeps the content closed.
+ */
+export function derivePublicationId(workspaceId: string, sliceId: string): string {
+  protocolAssert(workspaceId.length > 0 && sliceId.length > 0, "format", "publication id needs a workspace and a slice");
+  return sha256Hex(utf8Encode(`${workspaceId}/${sliceId}`)).slice(0, 16);
+}
+
 /** Namespaces an independently bootstrapped encrypted workspace on one provider. */
 export class PublishedSliceObjectStore implements WorkspaceObjectStore {
   private readonly prefix: string;
@@ -119,6 +147,20 @@ export class PublishedSliceObjectStore implements WorkspaceObjectStore {
   async head(key: string, options?: WorkspaceRequestOptions) { const info = await this.store.head(this.remote(key), options); return info ? this.local(info) : null; }
   putImmutable(key: string, bytes: Uint8Array, expectedSha256: string, options?: WorkspaceRequestOptions) { return this.store.putImmutable(this.remote(key), bytes, expectedSha256, options); }
   compareAndSwapPointer(key: string, bytes: Uint8Array, previousEtag: string | null, options?: WorkspaceRequestOptions) { return this.store.compareAndSwapPointer(this.remote(key), bytes, previousEtag, options); }
+}
+
+/**
+ * The one place that constructs a publication store.
+ *
+ * Everything else - creating, refreshing, joining, retracting - goes through
+ * here, so the derivation above exists exactly once. A second caller building
+ * the store by hand would be free to pass a different id, and a publication
+ * written under one name and refreshed under another is a silent orphan: the
+ * old folder keeps serving stale objects to whoever already joined it.
+ * `publicationStore.test.ts` pins that with a source-text check.
+ */
+export function publicationStoreFor(store: WorkspaceObjectStore, workspaceId: string, sliceId: string): PublishedSliceObjectStore {
+  return new PublishedSliceObjectStore(store, derivePublicationId(workspaceId, sliceId));
 }
 
 /** Provider ACLs are defense in depth and may never replace encrypted access. */
