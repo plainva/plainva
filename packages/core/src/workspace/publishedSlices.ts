@@ -96,6 +96,41 @@ export const DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST: readonly string[] = [
 ];
 
 /**
+ * The second line, kept because the first one can be widened.
+ *
+ * These five are what both shells shipped as their whole policy, and on their
+ * own they never carried the weight: see the allowlist above for the two things
+ * Plainva writes that walk straight past them. They stay because the allowlist
+ * is the part a user can widen - naming a deliberate custom property in the
+ * publication form - and a name that means "secret" should not become
+ * publishable just because somebody widened the list around it.
+ */
+export const DEFAULT_PUBLISHED_PRIVATE_PROPERTIES: readonly string[] = [
+  "apiKey",
+  "password",
+  "private",
+  "secret",
+  "token",
+];
+
+/**
+ * The publication property policy, in one place instead of two copies.
+ *
+ * Both shells used to write the same two literals into every publication they
+ * created, which is how a policy drifts: the copies are equal until somebody
+ * edits one of them.
+ *
+ * `propertyAllowlist` is stored as `null` ON PURPOSE rather than materialised.
+ * A stored list would freeze a publication on the policy of the day it was
+ * created - so a property added to the default list later, because it turned
+ * out to leak, would keep leaking from every publication that already exists.
+ * `null` means "follow the policy", and the policy is code.
+ */
+export function defaultPublishedPropertyPolicy(): { propertyAllowlist: null; privateProperties: string[] } {
+  return { propertyAllowlist: null, privateProperties: [...DEFAULT_PUBLISHED_PRIVATE_PROPERTIES] };
+}
+
+/**
  * Compares property names the way a human means them.
  *
  * `stale_after`, `staleAfter` and `Stale-After` are the same field to everyone
@@ -353,6 +388,95 @@ export function projectPublishedMarkdown(input: {
       neutralizedLinks: [...neutralizedLinks].sort(),
       removedEmbeds: [...removedEmbeds].sort(),
     },
+  };
+}
+
+export interface PublishedProjectionSample {
+  path: string;
+  /** The note as it is stored, so the two can be shown side by side. */
+  before: string;
+  after: string;
+  report: PublishedSliceProjectionReport;
+}
+
+export interface PublishedProjectionPreview {
+  objectCount: number;
+  /** Union over every object in the slice, each name and path listed once. */
+  removedProperties: string[];
+  neutralizedLinks: string[];
+  removedEmbeds: string[];
+  /** One real object of the slice, projected. `null` only for an empty slice. */
+  sample: PublishedProjectionSample | null;
+  /** Nothing at all is taken out - by definition in `exact`, by luck otherwise. */
+  unchanged: boolean;
+}
+
+/**
+ * What the slice looks like AFTER projection, before anything leaves the vault.
+ *
+ * The allowlist from decision E5 buys safety by withholding things nobody
+ * listed, and that trade is only honest if the person publishing can see what
+ * was withheld. Hence a preview against REAL objects rather than a description
+ * of the rules: a sentence saying "private properties are removed" is exactly
+ * what the shipped denylist also said while publishing an account identity.
+ *
+ * Three properties of this function are load-bearing:
+ *
+ * - `includedPaths` is derived from `objects` instead of being passed in. The
+ *   preview then cannot compute against a different set of included paths than
+ *   the one it is showing - the failure where the preview is clean and the
+ *   publication is not.
+ * - `mode: "exact"` runs no projection at all and reports `unchanged`. An exact
+ *   publication is the whole note; showing a sanitized preview for it would be
+ *   a comforting lie.
+ * - The sample is the object with the MOST removals, not the first one. The
+ *   preview exists to answer "what gets taken out", and a first object that
+ *   happens to be clean answers it with silence. Ties keep the earlier object,
+ *   so the same slice always previews the same way.
+ */
+export function previewPublishedProjection(input: {
+  mode: PublishedSliceMode;
+  objects: readonly { path: string; markdown: string }[];
+  propertyAllowlist?: string[] | null;
+  privateProperties?: string[];
+}): PublishedProjectionPreview {
+  const includedPaths = input.objects.map((object) => object.path);
+  const removedProperties = new Set<string>();
+  const neutralizedLinks = new Set<string>();
+  const removedEmbeds = new Set<string>();
+  let sample: PublishedProjectionSample | null = null;
+  let sampleWeight = -1;
+
+  for (const object of input.objects) {
+    const projection =
+      input.mode === "exact"
+        ? { markdown: object.markdown, report: { removedProperties: [], neutralizedLinks: [], removedEmbeds: [] } }
+        : projectPublishedMarkdown({
+            markdown: object.markdown,
+            includedPaths,
+            propertyAllowlist: input.propertyAllowlist,
+            privateProperties: input.privateProperties,
+          });
+    for (const key of projection.report.removedProperties) removedProperties.add(key);
+    for (const link of projection.report.neutralizedLinks) neutralizedLinks.add(link);
+    for (const embed of projection.report.removedEmbeds) removedEmbeds.add(embed);
+    const weight =
+      projection.report.removedProperties.length +
+      projection.report.neutralizedLinks.length +
+      projection.report.removedEmbeds.length;
+    if (weight > sampleWeight) {
+      sampleWeight = weight;
+      sample = { path: object.path, before: object.markdown, after: projection.markdown, report: projection.report };
+    }
+  }
+
+  return {
+    objectCount: input.objects.length,
+    removedProperties: [...removedProperties].sort(),
+    neutralizedLinks: [...neutralizedLinks].sort(),
+    removedEmbeds: [...removedEmbeds].sort(),
+    sample,
+    unchanged: sampleWeight <= 0,
   };
 }
 

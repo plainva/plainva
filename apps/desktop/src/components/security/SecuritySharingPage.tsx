@@ -4,7 +4,7 @@ import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { Banner, Button, ICON, Modal, QrImage, SettingCard, SettingCardNote, SettingRow, TextInput, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
-import type { WorkspaceSliceObject } from "@plainva/core";
+import { defaultPublishedPropertyPolicy, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
@@ -300,7 +300,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     if (dialog === "slice") return runGovernance(async () => {
       const definition = parseSliceForm(form);
       const preview = await previewWorkspaceSlice(definition);
-      await createWorkspaceSlice({ name: form.name, definition, materializedObjectIds: preview.map((entry) => entry.objectId), ...(form.publicationMode === "private" ? {} : { publication: { mode: form.publicationMode as "exact" | "sanitized", access: form.publicationAccess as "read" | "comment" | "suggest", provider: form.publicationProvider as "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3", propertyAllowlist: null, privateProperties: ["apiKey", "password", "private", "secret", "token"] } }) });
+      await createWorkspaceSlice({ name: form.name, definition, materializedObjectIds: preview.map((entry) => entry.objectId), ...(form.publicationMode === "private" ? {} : { publication: { mode: form.publicationMode as "exact" | "sanitized", access: form.publicationAccess as "read" | "comment" | "suggest", provider: form.publicationProvider as "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3", ...defaultPublishedPropertyPolicy() } }) });
     }, form.publicationMode === "private" ? t("workspaceSecurity.sliceCreated", { defaultValue: "Slice created" }) : t("workspaceSecurity.publicationCreated", { defaultValue: "Encrypted publication configured" }));
     if (dialog === "rotate") return rotateRecovery();
     if (dialog === "owner") return transferOwner();

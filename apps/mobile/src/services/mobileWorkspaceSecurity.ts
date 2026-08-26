@@ -7,6 +7,7 @@ import {
   createWorkspaceGroup,
   createWorkspaceSlice,
   createWorkspaceSliceDefinition,
+  defaultPublishedPropertyPolicy,
   previewWorkspaceSlice,
   refreshWorkspaceSliceMaterialization,
   type WorkspaceSliceObject,
@@ -370,7 +371,9 @@ export async function createMobileWorkspaceSlice(input: {
       input.objects
     ).matchedObjectIds,
     ...(input.publication
-      ? { publication: { ...input.publication, propertyAllowlist: null, privateProperties: ["apiKey", "password", "private", "secret", "token"] } }
+      // The policy is shared with the desktop rather than copied (S3b): two copies
+      // of a property policy are equal only until somebody edits one of them.
+      ? { publication: { ...input.publication, ...defaultPublishedPropertyPolicy() } }
       : {}),
   });
   await commitGovernance(input.vaultId, input.store, input.runtime, { policy, grants: [] });

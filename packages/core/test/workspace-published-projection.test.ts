@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST, projectPublishedMarkdown } from "../src/index.js";
+import {
+  DEFAULT_PUBLISHED_PRIVATE_PROPERTIES,
+  DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST,
+  defaultPublishedPropertyPolicy,
+  previewPublishedProjection,
+  projectPublishedMarkdown,
+} from "../src/index.js";
 
 /**
  * What actually leaves the vault when a slice is published (Stufe B, S3).
@@ -204,5 +210,101 @@ describe("published projection report", () => {
     const result = project(markdown);
     expect(result.report.neutralizedLinks).toEqual(["Private/a.md", "Private/b"]);
     expect(result.report.removedEmbeds).toEqual(["Private/img.png"]);
+  });
+});
+
+describe("published property policy is shared, not copied", () => {
+  it("carries exactly what both shells used to hardcode", () => {
+    // Desktop and mobile each wrote the same five names into every publication
+    // they created. Two copies of a policy are equal only until somebody edits
+    // one of them - this pins that replacing them changed nothing.
+    expect(DEFAULT_PUBLISHED_PRIVATE_PROPERTIES).toEqual(["apiKey", "password", "private", "secret", "token"]);
+  });
+
+  it("stores the allowlist as null so the policy stays code", () => {
+    // A materialized list would freeze a publication on the policy of the day it
+    // was created: a property added to the default list later, because it turned
+    // out to leak, would keep leaking from every publication that already exists.
+    const policy = defaultPublishedPropertyPolicy();
+    expect(policy.propertyAllowlist).toBeNull();
+    expect(policy.privateProperties).toEqual([...DEFAULT_PUBLISHED_PRIVATE_PROPERTIES]);
+  });
+
+  it("hands out a copy, so one caller cannot rewrite the policy for the next", () => {
+    const policy = defaultPublishedPropertyPolicy();
+    policy.privateProperties.push("everything");
+    expect(defaultPublishedPropertyPolicy().privateProperties).not.toContain("everything");
+    expect(DEFAULT_PUBLISHED_PRIVATE_PROPERTIES).not.toContain("everything");
+  });
+});
+
+describe("published projection preview", () => {
+  const objects = [
+    { path: "Shared/Note.md", markdown: "---\ntitle: A\n---\nSee [x](Shared/Deep/Other.md)." },
+    {
+      path: "Shared/Deep/Other.md",
+      markdown:
+        "---\ntitle: B\nsources:\n  - CADnac8=k7Yb@mail.gmail.com\n---\nSee [[Private/Plan]] and ![[Private/img.png]].",
+    },
+  ];
+
+  it("computes against the very set of objects it is showing", () => {
+    // includedPaths is derived from objects rather than passed in, so the
+    // preview cannot be clean while the publication is not. Same first note,
+    // twice - and its link to the second one is a slice member in one run and a
+    // withheld path in the other, purely because the slice changed.
+    const both = previewPublishedProjection({ mode: "sanitized", objects });
+    expect(both.objectCount).toBe(2);
+    expect(both.neutralizedLinks).toEqual(["Private/Plan"]);
+    expect(both.removedEmbeds).toEqual(["Private/img.png"]);
+    expect(both.sample?.after).not.toContain("Private/Plan");
+
+    const alone = previewPublishedProjection({ mode: "sanitized", objects: [objects[0]] });
+    expect(alone.neutralizedLinks).toEqual(["Shared/Deep/Other.md"]);
+    expect(alone.sample?.after).not.toContain("Shared/Deep/Other.md");
+  });
+
+  it("shows the object with the most removals, not the first one", () => {
+    // The preview exists to answer "what gets taken out". A first object that
+    // happens to be clean answers that question with silence.
+    const preview = previewPublishedProjection({ mode: "sanitized", objects });
+    expect(preview.sample?.path).toBe("Shared/Deep/Other.md");
+    expect(preview.sample?.before).toContain("mail.gmail.com");
+    expect(preview.sample?.after).not.toContain("mail.gmail.com");
+  });
+
+  it("reports each withheld name once, sorted, across the whole slice", () => {
+    const twice = [
+      { path: "a.md", markdown: "---\nbudget_eur: 1\n---\n[x](Private/p.md)" },
+      { path: "b.md", markdown: "---\nbudget_eur: 2\n---\n[y](Private/p.md)" },
+    ];
+    const preview = previewPublishedProjection({ mode: "sanitized", objects: twice });
+    expect(preview.removedProperties).toEqual(["budget_eur"]);
+    expect(preview.neutralizedLinks).toEqual(["Private/p.md"]);
+  });
+
+  it("runs no projection at all in exact mode", () => {
+    // An exact publication is the whole note. Showing a sanitized preview for it
+    // would be a comforting lie about what leaves the vault.
+    const preview = previewPublishedProjection({ mode: "exact", objects });
+    expect(preview.unchanged).toBe(true);
+    expect(preview.removedProperties).toEqual([]);
+    expect(preview.neutralizedLinks).toEqual([]);
+    expect(preview.sample?.after).toBe(objects[0].markdown);
+    expect(preview.sample?.after).toContain("Shared/Deep/Other.md");
+  });
+
+  it("says so plainly when a sanitized slice has nothing to take out", () => {
+    const clean = [{ path: "Shared/Note.md", markdown: "---\ntitle: A\n---\nJust prose." }];
+    const preview = previewPublishedProjection({ mode: "sanitized", objects: clean });
+    expect(preview.unchanged).toBe(true);
+    expect(preview.sample?.path).toBe("Shared/Note.md");
+  });
+
+  it("has no sample for an empty slice", () => {
+    const preview = previewPublishedProjection({ mode: "sanitized", objects: [] });
+    expect(preview.objectCount).toBe(0);
+    expect(preview.sample).toBeNull();
+    expect(preview.unchanged).toBe(true);
   });
 });
