@@ -81,8 +81,12 @@ describe("a property change that fails, says it failed", () => {
     expect(text, "rows must be static without the write right").toMatch(/LOCKED\.has\(k\) \|\| !canWrite/);
     expect(text, "adding a property must be gated too").toMatch(/\{canWrite && \(/);
     const note = strip(read("screens", "NoteScreen.tsx"));
+    // Counted per SURFACE, not as a total: D5 added a third consumer of the same
+    // right (the comments sheet, which hides "accept suggestion" without it), and
+    // a bare total would have read that as a regression. What must not drift is
+    // that BOTH property surfaces - the sheet and the docked column - are told.
     expect(
-      [...note.matchAll(/canWrite=\{workspaceCanWrite\}/g)].length,
+      [...note.matchAll(/<NoteContextSheet[\s\S]{0,200}?canWrite=\{workspaceCanWrite\}/g)].length,
       "both the sheet and the docked column must be told",
     ).toBe(2);
   });

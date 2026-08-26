@@ -12,6 +12,7 @@ import {
   FileX,
   FilePlus2,
   Search,
+  MessageSquare,
   Mail,
   Send,
   Paperclip,
@@ -28,7 +29,7 @@ import { Banner, Button, EmptyState, Fab, formatStampDate, frontmatterBlockOf, I
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { mConfirm } from "../services/mobileDialogs";
-import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, stripPlainvaIndexMarker, workspaceSliceIdsForObject, type WorkspaceCapability } from "@plainva/core";
+import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, resolveCommentAnchor, stripPlainvaIndexMarker, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentRecord } from "@plainva/core";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -37,6 +38,8 @@ import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal"
 import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
+import { CommentsSheet } from "../components/CommentsSheet";
+import { listMobileComments, listMobileCommentAuthors, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 
@@ -121,6 +124,27 @@ export function NoteScreen({
     return () => { stale = true; };
   }, [vault, path]);
   const workspaceCanWrite = workspaceCapabilities === null || workspaceCapabilities.includes("content.write");
+  /**
+   * Comments and suggestions (D5).
+   *
+   * A vault without an encrypted workspace has no policy, so the capability set
+   * falls back to what a plain vault can honestly grant. `commentTick` reloads
+   * after every write: the records live in a sideband file, not in the note, so
+   * nothing else would tell this screen that a reply arrived.
+   */
+  const [comments, setComments] = useState<WorkspaceCommentRecord[]>([]);
+  const [commentNames, setCommentNames] = useState<ReadonlyMap<string, string>>(new Map());
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentTick, setCommentTick] = useState(0);
+  const commentCaps = workspaceCapabilities ?? MOBILE_COMMENT_CAPABILITIES;
+  const canComment = commentCaps.includes("comment.create");
+  useEffect(() => {
+    let stale = false;
+    void Promise.all([listMobileComments(vault, path), listMobileCommentAuthors(vault)])
+      .then(([list, names]) => { if (!stale) { setComments(list); setCommentNames(names); } })
+      .catch(() => { if (!stale) { setComments([]); setCommentNames(new Map()); } });
+    return () => { stale = true; };
+  }, [vault, path, commentTick]);
   /**
    * A Plainva-managed overview is read-only until the reader says otherwise
    * (desktop parity). Without the guard the next auto-update run silently
@@ -251,6 +275,43 @@ export function NoteScreen({
     };
   });
 
+
+  /**
+   * Accepting a proposal is an ORDINARY edit plus a resolve (desktop parity).
+   *
+   * The passage is found by resolving the anchor against the text as it stands
+   * right now, never by trusting stored offsets: the note may have been edited
+   * on another device since. An orphaned anchor is refused rather than guessed -
+   * writing a proposal into a spot nobody proposed it for is the worse failure.
+   */
+  const applySuggestion = async (comment: WorkspaceCommentRecord, outcome: "applied" | "declined") => {
+    const name = getMobileSettings().verifierName;
+    if (outcome === "declined") {
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined", authorName: name });
+      setCommentTick((n) => n + 1);
+      return;
+    }
+    const text = doc;
+    if (!comment.suggestion || !comment.anchor || text === null) return;
+    const resolution = resolveCommentAnchor(text, comment.anchor);
+    if (resolution.status === "orphan") {
+      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      return;
+    }
+    const next = text.slice(0, resolution.from) + comment.suggestion.replacement + text.slice(resolution.to);
+    setDoc(next);
+    noteSaver.schedule(vault, path, next);
+    try {
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "applied", authorName: name });
+    } catch (error) {
+      // The swap is already in the buffer. If the record never landed, the note
+      // must not silently keep a change nobody agreed to.
+      setDoc(text);
+      noteSaver.schedule(vault, path, text);
+      throw error;
+    }
+    setCommentTick((n) => n + 1);
+  };
 
   const page = (
     <div className="m-page m-page--note">
@@ -392,6 +453,25 @@ export function NoteScreen({
         />
       )}
 
+      {commentsOpen && (
+        <CommentsSheet
+          comments={comments}
+          memberNames={commentNames}
+          canComment={canComment}
+          canWrite={workspaceCanWrite}
+          onClose={() => setCommentsOpen(false)}
+          onSubmit={async (body, parentCommentId) => {
+            await postMobileComment(vault, { path, body, parentCommentId, authorName: getMobileSettings().verifierName });
+            setCommentTick((n) => n + 1);
+          }}
+          onResolve={(commentId) => {
+            void postMobileComment(vault, { path, body: "", resolvedCommentId: commentId, authorName: getMobileSettings().verifierName })
+              .then(() => setCommentTick((n) => n + 1));
+          }}
+          onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
+          onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
+        />
+      )}
       {menu && (
         <RowActionSheet
           title={title}
@@ -445,6 +525,20 @@ export function NoteScreen({
                 editorEvent("m-editor-find");
               },
             },
+            /*
+             * Comments live behind the menu, not on a permanent button: on a
+             * phone the note itself is the scarce surface, and most readings of
+             * a note involve no comment at all. `comment.read` gates it because
+             * a slice may hand out the text without the discussion around it.
+             */
+            ...(commentCaps.includes("comment.read") ? [{
+              icon: <MessageSquare size={ICON.head} />,
+              label: t("workspaceSecurity.comments"),
+              onClick: () => {
+                setMenu(false);
+                setCommentsOpen(true);
+              },
+            }] : []),
             {
               icon: <Pencil size={ICON.head} />,
               label: t("common.rename"),

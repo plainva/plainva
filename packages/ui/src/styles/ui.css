@@ -2845,3 +2845,56 @@ tr.is-selected > td { color: var(--on-accent-container); }
   text-align: center;
   padding: var(--space-6);
 }
+
+/* Comment cards (Stufe D). Shared because the phone shows the same records in
+   a sheet: one visual vocabulary, and the LCARS/Win95 overrides that already
+   name these classes keep covering both shells. The COLUMN that holds them
+   stays desktop-only - a phone has no room for a second column. */
+.pv-comment-card {
+  display: grid; gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color-light);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+.pv-comment-card:hover { background: var(--state-hover); }
+/* The active card and its tinted range in the text are ONE thing seen twice. */
+.pv-comment-card.is-active { border-left-color: var(--accent-color); background: var(--accent-container); color: var(--on-accent-container); }
+.pv-comment-card.is-resolved { opacity: 0.6; }
+.pv-comment-card__quote {
+  margin: 0; padding-left: var(--space-2);
+  border-left: 2px solid var(--accent-color);
+  color: var(--text-muted); font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+/* A suggestion is a before/after pair seen at once: the quote is struck
+   through, the proposal sits under it in the success tint. Nothing in the note
+   has changed yet - this is what COULD stand there. */
+.pv-comment-card__quote--replaced { text-decoration: line-through; text-decoration-thickness: 1px; }
+.pv-comment-card__replacement {
+  display: flex; align-items: flex-start; gap: var(--space-1);
+  margin: 0; padding: var(--space-1) var(--space-2);
+  border-left: 2px solid var(--success-border);
+  border-radius: var(--radius-xs);
+  background: var(--success-bg); color: var(--success-text);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.pv-comment-card__meta { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-comment-card__body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.pv-comment-card__state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-faint); font-size: var(--text-sm); }
+.pv-comment-card__reply { display: grid; gap: var(--space-1); margin-left: var(--space-3); padding-left: var(--space-2); border-left: 1px solid var(--border-color-light); }
+.pv-comment-card__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.pv-comment-compose { display: grid; gap: var(--space-2); justify-items: start; }
+.pv-comment-compose--new { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--border-color-light); }
+.pv-comment-compose__target { margin: 0; color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.pv-comment-compose__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+/* The proposed wording is the payload of a suggestion, so it leads - the
+   sentence explaining it is optional and sits below. */
+.pv-comment-compose__replacement { border-color: var(--success-border); }
+.pv-comment-compose textarea { width: 100%; }
+.pv-comment-column__empty { margin: 0; color: var(--text-faint); font-size: var(--text-sm); }
+/* The sheet stacks the same cards; the desktop column supplies its own gap. */
+.pv-comment-list { display: grid; gap: var(--space-3); }

@@ -16,6 +16,7 @@
  * last-writer rule that could drop somebody's sentence.
  */
 import { assertWorkspaceCommentAnchor, type WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
+import type { WorkspaceCommentRecord } from "../workspace/state.js";
 
 /** Same ceiling the sealed path asserts, so both storage paths accept the same thing. */
 export const MAX_LOCAL_COMMENT_BODY_BYTES = 64 * 1024;
@@ -183,4 +184,74 @@ export function serializeCommentsBundle(bundle: CommentsBundle): string {
   const authors: Record<string, LocalCommentAuthor> = {};
   for (const deviceId of Object.keys(bundle.authors).sort()) authors[deviceId] = bundle.authors[deviceId];
   return JSON.stringify({ format: bundle.format, version: bundle.version, updatedAt: bundle.updatedAt, comments, authors }, null, 2);
+}
+
+/**
+ * Maps the stored records of ONE note into the shape the comment surface renders
+ * (Stufe D, D5).
+ *
+ * Lifted out of the desktop shell so both views read the same list: what a
+ * comment "is" on screen - who wrote it, which passage it hangs on, whether a
+ * proposal was accepted - must not be decided twice, or the phone would show a
+ * thread the desktop does not.
+ *
+ * The verdict on a suggestion is DERIVED here rather than stored on the
+ * proposal: a resolution marker carries `suggestionOutcome`, so the proposal
+ * never has to be rewritten - which is what keeps every record immutable and the
+ * merge a plain union.
+ */
+export function localCommentsForPath(bundle: CommentsBundle | null, path: string): WorkspaceCommentRecord[] {
+  if (!bundle) return [];
+  const all = Object.values(bundle.comments);
+  const closedBy = new Map<string, { at: string; outcome: "applied" | "declined" | null; by: string }>();
+  for (const record of all) {
+    if (!record.resolvedCommentId) continue;
+    closedBy.set(record.resolvedCommentId, {
+      at: record.createdAt,
+      outcome: record.suggestionOutcome,
+      by: record.authorDeviceId,
+    });
+  }
+  return all
+    .filter((record) => record.path === path)
+    .sort((a, b) => (a.createdAt === b.createdAt ? a.commentId.localeCompare(b.commentId) : a.createdAt.localeCompare(b.createdAt)))
+    .map((record) => {
+      const closed = closedBy.get(record.commentId);
+      return {
+        commentId: record.commentId,
+        // No object id without a workspace; the path IS the identity here.
+        targetObjectId: record.path,
+        targetRevisionId: "",
+        parentCommentId: record.parentCommentId,
+        // A device is the author in a plain vault: there are no members, and the
+        // surface keys its name map by exactly this field.
+        authorMemberId: record.authorDeviceId,
+        authorDeviceId: record.authorDeviceId,
+        operationHash: "",
+        payloadHash: "",
+        body: record.body,
+        anchor: record.anchor,
+        suggestion: record.suggestion
+          ? {
+              replacement: record.suggestion.replacement,
+              appliedAt: closed?.outcome === "applied" ? closed.at : null,
+              appliedBy: closed?.outcome === "applied" ? closed.by : null,
+              declinedAt: closed?.outcome === "declined" ? closed.at : null,
+            }
+          : null,
+        suggestionOutcome: record.suggestionOutcome,
+        createdAt: record.createdAt,
+        resolvedCommentId: record.resolvedCommentId,
+        resolvedAt: closed?.at ?? null,
+      } satisfies WorkspaceCommentRecord;
+    });
+}
+
+/** deviceId -> what that device calls itself. Never a claim about anyone else. */
+export function localCommentAuthorNames(bundle: CommentsBundle | null): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const [deviceId, author] of Object.entries(bundle?.authors ?? {})) {
+    if (author.name.trim()) names.set(deviceId, author.name);
+  }
+  return names;
 }

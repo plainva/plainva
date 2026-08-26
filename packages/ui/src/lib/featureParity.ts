@@ -411,23 +411,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
-    id: "comment-column",
-    title: "Comments beside the note, with anchors and threads",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone reads and writes comments, but note-wide only: it shows a flat list " +
-      "and cannot anchor one to a passage, reply in a thread, or highlight the text a " +
-      "comment belongs to. The parts that decide correctness are already shared — the " +
-      "anchor format, its resolution and the marker pair all live in packages/core, so " +
-      "a comment anchored on the desktop keeps resolving on the phone and is never " +
-      "silently dropped. What is missing is the touch surface for it, which is D5 of " +
-      "the encryption package; this entry is deleted there.",
-    verified: "2026-08-25",
-  },
-  {
     id: "lift-encryption",
     title: "Turn encryption off and go back to plain files",
     area: "security",

@@ -18,8 +18,9 @@
 import {
   appendLocalComment,
   createWorkspaceObjectId,
+  localCommentAuthorNames,
+  localCommentsForPath,
   readLocalComments,
-  type CommentsBundle,
   type CommentsCrypto,
   type IVaultAdapter,
   type LocalCommentRecord,
@@ -73,60 +74,10 @@ function cryptoOf(mode: LocalCommentsMode): CommentsCrypto | undefined {
   return mode.kind === "sealed" ? mode.crypto : undefined;
 }
 
-/**
- * Maps the stored records of ONE note into the shape the column renders.
- *
- * The verdict on a suggestion is derived here rather than stored on the
- * proposal: a resolution marker carries `suggestionOutcome`, so the proposal
- * never has to be rewritten - the same reason the workspace path stamps the
- * target row when the marker arrives instead of re-signing the proposal.
- */
-export function localCommentsForPath(bundle: CommentsBundle | null, path: string): WorkspaceCommentRecord[] {
-  if (!bundle) return [];
-  const all = Object.values(bundle.comments);
-  const closedBy = new Map<string, { at: string; outcome: "applied" | "declined" | null; by: string }>();
-  for (const record of all) {
-    if (!record.resolvedCommentId) continue;
-    closedBy.set(record.resolvedCommentId, {
-      at: record.createdAt,
-      outcome: record.suggestionOutcome,
-      by: record.authorDeviceId,
-    });
-  }
-  return all
-    .filter((record) => record.path === path)
-    .sort((a, b) => (a.createdAt === b.createdAt ? a.commentId.localeCompare(b.commentId) : a.createdAt.localeCompare(b.createdAt)))
-    .map((record) => {
-      const closed = closedBy.get(record.commentId);
-      return {
-        commentId: record.commentId,
-        // No object id without a workspace; the path IS the identity here.
-        targetObjectId: record.path,
-        targetRevisionId: "",
-        parentCommentId: record.parentCommentId,
-        // A device is the author in a plain vault: there are no members, and the
-        // column keys its name map by exactly this field.
-        authorMemberId: record.authorDeviceId,
-        authorDeviceId: record.authorDeviceId,
-        operationHash: "",
-        payloadHash: "",
-        body: record.body,
-        anchor: record.anchor,
-        suggestion: record.suggestion
-          ? {
-              replacement: record.suggestion.replacement,
-              appliedAt: closed?.outcome === "applied" ? closed.at : null,
-              appliedBy: closed?.outcome === "applied" ? closed.by : null,
-              declinedAt: closed?.outcome === "declined" ? closed.at : null,
-            }
-          : null,
-        suggestionOutcome: record.suggestionOutcome,
-        createdAt: record.createdAt,
-        resolvedCommentId: record.resolvedCommentId,
-        resolvedAt: closed?.at ?? null,
-      } satisfies WorkspaceCommentRecord;
-    });
-}
+// Both shells read the same list (D5): the mapping now lives in the core so the
+// phone cannot drift from the desktop. Re-exported here because the surface
+// imports it by this name.
+export { localCommentsForPath };
 
 export async function listLocalComments(vaultPath: string, raw: IVaultAdapter, path: string): Promise<WorkspaceCommentRecord[]> {
   const mode = await localCommentsMode(vaultPath, raw);
@@ -138,12 +89,7 @@ export async function listLocalComments(vaultPath: string, raw: IVaultAdapter, p
 export async function listLocalCommentAuthors(vaultPath: string, raw: IVaultAdapter): Promise<Map<string, string>> {
   const mode = await localCommentsMode(vaultPath, raw);
   if (mode.kind === "locked") return new Map();
-  const bundle = await readLocalComments(raw, cryptoOf(mode));
-  const names = new Map<string, string>();
-  for (const [deviceId, author] of Object.entries(bundle?.authors ?? {})) {
-    if (author.name.trim()) names.set(deviceId, author.name);
-  }
-  return names;
+  return localCommentAuthorNames(await readLocalComments(raw, cryptoOf(mode)));
 }
 
 export interface PostLocalCommentInput {

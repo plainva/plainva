@@ -3,7 +3,9 @@ import {
   EncryptingSyncTarget,
   FatalSyncProtocolError,
   KeyfileSyncStep,
+  CommentsSyncStep,
   SecretsSyncStep,
+  type CommentsCrypto,
   SETTINGS_ENC_PATH,
   SettingsSyncStep,
   connectionFingerprint,
@@ -321,6 +323,40 @@ async function rememberKeyring(vaultId: string, active: MasterKeyBundle, keys: M
     activeKeyId: active.keyId,
     keys: [...keys.values()].map((key) => ({ keyId: key.keyId, mk: toBase64(key.masterKey) })),
   });
+}
+
+/**
+ * How this device can store comments right now (Stufe D, D5).
+ *
+ * Same three states the desktop distinguishes, for the same reason: with a
+ * keyfile in the vault the comment sideband is sealed, and a device that cannot
+ * seal must NOT write the plaintext variant beside it. The merge is a union, so
+ * convergence is not the danger here — the ping-pong is: an unlocked device
+ * folds the plaintext bundle in and deletes it, the locked device writes it
+ * again next cycle, forever. And the user asked for a passphrase; publishing
+ * comment text in the clear beside the sealed file would quietly undo that.
+ *
+ * Seals under the EXISTING `settings` purpose, exactly as the profile step does
+ * — the purpose is a byte in the PVE1 frame, so minting a `comments` purpose
+ * would be a protocol change older devices could not open.
+ */
+export type MobileCommentsMode =
+  | { kind: "plain" }
+  | { kind: "sealed"; crypto: CommentsCrypto }
+  | { kind: "locked" };
+
+export async function mobileCommentsMode(vault: MobileVault): Promise<MobileCommentsMode> {
+  const ring = await loadKeyring(vault.vaultId);
+  if (ring) {
+    return {
+      kind: "sealed",
+      crypto: {
+        seal: (plain) => sealBlob(ring.active, plain, "settings"),
+        open: (bytes) => openBlob(ring.active, bytes, "settings"),
+      },
+    };
+  }
+  return (await vault.adapter.exists(KEYFILE_PATH)) ? { kind: "locked" } : { kind: "plain" };
 }
 
 export async function unlockMobileEncryption(vault: MobileVault, passphrase: string): Promise<void> {
@@ -791,6 +827,18 @@ class MobileSidebandRunner implements SettingsSyncRunner {
       }
       await this.runLegacyCleanupIfRequested(secrets, target, vault);
     }
+
+    // Its own try: a comment bundle that cannot be opened (wrong key, damaged
+    // file) is a reason to leave it alone, never to stop carrying notes.
+    const comments = await this.steps.comments(vault);
+    if (comments) {
+      try {
+        await comments.run(target, vault);
+      } catch {
+        // Silent by design: the surface shows what it has, and a bundle it
+        // could not read is not something the user can act on mid-sync.
+      }
+    }
   }
 
   /** Carries the user's "every device is up to date" to the one place that can act. */
@@ -841,6 +889,7 @@ class MobileSidebandRunner implements SettingsSyncRunner {
 interface SidebandSteps {
   profile(vault: IVaultAdapter): Promise<SettingsSyncStep | null>;
   secrets(): Promise<SecretsSyncStep | null>;
+  comments(vault: IVaultAdapter): Promise<CommentsSyncStep | null>;
 }
 
 /**
@@ -907,6 +956,24 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
           );
         },
         profileCrypto: ring
+          ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
+          : undefined,
+      });
+    },
+    /**
+     * Comments ride on nothing: unlike the profile they are not an opt-in
+     * transport of local state but the store itself, so a vault that carries
+     * comments syncs them. The step returns early when neither side has a
+     * bundle, which keeps a vault that never saw a comment untouched.
+     *
+     * A locked device is the one case that must NOT run — see
+     * `mobileCommentsMode` for the ping-pong that would otherwise start.
+     */
+    async comments(raw: IVaultAdapter): Promise<CommentsSyncStep | null> {
+      const ring = await loadKeyring(vaultId);
+      if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
+      return new CommentsSyncStep({
+        crypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
           : undefined,
       });
