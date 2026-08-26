@@ -2,15 +2,9 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, CornerDownRight, MessageSquare, Replace, X } from "lucide-react";
 import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, MentionTextArea, TextArea, mentionsMember, parseCommentMentions } from "@plainva/ui";
+import { Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
-interface CommentThread {
-  root: WorkspaceCommentRecord;
-  replies: WorkspaceCommentRecord[];
-  /** Somebody wrote `@` and your name in here, and the thread is still open. */
-  addressed: boolean;
-}
 
 export interface WorkspaceCommentsColumnProps {
   comments: readonly WorkspaceCommentRecord[];
@@ -72,36 +66,10 @@ export function WorkspaceCommentsColumn({
   const [replyDraft, setReplyDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const threads = useMemo<CommentThread[]>(() => {
-    const known = new Set(comments.map((entry) => entry.commentId));
-    const byParent = new Map<string, WorkspaceCommentRecord[]>();
-    for (const entry of comments) {
-      if (!entry.parentCommentId) continue;
-      const list = byParent.get(entry.parentCommentId);
-      if (list) list.push(entry);
-      else byParent.set(entry.parentCommentId, [entry]);
-    }
-    // A reply whose root has not arrived yet (partial sync) would otherwise
-    // vanish; showing it as its own thread keeps every comment reachable.
-    const roots = comments.filter((entry) => entry.parentCommentId === null || !known.has(entry.parentCommentId));
-    const list = roots.map<CommentThread>((root) => {
-      const replies = byParent.get(root.commentId) ?? [];
-      return {
-        root,
-        replies,
-        // A resolved thread is deliberately never "addressed": it needs no
-        // attention any more, and floating it would push the open ones down
-        // for nothing.
-        addressed:
-          !root.resolvedAt &&
-          mentionsMember([root.body, ...replies.map((reply) => reply.body)], selfMemberId, memberNames),
-      };
-    });
-    // A thread that names you comes first - that is what a mention is FOR. The
-    // badge on the card says why it jumped, so the order never looks arbitrary.
-    if (!list.some((thread) => thread.addressed)) return list;
-    return [...list.filter((thread) => thread.addressed), ...list.filter((thread) => !thread.addressed)];
-  }, [comments, memberNames, selfMemberId]);
+  const threads = useMemo(
+    () => buildCommentThreads(comments, selfMemberId, memberNames),
+    [comments, memberNames, selfMemberId],
+  );
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");

@@ -200,8 +200,22 @@ export function serializeCommentsBundle(bundle: CommentsBundle): string {
  * never has to be rewritten - which is what keeps every record immutable and the
  * merge a plain union.
  */
-export function localCommentsForPath(bundle: CommentsBundle | null, path: string): WorkspaceCommentRecord[] {
-  if (!bundle) return [];
+/**
+ * Every comment of the bundle as workspace records, grouped by note (D9).
+ *
+ * The plain-vault side is the mirror image of the workspace store: the bundle is
+ * one file, so the vault-wide list is already in memory and the per-note view is
+ * the FILTER, not the other way round.
+ *
+ * Resolution markers are dropped here, exactly as `resolved_comment_id IS NULL`
+ * drops them in the workspace store. They are bookkeeping, not comments - a
+ * marker carries the path of the thread it closes and an empty body, so leaving
+ * it in put a phantom card with no text into the plain-vault column (found
+ * 2026-08-26 while lifting this query; the workspace path never had it).
+ */
+export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, WorkspaceCommentRecord[]> {
+  const byPath = new Map<string, WorkspaceCommentRecord[]>();
+  if (!bundle) return byPath;
   const all = Object.values(bundle.comments);
   const closedBy = new Map<string, { at: string; outcome: "applied" | "declined" | null; by: string }>();
   for (const record of all) {
@@ -212,8 +226,8 @@ export function localCommentsForPath(bundle: CommentsBundle | null, path: string
       by: record.authorDeviceId,
     });
   }
-  return all
-    .filter((record) => record.path === path)
+  const records = all
+    .filter((record) => !record.resolvedCommentId)
     .sort((a, b) => (a.createdAt === b.createdAt ? a.commentId.localeCompare(b.commentId) : a.createdAt.localeCompare(b.createdAt)))
     .map((record) => {
       const closed = closedBy.get(record.commentId);
@@ -245,6 +259,18 @@ export function localCommentsForPath(bundle: CommentsBundle | null, path: string
         resolvedAt: closed?.at ?? null,
       } satisfies WorkspaceCommentRecord;
     });
+  for (const record of records) {
+    // targetObjectId IS the path on this side, so the grouping key travels with
+    // the mapped record and nothing has to be zipped back together.
+    const list = byPath.get(record.targetObjectId);
+    if (list) list.push(record);
+    else byPath.set(record.targetObjectId, [record]);
+  }
+  return byPath;
+}
+
+export function localCommentsForPath(bundle: CommentsBundle | null, path: string): WorkspaceCommentRecord[] {
+  return localCommentsByPath(bundle).get(path) ?? [];
 }
 
 /** deviceId -> what that device calls itself. Never a claim about anyone else. */

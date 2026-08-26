@@ -221,6 +221,12 @@ export interface WorkspaceStateStore {
   getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null>;
   listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]>;
   listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]>;
+  /**
+   * Every unresolved-marker-free comment of the workspace, for the vault-wide
+   * overview (D9). The per-object variant above cannot answer this without one
+   * query per object, and a vault has as many objects as it has notes.
+   */
+  listAllComments(): Promise<WorkspaceCommentRecord[]>;
   saveComment(comment: WorkspaceCommentRecord): Promise<void>;
   listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]>;
   saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void>;
@@ -243,6 +249,15 @@ export interface WorkspaceStateStore {
   commitQueued(queueId: number, mutation: CommitWorkspaceMutation, meta: WorkspaceRuntimeMeta, absorbedQueueIds?: number[]): Promise<void>;
   recordIncoming(mutation: CommitWorkspaceMutation, setCurrent: boolean, meta: WorkspaceRuntimeMeta): Promise<void>;
   recordObservedOperation(operationHash: string, operationDocument: string, deviceId: string, sequence: number, meta: WorkspaceRuntimeMeta): Promise<void>;
+}
+
+/**
+ * One place turns a comment row into a record. Two call sites read comments
+ * (per object and vault-wide); a second copy of this mapping is a second
+ * chance for the two to drift.
+ */
+function commentFromRow(row: CommentRow): WorkspaceCommentRecord {
+  return { commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at };
 }
 
 function clone<T>(value: T): T {
@@ -288,7 +303,10 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     return [...this.revisions.values()].filter((entry) => entry.objectId === objectId).map(clone).sort((a, b) => b.sequence - a.sequence || a.revisionId.localeCompare(b.revisionId));
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
-    return [...this.comments.values()].filter((entry) => entry.targetObjectId === targetObjectId && !entry.resolvedCommentId).map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
+    return (await this.listAllComments()).filter((entry) => entry.targetObjectId === targetObjectId);
+  }
+  async listAllComments(): Promise<WorkspaceCommentRecord[]> {
+    return [...this.comments.values()].filter((entry) => !entry.resolvedCommentId).map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
     this.comments.set(comment.commentId, clone(comment));
@@ -537,8 +555,12 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     return (await this.db.query<RevisionRow>(`SELECT * FROM workspace_revision WHERE object_id = ? ORDER BY sequence DESC, revision_id`, [objectId])).map(revisionFromRow);
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
-    const rows = await this.db.query<CommentRow>(`SELECT * FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
-    return rows.map((row) => ({ commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at }));
+    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
+    return rows.map(commentFromRow);
+  }
+  async listAllComments(): Promise<WorkspaceCommentRecord[]> {
+    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at FROM workspace_comment WHERE resolved_comment_id IS NULL ORDER BY created_at, comment_id`);
+    return rows.map(commentFromRow);
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
     await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);

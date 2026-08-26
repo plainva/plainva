@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, MessageSquare } from "lucide-react";
-import { Button, ICON, MentionTextArea, mentionsMember, parseCommentMentions } from "@plainva/ui";
+import { Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions } from "@plainva/ui";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -30,47 +30,6 @@ export interface CommentsSheetProps {
   /** Tapping an anchored quote reveals the passage in the note (D6). */
   onRevealAnchor(comment: WorkspaceCommentRecord): void;
   onClose(): void;
-}
-
-interface Thread {
-  root: WorkspaceCommentRecord;
-  replies: WorkspaceCommentRecord[];
-  /** Somebody wrote `@` and your name in here, and the thread is still open. */
-  addressed: boolean;
-}
-
-/**
- * A reply whose root has not arrived yet (partial sync) becomes its own thread
- * rather than disappearing: every comment must stay reachable.
- */
-function buildThreads(
-  comments: readonly WorkspaceCommentRecord[],
-  selfMemberId: string | null,
-  names: ReadonlyMap<string, string>,
-): Thread[] {
-  const byId = new Map(comments.map((c) => [c.commentId, c]));
-  const threads = new Map<string, Thread>();
-  for (const comment of comments) {
-    if (!comment.parentCommentId || !byId.has(comment.parentCommentId)) {
-      threads.set(comment.commentId, { root: comment, replies: [], addressed: false });
-    }
-  }
-  for (const comment of comments) {
-    if (!comment.parentCommentId) continue;
-    threads.get(comment.parentCommentId)?.replies.push(comment);
-  }
-  const list = [...threads.values()];
-  for (const thread of list) {
-    // A resolved thread is deliberately never "addressed": it needs no attention
-    // any more, and floating it would push the open ones down for nothing.
-    thread.addressed =
-      !thread.root.resolvedAt &&
-      mentionsMember([thread.root.body, ...thread.replies.map((reply) => reply.body)], selfMemberId, names);
-  }
-  // A thread that names you comes first - that is what a mention is FOR. The
-  // badge on the card says why it jumped, so the order never looks arbitrary.
-  if (!list.some((thread) => thread.addressed)) return list;
-  return [...list.filter((thread) => thread.addressed), ...list.filter((thread) => !thread.addressed)];
 }
 
 /**
@@ -120,7 +79,7 @@ export function CommentsSheet({
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const threads = useMemo(
-    () => buildThreads(comments, selfMemberId, memberNames),
+    () => buildCommentThreads(comments, selfMemberId, memberNames),
     [comments, memberNames, selfMemberId],
   );
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
