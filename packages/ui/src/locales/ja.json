@@ -563,7 +563,7 @@
     "okfBundleButton": "更新…",
     "okfBundleCleanButton": "クリーンアップ…",
     "verifierName": "確認者名",
-    "verifierNameDesc": "ノートを確認済みにしたときに、ノートの verified リストに human:<名前> として記録されます。この端末にのみ保存されます。"
+    "verifierNameDesc": "ノートを確認済みにしたときに、ノートの verified リストに human:<名前> として記録されます。同じ名前は、暗号化ワークスペースのない Vault での「コメント」の署名にも使われます。この端末にのみ保存されます。"
   },
   "editor": {
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",

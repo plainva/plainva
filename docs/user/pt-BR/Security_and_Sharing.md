@@ -8,7 +8,7 @@
 
 Crie um Vault Slice com as quatro etapas **Detalhes → Conteúdo → Permissões → Revisão**. **Publicar um slice para outras pessoas está planejado e ainda não está disponível:** o assistente mostra as opções para você ver o que vem por aí, mas elas estão desativadas e nada sai do vault. Quando a publicação chegar, uma publicação externa viverá em seu próprio namespace de workspace criptografado, projeções higienizadas removerão propriedades privadas do frontmatter, neutralizarão links para notas excluídas e omitirão incorporações excluídas, e as permissões do Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV e S3 serão proteção adicional, nunca um substituto para funções criptografadas. A liberação pública continua bloqueada até que a revisão criptográfica independente e evidências reais de dois dispositivos em Android/iOS sejam registradas.
 
-Última revisão: 2026-08-25
+Última revisão: 2026-08-26
 
 Plainva mantém o vault como arquivos legíveis no dispositivo e armazena a cópia na nuvem como objetos criptografados opacos. Depois de conectar uma conta, abra **Configurações → vault → Segurança e compartilhamento**.
 
@@ -50,7 +50,17 @@ Se a definição de um slice não puder mais ser lida — uma entrada editada à
 
 ## Comentários, versões e quarentena
 
-Commenter recebe um editor somente leitura com uma área de comentários. Os comentários e os marcadores de resolução são, eles mesmos, objetos criptografados e assinados do workspace. **Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.
+Commenter recebe um editor somente leitura com **Comentários** ao lado. Selecione um trecho do texto e escreva sua observação ao lado — o comentário fica preso a esse trecho e não ao documento. As respostas formam um tópico e **Resolver** o arquiva. Os comentários e os marcadores de resolução são, eles mesmos, objetos criptografados e assinados do workspace; a nota continua sendo Markdown puro e nenhuma resposta vai parar no seu histórico de versões.
+
+Para que um comentário reencontre seu trecho mesmo após alterações posteriores, o Plainva o envolve em comentários HTML invisíveis. Outros editores não os exibem; quem preferir não tê-los nos seus arquivos desativa **Marcar os trechos comentados na nota** em **Conteúdo e estrutura** — o Plainva passa então a localizar o trecho pelo texto citado. Se ele não for mais encontrado, o comentário diz isso em vez de apontar para qualquer lugar.
+
+**Sugerir alterações** é um comentário com uma substituição concreta: você seleciona um trecho, escreve a nova redação ao lado e quem tem permissão de escrita escolhe **Aceitar** ou **Recusar**. Aceitar reescreve exatamente esse trecho — como uma alteração comum, coberta pelo histórico de versões como qualquer outra. Se o texto tiver mudado nesse meio-tempo, nada é escrito: você é avisado de que o trecho não corresponde mais. Qualquer pessoa com direito de comentar pode sugerir, mesmo sem direito de escrita.
+
+No telefone os mesmos tópicos ficam em uma folha em vez de uma coluna, e tocar no trecho citado salta até ele na nota. Ler, responder, resolver e decidir sobre sugestões também funciona ali — iniciar um comentário ou uma sugestão em um trecho ainda não; para isso é preciso o desktop.
+
+Os **Comentários** também existem em um cofre sem workspace criptografado. Ali eles não são assinados, mas carimbados com o **Nome do revisor** das configurações, e viajam no mesmo arquivo lateral que as suas configurações — nunca na nota.
+
+**Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.
 
 Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork.
 

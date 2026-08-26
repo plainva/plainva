@@ -565,7 +565,7 @@
     "okfBundleButton": "Bijwerken…",
     "okfBundleCleanButton": "Opschonen…",
     "verifierName": "Naam van de controleur",
-    "verifierNameDesc": "Wordt vastgelegd wanneer je een notitie als gecontroleerd markeert — als human:<naam> in de verified-lijst van de notitie. Blijft alleen op dit apparaat."
+    "verifierNameDesc": "Wordt vastgelegd wanneer je een notitie als gecontroleerd markeert — als human:<naam> in de verified-lijst van de notitie. Dezelfde naam ondertekent je „Opmerkingen” in een vault zonder versleutelde workspace. Blijft alleen op dit apparaat."
   },
   "editor": {
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",

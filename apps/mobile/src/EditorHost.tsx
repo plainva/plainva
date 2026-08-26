@@ -681,6 +681,24 @@ export function EditorHost({
       const l = hit.view.state.doc.line(Math.min(Math.max(line, 1), hit.view.state.doc.lines));
       hit.view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
     };
+    /**
+     * Jump to a comment's passage (Stufe D, D6).
+     *
+     * The sheet has already resolved the anchor against the CURRENT text and
+     * hands over offsets - resolving here would mean a second, possibly
+     * different answer for the same anchor. Selecting rather than only
+     * scrolling is deliberate: on a phone the passage has to be findable
+     * without a mouse pointer to trace it.
+     */
+    const onGotoRange = (e: Event) => {
+      const hit = forThisNote(e);
+      if (!hit) return;
+      const len = hit.view.state.doc.length;
+      const from = Math.min(Math.max((hit.detail.from as number | undefined) ?? -1, 0), len);
+      const to = Math.min(Math.max((hit.detail.to as number | undefined) ?? -1, from), len);
+      if (from === to) return;
+      hit.view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true });
+    };
     const onSetMode = (e: Event) => {
       const hit = forThisNote(e);
       const mode = hit && (hit.detail.mode as "live" | "source" | undefined);
@@ -698,12 +716,14 @@ export function EditorHost({
       if (forThisNote(e)) setColorPick(true);
     };
     window.addEventListener("m-editor-goto-line", onGoto);
+    window.addEventListener("m-editor-goto-range", onGotoRange);
     window.addEventListener("m-editor-set-mode", onSetMode);
     window.addEventListener("m-editor-find", onFind);
     window.addEventListener("m-editor-pick-icon", onPickIcon);
     window.addEventListener("m-editor-pick-color", onPickColor);
     return () => {
       window.removeEventListener("m-editor-goto-line", onGoto);
+      window.removeEventListener("m-editor-goto-range", onGotoRange);
       window.removeEventListener("m-editor-set-mode", onSetMode);
       window.removeEventListener("m-editor-find", onFind);
       window.removeEventListener("m-editor-pick-icon", onPickIcon);

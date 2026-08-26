@@ -8,7 +8,7 @@
 
 Maak een Vault Slice met de vier stappen **Details → Inhoud → Rechten → Controleren**. **Een slice publiceren naar andere mensen is gepland en nog niet beschikbaar:** de wizard toont de opties zodat je ziet wat eraan komt, maar ze zijn uitgeschakeld en er verlaat niets de vault. Zodra publiceren er is, leeft een externe publicatie in een eigen versleutelde workspace-naamruimte, verwijderen opgeschoonde projecties privé-eigenschappen uit de frontmatter, neutraliseren ze links naar uitgesloten notities en laten ze uitgesloten embeds weg, en zijn rechten van Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV en S3 extra bescherming, nooit een vervanging voor versleutelde rollen. Publieke release blijft geblokkeerd totdat de onafhankelijke cryptobeoordeling en echt bewijs met twee apparaten op Android/iOS zijn vastgelegd.
 
-Laatst gecontroleerd: 2026-08-25
+Laatst gecontroleerd: 2026-08-26
 
 Plainva houdt de vault als leesbare bestanden op je apparaat en bewaart de cloudkopie als ondoorzichtige versleutelde objecten. Open na het verbinden van een account **Instellingen → je vault → Beveiliging en delen**.
 
@@ -50,7 +50,17 @@ Als de definitie van een slice niet meer leesbaar is — een handmatig bewerkt i
 
 ## Opmerkingen, versies en quarantaine
 
-Commenter krijgt een alleen-lezen editor met een opmerkingengebied. Opmerkingen en oplossingsmarkeringen zijn zelf versleutelde, ondertekende workspace-objecten. **Versiegeschiedenis** leest versleutelde workspace-revisies en herstelt een oudere revisie als nieuwe ondertekende wijziging of als kopie.
+Commenter krijgt een alleen-lezen editor met **Opmerkingen** ernaast. Selecteer een passage in de tekst en schrijf je aantekening ernaast — de opmerking hangt dan aan die passage in plaats van aan het document. Antwoorden vormen een draad, **Oplossen** legt hem weg. Opmerkingen en oplossingsmarkeringen zijn zelf versleutelde, ondertekende workspace-objecten; de notitie blijft pure Markdown, en geen antwoord belandt in haar versiegeschiedenis.
+
+Zodat een opmerking haar passage ook na latere wijzigingen terugvindt, zet Plainva er onzichtbare HTML-opmerkingen omheen. Andere editors tonen ze niet; wie ze toch liever niet in zijn bestanden heeft, zet **Becommentarieerde passages in de notitie markeren** uit onder **Inhoud en structuur** — dan zoekt Plainva de passage via de geciteerde tekst. Wordt die niet meer gevonden, dan zegt de opmerking dat, in plaats van ergens heen te wijzen.
+
+**Wijzigingen voorstellen** is een opmerking met een concrete vervanging: je selecteert een passage, schrijft de nieuwe formulering ernaast, en wie mag schrijven kiest **Overnemen** of **Afwijzen**. Overnemen herschrijft precies die passage — als een gewone wijziging, die de versiegeschiedenis net zo goed dekt als al het andere. Is de tekst inmiddels veranderd, dan wordt er niets geschreven maar gezegd dat de passage niet meer past. Voorstellen mag iedereen met commentaarrecht, ook zonder schrijfrecht.
+
+Op de telefoon liggen dezelfde draden in een blad in plaats van een kolom, en een tik op het geciteerde stuk springt er in de notitie heen. Lezen, beantwoorden, oplossen en over voorstellen beslissen werkt daar net zo — een opmerking of voorstel bij een passage beginnen nog niet; daarvoor heb je de desktop nodig.
+
+**Opmerkingen** bestaan ook in een kluis zonder versleutelde workspace. Daar worden ze niet ondertekend maar met de **Naam van de controleur** uit de instellingen gestempeld, en ze reizen in hetzelfde sideband-bestand als je instellingen — nooit in de notitie.
+
+**Versiegeschiedenis** leest versleutelde workspace-revisies en herstelt een oudere revisie als nieuwe ondertekende wijziging of als kopie.
 
 Ongeldige externe artefacten worden afzonderlijk geïsoleerd onder **Integriteit en lokale forks**. Je kunt ze opnieuw proberen, hun ciphertext exporteren, een extern gerepareerd artefact als gerepareerd markeren, of het bewust negeren. Eén ongeldig bestand blokkeert de rest van een geldige synchronisatie niet, en externe afwezigheid alleen betekent nooit verwijdering. Een wijziging van een lokaal programma zonder schrijfrecht blijft bewaard als een privé-forkkopie.
 

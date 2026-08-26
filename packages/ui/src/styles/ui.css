@@ -2873,6 +2873,17 @@ tr.is-selected > td { color: var(--on-accent-container); }
    through, the proposal sits under it in the success tint. Nothing in the note
    has changed yet - this is what COULD stand there. */
 .pv-comment-card__quote--replaced { text-decoration: line-through; text-decoration-thickness: 1px; }
+/* On the phone the quote IS the way back to the passage (D6): the sheet has no
+   text beside it to point at, so the quote itself is the control. A button
+   rather than a clickable block - reachable by keyboard, announced as an
+   action; `mobile.css` carries no global button reset, so the chrome is
+   cleared here, next to the rule it belongs to. */
+.pv-comment-card__quote--tap {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; border-left: 2px solid var(--accent-color);
+  font: inherit; cursor: pointer;
+}
+.pv-comment-card__quote--tap:hover { color: var(--text-main); }
 .pv-comment-card__replacement {
   display: flex; align-items: flex-start; gap: var(--space-1);
   margin: 0; padding: var(--space-1) var(--space-2);

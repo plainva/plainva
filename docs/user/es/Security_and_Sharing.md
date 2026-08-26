@@ -8,7 +8,7 @@
 
 Crea un Vault Slice con los cuatro pasos **Detalles → Contenido → Permisos → Revisión**. **Publicar un slice para otras personas está planificado y todavía no está disponible:** el asistente muestra las opciones para que veas lo que viene, pero están desactivadas y nada sale del vault. Cuando llegue la publicación, una publicación externa vivirá en su propio espacio de nombres de workspace cifrado, las proyecciones depuradas eliminarán las propiedades privadas del frontmatter, neutralizarán los enlaces hacia notas excluidas y omitirán las incrustaciones excluidas, y los permisos de Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV y S3 serán una protección adicional, nunca un sustituto de los roles cifrados. La publicación pública sigue bloqueada hasta que se registren la revisión criptográfica independiente y las pruebas reales con dos dispositivos en Android/iOS.
 
-Revisado: 2026-08-25
+Revisado: 2026-08-26
 
 Plainva mantiene el vault como archivos legibles en el dispositivo y guarda la copia en la nube como objetos cifrados opacos. Tras conectar una cuenta, abre **Ajustes → tu vault → Seguridad y uso compartido**.
 
@@ -50,7 +50,17 @@ Si la definición de un slice ya no se puede leer — una entrada editada a mano
 
 ## Comentarios, versiones y cuarentena
 
-Commenter obtiene un editor de solo lectura con un área de comentarios. Los comentarios y las marcas de resolución son, ellos mismos, objetos cifrados y firmados del workspace. **Historial de versiones** lee las revisiones cifradas del workspace y restaura una revisión anterior como un nuevo cambio firmado o como una copia.
+Commenter obtiene un editor de solo lectura con **Comentarios** al lado. Selecciona un pasaje del texto y escribe tu anotación junto a él: el comentario queda anclado a ese pasaje y no al documento. Las respuestas forman un hilo y **Resolver** lo archiva. Los comentarios y las marcas de resolución son, ellos mismos, objetos cifrados y firmados del workspace; la nota sigue siendo Markdown puro y ninguna respuesta acaba en su historial de versiones.
+
+Para que un comentario vuelva a encontrar su pasaje tras ediciones posteriores, Plainva lo rodea de comentarios HTML invisibles. Otros editores no los muestran; quien prefiera no tenerlos en sus archivos desactiva **Marcar los pasajes comentados en la nota** en **Contenido y estructura**: entonces Plainva localiza el pasaje por el texto citado. Si ya no aparece, el comentario lo dice en lugar de apuntar a cualquier sitio.
+
+**Sugerir cambios** es un comentario con un reemplazo concreto: seleccionas un pasaje, escribes la nueva redacción al lado y quien tenga permiso de escritura elige **Aceptar** o **Rechazar**. Aceptar reescribe exactamente ese pasaje, como una edición corriente que el historial de versiones cubre igual que cualquier otra. Si el texto ha cambiado entretanto, no se escribe nada: se te indica que el pasaje ya no encaja. Puede sugerir cualquiera con permiso de comentario, aunque no tenga permiso de escritura.
+
+En el teléfono los mismos hilos aparecen en una hoja en lugar de una columna, y tocar el fragmento citado salta hasta él en la nota. Leer, responder, resolver y decidir sobre sugerencias también funciona ahí; iniciar un comentario o una sugerencia sobre un pasaje, todavía no: para eso necesitas el escritorio.
+
+Los **Comentarios** también existen en una bóveda sin workspace cifrado. Allí no se firman, sino que se sellan con el **Nombre del revisor** de los ajustes, y viajan en el mismo archivo lateral que tus ajustes, nunca en la nota.
+
+**Historial de versiones** lee las revisiones cifradas del workspace y restaura una revisión anterior como un nuevo cambio firmado o como una copia.
 
 Los artefactos remotos inválidos se aíslan uno a uno en **Integridad y bifurcaciones locales**. Puedes reintentarlos, exportar el texto cifrado, marcarlos como reparados tras una reparación externa o ignorarlos deliberadamente. Un archivo inválido no bloquea el resto de la sincronización válida, y la mera ausencia remota nunca implica una eliminación. Un cambio realizado por un programa local sin permiso de escritura se conserva como una copia privada de bifurcación.
 

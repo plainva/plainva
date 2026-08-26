@@ -313,6 +313,27 @@ export function NoteScreen({
     setCommentTick((n) => n + 1);
   };
 
+  /**
+   * Tapping a quote reveals its passage in the note (D6).
+   *
+   * Resolved here, against the text as it stands, and handed to the editor as
+   * offsets - the same rule accepting a suggestion follows, for the same
+   * reason. An orphaned anchor says so instead of scrolling somewhere
+   * arbitrary, and the sheet closes so the passage is actually visible.
+   */
+  const revealAnchor = (comment: WorkspaceCommentRecord) => {
+    if (!comment.anchor || doc === null) return;
+    const resolution = resolveCommentAnchor(doc, comment.anchor);
+    if (resolution.status === "orphan") {
+      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      return;
+    }
+    setCommentsOpen(false);
+    window.dispatchEvent(new CustomEvent("m-editor-goto-range", {
+      detail: { path, from: resolution.from, to: resolution.to },
+    }));
+  };
+
   const page = (
     <div className="m-page m-page--note">
       <AppBar onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
@@ -470,6 +491,7 @@ export function NoteScreen({
           }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
+          onRevealAnchor={revealAnchor}
         />
       )}
       {menu && (

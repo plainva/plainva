@@ -565,7 +565,7 @@
     "okfBundleButton": "Upgrade…",
     "okfBundleCleanButton": "Clean up…",
     "verifierName": "Reviewer name",
-    "verifierNameDesc": "Recorded when you mark a note as reviewed — as human:<name> in the note's verified list. Kept on this device only."
+    "verifierNameDesc": "Recorded when you mark a note as reviewed — as human:<name> in the note's verified list. The same name signs your “Comments” in a vault without an encrypted workspace. Kept on this device only."
   },
   "editor": {
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",

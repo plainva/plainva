@@ -8,7 +8,7 @@
 
 Crea un Vault Slice con i quattro passaggi **Dettagli → Contenuto → Permessi → Revisione**. **Pubblicare uno slice verso altre persone è previsto e non è ancora disponibile:** la procedura guidata mostra le opzioni per farti vedere cosa arriverà, ma sono disattivate e non esce nulla dal vault. Quando la pubblicazione arriverà, una pubblicazione esterna vivrà in un proprio spazio dei nomi di workspace cifrato, le proiezioni ripulite rimuoveranno le proprietà private del frontmatter, neutralizzeranno i link verso le note escluse e ometteranno gli incorporamenti esclusi, e i permessi di Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV e S3 saranno una protezione aggiuntiva, mai un sostituto dei ruoli cifrati. La pubblicazione pubblica resta bloccata finché non vengono registrate la revisione crittografica indipendente e le verifiche reali su due dispositivi Android/iOS.
 
-Ultima verifica: 2026-08-25
+Ultima verifica: 2026-08-26
 
 Plainva mantiene il vault come file leggibili sul dispositivo e salva la copia cloud come oggetti cifrati opachi. Dopo aver collegato un account, apri **Impostazioni → vault → Sicurezza e condivisione**.
 
@@ -50,7 +50,17 @@ Se la definizione di uno slice non è più leggibile — una voce modificata a m
 
 ## Commenti, versioni e quarantena
 
-Commenter ottiene un editor di sola lettura con un'area commenti. I commenti e i marcatori di risoluzione sono essi stessi oggetti cifrati e firmati del workspace. **Cronologia versioni** legge le revisioni cifrate del workspace e ripristina una revisione precedente come nuova modifica firmata o come copia.
+Commenter ottiene un editor di sola lettura con **Commenti** accanto. Seleziona un passaggio nel testo e scrivi la tua annotazione a fianco: il commento resta legato a quel passaggio e non al documento. Le risposte formano un thread, **Risolvi** lo archivia. I commenti e i marcatori di risoluzione sono essi stessi oggetti cifrati e firmati del workspace; la nota resta puro Markdown e nessuna risposta finisce nella sua cronologia versioni.
+
+Perché un commento ritrovi il suo passaggio anche dopo modifiche successive, Plainva lo circonda di commenti HTML invisibili. Gli altri editor non li mostrano; chi preferisce non averli nei propri file disattiva **Segna nella nota i passaggi commentati** in **Contenuto e struttura**: Plainva individua allora il passaggio tramite il testo citato. Se non si ritrova più, il commento lo dice invece di puntare a caso.
+
+**Suggerisci modifiche** è un commento con una sostituzione concreta: selezioni un passaggio, scrivi accanto la nuova formulazione e chi ha diritto di scrittura sceglie **Accetta** o **Rifiuta**. Accettare riscrive esattamente quel passaggio, come una modifica ordinaria che la cronologia versioni copre al pari di ogni altra. Se nel frattempo il testo è cambiato non viene scritto nulla: ti viene detto che il passaggio non corrisponde più. Può suggerire chiunque abbia il diritto di commentare, anche senza diritto di scrittura.
+
+Sul telefono gli stessi thread stanno in un foglio anziché in una colonna, e un tocco sul frammento citato ci salta dentro la nota. Leggere, rispondere, risolvere e decidere sulle proposte funziona anche lì; avviare un commento o una proposta su un passaggio non ancora: per quello serve il desktop.
+
+I **Commenti** esistono anche in un vault senza workspace cifrato. Lì non vengono firmati ma siglati con il **Nome del revisore** delle impostazioni, e viaggiano nello stesso file laterale delle tue impostazioni, mai nella nota.
+
+**Cronologia versioni** legge le revisioni cifrate del workspace e ripristina una revisione precedente come nuova modifica firmata o come copia.
 
 Gli artefatti remoti non validi vengono isolati singolarmente in **Integrità e fork locali**. Puoi riprovare, esportare il ciphertext, contrassegnare come riparato un artefatto riparato esternamente, oppure ignorarlo deliberatamente. Un file non valido non blocca il resto della sincronizzazione valida, e la sola assenza remota non equivale mai a eliminazione. Una modifica apportata da un programma locale senza permesso di scrittura viene conservata come una copia privata del fork.
 

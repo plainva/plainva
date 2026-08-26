@@ -567,7 +567,7 @@
     "okfBundleButton": "Mettre à niveau…",
     "okfBundleCleanButton": "Nettoyer…",
     "verifierName": "Nom du relecteur",
-    "verifierNameDesc": "Enregistré lorsque vous marquez une note comme relue — sous la forme human:<nom> dans la liste verified de la note. Conservé uniquement sur cet appareil."
+    "verifierNameDesc": "Enregistré lorsque vous marquez une note comme relue — sous la forme human:<nom> dans la liste verified de la note. Le même nom signe vos « Commentaires » dans un coffre sans espace chiffré. Conservé uniquement sur cet appareil."
   },
   "editor": {
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",

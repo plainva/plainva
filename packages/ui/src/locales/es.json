@@ -567,7 +567,7 @@
     "okfBundleButton": "Actualizar…",
     "okfBundleCleanButton": "Limpiar…",
     "verifierName": "Nombre del revisor",
-    "verifierNameDesc": "Se anota cuando marcas una nota como revisada — como human:<nombre> en la lista verified de la nota. Solo se guarda en este dispositivo."
+    "verifierNameDesc": "Se anota cuando marcas una nota como revisada — como human:<nombre> en la lista verified de la nota. El mismo nombre firma tus «Comentarios» en una bóveda sin espacio cifrado. Solo se guarda en este dispositivo."
   },
   "editor": {
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",

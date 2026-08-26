@@ -8,7 +8,7 @@
 
 Vault Slice tworzysz w czterech krokach: **Szczegóły → Zawartość → Uprawnienia → Przegląd**. **Publikowanie slice’a dla innych osób jest zaplanowane i jeszcze niedostępne:** kreator pokazuje opcje, żebyś wiedział, co nadchodzi, ale są wyłączone i nic nie opuszcza vaulta. Gdy publikowanie będzie gotowe, publikacja zewnętrzna zamieszka we własnej przestrzeni nazw zaszyfrowanego workspace, oczyszczone projekcje usuną prywatne właściwości frontmatter, zneutralizują linki do wykluczonych notatek i pominą wykluczone osadzenia, a uprawnienia Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV i S3 będą dodatkową ochroną, nigdy zamiennikiem dla zaszyfrowanych ról. Publiczne wydanie pozostaje zablokowane, dopóki nie zostaną odnotowane niezależny audyt kryptograficzny i rzeczywiste dowody z testów na dwóch urządzeniach z Androidem/iOS.
 
-Ostatni przegląd: 2026-08-25
+Ostatni przegląd: 2026-08-26
 
 Plainva pozostawia vault jako czytelne pliki na urządzeniu, a kopię w chmurze zapisuje jako nieprzezroczyste szyfrowane obiekty. Po połączeniu konta otwórz **Ustawienia → vault → Bezpieczeństwo i udostępnianie**.
 
@@ -50,7 +50,17 @@ Jeśli definicji slice’a nie da się już odczytać — ręcznie zmieniony wpi
 
 ## Komentarze, wersje i kwarantanna
 
-Commenter otrzymuje edytor tylko do odczytu z obszarem komentarzy. Komentarze i znaczniki rozwiązania same są zaszyfrowanymi, podpisanymi obiektami workspace'u. **Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.
+Commenter otrzymuje edytor tylko do odczytu z panelem **Komentarze** obok. Zaznacz fragment tekstu i dopisz swoją uwagę — komentarz zostaje przy tym fragmencie, a nie przy całym dokumencie. Odpowiedzi tworzą wątek, a **Rozwiąż** go zamyka. Komentarze i znaczniki rozwiązania same są zaszyfrowanymi, podpisanymi obiektami workspace'u; notatka pozostaje czystym Markdownem, a żadna odpowiedź nie trafia do jej historii wersji.
+
+Aby komentarz odnalazł swój fragment także po późniejszych zmianach, Plainva otacza go niewidocznymi komentarzami HTML. Inne edytory ich nie pokazują; kto mimo to nie chce ich w swoich plikach, wyłącza **Oznaczaj skomentowane fragmenty w notatce** w sekcji **Treść i struktura** — wtedy Plainva szuka fragmentu po cytowanym tekście. Jeśli nie da się go już znaleźć, komentarz to mówi, zamiast wskazywać gdziekolwiek.
+
+**Sugerowanie zmian** to komentarz z konkretnym zamiennikiem: zaznaczasz fragment, dopisujesz nowe brzmienie, a osoba z prawem zapisu wybiera **Zastosuj** albo **Odrzuć**. Zastosowanie przepisuje dokładnie ten fragment — jako zwykłą zmianę, którą historia wersji obejmuje tak samo jak każdą inną. Jeśli tekst zmienił się w międzyczasie, nic nie zostaje zapisane: dostajesz informację, że fragment już nie pasuje. Sugerować może każdy z prawem komentowania, także bez prawa zapisu.
+
+Na telefonie te same wątki leżą w arkuszu zamiast w kolumnie, a dotknięcie cytowanego fragmentu przeskakuje do niego w notatce. Czytanie, odpowiadanie, rozwiązywanie i decydowanie o propozycjach działa tam tak samo — rozpoczęcie komentarza lub propozycji przy fragmencie jeszcze nie; do tego potrzebny jest komputer.
+
+**Komentarze** istnieją także w sejfie bez szyfrowanego workspace'u. Tam nie są podpisywane, lecz sygnowane **Nazwą sprawdzającego** z ustawień, i podróżują w tym samym pliku pobocznym co Twoje ustawienia — nigdy w notatce.
+
+**Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.
 
 Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka.
 

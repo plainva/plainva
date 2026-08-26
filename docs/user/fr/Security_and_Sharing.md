@@ -8,7 +8,7 @@
 
 Créez un Vault Slice avec les quatre étapes **Détails → Contenu → Autorisations → Vérification**. **Publier un slice à destination d’autres personnes est prévu et pas encore disponible :** l’assistant affiche les options pour que vous voyiez ce qui arrive, mais elles sont désactivées et rien ne quitte le vault. Une fois la publication disponible, une publication externe occupera son propre espace de noms de workspace chiffré, les projections nettoyées supprimeront les propriétés privées du frontmatter, neutraliseront les liens vers les notes exclues et omettront les inclusions exclues, et les autorisations Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV et S3 seront une protection supplémentaire, jamais un substitut aux rôles chiffrés. La diffusion publique reste bloquée jusqu’à ce que l’audit crypto indépendant et des preuves réelles sur deux appareils Android/iOS soient enregistrés.
 
-Dernière vérification : 2026-08-25
+Dernière vérification : 2026-08-26
 
 Plainva conserve le vault sous forme de fichiers lisibles sur l’appareil et stocke sa copie cloud comme objets chiffrés opaques. Après avoir connecté un compte, ouvrez **Paramètres → votre vault → Sécurité et partage**.
 
@@ -50,7 +50,17 @@ Si la définition d’un slice n’est plus lisible — une entrée modifiée à
 
 ## Commentaires, versions et quarantaine
 
-Commenter obtient un éditeur en lecture seule avec une zone de commentaires. Les commentaires et les marqueurs de résolution sont eux-mêmes des objets chiffrés et signés du workspace. **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
+Commenter obtient un éditeur en lecture seule avec **Commentaires** à côté. Sélectionne un passage dans le texte et écris ta remarque à côté — le commentaire est alors rattaché à ce passage et non au document. Les réponses forment un fil, **Résoudre** le classe. Les commentaires et les marqueurs de résolution sont eux-mêmes des objets chiffrés et signés du workspace ; la note reste du Markdown pur, et aucune réponse n'atterrit dans son historique des versions.
+
+Pour qu'un commentaire retrouve son passage après des modifications ultérieures, Plainva l'entoure de commentaires HTML invisibles. Les autres éditeurs ne les affichent pas ; si tu préfères ne pas les avoir dans tes fichiers, désactive **Marquer les passages commentés dans la note** sous **Contenu et structure** — Plainva localise alors le passage via le texte cité. S'il est introuvable, le commentaire le dit au lieu de pointer n'importe où.
+
+**Suggérer des modifications** est un commentaire assorti d'un remplacement concret : tu sélectionnes un passage, tu écris la nouvelle formulation à côté, et la personne autorisée à écrire choisit **Accepter** ou **Refuser**. Accepter réécrit exactement ce passage — comme une modification ordinaire, couverte par l'historique des versions au même titre que le reste. Si le texte a changé entre-temps, rien n'est écrit : on t'indique que le passage ne correspond plus. Toute personne ayant le droit de commenter peut suggérer, même sans droit d'écriture.
+
+Sur le téléphone, les mêmes fils apparaissent dans une feuille plutôt que dans une colonne, et toucher l'extrait cité y saute dans la note. Lire, répondre, résoudre et statuer sur les suggestions fonctionnent également — commencer un commentaire ou une suggestion sur un passage, pas encore ; cela demande le bureau.
+
+Les **Commentaires** existent aussi dans un coffre sans workspace chiffré. Ils n'y sont pas signés mais estampillés avec le **Nom du relecteur** des réglages, et ils voyagent dans le même fichier annexe que tes réglages — jamais dans la note.
+
+**Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
 
 Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée.
 

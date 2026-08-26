@@ -8,7 +8,7 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. **Publishing a slice to other people is planned and not available yet:** the wizard shows the options so you can see what is coming, but they are disabled and nothing leaves the vault. Once publishing arrives, an external publication will live in its own encrypted workspace namespace, sanitized projections will remove private frontmatter properties, neutralize links to excluded notes, and omit excluded embeds, and Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, and S3 permissions will be additional protection, never a replacement for encrypted roles. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-08-25
+Last reviewed: 2026-08-26
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -50,7 +50,17 @@ If a slice's definition can no longer be read — a hand-edited entry, a broken 
 
 ## Comments, versions, and security review
 
-Commenters get a read-only editor with a comment area. Comments and resolution markers are encrypted and signed workspace objects themselves. **Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.
+Commenters get a read-only editor with **Comments** beside it. Select a passage in the text and write your note next to it — the comment then hangs on that passage rather than on the document. Replies form a thread, **Resolve** files it away. Comments and resolution markers are encrypted and signed workspace objects themselves; the note stays plain Markdown, and no reply ever lands in its version history.
+
+So a comment finds its passage again after later edits, Plainva wraps it in invisible HTML comments. Other editors do not display them; anyone who would rather not have them in their files turns off **Mark commented passages in the note** under **Content & structure** — Plainva then locates the passage through the quoted text. If it can no longer be found, the comment says so instead of pointing somewhere arbitrary.
+
+**Suggest changes** is a comment with a concrete replacement: you select a passage, write the new wording next to it, and whoever may write picks **Accept** or **Decline**. Accepting rewrites exactly that passage — as an ordinary edit, covered by the version history like anything else. If the text has changed in the meantime, nothing is written; you are told the passage no longer matches. Anyone with comment rights may suggest, write rights or not.
+
+On the phone the same threads sit in a sheet rather than a column, and tapping the quoted piece jumps to it in the note. Reading, replying, resolving and deciding on suggestions all work there too — starting a comment or a suggestion on a passage does not yet; that needs the desktop.
+
+**Comments** also exist in a vault without an encrypted workspace. There they are not signed but stamped with the **Reviewer name** from the settings, and they travel in the same sideband file as your settings — never in the note.
+
+**Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.
 
 Malformed remote artifacts are isolated under **Integrity & local forks**. You can retry them, export their ciphertext, mark an externally repaired artifact as repaired, or deliberately ignore it. One malformed file does not stop valid synchronization, and remote absence alone is never interpreted as deletion. A local program’s unauthorized change is retained as a private fork copy.
 

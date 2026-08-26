@@ -25,6 +25,8 @@ export interface CommentsSheetProps {
   onResolve(commentId: string): void;
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   onDeclineSuggestion(comment: WorkspaceCommentRecord): void;
+  /** Tapping an anchored quote reveals the passage in the note (D6). */
+  onRevealAnchor(comment: WorkspaceCommentRecord): void;
   onClose(): void;
 }
 
@@ -68,6 +70,7 @@ export function CommentsSheet({
   onResolve,
   onApplySuggestion,
   onDeclineSuggestion,
+  onRevealAnchor,
   onClose,
 }: CommentsSheetProps) {
   const { t } = useTranslation();
@@ -102,7 +105,15 @@ export function CommentsSheet({
             return (
               <div key={root.commentId} className="pv-comment-card">
                 <p className="pv-comment-card__meta">{nameOf(root.authorMemberId)}</p>
-                {root.anchor && <p className="pv-comment-card__quote">{root.anchor.quote}</p>}
+                {root.anchor && (
+                  <button
+                    type="button"
+                    className="pv-comment-card__quote pv-comment-card__quote--tap"
+                    onClick={() => onRevealAnchor(root)}
+                  >
+                    {root.anchor.quote}
+                  </button>
+                )}
                 {root.body && <p className="pv-comment-card__body">{root.body}</p>}
                 {state && (
                   <p className="pv-comment-card__replacement">

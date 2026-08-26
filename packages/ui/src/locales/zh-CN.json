@@ -563,7 +563,7 @@
     "okfBundleButton": "升级…",
     "okfBundleCleanButton": "清理…",
     "verifierName": "审阅者姓名",
-    "verifierNameDesc": "标记笔记为已审阅时写入——以 human:<姓名> 的形式写入笔记的 verified 列表。仅保存在此设备上。"
+    "verifierNameDesc": "标记笔记为已审阅时写入——以 human:<姓名> 的形式写入笔记的 verified 列表。同一个姓名也用于签署你在未启用加密工作区的保险库中的“评论”。仅保存在此设备上。"
   },
   "editor": {
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",

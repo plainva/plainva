@@ -8,7 +8,7 @@
 
 Ein Vault Slice entsteht in **Details → Inhalt → Berechtigungen → Prüfen**. **Einen Slice an andere Menschen zu veröffentlichen ist geplant und noch nicht verfügbar:** Der Assistent zeigt die Optionen, damit Du siehst, was kommt — sie sind aber deaktiviert, und es verlässt nichts den Vault. Sobald das Veröffentlichen da ist, liegt eine externe Veröffentlichung in einem eigenen verschlüsselten Workspace-Namensraum, bereinigte Projektionen entfernen private Frontmatter-Eigenschaften, neutralisieren Links auf ausgeschlossene Notizen und lassen ausgeschlossene Einbettungen weg, und Anbieterrechte bei Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV und S3 sind Zusatzschutz, niemals ein Ersatz für verschlüsselte Rollen. Eine öffentliche Freigabe bleibt gesperrt, bis unabhängige Kryptoprüfung und reale Zwei-Geräte-Nachweise für Android/iOS dokumentiert sind.
 
-Zuletzt geprüft: 2026-08-25
+Zuletzt geprüft: 2026-08-26
 
 Plainva kann einen Vault auf Deinem Gerät als normal lesbare Dateien belassen und die Cloud-Kopie als undurchsichtige verschlüsselte Objekte speichern. Öffne nach dem Verbinden eines Cloud-Kontos **Einstellungen → Dein Vault → Sicherheit & Freigaben**.
 
@@ -50,7 +50,17 @@ Lässt sich die Definition eines Slice nicht mehr lesen — ein von Hand bearbei
 
 ## Kommentare, Versionen und Sicherheitsprüfung
 
-Commenter sehen einen schreibgeschützten Editor mit Kommentarbereich. Kommentare und Erledigt-Markierungen sind selbst verschlüsselte, signierte Workspace-Objekte. **Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.
+Commenter sehen einen schreibgeschützten Editor mit **Kommentare** daneben. Markiere eine Stelle im Text und schreibe Deine Anmerkung dazu — der Kommentar hängt dann an dieser Stelle statt am Dokument. Antworten bilden einen Faden, **Erledigen** legt ihn ab. Kommentare und Erledigt-Markierungen sind selbst verschlüsselte, signierte Workspace-Objekte; die Notiz bleibt reines Markdown, und keine Antwort landet in ihrem Versionsverlauf.
+
+Damit ein Kommentar seine Stelle auch nach späteren Änderungen wiederfindet, setzt Plainva unsichtbare HTML-Kommentare darum. Andere Editoren zeigen sie nicht an; wer sie trotzdem nicht in seinen Dateien haben möchte, schaltet unter **Inhalt & Struktur** die Einstellung **Kommentierte Stellen in der Notiz markieren** aus — dann sucht Plainva die Stelle über den zitierten Text. Findet sie sich nicht mehr, sagt der Kommentar das, statt irgendwohin zu zeigen.
+
+**Änderungen vorschlagen** ist ein Kommentar mit einem konkreten Ersatz: Du markierst eine Stelle, schreibst den neuen Wortlaut dazu, und wer schreiben darf, wählt **Übernehmen** oder **Ablehnen**. Übernehmen schreibt genau diese Stelle um — als ganz gewöhnliche Änderung, die der Versionsverlauf mit abdeckt. Hat sich der Text inzwischen verändert, wird nichts geschrieben, sondern gesagt, dass die Stelle nicht mehr passt. Vorschlagen darf jeder mit Kommentarrecht, auch ohne Schreibrecht.
+
+Am Telefon liegen dieselben Fäden in einem Blatt statt in einer Spalte, und ein Tipp auf das zitierte Stück springt in der Notiz dorthin. Lesen, antworten, erledigen und über Vorschläge entscheiden geht dort genauso — einen Kommentar oder Vorschlag an einer Textstelle zu beginnen derzeit nicht; dafür brauchst Du den Desktop.
+
+**Kommentare** gibt es auch in einem Vault ohne verschlüsselten Workspace. Dort werden sie nicht signiert, sondern mit dem **Prüfername** aus den Einstellungen gezeichnet, und sie reisen in derselben Sideband-Datei wie Deine Einstellungen — nie in der Notiz.
+
+**Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.
 
 Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten.
 

@@ -411,6 +411,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "comment-anchor-create",
+    title: "Attaching a comment or a suggestion to a passage",
+    area: "security",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone reads every thread, replies, resolves, jumps to a passage by " +
+      "tapping its quote, and accepts or declines a proposal. What it cannot do is " +
+      "START one against a passage: both flows begin with a text selection, and the " +
+      "note opens read-first there, so the selection would have to compete with the " +
+      "system's own copy bubble. This is a gap, not a platform limit — a phone can " +
+      "select text — and it is written up in the collected-remainders plan " +
+      "(Sammelplan, C26). The read half was the urgent one: on a phone you mostly " +
+      "answer what somebody else pointed at.",
+    verified: "2026-08-26",
+  },
+  {
     id: "lift-encryption",
     title: "Turn encryption off and go back to plain files",
     area: "security",

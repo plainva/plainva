@@ -569,7 +569,7 @@
     "okfBundleButton": "Podnieś…",
     "okfBundleCleanButton": "Uporządkuj…",
     "verifierName": "Nazwa sprawdzającego",
-    "verifierNameDesc": "Zapisywana, gdy oznaczasz notatkę jako sprawdzoną — jako human:<imię> na liście verified notatki. Pozostaje tylko na tym urządzeniu."
+    "verifierNameDesc": "Zapisywana, gdy oznaczasz notatkę jako sprawdzoną — jako human:<imię> na liście verified notatki. Ta sama nazwa podpisuje Twoje „Komentarze” w sejfie bez szyfrowanego workspace’u. Pozostaje tylko na tym urządzeniu."
   },
   "editor": {
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
