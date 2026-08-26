@@ -1,15 +1,46 @@
-import { referencesRelativeAttachments, toast } from "@plainva/ui";
+import {
+  hasOpenAnnotations,
+  referencesRelativeAttachments,
+  renderNoteExport,
+  toast,
+  type CommentExportMode,
+} from "@plainva/ui";
 import { utf8ToBase64, type MailAttachment } from "@plainva/ui/mail";
+import type { WorkspaceCommentRecord } from "@plainva/core";
 import type { TFunction } from "i18next";
-import { shareVaultFile } from "./shareFile";
+import { mSelect } from "./mobileDialogs";
+import { listMobileCommentAuthors, listMobileComments } from "./mobileComments";
+import { shareVaultText } from "./shareFile";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
+
+/**
+ * How the annotations should travel.
+ *
+ * The list is the default and stands first: it renders in every tool, where
+ * CriticMarkup only renders in the few that know it. Somebody who wants the
+ * marked-up file knows what CriticMarkup is; somebody who does not should not
+ * receive a file full of curly braces by default.
+ */
+async function askExportMode(t: TFunction): Promise<CommentExportMode | null> {
+  const chosen = await mSelect({
+    title: t("editor.exportFormatTitle"),
+    message: t("editor.exportFormatBody"),
+    value: "appendix",
+    options: [
+      { value: "appendix", label: t("editor.exportFormatAppendix") },
+      { value: "critic", label: t("editor.exportFormatCritic") },
+      { value: "plain", label: t("editor.exportFormatPlain") },
+    ],
+  });
+  return chosen === "plain" || chosen === "critic" || chosen === "appendix" ? chosen : null;
+}
 
 /**
  * "Export as Markdown…" on the phone (parity gap markdown-export-file).
  *
- * Two things this fixes over calling shareVaultFile directly (2026-08-20):
+ * Two things this fixes over handing the file out directly (2026-08-20):
  *
- * The flush. shareVaultFile reads the note FROM DISK, and the autosave runs on
+ * The flush. The export reads the note FROM DISK, and the autosave runs on
  * a ~1 s debounce with no blur to trigger it when a sheet opens — so exporting
  * right after typing handed out the PREVIOUS save. The exported file was
  * silently older than the screen. Flushing first is the same rule R1 applied
@@ -23,23 +54,48 @@ import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
  * Plainva-drawn picker: "Save to Files" lives there on both platforms, next to
  * Print, Mail and every editor installed — the same destination choice the
  * desktop's save dialog gives, in the shape the platform uses.
+ *
+ * Since D10 the file is ASSEMBLED rather than copied: the invisible anchor
+ * markers come out in every case, and open annotations can travel as a list or
+ * as CriticMarkup. That moved the read in front of the share — it now feeds
+ * what gets handed out, so a note that cannot be read is a failed export
+ * rather than a finished one with a missing hint.
  */
 export async function exportNoteAsMarkdown(
   vault: MobileVault,
   path: string,
   t: TFunction,
 ): Promise<boolean> {
+  let text: string;
   try {
     await noteSaver.flush(path);
-    await shareVaultFile(vault, path);
+    const raw = await vaultOps.read(vault, path);
+    let records: readonly WorkspaceCommentRecord[] = [];
+    let names: ReadonlyMap<string, string> = new Map();
+    // A failing comment lookup must never cost the user the export itself.
+    try {
+      [records, names] = await Promise.all([
+        listMobileComments(vault, path),
+        listMobileCommentAuthors(vault),
+      ]);
+    } catch (e) {
+      console.error("[export] could not read annotations", e);
+    }
+    let mode: CommentExportMode = "plain";
+    if (hasOpenAnnotations(records, names)) {
+      // Asked before the share sheet, and only when there is something to ask
+      // about: a note without annotations exports in one step, as it always did.
+      const chosen = await askExportMode(t);
+      if (!chosen) return false;
+      mode = chosen;
+    }
+    text = renderNoteExport({ raw, comments: records, names, mode }).text;
+    await shareVaultText(path.split("/").pop() ?? path, text, "text/markdown; charset=utf-8");
   } catch {
     toast.warning(t("editor.exportFailed"));
     return false;
   }
-  // Read AFTER the export: a failure to re-read must not turn a finished
-  // export into an error message.
-  const saved = await vaultOps.read(vault, path).catch(() => "");
-  if (referencesRelativeAttachments(saved)) toast.info(t("editor.exportAttachmentsHint"));
+  if (referencesRelativeAttachments(text)) toast.info(t("editor.exportAttachmentsHint"));
   return true;
 }
 

@@ -85,7 +85,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -1644,7 +1644,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               const p = activePath;
               if (!p || !vaultAdapter) return;
               void import("./services/exportNote")
-                .then(({ exportNoteAsMarkdown }) => exportNoteAsMarkdown(vaultAdapter, p))
+                .then(({ exportNoteAsMarkdown }) =>
+                  // The export asks how annotations should travel, and only when
+                  // the note has any (D10). The source is passed as functions so
+                  // the lazy chunk never reaches into the vault context itself.
+                  exportNoteAsMarkdown(vaultAdapter, p, {
+                    listComments: (path) => listWorkspaceComments(path),
+                    listNames: async () =>
+                      new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
+                  }),
+                )
                 .catch((e) => { console.error("[App] markdown export failed", e); toast.error(t("editor.exportFailed")); });
             },
             createTemplate: () => {

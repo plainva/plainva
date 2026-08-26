@@ -19,12 +19,26 @@ import type { MobileVault } from "./vaultService";
  */
 export async function shareVaultFile(vault: MobileVault, path: string): Promise<void> {
   const name = path.split("/").pop() ?? path;
-  const bytes = await vault.files.readBinaryFile(path);
+  await shareBytes(name, await vault.files.readBinaryFile(path), mimeTypeForPath(path));
+}
 
+/**
+ * The same sheet, for a file Plainva assembles rather than reads (D10).
+ *
+ * The annotated export is not a copy of anything on disk — it is the note plus
+ * its open remarks — so it cannot go through the path above. Everything else
+ * about the handover stays identical: staged in the cache, never a writable
+ * handle to the user's note.
+ */
+export async function shareVaultText(name: string, text: string, mime: string): Promise<void> {
+  await shareBytes(name, new TextEncoder().encode(text), mime);
+}
+
+async function shareBytes(name: string, bytes: Uint8Array, mime: string): Promise<void> {
   if (Capacitor.getPlatform() === "web") {
     // The dev/browser build has no share sheet; a download is the honest
     // equivalent and keeps the button from doing nothing there.
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeTypeForPath(path) }));
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
