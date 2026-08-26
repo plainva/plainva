@@ -43,7 +43,7 @@
     "sqlite3": "^6.0.1",
     "tsx": "^4.23.11",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "sqlite": "^5.1.1",
