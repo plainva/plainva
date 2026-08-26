@@ -3463,7 +3463,14 @@
     "confirmPassphrase": "再次输入新密码短语",
     "passphraseChangeNote": "仅重新封装此设备上的密钥。你的恢复文件及其代码仍然有效。",
     "passphraseChanged": "密码短语已更改。",
-    "passphraseChangeFailed": "无法更改密码短语。当前密码短语是否正确？"
+    "passphraseChangeFailed": "无法更改密码短语。当前密码短语是否正确？",
+    "commentOverview": "未处理的评论",
+    "commentOverviewAll": "全部",
+    "commentOverviewMine": "与我相关",
+    "commentOverviewNone": "这个仓库里没有未处理的评论。",
+    "commentOverviewNoneMine": "现在没有人在等你。",
+    "suggestionPending": "未处理的建议",
+    "commentReplyCount_other": "{{count}} 条回复"
   },
   "cascade": {
     "titleNote": "删除“{{name}}”",

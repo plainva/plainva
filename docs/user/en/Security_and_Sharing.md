@@ -60,6 +60,8 @@ So a comment finds its passage again after later edits, Plainva wraps it in invi
 
 On the phone the same threads sit in a sheet rather than a column, and tapping the quoted piece jumps to it in the note. Reading, replying, resolving and deciding on suggestions all work there too — starting a comment or a suggestion on a passage does not yet; that needs the desktop.
 
+**Open comments** gathers every unresolved thread in the vault in one place — otherwise you would have to open each note in turn to see where something is waiting for you. On the desktop you open the overview from the **ribbon** or the **command palette**; on the phone it is an area of its own, reachable through **Areas** and movable into the bar. **For me** shows only the threads that name you with **@** — the same rule as the **Mentions you** badge —, **All** shows every open thread. Clicking an entry opens the note at the commented passage. Resolved threads drop out of the list: it is a to-do list, not an archive.
+
 **Comments** also exist in a vault without an encrypted workspace. There they are not signed but stamped with the **Reviewer name** from the settings, and they travel in the same sideband file as your settings — never in the note.
 
 **Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.

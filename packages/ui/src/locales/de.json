@@ -3491,7 +3491,15 @@
     "confirmPassphrase": "Neue Passphrase wiederholen",
     "passphraseChangeNote": "Nur die Schlüssel auf diesem Gerät werden neu versiegelt. Deine Wiederherstellungsdatei und ihr Code bleiben gültig.",
     "passphraseChanged": "Passphrase geändert.",
-    "passphraseChangeFailed": "Passphrase konnte nicht geändert werden. Stimmt die aktuelle Passphrase?"
+    "passphraseChangeFailed": "Passphrase konnte nicht geändert werden. Stimmt die aktuelle Passphrase?",
+    "commentOverview": "Offene Kommentare",
+    "commentOverviewAll": "Alle",
+    "commentOverviewMine": "An mich",
+    "commentOverviewNone": "Keine offenen Kommentare in diesem Vault.",
+    "commentOverviewNoneMine": "Niemand wartet gerade auf Dich.",
+    "suggestionPending": "Offener Vorschlag",
+    "commentReplyCount_one": "{{count}} Antwort",
+    "commentReplyCount_other": "{{count}} Antworten"
   },
   "cascade": {
     "titleNote": "„{{name}}“ löschen",

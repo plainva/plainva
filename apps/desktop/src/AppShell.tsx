@@ -26,9 +26,10 @@ const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
+const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
@@ -250,9 +251,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // The user's sidebar choice is global. Full-surface/non-note tabs temporarily
   // close it because their context panels have no useful active document; that
   // temporary state must not overwrite what comes back for the next note.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments"): boolean => {
     if (kind !== "editor") return true;
     return localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed")) === "1";
   };
@@ -1191,6 +1192,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenTasks={() => openView(TASKS_TAB_PATH)}
         onOpenCalendar={cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined}
         onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
+        onOpenComments={() => openView(COMMENTS_TAB_PATH)}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
@@ -1444,6 +1446,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <MailView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} isActivePane={isActivePane} />
                       </Suspense>
+                    ) : path === COMMENTS_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <CommentsOverview onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                      </Suspense>
                     ) : isImagePath(path) ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <ImageViewer
@@ -1599,6 +1605,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openTasks: () => openView(TASKS_TAB_PATH),
             openCalendar: () => openView(CALENDAR_TAB_PATH),
             openMail: () => openView(MAIL_TAB_PATH),
+            openComments: () => openView(COMMENTS_TAB_PATH),
             openCommsWindow: vaultPath ? openCommsWindow : undefined,
             // Dispatched rather than called, so a client window travels the
             // listener above instead of needing a capability it does not have.

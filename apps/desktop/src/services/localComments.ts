@@ -19,6 +19,7 @@ import {
   appendLocalComment,
   createWorkspaceObjectId,
   localCommentAuthorNames,
+  localCommentsByPath,
   localCommentsForPath,
   readLocalComments,
   type CommentsCrypto,
@@ -83,6 +84,20 @@ export async function listLocalComments(vaultPath: string, raw: IVaultAdapter, p
   const mode = await localCommentsMode(vaultPath, raw);
   if (mode.kind === "locked") return [];
   return localCommentsForPath(await readLocalComments(raw, cryptoOf(mode)), path);
+}
+
+/**
+ * Every note that carries comments, for the vault-wide overview (D9).
+ *
+ * One read of the bundle answers the whole question here - the file holds all
+ * of them anyway. `listLocalComments` above is the same read narrowed to one
+ * path; keeping the wide one as the primitive is what stops the two from
+ * disagreeing about which records count.
+ */
+export async function listAllLocalComments(vaultPath: string, raw: IVaultAdapter): Promise<Map<string, WorkspaceCommentRecord[]>> {
+  const mode = await localCommentsMode(vaultPath, raw);
+  if (mode.kind === "locked") return new Map();
+  return localCommentsByPath(await readLocalComments(raw, cryptoOf(mode)));
 }
 
 /** deviceId -> what that device calls itself. Never a claim about anyone else. */

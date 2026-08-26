@@ -3491,7 +3491,15 @@
     "confirmPassphrase": "Nieuwe wachtwoordzin herhalen",
     "passphraseChangeNote": "Alleen de sleutels op dit apparaat worden opnieuw verzegeld. Je herstelbestand en de bijbehorende code blijven geldig.",
     "passphraseChanged": "Wachtwoordzin gewijzigd.",
-    "passphraseChangeFailed": "Kon de wachtwoordzin niet wijzigen. Klopt de huidige wachtwoordzin?"
+    "passphraseChangeFailed": "Kon de wachtwoordzin niet wijzigen. Klopt de huidige wachtwoordzin?",
+    "commentOverview": "Openstaande opmerkingen",
+    "commentOverviewAll": "Alle",
+    "commentOverviewMine": "Voor mij",
+    "commentOverviewNone": "Geen openstaande opmerkingen in deze vault.",
+    "commentOverviewNoneMine": "Op dit moment wacht niemand op jou.",
+    "suggestionPending": "Openstaand voorstel",
+    "commentReplyCount_one": "{{count}} reactie",
+    "commentReplyCount_other": "{{count}} reacties"
   },
   "cascade": {
     "titleNote": "“{{name}}” verwijderen",

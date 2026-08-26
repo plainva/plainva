@@ -60,6 +60,8 @@ Pour qu'un commentaire retrouve son passage après des modifications ultérieure
 
 Sur le téléphone, les mêmes fils apparaissent dans une feuille plutôt que dans une colonne, et toucher l'extrait cité y saute dans la note. Lire, répondre, résoudre et statuer sur les suggestions fonctionnent également — commencer un commentaire ou une suggestion sur un passage, pas encore ; cela demande le bureau.
 
+**Commentaires ouverts** rassemble en un seul endroit tous les fils non résolus du coffre — sinon il faudrait ouvrir chaque note l'une après l'autre pour voir où quelque chose vous attend. Sur le bureau, vous ouvrez la vue d'ensemble depuis la **barre d'actions** ou la **Palette de commandes** ; sur le téléphone, c'est une zone à part entière, accessible par **Rubriques** et que vous pouvez placer dans la barre. **Pour moi** n'affiche que les fils qui vous nomment avec **@** — la même règle que la marque **Vous mentionne** —, **Tous** affiche chaque fil ouvert. Un clic sur une entrée ouvre la note au passage commenté. Les fils résolus quittent la liste : c'est une liste de tâches, pas une archive.
+
 Les **Commentaires** existent aussi dans un coffre sans workspace chiffré. Ils n'y sont pas signés mais estampillés avec le **Nom du relecteur** des réglages, et ils voyagent dans le même fichier annexe que tes réglages — jamais dans la note.
 
 **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.

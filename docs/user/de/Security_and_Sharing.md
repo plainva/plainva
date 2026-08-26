@@ -60,6 +60,8 @@ Damit ein Kommentar seine Stelle auch nach späteren Änderungen wiederfindet, s
 
 Am Telefon liegen dieselben Fäden in einem Blatt statt in einer Spalte, und ein Tipp auf das zitierte Stück springt in der Notiz dorthin. Lesen, antworten, erledigen und über Vorschläge entscheiden geht dort genauso — einen Kommentar oder Vorschlag an einer Textstelle zu beginnen derzeit nicht; dafür brauchst Du den Desktop.
 
+**Offene Kommentare** sammelt alle unerledigten Fäden des Vaults an einer Stelle — sonst müsstest Du jede Notiz einzeln öffnen, um zu sehen, wo etwas auf Dich wartet. Am Desktop öffnest Du die Übersicht über die **Aktionsleiste** oder die **Befehlspalette**; am Telefon ist sie ein eigener Bereich, über **Bereiche** erreichbar und bei Bedarf in die Leiste zu holen. **An mich** zeigt nur die Fäden, die Dich per **@** nennen — dieselbe Regel wie das Kennzeichen **Nennt Dich** —, **Alle** zeigt jeden offenen Faden. Ein Klick auf einen Eintrag öffnet die Notiz an der kommentierten Stelle. Erledigte Fäden fallen aus der Liste: sie ist eine Aufgabenliste, kein Archiv.
+
 **Kommentare** gibt es auch in einem Vault ohne verschlüsselten Workspace. Dort werden sie nicht signiert, sondern mit dem **Prüfername** aus den Einstellungen gezeichnet, und sie reisen in derselben Sideband-Datei wie Deine Einstellungen — nie in der Notiz.
 
 **Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.

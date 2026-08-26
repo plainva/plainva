@@ -3519,7 +3519,16 @@
     "confirmPassphrase": "Repetir a nova frase secreta",
     "passphraseChangeNote": "Somente as chaves deste dispositivo são seladas novamente. Seu arquivo de recuperação e o código dele continuam válidos.",
     "passphraseChanged": "Frase secreta alterada.",
-    "passphraseChangeFailed": "Não foi possível alterar a frase secreta. A atual está correta?"
+    "passphraseChangeFailed": "Não foi possível alterar a frase secreta. A atual está correta?",
+    "commentOverview": "Comentários abertos",
+    "commentOverviewAll": "Todos",
+    "commentOverviewMine": "Para mim",
+    "commentOverviewNone": "Nenhum comentário aberto neste vault.",
+    "commentOverviewNoneMine": "No momento ninguém está esperando por você.",
+    "suggestionPending": "Sugestão aberta",
+    "commentReplyCount_one": "{{count}} resposta",
+    "commentReplyCount_many": "{{count}} respostas",
+    "commentReplyCount_other": "{{count}} respostas"
   },
   "cascade": {
     "titleNote": "Excluir “{{name}}”",

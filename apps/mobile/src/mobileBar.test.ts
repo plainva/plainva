@@ -48,6 +48,17 @@ describe("the phone's bar is the shared model's fifth bar", () => {
     expect([...spec.known].sort()).toEqual([...TAB_POOL.map((t) => t.id)].sort());
   });
 
+  it("keeps the comment overview reachable although the bar is full", () => {
+    // D9: the phone shows four areas at a time, so a seventh one necessarily
+    // starts outside the bar - and that is the normal state here, not the
+    // desktop's "invisible at the end of the ribbon". Being in the pool is what
+    // makes it reachable, because the areas sheet lists the pool, not the bar.
+    expect(TAB_POOL.map((t) => t.id)).toContain("comments");
+    const fresh = sanitizeAreaOrder(undefined, spec);
+    expect(fresh.order).toContain("comments");
+    expect(visibleAreas(fresh)).not.toContain("comments");
+  });
+
   it("keeps Material's bounds and pins the one area that must stay", () => {
     // 3–5 destinations, and the fixed "Areas" entry is one of them — so the
     // configurable part is 2–4.

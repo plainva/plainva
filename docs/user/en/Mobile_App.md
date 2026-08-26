@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-24
+Last updated: 2026-08-26
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -15,7 +15,7 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 ## Layout
 
 - **Bottom bar:** **two to four** work surfaces of your choice plus the fixed **Areas** entry at the end — together the three to five destinations a bar should carry. **Notes** always stays visible: it is how you reach your files.
-- **Every area** (Notes, Today, Tasks, Calendar, Email, Graph) stays one tap away through the **areas sheet**: **Areas** in the bar or a **long press on the bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom. Tags, bookmarks and recently opened are no longer areas of their own — they live under **Notes**.
+- **Every area** (Notes, Today, Tasks, Calendar, Email, Graph, Open comments) stays one tap away through the **areas sheet**: **Areas** in the bar or a **long press on the bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom. Tags, bookmarks and recently opened are no longer areas of their own — they live under **Notes**.
 - **Configuring the bar:** **Settings** → **Navigation bar**. Use **−**/**+** to set how many work surfaces the bar shows (2–4, with a live preview) and the **drag handle** to arrange the list: the top entries form the bar (marked by a frame), dragging one up promotes it. Dragging to the top or bottom edge scrolls the list along, so one movement covers the whole list. Nothing is ever hidden — whatever is not in the bar remains reachable through **Areas**. If the area you are on leaves the bar, the app moves to the first visible one. You can arrange the same bar **on the desktop** as well (Settings → Vault → Bars & areas); with settings sync on, the arrangement travels between your devices.
 - **A folder row counts everything below it**, not just the notes lying directly in it — a folder holding nothing but subfolders no longer reads “0 notes” beside a chevron that leads to hundreds.
 - **＋** floats as a round button above the bar and opens quick create: note, daily note, folder, database, "From template…".

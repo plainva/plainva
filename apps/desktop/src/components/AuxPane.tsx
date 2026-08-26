@@ -1,7 +1,7 @@
 import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@plainva/ui";
-import { CALENDAR_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 
 const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
 const BaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
@@ -9,6 +9,7 @@ const VaultGraphView = lazy(() => import("./graph/VaultGraphView").then((m) => (
 const TasksView = lazy(() => import("./tasks/TasksView").then((m) => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import("./pimcal/CalendarView").then((m) => ({ default: m.CalendarView })));
 const MailView = lazy(() => import("./mail/MailView").then((m) => ({ default: m.MailView })));
+const CommentsOverview = lazy(() => import("./comments/CommentsOverview").then((m) => ({ default: m.CommentsOverview })));
 
 interface Props {
   path: string;
@@ -49,6 +50,8 @@ export function AuxPane({ path, isActivePane, onOpenPath, onOpenInSplit, onToggl
         <CalendarView onOpenPath={(p) => onOpenPath(p)} isActivePane={isActivePane} />
       ) : path === MAIL_TAB_PATH ? (
         <MailView onOpenPath={(p) => onOpenPath(p)} isActivePane={isActivePane} />
+      ) : path === COMMENTS_TAB_PATH ? (
+        <CommentsOverview onOpenPath={(p) => onOpenPath(p)} />
       ) : path.endsWith(".base") ? (
         <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} />
       ) : (

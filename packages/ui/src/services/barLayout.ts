@@ -14,6 +14,7 @@ import {
   List,
   ListChecks,
   Mail,
+  MessageSquare,
   Search,
   SlidersHorizontal,
   Sun,
@@ -48,7 +49,7 @@ export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections" | "
 /** Every action the rail's TOP group can carry. The bottom group (help,
  *  settings) is fixed and deliberately outside this model — that is what makes
  *  E3 structural instead of a runtime check. */
-export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"] as const;
+export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "palette"] as const;
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 export const RIGHT_SECTION_IDS = ["calendar", "outline", "graph", "databases", "backlinks", "properties"] as const;
@@ -64,7 +65,7 @@ export const RIGHT_SECTION_IDS = ["calendar", "outline", "graph", "databases", "
  * configurable part is 2–4 — four by default, which is the picture the mockup
  * shows (Notes · Today · Tasks · Calendar · Areas).
  */
-export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "mail", "graph"] as const;
+export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "mail", "graph", "comments"] as const;
 
 export interface BarAreaDef {
   id: string;
@@ -103,6 +104,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
       { id: "calendar", labelKey: "pim.openCalendar", icon: CalendarRange },
       { id: "mail", labelKey: "mail.openMail", icon: Mail },
+      { id: "comments", labelKey: "workspaceSecurity.commentOverview", icon: MessageSquare },
       { id: "palette", labelKey: "palette.title", icon: Command },
     ],
   },
@@ -155,6 +157,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "calendar", labelKey: "mobile.tabCalendar", icon: CalendarDays },
       { id: "mail", labelKey: "mail.title", icon: Mail },
       { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
+      { id: "comments", labelKey: "workspaceSecurity.commentOverview", icon: MessageSquare },
     ],
   },
 ];
@@ -330,7 +333,9 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
   // when that neighbour is itself visible: offered by default, hideable in one
   // click. Runs once per stored value; a user who later hides it keeps it
   // hidden, because from then on the id IS in the stored order.
-  touched = (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder" })) || touched;
+  touched =
+    (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail" })) ||
+    touched;
 
   if (touched) {
     await store.save();

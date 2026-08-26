@@ -18,7 +18,7 @@ import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settingsProfile";
-import { LOCAL_COMMENT_CAPABILITIES, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
+import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { changeWorkspaceFallbackPassphrase, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
@@ -227,6 +227,12 @@ interface VaultContextType extends VaultState {
   exportWorkspaceQuarantine: (quarantineId: string) => Promise<Uint8Array | null>;
   getWorkspaceCapabilities: (path: string) => Promise<WorkspaceCapability[] | null>;
   listWorkspaceComments: (path: string) => Promise<WorkspaceCommentRecord[]>;
+  /**
+   * Every note of this vault that carries comments, path -> its records.
+   * The overview (D9) asks one question about the whole vault; asking it note
+   * by note would be one query per note.
+   */
+  listAllWorkspaceComments: () => Promise<Map<string, WorkspaceCommentRecord[]>>;
   /**
    * The member roster of the open workspace, for showing names instead of ids.
    * Deliberately NOT getWorkspaceGovernance: that one also refreshes slice
@@ -2341,6 +2347,42 @@ export const VaultProvider: React.FC<{
     return object ? workspaceState.listComments(object.objectId) : [];
   };
 
+  const listAllWorkspaceComments = async (): Promise<Map<string, WorkspaceCommentRecord[]>> => {
+    if (!state.workspaceSecurityStatus) {
+      const local = localCommentContext();
+      return local ? listAllLocalComments(local.vaultPath, local.raw) : new Map();
+    }
+    const { runtime, workspaceState } = workspaceControlPlane();
+    // A comment names the object it hangs on, never the path — a renamed note
+    // keeps its object and its thread. So the paths come from the objects, and
+    // a comment whose object is gone is dropped rather than filed under "".
+    //
+    // The read right is decided HERE, once per note, off the policy already in
+    // memory. Asking `getWorkspaceCapabilities` from the view would be one
+    // database round-trip per note; leaving it out would show an overview wider
+    // than the note itself does.
+    const paths = new Map<string, string>();
+    for (const object of await workspaceState.listObjects()) {
+      const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, object);
+      const caps = effectiveWorkspaceCapabilities(runtime.policy.payload, {
+        memberId: runtime.memberId,
+        deviceId: runtime.device.publicIdentity.deviceId,
+        objectId: object.objectId,
+        sliceIds,
+      });
+      if (caps.includes("comment.read")) paths.set(object.objectId, object.path);
+    }
+    const byPath = new Map<string, WorkspaceCommentRecord[]>();
+    for (const comment of await workspaceState.listAllComments()) {
+      const path = paths.get(comment.targetObjectId);
+      if (!path) continue;
+      const list = byPath.get(path);
+      if (list) list.push(comment);
+      else byPath.set(path, [comment]);
+    }
+    return byPath;
+  };
+
   const listWorkspaceMembers = async (): Promise<WorkspacePolicyMember[]> => {
     if (!state.workspaceSecurityStatus) {
       // Without a policy a DEVICE is the author, and its self-chosen name is the
@@ -2495,7 +2537,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

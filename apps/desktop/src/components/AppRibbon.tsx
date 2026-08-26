@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
+import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, MessageSquare, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -15,7 +15,7 @@ import {
   type AreaOrder,
 } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { CALENDAR_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   openBarSettings,
@@ -62,6 +62,11 @@ export interface AppRibbonProps {
   /** Absent while no cloud account carries the service (gating, mockup 6). */
   onOpenCalendar?: () => void;
   onOpenMail?: () => void;
+  /**
+   * Not gated: comments hang on a vault, not on a cloud account. A plain vault
+   * keeps them beside its own notes, so the overview always has an answer.
+   */
+  onOpenComments: () => void;
   /**
    * Pop a singleton view out into its own window (multi-window P2). Only the
    * four views have one: a rail button like "new note" is an action, and an
@@ -140,6 +145,7 @@ export function AppRibbon(props: AppRibbonProps) {
     ...(props.onOpenMail
       ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail", windowPath: MAIL_TAB_PATH } }
       : {}),
+    comments: { key: "comments", label: t("workspaceSecurity.commentOverview", { defaultValue: "Offene Kommentare" }), icon: <MessageSquare size={ICON.head} />, run: props.onOpenComments, testId: "ribbon-comments", windowPath: COMMENTS_TAB_PATH },
     palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
   };
 

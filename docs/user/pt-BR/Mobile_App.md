@@ -1,6 +1,6 @@
 # O app mobile
 
-Última revisão: 2026-08-24
+Última revisão: 2026-08-26
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -15,7 +15,7 @@ O app mobile está em **teste aberto** no Google Play. No **Android** você entr
 ## Layout
 
 - **Barra inferior:** **de duas a quatro** superfícies de trabalho à sua escolha, mais o item fixo **Seções** no final — ao todo, de três a cinco destinos para uma barra. **Notas** permanece sempre visível: é assim que você chega aos seus arquivos.
-- **Cada seção** (Notas, Hoje, Tarefas, Calendário, E-mail, Grafo) fica sempre a um toque de distância pela **folha de seções**: **Seções** na barra ou um **toque longo na barra**. A folha marca a seção atual e leva direto, na parte de baixo, a **Personalizar a barra de navegação…**. Tags, favoritos e os itens recentes deixaram de ser seções próprias — agora ficam em **Notas**.
+- **Cada seção** (Notas, Hoje, Tarefas, Calendário, E-mail, Grafo, Comentários abertos) fica sempre a um toque de distância pela **folha de seções**: **Seções** na barra ou um **toque longo na barra**. A folha marca a seção atual e leva direto, na parte de baixo, a **Personalizar a barra de navegação…**. Tags, favoritos e os itens recentes deixaram de ser seções próprias — agora ficam em **Notas**.
 - **Configurando a barra:** **Configurações** → **Barra de navegação**. Use **−**/**+** para definir quantas superfícies de trabalho a barra mostra (2–4, com prévia ao vivo) e a **alça de arrastar** para organizar a lista: as entradas do topo formam a barra (marcadas com uma moldura), arrastar uma para cima a promove. Arrastar até a borda superior ou inferior rola a lista junto, de modo que um único movimento cobre a lista inteira. Nada fica escondido — o que não está na barra continua acessível por **Seções**. Se a seção em que você está sair da barra, o app vai para a primeira visível. Você também pode organizar a mesma barra **no desktop** (Configurações → Vault → Barras e áreas); com a sincronização de configurações ativada, a organização viaja entre seus dispositivos.
 - **Uma linha de pasta conta tudo o que está abaixo dela**, não apenas as notas que ficam diretamente nela — uma pasta cheia de subpastas não diz mais “0 notas” ao lado de uma seta que leva a centenas.
 - **＋** flutua como um botão redondo acima da barra e abre a criação rápida: nota, nota diária, pasta, banco de dados, "A partir de modelo…".

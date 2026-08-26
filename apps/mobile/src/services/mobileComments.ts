@@ -14,6 +14,7 @@ import {
   appendLocalComment,
   createWorkspaceObjectId,
   localCommentAuthorNames,
+  localCommentsByPath,
   localCommentsForPath,
   readLocalComments,
   type CommentsCrypto,
@@ -55,6 +56,18 @@ export async function listMobileComments(vault: MobileVault, path: string): Prom
   const mode = await mobileCommentsMode(vault);
   if (mode.kind === "locked") return [];
   return localCommentsForPath(await readLocalComments(vault.adapter, cryptoOf(mode)), path);
+}
+
+/**
+ * Every note that carries comments, for the vault-wide overview (D9).
+ *
+ * One read of the bundle answers the whole question - the file holds all of
+ * them anyway. The per-note list above is the same read narrowed to one path.
+ */
+export async function listAllMobileComments(vault: MobileVault): Promise<Map<string, WorkspaceCommentRecord[]>> {
+  const mode = await mobileCommentsMode(vault);
+  if (mode.kind === "locked") return new Map();
+  return localCommentsByPath(await readLocalComments(vault.adapter, cryptoOf(mode)));
 }
 
 /** deviceId -> what that device calls itself. Never a claim about anyone else. */

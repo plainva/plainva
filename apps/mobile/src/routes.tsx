@@ -36,6 +36,7 @@ import { FindReplaceScreen } from "./screens/FindReplaceScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
+import { CommentsScreen } from "./screens/CommentsScreen";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -365,6 +366,9 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
+  // Pushed when the comment overview sits outside the bar: same screen, only
+  // with a Back arrow instead of the menu button.
+  comments: (_e, c) => <CommentsScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which
@@ -464,6 +468,16 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
     />
   ),
   tasks: (c) => <TasksScreen bump={c.bump} onMenu={() => c.push({ kind: "settings", path: "" })} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
+  // Not gated on a cloud service the way calendar and mail are: comments hang
+  // on a vault, not on an account, so a plain local vault has them too.
+  comments: (c) => (
+    <CommentsScreen
+      bump={c.bump}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
+      onOpenNote={c.openNote}
+      vault={c.vault}
+    />
+  ),
 };
 
 /** Renders whatever the navigation state points at. */

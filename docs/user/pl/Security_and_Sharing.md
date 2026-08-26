@@ -60,6 +60,8 @@ Aby komentarz odnalazł swój fragment także po późniejszych zmianach, Plainv
 
 Na telefonie te same wątki leżą w arkuszu zamiast w kolumnie, a dotknięcie cytowanego fragmentu przeskakuje do niego w notatce. Czytanie, odpowiadanie, rozwiązywanie i decydowanie o propozycjach działa tam tak samo — rozpoczęcie komentarza lub propozycji przy fragmencie jeszcze nie; do tego potrzebny jest komputer.
 
+**Otwarte komentarze** zbiera w jednym miejscu wszystkie nierozwiązane wątki sejfu — inaczej trzeba by otwierać notatkę po notatce, żeby zobaczyć, gdzie coś na Ciebie czeka. Na komputerze przegląd otwierasz z **Paska akcji** albo z **Palety poleceń**; na telefonie to osobny obszar, dostępny przez **Obszary** i w razie potrzeby przenoszony na pasek. **Do mnie** pokazuje tylko wątki, które wymieniają Cię przez **@** — ta sama reguła co oznaczenie **Wspomina Cię** —, **Wszystkie** pokazuje każdy otwarty wątek. Kliknięcie pozycji otwiera notatkę w skomentowanym fragmencie. Rozwiązane wątki znikają z listy: to lista zadań, nie archiwum.
+
 **Komentarze** istnieją także w sejfie bez szyfrowanego workspace'u. Tam nie są podpisywane, lecz sygnowane **Nazwą sprawdzającego** z ustawień, i podróżują w tym samym pliku pobocznym co Twoje ustawienia — nigdy w notatce.
 
 **Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.

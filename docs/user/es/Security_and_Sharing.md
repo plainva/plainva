@@ -60,6 +60,8 @@ Para que un comentario vuelva a encontrar su pasaje tras ediciones posteriores, 
 
 En el teléfono los mismos hilos aparecen en una hoja en lugar de una columna, y tocar el fragmento citado salta hasta él en la nota. Leer, responder, resolver y decidir sobre sugerencias también funciona ahí; iniciar un comentario o una sugerencia sobre un pasaje, todavía no: para eso necesitas el escritorio.
 
+**Comentarios abiertos** reúne en un solo lugar todos los hilos sin resolver de la bóveda — de lo contrario tendrías que abrir cada nota una por una para ver dónde te espera algo. En el escritorio abres la vista general desde la **barra de acciones** o la **Paleta de comandos**; en el teléfono es un área propia, accesible mediante **Áreas** y que puedes llevar a la barra. **Para mí** muestra solo los hilos que te nombran con **@** — la misma regla que la marca **Te menciona** —, **Todos** muestra cada hilo abierto. Al hacer clic en una entrada se abre la nota en el pasaje comentado. Los hilos resueltos salen de la lista: es una lista de tareas, no un archivo.
+
 Los **Comentarios** también existen en una bóveda sin workspace cifrado. Allí no se firman, sino que se sellan con el **Nombre del revisor** de los ajustes, y viajan en el mismo archivo lateral que tus ajustes, nunca en la nota.
 
 **Historial de versiones** lee las revisiones cifradas del workspace y restaura una revisión anterior como un nuevo cambio firmado o como una copia.

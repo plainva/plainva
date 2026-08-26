@@ -60,6 +60,8 @@ Para que um comentário reencontre seu trecho mesmo após alterações posterior
 
 No telefone os mesmos tópicos ficam em uma folha em vez de uma coluna, e tocar no trecho citado salta até ele na nota. Ler, responder, resolver e decidir sobre sugestões também funciona ali — iniciar um comentário ou uma sugestão em um trecho ainda não; para isso é preciso o desktop.
 
+**Comentários abertos** reúne em um só lugar todos os tópicos não resolvidos do cofre — caso contrário você teria de abrir cada nota, uma a uma, para ver onde algo espera por você. No desktop você abre a visão geral pela **barra de ações** ou pela **Paleta de comandos**; no celular ela é uma seção própria, acessível por **Seções** e que você pode levar para a barra. **Para mim** mostra apenas os tópicos que citam você com **@** — a mesma regra da marca **Menciona você** —, **Todos** mostra cada tópico aberto. Um clique em uma entrada abre a nota no trecho comentado. Tópicos resolvidos saem da lista: ela é uma lista de tarefas, não um arquivo.
+
 Os **Comentários** também existem em um cofre sem workspace criptografado. Ali eles não são assinados, mas carimbados com o **Nome do revisor** das configurações, e viajam no mesmo arquivo lateral que as suas configurações — nunca na nota.
 
 **Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.

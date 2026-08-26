@@ -60,6 +60,8 @@ Zodat een opmerking haar passage ook na latere wijzigingen terugvindt, zet Plain
 
 Op de telefoon liggen dezelfde draden in een blad in plaats van een kolom, en een tik op het geciteerde stuk springt er in de notitie heen. Lezen, beantwoorden, oplossen en over voorstellen beslissen werkt daar net zo — een opmerking of voorstel bij een passage beginnen nog niet; daarvoor heb je de desktop nodig.
 
+**Openstaande opmerkingen** verzamelt alle onopgeloste draden van de kluis op één plek — anders zou je elke notitie afzonderlijk moeten openen om te zien waar iets op je wacht. Op de desktop open je het overzicht via de **actiebalk** of het **Opdrachtenpalet**; op de telefoon is het een eigen onderdeel, bereikbaar via **Onderdelen** en desgewenst in de balk te zetten. **Voor mij** toont alleen de draden die jou met **@** noemen — dezelfde regel als het label **Noemt jou** —, **Alle** toont elke openstaande draad. Een klik op een regel opent de notitie bij de becommentarieerde passage. Opgeloste draden vallen uit de lijst: het is een takenlijst, geen archief.
+
 **Opmerkingen** bestaan ook in een kluis zonder versleutelde workspace. Daar worden ze niet ondertekend maar met de **Naam van de controleur** uit de instellingen gestempeld, en ze reizen in hetzelfde sideband-bestand als je instellingen — nooit in de notitie.
 
 **Versiegeschiedenis** leest versleutelde workspace-revisies en herstelt een oudere revisie als nieuwe ondertekende wijziging of als kopie.

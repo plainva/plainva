@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-08-24
+Ultimo aggiornamento: 2026-08-26
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -15,7 +15,7 @@ L’app mobile è in **test aperto** su Google Play. Su **Android** si entra dir
 ## Layout
 
 - **Barra inferiore:** **da due a quattro** superfici di lavoro a tua scelta, più la voce fissa **Aree** in fondo — in tutto, da tre a cinque destinazioni per una barra. **Note** resta sempre visibile: è così che accedi ai tuoi file.
-- **Ogni area** (Note, Oggi, Attività, Calendario, E-mail, Grafo) resta a un tocco di distanza grazie al **foglio delle aree**: **Aree** nella barra oppure una **pressione prolungata sulla barra**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Personalizza la barra di navigazione…**. Tag, segnalibri ed elementi aperti di recente non sono più aree a sé stanti — si trovano ora sotto **Note**.
+- **Ogni area** (Note, Oggi, Attività, Calendario, E-mail, Grafo, Commenti aperti) resta a un tocco di distanza grazie al **foglio delle aree**: **Aree** nella barra oppure una **pressione prolungata sulla barra**. Il foglio segna l'area attuale e porta direttamente, in basso, a **Personalizza la barra di navigazione…**. Tag, segnalibri ed elementi aperti di recente non sono più aree a sé stanti — si trovano ora sotto **Note**.
 - **Configurare la barra:** **Impostazioni** → **Barra di navigazione**. Usa **−**/**+** per stabilire quante superfici di lavoro mostra la barra (2–4, con anteprima dal vivo) e la **maniglia di trascinamento** per ordinare l'elenco: le voci in alto formano la barra (contrassegnate da una cornice), trascinarne una verso l'alto la promuove nella barra. Trascinando fino al bordo superiore o inferiore, l'elenco scorre di conseguenza, così un unico movimento copre l'intero elenco. Non viene mai nascosto nulla — ciò che non è nella barra resta raggiungibile tramite **Aree**. Se l'area in cui ti trovi lascia la barra, l'app passa alla prima visibile. Puoi organizzare la stessa barra anche **sul desktop** (Impostazioni → Vault → Barre e aree); con la sincronizzazione delle impostazioni attiva, la disposizione viaggia tra i tuoi dispositivi.
 - **Una riga di cartella conta tutto ciò che sta sotto**, non solo le note che vi si trovano direttamente: una cartella piena di sottocartelle non dice più «0 note» accanto a una freccia che porta a centinaia.
 - **＋** fluttua come un pulsante rotondo sopra la barra e apre la creazione rapida: nota, nota giornaliera, cartella, database, "Da modello…".

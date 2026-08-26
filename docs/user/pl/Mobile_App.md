@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-24
+Stan na: 2026-08-26
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -15,7 +15,7 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 ## Układ
 
 - **Dolny pasek:** **od dwóch do czterech** powierzchni roboczych według wyboru oraz stały wpis **Obszary** na końcu — razem od trzech do pięciu miejsc, jakie powinien mieć pasek. **Notatki** pozostają zawsze widoczne: to dzięki nim docierasz do swoich plików.
-- **Każdy obszar** (Notatki, Dzisiaj, Zadania, Kalendarz, E-mail, Graf) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: **Obszary** na pasku albo **długie przytrzymanie paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**. Tagi, zakładki i ostatnio otwierane elementy nie są już osobnymi obszarami — znajdziesz je teraz pod **Notatkami**.
+- **Każdy obszar** (Notatki, Dzisiaj, Zadania, Kalendarz, E-mail, Graf, Otwarte komentarze) jest zawsze o jedno dotknięcie – przez **arkusz obszarów**: **Obszary** na pasku albo **długie przytrzymanie paska**. Arkusz zaznacza bieżący obszar i prowadzi na dole prosto do **Dostosuj pasek nawigacji…**. Tagi, zakładki i ostatnio otwierane elementy nie są już osobnymi obszarami — znajdziesz je teraz pod **Notatkami**.
 - **Konfigurowanie paska:** **Ustawienia** → **Pasek nawigacji**. Przyciskami **−**/**+** ustalasz, ile powierzchni roboczych pokazuje pasek (2–4, z podglądem na żywo), a **uchwytem do przeciągania** porządkujesz listę: górne pozycje tworzą pasek (oznaczone ramką), przeciągnięcie pozycji w górę przenosi ją na pasek. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, lista przewija się razem z tym, dzięki czemu jeden ruch obejmuje całą listę. Nic nie jest ukrywane — to, czego nie ma na pasku, pozostaje dostępne przez **Obszary**. Jeśli obszar, w którym akurat jesteś, opuści pasek, aplikacja przechodzi do pierwszego widocznego. Ten sam pasek możesz też uporządkować **na komputerze** (Ustawienia → Vault → Paski i obszary); przy włączonej synchronizacji ustawień układ przenosi się między Twoimi urządzeniami.
 - **Wiersz folderu liczy wszystko, co znajduje się poniżej**, nie tylko notatki leżące bezpośrednio w nim — folder pełen podfolderów nie pokazuje już „0 notatek” obok strzałki prowadzącej do setek.
 - **＋** unosi się jako okrągły przycisk nad paskiem i otwiera szybkie tworzenie: notatka, notatka dzienna, folder, baza danych, „Z szablonu…”.

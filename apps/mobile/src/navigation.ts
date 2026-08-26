@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import {CalendarDays, Home, ListChecks, Mail, Sun, Waypoints} from "lucide-react";
+import {CalendarDays, Home, ListChecks, Mail, MessageSquare, Sun, Waypoints} from "lucide-react";
 import type { CloudProviderFamily } from "@plainva/ui";
 
 /**
@@ -27,7 +27,7 @@ import type { CloudProviderFamily } from "@plainva/ui";
  * ids the pool no longer knows (E3: no migration notice, there are no users
  * but the maintainer).
  */
-export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph";
+export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph" | "comments";
 
 export interface TabDef {
   id: TabScreenId;
@@ -49,6 +49,11 @@ export const TAB_POOL: TabDef[] = [
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
   { id: "mail", icon: Mail, labelKey: "mail.title" },
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
+  // The comment overview (D9). Unlike the desktop ribbon, a new area here needs
+  // no migration: the bar holds four at a time, and the areas sheet lists the
+  // whole pool — so it is reachable the moment it exists, and being outside the
+  // bar is the normal state for most of the pool rather than an oversight.
+  { id: "comments", icon: MessageSquare, labelKey: "workspaceSecurity.commentOverview" },
 ];
 
 /**
@@ -77,7 +82,7 @@ export const TAB_POOL: TabDef[] = [
  *  adding a kind to the union without adding it here does not compile. */
 export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
-  "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "cleanup", "tags", "bookmarks",
+  "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
   "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration",
@@ -98,6 +103,7 @@ export type NavKind =
   | "tasks"
   | "databases"
   | "graphmap"
+  | "comments"
   | "cleanup"
   | "tags"
   | "bookmarks"
@@ -171,6 +177,7 @@ export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   calendar: [],
   mail: [],
   graph: [],
+  comments: [],
 });
 
 export function initialNavState(activeTab: TabScreenId): NavState {
@@ -373,4 +380,5 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   calendar: { kind: "pimcalendar", path: "" },
   mail: { kind: "mail", path: "" },
   graph: { kind: "graphmap", path: "" },
+  comments: { kind: "comments", path: "" },
 };

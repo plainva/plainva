@@ -244,7 +244,8 @@ describe("an action added by an app update", () => {
 
   it("arrives beside the action it belongs to instead of landing in the hidden half", async () => {
     // What an install from before the two creation actions looks like: the old
-    // eight ids, all visible.
+    // eight ids, all visible. Such an install predates the comment overview too,
+    // so the same start adopts three ids, each beside the action it belongs to.
     storeValues[barLayoutDefaultKey("ribbon")] = {
       order: ["new", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
       visibleCount: 8,
@@ -254,15 +255,35 @@ describe("an action added by an app update", () => {
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
     expect(stored.order.slice(0, 3)).toEqual(["new", "newFolder", "newBase"]);
+    expect(stored.order.slice(-3)).toEqual(["mail", "comments", "palette"]);
     // Grown with them: appended at the end they would exist but be hidden, and
     // the update would look like it did nothing.
-    expect(stored.visibleCount).toBe(10);
+    expect(stored.visibleCount).toBe(11);
     expect(visibleAreas(stored)).toContain("newBase");
+    expect(visibleAreas(stored)).toContain("comments");
+  });
+
+  it("puts the comment overview beside the other views, not at the end", async () => {
+    // The overview is NOT gated on a cloud service the way calendar and mail
+    // are, but its slot is still anchored to mail: the order lists every known
+    // id whether or not the service exists, so the anchor holds on a machine
+    // that has never seen a mailbox.
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
+      visibleCount: 10,
+    };
+
+    await migrateLegacyBarLayouts(null);
+
+    const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(stored.order.indexOf("comments")).toBe(stored.order.indexOf("mail") + 1);
+    expect(stored.visibleCount).toBe(11);
+    expect(visibleAreas(stored)).toContain("comments");
   });
 
   it("leaves them hidden when the action they follow is hidden", async () => {
     storeValues[barLayoutDefaultKey("ribbon")] = {
-      order: ["open", "daily", "new", "graph", "tasks", "calendar", "mail", "palette"],
+      order: ["open", "daily", "new", "graph", "tasks", "calendar", "mail", "comments", "palette"],
       visibleCount: 2, // only "open" and "daily" are visible
     };
 
@@ -275,7 +296,7 @@ describe("an action added by an app update", () => {
 
   it("runs harmlessly on every start once the ids are stored", async () => {
     storeValues[barLayoutDefaultKey("ribbon")] = {
-      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "palette"],
       visibleCount: 4,
     };
     setSpy.mockClear();

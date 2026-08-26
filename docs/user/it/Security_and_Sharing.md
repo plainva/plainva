@@ -60,6 +60,8 @@ Perché un commento ritrovi il suo passaggio anche dopo modifiche successive, Pl
 
 Sul telefono gli stessi thread stanno in un foglio anziché in una colonna, e un tocco sul frammento citato ci salta dentro la nota. Leggere, rispondere, risolvere e decidere sulle proposte funziona anche lì; avviare un commento o una proposta su un passaggio non ancora: per quello serve il desktop.
 
+**Commenti aperti** raccoglie in un unico posto tutti i thread non risolti del vault — altrimenti dovresti aprire ogni nota a una a una per vedere dove qualcosa ti aspetta. Sul desktop apri la panoramica dalla **barra delle azioni** o dalla **Palette dei comandi**; sul telefono è un'area a sé, raggiungibile da **Aree** e spostabile nella barra. **Per me** mostra solo i thread che ti nominano con **@** — la stessa regola del contrassegno **Ti menziona** —, **Tutti** mostra ogni thread aperto. Un clic su una voce apre la nota nel passaggio commentato. I thread risolti escono dall'elenco: è un elenco di cose da fare, non un archivio.
+
 I **Commenti** esistono anche in un vault senza workspace cifrato. Lì non vengono firmati ma siglati con il **Nome del revisore** delle impostazioni, e viaggiano nello stesso file laterale delle tue impostazioni, mai nella nota.
 
 **Cronologia versioni** legge le revisioni cifrate del workspace e ripristina una revisione precedente come nuova modifica firmata o come copia.

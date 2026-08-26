@@ -2917,3 +2917,45 @@ tr.is-selected > td { color: var(--on-accent-container); }
 .pv-comment-column__empty { margin: 0; color: var(--text-faint); font-size: var(--text-sm); }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }
+
+/* The vault-wide comment overview (D9).
+   The column beside a note answers "what is on THIS note"; this answers "what
+   is waiting for ME", which is a different question and therefore its own
+   surface. It reuses the cards, so LCARS and Win95 already restyle everything
+   with colour in it; the shell itself is layout plus shared tokens both themes
+   override, which is why it carries no theme selectors of its own. */
+.pv-comment-overview { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.pv-comment-overview__head {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+}
+.pv-comment-overview__title { margin: 0; font-size: var(--text-md); font-weight: 600; }
+.pv-comment-overview__spacer { flex: 1; }
+.pv-comment-overview__body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: grid; gap: var(--space-4); align-content: start;
+  padding: var(--space-3);
+}
+.pv-comment-overview__note { display: grid; gap: var(--space-2); }
+.pv-comment-overview__notehead {
+  /* Grid, not flex: the name and its path stack in the middle column, so a
+     deep path wraps under the name instead of squeezing it — which is what a
+     phone width does to every path longer than a folder or two. */
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2);
+  width: 100%; padding: var(--space-2); text-align: left;
+  border: none; border-left: 3px solid var(--accent-color); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-main);
+  font-family: inherit; font-size: var(--text-ui); font-weight: 600;
+  cursor: pointer;
+}
+.pv-comment-overview__notehead:hover { background: var(--state-hover); }
+.pv-comment-overview__noteid { display: grid; gap: var(--space-1); min-width: 0; }
+.pv-comment-overview__path { color: var(--text-muted); font-size: var(--text-sm); font-weight: 400; overflow-wrap: anywhere; }
+.pv-comment-overview__badge {
+  justify-self: end;
+  padding: 0 var(--space-2); border-radius: var(--radius-pill);
+  background: var(--accent-container); color: var(--on-accent-container);
+  font-size: var(--text-sm); font-variant-numeric: tabular-nums;
+}
+.pv-comment-overview__empty { margin: 0; padding: var(--space-5); color: var(--text-muted); text-align: center; }

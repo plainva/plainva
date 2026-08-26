@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-24
+Stand: 2026-08-26
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -15,7 +15,7 @@ Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Be
 ## Aufbau
 
 - **Untere Leiste:** **zwei bis vier** Arbeitsflächen Deiner Wahl und ganz rechts der feste Eintrag **Bereiche** — zusammen die drei bis fünf Ziele, die auf eine Leiste gehören. **Notizen** bleibt immer sichtbar: darüber erreichst Du Deine Dateien.
-- **Alle Bereiche** (Notizen, Heute, Aufgaben, Kalender, E-Mail, Graph) erreichst Du jederzeit über das **Bereichs-Blatt**: über **Bereiche** in der Leiste oder **langes Drücken auf die Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**. Tags, Lesezeichen und Zuletzt geöffnet sind keine eigenen Bereiche mehr — sie liegen unter **Notizen**.
+- **Alle Bereiche** (Notizen, Heute, Aufgaben, Kalender, E-Mail, Graph, Offene Kommentare) erreichst Du jederzeit über das **Bereichs-Blatt**: über **Bereiche** in der Leiste oder **langes Drücken auf die Leiste**. Das Blatt markiert den aktuellen Bereich und führt unten direkt zu **Navigationsleiste anpassen…**. Tags, Lesezeichen und Zuletzt geöffnet sind keine eigenen Bereiche mehr — sie liegen unter **Notizen**.
 - **Navigationsleiste einstellen:** **Einstellungen** → **Navigationsleiste**. Dort legst Du mit **−**/**+** fest, wie viele Arbeitsflächen die Leiste zeigt (2–4, mit Live-Vorschau), und ordnest die Liste per **Zieh-Griff**: die oberen Einträge bilden die Leiste (im Rahmen markiert), nach oben ziehen befördert einen Bereich hinein. Am oberen oder unteren Rand scrollt die Liste beim Ziehen mit — so reicht eine Bewegung auch über die ganze Liste. Ausgeblendet wird nichts — was nicht in der Leiste steht, bleibt über **Bereiche** erreichbar. Verlässt der gerade offene Bereich die Leiste, springt die App auf den ersten sichtbaren. Dieselbe Leiste kannst Du auch **am Desktop** anordnen (Einstellungen → Vault → Leisten & Bereiche); mit eingeschaltetem Einstellungs-Sync reist die Anordnung zwischen Deinen Geräten mit.
 - **Eine Ordnerzeile zählt alles darunter**, nicht nur die Notizen, die direkt darin liegen — ein Ordner voller Unterordner meldet also nicht mehr „0 Notizen“ neben einem Pfeil, der zu Hunderten führt.
 - **＋** schwebt als runder Knopf über der Leiste und öffnet die Schnellanlage: Notiz, Tagesnotiz, Ordner, Datenbank, „Aus Vorlage…".

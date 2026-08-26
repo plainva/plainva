@@ -3547,7 +3547,17 @@
     "confirmPassphrase": "Powtórz nowe hasło dostępu",
     "passphraseChangeNote": "Ponownie zapieczętowane zostają tylko klucze na tym urządzeniu. Plik odzyskiwania i jego kod pozostają ważne.",
     "passphraseChanged": "Hasło dostępu zmienione.",
-    "passphraseChangeFailed": "Nie udało się zmienić hasła dostępu. Czy bieżące hasło jest poprawne?"
+    "passphraseChangeFailed": "Nie udało się zmienić hasła dostępu. Czy bieżące hasło jest poprawne?",
+    "commentOverview": "Otwarte komentarze",
+    "commentOverviewAll": "Wszystkie",
+    "commentOverviewMine": "Do mnie",
+    "commentOverviewNone": "Brak otwartych komentarzy w tym vaulcie.",
+    "commentOverviewNoneMine": "Nikt w tej chwili na Ciebie nie czeka.",
+    "suggestionPending": "Otwarta propozycja",
+    "commentReplyCount_one": "{{count}} odpowiedź",
+    "commentReplyCount_few": "{{count}} odpowiedzi",
+    "commentReplyCount_many": "{{count}} odpowiedzi",
+    "commentReplyCount_other": "{{count}} odpowiedzi"
   },
   "cascade": {
     "titleNote": "Usuń „{{name}}”",

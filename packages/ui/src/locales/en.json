@@ -3491,7 +3491,15 @@
     "confirmPassphrase": "Repeat new passphrase",
     "passphraseChangeNote": "Only the keys on this device are resealed. Your recovery file and its code stay valid.",
     "passphraseChanged": "Passphrase changed.",
-    "passphraseChangeFailed": "Could not change the passphrase. Is the current one correct?"
+    "passphraseChangeFailed": "Could not change the passphrase. Is the current one correct?",
+    "commentOverview": "Open comments",
+    "commentOverviewAll": "All",
+    "commentOverviewMine": "For me",
+    "commentOverviewNone": "No open comments in this vault.",
+    "commentOverviewNoneMine": "Nobody is waiting on you right now.",
+    "suggestionPending": "Open suggestion",
+    "commentReplyCount_one": "{{count}} reply",
+    "commentReplyCount_other": "{{count}} replies"
   },
   "cascade": {
     "titleNote": "Delete “{{name}}”",

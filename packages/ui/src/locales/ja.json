@@ -3463,7 +3463,14 @@
     "confirmPassphrase": "新しいパスフレーズをもう一度",
     "passphraseChangeNote": "再封印されるのはこの端末の鍵だけです。復旧ファイルとそのコードは有効なままです。",
     "passphraseChanged": "パスフレーズを変更しました。",
-    "passphraseChangeFailed": "パスフレーズを変更できませんでした。現在のパスフレーズは正しいですか？"
+    "passphraseChangeFailed": "パスフレーズを変更できませんでした。現在のパスフレーズは正しいですか？",
+    "commentOverview": "未解決のコメント",
+    "commentOverviewAll": "すべて",
+    "commentOverviewMine": "自分宛て",
+    "commentOverviewNone": "この保管庫に未解決のコメントはありません。",
+    "commentOverviewNoneMine": "今のところあなたを待っている人はいません。",
+    "suggestionPending": "未処理の提案",
+    "commentReplyCount_other": "返信 {{count}} 件"
   },
   "cascade": {
     "titleNote": "「{{name}}」を削除",

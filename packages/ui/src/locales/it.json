@@ -3519,7 +3519,16 @@
     "confirmPassphrase": "Ripeti la nuova passphrase",
     "passphraseChangeNote": "Vengono risigillate solo le chiavi su questo dispositivo. Il file di ripristino e il suo codice restano validi.",
     "passphraseChanged": "Passphrase cambiata.",
-    "passphraseChangeFailed": "Impossibile cambiare la passphrase. Quella attuale è corretta?"
+    "passphraseChangeFailed": "Impossibile cambiare la passphrase. Quella attuale è corretta?",
+    "commentOverview": "Commenti aperti",
+    "commentOverviewAll": "Tutti",
+    "commentOverviewMine": "Per me",
+    "commentOverviewNone": "Nessun commento aperto in questo vault.",
+    "commentOverviewNoneMine": "Al momento nessuno sta aspettando te.",
+    "suggestionPending": "Proposta aperta",
+    "commentReplyCount_one": "{{count}} risposta",
+    "commentReplyCount_many": "{{count}} risposte",
+    "commentReplyCount_other": "{{count}} risposte"
   },
   "cascade": {
     "titleNote": "Elimina “{{name}}”",
