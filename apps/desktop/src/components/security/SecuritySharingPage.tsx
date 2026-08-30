@@ -207,10 +207,13 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
 
   /**
    * Opens the slice wizard. The publication mode is PINNED to "private" until
-   * Stufe B builds the publishing path: `createWorkspaceSlice` would otherwise
-   * persist a publication whose four core primitives have no caller, and the
-   * success toast would report a share that never happens (B1, P1 2026-08-25).
-   * Stufe B restores the caller-chosen mode here.
+   * Stufe B built the publishing path, and the wizard still stops at the slice
+   * on purpose (S7). Publishing is a separate, deliberate act: it needs a
+   * provider, an access level and an exact-or-sanitized choice, it creates a
+   * second workspace with its own keys, and it is the one step here that hands
+   * bytes to somebody outside the vault. Folding that into the last page of a
+   * wizard would let a mis-click publish. "Create publication" on the slice row
+   * is the single execution path, and the contract test pins this line.
    */
   const openSliceWizard = (): void => {
     setSlicePreview(null);
