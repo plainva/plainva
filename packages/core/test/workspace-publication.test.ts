@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FakeWorkspaceObjectStore,
+  MemoryWorkspaceStateStore,
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
   createPublication,
@@ -20,6 +21,7 @@ import {
   workspaceRecipientGroupIds,
   type PublicationManifest,
   type PublishedSliceConfig,
+  type WorkspacePublicationRecord,
 } from "../src/index.js";
 
 /**
@@ -727,5 +729,91 @@ describe("runPublicationRefresh", () => {
       },
     });
     expect(seen).toEqual([1, 2]);
+  });
+});
+
+
+describe("publication state store", () => {
+  const config: PublishedSliceConfig = {
+    publicationId: "pub-a",
+    sliceId: "slice-a",
+    name: "Quarterly review",
+    mode: "sanitized",
+    access: "read",
+    provider: "webdav",
+    propertyAllowlist: ["title"],
+    privateProperties: ["salary"],
+    createdAt: "2026-08-30T08:00:00.000Z",
+  };
+
+  const record = (over: Partial<WorkspacePublicationRecord> = {}): WorkspacePublicationRecord => ({
+    publicationId: config.publicationId,
+    sliceId: config.sliceId,
+    config,
+    manifest: emptyPublicationManifest(config.publicationId),
+    lastError: null,
+    lastRefreshedAt: null,
+    createdAt: config.createdAt,
+    ...over,
+  });
+
+  it("round-trips a publication with its config and manifest", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    await state.savePublication(record());
+
+    const read = await state.getPublication("pub-a");
+    expect(read?.config.privateProperties).toEqual(["salary"]);
+    expect(read?.manifest.sequence).toBe(1);
+    // `null` is a value here, not an absence: "the last refresh ran to the end"
+    // and "we have never refreshed" have to stay distinguishable from a string.
+    expect(read?.lastError).toBeNull();
+    expect(await state.listPublications()).toHaveLength(1);
+  });
+
+  it("keeps the creation moment when a later refresh saves over it", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    await state.savePublication(record());
+    await state.savePublication(
+      record({
+        manifest: { ...emptyPublicationManifest("pub-a"), sequence: 4 },
+        lastRefreshedAt: "2026-08-30T09:30:00.000Z",
+        // A caller that re-derives the record has no reason to carry the
+        // original timestamp forward, so the store must not take this one.
+        createdAt: "2026-08-30T09:30:00.000Z",
+      }),
+    );
+
+    const read = await state.getPublication("pub-a");
+    expect(read?.manifest.sequence).toBe(4);
+    expect(read?.lastRefreshedAt).toBe("2026-08-30T09:30:00.000Z");
+    expect(read?.createdAt).toBe("2026-08-30T08:00:00.000Z");
+    expect(await state.listPublications()).toHaveLength(1);
+  });
+
+  it("remembers why a refresh stopped, because nobody watches a background cycle", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    await state.savePublication(record({ lastError: "provider rejected the upload" }));
+    expect((await state.getPublication("pub-a"))?.lastError).toBe("provider rejected the upload");
+
+    // And forgets it again once a refresh gets through - a stale reason would
+    // report a publication as broken long after it recovered.
+    await state.savePublication(record({ lastError: null, lastRefreshedAt: "2026-08-30T10:00:00.000Z" }));
+    expect((await state.getPublication("pub-a"))?.lastError).toBeNull();
+  });
+
+  it("drops a publication on request and reports a missing one as null", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    await state.savePublication(record());
+    await state.deletePublication("pub-a");
+    expect(await state.getPublication("pub-a")).toBeNull();
+    expect(await state.listPublications()).toEqual([]);
+  });
+
+  it("hands out copies, so a caller cannot edit the stored record by accident", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    await state.savePublication(record());
+    const read = (await state.getPublication("pub-a"))!;
+    read.config.privateProperties.push("bonus");
+    expect((await state.getPublication("pub-a"))?.config.privateProperties).toEqual(["salary"]);
   });
 });

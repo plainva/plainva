@@ -1,6 +1,8 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import type { WorkspaceCommentAnchor } from "./commentAnchor.js";
+import type { PublicationManifest } from "./publication.js";
+import type { PublishedSliceConfig } from "./publishedSlices.js";
 
 export type WorkspaceLifecyclePhase = "preparing" | "migrating" | "active" | "locked" | "error";
 export type WorkspaceQueueOperation = "write" | "mkdir" | "rename" | "delete";
@@ -78,6 +80,33 @@ export interface WorkspaceLocalForkRecord {
   originalPath: string;
   forkPath: string;
   reason: "permission-denied" | "parallel-write" | "path-collision";
+  createdAt: string;
+}
+
+/**
+ * What the publisher remembers about one published slice (S4b).
+ *
+ * Two fields, two different reasons. The `manifest` is the durable half of the
+ * refresh: it says what the publication currently holds, and a plan is derived
+ * from it - which is why there is no pending counter here. "Up to date" and
+ * "N changes pending" are `planPublicationRefresh(...).length`, and a stored
+ * count would be the second copy of a truth that can fall out of step with the
+ * first. `lastError` cannot be derived: a refresh fails inside a background
+ * cycle, and if nobody writes the reason down the UI later sees only that
+ * something is pending, never why it stopped.
+ *
+ * No key material: the publication's own runtime (device key, group keys) goes
+ * to the OS credential store, never into a synchronised database.
+ */
+export interface WorkspacePublicationRecord {
+  publicationId: string;
+  sliceId: string;
+  /** The config exactly as `createSlicePublication` returned it. */
+  config: PublishedSliceConfig;
+  manifest: PublicationManifest;
+  /** Why the last refresh stopped, or null when it ran to the end. */
+  lastError: string | null;
+  lastRefreshedAt: string | null;
   createdAt: string;
 }
 
@@ -209,7 +238,7 @@ export interface WorkspaceStateStore {
   saveMeta(meta: WorkspaceRuntimeMeta): Promise<void>;
   /**
    * Drops ALL local workspace state (meta, objects, revisions, operations,
-   * comments, quarantine, forks, probes, queue). Used to decommission a
+   * comments, quarantine, forks, probes, publications, queue). Used to decommission a
    * workspace on this device (Stilllegen P4): without it, re-enabling a workspace
    * on the same vault would trip `requireMeta`'s "belongs to another workspace"
    * guard on the stale meta. Does NOT touch remote objects or the vault files.
@@ -233,6 +262,10 @@ export interface WorkspaceStateStore {
   setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void>;
   listLocalForks(): Promise<WorkspaceLocalForkRecord[]>;
   saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void>;
+  listPublications(): Promise<WorkspacePublicationRecord[]>;
+  getPublication(publicationId: string): Promise<WorkspacePublicationRecord | null>;
+  savePublication(record: WorkspacePublicationRecord): Promise<void>;
+  deletePublication(publicationId: string): Promise<void>;
   listLocalProbes(): Promise<WorkspaceLocalProbe[]>;
   upsertLocalProbes(probes: WorkspaceLocalProbe[]): Promise<void>;
   deleteLocalProbes(paths: string[]): Promise<void>;
@@ -273,6 +306,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private readonly comments = new Map<string, WorkspaceCommentRecord>();
   private readonly quarantine = new Map<string, WorkspaceQuarantineRecord>();
   private readonly forks = new Map<string, WorkspaceLocalForkRecord>();
+  private readonly publications = new Map<string, WorkspacePublicationRecord>();
   private readonly probes = new Map<string, WorkspaceLocalProbe>();
   private readonly queue: WorkspaceQueuedMutation[] = [];
   private nextQueueId = 1;
@@ -287,6 +321,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     this.comments.clear();
     this.quarantine.clear();
     this.forks.clear();
+    this.publications.clear();
     this.probes.clear();
     this.queue.length = 0;
     this.nextQueueId = 1;
@@ -327,6 +362,17 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> { return [...this.forks.values()].map(clone).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> { this.forks.set(record.forkId, clone(record)); }
+  async listPublications(): Promise<WorkspacePublicationRecord[]> { return [...this.publications.values()].map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+  async getPublication(publicationId: string): Promise<WorkspacePublicationRecord | null> { return clone(this.publications.get(publicationId) ?? null); }
+  async savePublication(record: WorkspacePublicationRecord): Promise<void> {
+    // Keep the original creation moment, exactly as the SQL upsert does: a
+    // caller that re-derives the record has no reason to carry it forward,
+    // and two stores that disagree here would let a test pass on one and
+    // fail on the other.
+    const existing = this.publications.get(record.publicationId);
+    this.publications.set(record.publicationId, clone({ ...record, createdAt: existing?.createdAt ?? record.createdAt }));
+  }
+  async deletePublication(publicationId: string): Promise<void> { this.publications.delete(publicationId); }
   async listLocalProbes(): Promise<WorkspaceLocalProbe[]> { return [...this.probes.values()].map(clone).sort((a, b) => a.path.localeCompare(b.path)); }
   async upsertLocalProbes(probes: WorkspaceLocalProbe[]): Promise<void> {
     for (const probe of probes) this.probes.set(probe.path, clone(probe));
@@ -451,6 +497,23 @@ interface ForkRow {
   fork_id: string; original_path: string; fork_path: string; reason: WorkspaceLocalForkRecord["reason"]; created_at: string;
 }
 
+interface PublicationRow {
+  publication_id: string; slice_id: string; config_json: string; manifest_json: string;
+  last_error: string | null; last_refreshed_at: string | null; created_at: string;
+}
+
+function publicationFromRow(row: PublicationRow): WorkspacePublicationRecord {
+  return {
+    publicationId: row.publication_id,
+    sliceId: row.slice_id,
+    config: JSON.parse(row.config_json) as PublishedSliceConfig,
+    manifest: JSON.parse(row.manifest_json) as PublicationManifest,
+    lastError: row.last_error,
+    lastRefreshedAt: row.last_refreshed_at,
+    createdAt: row.created_at,
+  };
+}
+
 function objectFromRow(row: ObjectRow): WorkspaceObjectRecord {
   return {
     objectId: row.object_id,
@@ -530,6 +593,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
         "workspace_quarantine",
         "workspace_local_fork",
         "workspace_local_probe",
+        "workspace_publication",
         "workspace_queue",
         "workspace_checkpoint",
       ].map((table) => ({ sql: `DELETE FROM ${table}`, params: [] }))
@@ -588,6 +652,25 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> {
     await this.db.execute(`INSERT OR REPLACE INTO workspace_local_fork (fork_id,original_path,fork_path,reason,created_at) VALUES (?,?,?,?,?)`, [record.forkId, record.originalPath, record.forkPath, record.reason, record.createdAt]);
+  }
+  async listPublications(): Promise<WorkspacePublicationRecord[]> {
+    const rows = await this.db.query<PublicationRow>(`SELECT * FROM workspace_publication ORDER BY created_at, publication_id`);
+    return rows.map(publicationFromRow);
+  }
+  async getPublication(publicationId: string): Promise<WorkspacePublicationRecord | null> {
+    const row = await this.db.queryOne<PublicationRow>(`SELECT * FROM workspace_publication WHERE publication_id = ? LIMIT 1`, [publicationId]);
+    return row ? publicationFromRow(row) : null;
+  }
+  async savePublication(record: WorkspacePublicationRecord): Promise<void> {
+    // `created_at` is deliberately not updated: a publication keeps the moment
+    // it was created, and every later save is a refresh of what it holds.
+    await this.db.execute(
+      `INSERT INTO workspace_publication (publication_id,slice_id,config_json,manifest_json,last_error,last_refreshed_at,created_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(publication_id) DO UPDATE SET slice_id=excluded.slice_id,config_json=excluded.config_json,manifest_json=excluded.manifest_json,last_error=excluded.last_error,last_refreshed_at=excluded.last_refreshed_at`,
+      [record.publicationId, record.sliceId, JSON.stringify(record.config), JSON.stringify(record.manifest), record.lastError, record.lastRefreshedAt, record.createdAt]
+    );
+  }
+  async deletePublication(publicationId: string): Promise<void> {
+    await this.db.execute(`DELETE FROM workspace_publication WHERE publication_id = ?`, [publicationId]);
   }
   async listLocalProbes(): Promise<WorkspaceLocalProbe[]> {
     const rows = await this.db.query<{ path: string; mtime: number; size: number; plaintext_sha256: string }>(`SELECT * FROM workspace_local_probe ORDER BY path`);

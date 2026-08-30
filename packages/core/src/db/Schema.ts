@@ -199,6 +199,21 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       size             INTEGER NOT NULL,
       plaintext_sha256 TEXT NOT NULL
     );`,
+    // What the publisher remembers about one published slice (S4b). Carries no
+    // key material - the publication's own runtime lives in the OS credential
+    // store, one slot per publication, the way the main runtime always has.
+    // `slice_id` is a column rather than a JSON field because it is the one
+    // thing callers filter by; no index, because a vault has a handful of
+    // publications and an index that never pays for itself is noise.
+    `CREATE TABLE IF NOT EXISTS workspace_publication (
+      publication_id    TEXT PRIMARY KEY,
+      slice_id          TEXT NOT NULL,
+      config_json       TEXT NOT NULL,
+      manifest_json     TEXT NOT NULL,
+      last_error        TEXT,
+      last_refreshed_at TEXT,
+      created_at        TEXT NOT NULL
+    );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,

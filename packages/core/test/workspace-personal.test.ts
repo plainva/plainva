@@ -239,6 +239,7 @@ describe("personal encrypted workspace P3", () => {
     expect(await state.listQueue()).toEqual([]);
     expect(await state.listLocalProbes()).toEqual([]);
     expect(await state.listLocalForks()).toEqual([]);
+    expect(await state.listPublications()).toEqual([]);
     // Re-enabling a workspace on the same store no longer trips the stale-meta
     // guard: a fresh migration builds clean meta again.
     await initialise(vault, state, store, first);
