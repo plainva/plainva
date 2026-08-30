@@ -261,33 +261,42 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(mobile).not.toContain("setMemberId");
     expect(mobile).not.toContain('t("workspaceSecurity.memberId"');
   });
-  it("source: the publication surface says it does not exist yet (P1, B1)", () => {
-    // Four core primitives are tested and have NO caller: projectPublishedMarkdown,
-    // PublishedSliceObjectStore, publishedSliceAccessCapabilities and
-    // publishedSliceProviderInstructions. Until Stufe B wires them, no surface may
-    // suggest that publishing happens.
+  it("source: publishing exists on the desktop, is honest about the phone, and never runs from the wizard", () => {
+    // The four core primitives now have callers. What this pins is the shape of
+    // the wiring, because each of these was a way to get it wrong:
     //
-    // The guarantee is structural, not cosmetic: opening the wizard PINS the mode to
-    // "private" in state, so the submit path below cannot construct a publication even
-    // if a `disabled` attribute were lost in a refactor.
-    expect(page).toContain('const openSliceWizard = (): void => {');
-    expect(page).toMatch(/openSliceWizard[\s\S]{0,400}?publicationMode: "private"/);
-    // The publications area no longer prints a directory nothing writes to,
-    // and its action is disabled.
-    // Comments may still name the path (they explain why it left); what must not
-    // survive is the path being RENDERED.
+    //  - the publication is created from the Publications area, which is the only
+    //    place that can also show its recipients and its provider advice;
+    //  - the wizard still cannot mint one (mode pinned, Selects disabled), so a
+    //    lost `disabled` in a refactor cannot produce a half-configured second
+    //    publication behind the publisher's back;
+    //  - the phone says what it cannot do instead of implying it can.
+    expect(page).toContain("createSlicePublication");
+    expect(page).toContain("invitePublicationRecipient");
+    expect(page).toContain("listPublicationRecipients");
+    // The advice a publisher acts on comes from core, through the shared mapper —
+    // two shells must not tell someone two different things about one folder.
+    expect(page).toContain("publishedSliceProviderInstructions");
+    expect(page).toContain("publicationInstructionText");
+    // The code that lets a recipient in is core's, rendered — not a second encoder.
+    expect(page).toMatch(/invitePublicationRecipient[\s\S]{0,600}?setPublicationInvite/);
+    expect(page).toContain("<QrImage");
+    // Still true, and still load-bearing: the directory nothing writes to is not
+    // rendered. Comments may name the path; what must not survive is printing it.
     const pageCode = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     expect(pageCode).not.toContain(".pvws/publications/");
-    expect(page).toContain("workspaceSecurity.publicationPreviewOnly");
-    expect(page).toMatch(/createPublication[\s\S]{0,200}?disabled|disabled[\s\S]{0,200}?createPublication/);
-    // Both shells say the same sentence — otherwise the desktop is honest and
-    // the phone is not.
-    expect(mobile).toContain("workspaceSecurity.publicationPreviewOnly");
-    // The three wizard decisions stay VISIBLE (so the shape is known) but are
-    // disabled; the old `publicationMode !== "private"` gate that hid access and
-    // provider is gone.
-    expect(dialog).toContain("workspaceSecurity.publicationPreviewOnly");
+    // The wizard creates the slice and stops there.
+    expect(page).toContain("const openSliceWizard = (): void => {");
+    expect(page).toMatch(/openSliceWizard[\s\S]{0,400}?publicationMode: "private"/);
+    expect(dialog).not.toContain("workspaceSecurity.publicationPreviewOnly");
+    expect(dialog).toContain("workspaceSecurity.publicationInWizardHint");
     expect(dialog).not.toContain('form.publicationMode !== "private" &&');
     expect(dialog.match(/<Select disabled/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    // The phone names the asymmetry instead of the old "nothing is shared yet",
+    // which stopped being true the moment the desktop could publish.
+    expect(mobile).not.toContain("workspaceSecurity.publicationPreviewOnly");
+    expect(mobile).toContain("workspaceSecurity.publicationDesktopOnly");
+    const parity = readFileSync(new URL("../../../../../packages/ui/src/lib/featureParity.ts", import.meta.url), "utf8");
+    expect(parity).toContain('id: "workspace-publication-create"');
   });
 });

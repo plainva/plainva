@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, ICON, Modal, QrImage, SettingCard, SettingCardNote, SettingRow, TextInput, toast, type SecurityAreaId } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
-import { defaultPublishedPropertyPolicy, type WorkspaceSliceObject } from "@plainva/core";
+import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
@@ -56,6 +56,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     createWorkspaceSlice,
     previewWorkspaceSlice,
     listWorkspaceSliceObjects,
+    createSlicePublication,
+    listSlicePublications,
+    invitePublicationRecipient,
+    listPublicationRecipients,
     restoreWorkspaceRecovery,
     rotateWorkspaceRecovery,
     activateWorkspaceRecovery,
@@ -102,6 +106,23 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   // offering two danger buttons whose difference only the confirmation explained.
   const [revokeFor, setRevokeFor] = useState<RevokeSubject | null>(null);
   const [rotatedRecoveryCode, setRotatedRecoveryCode] = useState<string | null>(null);
+  // Publications, loaded when the area is opened rather than with the page: the
+  // records live in the workspace state store, and most visits never come here.
+  const [publications, setPublications] = useState<WorkspacePublicationRecord[] | null>(null);
+  // Recipients keyed by publication id. Each list is read out of that
+  // publication's own policy - the main vault's members are a different set,
+  // and mixing them would be the beginning of showing somebody the wrong door.
+  const [recipients, setRecipients] = useState<Record<string, PublicationRecipient[]>>({});
+  const [publishFor, setPublishFor] = useState<{ sliceId: string; name: string } | null>(null);
+  const [publishAccess, setPublishAccess] = useState<"read" | "comment" | "suggest">("read");
+  const [publishMode, setPublishMode] = useState<"exact" | "sanitized">("exact");
+  const [publishProvider, setPublishProvider] = useState<PublishedSliceProvider>("google-drive");
+  const [recipientFor, setRecipientFor] = useState<{ publicationId: string; name: string } | null>(null);
+  const [recipientName, setRecipientName] = useState("");
+  // The minted code, held until the publisher has copied it. It is shown once;
+  // nothing stores it, because a code that could be read back later would be a
+  // second way into a publication that only membership should open.
+  const [publicationInvite, setPublicationInvite] = useState<{ displayName: string; memberId: string; invite: string } | null>(null);
   // The security area is owned by the settings modal now (IA v2, P1): the left
   // column (SecurityNav) selects it and drives this via the prop. null = the
   // overview (first level); a value renders exactly that management area.
@@ -136,17 +157,43 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     return () => window.removeEventListener("plainva-workspace-governance-changed", refresh);
   }, [refreshGovernance]);
 
+  /**
+   * Publications and their recipients.
+   *
+   * Recipients come from each publication's own runtime, so this reads every
+   * one - a list that showed publications but not who can open them would leave
+   * the one question a publisher actually has unanswered. A locked publication
+   * yields an empty list rather than an error: the vault is locked, not broken.
+   */
+  const refreshPublications = useCallback(async () => {
+    if (!status || status.phase === "locked") { setPublications(null); setRecipients({}); return; }
+    try {
+      const records = await listSlicePublications();
+      setPublications(records);
+      const entries = await Promise.all(records.map(async (record) => {
+        try { return [record.publicationId, await listPublicationRecipients(record.publicationId)] as const; }
+        catch { return [record.publicationId, [] as PublicationRecipient[]] as const; }
+      }));
+      setRecipients(Object.fromEntries(entries));
+    } catch (error) { console.warn("[SecuritySharingPage] publications failed", error); }
+  }, [listPublicationRecipients, listSlicePublications, status]);
+
+  useEffect(() => { if (area === "publications") void refreshPublications(); }, [area, refreshPublications]);
+
   const runGovernance = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
     try { await action(); setDialog(null); toast.info(success); await refreshGovernance(); await refreshDiagnostics(); }
-    catch (error) { console.error("[SecuritySharingPage] governance action failed", error); toast.error(error instanceof Error ? error.message : String(error)); }
+    // publicationErrorText leaves anything it does not recognise untouched, so
+    // the non-publication actions keep the message they always showed; the five
+    // publication codes stop reaching the person as "publication-key-missing".
+    catch (error) { console.error("[SecuritySharingPage] governance action failed", error); toast.error(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
   const previewSlice = async () => {
     setBusy(true);
     try { setSlicePreview(await previewWorkspaceSlice(parseSliceForm(form))); }
-    catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    catch (error) { toast.error(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
@@ -162,7 +209,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     setSliceObjects(null);
     void listWorkspaceSliceObjects()
       .then(setSliceObjects)
-      .catch((error) => toast.error(error instanceof Error ? error.message : String(error)));
+      .catch((error) => toast.error(publicationErrorText(error, t)));
     setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
   };
@@ -287,7 +334,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       setInviteFor({ memberId, displayName: form.name, role: form.role });
     } catch (error) {
       console.error("[SecuritySharingPage] invite failed", error);
-      toast.error(error instanceof Error ? error.message : String(error));
+      toast.error(publicationErrorText(error, t));
     } finally {
       setBusy(false);
     }
@@ -313,7 +360,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const inspectPairing = async (): Promise<void> => {
     setBusy(true);
     try { setPairPreview(await inspectWorkspacePairingRequest(form.code)); }
-    catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    catch (error) { toast.error(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
@@ -327,7 +374,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       await writeFile(target, rotated.bytes);
       await activateWorkspaceRecovery(rotated.activation);
       setRotatedRecoveryCode(rotated.recoveryCode);
-    } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    } catch (error) { toast.error(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
@@ -342,7 +389,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       await activateWorkspaceOwnerTransfer(prepared.activation);
       setRotatedRecoveryCode(prepared.recoveryCode);
       await refreshGovernance();
-    } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
+    } catch (error) { toast.error(publicationErrorText(error, t)); }
     finally { setBusy(false); }
   };
 
@@ -574,18 +621,30 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           )}
           {area === "publications" && (
             <SettingCard label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}>
-              {/* Publishing does not exist yet (B1): `projectPublishedMarkdown`,
-                  `PublishedSliceObjectStore`, `publishedSliceAccessCapabilities` and
-                  `publishedSliceProviderInstructions` are tested and have no caller.
-                  Until Stufe B wires them, this surface says so and the action is
-                  disabled — it used to print `.pvws/publications/<id>/` as a fact
-                  about a directory nothing writes to. */}
-              <Banner kind="warning" rounded>{t("workspaceSecurity.publicationPreviewOnly", { defaultValue: "Preview only: you can see how publishing will work, but nothing is shared yet." })}</Banner>
               <Banner kind="info" rounded>{t("workspaceSecurity.publicationIsolation", { defaultValue: "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption." })}</Banner>
-              <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} desc={t("workspaceSecurity.publishDesc", { defaultValue: "Choose exact or sanitized content, read/comment/suggestion access and a provider." })}>
-                <Button variant="primary" disabled>{t("workspaceSecurity.createPublication", { defaultValue: "Create publication" })}</Button>
-              </SettingRow>
-              {governance?.slices.filter((slice) => slice.publication).map((slice) => <SettingRow key={slice.sliceId} label={slice.name} desc={`${slice.publication!.mode} · ${slice.publication!.access} · ${slice.publication!.provider}`} />)}
+              <SettingRow label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })} desc={t("workspaceSecurity.publishDesc", { defaultValue: "Choose exact or sanitized content, read/comment/suggestion access and a provider." })} />
+              {(governance?.slices ?? []).length === 0 && <SettingCardNote>{t("workspaceSecurity.publicationNeedsSlice", { defaultValue: "Publishing starts from a Vault Slice. Create one under Share with others, then come back." })}</SettingCardNote>}
+              {(governance?.slices ?? []).map((slice) => {
+                const record = publications?.find((entry) => entry.sliceId === slice.sliceId) ?? null;
+                if (!record) return (
+                  <SettingRow key={slice.sliceId} label={slice.name} desc={t("workspaceSecurity.publicationNotPublished", { defaultValue: "Internal slice - not shared outside this vault" })}>
+                    <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setPublishFor({ sliceId: slice.sliceId, name: slice.name }); setPublishAccess("read"); setPublishMode("exact"); setPublishProvider("google-drive"); }} data-testid="workspace-publish-slice">{t("workspaceSecurity.createPublication", { defaultValue: "Create publication" })}</Button>
+                  </SettingRow>
+                );
+                const people = recipients[record.publicationId] ?? [];
+                return (
+                  <React.Fragment key={slice.sliceId}>
+                    <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider}`}>
+                      <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setRecipientFor({ publicationId: record.publicationId, name: slice.name }); setRecipientName(""); }} data-testid="workspace-invite-recipient">{t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })}</Button>
+                    </SettingRow>
+                    <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })} desc={people.length === 0 ? t("workspaceSecurity.publicationNoRecipients", { defaultValue: "Nobody has been invited yet. A publication without recipients is encrypted and unreadable - that is the safe state, not a broken one." }) : people.map((person) => person.displayName).join(", ")} />
+                    <SettingCardNote>
+                      {publishedSliceProviderInstructions(record.config).map((instruction) => publicationInstructionText(instruction, t)).join(" ")}
+                    </SettingCardNote>
+                  </React.Fragment>
+                );
+              })}
+              <TechDetails t={t} entries={(publications ?? []).map((record) => [record.config.name, record.publicationId] as const)} />
             </SettingCard>
           )}
         </div>
@@ -705,6 +764,61 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             );
           }}
         />
+      )}
+      {publishFor && (
+        <Modal title={t("workspaceSecurity.createPublication", { defaultValue: "Create publication" })} onClose={() => setPublishFor(null)} size="md">
+          <div className="pv-security-wizard">
+            <Banner kind="info" rounded>{t("workspaceSecurity.publicationCreateHint", { defaultValue: "The publication becomes a workspace of its own, with its own keys, in a folder that carries no trace of this vault. Recipients you invite can open it and nothing else." })}</Banner>
+            <SettingRow label={t("workspaceSecurity.sliceLabel", { defaultValue: "Vault Slice" })}><strong>{publishFor.name}</strong></SettingRow>
+            <div className="pv-security-field"><span>{t("workspaceSecurity.publicationMode", { defaultValue: "Publication" })}</span><Select value={publishMode} onChange={(value) => setPublishMode(value as "exact" | "sanitized")} ariaLabel={t("workspaceSecurity.publicationMode", { defaultValue: "Publication" })} options={[{ value: "exact", label: t("workspaceSecurity.exactPublication", { defaultValue: "Separate exact encrypted publication" }) }, { value: "sanitized", label: t("workspaceSecurity.sanitizedPublication", { defaultValue: "Separate sanitized encrypted publication" }) }]} /></div>
+            <div className="pv-security-field"><span>{t("workspaceSecurity.publicationAccess", { defaultValue: "Access" })}</span><Select value={publishAccess} onChange={(value) => setPublishAccess(value as "read" | "comment" | "suggest")} ariaLabel={t("workspaceSecurity.publicationAccess", { defaultValue: "Access" })} options={(["read", "comment", "suggest"] as const).map((value) => ({ value, label: t(`workspaceSecurity.publicationAccessName.${value}`, { defaultValue: value }) }))} /></div>
+            <div className="pv-security-field"><span>{t("workspaceSecurity.publicationProvider", { defaultValue: "Provider" })}</span><Select value={publishProvider} onChange={(value) => setPublishProvider(value as PublishedSliceProvider)} ariaLabel={t("workspaceSecurity.publicationProvider", { defaultValue: "Provider" })} options={(["google-drive", "onedrive", "nextcloud", "dropbox", "webdav", "s3"] as const).map((value) => ({ value, label: value }))} /></div>
+            <SettingCardNote>{publishedSliceProviderInstructions({ provider: publishProvider, access: publishAccess }).map((instruction) => publicationInstructionText(instruction, t)).join(" ")}</SettingCardNote>
+            <div className="pv-security-actions">
+              <Button variant="ghost" disabled={busy} onClick={() => setPublishFor(null)}>{t("common.cancel")}</Button>
+              <Button variant="primary" disabled={busy} onClick={() => {
+                const slice = publishFor;
+                void runGovernance(async () => {
+                  await createSlicePublication({ sliceId: slice.sliceId, name: slice.name, mode: publishMode, access: publishAccess, provider: publishProvider, ...(publishMode === "sanitized" ? defaultPublishedPropertyPolicy() : { propertyAllowlist: null, privateProperties: [] }) });
+                  setPublishFor(null);
+                  await refreshPublications();
+                }, t("workspaceSecurity.publicationCreated", { defaultValue: "Encrypted publication configured" }));
+              }} data-testid="workspace-publish-confirm">{t("common.confirm", { defaultValue: "Confirm" })}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {recipientFor && (
+        <Modal title={t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })} onClose={() => { setRecipientFor(null); setPublicationInvite(null); }} size="md">
+          <div className="pv-security-wizard">
+            {publicationInvite ? (<>
+              <Banner kind="success" rounded>{t("workspaceSecurity.publicationInviteHint", { defaultValue: "Send this code through a secure channel. It opens this publication only - never the vault it came from." })}</Banner>
+              <div className="pv-security-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><code className="pv-security-code">{publicationInvite.invite}</code></div>
+              <div className="pv-security-field"><span>{t("workspaceSecurity.inviteQrCaption", { defaultValue: "Or scan this code with the Plainva app on your other device" })}</span><QrImage value={publicationInvite.invite} label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })} /></div>
+              <div className="pv-security-field"><span>{t("workspaceSecurity.memberIdFull", { defaultValue: "Member ID" })}</span><code className="pv-security-code">{publicationInvite.memberId}</code></div>
+              <div className="pv-security-actions">
+                <Button variant="ghost" onClick={() => { setRecipientFor(null); setPublicationInvite(null); }}>{t("common.close", { defaultValue: "Close" })}</Button>
+                <Button variant="primary" onClick={() => void navigator.clipboard.writeText(publicationInvite.invite).then(() => toast.info(t("workspaceSecurity.copied")))}>{t("workspaceSecurity.copyInvite", { defaultValue: "Copy invitation" })}</Button>
+              </div>
+            </>) : (<>
+              <Banner kind="info" rounded>{t("workspaceSecurity.publicationRecipientHint", { defaultValue: "The recipient gets a key for this publication. It does not open the vault, and it stops working as soon as you withdraw them." })}</Banner>
+              <SettingRow label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}><strong>{recipientFor.name}</strong></SettingRow>
+              <label className="pv-security-field"><span>{t("workspaceSecurity.name")}</span><TextInput autoFocus value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
+              <div className="pv-security-actions">
+                <Button variant="ghost" disabled={busy} onClick={() => setRecipientFor(null)}>{t("common.cancel")}</Button>
+                <Button variant="primary" disabled={busy || !recipientName.trim()} onClick={() => {
+                  const target = recipientFor;
+                  const displayName = recipientName.trim();
+                  void runGovernance(async () => {
+                    const minted = await invitePublicationRecipient({ publicationId: target.publicationId, displayName });
+                    setPublicationInvite({ displayName, memberId: minted.memberId, invite: minted.invite });
+                    await refreshPublications();
+                  }, t("workspaceSecurity.publicationRecipientAdded", { defaultValue: "Recipient invited" }));
+                }} data-testid="workspace-recipient-confirm">{t("common.confirm", { defaultValue: "Confirm" })}</Button>
+              </div>
+            </>)}
+          </div>
+        </Modal>
       )}
       {inviteFor && status && (() => {
         const inviteCode = encodeWorkspaceInvite({ memberId: inviteFor.memberId, workspaceId: status.workspaceId, fingerprint: status.fingerprint, role: inviteFor.role });

@@ -787,6 +787,30 @@ export async function invitePublicationRecipient(input: {
   };
 }
 
+/**
+ * The door recipients come through, read back from a publication's policy.
+ *
+ * A publication carries exactly one group-scoped assignment: the one
+ * `createPublication` pushed with the access-derived capabilities. The
+ * publisher's own owner group has no assignment of its own - the bootstrap
+ * hangs Owner on the owner MEMBER - so a single group subject is unambiguous.
+ *
+ * Reading it back beats persisting it. A `WorkspacePublicationRecord` that
+ * carried the id could drift from the policy that defines it, and then two
+ * places would claim to know who may read; the policy is the only one that
+ * can actually be true. Returns null when the shape is not a publication's,
+ * so a caller refuses rather than inviting somebody into the wrong group.
+ */
+export function publicationRecipientGroupId(policy: WorkspacePolicyPayload): string | null {
+  const ids = new Set(
+    policy.assignments
+      .filter((assignment) => assignment.subjectKind === "group")
+      .map((assignment) => assignment.subjectId)
+      .filter((groupId) => policy.groups.some((group) => group.groupId === groupId)),
+  );
+  return ids.size === 1 ? [...ids][0] : null;
+}
+
 /** Who a publication currently reaches, for the list the publisher sees. */
 export function publicationRecipients(
   policy: WorkspacePolicyPayload,

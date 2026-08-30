@@ -621,11 +621,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
           </Button>
           <SectionLabel>{t("workspaceSecurity.publications")}</SectionLabel>
-          {/* The phone never created publications, but it listed them as if they
-              were live. Publishing is built in Stufe B (B1, P1 2026-08-25) — until
-              then both shells say the same sentence, otherwise the desktop is
-              honest and the phone is not. */}
-          <Banner kind="warning" rounded>{t("workspaceSecurity.publicationPreviewOnly")}</Banner>
+          {/* Publishing runs on the desktop (S5b); the phone lists what exists
+              and says so plainly. The asymmetry is a recorded gap
+              (`workspace-publication-create` in featureParity.ts), not an
+              oversight - Stufe C builds it here and deletes the entry. */}
+          <Banner kind="info" rounded>{t("workspaceSecurity.publicationDesktopOnly", { defaultValue: "Publishing runs on the desktop for now. Publications created there are listed here." })}</Banner>
           <GroupCard><RowList>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <Row key={`pub-${slice.sliceId}`} subtitle={`${slice.publication?.mode} · ${slice.publication?.access}`} title={slice.name} />)}</RowList></GroupCard>
         </>}
         </>}

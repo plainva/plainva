@@ -81,6 +81,16 @@ const fallbackAad = () => utf8Encode(FALLBACK_AAD_LABEL);
 /** Stated once, so the setup wizard and the change dialog cannot drift apart. */
 export const WORKSPACE_FALLBACK_PASSPHRASE_MIN_LENGTH = 10;
 
+/**
+ * The client version a workspace declares as its floor.
+ *
+ * Every bootstrap this app writes states it - the vault's own and each
+ * publication's. Two literals would drift the first time one was raised, and a
+ * publication promising a lower floor than the vault it came from would hand
+ * its recipients a document their client cannot read.
+ */
+export const WORKSPACE_MINIMUM_CLIENT_VERSION = "0.4.1";
+
 export async function getWorkspaceSecurityStatus(vaultPath: string): Promise<WorkspaceSecurityPublicStatus | null> {
   return (await getSettingsStore()).get<WorkspaceSecurityPublicStatus>(workspaceSecurityStatusKey(vaultPath)).then((status) => status ?? null);
 }

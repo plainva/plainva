@@ -62,3 +62,33 @@ export function publicationInstructionText(
     permission: instruction.permission ? publicationPermissionLabel(instruction.permission, t) : "",
   });
 }
+
+/**
+ * The control plane throws error codes, not sentences.
+ *
+ * Five of them, and each one means something different to the person in front
+ * of the screen: a publication this vault has never heard of, a vault that is
+ * locked, a key that lives on another device, a member without the right to
+ * invite, and a publication whose policy carries no recipient group. Showing
+ * the raw code was the state before S5b, and it told nobody anything.
+ *
+ * Unknown codes fall through unchanged rather than being swallowed by a
+ * generic sentence: an error we did not anticipate is still worth reading.
+ */
+const PUBLICATION_ERROR_KEYS: Record<string, string> = {
+  "publication-unknown": "publicationUnknown",
+  "publication-locked": "publicationLocked",
+  "publication-key-missing": "publicationKeyMissing",
+  "workspace-publication-not-permitted": "publicationNotPermitted",
+  "publication-recipient-group-missing": "publicationRecipientGroupMissing",
+};
+
+/** Turn a thrown publication error into a sentence, or leave it alone. */
+export function publicationErrorText(
+  error: unknown,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const key = PUBLICATION_ERROR_KEYS[raw];
+  return key ? t(`workspaceSecurity.${key}`, { defaultValue: raw }) : raw;
+}

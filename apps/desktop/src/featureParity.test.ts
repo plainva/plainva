@@ -169,6 +169,14 @@ describe("the guard itself catches", () => {
       /belongs in planning/,
     ],
     ["an absent shell without a reason", [{ ...VALID, mobileReason: undefined }], /needs a reason/],
+    [
+      // A hand-edited catalog can carry a word that looks like an answer. "no"
+      // once passed every rule below it - it is not "yes", so it only had to
+      // carry a reason, and it did - and only the typecheck objected.
+      "a shell state that does not exist",
+      [{ ...VALID, mobile: "no" as unknown as ParityFeatureDef["mobile"] }],
+      /is not a shell state/,
+    ],
     ["a reason too short to mean anything", [{ ...VALID, mobileReason: "later" }], /needs a reason/],
     [
       "a placeholder instead of a reason",

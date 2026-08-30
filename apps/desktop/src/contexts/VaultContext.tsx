@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, emptyPublicationManifest, publicationStoreFor, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -21,7 +21,7 @@ import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settin
 import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
@@ -218,6 +218,12 @@ interface VaultContextType extends VaultState {
   previewWorkspaceSlice: (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }) => Promise<Array<{ objectId: string; path: string }>>;
   /** Candidates a slice can be built FROM: every workspace object with the tags and properties a rule may ask about. The picker and the rule builder need the same list the preview matches against, so both come from one place. */
   listWorkspaceSliceObjects: () => Promise<WorkspaceSliceObject[]>;
+  /** Turns a slice into a publication: its own workspace, its own keys, its own folder. Returns the derived publication id. */
+  createSlicePublication: (input: { sliceId: string; name: string; mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: PublishedSliceProvider; propertyAllowlist?: string[] | null; privateProperties?: string[] }) => Promise<string>;
+  listSlicePublications: () => Promise<WorkspacePublicationRecord[]>;
+  /** Mints a recipient of one publication and returns the code that lets them in. Their key opens the publication and nothing else. */
+  invitePublicationRecipient: (input: { publicationId: string; displayName: string }) => Promise<{ memberId: string; invite: string }>;
+  listPublicationRecipients: (publicationId: string) => Promise<PublicationRecipient[]>;
   restoreWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }) => Promise<void>;
   rotateWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string }) => Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }>;
   activateWorkspaceRecovery: (activation: RotatedWorkspaceRecovery["anchor"]) => Promise<void>;
@@ -2240,6 +2246,110 @@ export const VaultProvider: React.FC<{
     return result.sliceId;
   };
 
+  /**
+   * Opens one publication for writing: its own runtime out of the credential
+   * store, and the store its objects live in.
+   *
+   * A publication is a workspace of its own. Its governance successors have to
+   * be published INTO it - writing one into the main vault's store would leave
+   * the recipients on the policy they were invited under, forever, while the
+   * publisher believed the change had landed. The two stores are never
+   * interchangeable, so this is the one place that pairs them.
+   */
+  const publicationControlPlane = async (publicationId: string) => {
+    const { runtime, workspaceState, store, vaultPath } = workspaceControlPlane();
+    const record = await workspaceState.getPublication(publicationId);
+    if (!record) throw new Error("publication-unknown");
+    const access = await readPublicationRuntime(vaultPath, publicationId);
+    // Three outcomes, three answers. A locked vault locks its publications with
+    // it - saying "unknown" there would invite a caller to create a second one.
+    // And a record whose key is gone from this device is neither: the
+    // publication exists, this machine just cannot speak for it any more.
+    if (access.state === "locked") throw new Error("publication-locked");
+    if (access.state !== "unlocked") throw new Error("publication-key-missing");
+    const publicationRuntime = access.runtime;
+    const publicationStore = publicationStoreFor(store, runtime.workspaceId, record.config.sliceId);
+    return { vaultPath, workspaceState, record, publicationRuntime, publicationStore };
+  };
+
+  /**
+   * Turns an existing slice into a publication: its own workspace, its own
+   * keys, in a folder that carries no trace of this vault's id.
+   *
+   * The id is derived inside `createPublication` and comes back on the handle -
+   * never passed in, so what is persisted here is what was actually written.
+   */
+  const addSlicePublication = async (input: { sliceId: string; name: string; mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: PublishedSliceProvider; propertyAllowlist?: string[] | null; privateProperties?: string[] }): Promise<string> => {
+    const { runtime, workspaceState, store, vaultPath } = workspaceControlPlane();
+    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "members.invite" }).allowed) throw new Error("workspace-publication-not-permitted");
+    const deviceDisplayName = runtime.policy.payload.devices.find((device) => device.deviceId === runtime.device.publicIdentity.deviceId)?.displayName ?? "Desktop";
+    const handle = await createPublication({
+      runtime,
+      store,
+      config: {
+        sliceId: input.sliceId,
+        name: input.name,
+        mode: input.mode,
+        access: input.access,
+        provider: input.provider,
+        propertyAllowlist: input.propertyAllowlist ?? null,
+        privateProperties: input.privateProperties ?? [],
+      },
+      deviceDisplayName,
+      platform: "desktop",
+      minimumClientVersion: WORKSPACE_MINIMUM_CLIENT_VERSION,
+    });
+    // Key material goes to the OS credential store, like the vault's own - the
+    // record that follows carries config and manifest, and nothing openable.
+    await persistPublicationRuntime(vaultPath, handle.publicationId, handle.runtime);
+    await workspaceState.savePublication({
+      publicationId: handle.publicationId,
+      sliceId: handle.config.sliceId,
+      config: handle.config,
+      manifest: emptyPublicationManifest(handle.publicationId),
+      lastError: null,
+      lastRefreshedAt: null,
+      createdAt: handle.config.createdAt,
+    });
+    // The next cycle fills it: `refreshPublications` runs after the checkpoint,
+    // so a publication never hands out a revision the vault has not accepted.
+    state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+    return handle.publicationId;
+  };
+
+  const slicePublications = async (): Promise<WorkspacePublicationRecord[]> => {
+    const { workspaceState } = workspaceControlPlane();
+    return workspaceState.listPublications();
+  };
+
+  /**
+   * Mints a recipient and returns the code that lets them in.
+   *
+   * The successor is published into the PUBLICATION's store and the updated
+   * runtime goes back to the credential store; both have to happen, because a
+   * policy the publisher cannot re-sign from is a publication nobody can be
+   * added to afterwards.
+   */
+  const addPublicationRecipient = async (input: { publicationId: string; displayName: string }): Promise<{ memberId: string; invite: string }> => {
+    const { vaultPath, publicationRuntime, publicationStore } = await publicationControlPlane(input.publicationId);
+    const recipientGroupId = publicationRecipientGroupId(publicationRuntime.policy.payload);
+    if (!recipientGroupId) throw new Error("publication-recipient-group-missing");
+    const update = await mintPublicationRecipient({ runtime: publicationRuntime, recipientGroupId, displayName: input.displayName });
+    await publishWorkspaceGovernanceUpdate(publicationStore, update);
+    applyWorkspaceGovernanceUpdate(publicationRuntime, update);
+    await persistPublicationRuntime(vaultPath, input.publicationId, publicationRuntime);
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+    return { memberId: update.memberId, invite: update.invite };
+  };
+
+  const publicationRecipientList = async (publicationId: string): Promise<PublicationRecipient[]> => {
+    const { publicationRuntime } = await publicationControlPlane(publicationId);
+    const recipientGroupId = publicationRecipientGroupId(publicationRuntime.policy.payload);
+    if (!recipientGroupId) return [];
+    return publicationRecipients(publicationRuntime.policy.payload, recipientGroupId);
+  };
+
   /** Every workspace object with the tags and properties a dynamic slice rule can ask about. */
   const workspaceSliceObjects = async () => {
     const { workspaceState } = workspaceControlPlane();
@@ -2569,7 +2679,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

@@ -550,6 +550,50 @@ export function publicationStoreFor(store: WorkspaceObjectStore, workspaceId: st
 }
 
 /**
+ * The same folder, seen from the other side.
+ *
+ * A publisher writes into `.pvws/publications/<id>/` inside their own vault
+ * remote, and shares exactly that subfolder with a recipient. The recipient
+ * therefore connects it as their ROOT: the objects sit directly under it, with
+ * no `.pvws/` segment left, because the publisher's wrapper stripped it on the
+ * way out.
+ *
+ * Nothing else in Plainva knows that. Every workspace read - genesis, policy,
+ * objects - asks for `.pvws/...`, so without this wrapper a shared publication
+ * folder looks empty to the person it was shared with, and the joining path
+ * reports no workspace rather than an error anyone could act on.
+ *
+ * It is the exact inverse of PublishedSliceObjectStore, and it lives beside it
+ * on purpose: the two mappings have to stay symmetrical, and a pair that can
+ * drift apart in two files eventually does.
+ */
+export class PublicationRecipientObjectStore implements WorkspaceObjectStore {
+  constructor(private readonly store: WorkspaceObjectStore) {}
+  private remote(key: string): string { return key.replace(/^\.pvws\//, ""); }
+  private local(info: WorkspaceObjectInfo): WorkspaceObjectInfo { return { ...info, key: `.pvws/${info.key}` }; }
+  async list(prefix: string, cursor?: string, options?: WorkspaceRequestOptions): Promise<WorkspaceListPage> {
+    const page = await this.store.list(this.remote(prefix), cursor, options);
+    return { items: page.items.map((entry) => this.local(entry)), ...(page.cursor ? { cursor: page.cursor } : {}) };
+  }
+  get(key: string, options?: WorkspaceRequestOptions) { return this.store.get(this.remote(key), options); }
+  getRange(key: string, start: number, endExclusive: number, options?: WorkspaceRequestOptions) { return this.store.getRange(this.remote(key), start, endExclusive, options); }
+  async head(key: string, options?: WorkspaceRequestOptions) { const info = await this.store.head(this.remote(key), options); return info ? this.local(info) : null; }
+  putImmutable(key: string, bytes: Uint8Array, expectedSha256: string, options?: WorkspaceRequestOptions) { return this.store.putImmutable(this.remote(key), bytes, expectedSha256, options); }
+  compareAndSwapPointer(key: string, bytes: Uint8Array, previousEtag: string | null, options?: WorkspaceRequestOptions) { return this.store.compareAndSwapPointer(this.remote(key), bytes, previousEtag, options); }
+}
+
+/**
+ * The one place that wraps a shared publication folder for its recipient.
+ *
+ * Same reason as publicationStoreFor: a second construction site is free to
+ * map the keys slightly differently, and two mappings for one folder is how a
+ * recipient ends up reading half a workspace.
+ */
+export function publicationRecipientStoreFor(store: WorkspaceObjectStore): PublicationRecipientObjectStore {
+  return new PublicationRecipientObjectStore(store);
+}
+
+/**
  * The provider-facing permission an ACL should grant.
  *
  * A hint, not a role: the publication's own policy is what actually decides

@@ -55,6 +55,13 @@ describe("publication namespace", () => {
     expect(productionFilesContaining("new PublishedSliceObjectStore")).toEqual([FACTORY]);
   });
 
+  it("has its recipient half constructed in exactly one place too", () => {
+    // The inverse wrapper carries the same risk from the other side: a second
+    // copy is free to map the keys slightly differently, and a recipient who
+    // reads half a workspace sees a folder that looks merely empty.
+    expect(productionFilesContaining("new PublicationRecipientObjectStore")).toEqual([FACTORY]);
+  });
+
   it("has its path assembled in exactly one place", () => {
     // The stricter half: somebody could skip the class entirely and hand a
     // hand-built `.pvws/publications/<something>/` prefix to the plain store,

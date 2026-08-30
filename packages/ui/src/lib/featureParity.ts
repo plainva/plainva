@@ -126,6 +126,18 @@ export function findParityViolations(features: readonly ParityFeatureDef[]): str
       const reason = shell === "desktop" ? f.desktopReason : f.mobileReason;
       const where = `${at}.${shell}`;
 
+      // The type says "yes" | "partial" | null, but this catalog is edited by
+      // hand, and a plausible-looking "no" once slipped past every rule below:
+      // it is not "yes", so it merely had to carry a reason, and it did. Only
+      // the typecheck objected. A guard over this file should not need the
+      // compiler to notice a state that does not exist.
+      if (state !== null && state !== "yes" && state !== "partial") {
+        out.push(
+          `${where}: ${JSON.stringify(state)} is not a shell state - use "yes", "partial" or null`,
+        );
+        continue;
+      }
+
       if (state === "yes") {
         // A leftover reason next to a served shell goes stale unnoticed and
         // then reads as fact.
@@ -460,6 +472,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "secureCredentialStore and carries no fallback branch). The desktop shows the " +
       "control on the same condition: only when its own storage is the passphrase.",
     verified: "2026-08-25",
+  },
+  {
+    id: "workspace-publication-create",
+    title: "Publishing a Vault Slice to someone outside the vault",
+    area: "security",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop creates a publication - its own workspace, its own keys, its " +
+      "own folder - invites recipients and shows the provider advice that goes " +
+      "with it. The phone lists the publications that exist and says plainly that " +
+      "publishing runs on the desktop. This is a gap, not a platform limit: the " +
+      "core is shared and the phone already holds workspace keys. It waits on " +
+      "Stufe C, which builds the mobile half and deletes this entry.",
+    verified: "2026-08-30",
   },
   {
     id: "workspace-slice-kinds",

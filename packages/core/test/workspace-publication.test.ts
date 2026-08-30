@@ -16,7 +16,9 @@ import {
   parseWorkspaceDocument,
   personalWorkspaceRuntime,
   planPublicationRefresh,
+  publicationRecipientGroupId,
   publicationRecipients,
+  publicationRecipientStoreFor,
   publicationStoreFor,
   invitePublicationRecipient,
   publishSliceObjectContent,
@@ -28,6 +30,7 @@ import {
   type PublicationWriteHandle,
   type PublishedSliceConfig,
   type WorkspaceObjectRecord,
+  type WorkspaceObjectStore,
   type WorkspacePolicySlice,
   type WorkspacePublicationRecord,
 } from "../src/index.js";
@@ -1335,4 +1338,75 @@ describe("refreshWorkspacePublications", () => {
     ]);
     return new TextDecoder().decode(opened.plaintext!);
   }
+});
+
+describe("publicationRecipientGroupId", () => {
+  it("names the group an invite has to join, without a field that could drift", async () => {
+    const { handle } = await makePublication();
+
+    expect(publicationRecipientGroupId(handle.runtime.policy.payload)).toBe(handle.recipientGroupId);
+  });
+
+  it("refuses to guess on a policy that is not a publication's", async () => {
+    const main = personalWorkspaceRuntime(
+      await createPersonalWorkspaceBootstrap({
+        workspaceId: WORKSPACE,
+        ownerDisplayName: "Owner",
+        deviceDisplayName: "Desktop",
+        platform: "desktop",
+        minimumClientVersion: "0.5.0",
+        now: "2026-08-26T08:00:00.000Z",
+      }),
+    );
+
+    // A plain vault hangs Owner on the owner MEMBER and has no group subject
+    // at all. Returning null here is what keeps a caller from inviting someone
+    // into the publisher's own group.
+    expect(publicationRecipientGroupId(main.policy.payload)).toBeNull();
+  });
+});
+
+describe("the shared folder, seen by its recipient", () => {
+  /**
+   * What the provider actually hands a recipient.
+   *
+   * The publisher shares `.pvws/publications/<id>/` and nothing above it, so
+   * the recipient's root IS that folder: keys arrive without the prefix, and
+   * without the `.pvws/` segment the publisher's wrapper stripped on the way
+   * out. This view models exactly that cut.
+   */
+  class SharedFolderView implements Pick<WorkspaceObjectStore, "get" | "head" | "list"> {
+    constructor(private readonly store: FakeWorkspaceObjectStore, private readonly prefix: string) {}
+    get(key: string) { return this.store.get(`${this.prefix}${key}`); }
+    async head(key: string) {
+      const info = await this.store.head(`${this.prefix}${key}`);
+      return info ? { ...info, key } : null;
+    }
+    async list(prefix: string) {
+      const page = await this.store.list(`${this.prefix}${prefix}`);
+      return { items: page.items.map((entry) => ({ ...entry, key: entry.key.slice(this.prefix.length) })) };
+    }
+  }
+
+  it("reads back what the publisher wrote", async () => {
+    // The load-bearing claim of the recipient side: the two wrappers are
+    // inverses. Break either mapping and a shared publication folder looks
+    // EMPTY to the person it was shared with - no error, nothing to act on,
+    // because every workspace read asks for `.pvws/...` and finds nothing.
+    const remote = new FakeWorkspaceObjectStore();
+    const publisher = publicationStoreFor(remote, WORKSPACE, SLICE);
+    const bytes = new TextEncoder().encode("genesis");
+    const { sha256Hex } = await import("../src/workspace/encoding.js");
+    await publisher.putImmutable(".pvws/genesis.pvgen", bytes, sha256Hex(bytes));
+
+    const shared = new SharedFolderView(remote, `.pvws/publications/${derivePublicationId(WORKSPACE, SLICE)}/`);
+    // Unwrapped, the same folder answers nothing - that is the bug this exists
+    // to prevent, kept here so it cannot come back unnoticed.
+    expect(await shared.get(".pvws/genesis.pvgen")).toBeNull();
+
+    const recipient = publicationRecipientStoreFor(shared as unknown as WorkspaceObjectStore);
+    expect(await recipient.get(".pvws/genesis.pvgen")).toEqual(bytes);
+    expect((await recipient.head(".pvws/genesis.pvgen"))?.key).toBe(".pvws/genesis.pvgen");
+    expect((await recipient.list(".pvws/")).items.map((entry) => entry.key)).toEqual([".pvws/genesis.pvgen"]);
+  });
 });

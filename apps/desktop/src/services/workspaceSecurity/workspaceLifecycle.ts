@@ -19,6 +19,7 @@ import {
   readWorkspaceRuntime,
   saveWorkspaceSecurityStatus,
   WORKSPACE_FALLBACK_PASSPHRASE_MIN_LENGTH,
+  WORKSPACE_MINIMUM_CLIENT_VERSION,
   type WorkspaceSecurityPublicStatus,
 } from "./workspaceKeychain";
 
@@ -74,7 +75,7 @@ export async function preparePersonalWorkspace(input: {
     ownerDisplayName: input.ownerDisplayName.trim(),
     deviceDisplayName: input.deviceDisplayName.trim(),
     platform: "desktop",
-    minimumClientVersion: "0.4.1",
+    minimumClientVersion: WORKSPACE_MINIMUM_CLIENT_VERSION,
   });
   const recoveryConfirmedAt = new Date().toISOString();
   const recovery = createWorkspaceRecoveryPackage(bootstrap, { now: recoveryConfirmedAt });
