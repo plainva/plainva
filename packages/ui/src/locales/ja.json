@@ -3118,6 +3118,24 @@
     "revokeFullQuestion": "アクセスはすぐに終了し、現在の暗号化コンテンツはすべて、再開可能な完全再暗号化のキューに入ります。すでにダウンロードされた平文を取り戻すことはできません。",
     "publications": "公開",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "閲覧者",
+      "commenter": "コメント可"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "専用フォルダを作成し、{{permission}}の権限だけを付与します。",
+      "no-link-wide-access": "リンクを知っている全員へのアクセスは有効にしないでください。",
+      "specific-people-link": "特定のユーザー向けのリンクを作成し、{{permission}}の権限を付与します。",
+      "download-block-optional": "ダウンロードの禁止は任意です。決め手はあくまで暗号化です。",
+      "dedicated-folder-invite": "専用フォルダに、受け取り手を{{permission}}として招待します。",
+      "no-public-link": "公開共有リンクは使わないでください。",
+      "share-password-expiry": "パスワードと有効期限を設定した専用の共有を作成します。",
+      "credentials-outside": "WebDAV の認証情報は公開する場所の外で保管します。",
+      "dedicated-collection": "専用のコレクションと、最小限の権限の認証情報を用意します。",
+      "tls-separate-account": "TLS を使い、公開ごとに別のアカウントを使います。",
+      "dedicated-prefix-deny-default": "専用のプレフィックスを使い、既定で拒否する IAM を設定します。",
+      "no-public-access-tls": "パブリックアクセスを無効にし、TLS を必須にします。"
+    },
     "publicationPreviewOnly": "プレビューのみ: 公開の仕組みを確認できますが、まだ何も共有されません。",
     "publishSlice": "保管庫スライスを公開",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

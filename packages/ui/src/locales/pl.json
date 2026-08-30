@@ -3202,6 +3202,24 @@
     "revokeFullQuestion": "Dostęp kończy się natychmiast, a cała bieżąca zaszyfrowana treść trafia do kolejki wznawialnego pełnego ponownego szyfrowania. Pobranego wcześniej tekstu jawnego nie da się odzyskać.",
     "publications": "Publikacje",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "przeglądający",
+      "commenter": "komentujący"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Utwórz osobny folder i przyznaj wyłącznie dostęp jako {{permission}}.",
+      "no-link-wide-access": "Nie włączaj dostępu przez ogólny link.",
+      "specific-people-link": "Utwórz link dla wybranych osób z dostępem jako {{permission}}.",
+      "download-block-optional": "Blokowanie pobierania jest opcjonalne; rozstrzygające pozostaje szyfrowanie.",
+      "dedicated-folder-invite": "Zaproś odbiorców do osobnego folderu jako {{permission}}.",
+      "no-public-link": "Nie używaj publicznego linku udostępniania.",
+      "share-password-expiry": "Utwórz osobne udostępnienie z hasłem i datą wygaśnięcia.",
+      "credentials-outside": "Przechowuj dane logowania WebDAV poza publikacją.",
+      "dedicated-collection": "Przygotuj osobną kolekcję i dane logowania o minimalnych uprawnieniach.",
+      "tls-separate-account": "Używaj TLS i osobnego konta dla każdej publikacji.",
+      "dedicated-prefix-deny-default": "Użyj osobnego prefiksu z regułami IAM domyślnie odmawiającymi dostępu.",
+      "no-public-access-tls": "Wyłącz dostęp publiczny i wymagaj TLS."
+    },
     "publicationPreviewOnly": "Tylko podgląd: widzisz, jak będzie działać publikowanie, ale nic nie jest jeszcze udostępniane.",
     "publishSlice": "Opublikuj slice vaultu",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

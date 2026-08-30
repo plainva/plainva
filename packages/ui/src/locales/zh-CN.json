@@ -3118,6 +3118,24 @@
     "revokeFullQuestion": "访问权限立即结束，当前所有已加密内容会排入可续跑的完全重新加密队列。对方已经下载过的明文无法收回。",
     "publications": "发布",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "查看者",
+      "commenter": "评论者"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "创建专用文件夹，并仅授予{{permission}}权限。",
+      "no-link-wide-access": "不要启用通用链接访问。",
+      "specific-people-link": "创建仅限指定人员的链接，并授予{{permission}}权限。",
+      "download-block-optional": "禁止下载只是可选策略；真正起作用的仍是加密。",
+      "dedicated-folder-invite": "以{{permission}}身份邀请接收方加入专用文件夹。",
+      "no-public-link": "不要使用公开共享链接。",
+      "share-password-expiry": "创建单独的共享，并设置密码和有效期。",
+      "credentials-outside": "将 WebDAV 凭据保存在发布之外。",
+      "dedicated-collection": "建立专用集合，并使用最小权限的凭据。",
+      "tls-separate-account": "使用 TLS，并为每个发布使用单独账户。",
+      "dedicated-prefix-deny-default": "使用专用前缀，并采用默认拒绝的 IAM 策略。",
+      "no-public-access-tls": "关闭公共访问并强制使用 TLS。"
+    },
     "publicationPreviewOnly": "仅为预览：你可以看到发布将如何运作，但目前还不会共享任何内容。",
     "publishSlice": "发布仓库切片",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

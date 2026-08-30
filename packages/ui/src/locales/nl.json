@@ -3146,6 +3146,24 @@
     "revokeFullQuestion": "De toegang eindigt meteen en alle huidige versleutelde inhoud wordt in de wachtrij gezet voor een hervatbare volledige hersleuteling. Al gedownloade platte tekst kan niet worden teruggehaald.",
     "publications": "Publicaties",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "kijker",
+      "commenter": "reageerder"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Maak een aparte map en geef alleen toegang als {{permission}}.",
+      "no-link-wide-access": "Zet toegang via een algemene link niet aan.",
+      "specific-people-link": "Maak een link voor specifieke personen met toegang als {{permission}}.",
+      "download-block-optional": "Downloaden blokkeren is optioneel; de versleuteling blijft doorslaggevend.",
+      "dedicated-folder-invite": "Nodig ontvangers uit in een aparte map als {{permission}}.",
+      "no-public-link": "Gebruik geen openbare deellink.",
+      "share-password-expiry": "Maak een aparte share met wachtwoord en vervaldatum.",
+      "credentials-outside": "Bewaar de WebDAV-inloggegevens buiten de publicatie.",
+      "dedicated-collection": "Richt een aparte collection in met inloggegevens met minimale rechten.",
+      "tls-separate-account": "Gebruik TLS en per publicatie een apart account.",
+      "dedicated-prefix-deny-default": "Gebruik een eigen prefix met IAM-regels die standaard alles weigeren.",
+      "no-public-access-tls": "Schakel openbare toegang uit en vereis TLS."
+    },
     "publicationPreviewOnly": "Alleen een voorbeeld: je ziet hoe publiceren gaat werken, maar er wordt nog niets gedeeld.",
     "publishSlice": "Een vault-slice publiceren",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

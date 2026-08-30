@@ -5,6 +5,7 @@ import {
   defaultPublishedPropertyPolicy,
   previewPublishedProjection,
   projectPublishedMarkdown,
+  publishedSliceProviderInstructions,
 } from "../src/index.js";
 
 /**
@@ -306,5 +307,62 @@ describe("published projection preview", () => {
     expect(preview.objectCount).toBe(0);
     expect(preview.sample).toBeNull();
     expect(preview.unchanged).toBe(true);
+  });
+});
+
+describe("provider setup instructions", () => {
+  /**
+   * The shell needs a total mapping from these ids to locale keys, and a
+   * missing one shows a publisher a blank line exactly where the advice was
+   * supposed to be. Listing them here means adding a provider fails this test
+   * before it can ship an untranslated instruction.
+   */
+  const ALL_IDS = [
+    "dedicated-folder-permission",
+    "no-link-wide-access",
+    "specific-people-link",
+    "download-block-optional",
+    "dedicated-folder-invite",
+    "no-public-link",
+    "share-password-expiry",
+    "credentials-outside",
+    "dedicated-collection",
+    "tls-separate-account",
+    "dedicated-prefix-deny-default",
+    "no-public-access-tls",
+  ];
+
+  const PROVIDERS = ["google-drive", "onedrive", "dropbox", "nextcloud", "webdav", "s3"] as const;
+
+  it("covers every provider and emits no id the shell does not know", () => {
+    const seen = new Set<string>();
+    for (const provider of PROVIDERS) {
+      const instructions = publishedSliceProviderInstructions({ provider, access: "read" });
+      expect(instructions.length).toBeGreaterThan(0);
+      for (const instruction of instructions) {
+        expect(ALL_IDS).toContain(instruction.id);
+        seen.add(instruction.id);
+      }
+    }
+    // The other direction: no id sits in the locales without a provider that
+    // asks for it, so a rename cannot leave a dead key behind.
+    expect([...seen].sort()).toEqual([...ALL_IDS].sort());
+  });
+
+  it("names the weaker permission for read-only and the stronger one where recipients write", () => {
+    const read = publishedSliceProviderInstructions({ provider: "google-drive", access: "read" });
+    expect(read[0]).toEqual({ id: "dedicated-folder-permission", permission: "viewer" });
+
+    for (const access of ["comment", "suggest"] as const) {
+      const writable = publishedSliceProviderInstructions({ provider: "google-drive", access });
+      expect(writable[0]).toEqual({ id: "dedicated-folder-permission", permission: "commenter" });
+    }
+  });
+
+  it("leaves the permission unset where the sentence does not name one", () => {
+    // A hint the shell cannot use would be a parameter with no slot in the
+    // string - the locale would silently drop it.
+    const nextcloud = publishedSliceProviderInstructions({ provider: "nextcloud", access: "comment" });
+    expect(nextcloud.every((instruction) => instruction.permission === undefined)).toBe(true);
   });
 });

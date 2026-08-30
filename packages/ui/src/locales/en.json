@@ -3145,6 +3145,24 @@
     "revokeFullQuestion": "Access is removed immediately and all current encrypted content is queued for a resumable full rekey. Previously downloaded plaintext cannot be taken back.",
     "publications": "Publications",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace. Provider permissions add defense in depth; they never replace encryption.",
+    "publicationPermission": {
+      "viewer": "viewer",
+      "commenter": "commenter"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Create a dedicated folder and grant {{permission}} access only.",
+      "no-link-wide-access": "Do not enable link-wide access.",
+      "specific-people-link": "Create a specific-people link with {{permission}} access.",
+      "download-block-optional": "Disable download only as an optional policy; encryption remains authoritative.",
+      "dedicated-folder-invite": "Invite recipients to a dedicated folder as {{permission}}.",
+      "no-public-link": "Do not use a public shared link.",
+      "share-password-expiry": "Create a dedicated share with password and expiry.",
+      "credentials-outside": "Keep WebDAV credentials outside the publication.",
+      "dedicated-collection": "Provision a dedicated collection and least-privilege credentials.",
+      "tls-separate-account": "Use TLS and a separate account per publication.",
+      "dedicated-prefix-deny-default": "Use a dedicated prefix with deny-by-default IAM.",
+      "no-public-access-tls": "Disable public access and require TLS."
+    },
     "publicationPreviewOnly": "Preview only: you can see how publishing will work, but nothing is shared yet.",
     "publishSlice": "Publish a Vault Slice",
     "publishDesc": "Choose exact or sanitized content, read/comment/suggestion access and a provider.",

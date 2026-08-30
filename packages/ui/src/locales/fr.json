@@ -3174,6 +3174,24 @@
     "revokeFullQuestion": "L’accès prend fin immédiatement et tout le contenu chiffré actuel est mis en file pour un rechiffrement complet reprenable. Le texte en clair déjà téléchargé ne peut pas être repris.",
     "publications": "Publications",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "lecteur",
+      "commenter": "commentateur"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Créez un dossier dédié et accordez uniquement l'accès {{permission}}.",
+      "no-link-wide-access": "N'activez pas l'accès par lien public.",
+      "specific-people-link": "Créez un lien réservé à des personnes précises avec l'accès {{permission}}.",
+      "download-block-optional": "Le blocage du téléchargement reste facultatif ; le chiffrement fait foi.",
+      "dedicated-folder-invite": "Invitez les destinataires dans un dossier dédié en tant que {{permission}}.",
+      "no-public-link": "N'utilisez pas de lien de partage public.",
+      "share-password-expiry": "Créez un partage dédié avec mot de passe et date d'expiration.",
+      "credentials-outside": "Conservez les identifiants WebDAV en dehors de la publication.",
+      "dedicated-collection": "Provisionnez une collection dédiée et des identifiants à privilèges minimaux.",
+      "tls-separate-account": "Utilisez TLS et un compte distinct par publication.",
+      "dedicated-prefix-deny-default": "Utilisez un préfixe dédié avec une politique IAM qui refuse par défaut.",
+      "no-public-access-tls": "Désactivez l'accès public et exigez TLS."
+    },
     "publicationPreviewOnly": "Aperçu uniquement : vous voyez à quoi ressemblera la publication, mais rien n’est encore partagé.",
     "publishSlice": "Publier un slice de vault",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

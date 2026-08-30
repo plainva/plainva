@@ -3145,6 +3145,24 @@
     "revokeFullQuestion": "Der Zugriff endet sofort. Alle aktuellen verschlüsselten Inhalte werden für eine fortsetzbare vollständige Neuverschlüsselung eingereiht. Bereits heruntergeladener Klartext kann nicht zurückgeholt werden.",
     "publications": "Veröffentlichungen",
     "publicationIsolation": "Veröffentlichte Slices verwenden einen getrennten verschlüsselten Workspace-Namensraum. Anbieterrechte sind nur zusätzlicher Schutz.",
+    "publicationPermission": {
+      "viewer": "Betrachter",
+      "commenter": "Kommentator"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Lege einen eigenen Ordner an und gib nur {{permission}}-Zugriff.",
+      "no-link-wide-access": "Aktiviere keinen Zugriff über einen allgemeinen Link.",
+      "specific-people-link": "Erstelle einen Link für bestimmte Personen mit {{permission}}-Zugriff.",
+      "download-block-optional": "Das Sperren von Downloads ist optional; maßgeblich bleibt die Verschlüsselung.",
+      "dedicated-folder-invite": "Lade die Empfänger als {{permission}} in einen eigenen Ordner ein.",
+      "no-public-link": "Nutze keinen öffentlichen Freigabelink.",
+      "share-password-expiry": "Erstelle eine eigene Freigabe mit Passwort und Ablaufdatum.",
+      "credentials-outside": "Bewahre die WebDAV-Zugangsdaten außerhalb der Publikation auf.",
+      "dedicated-collection": "Richte eine eigene Collection und Zugangsdaten mit minimalen Rechten ein.",
+      "tls-separate-account": "Nutze TLS und je Publikation ein eigenes Konto.",
+      "dedicated-prefix-deny-default": "Nutze ein eigenes Präfix mit IAM-Regeln, die standardmäßig alles verbieten.",
+      "no-public-access-tls": "Deaktiviere den öffentlichen Zugriff und verlange TLS."
+    },
     "publicationPreviewOnly": "Nur eine Vorschau: Du siehst, wie das Veröffentlichen aussehen wird — weitergegeben wird noch nichts.",
     "publishSlice": "Vault Slice veröffentlichen",
     "publishDesc": "Wähle exakte oder bereinigte Inhalte, Lesen/Kommentieren/Vorschlagen und einen Anbieter.",

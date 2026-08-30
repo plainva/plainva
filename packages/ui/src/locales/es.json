@@ -3174,6 +3174,24 @@
     "revokeFullQuestion": "El acceso termina de inmediato y todo el contenido cifrado actual entra en cola para un recifrado completo reanudable. El texto plano ya descargado no se puede recuperar.",
     "publications": "Publicaciones",
     "publicationIsolation": "Published slices use a separate encrypted workspace namespace; provider permissions are additional protection.",
+    "publicationPermission": {
+      "viewer": "lector",
+      "commenter": "comentarista"
+    },
+    "publicationInstruction": {
+      "dedicated-folder-permission": "Crea una carpeta específica y concede solo acceso de {{permission}}.",
+      "no-link-wide-access": "No actives el acceso mediante enlace general.",
+      "specific-people-link": "Crea un enlace para personas concretas con acceso de {{permission}}.",
+      "download-block-optional": "Bloquear la descarga es opcional; el cifrado sigue siendo lo determinante.",
+      "dedicated-folder-invite": "Invita a los destinatarios a una carpeta específica como {{permission}}.",
+      "no-public-link": "No uses un enlace de uso compartido público.",
+      "share-password-expiry": "Crea un recurso compartido propio con contraseña y caducidad.",
+      "credentials-outside": "Guarda las credenciales de WebDAV fuera de la publicación.",
+      "dedicated-collection": "Aprovisiona una colección propia y credenciales con privilegios mínimos.",
+      "tls-separate-account": "Usa TLS y una cuenta distinta para cada publicación.",
+      "dedicated-prefix-deny-default": "Usa un prefijo propio con reglas de IAM que denieguen por defecto.",
+      "no-public-access-tls": "Desactiva el acceso público y exige TLS."
+    },
     "publicationPreviewOnly": "Solo una vista previa: puedes ver cómo funcionará la publicación, pero todavía no se comparte nada.",
     "publishSlice": "Publicar un slice del vault",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",

@@ -18,6 +18,7 @@ export * from "./lib/insecureUrl";
 export * from "./lib/dailyNotePath";
 export * from "./lib/dateLocale";
 export * from "./lib/dueLabel";
+export * from "./lib/publicationInstructions";
 export * from "./lib/overflowGroup";
 export * from "./lib/deviceSignIn";
 export * from "./lib/indexMdGenerate";

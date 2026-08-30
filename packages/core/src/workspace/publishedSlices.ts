@@ -549,15 +549,65 @@ export function publicationStoreFor(store: WorkspaceObjectStore, workspaceId: st
   return new PublishedSliceObjectStore(store, derivePublicationId(workspaceId, sliceId));
 }
 
-/** Provider ACLs are defense in depth and may never replace encrypted access. */
-export function publishedSliceProviderInstructions(config: Pick<PublishedSliceConfig, "provider" | "access">): string[] {
-  const permission = config.access === "read" ? "viewer" : "commenter";
+/**
+ * The provider-facing permission an ACL should grant.
+ *
+ * A hint, not a role: the publication's own policy is what actually decides
+ * what a recipient may do. This only says which word to pick in the provider's
+ * sharing dialog, and encryption stays authoritative either way.
+ */
+export type PublishedSlicePermissionHint = "viewer" | "commenter";
+
+/** One piece of advice for setting up the provider share. */
+export type PublishedSliceInstructionId =
+  | "dedicated-folder-permission"
+  | "no-link-wide-access"
+  | "specific-people-link"
+  | "download-block-optional"
+  | "dedicated-folder-invite"
+  | "no-public-link"
+  | "share-password-expiry"
+  | "credentials-outside"
+  | "dedicated-collection"
+  | "tls-separate-account"
+  | "dedicated-prefix-deny-default"
+  | "no-public-access-tls";
+
+export interface PublishedSliceInstruction {
+  id: PublishedSliceInstructionId;
+  /** Set only where the sentence names a permission, so the shell can fill it in. */
+  permission?: PublishedSlicePermissionHint;
+}
+
+/**
+ * How to set up the provider share alongside a publication.
+ *
+ * Provider ACLs are defense in depth and may never replace encrypted access -
+ * a recipient without the key reads nothing regardless of what the folder
+ * allows, and a folder opened too widely still leaks only ciphertext.
+ *
+ * Returns identifiers rather than sentences. The choice of WHICH advice a
+ * provider needs is a rule and belongs here; the words are shown to a person
+ * and belong in the locales. Returning English here would put a tenth of the
+ * interface outside the ten translated files, in the one place a publisher is
+ * most likely to be following along in their own language.
+ */
+export function publishedSliceProviderInstructions(
+  config: Pick<PublishedSliceConfig, "provider" | "access">,
+): PublishedSliceInstruction[] {
+  const permission: PublishedSlicePermissionHint = config.access === "read" ? "viewer" : "commenter";
   switch (config.provider) {
-    case "google-drive": return [`Create a dedicated folder and grant ${permission} access only.`, "Do not enable link-wide access."];
-    case "onedrive": return [`Create a specific-people link with ${permission} access.`, "Disable download only as an optional policy; encryption remains authoritative."];
-    case "dropbox": return [`Invite recipients to a dedicated folder as ${permission}.`, "Do not use a public shared link."];
-    case "nextcloud": return ["Create a dedicated share with password and expiry.", "Keep WebDAV credentials outside the publication."];
-    case "webdav": return ["Provision a dedicated collection and least-privilege credentials.", "Use TLS and a separate account per publication."];
-    case "s3": return ["Use a dedicated prefix with deny-by-default IAM.", "Disable public access and require TLS."];
+    case "google-drive":
+      return [{ id: "dedicated-folder-permission", permission }, { id: "no-link-wide-access" }];
+    case "onedrive":
+      return [{ id: "specific-people-link", permission }, { id: "download-block-optional" }];
+    case "dropbox":
+      return [{ id: "dedicated-folder-invite", permission }, { id: "no-public-link" }];
+    case "nextcloud":
+      return [{ id: "share-password-expiry" }, { id: "credentials-outside" }];
+    case "webdav":
+      return [{ id: "dedicated-collection" }, { id: "tls-separate-account" }];
+    case "s3":
+      return [{ id: "dedicated-prefix-deny-default" }, { id: "no-public-access-tls" }];
   }
 }
