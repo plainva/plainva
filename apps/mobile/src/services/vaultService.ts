@@ -221,6 +221,29 @@ export async function reloadActiveMobileVault(): Promise<void> {
 }
 
 /**
+ * Publication ids of a vault, from the vault's own index database.
+ *
+ * Takes the open connection when the vault is the active one, and otherwise
+ * opens the closed database for the length of one query. A vault that never
+ * had a workspace has no such table; that is a normal answer ("none"), not a
+ * failure, so it must not cost the caller its other slots.
+ */
+async function readPublicationIds(vaultId: string, open: IDatabaseAdapter | null): Promise<string[]> {
+  const read = async (db: IDatabaseAdapter) =>
+    (await new SqlWorkspaceStateStore(db).listPublications()).map((r) => r.publicationId);
+  if (open) return read(open).catch(() => [] as string[]);
+  const db = createIndexDatabase(`plainva-${vaultId}`);
+  try {
+    await db.initialize();
+    return await read(db);
+  } catch {
+    return [];
+  } finally {
+    await db.close().catch(() => {});
+  }
+}
+
+/**
  * Deletes a connection vault: device-local container, index database,
  * credential slot and registry entry. The cloud storage is never touched.
  */
@@ -240,6 +263,13 @@ export async function deleteVault(id: string): Promise<void> {
           .then((rows) => rows.map((r) => r.id))
           .catch(() => [] as string[])
       : [];
+  // The publications' admin keys are named after ids that live ONLY in that
+  // same database (finding 2026-08-30) — and unlike the PIM rows above there is
+  // no registry that names them a second time, so "best effort" would mean an
+  // orphaned publisher key nobody can find again (a keystore cannot be
+  // enumerated). Hence the closed database of an inactive vault is opened for
+  // the length of one query rather than skipped.
+  const publicationIds = await readPublicationIds(id, current?.vaultId === id ? current?.db ?? null : null);
   if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
   try {
     await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
@@ -253,6 +283,7 @@ export async function deleteVault(id: string): Promise<void> {
     cloud: await loadCloudAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
     pim: pimIds,
     mail: await listMailAccounts(id).then((rows) => rows.map((r) => r.id)).catch(() => []),
+    publications: publicationIds,
   }).catch(() => [] as string[]);
 
   await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});

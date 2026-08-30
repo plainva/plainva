@@ -20,6 +20,7 @@ import { setPlatformServices, barLayoutKey, type ISettingsStore } from "@plainva
 import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
+import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
 import {
   collectVaultSecretKeys,
@@ -126,6 +127,29 @@ describe("what a forgotten vault leaves behind (finding 2026-08-19)", () => {
     // key, so no sweep would ever find it - and it is the one that opens the
     // rest.
     expect(removedSecrets).toContain(mobileKeyringCacheKey(VAULT));
+    // The workspace's own device key and its pending pairing. Built with the
+    // real builders, so a rename in the workspace module cannot drift past this
+    // sweep unnoticed (finding 2026-08-30).
+    expect(removedSecrets).toEqual(expect.arrayContaining(mobileWorkspaceSecretKeys(VAULT, [])));
+    expect(removedSecrets).toHaveLength(7);
+  });
+
+  it("removes the admin key of every publication", async () => {
+    const keys = await collectVaultSecretKeys(VAULT, {
+      cloud: [],
+      pim: [],
+      mail: [],
+      publications: ["pub-a", "pub-b"],
+    });
+    await forgetVaultSecrets(keys);
+
+    // Unlike an account, a publication is named ONLY inside the index database
+    // this deletion is about to remove - so a slot missed here is a publisher
+    // admin key that can never be found again (keystores cannot be enumerated).
+    expect(removedSecrets).toEqual(
+      expect.arrayContaining(mobileWorkspaceSecretKeys(VAULT, ["pub-a", "pub-b"])),
+    );
+    // Two publications, plus runtime + pairing + the keyring cache.
     expect(removedSecrets).toHaveLength(5);
   });
 

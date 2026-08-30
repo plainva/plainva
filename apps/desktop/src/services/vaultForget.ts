@@ -83,6 +83,52 @@ export async function collectVaultKeychainSlots(vaultPath: string): Promise<stri
   return allVaultSlots(vaultPath, await vaultSlotIds(vaultPath));
 }
 
+/**
+ * The encrypted workspace's own keys (finding 2026-08-30).
+ *
+ * "Forget this vault" swept the account slots and left the workspace runtime
+ * behind: the device key of an encrypted workspace, in the OS keychain, for a
+ * vault the user believes they just removed. Exactly the class of leftover the
+ * 2026-08-19 sweep was written against, one family further down.
+ *
+ * The publication slots (S4b) are worse than the runtime slot, because they are
+ * not derivable: their ids live in `workspace_publication` inside the index DB,
+ * which this service deletes moments later. So they are read here, from the
+ * still-present database, and the read failing must not cost us the runtime
+ * slot - hence the inner catch rather than one try around both.
+ *
+ * Exported for the test: the ordering is the part that can silently miss a
+ * slot, and a missed publication slot is a publisher admin key nobody can find
+ * again (the keychain cannot be enumerated).
+ */
+export async function forgetWorkspaceCredentials(vaultPath: string): Promise<void> {
+  const { clearWorkspaceRuntime, clearPublicationRuntimes } = await import(
+    "./workspaceSecurity/workspaceKeychain"
+  );
+  let publicationIds: string[] = [];
+  const dbPath = await join(await appDataDir(), "index", await indexDbFileName(vaultPath));
+  if (await exists(dbPath)) {
+    const { TauriDatabaseAdapter } = await import("../adapters/TauriDatabaseAdapter");
+    const { SqlWorkspaceStateStore } = await import("@plainva/core");
+    const db = new TauriDatabaseAdapter(`sqlite:${dbPath}`);
+    try {
+      await db.initialize();
+      publicationIds = (await new SqlWorkspaceStateStore(db).listPublications()).map(
+        (record) => record.publicationId
+      );
+    } catch (e) {
+      // A vault that never had a workspace has no such table, and a locked DB
+      // is somebody else's problem - neither may stop the runtime slot below.
+      console.warn("[vaultForget] could not read publication ids", e);
+    } finally {
+      // Owner-only close: no window holds this vault open at the splash.
+      await db.close().catch(() => {});
+    }
+  }
+  await clearPublicationRuntimes(vaultPath, publicationIds);
+  await clearWorkspaceRuntime(vaultPath);
+}
+
 export async function forgetVaultData(
   vaultPath: string,
   opts: { deleteZipBackups: boolean }
@@ -119,6 +165,11 @@ export async function forgetVaultData(
       }
     });
   }
+
+  // The workspace's own device key and the admin key of every publication.
+  // Runs BEFORE `index-db`: the publication ids live in that database, and the
+  // keychain cannot be enumerated to find a slot whose id is gone.
+  await attempt("workspace-credentials", () => forgetWorkspaceCredentials(vaultPath));
 
   // Index DB in app-data (+ WAL/SHM sidecars). A fresh open of the same path
   // then starts with a clean index, exactly like a never-seen vault.

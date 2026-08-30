@@ -86,6 +86,25 @@ const locked = new Set<string>();
 const publicationKey = (vaultId: string, publicationId: string) => `workspace_pub_mobile_${vaultId}_${publicationId}`;
 const publicationCache = new Map<string, PersonalWorkspaceRuntime>();
 
+/**
+ * Every credential slot this vault's workspace owns (finding 2026-08-30).
+ *
+ * Exists so the names are defined ONCE. "Forget this vault" builds its sweep
+ * list from here rather than repeating the shapes, because a sweep that spells
+ * the name a second time is exactly how a slot gets left behind when a builder
+ * changes - and a keystore cannot be enumerated to find it again.
+ *
+ * The status key is deliberately absent: it ends in `_<vaultId>` and is a
+ * preference, so the store-key sweep already covers it.
+ */
+export function mobileWorkspaceSecretKeys(vaultId: string, publicationIds: string[]): string[] {
+  return [
+    runtimeKey(vaultId),
+    pendingKey(vaultId),
+    ...publicationIds.map((id) => publicationKey(vaultId, id)),
+  ];
+}
+
 function forgetPublications(vaultId: string): void {
   const prefix = `workspace_pub_mobile_${vaultId}_`;
   for (const slot of [...publicationCache.keys()]) if (slot.startsWith(prefix)) publicationCache.delete(slot);

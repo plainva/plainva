@@ -11,9 +11,56 @@ vi.mock("./settingsStore", () => ({
   })),
 }));
 
+const clearedRuntimes: string[] = [];
+const clearedPublications: Array<{ vaultPath: string; ids: string[] }> = [];
+vi.mock("./workspaceSecurity/workspaceKeychain", () => ({
+  clearWorkspaceRuntime: vi.fn(async (vaultPath: string) => void clearedRuntimes.push(vaultPath)),
+  clearPublicationRuntimes: vi.fn(async (vaultPath: string, ids: string[]) =>
+    void clearedPublications.push({ vaultPath, ids })
+  ),
+}));
+
+let indexDbExists = true;
+vi.mock("@tauri-apps/plugin-fs", () => ({
+  exists: vi.fn(async () => indexDbExists),
+  readDir: vi.fn(async () => []),
+  remove: vi.fn(async () => undefined),
+}));
+vi.mock("@tauri-apps/api/path", () => ({
+  appDataDir: vi.fn(async () => "C:/AppData/Plainva"),
+  join: vi.fn(async (...parts: string[]) => parts.join("/")),
+}));
+
+// The DB is faked, the STORE is real: what this has to prove is that the ids
+// come out of `workspace_publication`, and a fake store would only prove that
+// a fake was called.
+let dbRows: Array<Record<string, unknown>> = [];
+let dbThrows: Error | null = null;
+const dbClosed: string[] = [];
+vi.mock("../adapters/TauriDatabaseAdapter", () => ({
+  TauriDatabaseAdapter: class {
+    constructor(private readonly url: string) {}
+    async initialize() {
+      if (dbThrows) throw dbThrows;
+    }
+    async query() {
+      if (dbThrows) throw dbThrows;
+      return dbRows;
+    }
+    async queryOne() {
+      return dbRows[0] ?? null;
+    }
+    async execute() {}
+    async close() {
+      dbClosed.push(this.url);
+    }
+  },
+}));
+
 import {
   collectPerVaultLocalStorageKeys,
   collectVaultKeychainSlots,
+  forgetWorkspaceCredentials,
   perVaultStoreSuffix,
 } from "./vaultForget";
 import { accountSecretKey } from "./accountBroker";
@@ -160,5 +207,58 @@ describe("collectVaultKeychainSlots (E2)", () => {
     // the old names, and forgetting it must reach either.
     expect(slots).toContain(keychainSlotName({ vaultKey: VAULT, service: "encryption" }));
     expect(slots).toContain(keychainSlotName({ vaultKey: VAULT, service: "repair" }));
+  });
+});
+
+
+describe("forgetWorkspaceCredentials (finding 2026-08-30)", () => {
+  beforeEach(() => {
+    clearedRuntimes.length = 0;
+    clearedPublications.length = 0;
+    dbClosed.length = 0;
+    dbRows = [];
+    dbThrows = null;
+    indexDbExists = true;
+  });
+
+  it("removes the workspace device key and the admin key of every publication", async () => {
+    dbRows = [
+      { publication_id: "pub-a", slice_id: "s1", config_json: "{}", manifest_json: "{}", last_error: null, last_refreshed_at: null, created_at: "2026-08-30T08:00:00.000Z" },
+      { publication_id: "pub-b", slice_id: "s2", config_json: "{}", manifest_json: "{}", last_error: null, last_refreshed_at: null, created_at: "2026-08-30T09:00:00.000Z" },
+    ];
+
+    await forgetWorkspaceCredentials(VAULT);
+
+    // "Forget this vault" left these behind until now: the device key of an
+    // encrypted workspace, in the OS keychain, for a vault the user believes
+    // they just removed.
+    expect(clearedRuntimes).toEqual([VAULT]);
+    expect(clearedPublications).toEqual([{ vaultPath: VAULT, ids: ["pub-a", "pub-b"] }]);
+    // Owner-only close: leaving the pool open would tear down the next window's
+    // connection to the same file.
+    expect(dbClosed).toHaveLength(1);
+  });
+
+  it("still removes the runtime slot when the ids cannot be read", async () => {
+    // A vault that never had a workspace has no such table, and a locked DB is
+    // somebody else's problem. Neither may cost us the bigger key.
+    dbThrows = new Error("no such table: workspace_publication");
+
+    await forgetWorkspaceCredentials(VAULT);
+
+    expect(clearedRuntimes).toEqual([VAULT]);
+    expect(clearedPublications).toEqual([{ vaultPath: VAULT, ids: [] }]);
+    expect(dbClosed).toHaveLength(1);
+  });
+
+  it("does not create an index database just to look inside it", async () => {
+    // `Database.load` on a sqlite: URL CREATES the file - so a vault whose
+    // index is already gone must not be opened at all.
+    indexDbExists = false;
+
+    await forgetWorkspaceCredentials(VAULT);
+
+    expect(dbClosed).toEqual([]);
+    expect(clearedRuntimes).toEqual([VAULT]);
   });
 });

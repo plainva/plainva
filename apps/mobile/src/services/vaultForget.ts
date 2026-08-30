@@ -4,6 +4,7 @@ import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
+import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
 
 /**
@@ -35,7 +36,7 @@ const BARS = ["mobileBar"] as const;
 /** Slots to remove, gathered while the registries that name them still exist. */
 export async function collectVaultSecretKeys(
   vaultId: string,
-  accountIds: { cloud: string[]; pim: string[]; mail: string[] },
+  accountIds: { cloud: string[]; pim: string[]; mail: string[]; publications?: string[] },
 ): Promise<string[]> {
   return [
     ...accountIds.cloud.map((id) => accountSecretKey(vaultId, id)),
@@ -45,6 +46,12 @@ export async function collectVaultSecretKeys(
     // store key, so the sweep never sees it — and it is the one secret here
     // that opens all the others.
     mobileKeyringCacheKey(vaultId),
+    // The encrypted workspace's own device key, plus the admin key of every
+    // publication (finding 2026-08-30). The same reasoning one family further
+    // down: keys for a vault the user believes they just removed. The names
+    // come from the workspace module rather than being spelled again here --
+    // a second copy of a slot name is how one gets left behind later.
+    ...mobileWorkspaceSecretKeys(vaultId, accountIds.publications ?? []),
   ];
 }
 
