@@ -5,16 +5,20 @@ import {
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
   createPublication,
+  decodeWorkspaceInvite,
   decodePublicationCard,
   derivePublicationId,
   derivePublishedObjectId,
   emptyPublicationManifest,
+  evaluateWorkspaceAccess,
   openPvo1Frame,
   parsePvo1Frame,
   parseWorkspaceDocument,
   personalWorkspaceRuntime,
   planPublicationRefresh,
+  publicationRecipients,
   publicationStoreFor,
+  invitePublicationRecipient,
   publishSliceObjectContent,
   publishedSliceAccessCapabilities,
   runPublicationRefresh,
@@ -815,5 +819,150 @@ describe("publication state store", () => {
     const read = (await state.getPublication("pub-a"))!;
     read.config.privateProperties.push("bonus");
     expect((await state.getPublication("pub-a"))?.config.privateProperties).toEqual(["salary"]);
+  });
+});
+
+
+describe("publication recipients", () => {
+  // Reuses the fixture the rest of this file is built on, so the recipient
+  // side follows any later change to how a publication is made.
+  const publish = async (access: "read" | "comment" | "suggest") => (await makePublication({ access })).handle;
+
+  it("lets a recipient in through the group that already holds the key", async () => {
+    const handle = await publish("read");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+
+    const group = invited.policy.payload.groups.find((entry) => entry.groupId === handle.recipientGroupId)!;
+    // Membership is the whole mechanism: the group carries the epoch key the
+    // published content is sealed to, so being in it IS being able to read.
+    expect(group.memberIds).toContain(invited.memberId);
+    expect(invited.policy.payload.groups).toHaveLength(handle.runtime.policy.payload.groups.length);
+  });
+
+  it("gives the recipient no assignment of their own", async () => {
+    const handle = await publish("read");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+
+    expect(
+      invited.policy.payload.assignments.filter(
+        (assignment) => assignment.subjectKind === "member" && assignment.subjectId === invited.memberId,
+      ),
+    ).toEqual([]);
+  });
+
+  it("leaves nothing behind when a recipient is taken out of the group", async () => {
+    // This is why the member-scoped assignment is dropped. A workspace-scoped
+    // line survives group membership: the recipient would lose the key and keep
+    // a policy saying they may read, and policy and crypto would disagree.
+    const handle = await publish("read");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+    const removed = structuredClone(invited.policy.payload);
+    const group = removed.groups.find((entry) => entry.groupId === handle.recipientGroupId)!;
+    group.memberIds = [];
+
+    expect(
+      evaluateWorkspaceAccess(removed, { memberId: invited.memberId, capability: "content.read" }).allowed,
+    ).toBe(false);
+  });
+
+  it("grants exactly what the publication's access level says, and nothing more", async () => {
+    const handle = await publish("comment");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+    const policy = invited.policy.payload;
+    const may = (capability: Parameters<typeof evaluateWorkspaceAccess>[1]["capability"]) =>
+      evaluateWorkspaceAccess(policy, { memberId: invited.memberId, capability }).allowed;
+
+    expect(may("content.read")).toBe(true);
+    expect(may("comment.create")).toBe(true);
+    // A recipient of a published slice never administers it.
+    expect(may("content.write")).toBe(false);
+    expect(may("members.invite")).toBe(false);
+    expect(may("keys.rotate")).toBe(false);
+  });
+
+  it("carries the append right of a suggest publication, which no role bundles", async () => {
+    // `suggest` is read + comment.create + content.create - a set no standard
+    // role matches. Deriving capabilities from a role would round it down and
+    // leave a recipient unable to write the suggestion they were invited for.
+    const handle = await publish("suggest");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+
+    expect(
+      evaluateWorkspaceAccess(invited.policy.payload, { memberId: invited.memberId, capability: "content.create" })
+        .allowed,
+    ).toBe(true);
+  });
+
+  it("hands out a code that points at the publication, not at the vault behind it", async () => {
+    const handle = await publish("read");
+    const invited = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+    const decoded = decodeWorkspaceInvite(invited.invite);
+
+    expect(decoded.workspaceId).toBe(handle.publicationId);
+    expect(decoded.workspaceId).not.toBe(WORKSPACE);
+    expect(decoded.memberId).toBe(invited.memberId);
+    // No role: the joining side never reads the field, and `suggest` has no
+    // role to name - a label there could only ever describe the wrong thing.
+    expect(decoded.role).toBeUndefined();
+  });
+
+  it("lists who a publication reaches, and keeps listing them as more join", async () => {
+    const handle = await publish("read");
+    const first = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Zoe",
+    });
+    const afterFirst = { ...handle.runtime, policy: first.policy };
+    const second = await invitePublicationRecipient({
+      runtime: afterFirst,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Ada",
+    });
+
+    expect(publicationRecipients(second.policy.payload, handle.recipientGroupId).map((r) => r.displayName)).toEqual([
+      "Ada",
+      "Zoe",
+    ]);
+    expect(publicationRecipients(second.policy.payload, "no-such-group")).toEqual([]);
+    expect(second.memberId).not.toBe(first.memberId);
+  });
+
+  it("refuses a group that is not this publication's", async () => {
+    const handle = await publish("read");
+    await expect(
+      invitePublicationRecipient({ runtime: handle.runtime, recipientGroupId: "made-up", displayName: "Ada" }),
+    ).rejects.toThrow();
+    await expect(
+      invitePublicationRecipient({
+        runtime: handle.runtime,
+        recipientGroupId: handle.recipientGroupId,
+        displayName: "   ",
+      }),
+    ).rejects.toThrow();
   });
 });

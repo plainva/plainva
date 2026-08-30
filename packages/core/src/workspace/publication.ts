@@ -26,8 +26,9 @@ import {
   type WorkspacePolicyPayload,
 } from "./documents.js";
 import { decodeBase64Exact, sha256Hex, toBase64, utf8Encode } from "./encoding.js";
+import { encodeWorkspaceInvite } from "./invite.js";
 import { protocolAssert } from "./errors.js";
-import { publishWorkspaceBootstrap } from "./governance.js";
+import { publishWorkspaceBootstrap, type WorkspaceGovernanceUpdate } from "./governance.js";
 import {
   createWorkspaceGroupKeyEpoch,
   createWorkspaceMemberId,
@@ -38,7 +39,7 @@ import {
 import type { WorkspaceObjectStore } from "./objectStore.js";
 import { createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, type PersonalWorkspaceRuntime } from "./personal.js";
 import { assertCanonicalVaultPath } from "./path.js";
-import { createWorkspacePolicySuccessor } from "./policy.js";
+import { addWorkspaceMemberToPolicy, createWorkspacePolicySuccessor } from "./policy.js";
 import { sealInlinePvo1, type Pvo1Recipient } from "./pvo1.js";
 import {
   derivePublicationId,
@@ -692,4 +693,97 @@ export async function runPublicationRefresh(input: RunPublicationRefreshInput): 
     }
   }
   return { manifest, applied, stoppedAt: null, error: null, aborted: false };
+}
+
+
+/** One person a publication was handed to. */
+export interface PublicationRecipient {
+  memberId: string;
+  displayName: string;
+  state: "active" | "revoked";
+}
+
+/**
+ * Mints a recipient for a publication and returns the code that lets them in.
+ *
+ * The member gets **no assignment of their own**. That is the load-bearing
+ * detail: `createPublication` already hung the access-derived capabilities on
+ * the recipient group, and `addWorkspaceMemberToPolicy` adds a second,
+ * member-scoped one carrying a role bundle. Today that bundle happens to be a
+ * subset of every access level, so it widens nothing - but it is scoped to the
+ * WORKSPACE, not to the group, and therefore outlives group membership. Take a
+ * recipient out of the group and they lose the key but keep a policy line
+ * saying they may read: the policy and the crypto would then disagree, and
+ * every later reader of that policy has to know which of the two is true.
+ * Group membership is the only thing an invite changes, so it stays the only
+ * thing a retraction has to undo.
+ *
+ * The invite carries no `role` for the same reason. The field is a display hint
+ * the joining side never reads, and `suggest` (read + comment + append) has no
+ * matching role at all - naming one would describe the recipient wrongly in the
+ * one artefact they actually see.
+ *
+ * No grants are returned either: a grant is sealed to a device's HPKE key, and
+ * at invite time the recipient has no device. `approveWorkspacePairing` mints
+ * them when the device shows up, for every group the member belongs to - which
+ * is now the recipient group, and nothing else.
+ */
+export async function invitePublicationRecipient(input: {
+  /** The PUBLICATION's runtime, never the main vault's. */
+  runtime: PersonalWorkspaceRuntime;
+  recipientGroupId: string;
+  displayName: string;
+}): Promise<WorkspaceGovernanceUpdate & { memberId: string; invite: string }> {
+  const displayName = input.displayName.trim();
+  protocolAssert(displayName.length > 0, "integrity", "publication recipient needs a name");
+  const runtime = input.runtime;
+  protocolAssert(
+    runtime.policy.payload.groups.some((group) => group.groupId === input.recipientGroupId),
+    "integrity",
+    "publication recipient group is unknown",
+  );
+
+  let memberId = "";
+  const policy = createWorkspacePolicySuccessor({
+    current: runtime.policy,
+    signer: {
+      signer: { algorithm: "Ed25519", signerId: runtime.device.publicIdentity.deviceId, signerKind: "device" },
+      privateKey: runtime.device.secrets.signing.privateKey,
+    },
+    mutate: (draft) => {
+      memberId = addWorkspaceMemberToPolicy(draft, { displayName, role: "Reader" });
+      // Drop the assignment the helper just pushed - see the note above.
+      draft.assignments = draft.assignments.filter(
+        (assignment) => !(assignment.subjectKind === "member" && assignment.subjectId === memberId),
+      );
+      const group = draft.groups.find((entry) => entry.groupId === input.recipientGroupId)!;
+      group.memberIds = [...new Set([...(group.memberIds ?? []), memberId])].sort();
+    },
+  });
+
+  return {
+    memberId,
+    invite: encodeWorkspaceInvite({
+      memberId,
+      workspaceId: runtime.workspaceId,
+      fingerprint: workspaceDocumentHash(runtime.genesis),
+    }),
+    policy,
+    grants: [],
+    groupKeys: runtime.groupKeys,
+  };
+}
+
+/** Who a publication currently reaches, for the list the publisher sees. */
+export function publicationRecipients(
+  policy: WorkspacePolicyPayload,
+  recipientGroupId: string,
+): PublicationRecipient[] {
+  const group = policy.groups.find((entry) => entry.groupId === recipientGroupId);
+  if (!group) return [];
+  const ids = new Set(group.memberIds ?? []);
+  return policy.members
+    .filter((member) => ids.has(member.memberId))
+    .map((member) => ({ memberId: member.memberId, displayName: member.displayName, state: member.state }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.memberId.localeCompare(b.memberId));
 }
