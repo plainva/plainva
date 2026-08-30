@@ -3182,6 +3182,14 @@
     "publicationNotPermitted": "You are not allowed to publish in this workspace.",
     "publicationUnknown": "This vault does not know that publication. It may have been removed here, or it belongs to a different vault.",
     "publicationRecipientGroupMissing": "This publication has no recipient group, so nobody can be added to it. Create the publication again.",
+    "publicationNotRecipient": "That person is not a recipient of this publication. You cannot withdraw your own access this way.",
+    "revokeRecipient": "Withdraw access",
+    "recipientRevoked": "Withdrawn",
+    "withdrawPublication": "Withdraw publication",
+    "withdrawBoundary": "Withdrawing does not take back what someone already has. Whoever copied the bytes and holds the key can still read them. What it does: from now on nothing new reaches them, and the next epoch is unreadable for them.",
+    "withdrawPublicationHint": "Every object this publication holds is retracted and the publication is forgotten here. Recipients keep no working key.",
+    "withdrawProviderHint": "The folder at {{provider}} stays where it is. Plainva does not manage other systems' sharing settings - remove the share there yourself.",
+    "publicationWithdrawn": "Publication withdrawn",
     "publicationModeName": {
       "exact": "Exact copy",
       "sanitized": "Sanitized copy"

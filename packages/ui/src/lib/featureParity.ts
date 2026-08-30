@@ -475,19 +475,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "workspace-publication-create",
-    title: "Publishing a Vault Slice to someone outside the vault",
+    title: "Publishing a Vault Slice to someone outside the vault, and taking it back",
     area: "security",
     kind: "gap",
     desktop: "yes",
     mobile: null,
     mobileReason:
       "The desktop creates a publication - its own workspace, its own keys, its " +
-      "own folder - invites recipients and shows the provider advice that goes " +
-      "with it. The phone lists the publications that exist and says plainly that " +
-      "publishing runs on the desktop. This is a gap, not a platform limit: the " +
-      "core is shared and the phone already holds workspace keys. It waits on " +
-      "Stufe C, which builds the mobile half and deletes this entry.",
-    verified: "2026-08-30",
+      "own folder - invites recipients, shows the provider advice that goes with " +
+      "it, withdraws a single recipient (rotating the epoch behind them) and " +
+      "withdraws the whole publication (S6). The phone lists the publications " +
+      "that exist and says plainly that publishing runs on the desktop. This is " +
+      "one gap rather than several because it is one surface with one cause: the " +
+      "core is shared and the phone already holds workspace keys, so nothing here " +
+      "is a platform limit. It waits on Stufe C, whose M5 builds the mobile " +
+      "state-and-withdraw half and deletes this entry.",
+    verified: "2026-08-31",
   },
   {
     id: "workspace-slice-kinds",

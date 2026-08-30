@@ -60,6 +60,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     listSlicePublications,
     invitePublicationRecipient,
     listPublicationRecipients,
+    revokePublicationRecipient,
+    removeSlicePublication,
     restoreWorkspaceRecovery,
     rotateWorkspaceRecovery,
     activateWorkspaceRecovery,
@@ -123,6 +125,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   // nothing stores it, because a code that could be read back later would be a
   // second way into a publication that only membership should open.
   const [publicationInvite, setPublicationInvite] = useState<{ displayName: string; memberId: string; invite: string } | null>(null);
+  // Withdrawal (S6). Both are confirmations rather than immediate actions,
+  // because neither is undoable: the object store is put-only, so what a
+  // recipient already copied stays readable to them forever. The dialog has to
+  // say that BEFORE the click, not in a footnote afterwards.
+  const [revokeRecipientFor, setRevokeRecipientFor] = useState<{ publicationId: string; memberId: string; displayName: string; publicationName: string } | null>(null);
+  const [withdrawFor, setWithdrawFor] = useState<{ publicationId: string; name: string; provider: string } | null>(null);
   // The security area is owned by the settings modal now (IA v2, P1): the left
   // column (SecurityNav) selects it and drives this via the prop. null = the
   // overview (first level); a value renders exactly that management area.
@@ -636,8 +644,20 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                   <React.Fragment key={slice.sliceId}>
                     <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider}`}>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setRecipientFor({ publicationId: record.publicationId, name: slice.name }); setRecipientName(""); }} data-testid="workspace-invite-recipient">{t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })}</Button>
+                      <Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setWithdrawFor({ publicationId: record.publicationId, name: slice.name, provider: record.config.provider })} data-testid="workspace-withdraw-publication">{t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })}</Button>
                     </SettingRow>
-                    <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })} desc={people.length === 0 ? t("workspaceSecurity.publicationNoRecipients", { defaultValue: "Nobody has been invited yet. A publication without recipients is encrypted and unreadable - that is the safe state, not a broken one." }) : people.map((person) => person.displayName).join(", ")} />
+                    {people.length === 0
+                      ? <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })} desc={t("workspaceSecurity.publicationNoRecipients", { defaultValue: "Nobody has been invited yet. A publication without recipients is encrypted and unreadable - that is the safe state, not a broken one." })} />
+                      : people.map((person) => (
+                        // One row per person rather than a joined string: a name
+                        // you cannot act on is a list, and withdrawing has to be
+                        // aimed at exactly one recipient.
+                        <SettingRow key={person.memberId} label={person.displayName} desc={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })}>
+                          {person.state === "active"
+                            ? <Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setRevokeRecipientFor({ publicationId: record.publicationId, memberId: person.memberId, displayName: person.displayName, publicationName: slice.name })} data-testid="workspace-revoke-recipient">{t("workspaceSecurity.revokeRecipient", { defaultValue: "Withdraw access" })}</Button>
+                            : <span>{t("workspaceSecurity.recipientRevoked", { defaultValue: "Withdrawn" })}</span>}
+                        </SettingRow>
+                      ))}
                     <SettingCardNote>
                       {publishedSliceProviderInstructions(record.config).map((instruction) => publicationInstructionText(instruction, t)).join(" ")}
                     </SettingCardNote>
@@ -817,6 +837,56 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                 }} data-testid="workspace-recipient-confirm">{t("common.confirm", { defaultValue: "Confirm" })}</Button>
               </div>
             </>)}
+          </div>
+        </Modal>
+      )}
+      {revokeRecipientFor && (
+        <Modal title={t("workspaceSecurity.revokeRecipient", { defaultValue: "Withdraw access" })} onClose={() => setRevokeRecipientFor(null)} size="md">
+          <div className="pv-security-wizard">
+            {/* The boundary stated before the click, not after it: the object
+                store is put-only and a deletion is a tombstone, so nothing
+                reaches back into a copy someone already made. */}
+            <Banner kind="warning" rounded>{t("workspaceSecurity.withdrawBoundary", { defaultValue: "Withdrawing does not take back what someone already has. Whoever copied the bytes and holds the key can still read them. What it does: from now on nothing new reaches them, and the next epoch is unreadable for them." })}</Banner>
+            <SettingRow label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}><strong>{revokeRecipientFor.publicationName}</strong></SettingRow>
+            <SettingRow label={t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })}><strong>{revokeRecipientFor.displayName}</strong></SettingRow>
+            <div className="pv-security-actions">
+              <Button variant="ghost" onClick={() => setRevokeRecipientFor(null)}>{t("common.cancel", { defaultValue: "Cancel" })}</Button>
+              <Button variant="danger" disabled={busy} onClick={() => {
+                const target = revokeRecipientFor;
+                setRevokeRecipientFor(null);
+                void runGovernance(async () => {
+                  await revokePublicationRecipient({ publicationId: target.publicationId, memberId: target.memberId, reason: "publication recipient withdrawn" });
+                  await refreshPublications();
+                }, t("workspaceSecurity.recipientRevoked", { defaultValue: "Withdrawn" }));
+              }} data-testid="workspace-revoke-confirm">{t("workspaceSecurity.revokeRecipient", { defaultValue: "Withdraw access" })}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {withdrawFor && (
+        <Modal title={t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })} onClose={() => setWithdrawFor(null)} size="md">
+          <div className="pv-security-wizard">
+            <Banner kind="warning" rounded>{t("workspaceSecurity.withdrawBoundary", { defaultValue: "Withdrawing does not take back what someone already has. Whoever copied the bytes and holds the key can still read them. What it does: from now on nothing new reaches them, and the next epoch is unreadable for them." })}</Banner>
+            <SettingRow label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}><strong>{withdrawFor.name}</strong></SettingRow>
+            <SettingCardNote>{t("workspaceSecurity.withdrawPublicationHint", { defaultValue: "Every object this publication holds is retracted and the publication is forgotten here. Recipients keep no working key." })}</SettingCardNote>
+            {/* Instructions, not automation. Plainva does not manage other
+                systems' access lists, and pretending to would be worse than
+                saying so plainly. */}
+            <SettingCardNote>{t("workspaceSecurity.withdrawProviderHint", { defaultValue: "The folder at {{provider}} stays where it is. Plainva does not manage other systems' sharing settings - remove the share there yourself.", provider: withdrawFor.provider })}</SettingCardNote>
+            <div className="pv-security-actions">
+              <Button variant="ghost" onClick={() => setWithdrawFor(null)}>{t("common.cancel", { defaultValue: "Cancel" })}</Button>
+              <Button variant="danger" disabled={busy} onClick={() => {
+                const target = withdrawFor;
+                setWithdrawFor(null);
+                void runGovernance(async () => {
+                  const result = await removeSlicePublication(target.publicationId);
+                  await refreshPublications();
+                  // A partial teardown keeps the publication so the next attempt
+                  // can finish it - saying "withdrawn" here would be a lie.
+                  if (result.error) throw new Error(result.error);
+                }, t("workspaceSecurity.publicationWithdrawn", { defaultValue: "Publication withdrawn" }));
+              }} data-testid="workspace-withdraw-confirm">{t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })}</Button>
+            </div>
           </div>
         </Modal>
       )}

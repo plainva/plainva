@@ -3239,6 +3239,14 @@
     "publicationNotPermitted": "Nie masz uprawnień do publikowania w tej przestrzeni.",
     "publicationUnknown": "Ten vault nie zna tej publikacji. Została tu usunięta albo należy do innego vaultu.",
     "publicationRecipientGroupMissing": "Ta publikacja nie ma grupy odbiorców, więc nikogo nie da się do niej dodać. Utwórz ją ponownie.",
+    "publicationNotRecipient": "Ta osoba nie jest odbiorcą tej publikacji. Własnego dostępu nie możesz odebrać w ten sposób.",
+    "revokeRecipient": "Odbierz dostęp",
+    "recipientRevoked": "Odebrano",
+    "withdrawPublication": "Wycofaj publikację",
+    "withdrawBoundary": "Odebranie dostępu nie zabiera nikomu tego, co już ma. Kto skopiował dane i ma klucz, nadal może je czytać. Co daje odebranie: od teraz nic nowego do tej osoby nie dociera, a następna epoka jest dla niej nieczytelna.",
+    "withdrawPublicationHint": "Wszystko, co zawiera ta publikacja, zostaje wycofane, a sama publikacja zapomniana. Odbiorcom nie zostaje żaden działający klucz.",
+    "withdrawProviderHint": "Folder w {{provider}} zostaje tam, gdzie jest. Plainva nie zarządza ustawieniami udostępniania innych systemów - cofnij udostępnienie tam samodzielnie.",
+    "publicationWithdrawn": "Publikacja wycofana",
     "publicationModeName": {
       "exact": "Kopia dokładna",
       "sanitized": "Kopia oczyszczona"

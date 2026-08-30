@@ -3211,6 +3211,14 @@
     "publicationNotPermitted": "Vous n'avez pas le droit de publier dans cet espace.",
     "publicationUnknown": "Ce vault ne connaît pas cette publication. Elle a été retirée ici, ou elle appartient à un autre vault.",
     "publicationRecipientGroupMissing": "Cette publication n'a pas de groupe de destinataires : personne ne peut y être ajouté. Créez-la de nouveau.",
+    "publicationNotRecipient": "Cette personne n'est pas destinataire de cette publication. Vous ne pouvez pas retirer votre propre accès de cette manière.",
+    "revokeRecipient": "Retirer l'accès",
+    "recipientRevoked": "Retiré",
+    "withdrawPublication": "Retirer la publication",
+    "withdrawBoundary": "Un retrait ne reprend à personne ce qu'elle possède déjà. Qui a copié les données et détient la clé peut continuer à les lire. Ce que le retrait fait : à partir de maintenant, plus rien de nouveau ne lui parvient, et l'époque suivante lui est illisible.",
+    "withdrawPublicationHint": "Tout ce que contient cette publication est rétracté et la publication est oubliée ici. Les destinataires ne conservent aucune clé fonctionnelle.",
+    "withdrawProviderHint": "Le dossier chez {{provider}} reste où il est. Plainva ne gère pas les réglages de partage d'autres systèmes : retirez le partage vous-même là-bas.",
+    "publicationWithdrawn": "Publication retirée",
     "publicationModeName": {
       "exact": "Copie exacte",
       "sanitized": "Copie assainie"

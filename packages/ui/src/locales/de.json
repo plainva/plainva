@@ -3182,6 +3182,14 @@
     "publicationNotPermitted": "Du darfst in diesem Workspace nicht veröffentlichen.",
     "publicationUnknown": "Dieser Vault kennt diese Veröffentlichung nicht. Sie wurde hier entfernt, oder sie gehört zu einem anderen Vault.",
     "publicationRecipientGroupMissing": "Dieser Veröffentlichung fehlt ihre Empfänger-Gruppe — sie kann niemanden aufnehmen. Lege sie neu an.",
+    "publicationNotRecipient": "Diese Person ist keine Empfängerin dieser Veröffentlichung. Deinen eigenen Zugang kannst Du auf diesem Weg nicht entziehen.",
+    "revokeRecipient": "Zugang entziehen",
+    "recipientRevoked": "Entzogen",
+    "withdrawPublication": "Veröffentlichung zurückziehen",
+    "withdrawBoundary": "Ein Entzug nimmt niemandem, was er schon hat. Wer die Daten kopiert hat und den Schlüssel besitzt, kann sie weiter lesen. Was der Entzug leistet: ab jetzt kommt nichts Neues mehr an, und die nächste Epoche ist für ihn unlesbar.",
+    "withdrawPublicationHint": "Alles, was diese Veröffentlichung enthält, wird zurückgezogen und die Veröffentlichung hier vergessen. Empfänger behalten keinen funktionierenden Schlüssel.",
+    "withdrawProviderHint": "Der Ordner bei {{provider}} bleibt, wo er ist. Plainva verwaltet keine fremden Freigabe-Einstellungen — nimm die Freigabe dort selbst zurück.",
+    "publicationWithdrawn": "Veröffentlichung zurückgezogen",
     "publicationModeName": {
       "exact": "Exakte Kopie",
       "sanitized": "Bereinigte Kopie"

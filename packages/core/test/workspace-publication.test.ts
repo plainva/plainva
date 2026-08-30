@@ -10,6 +10,7 @@ import {
   decodePublicationCard,
   derivePublicationId,
   emptyPublicationManifest,
+  applyWorkspaceGovernanceUpdate,
   evaluateWorkspaceAccess,
   openPvo1Frame,
   parsePvo1Frame,
@@ -21,6 +22,8 @@ import {
   publicationRecipientStoreFor,
   publicationStoreFor,
   invitePublicationRecipient,
+  planPublicationTeardown,
+  revokePublicationRecipient,
   publishSliceObjectContent,
   publishedSliceAccessCapabilities,
   refreshWorkspacePublications,
@@ -1408,5 +1411,112 @@ describe("the shared folder, seen by its recipient", () => {
     expect(await recipient.get(".pvws/genesis.pvgen")).toEqual(bytes);
     expect((await recipient.head(".pvws/genesis.pvgen"))?.key).toBe(".pvws/genesis.pvgen");
     expect((await recipient.list(".pvws/")).items.map((entry) => entry.key)).toEqual([".pvws/genesis.pvgen"]);
+  });
+});
+
+describe("revokePublicationRecipient", () => {
+  /** Mints one recipient so there is somebody to take back out again. */
+  async function withRecipient() {
+    const made = await makePublication();
+    const update = await invitePublicationRecipient({
+      runtime: made.handle.runtime,
+      recipientGroupId: made.handle.recipientGroupId,
+      displayName: "Reviewer",
+    });
+    applyWorkspaceGovernanceUpdate(made.handle.runtime, update);
+    return { ...made, memberId: update.memberId };
+  }
+
+  it("closes the door and changes the lock behind it", async () => {
+    const { handle, memberId } = await withRecipient();
+    const before = handle.runtime.policy.payload.groups.find(
+      (group) => group.groupId === handle.recipientGroupId,
+    )!;
+
+    const update = await revokePublicationRecipient({
+      runtime: handle.runtime,
+      memberId,
+      reason: "no longer on the project",
+    });
+
+    const group = update.policy.payload.groups.find((entry) => entry.groupId === handle.recipientGroupId)!;
+    // Both halves matter and neither is sufficient alone: dropped from the
+    // group, so no new grant is ever minted for them, AND a fresh epoch, so
+    // the key they already hold opens nothing written from here on.
+    expect(group.memberIds ?? []).not.toContain(memberId);
+    expect(group.keyEpoch).toBe(before.keyEpoch + 1);
+    expect(group.hpkePublicKey).not.toBe(before.hpkePublicKey);
+    expect(update.policy.payload.members.find((member) => member.memberId === memberId)?.state).toBe("revoked");
+    expect(
+      update.policy.payload.revocations.some(
+        (entry) => entry.subjectKind === "member" && entry.subjectId === memberId,
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses to revoke the publisher out of their own publication", async () => {
+    // The failure this guard exists for, and the red probe confirms it is not
+    // hypothetical: with the guard removed, this call does not throw at all -
+    // `revokeWorkspaceMemberAndRotate` has no notion of publications and
+    // revokes the Owner without complaint -
+    // and a workspace has exactly one, with no second Owner to restore it. The
+    // publication would still be out there, still readable to its recipients,
+    // and permanently unmanageable by the person who published it.
+    const { handle } = await withRecipient();
+
+    await expect(
+      revokePublicationRecipient({
+        runtime: handle.runtime,
+        memberId: handle.runtime.ownerMemberId,
+        reason: "wrong id",
+      }),
+    ).rejects.toThrow(/not a publication recipient/);
+  });
+
+  it("refuses an id that belongs to nobody", async () => {
+    const { handle } = await withRecipient();
+
+    await expect(
+      revokePublicationRecipient({ runtime: handle.runtime, memberId: "not-a-member", reason: "typo" }),
+    ).rejects.toThrow(/not a publication recipient/);
+  });
+});
+
+const PUB_1 = "e5".repeat(16);
+const PUB_2 = "f6".repeat(16);
+
+describe("planPublicationTeardown", () => {
+  it("retracts everything the publication holds", async () => {
+    const manifest: PublicationManifest = {
+      ...emptyPublicationManifest("pub"),
+      objects: [
+        { sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: PUB_1 },
+        { sourceObjectId: SOURCE_B, path: "Projects/Q4.md", sourceRevisionId: REV_2, publishedRevisionId: PUB_2 },
+      ],
+    };
+
+    const plan = planPublicationTeardown(manifest);
+
+    expect(plan.map((item) => item.action)).toEqual(["retract", "retract"]);
+    // The parent revision is what makes a tombstone a link in the chain rather
+    // than an orphan; the protocol refuses a delete that names none.
+    expect(plan.map((item) => item.parentRevisionId).sort()).toEqual([PUB_1, PUB_2].sort());
+  });
+
+  it("is the same plan a refresh against an empty slice would produce", async () => {
+    // Not a tautology dressed as a test: it pins that withdrawal has exactly
+    // one definition. The day teardown grows its own planner, this goes red.
+    const manifest: PublicationManifest = {
+      ...emptyPublicationManifest("pub"),
+      objects: [
+        { sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: PUB_1 },
+      ],
+    };
+
+    expect(planPublicationTeardown(manifest)).toEqual(planPublicationRefresh({ manifest, covered: [] }));
+  });
+
+  it("has nothing to do for a publication that never published anything", async () => {
+    expect(planPublicationTeardown(emptyPublicationManifest("pub"))).toEqual([]);
   });
 });

@@ -3155,6 +3155,14 @@
     "publicationNotPermitted": "このワークスペースで公開する権限がありません。",
     "publicationUnknown": "この保管庫はその公開を認識していません。ここで削除されたか、別の保管庫のものです。",
     "publicationRecipientGroupMissing": "この公開には受け取り手グループがないため、誰も追加できません。作り直してください。",
+    "publicationNotRecipient": "この人はこの公開の受け取り手ではありません。自分自身のアクセス権をこの方法で取り消すことはできません。",
+    "revokeRecipient": "アクセス権を取り消す",
+    "recipientRevoked": "取り消し済み",
+    "withdrawPublication": "公開を取り下げる",
+    "withdrawBoundary": "取り消しても、相手がすでに手にしたものは戻せません。データを複製し鍵を持つ人は、引き続き読めます。取り消しが果たすのは次のことです。これ以降その人には新しいものが届かず、次の鍵世代は読めなくなります。",
+    "withdrawPublicationHint": "この公開が保持しているものはすべて取り下げられ、公開はここから忘れられます。受け取り手に使える鍵は残りません。",
+    "withdrawProviderHint": "{{provider}} 上のフォルダーはそのまま残ります。Plainva は他システムの共有設定を管理しません。共有はご自身でそちらから解除してください。",
+    "publicationWithdrawn": "公開を取り下げました",
     "publicationModeName": {
       "exact": "完全な複写",
       "sanitized": "浄化した複写"

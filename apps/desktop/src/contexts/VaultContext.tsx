@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, emptyPublicationManifest, publicationStoreFor, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, emptyPublicationManifest, publicationStoreFor, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -224,6 +224,15 @@ interface VaultContextType extends VaultState {
   /** Mints a recipient of one publication and returns the code that lets them in. Their key opens the publication and nothing else. */
   invitePublicationRecipient: (input: { publicationId: string; displayName: string }) => Promise<{ memberId: string; invite: string }>;
   listPublicationRecipients: (publicationId: string) => Promise<PublicationRecipient[]>;
+  /**
+   * Closes the door behind one recipient and changes the lock.
+   *
+   * Does NOT reach the bytes they already hold - the store is put-only and a
+   * deletion is a tombstone. The surface has to say that before the click.
+   */
+  revokePublicationRecipient: (input: { publicationId: string; memberId: string; reason: string }) => Promise<void>;
+  /** Retracts everything a publication holds, then forgets it. The provider-side share stays for the publisher to remove. */
+  removeSlicePublication: (publicationId: string) => Promise<{ retracted: number; error: string | null }>;
   restoreWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }) => Promise<void>;
   rotateWorkspaceRecovery: (input: { bytes: Uint8Array; recoveryCode: string }) => Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }>;
   activateWorkspaceRecovery: (activation: RotatedWorkspaceRecovery["anchor"]) => Promise<void>;
@@ -2350,6 +2359,84 @@ export const VaultProvider: React.FC<{
     return publicationRecipients(publicationRuntime.policy.payload, recipientGroupId);
   };
 
+  /**
+   * Takes one recipient back out of a publication.
+   *
+   * Runs against the PUBLICATION's runtime, never the vault's - the same
+   * pairing every other publication operation depends on. `publicationControlPlane`
+   * is what guarantees it, which is why the runtime is never passed in.
+   *
+   * What the caller has to have said BEFORE offering this: the bytes that
+   * recipient already downloaded stay readable to them. The object store is
+   * put-only, a deletion there is a tombstone rather than an erasure, and no
+   * amount of key rotation reaches a copy on someone else's disk. What the
+   * rotation does buy is that nothing new ever arrives and the next epoch is
+   * unreadable to them. Saying that after the click would be saying it too
+   * late.
+   */
+  const revokePublicationRecipientById = async (input: { publicationId: string; memberId: string; reason: string }): Promise<void> => {
+    const { vaultPath, publicationRuntime, publicationStore } = await publicationControlPlane(input.publicationId);
+    const update = await revokeRecipientAndRotate({ runtime: publicationRuntime, memberId: input.memberId, reason: input.reason });
+    await publishWorkspaceGovernanceUpdate(publicationStore, update);
+    applyWorkspaceGovernanceUpdate(publicationRuntime, update);
+    await persistPublicationRuntime(vaultPath, input.publicationId, publicationRuntime);
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+  };
+
+  /**
+   * Withdraws a publication entirely: tombstones over everything it holds, then
+   * the record, then the key.
+   *
+   * The order is the whole design. Tombstones need the runtime, so the key is
+   * cleared LAST - a device that dropped its key first would leave a folder
+   * full of readable content and no way left to retract it. And the record is
+   * removed only after the tombstones landed, so a run that dies half-way
+   * leaves a publication the manifest still describes and the next attempt can
+   * finish rather than a record pointing at a folder nobody can reason about.
+   *
+   * What stays behind, deliberately: the publication's own `.pvws/` objects.
+   * The store is put-only; there is no delete. The provider-side share is not
+   * touched either - Plainva does not manage other systems' ACLs, and pretending
+   * to would be worse than saying so. The surface tells the publisher to remove
+   * the share themselves, and that instruction is the last step of this flow,
+   * not a footnote under it.
+   */
+  const removePublication = async (publicationId: string): Promise<{ retracted: number; error: string | null }> => {
+    const { vaultPath, workspaceState, record, publicationRuntime, publicationStore } = await publicationControlPlane(publicationId);
+    const plan = planPublicationTeardown(record.manifest);
+    let manifest = record.manifest;
+    let retracted = 0;
+
+    if (plan.length > 0) {
+      const result = await runPublicationRefresh({
+        handle: { publicationId, runtime: publicationRuntime, store: publicationStore },
+        manifest,
+        plan,
+        // A teardown plan is retractions only, so the runner never reaches this.
+        // It throws rather than returning something plausible: if it ever fires,
+        // the plan is not a teardown, and publishing invented content into a
+        // folder somebody is still reading is the one outcome worth crashing over.
+        project: async () => { throw new Error("publication-teardown-projection"); },
+        persist: async (next) => { await workspaceState.savePublication({ ...record, manifest: next }); },
+      });
+      manifest = result.manifest;
+      retracted = result.applied.length;
+      const { error } = result;
+      if (error) {
+        // Stop with the record intact. The manifest now describes what actually
+        // stayed published, so a second attempt retracts exactly the remainder.
+        await workspaceState.savePublication({ ...record, manifest, lastError: error });
+        return { retracted, error };
+      }
+    }
+
+    await workspaceState.deletePublication(publicationId);
+    // Last, because it wipes the runtime this function was holding.
+    await clearPublicationRuntimes(vaultPath, [publicationId]);
+    window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
+    return { retracted, error: null };
+  };
+
   /** Every workspace object with the tags and properties a dynamic slice rule can ask about. */
   const workspaceSliceObjects = async () => {
     const { workspaceState } = workspaceControlPlane();
@@ -2679,7 +2766,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

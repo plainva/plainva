@@ -66,11 +66,12 @@ export function publicationInstructionText(
 /**
  * The control plane throws error codes, not sentences.
  *
- * Five of them, and each one means something different to the person in front
+ * Six of them, and each one means something different to the person in front
  * of the screen: a publication this vault has never heard of, a vault that is
  * locked, a key that lives on another device, a member without the right to
- * invite, and a publication whose policy carries no recipient group. Showing
- * the raw code was the state before S5b, and it told nobody anything.
+ * invite, a publication whose policy carries no recipient group, and - since S6
+ * - an attempt to withdraw somebody who is not a recipient of it. Showing the
+ * raw code was the state before S5b, and it told nobody anything.
  *
  * Unknown codes fall through unchanged rather than being swallowed by a
  * generic sentence: an error we did not anticipate is still worth reading.
@@ -81,6 +82,9 @@ const PUBLICATION_ERROR_KEYS: Record<string, string> = {
   "publication-key-missing": "publicationKeyMissing",
   "workspace-publication-not-permitted": "publicationNotPermitted",
   "publication-recipient-group-missing": "publicationRecipientGroupMissing",
+  // The guard that stops a publisher revoking their own Owner out of the
+  // publication - the red probe showed the core throws nothing without it.
+  "member is not a publication recipient": "publicationNotRecipient",
 };
 
 /** Turn a thrown publication error into a sentence, or leave it alone. */

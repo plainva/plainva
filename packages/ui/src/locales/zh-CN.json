@@ -3155,6 +3155,14 @@
     "publicationNotPermitted": "你无权在此工作区发布。",
     "publicationUnknown": "本仓库不认识该发布。它可能已在此删除，或属于另一个仓库。",
     "publicationRecipientGroupMissing": "该发布没有接收人分组，因此无法添加任何人。请重新创建该发布。",
+    "publicationNotRecipient": "此人不是该发布的接收人。你无法用这种方式收回自己的访问权。",
+    "revokeRecipient": "收回访问权",
+    "recipientRevoked": "已收回",
+    "withdrawPublication": "撤回发布",
+    "withdrawBoundary": "收回访问权不会拿回别人已经拿到的东西。已复制数据并持有密钥的人仍能继续阅读。它的作用是：从现在起不再有新内容送达该人，且下一个密钥世代对其不可读。",
+    "withdrawPublicationHint": "该发布所含的一切都会被撤回，发布本身也会在此被遗忘。接收人不会留下可用的密钥。",
+    "withdrawProviderHint": "{{provider}} 上的文件夹仍留在原处。Plainva 不管理其他系统的共享设置——请你自行到那里取消共享。",
+    "publicationWithdrawn": "发布已撤回",
     "publicationModeName": {
       "exact": "完全副本",
       "sanitized": "清理后的副本"

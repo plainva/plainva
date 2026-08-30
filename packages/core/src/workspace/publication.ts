@@ -28,7 +28,7 @@ import {
 import { decodeBase64Exact, sha256Hex, toBase64, utf8Encode } from "./encoding.js";
 import { encodeWorkspaceInvite } from "./invite.js";
 import { protocolAssert } from "./errors.js";
-import { publishWorkspaceBootstrap, type WorkspaceGovernanceUpdate } from "./governance.js";
+import { publishWorkspaceBootstrap, revokeWorkspaceMemberAndRotate, type WorkspaceGovernanceUpdate } from "./governance.js";
 import {
   createWorkspaceGroupKeyEpoch,
   createWorkspaceMemberId,
@@ -823,4 +823,71 @@ export function publicationRecipients(
     .filter((member) => ids.has(member.memberId))
     .map((member) => ({ memberId: member.memberId, displayName: member.displayName, state: member.state }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.memberId.localeCompare(b.memberId));
+}
+
+/**
+ * Takes one recipient back out of a publication and rotates what they knew.
+ *
+ * `revokeWorkspaceMemberAndRotate` already does every part of the work:
+ * it marks the member revoked, revokes their devices, drops them from every
+ * group they were in, mints a fresh key epoch for each of those groups and
+ * re-issues grants to the devices that remain. Nothing about that is specific
+ * to publications, so nothing is reimplemented here.
+ *
+ * What IS specific to publications is the guard in front of it. A publication
+ * has exactly two kinds of member: the publisher, who holds Owner through the
+ * bootstrap, and the recipients, who hold nothing but membership in the
+ * recipient group. Pass the wrong id and the underlying primitive would
+ * cheerfully revoke the publisher out of their own publication - and because a
+ * workspace has exactly one Owner and no second one to restore it, that is not
+ * a mistake anybody recovers from. So a revocation only touches somebody who
+ * came in through the recipient door.
+ *
+ * Note what this does NOT achieve, because the surface has to say it out loud:
+ * bytes already downloaded stay readable to whoever holds the old epoch's key.
+ * The object store is put-only, and deletion there is a tombstone rather than
+ * an erasure. What the rotation buys is the future - from here on nothing new
+ * is readable to them.
+ */
+export async function revokePublicationRecipient(input: {
+  /** The PUBLICATION's runtime, never the main vault's. */
+  runtime: PersonalWorkspaceRuntime;
+  memberId: string;
+  reason: string;
+  now?: string;
+}): Promise<WorkspaceGovernanceUpdate> {
+  const recipientGroupId = publicationRecipientGroupId(input.runtime.policy.payload);
+  protocolAssert(!!recipientGroupId, "integrity", "publication-recipient-group-missing");
+  const group = input.runtime.policy.payload.groups.find((entry) => entry.groupId === recipientGroupId);
+  protocolAssert(
+    !!group && (group.memberIds ?? []).includes(input.memberId),
+    "conflict",
+    "member is not a publication recipient",
+  );
+  return revokeWorkspaceMemberAndRotate({
+    runtime: input.runtime,
+    memberId: input.memberId,
+    reason: input.reason,
+    now: input.now,
+  });
+}
+
+/**
+ * The plan that empties a publication: a refresh against a slice with nothing in it.
+ *
+ * Withdrawing a publication needs no planner of its own. `planPublicationRefresh`
+ * already emits a retraction for every record the manifest holds that the
+ * covered set no longer names - so a covered set that names nothing retracts
+ * everything, in the same order, through the same runner, leaving the same
+ * tombstones. A second implementation would be a second definition of "what a
+ * publication currently holds", and the two would drift.
+ *
+ * The result is a plan, not an effect: the caller runs it through
+ * `runPublicationRefresh` and can stop, resume or report progress exactly as
+ * for any other refresh. That matters here more than elsewhere, because a
+ * withdrawal that stops halfway must be resumable rather than leave a
+ * publication the manifest no longer describes.
+ */
+export function planPublicationTeardown(manifest: PublicationManifest): PublicationRefreshItem[] {
+  return planPublicationRefresh({ manifest, covered: [] });
 }

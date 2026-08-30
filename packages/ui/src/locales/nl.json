@@ -3183,6 +3183,14 @@
     "publicationNotPermitted": "Je mag in deze werkruimte niet publiceren.",
     "publicationUnknown": "Deze vault kent die publicatie niet. Ze is hier verwijderd, of ze hoort bij een andere vault.",
     "publicationRecipientGroupMissing": "Deze publicatie heeft geen ontvangersgroep, dus er kan niemand aan worden toegevoegd. Maak haar opnieuw aan.",
+    "publicationNotRecipient": "Deze persoon is geen ontvanger van deze publicatie. Je eigen toegang kun je op deze manier niet intrekken.",
+    "revokeRecipient": "Toegang intrekken",
+    "recipientRevoked": "Ingetrokken",
+    "withdrawPublication": "Publicatie intrekken",
+    "withdrawBoundary": "Intrekken neemt niemand af wat hij al heeft. Wie de gegevens heeft gekopieerd en de sleutel bezit, kan ze blijven lezen. Wat het intrekken wel doet: vanaf nu komt er niets nieuws meer aan, en de volgende epoche is voor hem onleesbaar.",
+    "withdrawPublicationHint": "Alles wat deze publicatie bevat wordt teruggetrokken en de publicatie wordt hier vergeten. Ontvangers houden geen werkende sleutel over.",
+    "withdrawProviderHint": "De map bij {{provider}} blijft waar hij is. Plainva beheert geen deelinstellingen van andere systemen - trek de deling daar zelf in.",
+    "publicationWithdrawn": "Publicatie ingetrokken",
     "publicationModeName": {
       "exact": "Exacte kopie",
       "sanitized": "Opgeschoonde kopie"
