@@ -6,9 +6,15 @@ import {
   createPublication,
   decodePublicationCard,
   derivePublicationId,
+  derivePublishedObjectId,
+  openPvo1Frame,
+  parsePvo1Frame,
+  parseWorkspaceDocument,
   personalWorkspaceRuntime,
   publicationStoreFor,
+  publishSliceObjectContent,
   publishedSliceAccessCapabilities,
+  workspaceRecipientGroupIds,
   type PublishedSliceConfig,
 } from "../src/index.js";
 
@@ -234,5 +240,185 @@ describe("createPublication", () => {
     expect(decodePublicationCard(new TextEncoder().encode("not json"))).toBeNull();
     expect(decodePublicationCard(new TextEncoder().encode(JSON.stringify({ name: "x", mode: "live", access: "read", createdAt: "t" })))).toBeNull();
     expect(decodePublicationCard(new TextEncoder().encode(JSON.stringify({ name: "x", mode: "exact", access: "admin", createdAt: "t" })))).toBeNull();
+  });
+});
+
+/**
+ * Putting content into one (S3c).
+ *
+ * Everything above builds the container: a folder, a genesis, a policy, a card.
+ * None of it is readable, because none of it holds a note. This is the step
+ * that makes a publication a publication - and the two things worth pinning are
+ * the two that are silent when wrong: which id a note carries inside the
+ * publication, and who the note is sealed to.
+ */
+describe("publishSliceObjectContent", () => {
+  const NOTE = { sourceObjectId: "c3".repeat(16), path: "Projects/Q3.md", text: "# Q3\n\nShipped." };
+
+  it("derives a stable id, so republishing revises rather than duplicates", () => {
+    // A refresh republishes the same note. If the id moved, the recipient would
+    // end up with two copies of one note and no way to tell which is current.
+    const id = derivePublishedObjectId("pub-a", NOTE.sourceObjectId);
+    expect(derivePublishedObjectId("pub-a", NOTE.sourceObjectId)).toBe(id);
+  });
+
+  it("gives the same note two ids in two publications", () => {
+    // The correlation this prevents is concrete: a recipient of two slices that
+    // both contain one note would otherwise see one id twice and learn that the
+    // slices overlap. Carrying the source id across would have handed that over
+    // for free, because the source id is exactly the stable handle.
+    expect(derivePublishedObjectId("pub-a", NOTE.sourceObjectId)).not.toBe(derivePublishedObjectId("pub-b", NOTE.sourceObjectId));
+  });
+
+  it("keeps the source id out of the derived one", () => {
+    const id = derivePublishedObjectId("pub-a", NOTE.sourceObjectId);
+    expect(id).not.toContain(NOTE.sourceObjectId);
+    expect(NOTE.sourceObjectId).not.toContain(id);
+    expect(id).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("writes a frame and an operation into the publication folder", async () => {
+    const { handle, outer } = await makePublication();
+    const result = await publishSliceObjectContent({ handle, objects: [NOTE], now: "2026-08-26T10:00:00.000Z" });
+
+    expect(result.writes).toHaveLength(1);
+    const write = result.writes[0];
+    expect(write.objectId).toBe(derivePublishedObjectId(handle.publicationId, NOTE.sourceObjectId));
+
+    // The publication workspace sees a plain `.pvws/`; the outer vault sees it
+    // nested. Both views have to agree, or a recipient syncing the folder finds
+    // a frame the operation cannot name.
+    const nested = (key: string) => key.replace(".pvws/", `.pvws/publications/${handle.publicationId}/`);
+    const keys = (await outer.list(".pvws/publications")).items.map((item) => item.key);
+    expect(keys).toContain(nested(write.objectRemoteKey));
+    expect(keys).toContain(nested(write.operationRemoteKey));
+    expect(write.operationRemoteKey.endsWith(`1-${write.operationHash}.pvop`)).toBe(true);
+  });
+
+  it("leaves the vault it published FROM untouched", async () => {
+    // The same guarantee `createPublication` makes, at the step that actually
+    // moves content: publishing writes into the publication and nowhere else.
+    const { handle, outer } = await makePublication();
+    await publishSliceObjectContent({ handle, objects: [NOTE] });
+    expect(await outer.get(".pvws/genesis.pvgen")).toBeNull();
+    expect((await outer.list(".pvws/objects")).items).toEqual([]);
+    expect((await outer.list(".pvws/operations")).items).toEqual([]);
+  });
+
+  it("seals to every group the policy grants read, not just the recipient group", async () => {
+    // The load-bearing one. `handle.recipientGroupId` names the door recipients
+    // come through; the policy ALSO grants the publisher's own owner group
+    // `content.read`. Sealing to the recipient group alone would lock the
+    // publisher out of what they had just published - and they would not find
+    // out until they opened the publication to check it.
+    const { handle } = await makePublication();
+    const result = await publishSliceObjectContent({ handle, objects: [NOTE] });
+    const bytes = await handle.store.get(result.writes[0].objectRemoteKey);
+    const groups = parsePvo1Frame(bytes!).envelopes.map((envelope) => envelope.groupId).sort();
+    expect(groups).toContain(handle.recipientGroupId);
+    expect(groups).toContain(handle.runtime.ownerGroup.groupId);
+    expect(groups).toEqual([...workspaceRecipientGroupIds(handle.runtime.policy.payload, { objectId: result.writes[0].objectId, path: NOTE.path, contentKind: "text" })].sort());
+  });
+
+  it("stays readable to the publisher's own key", async () => {
+    // The same claim from the other side, and the one a user would notice: open
+    // the frame with the key the publishing device actually holds.
+    const { handle } = await makePublication();
+    const result = await publishSliceObjectContent({ handle, objects: [NOTE] });
+    const bytes = await handle.store.get(result.writes[0].objectRemoteKey);
+    const owner = handle.runtime.ownerGroup;
+    const opened = await openPvo1Frame(bytes!, [{ groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey }]);
+    expect(new TextDecoder().decode(opened.plaintext!)).toBe(NOTE.text);
+    expect(opened.metadata.path).toBe(NOTE.path);
+    expect(opened.metadata.mime).toBe("text/markdown");
+  });
+
+  it("publishes what the projection returned, not the source note", async () => {
+    // This function never sees the source text, and that is deliberate: the
+    // "exact or sanitized" decision is made and applied before an object gets
+    // here, so nothing in this file can publish an unprojected note.
+    const { handle } = await makePublication();
+    const projected = { ...NOTE, text: "# Q3\n\nShipped.\n" };
+    const result = await publishSliceObjectContent({ handle, objects: [projected] });
+    const owner = handle.runtime.ownerGroup;
+    const opened = await openPvo1Frame((await handle.store.get(result.writes[0].objectRemoteKey))!, [
+      { groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey },
+    ]);
+    expect(new TextDecoder().decode(opened.plaintext!)).toBe(projected.text);
+  });
+
+  it("chains the device operations it writes", async () => {
+    // A gap or a repeat in the chain makes every later operation unverifiable
+    // for a recipient, so the whole publication stops opening - not just the
+    // one note that broke it.
+    const { handle } = await makePublication();
+    const result = await publishSliceObjectContent({
+      handle,
+      objects: [NOTE, { sourceObjectId: "d4".repeat(16), path: "Projects/Q4.md", text: "# Q4" }],
+    });
+    expect(result.writes.map((write) => write.sequence)).toEqual([1, 2]);
+    const first = parseWorkspaceDocument((await handle.store.get(result.writes[0].operationRemoteKey))!);
+    const second = parseWorkspaceDocument((await handle.store.get(result.writes[1].operationRemoteKey))!);
+    const firstPayload = first.payload as { previousDeviceOperationHash: string | null; objectId: string; payloadHash: string };
+    const secondPayload = second.payload as { previousDeviceOperationHash: string | null };
+    expect(firstPayload.previousDeviceOperationHash).toBeNull();
+    expect(secondPayload.previousDeviceOperationHash).toBe(result.writes[0].operationHash);
+    expect(result.lastOperationHash).toBe(result.writes[1].operationHash);
+    expect(result.lastSequence).toBe(2);
+  });
+
+  it("continues an existing chain when asked to", async () => {
+    // Republishing is a second run against a device that already has a
+    // sequence. Starting over at 1 would collide with what is already there.
+    const { handle } = await makePublication();
+    const first = await publishSliceObjectContent({ handle, objects: [NOTE] });
+    const second = await publishSliceObjectContent({
+      handle,
+      objects: [{ sourceObjectId: "d4".repeat(16), path: "Projects/Q4.md", text: "# Q4" }],
+      fromSequence: first.lastSequence + 1,
+      previousOperationHash: first.lastOperationHash,
+    });
+    expect(second.writes[0].sequence).toBe(2);
+    const payload = parseWorkspaceDocument((await handle.store.get(second.writes[0].operationRemoteKey))!).payload as { previousDeviceOperationHash: string | null };
+    expect(payload.previousDeviceOperationHash).toBe(first.lastOperationHash);
+  });
+
+  it("refuses a chain that does not add up", async () => {
+    const { handle } = await makePublication();
+    await expect(publishSliceObjectContent({ handle, objects: [NOTE], fromSequence: 2, previousOperationHash: null })).rejects.toThrow();
+    await expect(publishSliceObjectContent({ handle, objects: [NOTE], fromSequence: 1, previousOperationHash: "aa".repeat(32) })).rejects.toThrow();
+    await expect(publishSliceObjectContent({ handle, objects: [NOTE], fromSequence: 0 })).rejects.toThrow();
+  });
+
+  it("refuses the same source object twice in one run", async () => {
+    // Two entries deriving one id means the second silently overwrites the
+    // first. A publication quietly missing a note is worse than a loud failure.
+    const { handle } = await makePublication();
+    await expect(publishSliceObjectContent({ handle, objects: [NOTE, { ...NOTE, path: "Elsewhere.md" }] })).rejects.toThrow();
+  });
+
+  it("refuses a note too large to seal inline", async () => {
+    // The chunked frame exists for files above 8 MiB, a size no Markdown note
+    // reaches. Rather than carry a second write path for a case that does not
+    // occur, an oversized object is refused by name.
+    const { handle } = await makePublication();
+    const huge = { sourceObjectId: "e5".repeat(16), path: "Huge.md", text: "x".repeat(8 * 1024 * 1024 + 1) };
+    await expect(publishSliceObjectContent({ handle, objects: [huge] })).rejects.toThrow();
+  });
+
+  it("refuses a path that is not canonical", async () => {
+    // A decomposed path seals fine and then fails to line up with anything a
+    // reader looks for - the object is there and unfindable.
+    const { handle } = await makePublication();
+    await expect(publishSliceObjectContent({ handle, objects: [{ ...NOTE, path: "Projects/Qué.md" }] })).rejects.toThrow();
+  });
+
+  it("writes nothing at all when there is nothing to publish", async () => {
+    const { handle, outer } = await makePublication();
+    const result = await publishSliceObjectContent({ handle, objects: [] });
+    expect(result.writes).toEqual([]);
+    expect(result.lastSequence).toBe(0);
+    expect(result.lastOperationHash).toBeNull();
+    expect((await outer.list(`.pvws/publications/${handle.publicationId}/objects`)).items).toEqual([]);
   });
 });
