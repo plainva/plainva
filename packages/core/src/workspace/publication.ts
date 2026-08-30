@@ -189,17 +189,44 @@ export function decodePublicationCard(bytes: Uint8Array): PublicationCard | null
  * note.
  */
 export interface PublishedObjectContent {
+  kind?: "publish";
   /** The object id in the SOURCE workspace. Never written out; only mixed into the derived id. */
   sourceObjectId: string;
   path: string;
   text: string;
+  /**
+   * The revision this publication already holds for the object, when it holds
+   * one. Its presence is what turns a create into a write: the protocol refuses
+   * a `create` that has parents and a `write` that has none, so a refresh that
+   * forgot the parent would not produce a wrong revision - it would produce an
+   * operation no recipient accepts.
+   */
+  parentRevisionId?: string | null;
   createdAt?: string;
   modifiedAt?: string;
 }
 
+/**
+ * An object leaving a publication (S4).
+ *
+ * Nothing is unsent - the recipient may have synced the frame long ago. What a
+ * tombstone does is stop the object being part of the publication going
+ * forward, so a client that syncs it removes it and a client syncing for the
+ * first time never sees it. The plan says this out loud (SS 4) rather than
+ * implying that retraction reaches back.
+ */
+export interface RetractedObject {
+  kind: "retract";
+  sourceObjectId: string;
+  /** The publication revision being retired. A delete without a parent is not a valid operation. */
+  parentRevisionId: string;
+}
+
+export type PublicationChange = PublishedObjectContent | RetractedObject;
+
 export interface PublishSliceContentInput {
   handle: PublicationHandle;
-  objects: readonly PublishedObjectContent[];
+  objects: readonly PublicationChange[];
   /** Continues an existing device chain when republishing; a fresh publication starts at 1. */
   fromSequence?: number;
   previousOperationHash?: string | null;
@@ -207,15 +234,34 @@ export interface PublishSliceContentInput {
   signal?: AbortSignal;
 }
 
-export interface PublishedObjectWrite {
+interface PublishedObjectWriteBase {
   sourceObjectId: string;
   objectId: string;
-  revisionId: string;
-  objectRemoteKey: string;
   operationRemoteKey: string;
   operationHash: string;
   sequence: number;
 }
+
+export interface PublishedObjectPublishWrite extends PublishedObjectWriteBase {
+  operation: "create" | "write";
+  revisionId: string;
+  objectRemoteKey: string;
+}
+
+export interface PublishedObjectRetractWrite extends PublishedObjectWriteBase {
+  operation: "delete";
+  /** A delete carries no revision of its own, and seals nothing - so there is no frame to point at. */
+  revisionId: null;
+  objectRemoteKey: null;
+}
+
+/**
+ * A union rather than two nullable fields, so that one check narrows both.
+ * `write.revisionId` being a `string | null` everywhere would push a cast onto
+ * every caller that reads a published frame back; keyed on the operation, the
+ * compiler knows a publish has a revision and a retraction does not.
+ */
+export type PublishedObjectWrite = PublishedObjectPublishWrite | PublishedObjectRetractWrite;
 
 export interface PublishSliceContentResult {
   writes: PublishedObjectWrite[];
@@ -300,6 +346,41 @@ export async function publishSliceObjectContent(input: PublishSliceContentInput)
     protocolAssert(!seen.has(objectId), "integrity", "the same source object was published twice in one run");
     seen.add(objectId);
 
+    if (object.kind === "retract") {
+      // No frame: a retraction seals nothing. The operation alone is what tells
+      // a syncing recipient the object has left the publication.
+      const payload: WorkspaceOperationPayload = {
+        operationId: createWorkspaceObjectId(),
+        deviceId,
+        memberId: runtime.memberId,
+        sequence,
+        previousDeviceOperationHash: previous,
+        policyHash,
+        capability: "content.delete",
+        operation: "delete",
+        objectId,
+        revisionId: null,
+        parentRevisionIds: [object.parentRevisionId],
+        payloadHash: null,
+        createdAt: now,
+      };
+      const operation = signWorkspaceDocument(
+        { kind: "operation", protocolVersion: 1, workspaceId: runtime.workspaceId, payload },
+        { algorithm: "Ed25519", signerId: deviceId, signerKind: "device" },
+        runtime.device.secrets.signing.privateKey,
+      );
+      const operationHash = workspaceDocumentHash(operation);
+      const operationRemoteKey = `.pvws/operations/${deviceId}/${sequence}-${operationHash}.pvop`;
+      await input.handle.store.putImmutable(operationRemoteKey, encodeWorkspaceDocument(operation), operationHash, { signal: input.signal });
+      writes.push({
+        sourceObjectId: object.sourceObjectId, objectId, operation: "delete", revisionId: null,
+        objectRemoteKey: null, operationRemoteKey, operationHash, sequence,
+      });
+      previous = operationHash;
+      sequence += 1;
+      continue;
+    }
+
     const plaintext = utf8Encode(object.text);
     protocolAssert(plaintext.length <= MAX_INLINE_PLAINTEXT_BYTES, "bounds", "published note exceeds the inline object limit");
 
@@ -345,11 +426,11 @@ export async function publishSliceObjectContent(input: PublishSliceContentInput)
       sequence,
       previousDeviceOperationHash: previous,
       policyHash,
-      capability: "content.create",
-      operation: "create",
+      capability: object.parentRevisionId ? "content.write" : "content.create",
+      operation: object.parentRevisionId ? "write" : "create",
       objectId,
       revisionId,
-      parentRevisionIds: [],
+      parentRevisionIds: object.parentRevisionId ? [object.parentRevisionId] : [],
       payloadHash: objectHash,
       createdAt: now,
     };
@@ -368,10 +449,247 @@ export async function publishSliceObjectContent(input: PublishSliceContentInput)
     await input.handle.store.putImmutable(objectRemoteKey, objectBytes, objectHash, { signal: input.signal });
     await input.handle.store.putImmutable(operationRemoteKey, encodeWorkspaceDocument(operation), operationHash, { signal: input.signal });
 
-    writes.push({ sourceObjectId: object.sourceObjectId, objectId, revisionId, objectRemoteKey, operationRemoteKey, operationHash, sequence });
+    writes.push({
+      sourceObjectId: object.sourceObjectId, objectId, operation: object.parentRevisionId ? "write" : "create",
+      revisionId, objectRemoteKey, operationRemoteKey, operationHash, sequence,
+    });
     previous = operationHash;
     sequence += 1;
   }
 
   return { writes, lastSequence: sequence - 1, lastOperationHash: previous };
+}
+
+/**
+ * One object as a publication currently holds it (S4).
+ *
+ * Two revision ids, and both are load-bearing for a different reason:
+ * `sourceRevisionId` answers "has the note changed since we published it", and
+ * `publishedRevisionId` is the parent a follow-up write or a tombstone has to
+ * name. Neither can be recovered from the publication folder without the key
+ * and a download of every frame, which is why the publisher keeps them.
+ */
+export interface PublishedObjectRecord {
+  sourceObjectId: string;
+  path: string;
+  sourceRevisionId: string;
+  publishedRevisionId: string;
+}
+
+/**
+ * What the publisher remembers about one publication.
+ *
+ * This is the only durable state a refresh needs. It is deliberately not a job
+ * with per-item completion flags like the rekey cursor: a refresh plan is
+ * *derivable* from the manifest and the current slice, so there is no second
+ * copy of the truth that can fall out of step with the first. Advance the
+ * manifest as each object lands and a resumed run simply re-plans - anything
+ * already published is no longer in the plan.
+ */
+export interface PublicationManifest {
+  publicationId: string;
+  /** The next sequence number in the publishing device's chain inside the publication. */
+  sequence: number;
+  previousOperationHash: string | null;
+  objects: PublishedObjectRecord[];
+}
+
+export function emptyPublicationManifest(publicationId: string): PublicationManifest {
+  return { publicationId, sequence: 1, previousOperationHash: null, objects: [] };
+}
+
+/** A source object as the slice currently sees it. Cheap: no file is read to answer this. */
+export interface PublicationSourceObject {
+  sourceObjectId: string;
+  path: string;
+  sourceRevisionId: string;
+}
+
+interface PublicationRefreshItemBase {
+  sourceObjectId: string;
+  path: string;
+}
+
+export interface PublicationPublishItem extends PublicationRefreshItemBase {
+  action: "publish" | "republish";
+  sourceRevisionId: string;
+  /** The publication revision to build on: null only for a first publish. */
+  parentRevisionId: string | null;
+}
+
+export interface PublicationRetractItem extends PublicationRefreshItemBase {
+  action: "retract";
+  sourceRevisionId: null;
+  /** Never null: the protocol refuses a delete that names no parent revision. */
+  parentRevisionId: string;
+  /** The path the object had when it was published. */
+  path: string;
+}
+
+/**
+ * A union, so the two rules that would otherwise live only in a runtime assert
+ * are visible in the type: a retraction always names the revision it retires,
+ * and a publish always knows which source revision it reflects.
+ */
+export type PublicationRefreshItem = PublicationPublishItem | PublicationRetractItem;
+
+/**
+ * Diffs what a publication holds against what the slice now covers.
+ *
+ * Pure on purpose, and it deliberately asks only for revision ids: deciding
+ * *whether* a note needs republishing must not cost a file read and a
+ * projection for every note in the slice. The caller materializes text only for
+ * the items that come back.
+ *
+ * An object that fell out of the slice - the rule stopped matching, the note
+ * moved, it was deleted (finding B5) - comes back as a retraction, because the
+ * silent alternative is a publication that keeps handing out a note whose
+ * author believes they took it back.
+ */
+export function planPublicationRefresh(input: {
+  manifest: PublicationManifest;
+  covered: readonly PublicationSourceObject[];
+}): PublicationRefreshItem[] {
+  const held = new Map(input.manifest.objects.map((record) => [record.sourceObjectId, record]));
+  const items: PublicationRefreshItem[] = [];
+  const seen = new Set<string>();
+
+  for (const object of input.covered) {
+    protocolAssert(!seen.has(object.sourceObjectId), "integrity", "the same source object appears twice in the slice");
+    seen.add(object.sourceObjectId);
+    const record = held.get(object.sourceObjectId);
+    if (!record) {
+      items.push({
+        action: "publish",
+        sourceObjectId: object.sourceObjectId,
+        path: object.path,
+        sourceRevisionId: object.sourceRevisionId,
+        parentRevisionId: null,
+      });
+      continue;
+    }
+    // A move is a change even when the text did not move with it: the path is
+    // sealed into the frame metadata, so a stale path leaves the recipient with
+    // the note filed where it no longer belongs.
+    if (record.sourceRevisionId !== object.sourceRevisionId || record.path !== object.path) {
+      items.push({
+        action: "republish",
+        sourceObjectId: object.sourceObjectId,
+        path: object.path,
+        sourceRevisionId: object.sourceRevisionId,
+        parentRevisionId: record.publishedRevisionId,
+      });
+    }
+  }
+
+  for (const record of input.manifest.objects) {
+    if (seen.has(record.sourceObjectId)) continue;
+    items.push({
+      action: "retract",
+      sourceObjectId: record.sourceObjectId,
+      path: record.path,
+      sourceRevisionId: null,
+      parentRevisionId: record.publishedRevisionId,
+    });
+  }
+  return items;
+}
+
+/** The projected text for one item, produced by the caller only for the items the plan named. */
+export interface PublicationRefreshProjection {
+  text: string;
+  createdAt?: string;
+  modifiedAt?: string;
+}
+
+export interface PublicationRefreshResult {
+  manifest: PublicationManifest;
+  applied: PublishedObjectWrite[];
+  /** The item the run stopped on, if it stopped early. */
+  stoppedAt: PublicationRefreshItem | null;
+  error: string | null;
+  aborted: boolean;
+}
+
+export interface RunPublicationRefreshInput {
+  handle: PublicationHandle;
+  manifest: PublicationManifest;
+  plan: readonly PublicationRefreshItem[];
+  /** Reads and projects one object. Called only for publish and republish items. */
+  project: (item: PublicationRefreshItem) => Promise<PublicationRefreshProjection>;
+  /** Durability hook: called with the advanced manifest after each object lands. */
+  persist?: (manifest: PublicationManifest) => Promise<void>;
+  onProgress?: (completed: number, total: number) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Applies a refresh plan, one object at a time, advancing the manifest as it goes.
+ *
+ * The per-object granularity is the whole point. A provider outage halfway
+ * through does leave a publication with some notes refreshed and some not -
+ * that is unavoidable against an object store, and pretending otherwise would
+ * be the dishonest part. What it must never leave is a publication the manifest
+ * no longer describes, because then the next run would either skip an object it
+ * never wrote or write a second copy of one it did. So the manifest advances
+ * after each object, and a resumed run re-plans against it and continues.
+ *
+ * It stops rather than skips: an object that will not publish is reported with
+ * its reason and the remaining items stay in the plan. Carrying on past a
+ * failure would report a refresh as done while a note quietly kept its old text.
+ */
+export async function runPublicationRefresh(input: RunPublicationRefreshInput): Promise<PublicationRefreshResult> {
+  let manifest = input.manifest;
+  const applied: PublishedObjectWrite[] = [];
+  const total = input.plan.length;
+
+  for (const item of input.plan) {
+    if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true };
+    try {
+      const change: PublicationChange =
+        item.action === "retract"
+          ? { kind: "retract", sourceObjectId: item.sourceObjectId, parentRevisionId: item.parentRevisionId }
+          : {
+              ...(await input.project(item)),
+              sourceObjectId: item.sourceObjectId,
+              path: item.path,
+              parentRevisionId: item.parentRevisionId,
+            };
+
+      const result = await publishSliceObjectContent({
+        handle: input.handle,
+        objects: [change],
+        fromSequence: manifest.sequence,
+        previousOperationHash: manifest.previousOperationHash,
+        signal: input.signal,
+      });
+      const write = result.writes[0]!;
+      applied.push(write);
+
+      const objects = manifest.objects.filter((record) => record.sourceObjectId !== item.sourceObjectId);
+      // Keyed on what was WRITTEN rather than on what was planned: the record
+      // has to describe the operation that actually landed in the publication.
+      if (item.action !== "retract" && write.operation !== "delete") {
+        objects.push({
+          sourceObjectId: item.sourceObjectId,
+          path: item.path,
+          sourceRevisionId: item.sourceRevisionId,
+          publishedRevisionId: write.revisionId,
+        });
+      }
+      manifest = {
+        ...manifest,
+        sequence: result.lastSequence + 1,
+        previousOperationHash: result.lastOperationHash,
+        objects,
+      };
+      await input.persist?.(manifest);
+      input.onProgress?.(applied.length, total);
+    } catch (error) {
+      if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true };
+      const message = error instanceof Error ? error.message : String(error);
+      return { manifest, applied, stoppedAt: item, error: message.slice(0, 1000), aborted: false };
+    }
+  }
+  return { manifest, applied, stoppedAt: null, error: null, aborted: false };
 }

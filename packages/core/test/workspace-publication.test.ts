@@ -7,14 +7,18 @@ import {
   decodePublicationCard,
   derivePublicationId,
   derivePublishedObjectId,
+  emptyPublicationManifest,
   openPvo1Frame,
   parsePvo1Frame,
   parseWorkspaceDocument,
   personalWorkspaceRuntime,
+  planPublicationRefresh,
   publicationStoreFor,
   publishSliceObjectContent,
   publishedSliceAccessCapabilities,
+  runPublicationRefresh,
   workspaceRecipientGroupIds,
+  type PublicationManifest,
   type PublishedSliceConfig,
 } from "../src/index.js";
 
@@ -290,7 +294,7 @@ describe("publishSliceObjectContent", () => {
     // a frame the operation cannot name.
     const nested = (key: string) => key.replace(".pvws/", `.pvws/publications/${handle.publicationId}/`);
     const keys = (await outer.list(".pvws/publications")).items.map((item) => item.key);
-    expect(keys).toContain(nested(write.objectRemoteKey));
+    expect(keys).toContain(nested(write.objectRemoteKey!));
     expect(keys).toContain(nested(write.operationRemoteKey));
     expect(write.operationRemoteKey.endsWith(`1-${write.operationHash}.pvop`)).toBe(true);
   });
@@ -313,7 +317,7 @@ describe("publishSliceObjectContent", () => {
     // out until they opened the publication to check it.
     const { handle } = await makePublication();
     const result = await publishSliceObjectContent({ handle, objects: [NOTE] });
-    const bytes = await handle.store.get(result.writes[0].objectRemoteKey);
+    const bytes = await handle.store.get(result.writes[0].objectRemoteKey!);
     const groups = parsePvo1Frame(bytes!).envelopes.map((envelope) => envelope.groupId).sort();
     expect(groups).toContain(handle.recipientGroupId);
     expect(groups).toContain(handle.runtime.ownerGroup.groupId);
@@ -325,7 +329,7 @@ describe("publishSliceObjectContent", () => {
     // the frame with the key the publishing device actually holds.
     const { handle } = await makePublication();
     const result = await publishSliceObjectContent({ handle, objects: [NOTE] });
-    const bytes = await handle.store.get(result.writes[0].objectRemoteKey);
+    const bytes = await handle.store.get(result.writes[0].objectRemoteKey!);
     const owner = handle.runtime.ownerGroup;
     const opened = await openPvo1Frame(bytes!, [{ groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey }]);
     expect(new TextDecoder().decode(opened.plaintext!)).toBe(NOTE.text);
@@ -341,7 +345,7 @@ describe("publishSliceObjectContent", () => {
     const projected = { ...NOTE, text: "# Q3\n\nShipped.\n" };
     const result = await publishSliceObjectContent({ handle, objects: [projected] });
     const owner = handle.runtime.ownerGroup;
-    const opened = await openPvo1Frame((await handle.store.get(result.writes[0].objectRemoteKey))!, [
+    const opened = await openPvo1Frame((await handle.store.get(result.writes[0].objectRemoteKey!))!, [
       { groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey },
     ]);
     expect(new TextDecoder().decode(opened.plaintext!)).toBe(projected.text);
@@ -420,5 +424,308 @@ describe("publishSliceObjectContent", () => {
     expect(result.lastSequence).toBe(0);
     expect(result.lastOperationHash).toBeNull();
     expect((await outer.list(`.pvws/publications/${handle.publicationId}/objects`)).items).toEqual([]);
+  });
+});
+
+/**
+ * Keeping it current, and taking it back (S4).
+ *
+ * A publication that only ever grows is a publication that lies: the note the
+ * author edited last week still reads the old way, and the note they removed
+ * from the slice is still being handed out. Both halves are the same mechanism -
+ * an operation naming the revision the publication already holds - which is why
+ * they are one function and one plan rather than two.
+ */
+
+const SOURCE_A = "c3".repeat(16);
+const SOURCE_B = "d4".repeat(16);
+const REV_1 = "r1".repeat(16);
+const REV_2 = "r2".repeat(16);
+
+const covered = (sourceObjectId: string, path: string, sourceRevisionId: string) => ({ sourceObjectId, path, sourceRevisionId });
+
+describe("planPublicationRefresh", () => {
+  it("publishes everything on the first run, with nothing to build on", () => {
+    const plan = planPublicationRefresh({
+      manifest: emptyPublicationManifest("pub-a"),
+      covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1)],
+    });
+    expect(plan).toEqual([
+      { action: "publish", sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, parentRevisionId: null },
+    ]);
+  });
+
+  it("leaves an unchanged note alone", () => {
+    // The count this feeds is shown to the user as "N Aenderungen ausstehend".
+    // A planner that re-published everything would make that number meaningless
+    // and every refresh a full re-upload of the slice.
+    const manifest: PublicationManifest = {
+      publicationId: "pub-a",
+      sequence: 2,
+      previousOperationHash: "aa".repeat(32),
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: "pp".repeat(16) }],
+    };
+    expect(planPublicationRefresh({ manifest, covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1)] })).toEqual([]);
+  });
+
+  it("republishes a changed note onto the revision the publication holds", () => {
+    // The parent is not decoration: the protocol refuses a `write` with no
+    // parents, so a planner that forgot it would not produce a wrong revision -
+    // it would produce an operation no recipient accepts.
+    const published = "pp".repeat(16);
+    const manifest: PublicationManifest = {
+      publicationId: "pub-a",
+      sequence: 2,
+      previousOperationHash: "aa".repeat(32),
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: published }],
+    };
+    const plan = planPublicationRefresh({ manifest, covered: [covered(SOURCE_A, "Projects/Q3.md", REV_2)] });
+    expect(plan).toEqual([
+      { action: "republish", sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_2, parentRevisionId: published },
+    ]);
+  });
+
+  it("republishes a note that only moved", () => {
+    // The subtle one. The path is sealed INTO the frame metadata, so a note
+    // whose text never changed still needs a new revision after a move -
+    // otherwise the recipient keeps it filed where it no longer belongs, and
+    // nothing in the publication ever says otherwise.
+    const published = "pp".repeat(16);
+    const manifest: PublicationManifest = {
+      publicationId: "pub-a",
+      sequence: 2,
+      previousOperationHash: "aa".repeat(32),
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: published }],
+    };
+    const plan = planPublicationRefresh({ manifest, covered: [covered(SOURCE_A, "Archive/Q3.md", REV_1)] });
+    expect(plan).toEqual([
+      { action: "republish", sourceObjectId: SOURCE_A, path: "Archive/Q3.md", sourceRevisionId: REV_1, parentRevisionId: published },
+    ]);
+  });
+
+  it("retracts a note that left the slice", () => {
+    // Finding B5: the rule stopped matching, the note moved out, it was deleted.
+    // Whatever the cause, the publication must stop handing it out - the silent
+    // alternative is an author who believes they took a note back and a
+    // recipient who still syncs it.
+    const published = "pp".repeat(16);
+    const manifest: PublicationManifest = {
+      publicationId: "pub-a",
+      sequence: 2,
+      previousOperationHash: "aa".repeat(32),
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: REV_1, publishedRevisionId: published }],
+    };
+    expect(planPublicationRefresh({ manifest, covered: [] })).toEqual([
+      { action: "retract", sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: null, parentRevisionId: published },
+    ]);
+  });
+
+  it("refuses a slice that lists the same object twice", () => {
+    expect(() =>
+      planPublicationRefresh({
+        manifest: emptyPublicationManifest("pub-a"),
+        covered: [covered(SOURCE_A, "One.md", REV_1), covered(SOURCE_A, "Two.md", REV_2)],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("runPublicationRefresh", () => {
+  const project = async () => ({ text: "# Q3\n\nShipped." });
+
+  async function firstRun(over: { path?: string } = {}) {
+    const made = await makePublication();
+    const plan = planPublicationRefresh({
+      manifest: emptyPublicationManifest(made.handle.publicationId),
+      covered: [covered(SOURCE_A, over.path ?? "Projects/Q3.md", REV_1)],
+    });
+    const result = await runPublicationRefresh({ handle: made.handle, manifest: emptyPublicationManifest(made.handle.publicationId), plan, project });
+    return { ...made, result };
+  }
+
+  it("revises the same object rather than adding a second copy", async () => {
+    // The derived id is what makes a refresh a refresh. If the second write
+    // landed under a different id, the recipient would hold two copies of one
+    // note with no way to tell which is current.
+    const { handle, result } = await firstRun();
+    const first = result.applied[0];
+
+    const plan = planPublicationRefresh({ manifest: result.manifest, covered: [covered(SOURCE_A, "Projects/Q3.md", REV_2)] });
+    const second = await runPublicationRefresh({ handle, manifest: result.manifest, plan, project: async () => ({ text: "# Q3\n\nShipped late." }) });
+
+    expect(second.applied[0].objectId).toBe(first.objectId);
+    expect(second.applied[0].operation).toBe("write");
+    expect(second.applied[0].revisionId).not.toBe(first.revisionId);
+
+    const payload = parseWorkspaceDocument((await handle.store.get(second.applied[0].operationRemoteKey))!).payload as {
+      capability: string;
+      operation: string;
+      parentRevisionIds: string[];
+    };
+    expect(payload.capability).toBe("content.write");
+    expect(payload.operation).toBe("write");
+    expect(payload.parentRevisionIds).toEqual([first.revisionId]);
+  });
+
+  it("retracts by writing an operation and no frame", async () => {
+    // Nothing is unsent - a recipient may have synced the frame long ago. What
+    // a tombstone does is stop the object being part of the publication going
+    // forward: a client that syncs it removes the note, and a client syncing
+    // for the first time never sees it.
+    const { handle, outer, result } = await firstRun();
+    const published = result.applied[0];
+
+    const plan = planPublicationRefresh({ manifest: result.manifest, covered: [] });
+    const retracted = await runPublicationRefresh({ handle, manifest: result.manifest, plan, project });
+
+    const write = retracted.applied[0];
+    expect(write.operation).toBe("delete");
+    expect(write.revisionId).toBeNull();
+    expect(write.objectRemoteKey).toBeNull();
+
+    const payload = parseWorkspaceDocument((await handle.store.get(write.operationRemoteKey))!).payload as {
+      capability: string;
+      operation: string;
+      revisionId: string | null;
+      payloadHash: string | null;
+      parentRevisionIds: string[];
+    };
+    expect(payload.capability).toBe("content.delete");
+    expect(payload.revisionId).toBeNull();
+    expect(payload.payloadHash).toBeNull();
+    expect(payload.parentRevisionIds).toEqual([published.revisionId]);
+
+    // One frame, from the publish. The retraction added an operation beside it
+    // and sealed nothing.
+    const frames = (await outer.list(`.pvws/publications/${handle.publicationId}/objects`)).items;
+    expect(frames).toHaveLength(1);
+    expect(retracted.manifest.objects).toEqual([]);
+  });
+
+  it("refuses a tombstone that names no real revision", async () => {
+    // The red counter-check for the parent. If the protocol accepted this, the
+    // parent would be decoration and a retraction could not be verified against
+    // what the publication actually holds.
+    const { handle, result } = await firstRun();
+    await expect(
+      runPublicationRefresh({
+        handle,
+        manifest: result.manifest,
+        plan: [{ action: "retract", sourceObjectId: SOURCE_A, path: "Projects/Q3.md", sourceRevisionId: null, parentRevisionId: "not-a-revision" }],
+        project,
+      }),
+    ).resolves.toMatchObject({ error: expect.any(String), applied: [] });
+  });
+
+  it("chains a retraction like any other operation", async () => {
+    // A gap or a repeat in the device chain makes every LATER operation
+    // unverifiable, so a tombstone that broke the chain would take the whole
+    // publication down with it, not just the note it retires.
+    const { handle, result } = await firstRun();
+    const plan = planPublicationRefresh({ manifest: result.manifest, covered: [] });
+    const retracted = await runPublicationRefresh({ handle, manifest: result.manifest, plan, project });
+
+    expect(retracted.applied[0].sequence).toBe(result.applied[0].sequence + 1);
+    const payload = parseWorkspaceDocument((await handle.store.get(retracted.applied[0].operationRemoteKey))!).payload as {
+      previousDeviceOperationHash: string | null;
+    };
+    expect(payload.previousDeviceOperationHash).toBe(result.applied[0].operationHash);
+    expect(retracted.manifest.sequence).toBe(retracted.applied[0].sequence + 1);
+  });
+
+  it("re-plans to nothing once everything has landed", async () => {
+    // This IS the resumability claim. There is no stored job with per-item
+    // flags: a resumed run derives the same plan, and anything already
+    // published is simply not in it.
+    const { result } = await firstRun();
+    expect(planPublicationRefresh({ manifest: result.manifest, covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1)] })).toEqual([]);
+  });
+
+  it("stops when abandoned, leaving a manifest that matches what landed", async () => {
+    // A refresh interrupted halfway does leave some notes refreshed and some
+    // not - unavoidable against an object store. What it must never leave is a
+    // publication the manifest no longer describes, because the next run would
+    // then either skip an object it never wrote or write a second copy of one
+    // it did.
+    const { handle } = await makePublication();
+    const controller = new AbortController();
+    const plan = planPublicationRefresh({
+      manifest: emptyPublicationManifest(handle.publicationId),
+      covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1), covered(SOURCE_B, "Projects/Q4.md", REV_1)],
+    });
+
+    const result = await runPublicationRefresh({
+      handle,
+      manifest: emptyPublicationManifest(handle.publicationId),
+      plan,
+      project,
+      signal: controller.signal,
+      onProgress: () => controller.abort(),
+    });
+
+    expect(result.aborted).toBe(true);
+    expect(result.applied).toHaveLength(1);
+    expect(result.manifest.objects.map((record) => record.sourceObjectId)).toEqual([SOURCE_A]);
+
+    // And the rest is still there to do, from the manifest alone.
+    expect(
+      planPublicationRefresh({
+        manifest: result.manifest,
+        covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1), covered(SOURCE_B, "Projects/Q4.md", REV_1)],
+      }).map((item) => item.sourceObjectId),
+    ).toEqual([SOURCE_B]);
+  });
+
+  it("stops on a failure rather than skipping past it", async () => {
+    // Carrying on would report the refresh as done while one note quietly kept
+    // its old text - the exact failure a user cannot see.
+    const { handle } = await makePublication();
+    let writes = 0;
+    const failing = {
+      ...handle.store,
+      putImmutable: async (...args: Parameters<typeof handle.store.putImmutable>) => {
+        writes += 1;
+        if (writes > 2) throw new Error("provider refused the write");
+        return handle.store.putImmutable(...args);
+      },
+    } as typeof handle.store;
+
+    const plan = planPublicationRefresh({
+      manifest: emptyPublicationManifest(handle.publicationId),
+      covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1), covered(SOURCE_B, "Projects/Q4.md", REV_1)],
+    });
+    const result = await runPublicationRefresh({
+      handle: { ...handle, store: failing },
+      manifest: emptyPublicationManifest(handle.publicationId),
+      plan,
+      project,
+    });
+
+    expect(result.aborted).toBe(false);
+    expect(result.error).toContain("provider refused the write");
+    expect(result.stoppedAt?.sourceObjectId).toBe(SOURCE_B);
+    expect(result.manifest.objects.map((record) => record.sourceObjectId)).toEqual([SOURCE_A]);
+  });
+
+  it("hands the advanced manifest over after every object", async () => {
+    // The durability hook. Returning the manifest only at the end would lose it
+    // to a hard crash, and the next run would re-derive a plan for objects that
+    // are already in the publication.
+    const { handle } = await makePublication();
+    const seen: number[] = [];
+    const plan = planPublicationRefresh({
+      manifest: emptyPublicationManifest(handle.publicationId),
+      covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1), covered(SOURCE_B, "Projects/Q4.md", REV_1)],
+    });
+    await runPublicationRefresh({
+      handle,
+      manifest: emptyPublicationManifest(handle.publicationId),
+      plan,
+      project,
+      persist: async (manifest) => {
+        seen.push(manifest.objects.length);
+      },
+    });
+    expect(seen).toEqual([1, 2]);
   });
 });
