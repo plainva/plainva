@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
@@ -79,6 +79,27 @@ vi.mock("../../contexts/VaultContext", () => ({
 
 let container: HTMLDivElement;
 let root: Root;
+
+/*
+ * Load the page once, outside anybody's assertion budget.
+ *
+ * The render helpers below `import()` the page, so the FIRST test in this file
+ * used to pay for compiling its whole module graph. Measured on an idle
+ * machine: 940ms for that test against 11-85ms for the other five. Inside the
+ * 5s per-test budget that looks harmless - until the full suite runs sixteen
+ * files at once, the 940ms stretches past five seconds, and the test dies
+ * mid-`act()`. React is then left half-flushed and the four tests after it fail
+ * on controls that never rendered, which reads like five broken assertions
+ * instead of one slow import.
+ *
+ * The import is setup, not the thing under test, so it belongs in a hook: the
+ * helpers still `import()` and simply hit the module cache. Keep it here even
+ * if it looks redundant - the page keeps growing, and this is what stops that
+ * growth from landing on whichever test happens to be first.
+ */
+beforeAll(async () => {
+  await import("./SecuritySharingPage");
+});
 
 async function renderMembersArea(): Promise<void> {
   const { SecuritySharingPage } = await import("./SecuritySharingPage");
