@@ -163,6 +163,33 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(ctx).toContain("loadVault(path, true)");
   });
 
+  it("source: tearing down a workspace reads the publication ids BEFORE it drops them (finding 2026-08-30)", () => {
+    const ctx = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
+    // Both ways out of an encrypted workspace go through the ONE helper. They
+    // used to carry five identical steps side by side, which is how the
+    // publication slots came to be missing from both at once.
+    expect(ctx).toContain("const tearDownWorkspace");
+    const teardown = ctx.slice(ctx.indexOf("const tearDownWorkspace"));
+    const decommission = teardown.slice(teardown.indexOf("const decommissionWorkspace"));
+    expect(decommission).toContain("await tearDownWorkspace(path)");
+    expect(decommission.slice(decommission.indexOf("const liftWorkspaceEncryption"))).toContain(
+      "await tearDownWorkspace(path)"
+    );
+
+    // The ordering is the whole point: a publication's credential slot is named
+    // after an id that lives ONLY in `workspace_publication`, and
+    // `clearWorkspaceState()` drops that table. Reversed, the slot survives as
+    // a publisher admin key nobody can find again — a keychain cannot be
+    // enumerated.
+    const body = teardown.slice(0, teardown.indexOf("const decommissionWorkspace"));
+    const read = body.indexOf("listPublications()");
+    const clear = body.indexOf("clearWorkspaceState()");
+    const wipe = body.indexOf("clearPublicationRuntimes(");
+    expect(read).toBeGreaterThan(-1);
+    expect(read).toBeLessThan(clear);
+    expect(wipe).toBeGreaterThan(clear);
+  });
+
   it("source: the mobile screen wires master/detail areas and QR fingerprint approval", () => {
     expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
     expect(mobile).toContain("inspectMobileWorkspacePairing");

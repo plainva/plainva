@@ -21,7 +21,7 @@ import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settin
 import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { changeWorkspaceFallbackPassphrase, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
@@ -2462,18 +2462,41 @@ export const VaultProvider: React.FC<{
     state.syncWorker?.triggerImmediate();
   };
 
+  /**
+   * Everything a workspace owns, taken down in the one order that works.
+   *
+   * The two callers below differed only in how they reopened the vault, and
+   * kept five identical steps side by side — which is how the publication
+   * slots came to be missing from both at once (finding 2026-08-30). One
+   * function now, so a step can no longer be added to one and forgotten in the
+   * other.
+   *
+   * The ordering is the load-bearing part: a publication's credential slot is
+   * named after an id that exists ONLY in `workspace_publication`, and
+   * `clearWorkspaceState()` drops that table. Read first, clear afterwards —
+   * a keychain cannot be enumerated to find a slot whose id is gone.
+   */
+  const tearDownWorkspace = async (path: string): Promise<void> => {
+    // Stop the worker first so no cycle races the teardown.
+    await state.syncWorker?.stopAndDrain().catch(() => undefined);
+    const publicationIds = await workspaceStateRef.current
+      ?.listPublications()
+      .then((records) => records.map((record) => record.publicationId))
+      .catch(() => [] as string[]);
+    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
+    lockWorkspaceRuntime(path);
+    await clearPublicationRuntimes(path, publicationIds ?? []);
+    await clearWorkspaceRuntime(path);
+  };
+
   const decommissionWorkspace = async (): Promise<void> => {
     const path = state.vaultPath;
     if (!path) return;
-    // Stop the worker first so no cycle races the teardown, then drop the local
-    // workspace state (SQL) + runtime/status (keychain + settings). Reopening
-    // re-derives the vault WITHOUT the workspace (plain sync or local). The
-    // remote `.pvws/` objects stay (immutable store); the user deletes the cloud
-    // folder afterwards — the handbook documents the order.
-    await state.syncWorker?.stopAndDrain().catch(() => undefined);
-    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
-    lockWorkspaceRuntime(path);
-    await clearWorkspaceRuntime(path);
+    // Drop the local workspace state (SQL) + runtime/status (keychain +
+    // settings); reopening re-derives the vault WITHOUT the workspace (plain
+    // sync or local). The remote `.pvws/` objects stay (immutable store); the
+    // user deletes the cloud folder afterwards — the handbook documents the order.
+    await tearDownWorkspace(path);
     await openVault(path);
   };
 
@@ -2486,10 +2509,7 @@ export const VaultProvider: React.FC<{
     // as plain text — not just local-only files. The `.pvws/` objects are
     // immutable and stay; the user deletes the cloud folder afterwards. This is
     // additive: local files are untouched and no upload deletes anything.
-    await state.syncWorker?.stopAndDrain().catch(() => undefined);
-    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
-    lockWorkspaceRuntime(path);
-    await clearWorkspaceRuntime(path);
+    await tearDownWorkspace(path);
     await loadVault(path, true);
   };
 
