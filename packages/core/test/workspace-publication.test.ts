@@ -5,10 +5,10 @@ import {
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
   createPublication,
+  derivePublishedObjectId,
   decodeWorkspaceInvite,
   decodePublicationCard,
   derivePublicationId,
-  derivePublishedObjectId,
   emptyPublicationManifest,
   evaluateWorkspaceAccess,
   openPvo1Frame,
@@ -21,10 +21,14 @@ import {
   invitePublicationRecipient,
   publishSliceObjectContent,
   publishedSliceAccessCapabilities,
+  refreshWorkspacePublications,
   runPublicationRefresh,
   workspaceRecipientGroupIds,
   type PublicationManifest,
+  type PublicationWriteHandle,
   type PublishedSliceConfig,
+  type WorkspaceObjectRecord,
+  type WorkspacePolicySlice,
   type WorkspacePublicationRecord,
 } from "../src/index.js";
 
@@ -965,4 +969,323 @@ describe("publication recipients", () => {
       }),
     ).rejects.toThrow();
   });
+});
+
+
+/**
+ * The seam that keeps a publication current (S4b).
+ *
+ * `planPublicationRefresh` and `runPublicationRefresh` are pure and already
+ * proven above. What is new here is the orchestrator that answers the two
+ * questions they deliberately do not: which objects a slice covers, and where
+ * the publication's key comes from. Every case below is one of those answers
+ * going wrong quietly.
+ */
+describe("refreshWorkspacePublications", () => {
+  const OBJ_TEXT = "d4".repeat(16);
+  const OBJ_DELETED = "d5".repeat(16);
+  const OBJ_NO_REVISION = "d6".repeat(16);
+  const OBJ_BINARY = "d7".repeat(16);
+
+  const object = (over: Partial<WorkspaceObjectRecord> & { objectId: string; path: string }): WorkspaceObjectRecord => ({
+    currentRevisionId: REV_1,
+    payloadHash: null,
+    plaintextSha256: null,
+    contentKind: "text",
+    deleted: false,
+    authorMemberId: "",
+    createdAt: "2026-08-20T08:00:00.000Z",
+    modifiedAt: "2026-08-29T08:00:00.000Z",
+    ...over,
+  });
+
+  const slice = (ids: string[]): WorkspacePolicySlice => ({
+    sliceId: SLICE,
+    name: "Quarterly review",
+    kind: "selection",
+    definition: "",
+    materializedObjectIds: ids,
+  });
+
+  /**
+   * Only the three methods the refresh actually uses, so a test cannot pass by
+   * leaning on something the real caller does not hand over.
+   */
+  function fakeState(records: WorkspacePublicationRecord[], objects: WorkspaceObjectRecord[]) {
+    const saved: WorkspacePublicationRecord[] = [];
+    return {
+      saved,
+      store: {
+        listPublications: async () => records.map((record) => ({ ...record })),
+        listObjects: async () => objects.map((entry) => ({ ...entry })),
+        savePublication: async (record: WorkspacePublicationRecord) => {
+          saved.push({ ...record });
+          const index = records.findIndex((entry) => entry.publicationId === record.publicationId);
+          if (index >= 0) records[index] = { ...record };
+        },
+      },
+    };
+  }
+
+  function makeRecord(handle: PublicationWriteHandle, over: Partial<WorkspacePublicationRecord> = {}): WorkspacePublicationRecord {
+    return {
+      publicationId: handle.publicationId,
+      sliceId: SLICE,
+      config: {
+        publicationId: handle.publicationId,
+        sliceId: SLICE,
+        name: "Quarterly review",
+        mode: "sanitized",
+        access: "read",
+        provider: "webdav",
+        propertyAllowlist: null,
+        privateProperties: ["salary"],
+        createdAt: "2026-08-26T09:00:00.000Z",
+      },
+      manifest: emptyPublicationManifest(handle.publicationId),
+      lastError: null,
+      lastRefreshedAt: null,
+      createdAt: "2026-08-26T09:00:00.000Z",
+      ...over,
+    };
+  }
+
+  it("publishes only what a reader may actually be handed", async () => {
+    // The three exclusions are each a way a publication could hand out
+    // something it must not: a note the author deleted, a note with no content
+    // yet, and a binary that is not Markdown at all. A slice that names all
+    // four still publishes one.
+    const { handle, outer } = await makePublication();
+    const objects = [
+      object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" }),
+      object({ objectId: OBJ_DELETED, path: "Projects/Gone.md", deleted: true }),
+      object({ objectId: OBJ_NO_REVISION, path: "Projects/Empty.md", currentRevisionId: null }),
+      object({ objectId: OBJ_BINARY, path: "Projects/chart.png", contentKind: "binary" }),
+    ];
+    const state = fakeState([makeRecord(handle)], objects);
+
+    const outcomes = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "# Q3\n\nShipped." },
+      policy: { slices: [slice([OBJ_TEXT, OBJ_DELETED, OBJ_NO_REVISION, OBJ_BINARY])] },
+      openPublication: async () => handle,
+      now: () => "2026-08-30T10:00:00.000Z",
+    });
+
+    expect(outcomes).toEqual([
+      { publicationId: handle.publicationId, planned: 1, applied: 1, error: null, skipped: null },
+    ]);
+    const final = state.saved.at(-1)!;
+    expect(final.manifest.objects).toHaveLength(1);
+    expect(final.manifest.objects[0].sourceObjectId).toBe(OBJ_TEXT);
+    expect(final.lastRefreshedAt).toBe("2026-08-30T10:00:00.000Z");
+    expect((await outer.list(`.pvws/publications/${handle.publicationId}/objects`)).items.length).toBeGreaterThan(0);
+  });
+
+  it("leaves a publication alone when its slice is gone from the policy", async () => {
+    // The load-bearing one. An empty coverage set plans a retraction of
+    // EVERYTHING, so a policy that arrived half-read - or a slice someone
+    // renamed - would silently strip a publication a recipient is reading.
+    // Taking one down belongs to a person and a dialog (S6).
+    const { handle } = await makePublication();
+    const record = makeRecord(handle, {
+      manifest: {
+        publicationId: handle.publicationId,
+        sequence: 4,
+        previousOperationHash: null,
+        objects: [
+          {
+            sourceObjectId: OBJ_TEXT,
+            path: "Projects/Q3.md",
+            sourceRevisionId: REV_1,
+            publishedRevisionId: "e2".repeat(16),
+          },
+        ],
+      },
+    });
+    const state = fakeState([record], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
+
+    const outcomes = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => { throw new Error("must not read"); } },
+      policy: { slices: [] },
+      openPublication: async () => { throw new Error("must not open"); },
+    });
+
+    expect(outcomes[0]).toEqual({ publicationId: handle.publicationId, planned: 0, applied: 0, error: null, skipped: "no-slice" });
+    expect(state.saved).toEqual([]);
+  });
+
+  it("does not call a missing key a failure", async () => {
+    // The publisher's other device holds the key and refreshes this fine.
+    // Writing an error here would show a broken publication to someone who
+    // cannot do anything about it.
+    const { handle } = await makePublication();
+    const state = fakeState([makeRecord(handle)], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
+
+    const outcomes = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "# Q3" },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      openPublication: async () => null,
+    });
+
+    expect(outcomes[0]).toEqual({ publicationId: handle.publicationId, planned: 1, applied: 0, error: null, skipped: "no-key" });
+    expect(state.saved).toEqual([]);
+  });
+
+  it("clears a stale reason once nothing is left to publish", async () => {
+    // A publication that recovered must stop reporting last week's outage.
+    const { handle } = await makePublication();
+    const state = fakeState([makeRecord(handle, { lastError: "provider rejected the upload" })], []);
+
+    const outcomes = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "" },
+      policy: { slices: [slice([])] },
+      openPublication: async () => { throw new Error("must not open"); },
+      now: () => "2026-08-30T11:00:00.000Z",
+    });
+
+    expect(outcomes[0].skipped).toBe("up-to-date");
+    expect(state.saved).toHaveLength(1);
+    expect(state.saved[0].lastError).toBeNull();
+    expect(state.saved[0].lastRefreshedAt).toBe("2026-08-30T11:00:00.000Z");
+  });
+
+  it("writes nothing at all when there is nothing to say", async () => {
+    // A clean publication saves no record, so the common case does not rewrite
+    // a row on every cycle.
+    const { handle } = await makePublication();
+    const state = fakeState([makeRecord(handle)], []);
+
+    await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "" },
+      policy: { slices: [slice([])] },
+      openPublication: async () => { throw new Error("must not open"); },
+    });
+
+    expect(state.saved).toEqual([]);
+  });
+
+  it("stops on a failure and keeps the reason where a person can be shown it", async () => {
+    // Nobody watches a background cycle. Carrying on past the failure would
+    // report the refresh as done while the second note quietly kept its old
+    // text - so the run stops, and the record says why.
+    const { handle } = await makePublication();
+    const objects = [
+      object({ objectId: OBJ_TEXT, path: "Projects/A.md" }),
+      object({ objectId: OBJ_BINARY, path: "Projects/B.md", contentKind: "text" }),
+    ];
+    const state = fakeState([makeRecord(handle)], objects);
+
+    const outcomes = await refreshWorkspacePublications({
+      state: state.store,
+      vault: {
+        readTextFile: async (path: string) => {
+          if (path === "Projects/B.md") throw new Error("vault file vanished");
+          return "# A";
+        },
+      },
+      policy: { slices: [slice([OBJ_TEXT, OBJ_BINARY])] },
+      openPublication: async () => handle,
+      now: () => "2026-08-30T12:00:00.000Z",
+    });
+
+    expect(outcomes[0].planned).toBe(2);
+    expect(outcomes[0].applied).toBe(1);
+    expect(outcomes[0].error).toContain("vault file vanished");
+    // The one that DID land stays landed - the manifest advances per object, so
+    // the next run republishes only what is missing.
+    const final = state.saved.at(-1)!;
+    expect(final.manifest.objects).toHaveLength(1);
+    expect(final.lastError).toContain("vault file vanished");
+  });
+
+  it("advances the manifest after every object, not at the end", async () => {
+    // A run that dies mid-way has to leave a manifest that still describes the
+    // publication, or the next run publishes a second copy of what already
+    // landed. Two objects, and the store is written to more than once.
+    const { handle } = await makePublication();
+    const objects = [
+      object({ objectId: OBJ_TEXT, path: "Projects/A.md" }),
+      object({ objectId: OBJ_BINARY, path: "Projects/B.md", contentKind: "text" }),
+    ];
+    const state = fakeState([makeRecord(handle)], objects);
+
+    await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "# Note" },
+      policy: { slices: [slice([OBJ_TEXT, OBJ_BINARY])] },
+      openPublication: async () => handle,
+    });
+
+    // Two per-object saves plus the closing one.
+    expect(state.saved.length).toBeGreaterThanOrEqual(3);
+    expect(state.saved[0].manifest.objects).toHaveLength(1);
+    expect(state.saved.at(-1)!.manifest.objects).toHaveLength(2);
+  });
+
+  it("sanitizes on the way out, and only when the publication says so", async () => {
+    // The projection is what stands between a private property and a stranger.
+    // Both modes are pinned here because the difference between them is a
+    // config field a person picked once, in a wizard, weeks ago.
+    const markdown = "---\ntitle: Q3\nsalary: 120000\n---\n\nSee [notes](Private/Secret.md).\n";
+    const read = async () => markdown;
+
+    const sanitized = await makePublication();
+    const sanitizedState = fakeState([makeRecord(sanitized.handle)], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
+    await refreshWorkspacePublications({
+      state: sanitizedState.store,
+      vault: { readTextFile: read },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      openPublication: async () => sanitized.handle,
+    });
+    const sanitizedWrite = sanitizedState.saved.at(-1)!.manifest.objects[0];
+    const sanitizedText = await readPublishedText(sanitized, sanitizedWrite.sourceObjectId);
+    expect(sanitizedText).not.toContain("120000");
+    expect(sanitizedText).not.toContain("Private/Secret.md");
+    expect(sanitizedText).toContain("notes");
+
+    const exact = await makePublication({ mode: "exact" });
+    const exactRecord = makeRecord(exact.handle);
+    const exactState = fakeState(
+      [{ ...exactRecord, config: { ...exactRecord.config, mode: "exact" } }],
+      [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })],
+    );
+    await refreshWorkspacePublications({
+      state: exactState.store,
+      vault: { readTextFile: read },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      openPublication: async () => exact.handle,
+    });
+    const exactWrite = exactState.saved.at(-1)!.manifest.objects[0];
+    expect(await readPublishedText(exact, exactWrite.sourceObjectId)).toBe(markdown);
+  });
+
+  /**
+   * Reads back what a recipient would actually see, rather than trusting the plan.
+   *
+   * The manifest names the SOURCE object, while the frame is filed under the
+   * derived publication id - the same derivation the publisher used - so the
+   * lookup has to go through it rather than through the id the caller knows.
+   */
+  async function readPublishedText(
+    made: Awaited<ReturnType<typeof makePublication>>,
+    sourceObjectId: string,
+  ): Promise<string> {
+    const objectId = derivePublishedObjectId(made.handle.publicationId, sourceObjectId);
+    // Through the publication store, whose keys are namespaced: asking the
+    // outer store for the same path and then reading through the inner one
+    // would prefix it twice.
+    const page = await made.handle.store.list(`.pvws/objects/${objectId}`);
+    expect(page.items).toHaveLength(1);
+    const bytes = (await made.handle.store.get(page.items[0]!.key))!;
+    const owner = made.handle.runtime.ownerGroup;
+    const opened = await openPvo1Frame(bytes, [
+      { groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey },
+    ]);
+    return new TextDecoder().decode(opened.plaintext!);
+  }
 });

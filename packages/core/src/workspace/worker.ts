@@ -48,8 +48,11 @@ import {
   WorkspaceRevisionRecord,
   WorkspaceRuntimeMeta,
   WorkspaceStateStore,
+  type WorkspacePublicationRecord,
 } from "./state.js";
 import { resumeWorkspaceRekey } from "./rotation.js";
+import { refreshWorkspacePublications, type PublicationRefreshOutcome } from "./publicationRefresh.js";
+import type { PublicationWriteHandle } from "./publication.js";
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { resolveWorkspacePolicyChain } from "./policy.js";
@@ -135,6 +138,14 @@ async function listAll(store: WorkspaceObjectStore, prefix: string, signal?: Abo
 export interface EncryptedWorkspaceWorkerOptions {
   intervalMs?: number;
   sideband?: () => Promise<void>;
+  /**
+   * Reopens one publication's own runtime, or returns null when this device
+   * holds no key for it. Injected because the runtime lives in the OS
+   * credential store - one slot per publication - which core cannot read.
+   * Leaving it out simply means this worker does not refresh publications.
+   */
+  openPublication?: (record: WorkspacePublicationRecord) => Promise<PublicationWriteHandle | null>;
+  onPublicationsRefreshed?: (outcomes: PublicationRefreshOutcome[]) => void;
 }
 
 /**
@@ -217,6 +228,7 @@ export class EncryptedWorkspaceWorker {
     await this.push(signal);
     await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);
+    await this.refreshPublications(signal);
     await this.options.sideband?.();
     const meta = await this.requireMeta();
     meta.lastSyncAt = nowIso();
@@ -856,6 +868,33 @@ export class EncryptedWorkspaceWorker {
     if (prepared.objectLocalPath) {
       const folder = prepared.objectLocalPath.split("/").slice(0, -1).join("/");
       await this.vault.deleteItem(folder, true).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Brings every published slice back in line with the vault (S4b).
+   *
+   * After the checkpoint rather than before: a publication must not hand out a
+   * revision the main workspace has not accepted yet.
+   *
+   * Swallowed rather than thrown, and deliberately so - the per-publication
+   * reasons are already written to their records, and a provider outage on a
+   * shared folder must not put the vault's own sync into an error state.
+   */
+  private async refreshPublications(signal?: AbortSignal): Promise<void> {
+    const openPublication = this.options.openPublication;
+    if (!openPublication) return;
+    try {
+      const outcomes = await refreshWorkspacePublications({
+        state: this.state,
+        vault: this.vault,
+        policy: this.activePolicy.payload,
+        openPublication,
+        signal,
+      });
+      if (outcomes.length > 0) this.options.onPublicationsRefreshed?.(outcomes);
+    } catch {
+      // Reading the publication list failed; the next cycle tries again.
     }
   }
 

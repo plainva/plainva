@@ -94,6 +94,19 @@ export interface PublicationHandle {
 }
 
 /**
+ * The part of a handle that writing into a publication actually needs.
+ *
+ * A refresh reopens a publication from what was persisted: its config, its
+ * manifest, and the runtime out of the credential store. The invite card and
+ * the recipient group id are not among them - the card is a one-off artefact
+ * of creation, and recipients are read from the publication's policy rather
+ * than from the handle (see `publishSliceObjectContent`). Asking for a full
+ * `PublicationHandle` here would force the caller to invent both, and an
+ * invented card is a lie a later reader would have to untangle.
+ */
+export type PublicationWriteHandle = Pick<PublicationHandle, "publicationId" | "runtime" | "store">;
+
+/**
  * Creates the publication workspace and writes its bootstrap.
  *
  * `workspaceId` is deliberately set to the derived publication id. The invite
@@ -226,7 +239,7 @@ export interface RetractedObject {
 export type PublicationChange = PublishedObjectContent | RetractedObject;
 
 export interface PublishSliceContentInput {
-  handle: PublicationHandle;
+  handle: PublicationWriteHandle;
   objects: readonly PublicationChange[];
   /** Continues an existing device chain when republishing; a fresh publication starts at 1. */
   fromSequence?: number;
@@ -613,7 +626,7 @@ export interface PublicationRefreshResult {
 }
 
 export interface RunPublicationRefreshInput {
-  handle: PublicationHandle;
+  handle: PublicationWriteHandle;
   manifest: PublicationManifest;
   plan: readonly PublicationRefreshItem[];
   /** Reads and projects one object. Called only for publish and republish items. */
