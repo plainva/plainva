@@ -15,6 +15,7 @@ import {
   createWorkspacePairingRequest,
   createWorkspaceRecoveryPackage,
   deserializePersonalWorkspaceRuntime,
+  wipeWorkspaceRuntimeSecrets,
   initializePersonalWorkspaceMigration,
   personalWorkspaceRuntime,
   workspaceDocumentHash,
@@ -77,6 +78,18 @@ const pendingKey = (vaultId: string) => `workspace_pairing_mobile_${vaultId}`;
 const statusKey = (vaultId: string) => `workspace_status_mobile_${vaultId}`;
 const cache = new Map<string, PersonalWorkspaceRuntime>();
 const locked = new Set<string>();
+/**
+ * One slot per publication (S4b). The name carries BOTH ids because neither
+ * keystore can be enumerated afterwards to discover a collision that already
+ * happened - the same publication id under two vaults has to miss, not merge.
+ */
+const publicationKey = (vaultId: string, publicationId: string) => `workspace_pub_mobile_${vaultId}_${publicationId}`;
+const publicationCache = new Map<string, PersonalWorkspaceRuntime>();
+
+function forgetPublications(vaultId: string): void {
+  const prefix = `workspace_pub_mobile_${vaultId}_`;
+  for (const slot of [...publicationCache.keys()]) if (slot.startsWith(prefix)) publicationCache.delete(slot);
+}
 
 export async function getMobileWorkspaceStatus(vaultId: string): Promise<MobileWorkspaceStatus | null> {
   const value = await Preferences.get({ key: statusKey(vaultId) });
@@ -102,6 +115,44 @@ export async function persistMobileWorkspaceRuntime(vaultId: string, runtime: Pe
   await secureCredentialStore.writeSecret(runtimeKey(vaultId), serializePersonalWorkspaceRuntime(runtime));
   cache.set(vaultId, runtime); locked.delete(vaultId);
   await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: runtime.genesis ? (await import("@plainva/core")).workspaceDocumentHash(runtime.genesis) : "", deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
+}
+
+/**
+ * The publisher's runtime for one published slice.
+ *
+ * It goes into the platform keystore beside the vault's own, never into it: it
+ * holds the publication's admin half (invite a recipient, revoke one), so a
+ * recipient of one publication must not end up sitting on the bundle of every
+ * other. Locking the vault locks its publications with it - truthful rather
+ * than merely tidy, because a refresh needs the vault runtime to read the slice
+ * in the first place.
+ */
+export async function persistMobilePublicationRuntime(vaultId: string, publicationId: string, runtime: PersonalWorkspaceRuntime): Promise<void> {
+  await secureCredentialStore.writeSecret(publicationKey(vaultId, publicationId), serializePersonalWorkspaceRuntime(runtime));
+  publicationCache.set(publicationKey(vaultId, publicationId), runtime);
+}
+
+export async function loadMobilePublicationRuntime(vaultId: string, publicationId: string): Promise<PersonalWorkspaceRuntime | null> {
+  if (locked.has(vaultId)) return null;
+  const slot = publicationKey(vaultId, publicationId);
+  const remembered = publicationCache.get(slot); if (remembered) return remembered;
+  const stored = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(slot);
+  if (!stored) return null;
+  const runtime = deserializePersonalWorkspaceRuntime(stored); publicationCache.set(slot, runtime); return runtime;
+}
+
+/**
+ * Ids are handed in rather than discovered: the keystore has no listing, so the
+ * caller has to read them from the workspace state BEFORE that state is cleared
+ * (the same ordering the vault-forget sweep learned on 2026-08-19).
+ */
+export async function clearMobilePublicationRuntimes(vaultId: string, publicationIds: string[]): Promise<void> {
+  for (const publicationId of publicationIds) {
+    const slot = publicationKey(vaultId, publicationId);
+    const runtime = publicationCache.get(slot); if (runtime) wipeWorkspaceRuntimeSecrets(runtime);
+    publicationCache.delete(slot);
+    await secureCredentialStore.removeSecret(slot);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -552,7 +603,7 @@ export async function activateMobileWorkspaceOwnerTransfer(input: {
 }
 
 export async function lockMobileWorkspace(vaultId: string): Promise<void> {
-  cache.delete(vaultId); locked.add(vaultId);
+  cache.delete(vaultId); forgetPublications(vaultId); locked.add(vaultId);
   const status = await getMobileWorkspaceStatus(vaultId); if (status) await saveStatus(vaultId, { ...status, phase: "locked" });
 }
 
@@ -606,8 +657,13 @@ export async function decommissionMobileWorkspace(input: {
   // (2) The gate.
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);
+  // Read the publication ids while the table still exists: the keystore cannot
+  // be listed, so after `clearWorkspaceState` their slots would be unreachable
+  // and their keys would outlive the workspace they belong to.
+  const publicationIds = (await state?.listPublications() ?? []).map((record) => record.publicationId);
   await secureCredentialStore.removeSecret(runtimeKey(vaultId));
   await secureCredentialStore.removeSecret(pendingKey(vaultId));
+  await clearMobilePublicationRuntimes(vaultId, publicationIds);
   await state?.clearWorkspaceState();
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }

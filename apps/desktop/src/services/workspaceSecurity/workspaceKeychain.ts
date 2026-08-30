@@ -253,6 +253,10 @@ export function lockWorkspaceRuntime(vaultPath: string): void {
   cache.delete(vaultPath);
   const kek = sessionKeks.get(vaultPath); if (kek) wipeBytes(kek);
   sessionKeks.delete(vaultPath);
+  // Publications lock with their vault, so their keys leave memory with it. The
+  // read path already refuses while locked; this is about not leaving publisher
+  // admin keys sitting in a heap the user believes they just closed.
+  wipePublicationCache(vaultPath);
   sessionLocked.add(vaultPath);
 }
 
@@ -281,9 +285,122 @@ export async function clearWorkspaceRuntime(vaultPath: string): Promise<void> {
   cache.delete(vaultPath);
   const kek = sessionKeks.get(vaultPath); if (kek) wipeBytes(kek);
   sessionKeks.delete(vaultPath);
+  wipePublicationCache(vaultPath);
   sessionLocked.delete(vaultPath);
   await credentialManager.removeSecret(secretKey(vaultPath));
   const store = await getSettingsStore();
   await store.delete(workspaceSecurityStatusKey(vaultPath));
   await store.save();
+}
+
+/**
+ * Where a publication's own runtime lives (S4b).
+ *
+ * A publication IS a workspace, so it has its own device key and group keys, and
+ * they must not be mixed with the vault's. The slot carries BOTH ids because a
+ * publication belongs to a vault: the publication id alone would collide the
+ * moment two vaults publish, and the OS keychain cannot be enumerated to find
+ * the mistake afterwards.
+ */
+const publicationSecretKey = (vaultPath: string, publicationId: string) =>
+  `workspace_pub_v1_${b64Path(vaultPath)}_${publicationId}`;
+
+const publicationCache = new Map<string, PersonalWorkspaceRuntime>();
+
+function wipePublicationCache(vaultPath: string): void {
+  const prefix = `workspace_pub_v1_${b64Path(vaultPath)}_`;
+  for (const [slot, runtime] of publicationCache) {
+    if (!slot.startsWith(prefix)) continue;
+    wipeWorkspaceRuntimeSecrets(runtime);
+    publicationCache.delete(slot);
+  }
+}
+
+/**
+ * Seals a publication runtime exactly the way the vault's own runtime is sealed,
+ * and with the vault's session KEK.
+ *
+ * Two consequences, both wanted. It is never weaker than the vault it came from
+ * — a publication runtime holds the publisher's admin key for that publication
+ * (invite, revoke), which is strictly more than a recipient may do, so it cannot
+ * sit in the clear next to a passphrase-sealed vault. And there is never a
+ * second passphrase prompt: you can only create or refresh a publication while
+ * the vault is unlocked, so the KEK is already in this session. When it is not,
+ * that is not a case to work around — the caller unlocks the vault first.
+ */
+export async function persistPublicationRuntime(
+  vaultPath: string,
+  publicationId: string,
+  runtime: PersonalWorkspaceRuntime,
+): Promise<void> {
+  const serialized = serializePersonalWorkspaceRuntime(runtime);
+  const keyStorage = (await storedEnvelope(vaultPath))?.storage ?? (await availableKeyStorage());
+  let envelope: StoredWorkspaceRuntime;
+  if (keyStorage === "native") {
+    envelope = { storage: "native", runtime: serialized };
+  } else {
+    const kek = sessionKeks.get(vaultPath);
+    if (!kek) throw new Error("workspace-passphrase-required");
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const nonce = aeadNonce();
+    envelope = {
+      storage: "passphrase",
+      params: DEFAULT_KDF_PARAMS,
+      // The salt is recorded for shape only: the ciphertext is sealed with the
+      // vault's KEK, which was derived from the vault's own salt. Deriving a
+      // second KEK here would mean a second passphrase prompt for no gain.
+      salt: toBase64(salt),
+      nonce: toBase64(nonce),
+      ciphertext: toBase64(aeadEncrypt(kek, nonce, utf8Encode(canonicalJson(serialized)), fallbackAad())),
+    };
+  }
+  await credentialManager.writeSecret(publicationSecretKey(vaultPath, publicationId), envelope);
+  publicationCache.set(publicationSecretKey(vaultPath, publicationId), runtime);
+}
+
+/** Reads a publication runtime, and says why when there is none. */
+export async function readPublicationRuntime(
+  vaultPath: string,
+  publicationId: string,
+): Promise<WorkspaceRuntimeAccess> {
+  const slot = publicationSecretKey(vaultPath, publicationId);
+  const remembered = publicationCache.get(slot);
+  if (remembered && !sessionLocked.has(vaultPath)) return { state: "unlocked", runtime: remembered };
+  const envelope = await credentialManager.readSecret<StoredWorkspaceRuntime>(slot);
+  if (!envelope) return { state: "absent" };
+  // Locking the vault locks its publications with it. That is the mental model
+  // ("a publication exists because the vault does"), and it is also the truth:
+  // refreshing one needs the vault's runtime to read the slice in the first place.
+  if (sessionLocked.has(vaultPath)) return { state: "locked", storage: envelope.storage };
+  if (envelope.storage === "native") {
+    const runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
+    publicationCache.set(slot, runtime);
+    return { state: "unlocked", runtime };
+  }
+  const kek = sessionKeks.get(vaultPath);
+  if (!kek) return { state: "locked", storage: "passphrase" };
+  const plain = aeadDecrypt(kek, fromBase64(envelope.nonce), fromBase64(envelope.ciphertext), fallbackAad());
+  const runtime = deserializePersonalWorkspaceRuntime(
+    JSON.parse(utf8Decode(plain)) as SerializedPersonalWorkspaceRuntime,
+  );
+  publicationCache.set(slot, runtime);
+  return { state: "unlocked", runtime };
+}
+
+/**
+ * Removes publication runtimes when a vault is forgotten.
+ *
+ * The ids have to be read from the state store BEFORE `clearWorkspaceState`
+ * drops the table — the OS keychain cannot be enumerated, so a slot whose id is
+ * gone is a publisher admin key nobody can find again. Same ordering lesson as
+ * the vault-forget sweep of 2026-08-19.
+ */
+export async function clearPublicationRuntimes(vaultPath: string, publicationIds: string[]): Promise<void> {
+  for (const publicationId of publicationIds) {
+    const slot = publicationSecretKey(vaultPath, publicationId);
+    const runtime = publicationCache.get(slot);
+    if (runtime) wipeWorkspaceRuntimeSecrets(runtime);
+    publicationCache.delete(slot);
+    await credentialManager.removeSecret(slot);
+  }
 }

@@ -34,7 +34,19 @@ vi.mock("../platform/secureStore", () => ({
   },
 }));
 
-import { FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, workspaceDocumentHash, type IVaultAdapter } from "@plainva/core";
+import {
+  FakeWorkspaceObjectStore,
+  MemoryWorkspaceStateStore,
+  createPersonalWorkspaceBootstrap,
+  emptyPublicationManifest,
+  personalWorkspaceRuntime,
+  serializePersonalWorkspaceRuntime,
+  workspaceDocumentHash,
+  type IVaultAdapter,
+  type PersonalWorkspaceRuntime,
+  type PublishedSliceConfig,
+  type WorkspacePublicationRecord,
+} from "@plainva/core";
 import {
   activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,
@@ -42,10 +54,14 @@ import {
   discardPreparedMobileWorkspace,
   getMobileWorkspaceStatus,
   inviteMobileWorkspaceMember,
+  loadMobilePublicationRuntime,
+  lockMobileWorkspace,
+  persistMobilePublicationRuntime,
   prepareMobileWorkspace,
   prepareMobileWorkspaceOwnerTransfer,
   revokeMobileWorkspaceDevice,
   revokeMobileWorkspaceMember,
+  unlockMobileWorkspace,
 } from "./mobileWorkspaceSecurity";
 
 /** Minimal adapter surface the migration sweep touches (listDir + read). */
@@ -56,6 +72,31 @@ function vaultWith(files: Record<string, string>): IVaultAdapter {
     readBinaryFile: async (path: string) => encoder.encode(files[path] ?? ""),
     readTextFile: async (path: string) => files[path] ?? "",
   } as unknown as IVaultAdapter;
+}
+
+/** A publication runtime is its OWN workspace - never the vault's. */
+async function publicationRuntime(): Promise<PersonalWorkspaceRuntime> {
+  return personalWorkspaceRuntime(
+    await createPersonalWorkspaceBootstrap({
+      ownerDisplayName: "Owner", deviceDisplayName: "Pixel",
+      platform: "android", minimumClientVersion: "0.5.0",
+    }),
+  );
+}
+
+/** The record the publisher keeps about one published slice (S4b). */
+function publicationRecord(publicationId: string): WorkspacePublicationRecord {
+  const config: PublishedSliceConfig = {
+    publicationId, sliceId: `slice-${publicationId}`, name: "Quarterly review",
+    mode: "sanitized", access: "read", provider: "webdav",
+    propertyAllowlist: ["title"], privateProperties: ["salary"],
+    createdAt: "2026-08-30T08:00:00.000Z",
+  };
+  return {
+    publicationId, sliceId: config.sliceId, config,
+    manifest: emptyPublicationManifest(publicationId),
+    lastError: null, lastRefreshedAt: null, createdAt: config.createdAt,
+  };
 }
 
 describe("mobile encrypted-workspace first setup", () => {
@@ -217,6 +258,29 @@ describe("mobile encrypted-workspace decommission", () => {
     });
 
     expect(order).toEqual(["stop", "clear"]);
+  });
+
+  /**
+   * A publication carries its own keys, and the keystore cannot be listed. So
+   * the ids have to be read while the state table still exists - after
+   * `clearWorkspaceState` the slots are unreachable and their keys would
+   * outlive the workspace they belong to. Same shape as the vault-forget sweep
+   * of 2026-08-19, and the reason the read sits before the clear.
+   */
+  it("takes the publication keys down with the workspace", async () => {
+    const state = await joined();
+    await state.savePublication(publicationRecord("pub-a"));
+    await state.savePublication(publicationRecord("pub-b"));
+    await persistMobilePublicationRuntime("v1", "pub-a", await publicationRuntime());
+    await persistMobilePublicationRuntime("v1", "pub-b", await publicationRuntime());
+    expect(secrets.has("workspace_pub_mobile_v1_pub-a")).toBe(true);
+    expect(secrets.has("workspace_pub_mobile_v1_pub-b")).toBe(true);
+
+    await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {} });
+
+    expect(secrets.has("workspace_pub_mobile_v1_pub-a")).toBe(false);
+    expect(secrets.has("workspace_pub_mobile_v1_pub-b")).toBe(false);
+    expect(await loadMobilePublicationRuntime("v1", "pub-a")).toBeNull();
   });
 });
 
@@ -426,5 +490,81 @@ describe("mobile encrypted-workspace revocation", () => {
     // order. A retry only has to redo the rewrite.
     const member = runtime.policy.payload.members.find((m) => m.memberId === target);
     expect(member?.state).not.toBe("active");
+  });
+});
+
+/**
+ * ONE SLOT PER PUBLICATION on the phone (stage B, S4b shells).
+ *
+ * The desktop twin lives in `publicationKeychain.test.ts`; the shape differs
+ * because the platform does — Android Keystore and the iOS Keychain seal
+ * natively, so there is no passphrase branch to refuse. What must hold is the
+ * same: the slot name misses across vaults by construction (the keystore
+ * cannot be enumerated afterwards to find a collision that already happened),
+ * and locking the vault locks its publications AND drops the cached copy — the
+ * publisher's bundle is the admin half, strictly more than any recipient may do.
+ *
+ * Mobile drops where desktop zeroes, and that is the platform speaking, not an
+ * oversight: the desktop wipe is safe because every caller stops the sync
+ * worker first, and mobile's lock (SecurityAreaScreen) deliberately does not —
+ * zeroing key objects a running worker still signs with would corrupt what it
+ * is in the middle of writing. Same guarantee for the user, different depth,
+ * exactly as the vault runtime has always handled it.
+ */
+describe("mobile publication runtimes in the keystore", () => {
+  beforeEach(async () => {
+    prefs.clear(); secrets.clear(); keystoreError = null;
+    await lockMobileWorkspace("v1"); await lockMobileWorkspace("v2");
+  });
+
+  /** Puts a vault runtime in place so the vault counts as set up and unlocked. */
+  async function openVault(vaultId: string): Promise<void> {
+    const prepared = await prepareMobileWorkspace({ vaultId, ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    await activatePreparedMobileWorkspace({
+      vaultId, draftId: prepared.draftId,
+      store: new FakeWorkspaceObjectStore(), vault: vaultWith({ "Note.md": "hello" }), state: new MemoryWorkspaceStateStore(),
+    });
+  }
+
+  it("round-trips a publication runtime and reports an unknown one as null", async () => {
+    await openVault("v1");
+    const runtime = await publicationRuntime();
+    await persistMobilePublicationRuntime("v1", "pub-a", runtime);
+
+    const read = await loadMobilePublicationRuntime("v1", "pub-a");
+    expect(read?.memberId).toBe(runtime.memberId);
+    expect(await loadMobilePublicationRuntime("v1", "pub-unknown")).toBeNull();
+  });
+
+  it("keys the slot by vault AND publication", async () => {
+    await openVault("v1");
+    await openVault("v2");
+    await persistMobilePublicationRuntime("v1", "pub-a", await publicationRuntime());
+    await persistMobilePublicationRuntime("v2", "pub-a", await publicationRuntime());
+
+    // Same publication id, two vaults: two slots, never one shared bundle.
+    expect(secrets.has("workspace_pub_mobile_v1_pub-a")).toBe(true);
+    expect(secrets.has("workspace_pub_mobile_v2_pub-a")).toBe(true);
+    const one = await loadMobilePublicationRuntime("v1", "pub-a");
+    const two = await loadMobilePublicationRuntime("v2", "pub-a");
+    expect(one?.memberId).not.toBe(two?.memberId);
+  });
+
+  it("locks its publications with the vault and forgets the cached copy", async () => {
+    await openVault("v1");
+    const before = await publicationRuntime();
+    await persistMobilePublicationRuntime("v1", "pub-a", before);
+    expect((await loadMobilePublicationRuntime("v1", "pub-a"))?.memberId).toBe(before.memberId);
+
+    await lockMobileWorkspace("v1");
+    expect(await loadMobilePublicationRuntime("v1", "pub-a")).toBeNull();
+
+    // The lock also drops the in-memory copy, which is what the read guard
+    // alone cannot give: something else re-persists the slot while the vault is
+    // closed, and after unlocking we must serve THAT, not the stale cache.
+    const after = await publicationRuntime();
+    secrets.set("workspace_pub_mobile_v1_pub-a", serializePersonalWorkspaceRuntime(after));
+    await unlockMobileWorkspace("v1");
+    expect((await loadMobilePublicationRuntime("v1", "pub-a"))?.memberId).toBe(after.memberId);
   });
 });
