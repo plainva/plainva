@@ -21,7 +21,7 @@ import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settin
 import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
@@ -1138,6 +1138,18 @@ export const VaultProvider: React.FC<{
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
+                  // Only whether THIS device holds the publication's keys. The
+                  // folder it lives in is derived inside core from the vault's
+                  // workspace id - a publication bootstraps a workspace whose id
+                  // is its own publication id, and deriving from that here would
+                  // address a folder nobody joined, silently.
+                  openPublicationRuntime: async (record) => {
+                    const access = await readPublicationRuntime(path, record.publicationId);
+                    // "locked" is not "missing": a locked vault locks its
+                    // publications too, and the next cycle after unlocking
+                    // refreshes them.
+                    return access.state === "unlocked" ? access.runtime : null;
+                  },
                 });
                 worker.onStatusChange = (status, errorMsg) => {
                   syncStatusStore.set(path, { status, message: errorMsg || null, ...(status !== "syncing" ? { progress: null } : {}) });

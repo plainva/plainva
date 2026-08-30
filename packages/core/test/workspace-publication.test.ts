@@ -1068,7 +1068,9 @@ describe("refreshWorkspacePublications", () => {
       state: state.store,
       vault: { readTextFile: async () => "# Q3\n\nShipped." },
       policy: { slices: [slice([OBJ_TEXT, OBJ_DELETED, OBJ_NO_REVISION, OBJ_BINARY])] },
-      openPublication: async () => handle,
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => handle.runtime,
       now: () => "2026-08-30T10:00:00.000Z",
     });
 
@@ -1087,7 +1089,7 @@ describe("refreshWorkspacePublications", () => {
     // EVERYTHING, so a policy that arrived half-read - or a slice someone
     // renamed - would silently strip a publication a recipient is reading.
     // Taking one down belongs to a person and a dialog (S6).
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const record = makeRecord(handle, {
       manifest: {
         publicationId: handle.publicationId,
@@ -1109,7 +1111,9 @@ describe("refreshWorkspacePublications", () => {
       state: state.store,
       vault: { readTextFile: async () => { throw new Error("must not read"); } },
       policy: { slices: [] },
-      openPublication: async () => { throw new Error("must not open"); },
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => { throw new Error("must not open"); },
     });
 
     expect(outcomes[0]).toEqual({ publicationId: handle.publicationId, planned: 0, applied: 0, error: null, skipped: "no-slice" });
@@ -1120,14 +1124,16 @@ describe("refreshWorkspacePublications", () => {
     // The publisher's other device holds the key and refreshes this fine.
     // Writing an error here would show a broken publication to someone who
     // cannot do anything about it.
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const state = fakeState([makeRecord(handle)], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
 
     const outcomes = await refreshWorkspacePublications({
       state: state.store,
       vault: { readTextFile: async () => "# Q3" },
       policy: { slices: [slice([OBJ_TEXT])] },
-      openPublication: async () => null,
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => null,
     });
 
     expect(outcomes[0]).toEqual({ publicationId: handle.publicationId, planned: 1, applied: 0, error: null, skipped: "no-key" });
@@ -1136,14 +1142,16 @@ describe("refreshWorkspacePublications", () => {
 
   it("clears a stale reason once nothing is left to publish", async () => {
     // A publication that recovered must stop reporting last week's outage.
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const state = fakeState([makeRecord(handle, { lastError: "provider rejected the upload" })], []);
 
     const outcomes = await refreshWorkspacePublications({
       state: state.store,
       vault: { readTextFile: async () => "" },
       policy: { slices: [slice([])] },
-      openPublication: async () => { throw new Error("must not open"); },
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => { throw new Error("must not open"); },
       now: () => "2026-08-30T11:00:00.000Z",
     });
 
@@ -1156,14 +1164,16 @@ describe("refreshWorkspacePublications", () => {
   it("writes nothing at all when there is nothing to say", async () => {
     // A clean publication saves no record, so the common case does not rewrite
     // a row on every cycle.
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const state = fakeState([makeRecord(handle)], []);
 
     await refreshWorkspacePublications({
       state: state.store,
       vault: { readTextFile: async () => "" },
       policy: { slices: [slice([])] },
-      openPublication: async () => { throw new Error("must not open"); },
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => { throw new Error("must not open"); },
     });
 
     expect(state.saved).toEqual([]);
@@ -1173,7 +1183,7 @@ describe("refreshWorkspacePublications", () => {
     // Nobody watches a background cycle. Carrying on past the failure would
     // report the refresh as done while the second note quietly kept its old
     // text - so the run stops, and the record says why.
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const objects = [
       object({ objectId: OBJ_TEXT, path: "Projects/A.md" }),
       object({ objectId: OBJ_BINARY, path: "Projects/B.md", contentKind: "text" }),
@@ -1189,7 +1199,9 @@ describe("refreshWorkspacePublications", () => {
         },
       },
       policy: { slices: [slice([OBJ_TEXT, OBJ_BINARY])] },
-      openPublication: async () => handle,
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => handle.runtime,
       now: () => "2026-08-30T12:00:00.000Z",
     });
 
@@ -1207,7 +1219,7 @@ describe("refreshWorkspacePublications", () => {
     // A run that dies mid-way has to leave a manifest that still describes the
     // publication, or the next run publishes a second copy of what already
     // landed. Two objects, and the store is written to more than once.
-    const { handle } = await makePublication();
+    const { handle, outer } = await makePublication();
     const objects = [
       object({ objectId: OBJ_TEXT, path: "Projects/A.md" }),
       object({ objectId: OBJ_BINARY, path: "Projects/B.md", contentKind: "text" }),
@@ -1218,7 +1230,9 @@ describe("refreshWorkspacePublications", () => {
       state: state.store,
       vault: { readTextFile: async () => "# Note" },
       policy: { slices: [slice([OBJ_TEXT, OBJ_BINARY])] },
-      openPublication: async () => handle,
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => handle.runtime,
     });
 
     // Two per-object saves plus the closing one.
@@ -1240,7 +1254,9 @@ describe("refreshWorkspacePublications", () => {
       state: sanitizedState.store,
       vault: { readTextFile: read },
       policy: { slices: [slice([OBJ_TEXT])] },
-      openPublication: async () => sanitized.handle,
+      store: sanitized.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => sanitized.handle.runtime,
     });
     const sanitizedWrite = sanitizedState.saved.at(-1)!.manifest.objects[0];
     const sanitizedText = await readPublishedText(sanitized, sanitizedWrite.sourceObjectId);
@@ -1258,10 +1274,41 @@ describe("refreshWorkspacePublications", () => {
       state: exactState.store,
       vault: { readTextFile: read },
       policy: { slices: [slice([OBJ_TEXT])] },
-      openPublication: async () => exact.handle,
+      store: exact.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => exact.handle.runtime,
     });
     const exactWrite = exactState.saved.at(-1)!.manifest.objects[0];
     expect(await readPublishedText(exact, exactWrite.sourceObjectId)).toBe(markdown);
+  });
+
+  it("refreshes into the same folder the publication was created in", async () => {
+    // The one way this could go wrong without ever raising an error. A
+    // publication bootstraps a workspace whose id IS its publication id, so
+    // when a caller reaches for "the runtime" and derives a store from it, the
+    // pair (publicationId, sliceId) hashes to a DIFFERENT folder than the pair
+    // (workspaceId, sliceId) that creation used. Every write then succeeds, in
+    // a folder nobody joined, and the recipient sees a publication that never
+    // moves. So this asserts on the bytes' address, not on the outcome.
+    const { handle, outer } = await makePublication();
+    const state = fakeState([makeRecord(handle)], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
+
+    await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "# Q3\n\nShipped." },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      store: outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => handle.runtime,
+    });
+
+    // Same address as creation, reached from the outside: the refresh wrote
+    // under the publication's own prefix, and nothing landed anywhere else.
+    const published = await outer.list(`.pvws/publications/${handle.publicationId}/objects`);
+    expect(published.items).toHaveLength(1);
+    const strays = (await outer.list(".pvws/publications")).items
+      .filter((item) => !item.key.startsWith(`.pvws/publications/${handle.publicationId}/`));
+    expect(strays).toEqual([]);
   });
 
   /**

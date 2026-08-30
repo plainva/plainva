@@ -52,7 +52,6 @@ import {
 } from "./state.js";
 import { resumeWorkspaceRekey } from "./rotation.js";
 import { refreshWorkspacePublications, type PublicationRefreshOutcome } from "./publicationRefresh.js";
-import type { PublicationWriteHandle } from "./publication.js";
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { resolveWorkspacePolicyChain } from "./policy.js";
@@ -142,9 +141,13 @@ export interface EncryptedWorkspaceWorkerOptions {
    * Reopens one publication's own runtime, or returns null when this device
    * holds no key for it. Injected because the runtime lives in the OS
    * credential store - one slot per publication - which core cannot read.
+   * Deliberately just the runtime: the worker already holds the object store
+   * and the workspace id, so the folder a publication lives in is derived here
+   * rather than in each shell, where the publication's OWN workspace id is in
+   * reach and would address a folder nobody joined.
    * Leaving it out simply means this worker does not refresh publications.
    */
-  openPublication?: (record: WorkspacePublicationRecord) => Promise<PublicationWriteHandle | null>;
+  openPublicationRuntime?: (record: WorkspacePublicationRecord) => Promise<PersonalWorkspaceRuntime | null>;
   onPublicationsRefreshed?: (outcomes: PublicationRefreshOutcome[]) => void;
 }
 
@@ -882,14 +885,16 @@ export class EncryptedWorkspaceWorker {
    * shared folder must not put the vault's own sync into an error state.
    */
   private async refreshPublications(signal?: AbortSignal): Promise<void> {
-    const openPublication = this.options.openPublication;
-    if (!openPublication) return;
+    const openPublicationRuntime = this.options.openPublicationRuntime;
+    if (!openPublicationRuntime) return;
     try {
       const outcomes = await refreshWorkspacePublications({
         state: this.state,
         vault: this.vault,
         policy: this.activePolicy.payload,
-        openPublication,
+        store: this.objectStore,
+        workspaceId: this.runtime.workspaceId,
+        openPublicationRuntime,
         signal,
       });
       if (outcomes.length > 0) this.options.onPublicationsRefreshed?.(outcomes);

@@ -29,6 +29,7 @@ import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
 import { prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
+import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
 import {
   addVault,
   getActiveVaultEntry,
@@ -707,6 +708,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
       // everything leaves sealed by construction. It still runs, so a manifest
       // that has gone missing surfaces as a cycle error (verified 2026-08-19).
       sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
+      // Only whether THIS device holds the publication's keys; the folder it
+      // lives in is derived inside core from the vault's workspace id. Null
+      // covers both "never published from here" and "vault locked" - and
+      // neither is an error the publisher could act on from this device.
+      openPublicationRuntime: (record) => loadMobilePublicationRuntime(v.vaultId, record.publicationId),
     });
     // No `retryAt` here: the encrypted-workspace worker has no failure counter
     // and still reports every throw as `error` (round 3 changed the ordinary

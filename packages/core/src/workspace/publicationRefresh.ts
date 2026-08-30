@@ -26,9 +26,10 @@ import {
   runPublicationRefresh,
   type PublicationRefreshItem,
   type PublicationSourceObject,
-  type PublicationWriteHandle,
 } from "./publication.js";
-import { projectPublishedMarkdown } from "./publishedSlices.js";
+import { publicationStoreFor, projectPublishedMarkdown } from "./publishedSlices.js";
+import type { WorkspaceObjectStore } from "./objectStore.js";
+import type { PersonalWorkspaceRuntime } from "./personal.js";
 import type { WorkspaceObjectRecord, WorkspacePublicationRecord, WorkspaceStateStore } from "./state.js";
 
 /** Why a publication was left alone this cycle. Never an error - each one is a normal state. */
@@ -54,12 +55,24 @@ export interface RefreshWorkspacePublicationsInput {
   vault: Pick<IVaultAdapter, "readTextFile">;
   /** Only the slice list is read; the rest of the policy has no say in what gets published. */
   policy: Pick<WorkspacePolicyPayload, "slices">;
+  /** The provider store of the MAIN workspace; each publication is a namespace inside it. */
+  store: WorkspaceObjectStore;
   /**
-   * Opens the publication's own runtime. Returns null when this device holds no
-   * key for it - the shell owns this because the runtime lives in the OS
-   * credential store, one slot per publication, and core cannot read it.
+   * The MAIN workspace's id - not the publication's own, which is a different
+   * value entirely (a publication bootstraps a workspace whose id IS its
+   * publication id). The pair (this, sliceId) is what `derivePublicationId`
+   * turned into the folder at creation time, so it is the only pair that finds
+   * that folder again.
    */
-  openPublication: (record: WorkspacePublicationRecord) => Promise<PublicationWriteHandle | null>;
+  workspaceId: string;
+  /**
+   * Answers the one question core cannot: does THIS device hold the
+   * publication's keys? Null when it does not. The shell owns only this,
+   * because the runtime lives in the OS credential store - deriving the store
+   * stays here, so a shell cannot address a publication under a name nobody
+   * joined.
+   */
+  openPublicationRuntime: (record: WorkspacePublicationRecord) => Promise<PersonalWorkspaceRuntime | null>;
   now?: () => string;
   onProgress?: (publicationId: string, completed: number, total: number) => void;
   signal?: AbortSignal;
@@ -144,14 +157,26 @@ export async function refreshWorkspacePublications(
       continue;
     }
 
-    const handle = await input.openPublication(record);
-    if (!handle) {
+    const publicationRuntime = await input.openPublicationRuntime(record);
+    if (!publicationRuntime) {
       // No key on THIS device is not a failure of the publication: the
       // publisher's other device still refreshes it, and writing an error here
       // would show a broken publication to someone who cannot act on it.
       outcomes.push({ publicationId: record.publicationId, planned: plan.length, applied: 0, error: null, skipped: "no-key" });
       continue;
     }
+
+    // Derived here rather than handed in: the pair below is the same one
+    // `createPublication` used, so the refresh cannot write into a folder
+    // nobody joined. Passing a ready-made store would put that pairing in two
+    // shells, where a publication's OWN workspace id is right there and looks
+    // just as plausible - and picking it would produce a silent orphan rather
+    // than an error.
+    const handle = {
+      publicationId: record.publicationId,
+      runtime: publicationRuntime,
+      store: publicationStoreFor(input.store, input.workspaceId, record.sliceId),
+    };
 
     // The same set the plan was built from, so the projection cannot compute
     // against a different notion of "inside the publication" than the one the
