@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, toast, type SecurityAreaId } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
-import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
+import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
@@ -55,11 +55,13 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     createWorkspaceGroup,
     createWorkspaceSlice,
     previewWorkspaceSlice,
+    previewSlicePublication,
     listWorkspaceSliceObjects,
     createSlicePublication,
     listSlicePublications,
     invitePublicationRecipient,
     listPublicationRecipients,
+    listPublicationPendingCounts,
     revokePublicationRecipient,
     removeSlicePublication,
     restoreWorkspaceRecovery,
@@ -99,6 +101,11 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [governance, setGovernance] = useState<Governance | null>(null);
   const [dialog, setDialog] = useState<"pair" | "invite" | "group" | "slice" | "recovery" | "rotate" | "owner" | null>(null);
   const [slicePreview, setSlicePreview] = useState<Array<{ objectId: string; path: string }> | null>(null);
+  // What the publication would hand out. Filled on the way out of the decision
+  // step, cleared whenever the definition or the mode changes underneath it -
+  // a stale projection is worse than none, because it would describe a
+  // publication the publisher is no longer about to create.
+  const [publicationPreview, setPublicationPreview] = useState<PublishedProjectionPreview | null>(null);
   // Candidates the slice pickers choose FROM. Loaded when the wizard opens, not
   // with the page: the list walks the whole encrypted object index, and most
   // visits to this page never build a slice. `null` means "still loading".
@@ -115,6 +122,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   // publication's own policy - the main vault's members are a different set,
   // and mixing them would be the beginning of showing somebody the wrong door.
   const [recipients, setRecipients] = useState<Record<string, PublicationRecipient[]>>({});
+  // How far behind each publication is. Kept beside the recipients rather than
+  // inside the record, because it is not a property of the publication - it is
+  // the distance between the publication and the vault as it stands right now.
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const [publishFor, setPublishFor] = useState<{ sliceId: string; name: string } | null>(null);
   const [publishAccess, setPublishAccess] = useState<"read" | "comment" | "suggest">("read");
   const [publishMode, setPublishMode] = useState<"exact" | "sanitized">("exact");
@@ -174,7 +185,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
    * yields an empty list rather than an error: the vault is locked, not broken.
    */
   const refreshPublications = useCallback(async () => {
-    if (!status || status.phase === "locked") { setPublications(null); setRecipients({}); return; }
+    if (!status || status.phase === "locked") { setPublications(null); setRecipients({}); setPendingCounts({}); return; }
     try {
       const records = await listSlicePublications();
       setPublications(records);
@@ -183,8 +194,12 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         catch { return [record.publicationId, [] as PublicationRecipient[]] as const; }
       }));
       setRecipients(Object.fromEntries(entries));
+      // Tolerated separately, like the recipient lookups above: not knowing how
+      // far behind a publication is must not cost the list that shows it exists.
+      try { setPendingCounts(await listPublicationPendingCounts()); }
+      catch (error) { console.warn("[SecuritySharingPage] pending counts failed", error); setPendingCounts({}); }
     } catch (error) { console.warn("[SecuritySharingPage] publications failed", error); }
-  }, [listPublicationRecipients, listSlicePublications, status]);
+  }, [listPublicationPendingCounts, listPublicationRecipients, listSlicePublications, status]);
 
   useEffect(() => { if (area === "publications") void refreshPublications(); }, [area, refreshPublications]);
 
@@ -206,14 +221,33 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   };
 
   /**
-   * Opens the slice wizard. The publication mode is PINNED to "private" until
-   * Stufe B built the publishing path, and the wizard still stops at the slice
-   * on purpose (S7). Publishing is a separate, deliberate act: it needs a
-   * provider, an access level and an exact-or-sanitized choice, it creates a
-   * second workspace with its own keys, and it is the one step here that hands
-   * bytes to somebody outside the vault. Folding that into the last page of a
-   * wizard would let a mis-click publish. "Create publication" on the slice row
-   * is the single execution path, and the contract test pins this line.
+   * The second preview: not WHICH notes are covered, but what a publication of
+   * them would actually let out (Stufe B, S7, finding F).
+   *
+   * Asked for once, on the way out of the decision step, because it reads every
+   * covered note - the membership preview above answers from the index alone and
+   * can run on every edit. Built from the objects the membership preview already
+   * resolved, so both halves of the review page describe the same set.
+   */
+  const previewSlicePublicationNow = async () => {
+    if (form.publicationMode === "private") { setPublicationPreview(null); return; }
+    setBusy(true);
+    try { setPublicationPreview(await previewSlicePublication({ objectIds: (slicePreview ?? []).map((entry) => entry.objectId), mode: form.publicationMode as PublishedSliceMode })); }
+    catch (error) { toast.error(publicationErrorText(error, t)); }
+    finally { setBusy(false); }
+  };
+
+  /**
+   * Opens the slice wizard.
+   *
+   * The publication mode STARTS at "private" and is a choice from there on
+   * (Stufe B, S7): the wizard defines a slice, and whether that slice is also
+   * handed to somebody outside the vault is a property of the same definition,
+   * decided in step 3 and reviewed in step 4 before anything is signed.
+   *
+   * "Create publication" on the slice row stays: it is how a slice that already
+   * exists gets published later, and how a publisher sees the recipients and the
+   * provider advice of one that exists already.
    */
   const openSliceWizard = (): void => {
     setSlicePreview(null);
@@ -221,6 +255,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     void listWorkspaceSliceObjects()
       .then(setSliceObjects)
       .catch((error) => toast.error(publicationErrorText(error, t)));
+    setPublicationPreview(null);
     setForm((current) => ({ ...current, name: "", definition: "", sliceKind: "folder", publicationMode: "private" }));
     setDialog("slice");
   };
@@ -643,9 +678,15 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                   </SettingRow>
                 );
                 const people = recipients[record.publicationId] ?? [];
+                // What the row says about itself: what it is, then how current it
+                // is. The second half is the answer to the question a publisher
+                // asks every time they open this screen - "do the people I
+                // shared this with see what I see?" - and until S7 nothing on
+                // this page answered it.
+                const state = publicationStatusText({ lastError: record.lastError, pending: pendingCounts[record.publicationId] ?? 0 }, t);
                 return (
                   <React.Fragment key={slice.sliceId}>
-                    <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider}`}>
+                    <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider} · ${state}`}>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setRecipientFor({ publicationId: record.publicationId, name: slice.name }); setRecipientName(""); }} data-testid="workspace-invite-recipient">{t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })}</Button>
                       <Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setWithdrawFor({ publicationId: record.publicationId, name: slice.name, provider: record.config.provider })} data-testid="workspace-withdraw-publication">{t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })}</Button>
                     </SettingRow>
@@ -758,11 +799,13 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           governance={governance}
           pairPreview={pairPreview}
           slicePreview={slicePreview}
+          publicationPreview={publicationPreview}
           sliceObjects={sliceObjects}
           rotatedRecoveryCode={rotatedRecoveryCode}
           setForm={setForm}
-          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); setSliceObjects(null); setRotatedRecoveryCode(null); }}
-          onPreview={() => void previewSlice()}
+          onClose={() => { setDialog(null); setPairPreview(null); setSlicePreview(null); setPublicationPreview(null); setSliceObjects(null); setRotatedRecoveryCode(null); }}
+          onPreview={() => { setPublicationPreview(null); void previewSlice(); }}
+          onPublicationPreview={() => void previewSlicePublicationNow()}
           onSubmit={() => void submitGovernanceDialog()}
         />
       )}

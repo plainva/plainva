@@ -26,6 +26,7 @@ import {
   runPublicationRefresh,
   type PublicationRefreshItem,
   type PublicationSourceObject,
+  type PublicationManifest,
 } from "./publication.js";
 import { publicationStoreFor, projectPublishedMarkdown } from "./publishedSlices.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
@@ -79,9 +80,10 @@ export interface RefreshWorkspacePublicationsInput {
 }
 
 /**
- * The objects a slice currently covers, in the shape a refresh plan needs.
+ * The objects of a publication's source set, after the three filters that decide
+ * what may be published at all.
  *
- * Three filters, each closing a way a publication could go wrong:
+ * Each filter closes a way a publication could go wrong:
  *
  * - A deleted object keeps its row (the tombstone is how other devices learn of
  *   the deletion), so publishing it would hand out a note the author removed.
@@ -93,21 +95,66 @@ export interface RefreshWorkspacePublicationsInput {
  *   an excluded binary is already removed VISIBLY by the projection, which
  *   makes this consistent with what the preview shows rather than a second,
  *   silent drop.
+ *
+ * Exported because the wizard's projection preview (S7) has to show what a
+ * publication WOULD hand out before one exists, and it must answer from the same
+ * three filters the refresh applies. A preview computed from a second copy of
+ * them would eventually describe a publication nobody is about to create.
  */
+export function publishableObjects(
+  objectIds: Iterable<string>,
+  objects: readonly WorkspaceObjectRecord[],
+): WorkspaceObjectRecord[] {
+  const wanted = new Set(objectIds);
+  return objects.filter(
+    (object) => wanted.has(object.objectId) && !object.deleted && object.currentRevisionId && object.contentKind === "text",
+  );
+}
+
+/** The covered objects in the shape a refresh plan needs, keyed for the projection step. */
 function coveredSourceObjects(
   slice: WorkspacePolicySlice,
   objects: readonly WorkspaceObjectRecord[],
 ): { covered: PublicationSourceObject[]; byId: Map<string, WorkspaceObjectRecord> } {
-  const wanted = new Set(slice.materializedObjectIds);
   const covered: PublicationSourceObject[] = [];
   const byId = new Map<string, WorkspaceObjectRecord>();
-  for (const object of objects) {
-    if (!wanted.has(object.objectId)) continue;
-    if (object.deleted || !object.currentRevisionId || object.contentKind !== "text") continue;
-    covered.push({ sourceObjectId: object.objectId, path: object.path, sourceRevisionId: object.currentRevisionId });
+  for (const object of publishableObjects(slice.materializedObjectIds, objects)) {
+    covered.push({ sourceObjectId: object.objectId, path: object.path, sourceRevisionId: object.currentRevisionId! });
     byId.set(object.objectId, object);
   }
   return { covered, byId };
+}
+
+/**
+ * How many changes a publication is behind its slice (Stufe B, S7).
+ *
+ * The publication surface has to say whether what a recipient sees is current,
+ * and the honest answer is a number: how many objects the next refresh would
+ * publish, republish or retract. That number already exists - `planPublicationRefresh`
+ * computes it - but only inside a refresh run, where nobody is watching.
+ *
+ * It lives HERE rather than in either shell because the answer depends on the
+ * three filters `coveredSourceObjects` applies (a tombstone is not published, an
+ * object without a revision has no content, only text is published). A shell
+ * computing the count for itself would need its own copy of those filters, and a
+ * copy that drifts turns the status line into a lie about the very thing it
+ * reports on.
+ *
+ * Pure, and deliberately revision-id-only: deciding WHETHER a note is stale must
+ * not cost a file read and a projection for every note in the slice.
+ *
+ * Returns 0 for a slice the policy no longer carries: the publication is then a
+ * decision to retract, not a pile of pending work (the refresh skips it as
+ * `no-slice` for the same reason).
+ */
+export function pendingPublicationChanges(input: {
+  slice: WorkspacePolicySlice | undefined;
+  objects: readonly WorkspaceObjectRecord[];
+  manifest: PublicationManifest;
+}): number {
+  if (!input.slice) return 0;
+  const { covered } = coveredSourceObjects(input.slice, input.objects);
+  return planPublicationRefresh({ manifest: input.manifest, covered }).length;
 }
 
 /**

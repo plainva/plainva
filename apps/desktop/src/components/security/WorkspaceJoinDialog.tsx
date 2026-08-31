@@ -116,7 +116,15 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
             </Button>
             <label className="pv-security-field"><span>{t("workspaceSecurity.deviceName")}</span><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></label>
             {fallbackRequired && <label className="pv-security-field"><span>{t("workspaceSecurity.fallbackPassphrase")}</span><TextInput type="password" value={fallbackPassphrase} onChange={(event) => setFallbackPassphrase(event.target.value)} /></label>}
-            <Banner kind="info" rounded>{t("workspaceSecurity.joinInviteHint", { defaultValue: "Paste the invitation code the workspace owner gave you." })}</Banner>
+            {/* One door, two reasons to walk through it (Stufe B, S7).
+
+                A publication is a workspace of its own, so a recipient joins it
+                with exactly this code and this dialog - the core writes no
+                special "publication format". Both shells carry the same
+                sentence from the same key on purpose: two copies is how the
+                desktop and the phone come to describe the same door
+                differently. */}
+            <Banner kind="info" rounded>{t("workspaceSecurity.joinInviteHint", { defaultValue: "Paste the invitation code the workspace owner gave you." })} {t("workspaceSecurity.joinPublicationHint", { defaultValue: "A code for a shared publication works here too: connect this vault to the folder you were given, then paste the code. You only see what was published - not the rest of that vault." })}</Banner>
           </>
         ) : (
           <>

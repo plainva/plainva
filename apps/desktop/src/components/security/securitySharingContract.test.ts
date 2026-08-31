@@ -261,15 +261,17 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(mobile).not.toContain("setMemberId");
     expect(mobile).not.toContain('t("workspaceSecurity.memberId"');
   });
-  it("source: publishing exists on the desktop, is honest about the phone, and never runs from the wizard", () => {
-    // The four core primitives now have callers. What this pins is the shape of
-    // the wiring, because each of these was a way to get it wrong:
+  it("source: publishing is armed on the desktop, reviewable before it happens, and honest about the phone", () => {
+    // The four core primitives have callers, and since S7 the surface around
+    // them is live. What this pins is the shape of the wiring, because each of
+    // these was a way to get it wrong:
     //
-    //  - the publication is created from the Publications area, which is the only
-    //    place that can also show its recipients and its provider advice;
-    //  - the wizard still cannot mint one (mode pinned, Selects disabled), so a
-    //    lost `disabled` in a refactor cannot produce a half-configured second
-    //    publication behind the publisher's back;
+    //  - a publication can be created from the wizard, where the slice is being
+    //    defined, AND from the slice row afterwards - one is the natural moment,
+    //    the other is how a slice published later gets there;
+    //  - nothing is signed before step 4 shows what would actually leave the
+    //    vault, because "sanitized" is a promise the publisher has no way to
+    //    check by reading a dropdown;
     //  - the phone says what it cannot do instead of implying it can.
     expect(page).toContain("createSlicePublication");
     expect(page).toContain("invitePublicationRecipient");
@@ -285,13 +287,31 @@ describe("security centre: what the source still wires (source guard, not behavi
     // rendered. Comments may name the path; what must not survive is printing it.
     const pageCode = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     expect(pageCode).not.toContain(".pvws/publications/");
-    // The wizard creates the slice and stops there.
+    // The wizard arms the publication. Both halves of the P1 disarming fell
+    // together on purpose (Stufe B, finding D): a banner promising "publish it
+    // later" above three live dropdowns would be the worse of the two states.
     expect(page).toContain("const openSliceWizard = (): void => {");
-    expect(page).toMatch(/openSliceWizard[\s\S]{0,400}?publicationMode: "private"/);
     expect(dialog).not.toContain("workspaceSecurity.publicationPreviewOnly");
-    expect(dialog).toContain("workspaceSecurity.publicationInWizardHint");
-    expect(dialog).not.toContain('form.publicationMode !== "private" &&');
-    expect(dialog.match(/<Select disabled/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(dialog).not.toContain("workspaceSecurity.publicationInWizardHint");
+    expect(dialog).not.toContain("<Select disabled");
+    // Access level and provider only exist for a publication - an internal slice
+    // has neither, and showing three dropdowns where two are meaningless was the
+    // disarmed shape, not the armed one.
+    expect(dialog).toContain('form.publicationMode !== "private" &&');
+    // The projection preview is asked for on the way OUT of the decision step and
+    // rendered in the review step, never on every dropdown change: it reads every
+    // covered note, and that cost is why it is a step rather than a live field.
+    expect(dialog).toMatch(/sliceStep === 3 && form\.publicationMode !== "private"[\s\S]{0,80}?onPublicationPreview\(\)/);
+    expect(dialog).toContain("workspaceSecurity.projectionSanitizedHint");
+    expect(page).toContain("previewSlicePublication");
+    // Built from the objects the membership preview already resolved - both halves
+    // of the review page have to describe the same set of notes.
+    expect(page).toMatch(/previewSlicePublication\(\{ objectIds: \(slicePreview \?\? \[\]\)/);
+    const context = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
+    // Same three filters as the refresh planner, from one exported place, so the
+    // preview cannot promise a note the publish path would skip.
+    expect(context).toContain("publishableObjects");
+    expect(context).toContain("previewPublishedProjection");
     // The phone names the asymmetry instead of the old "nothing is shared yet",
     // which stopped being true the moment the desktop could publish.
     expect(mobile).not.toContain("workspaceSecurity.publicationPreviewOnly");

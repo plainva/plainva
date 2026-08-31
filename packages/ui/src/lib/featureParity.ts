@@ -485,7 +485,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "own folder - invites recipients, shows the provider advice that goes with " +
       "it, withdraws a single recipient (rotating the epoch behind them) and " +
       "withdraws the whole publication (S6). The phone lists the publications " +
-      "that exist and says plainly that publishing runs on the desktop. This is " +
+      "that exist, JOINS one it was invited to (the recipient half is the same " +
+      "join flow, and its hint says so), and says plainly that creating one runs " +
+      "on the desktop. So the asymmetry is the publisher side only. This is " +
       "one gap rather than several because it is one surface with one cause: the " +
       "core is shared and the phone already holds workspace keys, so nothing here " +
       "is a platform limit. It waits on Stufe C, whose M5 builds the mobile " +

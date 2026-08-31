@@ -694,6 +694,17 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
         <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
         <p className="m-hint">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
+        {/* Opening a publication is the same door (Stufe B, S7).
+
+            A publication is a workspace of its own - own genesis, own keys, own
+            folder - so a recipient joins it with the code below and nothing
+            else. The mechanism was already here; what was missing is that this
+            screen only described joining a TEAM, and a recipient who was handed
+            a code for one shared folder had no reason to believe it belonged in
+            this field. The phone is the likelier place to be a recipient, so it
+            is the place that has to say it. Creating a publication stays on the
+            desktop (`workspace-publication-create` in featureParity.ts). */}
+        <p className="m-hint">{t("workspaceSecurity.joinPublicationHint", { defaultValue: "A code for a shared publication works here too: connect this vault to the folder you were given, then paste the code. You only see what was published - not the rest of that vault." })}</p>
         <GroupCard><RowList>
           <SettingField label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></SettingField>
           <SettingField label={t("workspaceSecurity.deviceName")}><TextInput value={deviceName} onChange={(event) => setDeviceName(event.target.value)} /></SettingField>

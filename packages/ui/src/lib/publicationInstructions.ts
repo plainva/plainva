@@ -96,3 +96,36 @@ export function publicationErrorText(
   const key = PUBLICATION_ERROR_KEYS[raw];
   return key ? t(`workspaceSecurity.${key}`, { defaultValue: raw }) : raw;
 }
+
+/**
+ * What a publication's row says about how current it is (Stufe B, S7).
+ *
+ * Three states, and the order between them is the point: an error outranks a
+ * count, because a publication that could not refresh has a pending number that
+ * describes work nobody managed to do. Saying "3 changes pending" when the
+ * truth is "the provider rejected the last four attempts" would be the most
+ * comfortable lie on this screen.
+ *
+ * `pending` counts what the NEXT refresh would touch, not what is broken - zero
+ * with no error is simply current, whether the last run happened a minute ago
+ * or the publication has never needed one since it was created.
+ *
+ * Shared rather than written into either shell for the same reason the
+ * instructions above are: mobile lists publications too, and a second copy is
+ * how the two shells come to describe the same folder differently.
+ */
+export function publicationStatusText(
+  input: { lastError: string | null; pending: number },
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string {
+  if (input.lastError) {
+    return t("workspaceSecurity.publicationRefreshFailed", {
+      defaultValue: "Refresh failed: {{reason}}",
+      reason: publicationErrorText(input.lastError, t),
+    });
+  }
+  if (input.pending > 0) {
+    return t("workspaceSecurity.publicationPending", { count: input.pending, defaultValue: "{{count}} changes pending" });
+  }
+  return t("workspaceSecurity.publicationCurrent", { defaultValue: "Up to date" });
+}
