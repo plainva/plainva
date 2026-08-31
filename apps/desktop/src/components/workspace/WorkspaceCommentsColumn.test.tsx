@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react";
 import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
 
-import { WorkspaceCommentsColumn } from "./WorkspaceCommentsColumn";
+import { WorkspaceCommentsColumn, type PublicationCommentEntry } from "./WorkspaceCommentsColumn";
 import en from "../../../../../packages/ui/src/locales/en.json";
 
 /** The catalogue is nested; a key is a dotted path into it. */
@@ -326,13 +326,16 @@ describe("workspace comment column", () => {
    * above would promise an answer that never arrives.
    */
   describe("returns from a publication", () => {
-    function incoming(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn>["publicationComments"] extends readonly (infer E)[] ? E : never> = {}) {
+    // The prop's type is `readonly Entry[] | undefined`, and a union does not
+    // match `readonly (infer E)[]` - inferring the element back out of it
+    // silently yields `never`. The column exports the element type; take it.
+    function incoming(over: Partial<PublicationCommentEntry> = {}): PublicationCommentEntry {
       return {
         comment: comment({ commentId: "77".repeat(16), body: "Bitte praezisieren" }),
         publicationId: "11".repeat(16), publicationName: "Beirat Q3", path: "Notiz.md",
         authorDisplayName: "Dr. Weber", authorActive: true, suggestionApplicable: false,
         ...over,
-      } as NonNullable<React.ComponentProps<typeof WorkspaceCommentsColumn>["publicationComments"]>[number];
+      } as PublicationCommentEntry;
     }
 
     it("names the publication and the recipient, and offers nothing to answer with", () => {
