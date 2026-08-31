@@ -1613,3 +1613,138 @@ describe("a recipient key against the vault it came from", () => {
     await expect(openPvo1Frame(await sealInMainVault(main), [reader])).rejects.toThrow(/no reader key/);
   });
 });
+
+describe("one publication, start to finish", () => {
+  /**
+   * The lifecycle S8 asks for, in one run and with real crypto: create,
+   * let a recipient in, change an object, watch the projection follow, drop
+   * the object out of the slice, revoke the recipient.
+   *
+   * Every step above this in the file checks one link of that chain against
+   * fakes. This one walks the whole chain once, because the links are joined
+   * by state - a manifest that a refresh rewrites, a policy that a revoke
+   * rotates - and a chain that holds link by link can still come apart at the
+   * joints.
+   */
+  const READ = (handle: PublicationWriteHandle, groupId: string) => {
+    const group = handle.runtime.groupKeys.find((key) => key.groupId === groupId)!;
+    return { groupId: group.groupId, keyEpoch: group.keyEpoch, privateKey: group.hpke.privateKey };
+  };
+
+  it("walks the whole arc", async () => {
+    // 1. Created, and a recipient let in.
+    const { handle } = await makePublication();
+    const invite = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Reviewer",
+    });
+    applyWorkspaceGovernanceUpdate(handle.runtime, invite);
+    const reader = READ(handle, handle.recipientGroupId);
+
+    // 2. An object published - and readable by the person it was published for.
+    const first = await publishSliceObjectContent({
+      handle,
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", text: "# Q3\n\nDraft." }],
+    });
+    const opened = await openPvo1Frame((await handle.store.get(first.writes[0].objectRemoteKey!))!, [reader]);
+    expect(new TextDecoder().decode(opened.plaintext!)).toContain("Draft.");
+
+    // 3. The source note changes. The publisher's manifest is the record of
+    //    what the recipient has; the plan compares it against the slice and
+    //    notices by REVISION, not by content, so an edit that happens to
+    //    produce the same bytes still counts as one they have not seen.
+    const manifest: PublicationManifest = {
+      publicationId: handle.publicationId,
+      sequence: first.lastSequence,
+      previousOperationHash: first.lastOperationHash,
+      objects: [{
+        sourceObjectId: SOURCE_A,
+        path: "Projects/Q3.md",
+        sourceRevisionId: REV_1,
+        publishedRevisionId: first.writes[0].revisionId!,
+      }],
+    };
+    const changed = planPublicationRefresh({
+      manifest,
+      covered: [covered(SOURCE_A, "Projects/Q3.md", REV_2)],
+    });
+    expect(changed.map((entry) => entry.action)).toEqual(["republish"]);
+
+    // 4. Republished, and the projection followed: the recipient's key opens
+    //    the NEW text.
+    const second = await publishSliceObjectContent({
+      handle,
+      fromSequence: first.lastSequence + 1,
+      previousOperationHash: first.lastOperationHash,
+      objects: [{ sourceObjectId: SOURCE_A, path: "Projects/Q3.md", text: "# Q3\n\nFinal." }],
+    });
+    const again = await openPvo1Frame((await handle.store.get(second.writes[0].objectRemoteKey!))!, [reader]);
+    expect(new TextDecoder().decode(again.plaintext!)).toContain("Final.");
+    // Same source note, same published object id - a recipient watching a
+    // note over time sees one note, not two.
+    expect(second.writes[0].objectId).toBe(first.writes[0].objectId);
+
+    // 5. The note leaves the slice. Not a deletion in the vault - a withdrawal
+    //    from this publication, which is why the plan retracts rather than deletes.
+    expect(planPublicationRefresh({ manifest, covered: [] }).map((e) => e.action)).toEqual(["retract"]);
+
+    // 6. The recipient is revoked. What they hold opens nothing minted after
+    //    this point: the group's epoch moved, and the old private key has no
+    //    binding to the new one.
+    const before = handle.runtime.policy.payload.groups.find((g) => g.groupId === handle.recipientGroupId)!;
+    const beforeKey = handle.runtime.groupKeys.find(
+      (key) => key.groupId === handle.recipientGroupId && key.keyEpoch === before.keyEpoch,
+    )!;
+    applyWorkspaceGovernanceUpdate(
+      handle.runtime,
+      await revokePublicationRecipient({ runtime: handle.runtime, memberId: invite.memberId, reason: "left the project" }),
+    );
+    const after = handle.runtime.policy.payload.groups.find((g) => g.groupId === handle.recipientGroupId)!;
+    expect(after.keyEpoch).toBe(before.keyEpoch + 1);
+
+    // The rotated key comes out of the runtime rather than out of the policy
+    // document, because that is the key the publisher would actually seal to.
+    const rotated = handle.runtime.groupKeys.find(
+      (key) => key.groupId === handle.recipientGroupId && key.keyEpoch === after.keyEpoch,
+    );
+    expect(rotated, "the rotation left a usable key behind").toBeDefined();
+
+    const nextEpoch = await sealInlinePvo1({
+      workspaceId: handle.runtime.workspaceId,
+      objectId: "ef".repeat(16),
+      revisionId: "01".repeat(16),
+      recipients: [{ groupId: rotated!.groupId, keyEpoch: rotated!.keyEpoch, publicKey: rotated!.hpke.publicKey }],
+      metadata: {
+        path: "Projects/Q4.md",
+        mime: "text/markdown",
+        parentObjectId: null,
+        createdAt: "2026-08-26T09:00:00.000Z",
+        modifiedAt: "2026-08-26T09:00:00.000Z",
+        contentKind: "text",
+      },
+      plaintext: new TextEncoder().encode("# Q4"),
+    });
+    await expect(openPvo1Frame(nextEpoch, [reader])).rejects.toThrow(/no reader key/);
+
+    // Red counter-probe. The same seal, addressed to the epoch the recipient
+    // actually holds, opens - so the line above fails because the epoch moved,
+    // not because sealing to this group stopped working at all.
+    const sameEpoch = await sealInlinePvo1({
+      workspaceId: handle.runtime.workspaceId,
+      objectId: "ef".repeat(16),
+      revisionId: "02".repeat(16),
+      recipients: [{ groupId: beforeKey.groupId, keyEpoch: beforeKey.keyEpoch, publicKey: beforeKey.hpke.publicKey }],
+      metadata: {
+        path: "Projects/Q4.md",
+        mime: "text/markdown",
+        parentObjectId: null,
+        createdAt: "2026-08-26T09:00:00.000Z",
+        modifiedAt: "2026-08-26T09:00:00.000Z",
+        contentKind: "text",
+      },
+      plaintext: new TextEncoder().encode("# Q4"),
+    });
+    expect(new TextDecoder().decode((await openPvo1Frame(sameEpoch, [reader])).plaintext!)).toBe("# Q4");
+  });
+});
