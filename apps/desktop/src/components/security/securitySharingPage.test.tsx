@@ -243,3 +243,131 @@ describe("changing the passphrase that seals the keys here", () => {
     expect(container.querySelector('[data-testid="workspace-change-passphrase"]')).toBeNull();
   });
 });
+
+/*
+ * Publishing a slice, from the button to the arguments (plan S8).
+ *
+ * `packages/core` proves the flows against real cryptography and
+ * `securitySharingContract.test.ts` proves the calls exist in this file's
+ * source. Neither can see what a Playwright run would have covered - and a
+ * Playwright run cannot reach this screen at all: the publication list only
+ * renders once `getWorkspaceGovernance()` answers, which needs an unlocked
+ * workspace, a keychain and a real `.pvws/` genesis. The e2e harness has a
+ * mocked SQL layer and no keys, so `governance` stays null there and the
+ * buttons below never exist.
+ *
+ * That is why the behaviour layer for publishing lives here instead. jsdom
+ * renders the real component against a mocked vault, so what is proven is the
+ * piece in between: that the right control reaches the control plane with the
+ * right arguments.
+ */
+type CreatePublication = (input: {
+  sliceId: string;
+  name: string;
+  mode: string;
+  access: string;
+  provider: string;
+  propertyAllowlist: string[] | null;
+  privateProperties: string[];
+}) => Promise<void>;
+const createSlicePublication = vi.fn<CreatePublication>(async () => undefined);
+
+type InviteRecipient = (input: { publicationId: string; displayName: string }) => Promise<{ memberId: string; invite: string }>;
+const invitePublicationRecipient = vi.fn<InviteRecipient>(async () => ({ memberId: "m-1", invite: "PVINVITE1.abc" }));
+
+const PUBLICATION = {
+  publicationId: "pub-1",
+  sliceId: "slice-1",
+  config: { mode: "exact", access: "read", provider: "google-drive" },
+  lastError: null,
+};
+
+async function renderPublicationsArea(records: unknown[], people: unknown[]): Promise<void> {
+  governance.slices = [{
+    sliceId: "slice-1",
+    name: "Q3 review",
+    kind: "folder",
+    definition: "Projects/Q3",
+    materializedObjectIds: ["obj-1"],
+  }] as never;
+  vaultValues.createSlicePublication = createSlicePublication;
+  vaultValues.invitePublicationRecipient = invitePublicationRecipient;
+  vaultValues.listSlicePublications = vi.fn(async () => records);
+  vaultValues.listPublicationRecipients = vi.fn(async () => people);
+  vaultValues.listPublicationPendingCounts = vi.fn(async () => ({}));
+  const { SecuritySharingPage } = await import("./SecuritySharingPage");
+  await act(async () => {
+    root.render(
+      <SecuritySharingPage
+        selectedVault="/vault"
+        isActiveVault
+        hasSyncConnection
+        securityArea="publications"
+        onOpenSecurityArea={() => {}}
+      />,
+    );
+  });
+  // Governance, publications, recipients and pending counts each resolve a
+  // promise, and the recipient lookup waits on the publication list first.
+  for (let i = 0; i < 6; i += 1) await act(async () => { await Promise.resolve(); });
+}
+
+describe("publishing a slice reaches the vault with what the dialog chose", () => {
+  beforeEach(() => {
+    createSlicePublication.mockClear();
+    invitePublicationRecipient.mockClear();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    container.remove();
+    governance.slices = [];
+  });
+
+  it("carries the slice, the mode and the access level the publisher picked", async () => {
+    await renderPublicationsArea([], []);
+    await click(container.querySelector('[data-testid="workspace-publish-slice"]'));
+    await click(container.querySelector('[data-testid="workspace-publish-confirm"]'));
+
+    expect(createSlicePublication).toHaveBeenCalledTimes(1);
+    const input = createSlicePublication.mock.calls[0]![0];
+    expect(input.sliceId).toBe("slice-1");
+    expect(input.mode).toBe("exact");
+    expect(input.access).toBe("read");
+    // Exact mode publishes the properties as they are; the allowlist belongs to
+    // sanitized mode, and sending one here would silently strip fields the
+    // publisher chose to share.
+    expect(input.propertyAllowlist).toBeNull();
+  });
+
+  it("names an unpublished slice as internal, and a published one by its configuration", async () => {
+    await renderPublicationsArea([], []);
+    expect(container.textContent).toContain("not shared outside this vault");
+
+    await renderPublicationsArea([PUBLICATION], []);
+    expect(container.querySelector('[data-testid="workspace-publish-slice"]')).toBeNull();
+    expect(container.querySelector('[data-testid="workspace-invite-recipient"]')).not.toBeNull();
+  });
+
+  it("says a publication with nobody in it is safe, not broken", async () => {
+    await renderPublicationsArea([PUBLICATION], []);
+    // The wording matters more than the presence of a row: a publisher who
+    // reads "no recipients" as a failure goes looking for something to fix.
+    expect(container.textContent).toContain("encrypted and unreadable");
+  });
+
+  it("shows the invitation once and keeps the name it was asked for", async () => {
+    await renderPublicationsArea([PUBLICATION], []);
+    await click(container.querySelector('[data-testid="workspace-invite-recipient"]'));
+    await type(document.querySelector(".pv-security-field input"), "Rea");
+    await click(document.querySelector('[data-testid="workspace-recipient-confirm"]'));
+
+    expect(invitePublicationRecipient).toHaveBeenCalledWith({ publicationId: "pub-1", displayName: "Rea" });
+    // The code is on screen now - and this is the only time it ever will be.
+    // Nothing reads it back, so a publisher who closes this dialog without
+    // sending it has to mint a new one.
+    expect(document.body.textContent).toContain("PVINVITE1.abc");
+  });
+});
