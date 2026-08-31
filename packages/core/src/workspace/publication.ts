@@ -18,12 +18,17 @@
  * standard bundle.
  */
 import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
+import { evaluateWorkspaceAccess } from "./authorization.js";
+import { openWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
 import {
   encodeWorkspaceDocument,
+  parseWorkspaceDocument,
   signWorkspaceDocument,
+  verifyWorkspaceDocumentSignatures,
   workspaceDocumentHash,
   type WorkspaceOperationPayload,
   type WorkspacePolicyPayload,
+  type WorkspaceSignedDocument,
 } from "./documents.js";
 import { decodeBase64Exact, sha256Hex, toBase64, utf8Encode } from "./encoding.js";
 import { encodeWorkspaceInvite } from "./invite.js";
@@ -49,6 +54,7 @@ import {
   type PublishedSliceObjectStore,
 } from "./publishedSlices.js";
 import { workspaceRecipientGroupIds, type WorkspaceSliceObject } from "./slices.js";
+import type { WorkspaceCommentRecord } from "./state.js";
 
 /** What a recipient sees before deciding to join. Deliberately unsigned. */
 export interface PublicationCard {
@@ -890,4 +896,165 @@ export async function revokePublicationRecipient(input: {
  */
 export function planPublicationTeardown(manifest: PublicationManifest): PublicationRefreshItem[] {
   return planPublicationRefresh({ manifest, covered: [] });
+}
+
+export interface PublicationComment {
+  /**
+   * The comment as the publisher's own column understands it: `targetObjectId`
+   * is the SOURCE object, not the published projection it was written against.
+   */
+  comment: WorkspaceCommentRecord;
+  publicationId: string;
+  /** The path in the publisher's vault, so the column can group without a second lookup. */
+  path: string;
+  /**
+   * The recipient's name from the PUBLICATION's policy.
+   *
+   * A recipient is not a member of the main vault, so the column's usual name
+   * map cannot resolve them. Left null only when the policy no longer lists the
+   * author at all - the comment still shows, unattributed, rather than
+   * disappearing.
+   */
+  authorDisplayName: string | null;
+  /** False once the author has been taken out of the publication. */
+  authorActive: boolean;
+  /**
+   * Whether the suggestion may be applied to the source note.
+   *
+   * A sanitized publication projects a DIFFERENT text: excluded links become
+   * plain words, excluded embeds are gone, filtered frontmatter is missing. A
+   * character range into that projection does not address the same characters
+   * in the source, so a replacement built against it cannot be applied without
+   * guessing. Such a suggestion is shown and read - it is feedback, and losing
+   * it would be worse than showing it - but never offered as a one-click apply.
+   */
+  suggestionApplicable: boolean;
+}
+
+async function listPublicationKeys(store: WorkspaceObjectStore, prefix: string, signal?: AbortSignal): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await store.list(prefix, cursor, { signal });
+    for (const item of page.items) keys.push(item.key);
+    cursor = page.cursor;
+  } while (cursor);
+  return keys;
+}
+
+/**
+ * Reads back what recipients wrote inside a publication.
+ *
+ * The publisher's sidebar shows one column of comments per note. Without this
+ * the column can only ever show the main vault's own; a recipient's feedback
+ * would sit in the publication workspace, correctly encrypted and completely
+ * invisible - the collaboration equivalent of a shared inbox nobody opens.
+ *
+ * **How a published object finds its way home.** `derivePublishedObjectId` is a
+ * one-way hash, deliberately: a recipient holding two publications must not be
+ * able to tell which notes they have in common. But one-way is only a problem
+ * for somebody who lacks the input, and the publisher has it - the manifest
+ * lists every source object that was published. So the map is built forwards
+ * and read backwards, which needs no additional stored state and cannot drift
+ * out of step with what was actually published.
+ *
+ * That inversion doubles as the filter. A comment whose target is not in the
+ * manifest is not the publisher's to show: either it addresses something this
+ * publication never carried, or the id was made up. Both end the same way.
+ *
+ * **What is trusted, and on what grounds.** The signature says WHO wrote it and
+ * is checked against a device the policy lists. Opening the sealed body says
+ * they held the recipient group's key epoch when they wrote it - nobody else
+ * could have sealed to it. Those two facts together are what makes a historical
+ * comment believable, which is why a revoked recipient's earlier comments
+ * survive their revocation: taking somebody out of a publication ends what they
+ * can do next, it does not retract feedback the publisher may already have
+ * acted on. The live capability check therefore only decides whether an author
+ * still counts as active, and never whether the comment is shown.
+ */
+export async function collectPublicationComments(input: {
+  publicationId: string;
+  /** The PUBLICATION's runtime, never the main vault's. */
+  runtime: PersonalWorkspaceRuntime;
+  store: WorkspaceObjectStore;
+  manifest: PublicationManifest;
+  mode: PublishedSliceConfig["mode"];
+  /** Narrow to a single note; omit for everything the publication carries. */
+  sourceObjectIds?: readonly string[];
+  signal?: AbortSignal;
+}): Promise<PublicationComment[]> {
+  const wanted = input.sourceObjectIds ? new Set(input.sourceObjectIds) : null;
+  const sources = new Map<string, PublishedObjectRecord>();
+  for (const record of input.manifest.objects) {
+    if (wanted && !wanted.has(record.sourceObjectId)) continue;
+    sources.set(derivePublishedObjectId(input.publicationId, record.sourceObjectId), record);
+  }
+  if (sources.size === 0) return [];
+
+  const policy = input.runtime.policy.payload;
+  const members = new Map(policy.members.map((member) => [member.memberId, member]));
+  const collected: PublicationComment[] = [];
+
+  for (const key of await listPublicationKeys(input.store, ".pvws/operations/", input.signal)) {
+    const bytes = await input.store.get(key, { signal: input.signal });
+    if (!bytes) continue;
+    let parsed;
+    try {
+      parsed = parseWorkspaceDocument(bytes);
+    } catch {
+      continue;
+    }
+    if (parsed.kind !== "operation" || parsed.workspaceId !== input.runtime.workspaceId) continue;
+    const document = parsed as WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>;
+    const operation = document.payload;
+    // Object writes in here are the publisher's own projections coming back.
+    if (operation.operation !== "comment" || operation.memberId === input.runtime.memberId) continue;
+    if (!key.endsWith(`-${workspaceDocumentHash(document)}.pvop`)) continue;
+
+    const device = policy.devices.find((entry) => entry.deviceId === operation.deviceId && entry.memberId === operation.memberId);
+    if (!device) continue;
+    if (!verifyWorkspaceDocumentSignatures(document, (entry) =>
+      entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null,
+    )) continue;
+
+    if (!operation.payloadHash) continue;
+    const objectBytes = await input.store.get(`.pvws/objects/${operation.objectId}/${operation.payloadHash}.pvobj`, { signal: input.signal });
+    if (!objectBytes) continue;
+
+    let body;
+    try {
+      body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: input.runtime.groupKeys });
+    } catch {
+      continue;
+    }
+
+    const source = sources.get(body.targetObjectId);
+    if (!source) continue;
+
+    const member = members.get(operation.memberId);
+    // The publication's assignments are workspace-scoped - the publication IS
+    // the slice - so there are no slice ids to weigh here.
+    const active =
+      device.state === "active" &&
+      member?.state === "active" &&
+      evaluateWorkspaceAccess(policy, {
+        memberId: operation.memberId,
+        deviceId: operation.deviceId,
+        capability: "comment.create",
+        objectId: body.targetObjectId,
+        sliceIds: [],
+      }).allowed;
+
+    const record = workspaceCommentRecord(body, document, workspaceDocumentHash(document));
+    collected.push({
+      comment: { ...record, targetObjectId: source.sourceObjectId },
+      publicationId: input.publicationId,
+      path: source.path,
+      authorDisplayName: member?.displayName ?? null,
+      authorActive: !!active,
+      suggestionApplicable: !!record.suggestion && input.mode === "exact",
+    });
+  }
+
+  return collected.sort((a, b) => a.comment.createdAt.localeCompare(b.comment.createdAt) || a.comment.commentId.localeCompare(b.comment.commentId));
 }

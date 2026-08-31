@@ -5,7 +5,13 @@ import {
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
   createPublication,
+  collectPublicationComments,
+  createWorkspacePairingRequest,
+  approveWorkspacePairing,
+  buildCommentAnchor,
+  acceptWorkspacePairing,
   derivePublishedObjectId,
+  decodeBase64Exact,
   decodeWorkspaceInvite,
   decodePublicationCard,
   derivePublicationId,
@@ -17,6 +23,8 @@ import {
   parseWorkspaceDocument,
   personalWorkspaceRuntime,
   planPublicationRefresh,
+  prepareWorkspaceComment,
+  publishWorkspaceComment,
   publicationRecipientGroupId,
   publicationRecipients,
   publicationRecipientStoreFor,
@@ -29,9 +37,11 @@ import {
   publishedSliceAccessCapabilities,
   refreshWorkspacePublications,
   runPublicationRefresh,
+  workspaceDocumentHash,
   workspaceRecipientGroupIds,
   type PersonalWorkspaceRuntime,
   type PublicationManifest,
+  type WorkspaceCommentAnchor,
   type PublicationWriteHandle,
   type PublishedSliceConfig,
   type WorkspaceObjectRecord,
@@ -1746,5 +1756,238 @@ describe("one publication, start to finish", () => {
       plaintext: new TextEncoder().encode("# Q4"),
     });
     expect(new TextDecoder().decode((await openPvo1Frame(sameEpoch, [reader])).plaintext!)).toBe("# Q4");
+  });
+});
+
+/**
+ * Reading back what the recipients wrote (D7).
+ *
+ * Everything up to here moves in one direction: the publisher projects notes
+ * out. This is the return leg, and without it a recipient's comment is a file
+ * that is correctly encrypted, correctly signed, and never seen by anybody.
+ */
+describe("collectPublicationComments", () => {
+  const NOW = "2026-08-27T10:00:00.000Z";
+
+  /** A publication with one note in it and one paired recipient device. */
+  async function published(over: Partial<PublicationDraft> = {}) {
+    const made = await makePublication({ mode: "exact", access: "comment", ...over });
+    const invite = await invitePublicationRecipient({
+      runtime: made.handle.runtime,
+      recipientGroupId: made.handle.recipientGroupId,
+      displayName: "Reviewer",
+    });
+    applyWorkspaceGovernanceUpdate(made.handle.runtime, invite);
+
+    const empty = emptyPublicationManifest(made.handle.publicationId);
+    const refreshed = await runPublicationRefresh({
+      handle: made.handle,
+      manifest: empty,
+      plan: planPublicationRefresh({ manifest: empty, covered: [covered(SOURCE_A, "Projects/Q3.md", REV_1)] }),
+      project: async () => ({ text: "# Q3\n\nShipped." }),
+    });
+
+    // A real second device, not a hand-forged document: the point of the
+    // collector is the verification chain, and a fake operation would walk
+    // straight past the part being tested.
+    const request = await createWorkspacePairingRequest({
+      workspaceId: made.handle.runtime.workspaceId,
+      workspaceFingerprint: workspaceDocumentHash(made.handle.runtime.genesis),
+      memberId: invite.memberId,
+      deviceDisplayName: "Reviewer laptop",
+      platform: "desktop",
+      now: "2026-08-27T09:00:00.000Z",
+    });
+    const beforePairing = made.handle.runtime.policy;
+    const approval = await approveWorkspacePairing({ token: request.token, runtime: made.handle.runtime, now: "2026-08-27T09:01:00.000Z" });
+    const reviewer = await acceptWorkspacePairing({ created: request, genesis: made.handle.runtime.genesis, previousPolicy: beforePairing, approval, now: "2026-08-27T09:02:00.000Z" });
+    // The approval mints the successor; the approving runtime has to adopt it,
+    // or its own policy still has no record of the device it just admitted.
+    made.handle.runtime.policy = approval.policy;
+
+    return {
+      ...made,
+      memberId: invite.memberId,
+      reviewer,
+      beforePairing,
+      manifest: refreshed.manifest,
+      publishedRevisionId: refreshed.manifest.objects[0].publishedRevisionId,
+    };
+  }
+
+  /** Seals the way a recipient can: to the recipient group's public key from the policy. */
+  async function comment(
+    ctx: Awaited<ReturnType<typeof published>>,
+    over: {
+      targetObjectId?: string;
+      body?: string;
+      suggestion?: { replacement: string } | null;
+      anchor?: WorkspaceCommentAnchor | null;
+    } = {},
+  ) {
+    const group = ctx.handle.runtime.policy.payload.groups.find((entry) => entry.groupId === ctx.handle.recipientGroupId)!;
+    const prepared = await prepareWorkspaceComment({
+      runtime: ctx.reviewer,
+      policyHash: workspaceDocumentHash(ctx.reviewer.policy),
+      sequence: 1,
+      previousDeviceOperationHash: null,
+      targetObjectId: over.targetObjectId ?? derivePublishedObjectId(ctx.handle.publicationId, SOURCE_A),
+      targetRevisionId: ctx.publishedRevisionId,
+      body: over.body ?? "The date in the second paragraph is wrong.",
+      anchor: over.anchor ?? null,
+      suggestion: over.suggestion ?? null,
+      recipients: [{ groupId: group.groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "recipient group key") }],
+      now: NOW,
+    });
+    await publishWorkspaceComment(ctx.handle.store, prepared);
+    return prepared;
+  }
+
+  const collect = (
+    ctx: Awaited<ReturnType<typeof published>>,
+    over: Partial<Parameters<typeof collectPublicationComments>[0]> = {},
+  ) =>
+    collectPublicationComments({
+      publicationId: ctx.handle.publicationId,
+      runtime: ctx.handle.runtime,
+      store: ctx.handle.store,
+      manifest: ctx.manifest,
+      mode: "exact",
+      ...over,
+    });
+
+  it("brings a recipient's comment home under the source id", async () => {
+    // `derivePublishedObjectId` is one-way on purpose, so a recipient holding
+    // two publications cannot tell which notes they have in common. The
+    // publisher is the one party who has the inputs, so the map is built
+    // forwards from the manifest and read backwards - which is also why an
+    // unknown target is simply not theirs to show.
+    const ctx = await published();
+    const written = await comment(ctx);
+
+    const collected = await collect(ctx);
+    expect(collected).toHaveLength(1);
+    expect(collected[0].comment.commentId).toBe(written.comment.commentId);
+    expect(collected[0].comment.targetObjectId).toBe(SOURCE_A);
+    expect(collected[0].comment.body).toBe("The date in the second paragraph is wrong.");
+    expect(collected[0].path).toBe("Projects/Q3.md");
+    // A recipient is not a member of the main vault, so the sidebar's usual
+    // name map cannot resolve them - the publication's own policy has to.
+    expect(collected[0].authorDisplayName).toBe("Reviewer");
+    expect(collected[0].authorActive).toBe(true);
+  });
+
+  it("leaves the publisher's own remarks out of the column", async () => {
+    // The column answers one question: what did the RECIPIENTS say. The
+    // publisher holds the recipient group's keys, so their own comment in this
+    // workspace opens just as readily - only the author tells them apart.
+    const ctx = await published();
+    const group = ctx.handle.runtime.policy.payload.groups.find((entry) => entry.groupId === ctx.handle.recipientGroupId)!;
+    const own = await prepareWorkspaceComment({
+      runtime: ctx.handle.runtime,
+      policyHash: workspaceDocumentHash(ctx.handle.runtime.policy),
+      sequence: 1,
+      previousDeviceOperationHash: null,
+      targetObjectId: derivePublishedObjectId(ctx.handle.publicationId, SOURCE_A),
+      targetRevisionId: ctx.publishedRevisionId,
+      body: "Note to self: check the figure.",
+      anchor: null,
+      suggestion: null,
+      recipients: [{
+        groupId: group.groupId,
+        keyEpoch: group.keyEpoch,
+        publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "recipient group key"),
+      }],
+      now: NOW,
+    });
+    await publishWorkspaceComment(ctx.handle.store, own);
+
+    expect(await collect(ctx)).toEqual([]);
+  });
+
+  it("shows a remark from someone the publication only let read, and says so", async () => {
+    // Anyone in the group can write into the folder; the capability decides
+    // whether they were entitled to. Dropping such a comment would hide from
+    // the publisher that someone is writing where they should not - so it is
+    // shown, and marked.
+    const ctx = await published({ access: "read" });
+    await comment(ctx, { body: "May I suggest a different order?" });
+
+    const collected = await collect(ctx);
+    expect(collected).toHaveLength(1);
+    expect(collected[0].comment.body).toBe("May I suggest a different order?");
+    expect(collected[0].authorActive).toBe(false);
+  });
+
+  it("loses a recipient's earlier remarks once their access is withdrawn", async () => {
+    // Not a decision of the collector: withdrawing access rotates the recipient
+    // group, and the rotation replaces the epoch instead of archiving it
+    // (governance.ts). The publisher no longer holds the key the comment was
+    // sealed to, so it cannot be opened - the same property the main vault has
+    // after any revocation. The durable fix belongs to the WRITER: a recipient
+    // can seal to the publisher's owner group as well, because a PVO1 recipient
+    // needs only a public key and the policy carries one for every group.
+    const ctx = await published();
+    await comment(ctx);
+    expect(await collect(ctx)).toHaveLength(1);
+
+    const revoked = await revokePublicationRecipient({
+      runtime: ctx.handle.runtime,
+      memberId: ctx.memberId,
+      reason: "review finished",
+    });
+    applyWorkspaceGovernanceUpdate(ctx.handle.runtime, revoked);
+
+    expect(await collect(ctx)).toEqual([]);
+  });
+
+  it("drops a comment aimed at something the publication never carried", async () => {
+    const ctx = await published();
+    await comment(ctx, { targetObjectId: "cc".repeat(16) });
+    expect(await collect(ctx)).toEqual([]);
+  });
+
+  it("narrows to one note when the column asks for one", async () => {
+    const ctx = await published();
+    await comment(ctx);
+    expect(await collect(ctx, { sourceObjectIds: [SOURCE_B] })).toEqual([]);
+    expect(await collect(ctx, { sourceObjectIds: [SOURCE_A] })).toHaveLength(1);
+  });
+
+  it("ignores an operation from a device the policy does not list", async () => {
+    // Anybody who can write to the shared folder can drop a file in it. A
+    // signature is only worth as much as the check that the signer belongs
+    // here, so this runs the collector against the policy from BEFORE the
+    // pairing: the same bytes, the same valid signature, an unknown device.
+    //
+    // Two guards catch this independently - the device lookup and the
+    // signature check, which has no key to verify against once the device is
+    // gone. Removing either alone leaves this green; removing both fails it.
+    // The assertion measures the behaviour, not one particular guard.
+    const ctx = await published();
+    await comment(ctx);
+    expect(await collect(ctx, { runtime: { ...ctx.handle.runtime, policy: ctx.beforePairing } })).toEqual([]);
+  });
+
+  it("shows a suggestion from a sanitized publication but never offers to apply it", async () => {
+    // A sanitized projection is different text: excluded links become plain
+    // words, excluded embeds are gone. A character range into it does not
+    // address the same characters in the source, so applying it would be a
+    // guess - and throwing the feedback away would be worse than showing it.
+    const ctx = await published({ mode: "sanitized", access: "suggest" });
+    await comment(ctx, {
+      body: "Wrong quarter.",
+      // The real anchor the editor writes: marker id, quote and its context.
+      anchor: buildCommentAnchor("# Q3\n\nShipped.", 2, 4, "0a1b"),
+      suggestion: { replacement: "Q4" },
+    });
+
+    const sanitized = await collect(ctx, { mode: "sanitized" });
+    expect(sanitized).toHaveLength(1);
+    expect(sanitized[0].comment.suggestion?.replacement).toBe("Q4");
+    expect(sanitized[0].suggestionApplicable).toBe(false);
+    // The same suggestion against an exact projection addresses the characters
+    // the source really has, and may be offered.
+    expect((await collect(ctx, { mode: "exact" }))[0].suggestionApplicable).toBe(true);
   });
 });
