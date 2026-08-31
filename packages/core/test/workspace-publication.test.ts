@@ -25,10 +25,12 @@ import {
   planPublicationTeardown,
   revokePublicationRecipient,
   publishSliceObjectContent,
+  sealInlinePvo1,
   publishedSliceAccessCapabilities,
   refreshWorkspacePublications,
   runPublicationRefresh,
   workspaceRecipientGroupIds,
+  type PersonalWorkspaceRuntime,
   type PublicationManifest,
   type PublicationWriteHandle,
   type PublishedSliceConfig,
@@ -1518,5 +1520,96 @@ describe("planPublicationTeardown", () => {
 
   it("has nothing to do for a publication that never published anything", async () => {
     expect(planPublicationTeardown(emptyPublicationManifest("pub"))).toEqual([]);
+  });
+});
+
+describe("a recipient key against the vault it came from", () => {
+  /**
+   * The one assurance the whole of Stufe B rests on (S8).
+   *
+   * Everything else in this file checks that a publication CONTAINS the right
+   * things. This checks the other half - that it does not open the vault it was
+   * cut from. `createPublication` bootstraps a fresh workspace, so the claim is
+   * true by construction; that is exactly why it needs a test that would notice
+   * if the construction ever changed.
+   *
+   * The test above it ("shares no key with the vault it came from") compares
+   * group ids and genesis payloads. That is an identity claim: it would stay
+   * green if two workspaces used disjoint ids and the same key material. Here
+   * we attempt an actual decrypt, which is the claim a recipient cares about.
+   */
+  const SECRET = "Salaries 2026\n\nNot in any slice.";
+
+  /** The key material a join hands over - nothing more. */
+  function recipientReaderKey(handle: PublicationWriteHandle, recipientGroupId: string) {
+    const group = handle.runtime.groupKeys.find((key) => key.groupId === recipientGroupId);
+    expect(group, "the publication carries its recipient group's key").toBeDefined();
+    return { groupId: group!.groupId, keyEpoch: group!.keyEpoch, privateKey: group!.hpke.privateKey };
+  }
+
+  /** A note sealed in the MAIN vault, addressed to the main vault's owner. */
+  async function sealInMainVault(main: Pick<PersonalWorkspaceRuntime, "workspaceId" | "ownerGroup">) {
+    return await sealInlinePvo1({
+      workspaceId: main.workspaceId,
+      objectId: "ab".repeat(16),
+      revisionId: "cd".repeat(16),
+      recipients: [{ groupId: main.ownerGroup.groupId, keyEpoch: main.ownerGroup.keyEpoch, publicKey: main.ownerGroup.hpke.publicKey }],
+      metadata: {
+        path: "Private/Salaries.md",
+        mime: "text/markdown",
+        parentObjectId: null,
+        createdAt: "2026-08-26T08:00:00.000Z",
+        modifiedAt: "2026-08-26T08:00:00.000Z",
+        contentKind: "text",
+      },
+      plaintext: new TextEncoder().encode(SECRET),
+    });
+  }
+
+  it("opens nothing in the main vault", async () => {
+    const { handle, main } = await makePublication();
+    const frame = await sealInMainVault(main);
+
+    // `openPvo1Frame` throws rather than returning null, and deliberately does
+    // not say WHICH binding failed - so the assertion is on the refusal, not on
+    // an empty result somebody could mistake for a decode.
+    await expect(openPvo1Frame(frame, [recipientReaderKey(handle, handle.recipientGroupId)])).rejects.toThrow(/no reader key/);
+  });
+
+  it("but the main vault's own key opens that very frame", async () => {
+    // The red counter-probe. Without it the test above passes for the wrong
+    // reason: a malformed frame, a changed header, anything that makes EVERY
+    // key fail would read as "the boundary holds". This proves the frame is
+    // sound and that only the recipient is shut out.
+    const { main } = await makePublication();
+    const frame = await sealInMainVault(main);
+    const owner = main.ownerGroup;
+    const opened = await openPvo1Frame(frame, [{ groupId: owner.groupId, keyEpoch: owner.keyEpoch, privateKey: owner.hpke.privateKey }]);
+    expect(new TextDecoder().decode(opened.plaintext!)).toBe(SECRET);
+  });
+
+  it("stays shut out after being invited into the publication", async () => {
+    // Being a recipient is the state in which somebody actually holds this key.
+    // Deriving the boundary from an un-invited publication would test a door
+    // nobody had walked through yet.
+    const { handle, main } = await makePublication();
+    const update = await invitePublicationRecipient({
+      runtime: handle.runtime,
+      recipientGroupId: handle.recipientGroupId,
+      displayName: "Reviewer",
+    });
+    applyWorkspaceGovernanceUpdate(handle.runtime, update);
+
+    // What they CAN open: the publication.
+    const published = await publishSliceObjectContent({
+      handle,
+      objects: [{ sourceObjectId: "c3".repeat(16), path: "Projects/Q3.md", text: "# Q3" }],
+    });
+    const reader = recipientReaderKey(handle, handle.recipientGroupId);
+    const inside = await openPvo1Frame((await handle.store.get(published.writes[0].objectRemoteKey!))!, [reader]);
+    expect(new TextDecoder().decode(inside.plaintext!)).toBe("# Q3");
+
+    // What they cannot: anything from the vault the slice was cut from.
+    await expect(openPvo1Frame(await sealInMainVault(main), [reader])).rejects.toThrow(/no reader key/);
   });
 });
