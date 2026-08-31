@@ -1,10 +1,16 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, X } from "lucide-react";
-import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
+import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
+import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
 import { Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
+
+/**
+ * A remark that came back from someone this note was published to (D7), plus
+ * the name of the publication it arrived through.
+ */
+export type PublicationCommentEntry = PublicationComment & { publicationName: string };
 
 export interface WorkspaceCommentsColumnProps {
   comments: readonly WorkspaceCommentRecord[];
@@ -49,6 +55,17 @@ export interface WorkspaceCommentsColumnProps {
    * different note entirely, in the database's own folder.
    */
   onPromoteToTask(comment: WorkspaceCommentRecord): void;
+  /**
+   * What the recipients of this note's publications wrote back.
+   *
+   * Its own list rather than mixed into `comments`, because these differ in
+   * three ways at once that a reader has to be able to see: they come from
+   * outside this vault, their names come from the publication's policy and not
+   * this one's, and nothing here can be replied to, resolved or applied from
+   * this side - answering means writing into the publication, which is a
+   * different act than writing in the note.
+   */
+  publicationComments?: readonly PublicationCommentEntry[];
 }
 
 /**
@@ -64,6 +81,7 @@ export interface WorkspaceCommentsColumnProps {
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, canComment, canWrite, activeCommentId, selectionQuote,
   onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask,
+  publicationComments = [],
 }: WorkspaceCommentsColumnProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -81,6 +99,39 @@ export function WorkspaceCommentsColumn({
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
+
+  /**
+   * The returns, grouped by the publication they arrived through.
+   *
+   * Grouped rather than merged, because a comment id is only unique INSIDE its
+   * publication - threading across two of them could staple a reply from one
+   * recipient under a root from another. The names come from the records
+   * themselves: core resolved them against the publication's own policy, and
+   * this vault's member list does not contain these people at all.
+   */
+  const publicationGroups = useMemo(() => {
+    const groups = new Map<string, { name: string; names: Map<string, string>; entries: PublicationCommentEntry[] }>();
+    for (const entry of publicationComments) {
+      let group = groups.get(entry.publicationId);
+      if (!group) {
+        group = { name: entry.publicationName, names: new Map(), entries: [] };
+        groups.set(entry.publicationId, group);
+      }
+      // No name in the publication's policy either: the id stays on the card,
+      // so an unnamed recipient is still attributable.
+      if (entry.authorDisplayName) group.names.set(entry.comment.authorMemberId, entry.authorDisplayName);
+      group.entries.push(entry);
+    }
+    return [...groups.values()].map((group) => ({
+      name: group.name,
+      names: group.names,
+      // No self here on purpose: the publisher is a different member inside the
+      // publication than in this vault, so a mention check against this vault's
+      // id would answer a question nobody asked.
+      threads: buildCommentThreads(group.entries.map((entry) => entry.comment), null, group.names),
+      byId: new Map(group.entries.map((entry) => [entry.comment.commentId, entry])),
+    }));
+  }, [publicationComments]);
 
   const post = async (body: string, parent: string | null, suggestion: { replacement: string } | null = null) => {
     setBusy(true);
@@ -118,7 +169,7 @@ export function WorkspaceCommentsColumn({
 
   return (
     <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
-      {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+      {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
       {threads.map(({ root, replies, addressed }) => (
         <div
           key={root.commentId}
@@ -254,6 +305,48 @@ export function WorkspaceCommentsColumn({
           </div>
         </div>
       )}
+      {/* What came back from the people this note was published to (D7).
+          Read-only by construction: answering means writing into the
+          publication, which is a different act than writing in this note - and
+          a button that looked like the ones above would promise otherwise. */}
+      {publicationGroups.map((group) => (
+        <section key={group.name} className="pv-comment-returns" aria-label={t("workspaceSecurity.publicationCommentsFrom", { name: group.name })}>
+          <h4 className="pv-comment-returns__heading">
+            <Share2 size={ICON.meta} /> {t("workspaceSecurity.publicationCommentsFrom", { name: group.name })}
+          </h4>
+          {group.threads.map(({ root, replies }) => {
+            const entry = group.byId.get(root.commentId);
+            return (
+              <div key={root.commentId} className="pv-comment-card pv-comment-card--incoming">
+                {root.anchor && <blockquote className={root.suggestion ? "pv-comment-card__quote pv-comment-card__quote--replaced" : "pv-comment-card__quote"}>{root.anchor.quote}</blockquote>}
+                {root.suggestion && (
+                  <p className="pv-comment-card__replacement">
+                    <Replace size={ICON.meta} />{" "}
+                    {root.suggestion.replacement.length > 0
+                      ? root.suggestion.replacement
+                      : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
+                  </p>
+                )}
+                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} />
+                {replies.map((reply) => (
+                  <div key={reply.commentId} className="pv-comment-card__reply">
+                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} />
+                  </div>
+                ))}
+                {/* Both lines state a fact about the record, not a failure: the
+                    remark stands either way, and hiding it would rewrite what
+                    was actually said. */}
+                {entry?.authorActive === false && (
+                  <span className="pv-comment-card__state">{t("workspaceSecurity.publicationCommentAuthorGone")}</span>
+                )}
+                {root.suggestion && entry?.suggestionApplicable === false && (
+                  <span className="pv-comment-card__state">{t("workspaceSecurity.publicationSuggestionStale")}</span>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      ))}
     </aside>
   );
 }

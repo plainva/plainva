@@ -2918,6 +2918,24 @@ tr.is-selected > td { color: var(--on-accent-container); }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }
 
+/* What the recipients of a publication wrote back (D7).
+   Set apart rather than mixed into the list above, because these records come
+   from ANOTHER workspace and nothing here can answer them. The cards are the
+   same ones - a remark is a remark - so the difference is carried by the
+   heading and by taking the pointer affordance away: an incoming card is not
+   selectable, because there is no range in this note to select it against.
+   No theme selectors of its own: it is layout plus tokens LCARS and Win95
+   already override on the card underneath. */
+.pv-comment-returns { display: grid; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border-color-light); }
+.pv-comment-returns__heading {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin: 0; color: var(--text-muted);
+  font-size: var(--text-sm); font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pv-comment-card--incoming { cursor: default; }
+.pv-comment-card--incoming:hover { background: var(--bg-primary); }
+
 /* The vault-wide comment overview (D9).
    The column beside a note answers "what is on THIS note"; this answers "what
    is waiting for ME", which is a different question and therefore its own

@@ -89,7 +89,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -98,6 +98,7 @@ export const Editor: React.FC<{
   const [saveError, setSaveError] = useState<string | null>(null);
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
   const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
+  const [publicationComments, setPublicationComments] = useState<Awaited<ReturnType<typeof listPublicationComments>>>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
@@ -156,6 +157,24 @@ export const Editor: React.FC<{
     refresh(); window.addEventListener("plainva-workspace-comments-changed", listener);
     return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
   }, [activePath, listWorkspaceComments, workspaceCanReadComments]);
+
+  /**
+   * What the recipients of this note's publications wrote back (D7).
+   *
+   * Its own effect rather than a second call inside the one above: these
+   * records live in other workspaces, arrive over the publication's own store,
+   * and must not be able to take this note's comments down with them. No
+   * listener either - nothing in this vault changes them; they change when a
+   * recipient publishes, which this side learns on the next refresh.
+   */
+  useEffect(() => {
+    let active = true;
+    if (!activePath || !workspaceCanReadComments) { setPublicationComments([]); return; }
+    void listPublicationComments(activePath)
+      .then((entries) => { if (active) setPublicationComments(entries); })
+      .catch(() => { if (active) setPublicationComments([]); });
+    return () => { active = false; };
+  }, [activePath, listPublicationComments, workspaceCanReadComments]);
 
   useEffect(() => {
     let active = true;
@@ -2377,6 +2396,7 @@ export const Editor: React.FC<{
       {workspaceCanReadComments && (
         <WorkspaceCommentsColumn
           comments={workspaceComments}
+          publicationComments={publicationComments}
           memberNames={memberNames}
           selfMemberId={commentSelfId}
           resolutions={anchorResolutions}

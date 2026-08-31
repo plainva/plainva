@@ -316,4 +316,91 @@ describe("workspace comment column", () => {
     expect(mentions[0].getAttribute("data-tip")).toBe("9999888877776666");
     unmount();
   });
+
+  /**
+   * What came back from a publication (D7).
+   *
+   * The returns are the one place in this column where a card must NOT offer
+   * what every other card offers: a reply, a resolve, an apply. Each of those
+   * would write into another workspace, and a button that looked like the ones
+   * above would promise an answer that never arrives.
+   */
+  describe("returns from a publication", () => {
+    function incoming(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn>["publicationComments"] extends readonly (infer E)[] ? E : never> = {}) {
+      return {
+        comment: comment({ commentId: "77".repeat(16), body: "Bitte praezisieren" }),
+        publicationId: "11".repeat(16), publicationName: "Beirat Q3", path: "Notiz.md",
+        authorDisplayName: "Dr. Weber", authorActive: true, suggestionApplicable: false,
+        ...over,
+      } as NonNullable<React.ComponentProps<typeof WorkspaceCommentsColumn>["publicationComments"]>[number];
+    }
+
+    it("names the publication and the recipient, and offers nothing to answer with", () => {
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ publicationComments: [incoming()] })} />);
+      const section = host.querySelector(".pv-comment-returns");
+      expect(section?.textContent).toContain("Beirat Q3");
+      // The name comes from the publication's OWN policy - this vault's member
+      // list does not contain this person at all, so a lookup there would print
+      // "Unknown member" over a perfectly well-known recipient.
+      expect(section?.textContent).toContain("Dr. Weber");
+      expect(section?.textContent).toContain("Bitte praezisieren");
+      // Not a single control: every one of them would be a write into the
+      // publication, which this side cannot do from here.
+      expect(section?.querySelectorAll("button")).toHaveLength(0);
+      unmount();
+    });
+
+    it("keeps the returns out of the vault's own thread list", () => {
+      // One card in the column proper would mean the remark had been made in
+      // THIS vault - it was not, and mixing the two would misstate where it
+      // came from and who can act on it.
+      const own = comment({ commentId: "aa".repeat(16), body: "Intern" });
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [own], publicationComments: [incoming()] })} />);
+      const outside = host.querySelector(".pv-comment-returns");
+      expect(outside).not.toBeNull();
+      expect(host.querySelectorAll(".pv-comment-card")).toHaveLength(2);
+      expect(host.querySelectorAll(".pv-comment-card--incoming")).toHaveLength(1);
+      expect(outside?.textContent).not.toContain("Intern");
+      unmount();
+    });
+
+    it("does not claim the note has no comments when returns are the only thing on it", () => {
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ publicationComments: [incoming()] })} />);
+      expect(host.querySelector(".pv-comment-column__empty")).toBeNull();
+      unmount();
+    });
+
+    it("says when the author lost access and when a suggestion cannot be applied", () => {
+      const stale = incoming({
+        authorActive: false,
+        comment: comment({ commentId: "88".repeat(16), body: "Vorschlag", anchor: ANCHOR, suggestion: SUGGESTION }),
+        suggestionApplicable: false,
+      });
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ publicationComments: [stale] })} />);
+      // Both are facts about the record, not failures: the remark stands, and
+      // hiding either would rewrite what was actually said.
+      expect(host.textContent).toContain(tr("workspaceSecurity.publicationCommentAuthorGone"));
+      expect(host.textContent).toContain(tr("workspaceSecurity.publicationSuggestionStale"));
+      // The proposed wording is still shown - a recipient wrote it, whether or
+      // not this side can paste it in.
+      expect(host.textContent).toContain("bis zum 31.12.2026");
+      unmount();
+    });
+
+    it("never threads a reply from one publication under a root from another", () => {
+      // A comment id is only unique INSIDE its publication. Grouping first is
+      // what keeps two recipients' threads from being stapled together.
+      const a = incoming({ publicationId: "11".repeat(16), publicationName: "Beirat", comment: comment({ commentId: "99".repeat(16), body: "Erstes" }) });
+      const b = incoming({
+        publicationId: "22".repeat(16), publicationName: "Redaktion", authorDisplayName: "Frau Sun",
+        comment: comment({ commentId: "aa".repeat(16), parentCommentId: "99".repeat(16), body: "Zweites" }),
+      });
+      const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ publicationComments: [a, b] })} />);
+      expect(host.querySelectorAll(".pv-comment-returns")).toHaveLength(2);
+      // Two roots, no nesting: the second is not a reply to the first.
+      expect(host.querySelectorAll(".pv-comment-card--incoming")).toHaveLength(2);
+      expect(host.querySelectorAll(".pv-comment-card__reply")).toHaveLength(0);
+      unmount();
+    });
+  });
 });
