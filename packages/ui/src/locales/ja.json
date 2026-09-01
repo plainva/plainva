@@ -3136,12 +3136,12 @@
       "dedicated-prefix-deny-default": "専用のプレフィックスを使い、既定で拒否する IAM を設定します。",
       "no-public-access-tls": "パブリックアクセスを無効にし、TLS を必須にします。"
     },
-    "publicationDesktopOnly": "公開は当面デスクトップで行います。そこで作成したものはここに一覧表示されます。",
     "publicationNeedsSlice": "公開は保管庫スライスから始まります。「他の人と共有」で作成してから戻ってください。",
     "publicationNotPublished": "内部スライス — この保管庫の外へは共有されません",
     "publicationRecipients": "受け取り手",
     "publicationNoRecipients": "まだ誰も招待されていません。受け取り手のいない公開は暗号化されて読めません — これは安全な状態であり、不具合ではありません。",
     "publicationCurrent": "最新です",
+    "publicationObjects_other": "オブジェクト: {{count}}件",
     "publicationPending_other": "{{count}} 件の変更が未反映",
     "publicationRefreshFailed": "更新に失敗しました: {{reason}}",
     "inviteRecipient": "受け取り手を招待",
@@ -3174,6 +3174,7 @@
       "comment": "コメント",
       "suggest": "変更の提案"
     },
+    "publishNoSlice": "すべての Vault スライスはすでに公開されています。",
     "publishSlice": "保管庫スライスを公開",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "公開を作成",

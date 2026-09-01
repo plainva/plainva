@@ -2,13 +2,16 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
 import { PublishSliceSheet, type PublishSliceValues } from "../components/PublishSliceSheet";
-import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
-import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
+import { PublicationRecipientsSheet } from "../components/PublicationRecipientsSheet";
+import { WithdrawPublicationSheet } from "../components/WithdrawPublicationSheet";
+import { useLongPress } from "../lib/useLongPress";
+import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
+import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -105,6 +108,19 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
      actually exists - own keys, own folder, own record. */
   const [publications, setPublications] = useState<WorkspacePublicationRecord[]>([]);
   const [publishFor, setPublishFor] = useState<{ sliceId: string; name: string } | null>(null);
+  /* Derived, never stored (M5): how far a publication has drifted from its
+     slice is a statement about the vault as it is right now, and a stored copy
+     would go stale the moment somebody edits a covered note. */
+  const [pending, setPending] = useState<Record<string, number>>({});
+  const [withdrawFor, setWithdrawFor] = useState<WorkspacePublicationRecord | null>(null);
+  const [recipientsFor, setRecipientsFor] = useState<
+    { record: WorkspacePublicationRecord; recipients: PublicationRecipient[]; locked: boolean } | null
+  >(null);
+  const [recipientsBusy, setRecipientsBusy] = useState(false);
+  /* Hold OR tap opens the same sheet: the row has nothing else to do, so a
+     hold-only affordance would be a gesture nobody discovers. The sheet is
+     what makes this safe, not the length of the press (SC3). */
+  const withdrawPress = useLongPress<WorkspacePublicationRecord>((record) => setWithdrawFor(record));
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
 
@@ -118,11 +134,18 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
-    setPublications(vault.workspaceState ? await listMobilePublications(vault.workspaceState) : []);
+    const records = vault.workspaceState ? await listMobilePublications(vault.workspaceState) : [];
+    setPublications(records);
     // Bring the object counts in line before anyone reads them (finding 2026-08-25).
     const store = await getMobileWorkspaceObjectStore(vault.vaultId);
     const rt = vault.workspaceRuntime;
     if (store && rt) await refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects: await sliceObjects() }).catch(() => false);
+    /* AFTER the materialization refresh, not before: coverage is read from the
+       slice`s materialized ids, so a count taken first would describe the
+       previous rule. */
+    setPending(rt && vault.workspaceState && records.length > 0
+      ? await mobilePublicationPendingCounts({ state: vault.workspaceState, runtime: rt })
+      : {});
   }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -360,6 +383,93 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     // The desktop pokes the sync worker here; the phone has no handle on one,
     // so the refresh below supplies the same effect.
     await refresh();
+  };
+
+  /**
+   * Withdraws a publication (M5) — the mobile half of the desktop`s
+   * `removePublication`, on the same core teardown.
+   *
+   * A partial run is reported rather than swallowed: the service keeps the
+   * manifest it reached, so the publication still exists here and the next
+   * attempt finishes it. Saying "withdrawn" over a half-retracted folder would
+   * be the one lie this screen cannot afford.
+   */
+  const withdrawPublication = async (record: WorkspacePublicationRecord) => {
+    const rt = vault.workspaceRuntime;
+    const state = vault.workspaceState;
+    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    if (!rt || !state || !store) return;
+    const result = await withdrawMobilePublication({
+      vaultId: vault.vaultId,
+      store,
+      state,
+      runtime: rt,
+      publicationId: record.publicationId,
+    });
+    setWithdrawFor(null);
+    if (result.error) toast.error(errorText(result.error));
+    else toast.success(t("workspaceSecurity.publicationWithdrawn", { defaultValue: "Publication withdrawn" }));
+    await refresh();
+  };
+
+  /**
+   * Who may read this publication (M5).
+   *
+   * The list comes from the publication's own policy, so a device without its
+   * key cannot answer the question at all — that is `locked`, not an error, and
+   * the sheet says so rather than a toast that vanishes.
+   */
+  const openRecipients = async (record: WorkspacePublicationRecord) => {
+    const view = await mobilePublicationRecipients(vault.vaultId, record.publicationId);
+    setRecipientsFor({ record, ...view });
+  };
+
+  const inviteRecipient = async (record: WorkspacePublicationRecord, displayName: string) => {
+    const rt = vault.workspaceRuntime;
+    const state = vault.workspaceState;
+    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    if (!rt || !state || !store) throw new Error("workspace-unavailable");
+    setRecipientsBusy(true);
+    try {
+      const result = await invitePublicationRecipientFromMobile({
+        vaultId: vault.vaultId,
+        store,
+        state,
+        runtime: rt,
+        publicationId: record.publicationId,
+        displayName,
+      });
+      await openRecipients(record);
+      toast.success(t("workspaceSecurity.publicationRecipientAdded", { defaultValue: "Recipient invited" }));
+      return result;
+    } finally {
+      setRecipientsBusy(false);
+    }
+  };
+
+  const revokeRecipient = async (record: WorkspacePublicationRecord, memberId: string) => {
+    const rt = vault.workspaceRuntime;
+    const state = vault.workspaceState;
+    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    if (!rt || !state || !store) throw new Error("workspace-unavailable");
+    setRecipientsBusy(true);
+    try {
+      await revokePublicationRecipientFromMobile({
+        vaultId: vault.vaultId,
+        store,
+        state,
+        runtime: rt,
+        publicationId: record.publicationId,
+        memberId,
+        // Same wording as the desktop: the policy history should read the
+        // same whichever shell wrote the entry.
+        reason: "publication recipient withdrawn",
+      });
+      await openRecipients(record);
+      toast.success(t("workspaceSecurity.recipientRevoked", { defaultValue: "Access withdrawn" }));
+    } finally {
+      setRecipientsBusy(false);
+    }
   };
 
   /**
@@ -707,10 +817,25 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               asked for, and a screen built on it lists a publication the moment
               the box was ticked - including where the workspace behind it was
               never created. */}
+          {/* The state belongs in the ROW, not behind a tap (M5): how many
+              objects it carries and whether the last refresh got through. A
+              publication you cannot see is one you do not trust. The status
+              string is the desktop`s, shared - a second copy is how two
+              shells come to describe the same folder differently. */}
           {publications.length > 0 && <GroupCard><RowList>{publications.map((record) => <Row
                                                                                           key={record.publicationId}
-                                                                                          subtitle={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })}`}
+                                                                                          subtitle={[
+                                                                                            t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode }),
+                                                                                            t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access }),
+                                                                                            t("workspaceSecurity.publicationObjects", { count: record.manifest.objects.length }),
+                                                                                            publicationStatusText({ lastError: record.lastError, pending: pending[record.publicationId] ?? 0 }, t),
+                                                                                          ].join(" · ")}
                                                                                           title={record.config.name}
+                                                                                          onClick={() => { if (withdrawPress.clicked()) void openRecipients(record).catch((e: unknown) => toast.error(errorText(e))); }}
+                                                                                          onPointerCancel={withdrawPress.clear}
+                                                                                          onPointerDown={() => withdrawPress.start(record)}
+                                                                                          onPointerLeave={withdrawPress.clear}
+                                                                                          onPointerUp={withdrawPress.clear}
                                                                                         />)}</RowList></GroupCard>}
           <p className="m-hint">{t("workspaceSecurity.publicationChoiceHint")}</p>
           <Button variant="tonal" disabled={busy || runtime.policy.payload.slices.length === 0} onClick={() => void startPublish()}>
@@ -906,6 +1031,20 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
                        onPreview={previewPublish}
                        onSubmit={submitPublish}
                      />}
+      {recipientsFor && <PublicationRecipientsSheet
+                          busy={recipientsBusy}
+                          locked={recipientsFor.locked}
+                          record={recipientsFor.record}
+                          recipients={recipientsFor.recipients}
+                          onClose={() => setRecipientsFor(null)}
+                          onInvite={(displayName) => inviteRecipient(recipientsFor.record, displayName)}
+                          onRevoke={(memberId) => revokeRecipient(recipientsFor.record, memberId)}
+                        />}
+      {withdrawFor && <WithdrawPublicationSheet
+                        record={withdrawFor}
+                        onClose={() => setWithdrawFor(null)}
+                        onWithdraw={() => withdrawPublication(withdrawFor)}
+                      />}
       {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
       {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
     </div>

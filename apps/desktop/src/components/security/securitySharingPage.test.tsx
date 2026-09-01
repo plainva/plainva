@@ -279,6 +279,14 @@ const PUBLICATION = {
   publicationId: "pub-1",
   sliceId: "slice-1",
   config: { mode: "exact", access: "read", provider: "google-drive" },
+  // A real record always carries its manifest - it is what the row counts and
+  // what a refusal to publish is planned against. A fixture without one let the
+  // count reach the page as `undefined` and only crashed at render.
+  manifest: {
+    publicationId: "pub-1",
+    sequence: 2,
+    objects: [{ sourceObjectId: "obj-1", path: "Projects/Q3/Note.md", sourceRevisionId: "r-1", publishedRevisionId: "p-1" }],
+  },
   lastError: null,
 };
 
@@ -349,6 +357,9 @@ describe("publishing a slice reaches the vault with what the dialog chose", () =
     await renderPublicationsArea([PUBLICATION], []);
     expect(container.querySelector('[data-testid="workspace-publish-slice"]')).toBeNull();
     expect(container.querySelector('[data-testid="workspace-invite-recipient"]')).not.toBeNull();
+    // How much is out there is part of the state of a publication, not a
+    // detail: "published" without a number says nothing about what left.
+    expect(container.textContent).toContain("1 object");
   });
 
   it("says a publication with nobody in it is safe, not broken", async () => {

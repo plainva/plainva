@@ -62,6 +62,7 @@ import {
   revokeMobileWorkspaceDevice,
   revokeMobileWorkspaceMember,
   unlockMobileWorkspace,
+  withdrawMobilePublication,
 } from "./mobileWorkspaceSecurity";
 
 /** Minimal adapter surface the migration sweep touches (listDir + read). */
@@ -566,5 +567,121 @@ describe("mobile publication runtimes in the keystore", () => {
     secrets.set("workspace_pub_mobile_v1_pub-a", serializePersonalWorkspaceRuntime(after));
     await unlockMobileWorkspace("v1");
     expect((await loadMobilePublicationRuntime("v1", "pub-a"))?.memberId).toBe(after.memberId);
+  });
+});
+
+/**
+ * Withdrawing a publication from the phone (M5).
+ *
+ * The property under test is not "it deletes the row" — it is that a run which
+ * does NOT get through leaves the publication alive and finishable. The
+ * object store is put-only and the recipients' keys stop working only once the
+ * epoch moves, so a withdraw that reported success over a half-retracted folder
+ * would be the one lie this surface cannot afford.
+ *
+ * Ordering mirrors the desktop's `removePublication`: tombstones need the
+ * publication runtime, so the key slot is cleared LAST and the state row only
+ * after the tombstones landed.
+ */
+describe("mobile publication withdrawal", () => {
+  beforeEach(() => { prefs.clear(); secrets.clear(); keystoreError = null; });
+
+  /** 16-byte lowercase hex, distinct per seed. */
+  function hexId(seed: number): string {
+    return seed.toString(16).padStart(2, "0").repeat(16);
+  }
+
+  /** A publication that actually holds something, so teardown has work to plan. */
+  function carrying(publicationId: string, paths: readonly string[]): WorkspacePublicationRecord {
+    const base = publicationRecord(publicationId);
+    return {
+      ...base,
+      manifest: {
+        ...emptyPublicationManifest(publicationId),
+        // Ids are 16-byte lowercase hex by protocol - a retraction names the
+        // published revision as its parent, so placeholders would be rejected
+        // before the store ever sees the write.
+        objects: paths.map((path, i) => ({
+          sourceObjectId: hexId(0xa0 + i),
+          path,
+          sourceRevisionId: hexId(0xb0 + i),
+          publishedRevisionId: hexId(0xc0 + i),
+        })),
+      },
+    };
+  }
+
+  it("retracts every object, then forgets the publication and its key", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    const store = new FakeWorkspaceObjectStore();
+    const runtime = await publicationRuntime();
+    await state.savePublication(carrying("pub-a", ["Notes/One.md", "Notes/Two.md"]));
+    await persistMobilePublicationRuntime("v1", "pub-a", await publicationRuntime());
+
+    const result = await withdrawMobilePublication({
+      vaultId: "v1", store, state, runtime, publicationId: "pub-a",
+    });
+
+    expect(result).toEqual({ retracted: 2, error: null });
+    expect(await state.getPublication("pub-a")).toBeNull();
+    expect(secrets.has("workspace_pub_mobile_v1_pub-a")).toBe(false);
+  });
+
+  /**
+   * The resumable half. A provider outage mid-teardown is normal; what must not
+   * happen is that the row and the key disappear around objects still standing
+   * in the publication, because then nothing on this device could ever finish
+   * the retraction.
+   */
+  it("keeps the publication and its key when a retraction cannot be written", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    const store = new FakeWorkspaceObjectStore();
+    const runtime = await publicationRuntime();
+    await state.savePublication(carrying("pub-a", ["Notes/One.md", "Notes/Two.md"]));
+    await persistMobilePublicationRuntime("v1", "pub-a", await publicationRuntime());
+
+    // A retraction is exactly one write - it seals no frame, only the operation
+    // that tells a syncing recipient the object left. So the second object is
+    // the second write, and that is where this run has to fall over.
+    let writes = 0;
+    const offline = new Proxy(store, {
+      get(t, p, r) {
+        if (p === "putImmutable") return async (...args: unknown[]) => {
+          if (++writes > 1) throw new Error("network unreachable");
+          return (t.putImmutable as (...a: unknown[]) => Promise<unknown>)(...args);
+        };
+        return Reflect.get(t, p, r) as unknown;
+      },
+    });
+
+    const result = await withdrawMobilePublication({
+      vaultId: "v1", store: offline, state, runtime, publicationId: "pub-a",
+    });
+
+    expect(result.error).toContain("network unreachable");
+    const kept = await state.getPublication("pub-a");
+    expect(kept).not.toBeNull();
+    expect(kept?.lastError).toContain("network unreachable");
+    // The key outlives the failed run on purpose — without it the next attempt
+    // could not seal the remaining tombstones.
+    expect(secrets.has("workspace_pub_mobile_v1_pub-a")).toBe(true);
+  });
+
+  /**
+   * A vault runtime was handed in, so the vault is open. A missing publication
+   * runtime therefore means one thing only: this device does not hold the key
+   * for THIS publication — and a device that cannot seal a tombstone must not
+   * pretend it withdrew anything.
+   */
+  it("refuses when the publication key is not on this device", async () => {
+    const state = new MemoryWorkspaceStateStore();
+    const runtime = await publicationRuntime();
+    await state.savePublication(carrying("pub-nokey", ["Notes/One.md"]));
+
+    await expect(withdrawMobilePublication({
+      vaultId: "v-nokey", store: new FakeWorkspaceObjectStore(), state, runtime, publicationId: "pub-nokey",
+    })).rejects.toThrow("publication-key-missing");
+
+    expect(await state.getPublication("pub-nokey")).not.toBeNull();
   });
 });

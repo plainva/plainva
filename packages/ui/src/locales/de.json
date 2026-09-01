@@ -3163,12 +3163,13 @@
       "dedicated-prefix-deny-default": "Nutze ein eigenes Präfix mit IAM-Regeln, die standardmäßig alles verbieten.",
       "no-public-access-tls": "Deaktiviere den öffentlichen Zugriff und verlange TLS."
     },
-    "publicationDesktopOnly": "Veröffentlichen läuft vorerst am Desktop. Was dort entsteht, erscheint hier in der Liste.",
     "publicationNeedsSlice": "Veröffentlichen beginnt mit einem Vault Slice. Lege unter Mit anderen teilen einen an und komm zurück.",
     "publicationNotPublished": "Interner Slice — nicht außerhalb dieses Vaults geteilt",
     "publicationRecipients": "Empfänger",
     "publicationNoRecipients": "Noch niemand eingeladen. Eine Veröffentlichung ohne Empfänger ist verschlüsselt und unlesbar — das ist der sichere Zustand, kein Fehler.",
     "publicationCurrent": "Aktuell",
+    "publicationObjects_one": "1 Objekt",
+    "publicationObjects_other": "{{count}} Objekte",
     "publicationPending_one": "1 Änderung ausstehend",
     "publicationPending_other": "{{count}} Änderungen ausstehend",
     "publicationRefreshFailed": "Fehler beim Auffrischen: {{reason}}",
@@ -3202,6 +3203,7 @@
       "comment": "Kommentieren",
       "suggest": "Änderungen vorschlagen"
     },
+    "publishNoSlice": "Jeder Vault-Ausschnitt ist bereits veröffentlicht.",
     "publishSlice": "Vault Slice veröffentlichen",
     "publishDesc": "Wähle exakte oder bereinigte Inhalte, Lesen/Kommentieren/Vorschlagen und einen Anbieter.",
     "createPublication": "Veröffentlichung erstellen",

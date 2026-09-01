@@ -3192,12 +3192,14 @@
       "dedicated-prefix-deny-default": "Utilisez un préfixe dédié avec une politique IAM qui refuse par défaut.",
       "no-public-access-tls": "Désactivez l'accès public et exigez TLS."
     },
-    "publicationDesktopOnly": "La publication se fait pour l'instant sur l'ordinateur. Ce qui y est créé apparaît ici.",
     "publicationNeedsSlice": "Une publication part d'un slice de vault. Créez-en un dans Partager avec d'autres, puis revenez.",
     "publicationNotPublished": "Slice interne — non partagé hors de ce vault",
     "publicationRecipients": "Destinataires",
     "publicationNoRecipients": "Personne n'a encore été invité. Une publication sans destinataire est chiffrée et illisible — c'est l'état sûr, pas une panne.",
     "publicationCurrent": "À jour",
+    "publicationObjects_one": "1 objet",
+    "publicationObjects_many": "{{count}} objets",
+    "publicationObjects_other": "{{count}} objets",
     "publicationPending_one": "1 modification en attente",
     "publicationPending_many": "{{count}} modifications en attente",
     "publicationPending_other": "{{count}} modifications en attente",
@@ -3232,6 +3234,7 @@
       "comment": "Commentaire",
       "suggest": "Proposer des modifications"
     },
+    "publishNoSlice": "Chaque section de coffre est déjà publiée.",
     "publishSlice": "Publier un slice de vault",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "Créer une publication",

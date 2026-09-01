@@ -474,30 +474,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
-    id: "workspace-publication-create",
-    title: "Publishing a Vault Slice to someone outside the vault, and taking it back",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop creates a publication - its own workspace, its own keys, its " +
-      "own folder - invites recipients, shows the provider advice that goes with " +
-      "it, withdraws a single recipient (rotating the epoch behind them) and " +
-      "withdraws the whole publication (S6). It also collects what the recipients " +
-      "wrote back and shows it beside the note (D7) - read-only there, because " +
-      "answering means writing into the publication. The phone lists the publications " +
-      "that exist, JOINS one it was invited to (the recipient half is the same " +
-      "join flow, and its hint says so), and says plainly that creating one runs " +
-      "on the desktop. So the asymmetry is the publisher side only. This is " +
-      "one gap rather than several because it is one surface with one cause: the " +
-      "core is shared and the phone already holds workspace keys, so nothing here " +
-      "is a platform limit. It waits on Stufe C, whose M5 builds the mobile " +
-      "state-and-withdraw half - and the returns collector with it, since the phone " +
-      "shows the same comment records in a sheet - and deletes this entry.",
-    verified: "2026-08-31",
-  },
-  {
     id: "workspace-slice-kinds",
     title: "Which kinds of Vault Slice can be created",
     area: "security",

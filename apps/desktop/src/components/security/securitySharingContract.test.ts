@@ -196,7 +196,9 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");
     expect(mobile).toContain("runtime.policy.payload.groups.map");
-    expect(mobile).toContain("slice.publication");
+    // Since Stufe C the phone derives a slice's published state from the
+    // publications it holds, rather than reading a field off the slice.
+    expect(mobile).toContain("publications.some((record) => record.sliceId === slice.sliceId)");
     // Since S38 (decision E8) the phone MANAGES shares instead of listing them
     // and pointing at the desktop: inviting a member, creating a group and a
     // folder slice, and changing a group's role all happen here.
@@ -312,11 +314,16 @@ describe("security centre: what the source still wires (source guard, not behavi
     // preview cannot promise a note the publish path would skip.
     expect(context).toContain("publishableObjects");
     expect(context).toContain("previewPublishedProjection");
-    // The phone names the asymmetry instead of the old "nothing is shared yet",
-    // which stopped being true the moment the desktop could publish.
+    // Stufe C closed the asymmetry: the phone creates, refreshes, states and
+    // withdraws a publication itself, so neither the "read-only preview" wording
+    // nor the "this runs on the desktop" wording is true any more - and the
+    // catalog entry that named the gap is DELETED rather than set to "yes",
+    // which is how a closed gap leaves this file.
     expect(mobile).not.toContain("workspaceSecurity.publicationPreviewOnly");
-    expect(mobile).toContain("workspaceSecurity.publicationDesktopOnly");
+    expect(mobile).not.toContain("workspaceSecurity.publicationDesktopOnly");
+    expect(mobile).toContain("createMobilePublication");
+    expect(mobile).toContain("withdrawMobilePublication");
     const parity = readFileSync(new URL("../../../../../packages/ui/src/lib/featureParity.ts", import.meta.url), "utf8");
-    expect(parity).toContain('id: "workspace-publication-create"');
+    expect(parity).not.toContain('id: "workspace-publication-create"');
   });
 });

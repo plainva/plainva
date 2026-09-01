@@ -3192,12 +3192,14 @@
       "dedicated-prefix-deny-default": "Usa un prefisso dedicato con regole IAM che negano per impostazione predefinita.",
       "no-public-access-tls": "Disattiva l'accesso pubblico e richiedi TLS."
     },
-    "publicationDesktopOnly": "Per ora si pubblica dal desktop. Ciò che nasce lì compare qui.",
     "publicationNeedsSlice": "Una pubblicazione parte da uno slice del vault. Creane uno in Condividi con altri e torna qui.",
     "publicationNotPublished": "Slice interno — non condiviso fuori da questo vault",
     "publicationRecipients": "Destinatari",
     "publicationNoRecipients": "Non hai ancora invitato nessuno. Una pubblicazione senza destinatari resta cifrata e illeggibile: è lo stato sicuro, non un guasto.",
     "publicationCurrent": "Aggiornata",
+    "publicationObjects_one": "1 oggetto",
+    "publicationObjects_many": "{{count}} oggetti",
+    "publicationObjects_other": "{{count}} oggetti",
     "publicationPending_one": "1 modifica in attesa",
     "publicationPending_many": "{{count}} modifiche in attesa",
     "publicationPending_other": "{{count}} modifiche in attesa",
@@ -3232,6 +3234,7 @@
       "comment": "Commento",
       "suggest": "Proponi modifiche"
     },
+    "publishNoSlice": "Ogni sezione del vault è già pubblicata.",
     "publishSlice": "Pubblica uno slice del vault",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "Crea pubblicazione",

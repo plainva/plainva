@@ -3136,12 +3136,12 @@
       "dedicated-prefix-deny-default": "使用专用前缀，并采用默认拒绝的 IAM 策略。",
       "no-public-access-tls": "关闭公共访问并强制使用 TLS。"
     },
-    "publicationDesktopOnly": "目前只能在桌面端发布。在那里创建的内容会在此列出。",
     "publicationNeedsSlice": "发布从仓库切片开始。请先在「与他人共享」中创建一个，然后返回。",
     "publicationNotPublished": "内部切片 — 未在本仓库之外共享",
     "publicationRecipients": "接收人",
     "publicationNoRecipients": "还没有邀请任何人。没有接收人的发布仍然加密且无法读取 — 这是安全状态，不是故障。",
     "publicationCurrent": "已是最新",
+    "publicationObjects_other": "{{count}} 个对象",
     "publicationPending_other": "{{count}} 项更改待发布",
     "publicationRefreshFailed": "刷新失败：{{reason}}",
     "inviteRecipient": "邀请接收人",
@@ -3174,6 +3174,7 @@
       "comment": "评论",
       "suggest": "建议修改"
     },
+    "publishNoSlice": "所有保险库切片都已发布。",
     "publishSlice": "发布仓库切片",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "创建发布",

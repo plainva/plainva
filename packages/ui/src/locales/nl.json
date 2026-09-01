@@ -3164,12 +3164,13 @@
       "dedicated-prefix-deny-default": "Gebruik een eigen prefix met IAM-regels die standaard alles weigeren.",
       "no-public-access-tls": "Schakel openbare toegang uit en vereis TLS."
     },
-    "publicationDesktopOnly": "Publiceren gebeurt voorlopig op de desktop. Wat daar ontstaat, staat hier in de lijst.",
     "publicationNeedsSlice": "Publiceren begint bij een vault-slice. Maak er een aan bij Delen met anderen en kom terug.",
     "publicationNotPublished": "Interne slice — niet buiten deze vault gedeeld",
     "publicationRecipients": "Ontvangers",
     "publicationNoRecipients": "Nog niemand uitgenodigd. Een publicatie zonder ontvangers is versleuteld en onleesbaar — dat is de veilige toestand, geen storing.",
     "publicationCurrent": "Actueel",
+    "publicationObjects_one": "1 object",
+    "publicationObjects_other": "{{count}} objecten",
     "publicationPending_one": "1 wijziging in behandeling",
     "publicationPending_other": "{{count}} wijzigingen in behandeling",
     "publicationRefreshFailed": "Vernieuwen mislukt: {{reason}}",
@@ -3203,6 +3204,7 @@
       "comment": "Reageren",
       "suggest": "Wijzigingen voorstellen"
     },
+    "publishNoSlice": "Elk vault-deel is al gepubliceerd.",
     "publishSlice": "Een vault-slice publiceren",
     "publishDesc": "Choose exact or sanitized content, access and a provider.",
     "createPublication": "Publicatie maken",

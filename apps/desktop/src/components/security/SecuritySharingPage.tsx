@@ -686,7 +686,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
                 const state = publicationStatusText({ lastError: record.lastError, pending: pendingCounts[record.publicationId] ?? 0 }, t);
                 return (
                   <React.Fragment key={slice.sliceId}>
-                    <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider} · ${state}`}>
+                    <SettingRow label={slice.name} desc={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })} · ${record.config.provider} · ${t("workspaceSecurity.publicationObjects", { count: record.manifest.objects.length })} · ${state}`}>
                       <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setRecipientFor({ publicationId: record.publicationId, name: slice.name }); setRecipientName(""); }} data-testid="workspace-invite-recipient">{t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })}</Button>
                       <Button variant="danger-soft" size="sm" disabled={busy} onClick={() => setWithdrawFor({ publicationId: record.publicationId, name: slice.name, provider: record.config.provider })} data-testid="workspace-withdraw-publication">{t("workspaceSecurity.withdrawPublication", { defaultValue: "Withdraw publication" })}</Button>
                     </SettingRow>

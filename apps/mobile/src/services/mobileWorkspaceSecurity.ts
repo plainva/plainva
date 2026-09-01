@@ -30,12 +30,21 @@ import {
   publishWorkspacePairingApproval,
   findWorkspacePairingRequest,
   pairingFingerprint,
+  pendingPublicationChanges,
+  invitePublicationRecipient,
+  planPublicationTeardown,
+  publicationStoreFor,
+  publicationRecipientGroupId,
+  publicationRecipients,
+  type PublicationRecipient,
   publishWorkspaceGovernanceUpdate,
   publishWorkspaceRecoveryRotation,
   restoreWorkspaceFromRecoveryPackage,
   revokeWorkspaceDeviceAndRotate,
+  revokePublicationRecipient,
   revokeWorkspaceMemberAndRotate,
   rotateWorkspaceRecoveryPackage,
+  runPublicationRefresh,
   serializePersonalWorkspaceRuntime,
   startWorkspaceRekey,
   transferWorkspaceOwnership,
@@ -600,6 +609,235 @@ export async function previewMobilePublication(input: {
     )
   );
   return previewPublishedProjection({ mode: input.mode, objects, ...defaultPublishedPropertyPolicy() });
+}
+
+/**
+ * How much each publication would move on its next refresh (M5).
+ *
+ * The record already carries WHY the last refresh stopped and WHEN it ran; what
+ * it cannot carry is how much has changed since. That number is derived, never
+ * stored: it is a statement about the vault as it is right now, and a stored
+ * copy would go stale the moment somebody edits a covered note.
+ *
+ * `listObjects()` rather than the enriched `workspaceSliceObjects()`, exactly as
+ * on the desktop: coverage comes from the slice's `materializedObjectIds`, so
+ * reading tags and properties here would be work nobody looks at.
+ */
+export async function mobilePublicationPendingCounts(input: {
+  state: WorkspaceStateStore;
+  runtime: PersonalWorkspaceRuntime;
+}): Promise<Record<string, number>> {
+  const records = await input.state.listPublications();
+  if (records.length === 0) return {};
+  const objects = await input.state.listObjects();
+  const slices = new Map(input.runtime.policy.payload.slices.map((slice) => [slice.sliceId, slice]));
+  const pending: Record<string, number> = {};
+  for (const record of records) {
+    pending[record.publicationId] = pendingPublicationChanges({
+      slice: slices.get(record.sliceId),
+      objects,
+      manifest: record.manifest,
+    });
+  }
+  return pending;
+}
+
+/**
+ * Withdraws a publication — the mobile half of the desktop's `removePublication`
+ * (M5), on the same core primitives and in the same order.
+ *
+ * The ordering IS the design. Tombstones need the publication runtime, so the
+ * key is cleared LAST: a device that dropped its key first would leave a folder
+ * full of readable content and no way left to retract it. And the record is
+ * deleted only after the tombstones landed, so a run that dies half-way leaves a
+ * publication the manifest still describes and the next attempt can finish.
+ *
+ * What stays behind is deliberate and named on the sheet: the publication's own
+ * objects (the store is put-only, there is no delete) and the share at the
+ * provider, which Plainva does not manage.
+ */
+export async function withdrawMobilePublication(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  state: WorkspaceStateStore;
+  /** The VAULT runtime — its presence is what says this vault is unlocked. */
+  runtime: PersonalWorkspaceRuntime;
+  publicationId: string;
+}): Promise<{ retracted: number; error: string | null }> {
+  const record = await input.state.getPublication(input.publicationId);
+  if (!record) throw new Error("publication-unknown");
+  // A vault runtime was handed in, so the vault is open; a missing publication
+  // runtime therefore means exactly one thing here — the key for THIS
+  // publication is not on this device. The desktop separates the two cases
+  // because it resolves the vault itself.
+  const publicationRuntime = await loadMobilePublicationRuntime(input.vaultId, input.publicationId);
+  if (!publicationRuntime) throw new Error("publication-key-missing");
+  const publicationStore = publicationStoreFor(input.store, input.runtime.workspaceId, record.config.sliceId);
+
+  const plan = planPublicationTeardown(record.manifest);
+  let manifest = record.manifest;
+  let retracted = 0;
+  if (plan.length > 0) {
+    const result = await runPublicationRefresh({
+      handle: { publicationId: input.publicationId, runtime: publicationRuntime, store: publicationStore },
+      manifest,
+      plan,
+      // A teardown plans only retractions, so a call here would mean the plan
+      // and the run disagree about what is happening.
+      project: async () => {
+        throw new Error("publication-teardown-projection");
+      },
+      persist: async (next) => {
+        await input.state.savePublication({ ...record, manifest: next });
+      },
+    });
+    manifest = result.manifest;
+    retracted = result.applied.length;
+    if (result.error) {
+      await input.state.savePublication({ ...record, manifest, lastError: result.error });
+      return { retracted, error: result.error };
+    }
+  }
+
+  await input.state.deletePublication(input.publicationId);
+  await clearMobilePublicationRuntimes(input.vaultId, [input.publicationId]);
+  return { retracted, error: null };
+}
+
+/**
+ * The two things every publication action needs, resolved the one way.
+ *
+ * A vault runtime is handed in, so the vault is open; a missing publication
+ * runtime therefore means exactly one thing — the key for THIS publication is
+ * not on this device.
+ */
+async function openPublication(input: {
+  vaultId: string;
+  state: WorkspaceStateStore;
+  publicationId: string;
+}): Promise<{ record: WorkspacePublicationRecord; runtime: PersonalWorkspaceRuntime }> {
+  const record = await input.state.getPublication(input.publicationId);
+  if (!record) throw new Error("publication-unknown");
+  const runtime = await loadMobilePublicationRuntime(input.vaultId, input.publicationId);
+  if (!runtime) throw new Error("publication-key-missing");
+  return { record, runtime };
+}
+
+/**
+ * A publication's own governance, committed into the publication's slot.
+ *
+ * `commitGovernance` above persists into the VAULT runtime slot, which is
+ * exactly right for the vault and exactly wrong here: a publication is a
+ * workspace of its own, and writing its runtime over the vault's would cost
+ * the vault its key. Same reasoning for the store — the policy belongs to the
+ * publication's namespace, so it goes through the scoped store the refresh
+ * runner already uses.
+ */
+async function commitPublicationGovernance(input: {
+  vaultId: string;
+  publicationId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  update: MobileGovernanceUpdate;
+}): Promise<void> {
+  await publishWorkspaceGovernanceUpdate(input.store, {
+    policy: input.update.policy,
+    grants: input.update.grants,
+  });
+  applyWorkspaceGovernanceUpdate(input.runtime, {
+    policy: input.update.policy,
+    grants: input.update.grants,
+    groupKeys: input.update.groupKeys ?? input.runtime.groupKeys,
+  });
+  await persistMobilePublicationRuntime(input.vaultId, input.publicationId, input.runtime);
+}
+
+/**
+ * Everything the recipient surface of one publication needs, in one read.
+ *
+ * Recipients come from the PUBLICATION's policy, never from the vault's
+ * members — that separation is the whole promise of Stufe B, and reading the
+ * wrong list here would quietly break it.
+ */
+export async function mobilePublicationRecipients(
+  vaultId: string,
+  publicationId: string,
+): Promise<{ recipients: PublicationRecipient[]; locked: boolean }> {
+  const runtime = await loadMobilePublicationRuntime(vaultId, publicationId);
+  if (!runtime) return { recipients: [], locked: true };
+  const groupId = publicationRecipientGroupId(runtime.policy.payload);
+  if (!groupId) return { recipients: [], locked: false };
+  return { recipients: publicationRecipients(runtime.policy.payload, groupId), locked: false };
+}
+
+/**
+ * Invites one recipient and hands back the code — once.
+ *
+ * The code is not stored, here or on the desktop: it is derived from the
+ * member id, the workspace id and the genesis fingerprint, so it can be
+ * regenerated for an existing recipient at any time from facts this device
+ * already holds. Storing it would create a second way into a publication that
+ * membership alone is supposed to open.
+ */
+export async function invitePublicationRecipientFromMobile(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  state: WorkspaceStateStore;
+  /** The VAULT runtime — the publication's store is scoped under its id. */
+  runtime: PersonalWorkspaceRuntime;
+  publicationId: string;
+  displayName: string;
+}): Promise<{ memberId: string; invite: string }> {
+  const { record, runtime: publication } = await openPublication(input);
+  const groupId = publicationRecipientGroupId(publication.policy.payload);
+  if (!groupId) throw new Error("publication-recipient-group-missing");
+
+  const update = await invitePublicationRecipient({
+    runtime: publication,
+    recipientGroupId: groupId,
+    displayName: input.displayName,
+  });
+  await commitPublicationGovernance({
+    vaultId: input.vaultId,
+    publicationId: input.publicationId,
+    store: publicationStoreFor(input.store, input.runtime.workspaceId, record.config.sliceId),
+    runtime: publication,
+    update,
+  });
+  return { memberId: update.memberId, invite: update.invite };
+}
+
+/**
+ * The way back out. S6 built this on the desktop for a reason: a recipient who
+ * could be let in and never out is a door without a handle on the inside.
+ *
+ * What it buys is the future, not the past — the object store is put-only, and
+ * the epoch rotation only stops what comes NEXT from being readable. The sheet
+ * says so before the tap.
+ */
+export async function revokePublicationRecipientFromMobile(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  state: WorkspaceStateStore;
+  /** The VAULT runtime — the publication's store is scoped under its id. */
+  runtime: PersonalWorkspaceRuntime;
+  publicationId: string;
+  memberId: string;
+  reason: string;
+}): Promise<void> {
+  const { record, runtime: publication } = await openPublication(input);
+  const update = await revokePublicationRecipient({
+    runtime: publication,
+    memberId: input.memberId,
+    reason: input.reason,
+  });
+  await commitPublicationGovernance({
+    vaultId: input.vaultId,
+    publicationId: input.publicationId,
+    store: publicationStoreFor(input.store, input.runtime.workspaceId, record.config.sliceId),
+    runtime: publication,
+    update,
+  });
 }
 
 export async function assignMobileWorkspaceRole(input: {

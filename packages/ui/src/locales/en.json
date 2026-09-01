@@ -3163,12 +3163,13 @@
       "dedicated-prefix-deny-default": "Use a dedicated prefix with deny-by-default IAM.",
       "no-public-access-tls": "Disable public access and require TLS."
     },
-    "publicationDesktopOnly": "Publishing runs on the desktop for now. Publications created there are listed here.",
     "publicationNeedsSlice": "Publishing starts from a Vault Slice. Create one under Share with others, then come back.",
     "publicationNotPublished": "Internal slice — not shared outside this vault",
     "publicationRecipients": "Recipients",
     "publicationNoRecipients": "Nobody has been invited yet. A publication without recipients is encrypted and unreadable — that is the safe state, not a broken one.",
     "publicationCurrent": "Up to date",
+    "publicationObjects_one": "1 object",
+    "publicationObjects_other": "{{count}} objects",
     "publicationPending_one": "1 change pending",
     "publicationPending_other": "{{count}} changes pending",
     "publicationRefreshFailed": "Refresh failed: {{reason}}",
@@ -3202,6 +3203,7 @@
       "comment": "Comment",
       "suggest": "Suggest changes"
     },
+    "publishNoSlice": "Every Vault Slice is already published.",
     "publishSlice": "Publish a Vault Slice",
     "publishDesc": "Choose exact or sanitized content, read/comment/suggestion access and a provider.",
     "createPublication": "Create publication",
