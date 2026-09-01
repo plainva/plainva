@@ -32,6 +32,12 @@ export interface ColumnSchema {
   reverseOf?: ReverseRelationDef;
   /** Rollup: value aggregated from the notes a link column points at (never stored). */
   rollup?: RollupSpec;
+  /**
+   * Former bare names of this column, oldest first (plan Stufe E, section 5).
+   * Written by `renamePropertyInConfig`, read by `propertyAliasResolver` so a
+   * comment anchored to a property survives the column being renamed.
+   */
+  previousKeys?: string[];
 }
 
 export interface GoverningBase {

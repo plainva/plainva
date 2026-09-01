@@ -262,7 +262,36 @@ function normalizeColumn(src: any): Record<string, any> {
   // keep the database from opening.
   const rollup = normalizeRollup(src.rollup);
   if (rollup) col.rollup = rollup;
+  const previousKeys = normalizePreviousKeys(src.previousKeys);
+  if (previousKeys) col.previousKeys = previousKeys;
   return col;
+}
+
+/** How many former names a column remembers before the oldest falls off. */
+export const MAX_PREVIOUS_KEYS = 8;
+
+/**
+ * Former bare names of this property, oldest first (plan Stufe E, section 5).
+ *
+ * A comment can be anchored to a frontmatter key, and a comment is sealed - its
+ * anchor can never be rewritten. So the rename trail travels here, in the file
+ * that already changes during a rename and reaches every device through the
+ * ordinary sync. It rides in the `plainva` namespace, so Obsidian never sees it.
+ */
+function normalizePreviousKeys(src: any): string[] | null {
+  if (!Array.isArray(src)) return null;
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const raw of src) {
+    if (typeof raw !== "string") continue;
+    const key = raw.trim();
+    // A hand-edited file can say anything; keep the list bounded and free of
+    // duplicates rather than trusting what arrives.
+    if (!key || seen.has(key) || keys.length >= MAX_PREVIOUS_KEYS) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys.length > 0 ? keys : null;
 }
 
 /** Normalize one on-disk view to the in-memory view shape (bare names, Plainva render type). */
@@ -432,6 +461,8 @@ export function serializeBaseConfig(config: any): string {
     }
     const rollup = normalizeRollup(col.rollup);
     if (rollup) plainva.rollup = serializeRollup(rollup);
+    const previousKeys = normalizePreviousKeys(col.previousKeys);
+    if (previousKeys) plainva.previousKeys = previousKeys;
     if (Object.keys(plainva).length > 0) entry.plainva = plainva;
     else delete entry.plainva;
     props[id] = entry;

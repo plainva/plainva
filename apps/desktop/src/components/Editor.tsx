@@ -23,13 +23,14 @@ import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext 
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
-import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, stripFrontmatter } from "@plainva/ui";
+import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, mintAnchorMarkerId, openAnchorMarker, resolveCommentAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
+import { resolveGoverningBase } from "../services/baseSchema";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
@@ -201,14 +202,52 @@ export const Editor: React.FC<{
    * Recomputed whenever the text or the comment list changes: that is what makes
    * a comment survive an edit above it without storing a position.
    */
+  // Two anchor vocabularies, two maps. A text anchor resolves to a RANGE in the
+  // body; a property anchor (Stufe E, E2) resolves to a KEY in the frontmatter
+  // and has no range at all. Folding them into one map would force every reader
+  // to cast, and the text resolver's quote fallback would happily re-find a
+  // property's value somewhere in the prose - attaching the comment to a
+  // sentence nobody commented on.
   const anchorResolutions = useMemo(() => {
     const map = new Map<string, WorkspaceCommentAnchorResolution>();
     for (const comment of workspaceComments) {
-      if (!comment.anchor) continue;
+      if (!comment.anchor || propertyAnchorKey(comment.anchor)) continue;
       map.set(comment.commentId, resolveCommentAnchor(content, comment.anchor as WorkspaceCommentAnchor));
     }
     return map;
   }, [workspaceComments, content]);
+
+  // The rename trail lives on the `.base` column (plan Stufe E, section 5:
+  // "Der Anker zieht mit"), so the alias source is the base governing this note.
+  // A note outside any base simply has no trail - a renamed key then orphans,
+  // which is the honest answer rather than a guess.
+  const [governingColumns, setGoverningColumns] = useState<Record<string, unknown> | null>(null);
+  // A `.base` edit bumps the tree version and clears the resolver's cache, so a
+  // freshly renamed column reaches the comment cards without reopening the note.
+  const governingVersion = vaultContext.fileTreeVersion;
+  useEffect(() => {
+    let alive = true;
+    setGoverningColumns(null);
+    if (!activePath || !queryService || !vaultAdapter) return;
+    resolveGoverningBase(activePath, queryService, vaultAdapter)
+      .then((base) => { if (alive) setGoverningColumns((base?.columns as Record<string, unknown>) ?? null); })
+      .catch(() => { if (alive) setGoverningColumns(null); });
+    return () => { alive = false; };
+  }, [activePath, queryService, vaultAdapter, governingVersion]);
+
+  const propertyResolutions = useMemo(() => {
+    const map = new Map<string, WorkspacePropertyAnchorResolution>();
+    const anchored = workspaceComments.filter((c) => c.anchor && propertyAnchorKey(c.anchor));
+    if (anchored.length === 0) return map;
+    const keys = new Set(frontmatterKeys(content));
+    const aliasOf = propertyAliasResolver(governingColumns ? [{ columns: governingColumns }] : []);
+    for (const comment of anchored) {
+      const key = propertyAnchorKey(comment.anchor!);
+      if (!key) continue;
+      map.set(comment.commentId, resolvePropertyAnchor(key, (candidate) => keys.has(candidate), aliasOf));
+    }
+    return map;
+  }, [workspaceComments, content, governingColumns]);
 
   useEffect(() => {
     if (managedIndex && viewMode !== 'read') setViewMode('read');
@@ -1897,7 +1936,7 @@ export const Editor: React.FC<{
       if (!resolution || resolution.status === "orphan") continue;
       // A widget covers the range: the tint would have no text to paint on, so
       // the widget draws a frame instead (Stufe E, E1).
-      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId, frame: comment.anchor?.display });
+      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId, frame: toAnchorFrameHint(comment.anchor?.display) });
     }
     session.setAnchorHighlights(highlights);
   }, [workspaceComments, anchorResolutions, activeCommentId, viewMode, isLoading]);
@@ -2432,6 +2471,7 @@ export const Editor: React.FC<{
           memberNames={memberNames}
           selfMemberId={commentSelfId}
           resolutions={anchorResolutions}
+          propertyResolutions={propertyResolutions}
           canComment={workspaceCanComment}
           activeCommentId={activeCommentId}
           selectionQuote={selectionQuote}

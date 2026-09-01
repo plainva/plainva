@@ -119,6 +119,33 @@ export function setFrontmatterPath(
  * a YAMLSeq and `Array.isArray` would quietly say false. Scalars were already
  * plain values, so this only ever widens what callers can read.
  */
+/**
+ * The top-level frontmatter keys, in document order; `[]` when the note has no
+ * frontmatter or its YAML cannot be parsed.
+ *
+ * The read-only counterpart to the surgical writers, and deliberately cheap: a
+ * property comment (plan Stufe E, E2) has to ask "does the key I was written
+ * against still exist?" on every keystroke, which rules out the route the
+ * properties panel takes (parse the whole markdown AST, then extract the
+ * frontmatter). Unparseable YAML answers `[]` rather than throwing - a
+ * half-typed document must never make a comment card disappear.
+ */
+export function frontmatterKeys(content: string): string[] {
+  let split: SplitDocument;
+  try {
+    split = splitDocument(content);
+  } catch {
+    return [];
+  }
+  if (!split.hadFrontmatter || !isMap(split.doc.contents)) return [];
+  const keys: string[] = [];
+  for (const item of split.doc.contents.items) {
+    const key = item.key;
+    if (isScalar(key) && typeof key.value === "string" && key.value) keys.push(key.value);
+  }
+  return keys;
+}
+
 export function readFrontmatterPath(content: string, path: readonly string[]): unknown {
   if (path.length === 0) return undefined;
   let split: SplitDocument;

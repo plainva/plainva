@@ -37,11 +37,19 @@ import { assertSafeInteger, toHex, utf8Encode } from "./encoding.js";
  */
 export interface WorkspaceCommentAnchorDisplay {
   /** What the marked range is. */
-  kind: "image" | "diagram" | "tableCell";
+  kind: "image" | "diagram" | "tableCell" | "property";
   /** Row inside the rendered table; 0 is the header. Only for `tableCell`. */
   row?: number;
   /** Column inside the rendered table, 0-based. Only for `tableCell`. */
   column?: number;
+  /**
+   * Frontmatter key the comment hangs on. Only for `property`.
+   *
+   * Bare key, exactly as it stands in the note's frontmatter - never the
+   * `note.`-prefixed id a `.base` file uses for the same column, because the
+   * comment belongs to the note and not to any one query over it.
+   */
+  key?: string;
 }
 
 export interface WorkspaceCommentAnchor {
@@ -222,6 +230,85 @@ export function buildCommentAnchor(raw: string, from: number, to: number, marker
   };
 }
 
+/**
+ * Captures the anchor for a comment on a frontmatter property - a database cell
+ * in one view, a row in the properties panel in another. The plan (Stufe E,
+ * section 5) is explicit that this anchor writes NOTHING into the Markdown:
+ * "Kein Textbereich, kein Marker im Markdown - der Schluessel selbst ist der
+ * Anker, und der ist stabil, solange die Eigenschaft existiert."
+ *
+ * The marker id is minted like any other and simply never inserted; a marker
+ * that no note contains resolves as absent, which is exactly what an anchor
+ * without text should do. The quote carries the value AT COMMENT TIME, which
+ * section 5 asks for in its own right ("die Karte zeigt den Wert zum Zeitpunkt
+ * des Kommentars als Zitat") and which keeps an orphaned card meaningful. An
+ * empty value falls back to the key, because an anchor without a quote would
+ * fail validation on the far side.
+ */
+export function buildPropertyCommentAnchor(key: string, value: string, markerId: string): WorkspaceCommentAnchor {
+  protocolAssert(isAnchorMarkerId(markerId), "format", "anchor marker id is invalid");
+  protocolAssert(typeof key === "string" && key.length >= 1, "format", "property anchor key is invalid");
+  const shown = value.trim();
+  return {
+    markerId,
+    quote: capBytes(shown.length > 0 ? shown : key, MAX_ANCHOR_QUOTE_BYTES),
+    before: "",
+    after: "",
+    approximateOffset: 0,
+    display: { kind: "property", key },
+  };
+}
+
+/** The frontmatter key a property comment hangs on, or null for any other anchor. */
+export function propertyAnchorKey(anchor: WorkspaceCommentAnchor | null | undefined): string | null {
+  if (!anchor || anchor.display?.kind !== "property") return null;
+  return anchor.display.key ?? null;
+}
+
+/** Where a property anchor ended up - the four cases of section 5. */
+export type WorkspacePropertyAnchorResolution =
+  /** The key is still there, untouched. */
+  | { status: "key"; key: string }
+  /** The property was renamed; the trail in the `.base` column led to it. */
+  | { status: "renamed"; key: string }
+  /** The property is gone. The comment stays, without a place. */
+  | { status: "orphan" };
+
+/**
+ * Follows a property anchor to the key the note carries today.
+ *
+ * A comment is a sealed, immutable object: `prepareWorkspaceComment` is the only
+ * writer and there is no edit path, so "der Anker zieht mit" can never mean
+ * rewriting the stored anchor. It is resolved on every read instead - the same
+ * shape as a text anchor, which is also re-found against the current document
+ * rather than migrated.
+ *
+ * `aliasOf` maps a former key to the key that replaced it. It is fed from the
+ * trail the rename leaves in the `.base` column (`previousKeys`), because that
+ * trail has to reach every device: a purely local migration would leave a
+ * second device showing the same comment as orphaned, which is worse than
+ * orphaning it everywhere.
+ */
+export function resolvePropertyAnchor(
+  key: string,
+  present: (candidate: string) => boolean,
+  aliasOf?: (former: string) => string | null,
+): WorkspacePropertyAnchorResolution {
+  if (present(key)) return { status: "key", key };
+  const seen = new Set<string>([key]);
+  let current = key;
+  // A property may be renamed more than once; follow the chain, and stop on a
+  // cycle rather than spin (a hand-edited `.base` can say anything).
+  for (let hop = 0; hop < 16 && aliasOf; hop += 1) {
+    const next = aliasOf(current);
+    if (!next || seen.has(next)) break;
+    if (present(next)) return { status: "renamed", key: next };
+    seen.add(next);
+    current = next;
+  }
+  return { status: "orphan" };
+}
+
 function occurrences(haystack: string, needle: string): number[] {
   if (!needle) return [];
   const found: number[] = [];
@@ -277,7 +364,7 @@ export function assertWorkspaceCommentAnchor(anchor: WorkspaceCommentAnchor): vo
  */
 function assertWorkspaceCommentAnchorDisplay(display: WorkspaceCommentAnchorDisplay): void {
   protocolAssert(
-    display.kind === "image" || display.kind === "diagram" || display.kind === "tableCell",
+    display.kind === "image" || display.kind === "diagram" || display.kind === "tableCell" || display.kind === "property",
     "format",
     "comment anchor display kind is invalid",
   );
@@ -287,4 +374,14 @@ function assertWorkspaceCommentAnchorDisplay(display: WorkspaceCommentAnchorDisp
   protocolAssert(cell || (display.row === undefined && display.column === undefined), "format", "comment anchor display carries cell coordinates without a cell");
   if (display.row !== undefined) assertSafeInteger(display.row, 0, 100000, "comment anchor display row");
   if (display.column !== undefined) assertSafeInteger(display.column, 0, 100000, "comment anchor display column");
+  // The key IS the anchor for a property comment (plan Stufe E, section 5), so
+  // an empty one would leave the comment pointing at nothing. On every other
+  // kind it is a contradiction, the same way a column number is on an image.
+  const property = display.kind === "property";
+  protocolAssert(
+    !property || (typeof display.key === "string" && display.key.length >= 1 && utf8Encode(display.key).length <= MAX_ANCHOR_QUOTE_BYTES),
+    "format",
+    "comment anchor display property key is invalid",
+  );
+  protocolAssert(property || display.key === undefined, "format", "comment anchor display carries a property key without a property");
 }

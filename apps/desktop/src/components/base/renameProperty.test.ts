@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidNewPropertyName, renamePropertyInConfig } from "@plainva/ui";
+import { isValidNewPropertyName, propertyAliasResolver, renamePropertyInConfig } from "@plainva/ui";
 import { retargetReverseColumns } from "@plainva/ui";
 
 describe("renamePropertyInConfig (Base-UX2 follow-up)", () => {
@@ -22,7 +22,7 @@ describe("renamePropertyInConfig (Base-UX2 follow-up)", () => {
 
   it("moves the schema, view references and widths to the new name", () => {
     const out = renamePropertyInConfig(config, "status", "zustand");
-    expect(out.columns.zustand).toEqual({ input: "select", options: [{ value: "a" }] });
+    expect(out.columns.zustand).toEqual({ input: "select", options: [{ value: "a" }], previousKeys: ["status"] });
     expect(out.columns.status).toBeUndefined();
     expect(out.views[0].order).toEqual(["file.name", "zustand", "prio"]);
     expect(out.views[0].sort[0].property).toBe("zustand");
@@ -47,7 +47,7 @@ describe("renamePropertyInConfig (Base-UX2 follow-up)", () => {
 
   it("prefers an explicitly passed schema over the stored one", () => {
     const out = renamePropertyInConfig(config, "status", "zustand", { input: "multiselect" });
-    expect(out.columns.zustand).toEqual({ input: "multiselect" });
+    expect(out.columns.zustand).toEqual({ input: "multiselect", previousKeys: ["status"] });
   });
 
   it("does not mutate the input and leaves unrelated entries alone", () => {
@@ -111,5 +111,83 @@ describe("isValidNewPropertyName", () => {
     expect(isValidNewPropertyName("file.name", existing, "status")).toBe(false);
     expect(isValidNewPropertyName("note.x", existing, "status")).toBe(false);
     expect(isValidNewPropertyName("formula.x", existing, "status")).toBe(false);
+  });
+});
+
+describe("rename trail on the column (plan Stufe E, E2)", () => {
+  const cfg = { columns: { status: { input: "select" } }, views: [{ type: "table", name: "T", order: ["status"] }] };
+
+  it("records the former name so a property comment can follow", () => {
+    const out = renamePropertyInConfig(cfg, "status", "zustand");
+    expect(out.columns.zustand.previousKeys).toEqual(["status"]);
+    expect(out.columns.status).toBeUndefined();
+  });
+
+  it("appends on a second rename, oldest first", () => {
+    const once = renamePropertyInConfig(cfg, "status", "zustand");
+    const twice = renamePropertyInConfig(once, "zustand", "state");
+    expect(twice.columns.state.previousKeys).toEqual(["status", "zustand"]);
+  });
+
+  it("drops the self-alias when renamed back to a former name", () => {
+    const once = renamePropertyInConfig(cfg, "status", "zustand");
+    const back = renamePropertyInConfig(once, "zustand", "status");
+    // "status" would otherwise alias to itself and the resolver would spin.
+    expect(back.columns.status.previousKeys).toEqual(["zustand"]);
+  });
+
+  it("keeps the trail bounded, oldest name falling off first", () => {
+    let cur: any = cfg;
+    let name = "status";
+    for (let i = 0; i < 12; i += 1) {
+      const next = `n${i}`;
+      cur = renamePropertyInConfig(cur, name, next);
+      name = next;
+    }
+    const keys = cur.columns[name].previousKeys;
+    expect(keys.length).toBe(8);
+    expect(keys).not.toContain("status");
+    expect(keys[keys.length - 1]).toBe("n10");
+  });
+
+  it("also records the trail when the caller passes an explicit schema (the mobile path passes none)", () => {
+    const out = renamePropertyInConfig(cfg, "status", "zustand", { input: "text" });
+    expect(out.columns.zustand).toEqual({ input: "text", previousKeys: ["status"] });
+  });
+});
+
+describe("propertyAliasResolver (Stufe E, E2 - reading the rename trail back)", () => {
+  const base = { columns: { status: { input: "text" } } };
+
+  it("leads a former key to the column that carries it today", () => {
+    const renamed = renamePropertyInConfig(base, "status", "zustand");
+    const aliasOf = propertyAliasResolver([renamed]);
+    expect(aliasOf("status")).toBe("zustand");
+    expect(aliasOf("never-existed")).toBe(null);
+  });
+
+  it("looks across every base the note belongs to", () => {
+    const a = renamePropertyInConfig({ columns: { prio: {} } }, "prio", "priority");
+    const b = renamePropertyInConfig(base, "status", "zustand");
+    const aliasOf = propertyAliasResolver([a, b]);
+    expect(aliasOf("prio")).toBe("priority");
+    expect(aliasOf("status")).toBe("zustand");
+  });
+
+  it("answers nothing when two columns claim the same former key", () => {
+    // Pointing the comment at an arbitrary one would attach it to a property
+    // its author never saw.
+    const a = renamePropertyInConfig(base, "status", "zustand");
+    const b = renamePropertyInConfig(base, "status", "state");
+    expect(propertyAliasResolver([a, b])("status")).toBe(null);
+  });
+
+  it("ignores a hand-written trail that points a column at itself", () => {
+    const cfg = { columns: { status: { previousKeys: ["status"] } } };
+    expect(propertyAliasResolver([cfg])("status")).toBe(null);
+  });
+
+  it("survives a base with no columns at all", () => {
+    expect(propertyAliasResolver([{}, null, { columns: [] }])("status")).toBe(null);
   });
 });

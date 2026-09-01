@@ -865,3 +865,62 @@ views:
     expect(yaml.parse(serializeBaseConfig(cfg)).views[0].summaries).toBeUndefined();
   });
 });
+
+describe("previousKeys rename trail (plan Stufe E, E2)", () => {
+  const NL = String.fromCharCode(10);
+  it("round-trips the trail through parse and serialize", () => {
+    const yamlText = [
+      "properties:",
+      "  note.zustand:",
+      "    displayName: Zustand",
+      "    plainva:",
+      "      input: select",
+      "      previousKeys:",
+      "        - status",
+      "        - state",
+      "views:",
+      "  - type: table",
+      "    name: Tabelle",
+    ].join(NL);
+    const cfg = parseBaseConfig(yamlText);
+    expect(cfg.columns.zustand.previousKeys).toEqual(["status", "state"]);
+    const back = parseBaseConfig(serializeBaseConfig(cfg));
+    expect(back.columns.zustand.previousKeys).toEqual(["status", "state"]);
+    // The trail rides in the plainva namespace, so Obsidian never sees it.
+    const raw: any = yaml.parse(serializeBaseConfig(cfg));
+    expect(raw.properties["note.zustand"].plainva.previousKeys).toEqual(["status", "state"]);
+    expect(raw.properties["note.zustand"].previousKeys).toBeUndefined();
+  });
+
+  it("drops junk, duplicates and anything past the cap", () => {
+    const many = Array.from({ length: 12 }, (_, i) => `k${i}`);
+    const cfg = parseBaseConfig(
+      [
+        "properties:",
+        "  note.x:",
+        "    plainva:",
+        "      previousKeys:",
+        "        - a",
+        "        - a",
+        "        - \"\"",
+        "        - 7",
+        ...many.map((k) => `        - ${k}`),
+        "views:",
+        "  - type: table",
+        "    name: T",
+      ].join(NL),
+    );
+    const keys = cfg.columns.x.previousKeys;
+    expect(keys.length).toBe(8);
+    expect(keys[0]).toBe("a");
+    expect(keys).not.toContain(7);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("writes no key when there is no trail", () => {
+    const cfg = parseBaseConfig(["properties:", "  note.x:", "    plainva:", "      input: text", "views:", "  - type: table", "    name: T"].join(NL));
+    expect(cfg.columns.x.previousKeys).toBeUndefined();
+    const raw: any = yaml.parse(serializeBaseConfig(cfg));
+    expect(raw.properties["note.x"].plainva.previousKeys).toBeUndefined();
+  });
+});

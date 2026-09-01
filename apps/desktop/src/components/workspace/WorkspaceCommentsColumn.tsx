@@ -1,8 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
-import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
+import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -24,6 +24,14 @@ export interface WorkspaceCommentsColumnProps {
   selfMemberId: string | null;
   /** commentId -> where its anchor currently lands; absent means note-wide. */
   resolutions: ReadonlyMap<string, WorkspaceCommentAnchorResolution>;
+  /**
+   * commentId -> which frontmatter key a property comment (Stufe E, E2) points
+   * at today. Deliberately a SECOND map: a property anchor has no range, and its
+   * verdicts ("renamed", "orphan") mean something different from a text
+   * anchor's - folding both into one map would force every reader to guess
+   * which vocabulary a status belongs to.
+   */
+  propertyResolutions?: ReadonlyMap<string, WorkspacePropertyAnchorResolution>;
   canComment: boolean;
   /**
    * Whether this member may write the note - which is what accepting a
@@ -79,7 +87,7 @@ export interface WorkspaceCommentsColumnProps {
  * on old comments; anything else would falsify the record.
  */
 export function WorkspaceCommentsColumn({
-  comments, memberNames, selfMemberId, resolutions, canComment, canWrite, activeCommentId, selectionQuote,
+  comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
   onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask,
   publicationComments = [],
 }: WorkspaceCommentsColumnProps) {
@@ -146,13 +154,36 @@ export function WorkspaceCommentsColumn({
 
   const anchorNote = (comment: WorkspaceCommentRecord) => {
     if (!comment.anchor) return null;
+    // A property comment first: it never reaches `resolutions`, and its own
+    // verdict decides whether the card names the original key, the key it was
+    // renamed to, or admits the property is gone.
+    const property = propertyResolutions?.get(comment.commentId);
+    if (property) {
+      if (property.status === "orphan") {
+        return <span className="pv-comment-card__state">{t("workspaceSecurity.commentPropertyOrphan")}</span>;
+      }
+      // The record itself is sealed, so the renamed key is composed here for
+      // display only - nothing writes it back into the anchor.
+      const hint = toAnchorDisplayHint(
+        comment.anchor.display,
+        property.status === "renamed" ? property.key : undefined,
+      ) ?? { kind: "property" as const, key: property.key };
+      const label = anchorDisplayLabel(hint);
+      return (
+        <span className="pv-comment-card__state">
+          {t(label.key, label.params)}
+          {label.caveat && ` · ${t(label.caveat)}`}
+        </span>
+      );
+    }
     const status = resolutions.get(comment.commentId)?.status;
     if (status === "orphan") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorOrphan")}</span>;
     if (status === "moved") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorMoved")}</span>;
     // Stufe E (E1): a widget covers the range, so there is no quote to show.
     // The card names the thing instead - "on the image" beats an empty card.
-    if (comment.anchor.display) {
-      const label = anchorDisplayLabel(comment.anchor.display);
+    const displayHint = toAnchorDisplayHint(comment.anchor.display);
+    if (displayHint) {
+      const label = anchorDisplayLabel(displayHint);
       return (
         <span className="pv-comment-card__state">
           {t(label.key, label.params)}

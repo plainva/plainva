@@ -4,14 +4,17 @@ import {
   MAX_ANCHOR_QUOTE_BYTES,
   assertWorkspaceCommentAnchor,
   buildCommentAnchor,
+  buildPropertyCommentAnchor,
   closeAnchorMarker,
   findAnchorMarker,
   insertAnchorMarkers,
   isAnchorMarkerId,
   mintAnchorMarkerId,
   openAnchorMarker,
+  propertyAnchorKey,
   removeAnchorMarkers,
   resolveCommentAnchor,
+  resolvePropertyAnchor,
   stripAnchorMarkers,
   type WorkspaceCommentAnchor,
 } from "../src/index.js";
@@ -215,10 +218,11 @@ describe("comment anchor display hint (Stufe E)", () => {
     expect(base.display).toBeUndefined();
   });
 
-  it("accepts the three widget kinds", () => {
+  it("accepts the widget kinds", () => {
     expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image" } })).not.toThrow();
     expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "diagram" } })).not.toThrow();
     expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "tableCell", row: 2, column: 1 } })).not.toThrow();
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "property", key: "status" } })).not.toThrow();
   });
 
   it("rejects a hint that arrives malformed from another device", () => {
@@ -243,5 +247,82 @@ describe("comment anchor round trip", () => {
     const resolution = resolveCommentAnchor(raw, anchor);
     if (resolution.status === "orphan") throw new Error("unreachable");
     expect(raw.slice(resolution.from, resolution.to)).toBe(anchor.quote);
+  });
+});
+
+describe("property anchors (Stufe E, E2)", () => {
+  const base: WorkspaceCommentAnchor = { markerId: "7f3a", quote: "x", before: "", after: "", approximateOffset: 0 };
+
+  it("anchors on the key and quotes the value at comment time", () => {
+    const anchor = buildPropertyCommentAnchor("status", "In Arbeit", "7f3a");
+    expect(anchor.display).toEqual({ kind: "property", key: "status" });
+    expect(anchor.quote).toBe("In Arbeit");
+    // No text range, so no context and no offset - the key IS the anchor.
+    expect(anchor.before).toBe("");
+    expect(anchor.after).toBe("");
+    expect(anchor.approximateOffset).toBe(0);
+    expect(() => assertWorkspaceCommentAnchor(anchor)).not.toThrow();
+    expect(propertyAnchorKey(anchor)).toBe("status");
+  });
+
+  it("falls back to the key when the property has no value yet", () => {
+    // An empty quote would fail validation on the receiving device, and a card
+    // reading "" would tell the reader nothing.
+    const anchor = buildPropertyCommentAnchor("faelligkeit", "   ", "7f3a");
+    expect(anchor.quote).toBe("faelligkeit");
+    expect(() => assertWorkspaceCommentAnchor(anchor)).not.toThrow();
+  });
+
+  it("keeps a marker id that no note ever contains", () => {
+    // The id stays minted so the anchor shape is uniform; nothing inserts it, so
+    // findAnchorMarker simply reports it as absent.
+    const anchor = buildPropertyCommentAnchor("status", "offen", "7f3a");
+    expect(isAnchorMarkerId(anchor.markerId)).toBe(true);
+    expect(findAnchorMarker("Ein Satz ohne Marker.", anchor.markerId)).toBeNull();
+  });
+
+  it("refuses a property hint without a key and a key without a property", () => {
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "property" } })).toThrow(/property key is invalid/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "property", key: "" } })).toThrow(/property key is invalid/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", key: "status" } })).toThrow(/without a property/);
+  });
+
+  it("refuses cell coordinates on a property", () => {
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "property", key: "status", column: 0 } })).toThrow(/without a cell/);
+  });
+
+  it("resolves to the key while the property exists", () => {
+    const present = (k: string) => k === "status";
+    expect(resolvePropertyAnchor("status", present)).toEqual({ status: "key", key: "status" });
+  });
+
+  it("follows a rename through the trail the .base column carries", () => {
+    // Section 5: "Der Anker zieht mit." He cannot move - a comment is sealed -
+    // so the trail is followed on every read instead.
+    const present = (k: string) => k === "zustand";
+    const aliasOf = (former: string) => (former === "status" ? "zustand" : null);
+    expect(resolvePropertyAnchor("status", present, aliasOf)).toEqual({ status: "renamed", key: "zustand" });
+  });
+
+  it("follows a property renamed twice", () => {
+    const present = (k: string) => k === "phase";
+    const chain: Record<string, string> = { status: "zustand", zustand: "phase" };
+    expect(resolvePropertyAnchor("status", present, (f) => chain[f] ?? null)).toEqual({ status: "renamed", key: "phase" });
+  });
+
+  it("orphans instead of guessing when the property is gone", () => {
+    // SD3's rule: the card stays, it just has no place any more.
+    expect(resolvePropertyAnchor("status", () => false)).toEqual({ status: "orphan" });
+  });
+
+  it("does not spin on a rename trail that points at itself", () => {
+    const chain: Record<string, string> = { a: "b", b: "a" };
+    expect(resolvePropertyAnchor("a", () => false, (f) => chain[f] ?? null)).toEqual({ status: "orphan" });
+  });
+
+  it("reports no key for anchors that are not property anchors", () => {
+    const { anchor } = anchorPhrase(SENTENCE, "bis Ende des Jahres");
+    expect(propertyAnchorKey(anchor)).toBeNull();
+    expect(propertyAnchorKey(null)).toBeNull();
   });
 });

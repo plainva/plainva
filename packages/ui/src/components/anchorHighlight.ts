@@ -10,7 +10,14 @@ import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
  * the frame that stands in for a tint where a widget covers the range.
  */
 
-/** What the marked range is, when it is not running text. Mirrors `WorkspaceCommentAnchorDisplay`. */
+/**
+ * What the marked range is, when it is not running text.
+ *
+ * Deliberately NARROWER than `WorkspaceCommentAnchorDisplay`: not everything the
+ * protocol can point at is something a widget can frame. A property comment
+ * (Stufe E, E2) hangs on a frontmatter key, which the editor does not render at
+ * all - it can be named on a card, but never outlined in the text.
+ */
 export type AnchorFrameKind = "image" | "diagram" | "tableCell";
 
 export interface AnchorFrameHint {
@@ -20,6 +27,18 @@ export interface AnchorFrameHint {
   /** Column inside the rendered table, 0-based. Only for `tableCell`. */
   column?: number;
 }
+
+/** A frontmatter property a comment hangs on - named on the card, never framed. */
+export interface AnchorPropertyHint {
+  kind: "property";
+  /** The frontmatter key as it stood when the comment was written. */
+  key: string;
+  /** Set once the key was found under a former name (the `.base` rename trail). */
+  renamedTo?: string;
+}
+
+/** Everything a card may have to name. Mirrors `WorkspaceCommentAnchorDisplay`. */
+export type AnchorDisplayHint = AnchorFrameHint | AnchorPropertyHint;
 
 export interface AnchorHighlight {
   /** The comment this range belongs to. */
@@ -184,7 +203,46 @@ export function anchorFrameSignature(frame: AnchorFrame | null): string {
  * writer saw. A row inserted above still resolves the anchor, so presenting the
  * old coordinates as fact would be a quiet lie - the card says they may have moved.
  */
-export function anchorDisplayLabel(display: AnchorFrameHint): { key: string; params?: Record<string, unknown>; caveat?: string } {
+/**
+ * Narrows the stored display record to the hint a card or a widget can use.
+ *
+ * The core keeps ONE record with a widened `kind` (it is serialised into a
+ * sealed frame and must stay a plain shape); the UI keeps a discriminated
+ * union, because a frame and a property are named in different ways and only
+ * one of them can be drawn around a range. These two helpers are the single
+ * place that crosses between the two, so no call site has to cast.
+ */
+export function toAnchorFrameHint(display: { kind: string; row?: number; column?: number } | null | undefined): AnchorFrameHint | undefined {
+  if (!display) return undefined;
+  // A property has no range to frame - a comment on `status` marks a key in the
+  // frontmatter, and the tint would have nothing to paint on.
+  if (display.kind !== "image" && display.kind !== "diagram" && display.kind !== "tableCell") return undefined;
+  return { kind: display.kind, row: display.row, column: display.column };
+}
+
+/** The same for a card's label, which can name a property as well as a frame. */
+export function toAnchorDisplayHint(
+  display: { kind: string; row?: number; column?: number; key?: string } | null | undefined,
+  renamedTo?: string,
+): AnchorDisplayHint | undefined {
+  if (!display) return undefined;
+  if (display.kind === "property") {
+    // A property record without its key names nothing; the card then falls back
+    // to whatever it shows for an anchor it cannot describe.
+    return display.key ? { kind: "property", key: display.key, renamedTo } : undefined;
+  }
+  return toAnchorFrameHint(display);
+}
+
+export function anchorDisplayLabel(display: AnchorDisplayHint): { key: string; params?: Record<string, unknown>; caveat?: string } {
+  if (display.kind === "property") {
+    // A renamed property names BOTH: the key the writer saw is what makes the
+    // comment readable, the key it lives under today is what makes it findable.
+    if (display.renamedTo && display.renamedTo !== display.key) {
+      return { key: "workspaceSecurity.commentAtPropertyRenamed", params: { key: display.key, current: display.renamedTo } };
+    }
+    return { key: "workspaceSecurity.commentAtProperty", params: { key: display.key } };
+  }
   if (display.kind === "image") return { key: "workspaceSecurity.commentAtImage" };
   if (display.kind === "diagram") return { key: "workspaceSecurity.commentAtDiagram" };
   if (display.row === undefined || display.column === undefined) return { key: "workspaceSecurity.commentCellMoved" };

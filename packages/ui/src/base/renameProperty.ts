@@ -1,3 +1,4 @@
+import { MAX_PREVIOUS_KEYS } from "./baseFormat";
 import { parsePropertyFilter, serializePropertyFilter } from "./filterExpr";
 
 // Pure config side of renaming a `.base` property (Base-UX2 follow-up): every
@@ -15,7 +16,7 @@ export function renamePropertyInConfig(config: any, oldName: string, newName: st
   if (!nc.columns || Array.isArray(nc.columns)) nc.columns = {};
   const moved = schema !== undefined ? schema : nc.columns[oldName];
   delete nc.columns[oldName];
-  if (moved !== undefined) nc.columns[newName] = moved;
+  if (moved !== undefined) nc.columns[newName] = withPreviousKey(moved, oldName, newName);
 
   // Views: order, sort and the layout fields that address a property by name.
   if (Array.isArray(nc.views)) {
@@ -82,6 +83,62 @@ export function renamePropertyInConfig(config: any, oldName: string, newName: st
   }
 
   return nc;
+}
+
+/**
+ * Records the former name on the moved column so a comment anchored to that
+ * property can still find it (plan Stufe E, section 5: "Der Anker zieht mit").
+ *
+ * The trail has to live HERE, in the `.base` file, and not in the comment
+ * record: a comment is sealed and immutable, so nothing can rewrite its anchor,
+ * and a purely local migration of the stored anchor would leave every other
+ * device showing the same comment as orphaned - a silent divergence that is
+ * worse than orphaning it everywhere. The `.base` file is the one place that
+ * already changes during a rename, reaches every device through the ordinary
+ * sync, is invisible to Obsidian (it rides in the `plainva` namespace) and is
+ * written by both shells through this shared helper.
+ *
+ * Renaming back to a former name drops that entry rather than leaving a
+ * self-alias behind, and the list is capped so a column that gets renamed for
+ * years does not grow without bound - the oldest name falls off first.
+ */
+function withPreviousKey(column: any, oldName: string, newName: string): any {
+  if (column == null || typeof column !== "object" || Array.isArray(column)) return column;
+  const existing = Array.isArray(column.previousKeys) ? column.previousKeys.filter((k: any) => typeof k === "string" && k) : [];
+  const kept = existing.filter((k: string) => k !== oldName && k !== newName);
+  const previousKeys = [...kept, oldName].slice(-MAX_PREVIOUS_KEYS);
+  return { ...column, previousKeys };
+}
+
+/**
+ * Reads the rename trail back: which column claims a former key today.
+ *
+ * The counterpart to `withPreviousKey`, kept in the same file so writer and
+ * reader cannot drift apart. `resolvePropertyAnchor` in the core takes this as
+ * its `aliasOf` and walks the chain, so a column renamed twice through two
+ * different `.base` files still leads back to a live key.
+ *
+ * A former name that two columns both claim is ambiguous, and the honest answer
+ * is none: pointing a comment at an arbitrary one of them would attach it to a
+ * property its author never saw.
+ */
+export function propertyAliasResolver(configs: readonly any[]): (former: string) => string | null {
+  const byFormer = new Map<string, string | null>();
+  for (const config of configs) {
+    const columns = config?.columns;
+    if (!columns || typeof columns !== "object" || Array.isArray(columns)) continue;
+    for (const [name, column] of Object.entries(columns)) {
+      const previous = (column as any)?.previousKeys;
+      if (!Array.isArray(previous)) continue;
+      for (const former of previous) {
+        if (typeof former !== "string" || !former || former === name) continue;
+        const seen = byFormer.get(former);
+        // `undefined` = unseen, `null` = seen twice with different answers.
+        byFormer.set(former, seen === undefined || seen === name ? name : null);
+      }
+    }
+  }
+  return (former: string) => byFormer.get(former) ?? null;
 }
 
 /** True when the name is usable as a fresh bare property name in this base. */
