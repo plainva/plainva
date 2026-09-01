@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { MenuSurface, MenuItem, MenuSeparator } from "@plainva/ui";
 
 export type TableMenuAction =
+  | "cell-comment"
   | "row-above"
   | "row-below"
   | "row-delete"
@@ -24,6 +25,12 @@ interface Props {
   kind: "header" | "body";
   // Current alignment of the clicked column (to mark the active option).
   align: TableAlignValue;
+  /**
+   * Whether this note accepts comments (Stufe E, E1). The cell is the table's
+   * comment affordance: a widget click carries no text selection, and a floating
+   * bubble over every cell would be noise where a menu entry already fits.
+   */
+  canComment?: boolean;
   onAction: (action: TableMenuAction) => void;
   onClose: () => void;
 }
@@ -37,10 +44,14 @@ type Item =
  * point (plan Designsprache P5), so it shares look, keyboard model and
  * close behavior with every other menu.
  */
-export const TableContextMenu: React.FC<Props> = ({ x, y, kind, align, onAction, onClose }) => {
+export const TableContextMenu: React.FC<Props> = ({ x, y, kind, align, canComment, onAction, onClose }) => {
   const { t } = useTranslation();
 
   const items: Item[] = [];
+  if (canComment) {
+    items.push({ kind: "item", action: "cell-comment", label: t("workspaceSecurity.commentOnCell") });
+    items.push({ kind: "sep" });
+  }
   if (kind === "body") {
     items.push({ kind: "item", action: "row-above", label: t("editor.tableRowAbove", { defaultValue: "Insert row above" }) });
     items.push({ kind: "item", action: "row-below", label: t("editor.tableRowBelow", { defaultValue: "Insert row below" }) });

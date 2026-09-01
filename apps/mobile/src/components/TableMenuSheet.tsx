@@ -9,11 +9,13 @@ import {
   ArrowLeftToLine,
   ArrowRightToLine,
   ArrowUpToLine,
+  MessageSquarePlus,
   Trash2,
 } from "lucide-react";
 
 /** Mirrors the desktop TableContextMenu action vocabulary (C3). */
 export type TableMenuAction =
+  | "cell-comment"
   | "row-above"
   | "row-below"
   | "row-delete"
@@ -32,14 +34,20 @@ export type TableMenuAction =
  * SAME shared tableModel mutations in the host.
  */
 export function TableMenuSheet({
+  canComment,
   onAction,
   onClose,
 }: {
+  /** Stufe E (E1): the cell is where the table offers commenting - same entry as the desktop. */
+  canComment?: boolean;
   onAction: (action: TableMenuAction) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const rows: Array<{ action: TableMenuAction; icon: React.ReactNode; label: string; danger?: boolean }> = [
+    ...(canComment
+      ? [{ action: "cell-comment" as const, icon: <MessageSquarePlus size={ICON.head} />, label: t("workspaceSecurity.commentOnCell") }]
+      : []),
     // S21: the three destructive entries used to sit BETWEEN the harmless ones
     // — "delete row" between "row below" and "column left". Insert, then align,
     // then the deletions as one group at the end, behind a hairline.

@@ -6,6 +6,7 @@ import { parseMarkdownTable, serializeTable, setCell, type TableModel, type Tabl
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
+import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
 
 const HIDE = Decoration.replace({});
@@ -235,9 +236,18 @@ function replaceTableRange(view: EditorView, from: number, to: number, model: Ta
 // An <input> has its own input model, so combined with ignoreEvent /
 // ignoreMutation CodeMirror stays entirely out of the cell.
 class TableWidget extends WidgetType {
-  constructor(readonly model: TableModel, readonly from: number, readonly to: number) { super(); }
+  constructor(
+    readonly model: TableModel,
+    readonly from: number,
+    readonly to: number,
+    /** A comment pointing at this table, or null. See anchorHighlight. */
+    readonly frame: AnchorFrame | null = null,
+  ) { super(); }
   eq(other: TableWidget) {
     return other.from === this.from && other.to === this.to
+      // The frame joins the identity: without it CodeMirror keeps the DOM it
+      // already built and the frame would never appear.
+      && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame)
       && JSON.stringify(other.model) === JSON.stringify(this.model);
   }
   toDOM(view: EditorView) {
@@ -311,32 +321,60 @@ class TableWidget extends WidgetType {
       });
     };
 
+    // Row 0 is the header, row N the Nth body row - the same numbering the
+    // anchor stores, so a frame can find its cell without a second mapping.
+    const cells: HTMLTableCellElement[][] = [];
+
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
+    const headCells: HTMLTableCellElement[] = [];
     this.model.headers.forEach((h, i) => {
       const th = document.createElement("th");
       renderCell(th, h);
       th.style.textAlign = alignToCss(this.model.aligns[i] ?? null);
       wireCell(th, "header", -1, i);
       headRow.appendChild(th);
+      headCells.push(th);
     });
+    cells.push(headCells);
     thead.appendChild(headRow);
     table.appendChild(thead);
 
     const tbody = document.createElement("tbody");
     this.model.rows.forEach((row, r) => {
       const tr = document.createElement("tr");
+      const rowCells: HTMLTableCellElement[] = [];
       row.forEach((cell, i) => {
         const td = document.createElement("td");
         renderCell(td, cell);
         td.style.textAlign = alignToCss(this.model.aligns[i] ?? null);
         wireCell(td, "body", r, i);
         tr.appendChild(td);
+        rowCells.push(td);
       });
+      cells.push(rowCells);
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
+    if (this.frame) {
+      const cell = this.frame.kind === "tableCell"
+        ? cells[this.frame.row ?? -1]?.[this.frame.column ?? -1]
+        : undefined;
+      // Move a row and the coordinates point at nothing. Framing the whole
+      // table is then the honest answer - the card says the cell may have
+      // moved, rather than the frame quietly landing on a stranger.
+      decorateAnchorTarget({
+        view,
+        host: wrap,
+        target: cell ?? table,
+        range: { from: this.from, to: this.to },
+        display: this.frame,
+        frame: this.frame,
+        // No bubble: commenting on a cell lives in the cell's context menu,
+        // which already carries the row and column out.
+      });
+    }
     return wrap;
   }
   // Let the browser/cell handle its own events (typing, selection, context
@@ -371,7 +409,7 @@ function buildTableDecorations(state: EditorState, isLive: boolean): DecorationS
         const to = state.doc.line(endLine).to;
         const model = parseMarkdownTable(state.sliceDoc(from, to));
         if (model) {
-          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to), block: true }).range(from, to));
+          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFrameAt(state, from, to)), block: true }).range(from, to));
         }
         return false;
       },
@@ -390,7 +428,7 @@ export function tableField(isLive: boolean) {
   return StateField.define<DecorationSet>({
     create: (state) => buildTableDecorations(state, isLive),
     update: (value, tr) => {
-      if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
         return buildTableDecorations(tr.state, isLive);
       }
       return value;

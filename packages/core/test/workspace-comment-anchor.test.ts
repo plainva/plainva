@@ -207,6 +207,33 @@ describe("comment anchor bounds", () => {
   });
 });
 
+describe("comment anchor display hint (Stufe E)", () => {
+  const base: WorkspaceCommentAnchor = { markerId: "7f3a", quote: "x", before: "", after: "", approximateOffset: 0 };
+
+  it("accepts an anchor without a hint - the field is additive", () => {
+    expect(() => assertWorkspaceCommentAnchor(base)).not.toThrow();
+    expect(base.display).toBeUndefined();
+  });
+
+  it("accepts the three widget kinds", () => {
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image" } })).not.toThrow();
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "diagram" } })).not.toThrow();
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "tableCell", row: 2, column: 1 } })).not.toThrow();
+  });
+
+  it("rejects a hint that arrives malformed from another device", () => {
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "photo" } as never })).toThrow(/display kind/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "tableCell", row: -1 } })).toThrow(/out of range/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "tableCell", column: 1.5 } })).toThrow(/column/);
+  });
+
+  it("refuses cell coordinates on something that is not a cell", () => {
+    // An image with a column number is a contradiction: the renderer would have
+    // to guess which half of the hint to believe.
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", column: 0 } })).toThrow(/without a cell/);
+  });
+});
+
 describe("comment anchor round trip", () => {
   it("survives markers, stripping and resolution unchanged", () => {
     const { raw, anchor } = anchorPhrase(SENTENCE, "bis Ende des Jahres");

@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, ListChecks, MessageSquare } from "lucide-react";
-import { Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions } from "@plainva/ui";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -106,6 +106,18 @@ export function CommentsSheet({
     }
   };
 
+  /**
+   * Stufe E (E1): a widget anchor has no readable quote - its source is
+   * `![[picture.png]]` or a whole table's Markdown. The shared helper names the
+   * thing instead, so the phone and the desktop column say the same words.
+   */
+  const anchorText = (comment: WorkspaceCommentRecord) => {
+    if (!comment.anchor) return "";
+    if (!comment.anchor.display) return comment.anchor.quote;
+    const label = anchorDisplayLabel(comment.anchor.display);
+    return t(label.key, label.params);
+  };
+
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
@@ -129,7 +141,10 @@ export function CommentsSheet({
                     className="pv-comment-card__quote pv-comment-card__quote--tap"
                     onClick={() => onRevealAnchor(root)}
                   >
-                    {root.anchor.quote}
+                    {/* Stufe E (E1): a widget anchor has no readable quote - its
+                        source is `![[picture.png]]` or a whole table. The shared
+                        helper names the thing so both shells say the same. */}
+                    {anchorText(root)}
                   </button>
                 )}
                 {root.body && <CommentBody body={root.body} names={memberNames} />}

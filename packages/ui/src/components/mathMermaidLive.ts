@@ -3,6 +3,8 @@ import { EditorState, Range, RangeSetBuilder, StateField } from "@codemirror/sta
 import { syntaxTree } from "@codemirror/language";
 import { activeLineSet } from "./LivePreviewPlugin";
 import { renderMermaidDiagram, currentMermaidTheme } from "../services/mermaidRender";
+import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
+import i18n from "../i18n";
 
 /**
  * Live-preview rendering for LaTeX math and ```mermaid fences (Nachfass
@@ -259,10 +261,21 @@ export function mathInlinePlugin() {
 
 class MermaidLiveWidget extends WidgetType {
   // The theme joins the identity so a rebuild after a theme switch re-renders.
-  constructor(readonly code: string, readonly theme: string, readonly texts: MathMermaidTexts) { super(); }
+  constructor(
+    readonly code: string,
+    readonly theme: string,
+    readonly texts: MathMermaidTexts,
+    /** The fence's range in the document - what a comment on the diagram anchors to. */
+    readonly from: number,
+    readonly to: number,
+    readonly frame: AnchorFrame | null,
+  ) { super(); }
 
   eq(other: MermaidLiveWidget) {
-    return this.code === other.code && this.theme === other.theme;
+    // The frame joins the identity too: without it CodeMirror keeps the DOM it
+    // already built and the frame would never appear.
+    return this.code === other.code && this.theme === other.theme
+      && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame);
   }
 
   toDOM(view: EditorView) {
@@ -276,6 +289,17 @@ class MermaidLiveWidget extends WidgetType {
     el.style.cursor = "text"; // clicking flips to source (caret enters the fence)
     el.addEventListener("mousedown", (e) => caretIntoWidget(view, el, e));
     keepHeightInSync(view, el);
+    // Outline, not border: an outline sits outside layout entirely, so the frame
+    // cannot disturb the height measured just above.
+    decorateAnchorTarget({
+      view,
+      host: el,
+      target: el,
+      range: { from: this.from, to: this.to },
+      display: { kind: "diagram" },
+      frame: this.frame,
+      bubbleLabel: i18n.t("workspaceSecurity.commentOnDiagram"),
+    });
     el.textContent = this.texts.loading;
     el.style.color = "var(--text-faint)";
     void renderMermaidDiagram(this.code).then((result) => {
@@ -342,7 +366,14 @@ function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): Dec
         if (!code.trim()) return false;
         decos.push(
           Decoration.replace({
-            widget: new MermaidLiveWidget(code, currentMermaidTheme(), texts),
+            widget: new MermaidLiveWidget(
+              code,
+              currentMermaidTheme(),
+              texts,
+              firstLine.from,
+              lastLine.to,
+              anchorFrameAt(state, firstLine.from, lastLine.to),
+            ),
             block: true,
           }).range(firstLine.from, lastLine.to)
         );
@@ -392,7 +423,7 @@ export function mathMermaidBlockField(texts: MathMermaidTexts) {
   return StateField.define<DecorationSet>({
     create: (state) => buildBlockDecorations(state, texts),
     update: (value, tr) => {
-      if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
         return buildBlockDecorations(tr.state, texts);
       }
       return value;

@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, isVaultPathLink, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -64,12 +64,18 @@ export function EditorHost({
   initialDoc,
   onOpenNote,
   editable,
+  canComment,
+  onCommentAnchorRequest,
 }: {
   vault: MobileVault;
   path: string;
   initialDoc: string;
   onOpenNote: (path: string) => void;
   editable: boolean;
+  /** Stufe E (E1): this note accepts comments, so widgets offer the affordance. */
+  canComment?: boolean;
+  /** A widget was asked to be commented on. The screen owns the comment sheet. */
+  onCommentAnchorRequest?: (req: { from: number; to: number; display: AnchorFrameHint }) => void;
 }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -625,6 +631,13 @@ export function EditorHost({
     if (view && tableMenu) {
       const { from, to, kind, rowIndex, colIndex } = tableMenu;
       const safeTo = Math.min(to, view.state.doc.length);
+      // The cell is the table's comment affordance - a widget click carries no
+      // text selection, so the menu hands the range and the coordinates over.
+      if (action === "cell-comment") {
+        onCommentAnchorRequest?.({ from, to: safeTo, display: { kind: "tableCell", row: kind === "header" ? 0 : rowIndex + 1, column: colIndex } });
+        setTableMenu(null);
+        return;
+      }
       if (action === "table-delete") {
         let end = safeTo;
         if (end < view.state.doc.length && view.state.sliceDoc(end, end + 1) === "\n") end++;
@@ -1130,7 +1143,7 @@ export function EditorHost({
         </div>
       )}
 
-      {tableMenu && <TableMenuSheet onAction={handleTableAction} onClose={() => setTableMenu(null)} />}
+      {tableMenu && <TableMenuSheet canComment={canComment} onAction={handleTableAction} onClose={() => setTableMenu(null)} />}
 
       {emojiPick && (
         <EmojiPickSheet

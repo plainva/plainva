@@ -2,6 +2,8 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
 import { resolveVaultRelative } from "../adapters/pathGuard";
+import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
+import i18n from "../i18n";
 
 /**
  * Inline image previews in live/source mode. Vault images load as BLOB URLs
@@ -40,13 +42,24 @@ function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<str
 export type ImageContextFn = (e: MouseEvent, absolutePath: string) => void;
 
 class ImageWidget extends WidgetType {
-  constructor(readonly source: ImageSource, readonly key: string, readonly readBinary: ReadBinaryFn, readonly onImageContext?: ImageContextFn) { super(); }
+  constructor(
+    readonly source: ImageSource,
+    readonly key: string,
+    readonly readBinary: ReadBinaryFn,
+    /** The embed's range in the document — what a comment on the picture anchors to. */
+    readonly from: number,
+    readonly to: number,
+    readonly frame: AnchorFrame | null,
+    readonly onImageContext?: ImageContextFn,
+  ) { super(); }
 
   eq(other: ImageWidget) {
-    return this.key === other.key;
+    // The frame joins the identity: without it CodeMirror reuses the DOM it
+    // already built and the frame would never appear.
+    return this.key === other.key && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame);
   }
 
-  toDOM() {
+  toDOM(view: EditorView) {
     const container = document.createElement("span");
     container.style.marginTop = "0.5rem";
     container.style.marginBottom = "0.5rem";
@@ -77,6 +90,17 @@ class ImageWidget extends WidgetType {
     }
 
     container.appendChild(img);
+    decorateAnchorTarget({
+      view,
+      host: container,
+      // The frame goes around the picture, not the inline-block that carries
+      // the vertical margins — otherwise it would float above and below it.
+      target: img,
+      range: { from: this.from, to: this.to },
+      display: { kind: "image" },
+      frame: this.frame,
+      bubbleLabel: i18n.t("workspaceSecurity.commentOnImage"),
+    });
     return container;
   }
 }
@@ -102,7 +126,10 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readB
     }
 
     update(update: ViewUpdate) {
-      let needsRebuild = update.docChanged || update.viewportChanged;
+      let needsRebuild = update.docChanged || update.viewportChanged
+        // A comment appearing or being selected changes the frame, and the
+        // frame lives inside the widget's DOM.
+        || update.transactions.some(hasAnchorHighlightChange);
       if (!needsRebuild && update.selectionSet) {
         const oldRanges = update.startState.selection.ranges;
         const newRanges = update.state.selection.ranges;
@@ -153,7 +180,15 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readB
               }
             }
 
-            const widget = new ImageWidget(source, source.kind === "direct" ? source.url : source.absolutePath, readBinary, onImageContext);
+            const widget = new ImageWidget(
+              source,
+              source.kind === "direct" ? source.url : source.absolutePath,
+              readBinary,
+              matchStart,
+              matchEnd,
+              anchorFrameAt(view.state, matchStart, matchEnd),
+              onImageContext,
+            );
             if (!hideSyntax || isFocused) {
               // Cursor is here or source mode: show text AND image below it
               const dec = Decoration.widget({ widget, side: 1 });

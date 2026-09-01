@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
-import { Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -149,6 +149,17 @@ export function WorkspaceCommentsColumn({
     const status = resolutions.get(comment.commentId)?.status;
     if (status === "orphan") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorOrphan")}</span>;
     if (status === "moved") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorMoved")}</span>;
+    // Stufe E (E1): a widget covers the range, so there is no quote to show.
+    // The card names the thing instead - "on the image" beats an empty card.
+    if (comment.anchor.display) {
+      const label = anchorDisplayLabel(comment.anchor.display);
+      return (
+        <span className="pv-comment-card__state">
+          {t(label.key, label.params)}
+          {label.caveat && ` · ${t(label.caveat)}`}
+        </span>
+      );
+    }
     return null;
   };
 

@@ -17,7 +17,7 @@ import {
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
-import { anchorHighlightExtension, setAnchorHighlights, type AnchorHighlight } from "./anchorHighlight";
+import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -135,6 +135,17 @@ export interface EditorSessionDeps {
   onSelectionToolbar: (state: { x: number; y: number; above: boolean } | null) => void;
   /** Click inside a highlighted range → host selects that comment card. */
   onAnchorActivate?: (commentId: string) => void;
+  /**
+   * A widget offers "comment on this" only while the host says commenting is on
+   * - a plain note outside a workspace shows no bubble at all.
+   */
+  commentAnchorsEnabled?: () => boolean;
+  /**
+   * The reader asked to comment on a picture, a diagram or a table cell (E1).
+   * A widget click carries no text selection, so the host has to remember the
+   * target until the comment is actually written.
+   */
+  onCommentAnchorRequest?: (req: { from: number; to: number; display: AnchorFrameHint }) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
   /**
@@ -466,6 +477,12 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     tableLinkHandlers.of({
       onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
+    }),
+    // How a widget reaches the shell: the same facet route the rendered table
+    // cells already take for note links.
+    commentAnchorHandlers.of({
+      enabled: () => deps.current.commentAnchorsEnabled?.() === true,
+      request: (req) => deps.current.onCommentAnchorRequest?.(req),
     }),
     anchorHighlightExtension((commentId) => deps.current.onAnchorActivate?.(commentId)),
     editableComp.of(editableExtensions(cfg.editable !== false)),

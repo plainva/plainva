@@ -507,6 +507,8 @@ export function NoteScreen({
           editable={editing && workspaceCanWrite && !managedIndex}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
+          canComment={canComment}
+          onCommentAnchorRequest={() => setCommentsOpen(true)}
           onOpenNote={onOpenNote}
           path={path}
           vault={vault}

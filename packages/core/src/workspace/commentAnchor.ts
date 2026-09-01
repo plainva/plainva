@@ -20,6 +20,30 @@ import { assertSafeInteger, toHex, utf8Encode } from "./encoding.js";
  * encrypted workspace the note lies in the cloud as ciphertext; what people say
  * about it is often the more sensitive half and stays inside the sealed object.
  */
+/**
+ * What the range COVERS, when it is not running text.
+ *
+ * An image, a diagram and a table in the flowing text are not foreign objects:
+ * each is a CodeMirror widget laid over an ordinary range of Markdown, so the
+ * anchor above carries them unchanged. What the anchor cannot say by itself is
+ * that the range is a picture rather than a sentence - and the reader needs
+ * that, because a widget shows no text to tint. This field is the display hint
+ * that lets the editor draw a frame around the widget instead.
+ *
+ * It is deliberately SOFT (plan Stufe E, section 3): move a table row and the
+ * anchor still points at the right text, but the cell coordinates may no longer
+ * fit. Then the whole table is framed and the card says so - the same honesty
+ * as an orphaned comment, one step milder.
+ */
+export interface WorkspaceCommentAnchorDisplay {
+  /** What the marked range is. */
+  kind: "image" | "diagram" | "tableCell";
+  /** Row inside the rendered table; 0 is the header. Only for `tableCell`. */
+  row?: number;
+  /** Column inside the rendered table, 0-based. Only for `tableCell`. */
+  column?: number;
+}
+
 export interface WorkspaceCommentAnchor {
   /** Same id as in the HTML comment pair. Four lowercase hex characters. */
   markerId: string;
@@ -31,6 +55,12 @@ export interface WorkspaceCommentAnchor {
   after: string;
   /** Offset of the quote in the marker-free text when the comment was written. */
   approximateOffset: number;
+  /**
+   * Present when the range is covered by a widget. Additive: an anchor without
+   * it behaves exactly as in Stufe D, and a reader that does not know the field
+   * still resolves the range correctly.
+   */
+  display?: WorkspaceCommentAnchorDisplay;
 }
 
 /** How a stored anchor was found again - the four stages of section 5. */
@@ -174,7 +204,7 @@ function capBytes(value: string, limit: number): string {
  * Captures the soft anchor for a raw selection. Quote and context come from the
  * marker-free text so a nested marker never lands inside the stored quote.
  */
-export function buildCommentAnchor(raw: string, from: number, to: number, markerId: string): WorkspaceCommentAnchor {
+export function buildCommentAnchor(raw: string, from: number, to: number, markerId: string, display?: WorkspaceCommentAnchorDisplay): WorkspaceCommentAnchor {
   protocolAssert(isAnchorMarkerId(markerId), "format", "anchor marker id is invalid");
   const stripped = stripAnchorMarkers(raw);
   const start = stripped.toClean(Math.min(from, to));
@@ -186,6 +216,9 @@ export function buildCommentAnchor(raw: string, from: number, to: number, marker
     before: stripped.text.slice(Math.max(0, start - ANCHOR_CONTEXT_CHARS), start),
     after: stripped.text.slice(end, end + ANCHOR_CONTEXT_CHARS),
     approximateOffset: start,
+    // Only present where the range is covered by a widget: the card then frames
+    // the picture, the diagram or the cell instead of quoting text nobody sees.
+    ...(display ? { display } : {}),
   };
 }
 
@@ -234,4 +267,24 @@ export function assertWorkspaceCommentAnchor(anchor: WorkspaceCommentAnchor): vo
   protocolAssert(typeof anchor.before === "string" && [...anchor.before].length <= ANCHOR_CONTEXT_CHARS, "bounds", "comment anchor context is too large");
   protocolAssert(typeof anchor.after === "string" && [...anchor.after].length <= ANCHOR_CONTEXT_CHARS, "bounds", "comment anchor context is too large");
   assertSafeInteger(anchor.approximateOffset, 0, Number.MAX_SAFE_INTEGER, "comment anchor offset");
+  if (anchor.display !== undefined) assertWorkspaceCommentAnchorDisplay(anchor.display);
+}
+
+/**
+ * The display hint arrives from another device like the rest of the anchor, so
+ * it is validated like the rest of the anchor. A hint that fails here is not
+ * worth guessing at: the range still resolves, only the frame is lost.
+ */
+function assertWorkspaceCommentAnchorDisplay(display: WorkspaceCommentAnchorDisplay): void {
+  protocolAssert(
+    display.kind === "image" || display.kind === "diagram" || display.kind === "tableCell",
+    "format",
+    "comment anchor display kind is invalid",
+  );
+  const cell = display.kind === "tableCell";
+  // Row and column belong to a cell and nowhere else - an image with a column
+  // number would be a contradiction the renderer could not act on.
+  protocolAssert(cell || (display.row === undefined && display.column === undefined), "format", "comment anchor display carries cell coordinates without a cell");
+  if (display.row !== undefined) assertSafeInteger(display.row, 0, 100000, "comment anchor display row");
+  if (display.column !== undefined) assertSafeInteger(display.column, 0, 100000, "comment anchor display column");
 }

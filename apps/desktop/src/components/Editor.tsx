@@ -11,6 +11,7 @@ import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
+  type AnchorFrameHint,
 } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
@@ -1315,6 +1316,24 @@ export const Editor: React.FC<{
     return () => window.removeEventListener("plainva-open-table-menu", open);
   }, []);
 
+  /**
+   * The widget the reader asked to comment on (Stufe E, E1).
+   *
+   * A widget click carries no text selection, and selecting the widget's range
+   * instead would flip live preview back to raw Markdown - the very view the
+   * reader was pointing at. So the target is parked here and `postComment`
+   * prefers it over the live selection.
+   */
+  const commentTargetRef = useRef<{ from: number; to: number; display: AnchorFrameHint } | null>(null);
+
+  const requestWidgetComment = useCallback((req: { from: number; to: number; display: AnchorFrameHint }) => {
+    const view = sessionRef.current?.view;
+    commentTargetRef.current = req;
+    // The column shows a quote to compose against; a widget has none of its own,
+    // so it borrows the Markdown it replaces.
+    if (view) setSelectionQuote(view.state.sliceDoc(req.from, Math.min(req.to, req.from + 120)));
+  }, []);
+
   // Apply a context-menu action. The model is re-parsed from the current
   // document (the source of truth) so the mutation always targets fresh state.
   const handleTableMenuAction = (action: TableMenuAction) => {
@@ -1322,6 +1341,13 @@ export const Editor: React.FC<{
     if (view && tableMenu) {
       const { from, to, kind, rowIndex, colIndex } = tableMenu;
       const safeTo = Math.min(to, view.state.doc.length);
+      // Comment on the cell (Stufe E, E1). No model parse: the anchor covers the
+      // table's source range, the coordinates only say which cell to frame.
+      if (action === "cell-comment") {
+        requestWidgetComment({ from, to: safeTo, display: { kind: "tableCell", row: kind === "header" ? 0 : rowIndex + 1, column: colIndex } });
+        setTableMenu(null);
+        return;
+      }
       // Delete the whole table (requirement #9): drop the table's source range plus
       // one trailing newline so no empty line is left behind. No model parse needed.
       if (action === "table-delete") {
@@ -1760,6 +1786,8 @@ export const Editor: React.FC<{
         setSelectionQuote((previous) => (previous === next ? previous : next));
       },
       onAnchorActivate: (commentId) => setActiveCommentId(commentId),
+      commentAnchorsEnabled: () => commentAnchorsEnabled && !workspaceReadOnly,
+      onCommentAnchorRequest: (req) => requestWidgetComment(req),
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
@@ -1867,7 +1895,9 @@ export const Editor: React.FC<{
       if (comment.resolvedAt) continue;
       const resolution = anchorResolutions.get(comment.commentId);
       if (!resolution || resolution.status === "orphan") continue;
-      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId });
+      // A widget covers the range: the tint would have no text to paint on, so
+      // the widget draws a frame instead (Stufe E, E1).
+      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId, frame: comment.anchor?.display });
     }
     session.setAnchorHighlights(highlights);
   }, [workspaceComments, anchorResolutions, activeCommentId, viewMode, isLoading]);
@@ -1942,9 +1972,11 @@ export const Editor: React.FC<{
   const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
     const view = sessionRef.current?.view;
-    const range = view?.state.selection.main;
+    const parked = commentTargetRef.current;
+    commentTargetRef.current = null;
+    const range = parked ?? view?.state.selection.main;
     // A reply belongs to its thread, not to a place: it inherits the root anchor.
-    if (parentCommentId !== null || !view || !range || range.empty) {
+    if (parentCommentId !== null || !view || !range || range.from === range.to) {
       // A proposal without a passage has nothing to replace - the protocol
       // refuses it, so the column never offers one. Fail loudly if it slips.
       if (suggestion) throw new Error("workspace-suggestion-needs-selection");
@@ -1953,7 +1985,7 @@ export const Editor: React.FC<{
     }
     const raw = view.state.doc.toString();
     const markerId = mintAnchorMarkerId(raw);
-    const anchor = buildCommentAnchor(raw, range.from, range.to, markerId);
+    const anchor = buildCommentAnchor(raw, range.from, range.to, markerId, parked?.display);
     if (!anchor.quote) {
       if (suggestion) throw new Error("workspace-suggestion-needs-selection");
       await postWorkspaceComment(activePath, body, null, null);
@@ -2507,6 +2539,7 @@ export const Editor: React.FC<{
           y={tableMenu.y}
           kind={tableMenu.kind}
           align={tableMenu.align}
+          canComment={commentAnchorsEnabled && !workspaceReadOnly}
           onAction={handleTableMenuAction}
           onClose={() => setTableMenu(null)}
         />
