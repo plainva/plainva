@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-08-21
+Stan na: 2026-09-01
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -231,6 +231,7 @@ Wszystko, co specyficzne dla Plainva, ma nadaną przestrzeń nazw. Trzy miejsca:
 | `relationLimit` | `one` | Kardynalność: pojedynczy link. Pomiń dla braku ograniczeń. |
 | `reverseOf` | `{ base, property }` | Oznacza kolumnę **obliczanej relacji odwrotnej** (bez `input`) |
 | `rollup` | `{ through, of, fn, where }` | Oznacza kolumnę **obliczanej agregacji** (bez `input`) — patrz niżej |
+| `previousKeys` | lista wcześniejszych gołych kluczy (maks. 8) | Ślad zmiany nazwy: komentarz przypięty do tej kolumny odnajduje ją po zmianie nazwy. Zachowaj; nigdy nie wymyślaj wpisów. |
 
 **`views[i].plainva`** — na widok:
 

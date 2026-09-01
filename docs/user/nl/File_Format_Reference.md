@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-09-01
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -231,6 +231,7 @@ Alles wat Plainva-specifiek is, is namespaced. Drie plekken:
 | `relationLimit` | `one` | Kardinaliteit: één enkele link. Weglaten = onbeperkt. |
 | `reverseOf` | `{ base, property }` | Kenmerkt een **berekende omgekeerde-relatie**kolom (geen `input`) |
 | `rollup` | `{ through, of, fn, where }` | Markeert een **berekende aggregatie**-kolom (geen `input`) — zie hieronder |
+| `previousKeys` | lijst met eerdere kale sleutels (max. 8) | Hernoemspoor: een opmerking die aan deze kolom hangt, vindt hem na een hernoeming terug. Bewaren; nooit vermeldingen verzinnen. |
 
 **`views[i].plainva`** — per weergave:
 

@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-01
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -231,6 +231,7 @@ Everything Plainva-specific is namespaced. Three locations:
 | `relationLimit` | `one` | Cardinality: single link. Omit for unlimited. |
 | `reverseOf` | `{ base, property }` | Marks a **computed reverse-relation** column (no `input`) |
 | `rollup` | `{ through, of, fn, where }` | Marks a **computed rollup** column (no `input`) — see below |
+| `previousKeys` | list of former bare keys (max. 8) | Rename trail: lets a comment anchored to this column find it again after a rename. Preserve it; never invent entries. |
 
 **`views[i].plainva`** — per view:
 

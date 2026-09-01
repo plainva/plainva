@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-08-21
+Stand: 2026-09-01
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -231,6 +231,7 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 | `relationLimit` | `one` | Kardinalität: genau ein Link. Weglassen = unbegrenzt. |
 | `reverseOf` | `{ base, property }` | Kennzeichnet eine **berechnete Rückrelations**-Spalte (kein `input`) |
 | `rollup` | `{ through, of, fn, where }` | Kennzeichnet eine **berechnete Auswertungs**-Spalte (kein `input`) — siehe unten |
+| `previousKeys` | Liste früherer bloßer Schlüssel (max. 8) | Umbenennungs-Spur: eine an diese Spalte geheftete Anmerkung findet sie nach einer Umbenennung wieder. Erhalten, niemals erfinden. |
 
 **`views[i].plainva`** — pro View:
 

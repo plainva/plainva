@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-09-01
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -231,6 +231,7 @@ Tout ce qui est spécifique à Plainva est namespacé. Trois emplacements :
 | `relationLimit` | `one` | Cardinalité : lien unique. Omettre pour illimité. |
 | `reverseOf` | `{ base, property }` | Marque une colonne de **relation inverse calculée** (pas d'`input`) |
 | `rollup` | `{ through, of, fn, where }` | Marque une colonne d'**agrégation calculée** (pas d'`input`) — voir ci-dessous |
+| `previousKeys` | liste d'anciennes clés nues (max. 8) | Trace de renommage : un commentaire ancré à cette colonne la retrouve après un renommage. À conserver ; ne jamais inventer d'entrées. |
 
 **`views[i].plainva`** — par vue :
 
