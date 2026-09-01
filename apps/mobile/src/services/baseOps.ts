@@ -232,7 +232,12 @@ export async function scopedEmbedRows(
 }
 
 /** The base whose data source contains this note, with its column schema. */
-async function resolveGoverningBaseOf(
+/**
+ * The `.base` that governs a note - its columns are the alias trail for a
+ * renamed property (E2). Exported because the note screen needs it to keep a
+ * property comment on the row it belongs to after a column was renamed.
+ */
+export async function resolveGoverningBaseOf(
   v: MobileVault,
   notePath: string,
 ): Promise<{ basePath: string; columns: Record<string, any> } | null> {

@@ -3489,6 +3489,8 @@
     "commentAtProperty": "On the property “{{key}}”",
     "commentAtPropertyRenamed": "On the property “{{key}}” (now “{{current}}”)",
     "commentPropertyOrphan": "The commented property is gone.",
+    "commentThreadCount_one": "1 comment",
+    "commentThreadCount_other": "{{count}} comments",
     "commentOnNote": "On the whole note",
     "commentReply": "Reply",
     "commentReplyPlaceholder": "Write a reply…",

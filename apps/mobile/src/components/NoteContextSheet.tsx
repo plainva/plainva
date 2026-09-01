@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, FileText, ListTree, Lock, Plus } from "lucide-react";
+import { Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
 import {
   appendVerification,
   errorText,
@@ -24,6 +24,8 @@ import { commitCellValue } from "../services/baseOps";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
+import { RowActionSheet } from "./RowActionSheet";
+import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
@@ -79,6 +81,9 @@ export function NoteContextSheet({
   onRestored,
   onMutated,
   canWrite = true,
+  canComment = false,
+  commentCounts,
+  onCommentProperty,
   docked = false,
 }: {
   vault: MobileVault;
@@ -96,6 +101,13 @@ export function NoteContextSheet({
    * comment-only membership). Offering an editor that cannot save is worse
    * than showing the value: the write fails at the vault adapter, not here. */
   canWrite?: boolean;
+  /** True while the workspace grants `comment.create` (E2). */
+  canComment?: boolean;
+  /** Threads per frontmatter key - resolved by the note screen, which owns the
+   * comment list and the alias trail. */
+  commentCounts?: ReadonlyMap<string, number>;
+  /** Opens the comments sheet with a fresh anchor on that property (E2). */
+  onCommentProperty?: (key: string) => void;
   /** Third column instead of a sheet: no backdrop, no grip, no dismiss. */
   docked?: boolean;
 }) {
@@ -106,6 +118,14 @@ export function NoteContextSheet({
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [edit, setEdit] = useState<CellEditTarget | null>(null);
   const [tick, setTick] = useState(0);
+  /* Row actions on touch (E2). A comment dot the way the desktop has it needs
+     hover, which a finger does not have - and a second button INSIDE the
+     editable row is invalid HTML: nested buttons kill the inner one (that is
+     how the month grid ended up with nothing clickable in its day cell). So
+     the row keeps its shape, a long press opens the actions, and the count is
+     a plain span that both shapes can carry. */
+  const [propSheet, setPropSheet] = useState<{ key: string; value: unknown; editable: boolean } | null>(null);
+  const propPress = useLongPress<{ key: string; value: unknown; editable: boolean }>((row) => setPropSheet(row));
 
   useEffect(() => {
     let stale = false;
@@ -276,20 +296,48 @@ export function NoteContextSheet({
 
           {tab === "props" && (
             <>
-              {genericProps.map(([k, v]) =>
-                LOCKED.has(k) || !canWrite ? (
-                  <div className="m-row m-row--static" key={k}>
+              {genericProps.map(([k, v]) => {
+                const locked = LOCKED.has(k) || !canWrite;
+                const row = { key: k, value: v, editable: !locked };
+                const count = commentCounts?.get(k) ?? 0;
+                const press = canComment && onCommentProperty
+                  ? {
+                      onPointerDown: () => propPress.start(row),
+                      onPointerUp: propPress.clear,
+                      onPointerLeave: propPress.clear,
+                      onPointerCancel: propPress.clear,
+                      onContextMenu: (e: { preventDefault: () => void }) => { e.preventDefault(); setPropSheet(row); },
+                    }
+                  : {};
+                /* The badge is a SPAN on purpose: it sits inside a <button> row
+                   as often as inside a <div> one, and a button in a button is
+                   invalid HTML. It counts, it does not act. */
+                const badge = count > 0 ? (
+                  <span className="m-prop-comments" data-testid={`prop-comments-${k}`}>
+                    <MessageSquare size={ICON.meta} />
+                    {count}
+                  </span>
+                ) : null;
+                return locked ? (
+                  <div className="m-row m-row--static" key={k} {...press}>
                     <Lock className="m-chevron" size={ICON.meta} />
                     <span className="m-prop-key">{k}</span>
                     <span className="m-prop-val">{valueText(v)}</span>
+                    {badge}
                   </div>
                 ) : (
-                  <button className="m-row" key={k} onClick={() => editProp(k, v)}>
+                  <button
+                    className="m-row"
+                    key={k}
+                    onClick={() => { if (propPress.clicked()) editProp(k, v); }}
+                    {...press}
+                  >
                     <span className="m-prop-key">{k}</span>
                     <span className="m-prop-val">{valueText(v)}</span>
+                    {badge}
                   </button>
-                ),
-              )}
+                );
+              })}
               <div className="m-row m-row--static" data-testid="okf-trust-section">
                 <span className="m-prop-key">{t("trust.title")}</span>
                 <span className="m-prop-val">
@@ -464,6 +512,27 @@ export function NoteContextSheet({
           rows={[]}
           target={edit}
           vault={vault}
+        />
+      )}
+      {propSheet && (
+        <RowActionSheet
+          actions={[
+            ...(propSheet.editable
+              ? [{
+                  icon: <Pencil size={ICON.head} />,
+                  label: t("common.edit"),
+                  onClick: () => { const row = propSheet; setPropSheet(null); editProp(row.key, row.value); },
+                }]
+              : []),
+            {
+              icon: <MessageSquare size={ICON.head} />,
+              label: t("workspaceSecurity.commentOnProperty"),
+              testId: "prop-comment",
+              onClick: () => { const key = propSheet.key; setPropSheet(null); onCommentProperty?.(key); },
+            },
+          ]}
+          onClose={() => setPropSheet(null)}
+          title={propSheet.key}
         />
       )}
     </>

@@ -3459,6 +3459,7 @@
     "commentAtProperty": "针对属性“{{key}}”",
     "commentAtPropertyRenamed": "针对属性“{{key}}”（现为“{{current}}”）",
     "commentPropertyOrphan": "被评论的属性已不存在。",
+    "commentThreadCount_other": "{{count}} 条评论",
     "commentOnNote": "针对整篇笔记",
     "commentReply": "回复",
     "commentReplyPlaceholder": "写下回复…",

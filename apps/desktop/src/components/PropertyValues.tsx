@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ICON, useFixedPopover } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
-  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma,
+  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, MessageSquare,
 } from "lucide-react";
 import { CustomDatePicker } from "./DatePicker";
 import {
@@ -570,12 +570,16 @@ export interface PropertyRowProps {
   lockMeta?: boolean;
   /** okf_version: the value is display-only as well. */
   lockValue?: boolean;
+  /** Comment THREADS anchored to this property (a reply carries no anchor, so this counts threads). */
+  commentCount?: number;
+  /** Start a comment on this property. Absent when the workspace forbids commenting. */
+  onComment?: (key: string) => void;
   t: TFn;
   locale: string;
 }
 
 export function PropertyRow(props: PropertyRowProps) {
-  const { propKey, value, type, onChangeValue, onRename, onDelete, onChangeType, tagSuggestions, getValueSuggestions, curatedOptions, getRelationCandidates, onOpenLink, relationLimit, lockMeta, lockValue, t, locale } = props;
+  const { propKey, value, type, onChangeValue, onRename, onDelete, onChangeType, tagSuggestions, getValueSuggestions, curatedOptions, getRelationCandidates, onOpenLink, relationLimit, lockMeta, lockValue, commentCount, onComment, t, locale } = props;
   const [editKey, setEditKey] = useState(propKey);
   const [menuOpen, setMenuOpen] = useState(false);
   const typeBtnRef = useRef<HTMLButtonElement>(null);
@@ -615,6 +619,19 @@ export function PropertyRow(props: PropertyRowProps) {
           />
         )}
       </div>
+      {onComment && (
+        <button
+          type="button"
+          className="pv-comment-dot"
+          data-has={commentCount ? "true" : "false"}
+          data-tip={commentCount ? t("workspaceSecurity.commentThreadCount", { count: commentCount }) : t("workspaceSecurity.commentOnProperty")}
+          aria-label={commentCount ? t("workspaceSecurity.commentThreadCount", { count: commentCount }) : t("workspaceSecurity.commentOnProperty")}
+          onClick={() => onComment(propKey)}
+        >
+          <MessageSquare size={ICON.meta} aria-hidden="true" />
+          {commentCount ? <span>{commentCount}</span> : null}
+        </button>
+      )}
       {!lockMeta && (
         <button type="button" className="pv-del" data-tip={t("properties.deleteProperty")} aria-label={t("properties.deleteProperty")} onClick={() => onDelete(propKey)}>
           <Trash2 size={ICON.ui} />

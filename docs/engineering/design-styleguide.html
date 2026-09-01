@@ -193,6 +193,14 @@
   .pv-comment-demo__state { color:var(--warning-text); font-size:var(--text-xs); }
   .pv-comment-demo__mention { padding:0 var(--space-1); border-radius:var(--radius-xs); background:var(--accent-container); color:var(--on-accent-container); font-weight:500; }
   .pv-comment-demo__badge { display:inline-flex; align-items:center; gap:var(--space-1); color:var(--accent-color); font-size:var(--text-xs); }
+  .pv-comment-demo__prop { display:grid; gap:var(--space-1); }
+  .pv-comment-demo__proprow { display:grid; grid-template-columns:8rem minmax(0,1fr) auto; align-items:center; gap:var(--space-2); padding:var(--space-1) var(--space-2); border-radius:var(--radius-md); }
+  .pv-comment-demo__proprow[data-active="true"] { background:var(--accent-container); color:var(--on-accent-container); }
+  .pv-comment-demo__proprow code { color:var(--text-muted); font-size:var(--text-xs); }
+  .pv-comment-demo__proprow[data-active="true"] code { color:inherit; opacity:.75; }
+  .pv-comment-demo__dot { display:inline-flex; align-items:center; gap:var(--space-1); padding:0 var(--space-1); border-radius:var(--radius-pill); color:var(--accent-color); font-size:var(--text-xs); font-variant-numeric:tabular-nums; }
+  .pv-comment-demo__proprow[data-active="true"] .pv-comment-demo__dot { color:inherit; }
+  .pv-comment-demo__dot[data-empty="true"] { color:var(--text-faint); }
   .splitbtn { display: inline-flex; }
   .splitbtn .pvbtn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .splitbtn .pvbtn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 var(--space-1); border-left: 1px solid color-mix(in srgb, var(--accent-on) 35%, transparent); }
@@ -892,6 +900,15 @@
           <article class="pv-comment-demo__card" data-active="true"><blockquote>Existing objects keep their current key</blockquote><small>Anna Lee &middot; today, 09:14</small><span>Is that still true after a member leaves?</span></article>
           <article class="pv-comment-demo__card"><span class="pv-comment-demo__state">The commented text is gone.</span><small>Ben Roth &middot; yesterday</small><span>Add the epoch number here.</span></article>
         </aside>
+      </div>
+    </div>
+    <div class="card">
+      <strong>A property is commented on where it is edited</strong>
+      <p class="lede">A frontmatter property has no range in the body, so it cannot be selected — the affordance sits on the row that shows it. The dot appears on hover like the row's other secondary controls and STAYS visible once the property carries comments, with the THREAD count beside it: a reply inherits its thread's anchor, so counting messages would inflate one discussion into many remarks. The active property row takes the same accent pair as the active card, but tints no range in the text — it has none.</p>
+      <div class="pv-comment-demo__prop">
+        <div class="pv-comment-demo__proprow"><code>type</code><span>note</span><span class="pv-comment-demo__dot" data-empty="true">○</span></div>
+        <div class="pv-comment-demo__proprow" data-active="true"><code>status</code><span>In review</span><span class="pv-comment-demo__dot">● 2</span></div>
+        <div class="pv-comment-demo__proprow"><code>owner</code><span>Anna Lee</span><span class="pv-comment-demo__dot">● 1</span></div>
       </div>
     </div>
     <div class="card spec">

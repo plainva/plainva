@@ -25,7 +25,7 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { BasePicker } from "./BasePicker";
 
@@ -63,6 +63,21 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, trackPendingWrite } from "../services/pendingWrites";
+import { propertyCommentStore } from "../services/propertyComments";
+
+/**
+ * Text shown in the composer for a property comment, and the anchor quote.
+ *
+ * A frontmatter value may be a scalar, a list, or a nested map. A map has no
+ * short reading, so it yields "" and the anchor falls back to the KEY - the
+ * honest label for "commented on this property", not an invented excerpt.
+ */
+function propertyValueText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map((v) => propertyValueText(v)).filter(Boolean).join(", ");
+  if (typeof value === "object") return "";
+  return String(value);
+}
 
 export const Editor: React.FC<{
   activePath: string | null;
@@ -248,6 +263,30 @@ export const Editor: React.FC<{
     }
     return map;
   }, [workspaceComments, content, governingColumns]);
+
+  /**
+   * Thread count per frontmatter key, for the dot on the property row.
+   *
+   * THREADS, not messages: a reply inherits its thread's anchor and carries none
+   * of its own, so `propertyAnchorKey` is null for every reply and the filter
+   * counts roots by construction. Counting messages would inflate one busy
+   * discussion into the appearance of many separate remarks.
+   *
+   * An ORPHAN is left out - its key is gone from the frontmatter, so there is no
+   * row to put a number on; the card in the column still shows it. A renamed one
+   * counts against the key that exists TODAY, which is the row the reader sees.
+   */
+  const propertyCommentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const comment of workspaceComments) {
+      const key = comment.anchor ? propertyAnchorKey(comment.anchor) : null;
+      if (!key) continue;
+      const res = propertyResolutions.get(comment.commentId);
+      if (!res || res.status === "orphan") continue;
+      counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
+    }
+    return counts;
+  }, [workspaceComments, propertyResolutions]);
 
   useEffect(() => {
     if (managedIndex && viewMode !== 'read') setViewMode('read');
@@ -1364,6 +1403,49 @@ export const Editor: React.FC<{
    * prefers it over the live selection.
    */
   const commentTargetRef = useRef<{ from: number; to: number; display: AnchorFrameHint } | null>(null);
+  /** Frontmatter key a comment was started on, parked until the composer posts. */
+  const propertyTargetRef = useRef<string | null>(null);
+
+  /**
+   * Start a comment on a frontmatter property (plan Stufe E, section E2).
+   *
+   * The Properties panel is NOT rendered by this editor - the right sidebar and
+   * a peek window render it - so the request arrives through
+   * `propertyCommentStore`, which compares its path against ours before it lets
+   * anything through.
+   *
+   * Parks the KEY, not a range: a property has none, and the two routes must not
+   * be folded together (see `postComment`).
+   */
+  const requestPropertyComment = useCallback((key: string) => {
+    propertyTargetRef.current = key;
+    commentTargetRef.current = null;
+    const value = readFrontmatterPath(contentRef.current, [key]);
+    const shown = propertyValueText(value);
+    // The column shows a quote to compose against. A value that has no short
+    // reading leaves the key, which is what the anchor stores too.
+    setSelectionQuote(shown.length > 0 ? shown : key);
+  }, []);
+
+  // Publish the counts of the note we show, keyed BY that path: a peek on
+  // another note must never inherit them. Publishing is a no-op on unchanged
+  // input, so this effect cannot loop through the subscribers.
+  useEffect(() => {
+    if (!activePath || !workspaceCanReadComments) {
+      propertyCommentStore.clear();
+      return;
+    }
+    propertyCommentStore.publish(activePath, propertyCommentCounts, workspaceCanComment && !workspaceReadOnly);
+  }, [activePath, workspaceCanReadComments, workspaceCanComment, workspaceReadOnly, propertyCommentCounts]);
+
+  useEffect(() => {
+    propertyCommentStore.registerRequest(requestPropertyComment);
+    return () => propertyCommentStore.registerRequest(null);
+  }, [requestPropertyComment]);
+
+  // A closed editor leaves no counts behind: the panel outlives it (the sidebar
+  // keeps rendering), and a stale number would point at a note nobody has open.
+  useEffect(() => () => propertyCommentStore.clear(), []);
 
   const requestWidgetComment = useCallback((req: { from: number; to: number; display: AnchorFrameHint }) => {
     const view = sessionRef.current?.view;
@@ -2011,8 +2093,28 @@ export const Editor: React.FC<{
   const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
     const view = sessionRef.current?.view;
+    const parkedProperty = propertyTargetRef.current;
+    propertyTargetRef.current = null;
     const parked = commentTargetRef.current;
     commentTargetRef.current = null;
+    // A property comment targets a KEY, and the two routes must not be folded
+    // together: the text route wraps its range in an HTML comment marker pair,
+    // and a marker inside the YAML frontmatter would corrupt exactly the block
+    // the anchor depends on. So this returns BEFORE the marker branch below.
+    // The key IS the anchor; nothing is written into the Markdown.
+    if (parkedProperty !== null && parentCommentId === null) {
+      // A proposal replaces a passage. A property has none - the protocol
+      // refuses it, and the column never offers one here.
+      if (suggestion) throw new Error("workspace-suggestion-needs-selection");
+      const source = view ? view.state.doc.toString() : contentRef.current;
+      const anchor = buildPropertyCommentAnchor(
+        parkedProperty,
+        propertyValueText(readFrontmatterPath(source, [parkedProperty])),
+        mintAnchorMarkerId(source),
+      );
+      await postWorkspaceComment(activePath, body, null, anchor);
+      return;
+    }
     const range = parked ?? view?.state.selection.main;
     // A reply belongs to its thread, not to a place: it inherits the root anchor.
     if (parentCommentId !== null || !view || !range || range.from === range.to) {

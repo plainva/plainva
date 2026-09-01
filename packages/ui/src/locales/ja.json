@@ -3459,6 +3459,7 @@
     "commentAtProperty": "対象のプロパティ「{{key}}」",
     "commentAtPropertyRenamed": "対象のプロパティ「{{key}}」（現在は「{{current}}」）",
     "commentPropertyOrphan": "コメントしたプロパティがなくなりました。",
+    "commentThreadCount_other": "{{count}}件のコメント",
     "commentOnNote": "ノート全体",
     "commentReply": "返信",
     "commentReplyPlaceholder": "返信を書く…",

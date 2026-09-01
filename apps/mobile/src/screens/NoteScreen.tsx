@@ -25,12 +25,13 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
+import { Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { createWorkspaceObjectId, effectiveWorkspaceCapabilities, isPlainvaManagedIndex, resolveCommentAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
@@ -43,6 +44,14 @@ import { CommentsSheet } from "../components/CommentsSheet";
 import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
+
+/** A property value as the anchor quote carries it (desktop parity). */
+function propertyValueText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map((v) => propertyValueText(v)).filter(Boolean).join(", ");
+  if (typeof value === "object") return "";
+  return String(value);
+}
 
 /**
  * Note view (M3E mockup 2/3): read-first. Reading shows back · title ·
@@ -156,6 +165,78 @@ export function NoteScreen({
       .catch(() => { if (!stale) setCommentSelfId(null); });
     return () => { stale = true; };
   }, []);
+  /**
+   * Property comments (E2) - the count per frontmatter key and the anchor a
+   * fresh one carries.
+   *
+   * THREADS, not messages: a reply inherits its thread's anchor and carries
+   * none of its own, so `propertyAnchorKey` is null for every reply and the
+   * filter counts roots by construction. Counting messages would inflate one
+   * busy discussion into the appearance of many separate remarks.
+   *
+   * The alias trail for a RENAMED key lives in the governing `.base`
+   * (`previousKeys`), and it is loaded lazily: it only decides the fate of a
+   * key that is already gone from the frontmatter. In the common case nothing
+   * was renamed, and the walk over every `.base` of the vault never runs.
+   */
+  const [pendingPropertyAnchor, setPendingPropertyAnchor] = useState<WorkspaceCommentAnchor | null>(null);
+  const [propertyAliasColumns, setPropertyAliasColumns] = useState<Record<string, unknown> | null>(null);
+  const propertyAnchorKeys = useMemo(
+    () => comments.map((c) => (c.anchor ? propertyAnchorKey(c.anchor) : null)),
+    [comments],
+  );
+  const missingPropertyKey = useMemo(() => {
+    if (doc === null) return false;
+    const keys = new Set(frontmatterKeys(doc));
+    return propertyAnchorKeys.some((k) => k !== null && !keys.has(k));
+  }, [propertyAnchorKeys, doc]);
+  useEffect(() => {
+    let stale = false;
+    if (!missingPropertyKey) { setPropertyAliasColumns(null); return; }
+    void resolveGoverningBaseOf(vault, path)
+      .then((base) => { if (!stale) setPropertyAliasColumns((base?.columns as Record<string, unknown>) ?? null); })
+      .catch(() => { if (!stale) setPropertyAliasColumns(null); });
+    return () => { stale = true; };
+  }, [missingPropertyKey, vault, path]);
+  const propertyResolutions = useMemo(() => {
+    const map = new Map<string, WorkspacePropertyAnchorResolution>();
+    if (doc === null) return map;
+    const keys = new Set(frontmatterKeys(doc));
+    const aliasOf = propertyAliasResolver(propertyAliasColumns ? [{ columns: propertyAliasColumns }] : []);
+    comments.forEach((comment, i) => {
+      const key = propertyAnchorKeys[i];
+      if (!key) return;
+      map.set(comment.commentId, resolvePropertyAnchor(key, (candidate) => keys.has(candidate), aliasOf));
+    });
+    return map;
+  }, [comments, propertyAnchorKeys, doc, propertyAliasColumns]);
+  const propertyCommentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const res of propertyResolutions.values()) {
+      // An ORPHAN is left out - its key is gone from the frontmatter, so there
+      // is no row to put a number on; the card in the comments sheet still
+      // names it. A renamed one counts against the key that exists TODAY,
+      // which is the row the reader sees.
+      if (res.status === "orphan") continue;
+      counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
+    }
+    return counts;
+  }, [propertyResolutions]);
+  /**
+   * Starts a comment on a property row.
+   *
+   * The key IS the anchor; nothing is written into the Markdown. The marker id
+   * is minted and never inserted - a marker pair inside the YAML frontmatter
+   * would corrupt exactly the block the anchor depends on.
+   */
+  const startPropertyComment = (key: string) => {
+    if (doc === null) return;
+    setPendingPropertyAnchor(
+      buildPropertyCommentAnchor(key, propertyValueText(readFrontmatterPath(doc, [key])), mintAnchorMarkerId(doc)),
+    );
+    setInfo(null);
+    setCommentsOpen(true);
+  };
   /**
    * A Plainva-managed overview is read-only until the reader says otherwise
    * (desktop parity). Without the guard the next auto-update run silently
@@ -545,11 +626,17 @@ export function NoteScreen({
           comments={comments}
           memberNames={commentNames}
           selfMemberId={commentSelfId}
+          propertyResolutions={propertyResolutions}
           canComment={canComment}
           canWrite={workspaceCanWrite}
-          onClose={() => setCommentsOpen(false)}
+          onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); }}
           onSubmit={async (body, parentCommentId) => {
-            await postMobileComment(vault, { path, body, parentCommentId, authorName: getMobileSettings().verifierName });
+            /* A reply inherits its thread's anchor, so a parked property anchor
+               belongs to a ROOT only - otherwise the reply would claim a second
+               anchor of its own. */
+            const anchor = parentCommentId === null ? pendingPropertyAnchor : null;
+            await postMobileComment(vault, { path, body, parentCommentId, anchor, authorName: getMobileSettings().verifierName });
+            setPendingPropertyAnchor(null);
             setCommentTick((n) => n + 1);
           }}
           onResolve={(commentId) => {
@@ -752,9 +839,12 @@ export function NoteScreen({
 
       {info && !docked && (
         <NoteContextSheet
+          canComment={canComment}
           canWrite={workspaceCanWrite}
+          commentCounts={propertyCommentCounts}
           initialTab={info}
           onClose={() => setInfo(null)}
+          onCommentProperty={startPropertyComment}
           onMutated={() => {
             void vaultOps.read(vault, path).then((text) => {
               setDoc(text);
@@ -786,11 +876,14 @@ export function NoteScreen({
     <div className="m-worksplit">
       {page}
       <NoteContextSheet
+        canComment={canComment}
         canWrite={workspaceCanWrite}
+        commentCounts={propertyCommentCounts}
         docked
         initialTab={info ?? "props"}
         key={info ?? "props"}
         onClose={() => setInfo(null)}
+        onCommentProperty={startPropertyComment}
         onMutated={() => {
           void vaultOps.read(vault, path).then((text) => {
             setDoc(text);

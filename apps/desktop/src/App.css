@@ -341,11 +341,36 @@ option {
 .pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
 .pv-row:hover .pv-del { opacity: 0.55; }
 .pv-del:hover { opacity: 1; }
+/* Comment dot on a property row (plan Stufe E, E2). Small on purpose: the row
+   already carries a type button, a value editor and a delete button. It appears
+   on hover like the other secondary controls, but STAYS once the property
+   carries comments - a count you have to hover to discover is a count nobody
+   reads. The number is THREADS, not messages: replies carry no anchor. */
+.pv-comment-dot {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-sm);
+}
+.pv-row:hover .pv-comment-dot { opacity: 0.55; }
+.pv-comment-dot:hover, .pv-comment-dot:focus-visible { opacity: 1; }
+.pv-comment-dot[data-has="true"] { opacity: 1; color: var(--accent-color); }
 
 @container (max-width: 220px) {
   .pv-row { flex-direction: column; align-items: stretch; gap: 3px; }
   .pv-row-label { width: 100%; padding-top: 0; }
   .pv-del { position: absolute; top: 2px; right: 2px; }
+  .pv-comment-dot { position: absolute; top: 2px; right: 26px; }
 }
 
 /* Calendar day dots: hide once the month grid gets too narrow to fit them
@@ -427,6 +452,12 @@ option {
   position: absolute;
   top: 2px;
   right: 2px;
+}
+.pv-side-right[data-side-step="compact"] .pv-comment-dot,
+.pv-side-right[data-side-step="minimal"] .pv-comment-dot {
+  position: absolute;
+  top: 2px;
+  right: 26px;
 }
 /* Long values wrap instead of pushing the row wider than the panel. */
 .pv-side-right[data-side-step="compact"] .pv-row-value,

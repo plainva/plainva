@@ -34,6 +34,11 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
+import {
+  propertyCommentStore,
+  usePropertyCommentCounts,
+  useCanCommentOnProperties,
+} from "../services/propertyComments";
 
 interface PropertiesSectionProps {
   /** Reports the number of frontmatter keys (for the section header badge). */
@@ -412,6 +417,21 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     return list;
   }, [showStatusRow, showStaleRow, trust.status, trust.staleAfter, statusOptions]);
 
+  // Comment dot per property row (plan Stufe E, E2). The panel is rendered by
+  // the right sidebar and the peek window, never by the editor, so the counts
+  // travel through a small store keyed by PATH - a peek on another note must
+  // not inherit this note's numbers, and its dot must not reach the editor's
+  // document. Only a key that really sits in the frontmatter gets a dot: the
+  // lifecycle rows below are synthesised and may have no key at all, and an
+  // anchor on a key that does not exist would be orphaned the moment it lands.
+  const commentCounts = usePropertyCommentCounts(doc.path ?? "");
+  const canCommentOnProps = useCanCommentOnProperties(doc.path ?? "");
+  const notePath = doc.path ?? "";
+  const requestComment = useCallback(
+    (key: string) => { propertyCommentStore.request(notePath, key); },
+    [notePath]
+  );
+
   const trustLevel = trustLevelOf(trust);
   const generatedAt = generatedAtOf(trust);
   const actorWords = useMemo(() => ({ person: t("trust.person"), process: t("trust.process") }), [t]);
@@ -440,6 +460,8 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       curatedOptions={curatedOptions}
       lockMeta={lockMeta}
       lockValue={lockValue}
+      commentCount={commentCounts.get(key)}
+      onComment={canCommentOnProps && key in properties ? requestComment : undefined}
       getRelationCandidates={(q) => relationCandidates(q, relationBase)}
       onOpenLink={onOpenLink}
       relationLimit={relationLimit}

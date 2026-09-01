@@ -3489,6 +3489,8 @@
     "commentAtProperty": "Zur Eigenschaft „{{key}}“",
     "commentAtPropertyRenamed": "Zur Eigenschaft „{{key}}“ (heute „{{current}}“)",
     "commentPropertyOrphan": "Die kommentierte Eigenschaft gibt es nicht mehr.",
+    "commentThreadCount_one": "1 Kommentar",
+    "commentThreadCount_other": "{{count}} Kommentare",
     "commentOnNote": "Zur ganzen Notiz",
     "commentReply": "Antworten",
     "commentReplyPlaceholder": "Antwort schreiben…",

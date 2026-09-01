@@ -1543,6 +1543,17 @@ textarea {
   text-overflow: ellipsis;
   text-align: right;
 }
+/* E2: threads on this property. A count, not a control - it rides inside a
+   <button> row as often as inside a <div> one, so it must never be one. */
+.m-prop-comments {
+  align-items: center;
+  color: var(--text-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
 /* P5: sync conflict surfaces */
 .m-warn {
   color: var(--warning-text);

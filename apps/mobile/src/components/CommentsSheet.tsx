@@ -1,8 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Check, ListChecks, MessageSquare } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions } from "@plainva/ui";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
+import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -21,6 +21,14 @@ export interface CommentsSheetProps {
   memberNames: ReadonlyMap<string, string>;
   /** Who this device is - the member id in a workspace, the device id otherwise. */
   selfMemberId: string | null;
+  /**
+   * What became of each property anchor (Stufe E, E2), by comment id.
+   *
+   * A property comment never reaches the quote resolver - its key is not in the
+   * body - so its own verdict decides whether the card names the key as it was
+   * written, names the key it was renamed to, or admits the property is gone.
+   */
+  propertyResolutions?: ReadonlyMap<string, WorkspacePropertyAnchorResolution>;
   canComment: boolean;
   canWrite: boolean;
   onSubmit(body: string, parentCommentId: string | null): Promise<void>;
@@ -75,6 +83,7 @@ export function CommentsSheet({
   selfMemberId,
   canComment,
   canWrite,
+  propertyResolutions,
   onSubmit,
   onResolve,
   onApplySuggestion,
@@ -113,8 +122,24 @@ export function CommentsSheet({
    */
   const anchorText = (comment: WorkspaceCommentRecord) => {
     if (!comment.anchor) return "";
+    // Stufe E (E2): a property anchor names a frontmatter key, and its own
+    // verdict decides which key - the one that was written, or the one it was
+    // renamed to. A property that is gone says so; its quote (the value at the
+    // time of writing) would read like a passage that is still there.
+    const property = propertyResolutions?.get(comment.commentId);
+    if (property) {
+      if (property.status === "orphan") return t("workspaceSecurity.commentPropertyOrphan");
+      const hint = toAnchorDisplayHint(
+        comment.anchor.display,
+        property.status === "renamed" ? property.key : undefined,
+      ) ?? { kind: "property" as const, key: property.key };
+      const renamed = anchorDisplayLabel(hint);
+      return t(renamed.key, renamed.params);
+    }
     if (!comment.anchor.display) return comment.anchor.quote;
-    const label = anchorDisplayLabel(comment.anchor.display);
+    const hint = toAnchorDisplayHint(comment.anchor.display);
+    if (!hint) return comment.anchor.quote;
+    const label = anchorDisplayLabel(hint);
     return t(label.key, label.params);
   };
 
