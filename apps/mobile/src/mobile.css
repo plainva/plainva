@@ -4204,3 +4204,33 @@ textarea {
 .m-collide li + li {
   margin-top: var(--space-1);
 }
+
+/* The projection preview inside the publish sheet (Stufe C, M4): what the
+   published copy would contain, asked before it exists. Grouped so the counts
+   and the sample read as one answer rather than as more sheet rows. */
+.m-publish-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+}
+
+/* A note is arbitrary Markdown: it scrolls inside its own box in both
+   directions, because the sheet must never scroll sideways and a long note
+   must not push the publish button off the screen. */
+.m-publish-sample {
+  margin: 0;
+  max-height: 30vh;
+  overflow: auto;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -11,7 +11,9 @@ import {
   defaultPublishedPropertyPolicy,
   emptyPublicationManifest,
   evaluateWorkspaceAccess,
+  previewPublishedProjection,
   previewWorkspaceSlice,
+  publishableObjects,
   refreshWorkspaceSliceMaterialization,
   type WorkspaceSliceObject,
   inviteWorkspaceMember,
@@ -42,6 +44,8 @@ import {
   type CreatedWorkspacePairingRequest,
   type IVaultAdapter,
   type PersonalWorkspaceRuntime,
+  type PublishedProjectionPreview,
+  type PublishedSliceMode,
   type PublishedSliceProvider,
   type WorkspaceGovernanceUpdate,
   type WorkspaceObjectStore,
@@ -50,6 +54,7 @@ import {
   type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core";
+import { createLimiter } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
 import { Capacitor } from "@capacitor/core";
 import { secureCredentialStore } from "../platform/secureStore";
@@ -565,6 +570,36 @@ export async function listMobilePublications(
   state: WorkspaceStateStore,
 ): Promise<WorkspacePublicationRecord[]> {
   return state.listPublications();
+}
+
+/**
+ * What the published copy would actually contain, asked before it exists (M4).
+ *
+ * Composed from the same three pieces the refresh runs on — `publishableObjects`
+ * for the filter, the shared default property policy, `previewPublishedProjection`
+ * for the projection — because a preview that computes differently from the run
+ * it previews is worse than no preview. Mobile rebuilds none of it.
+ *
+ * Reads every covered note. That is the price of an answer about content rather
+ * than about ids, so it runs once per explicit step, with the reads overlapped
+ * and bounded. `mode: "exact"` runs no projection at all and comes back marked
+ * unchanged — that IS the honest preview for it.
+ */
+export async function previewMobilePublication(input: {
+  state: WorkspaceStateStore;
+  /** App-facing vault adapter — the notes are read as they are stored. */
+  vault: IVaultAdapter;
+  objectIds: readonly string[];
+  mode: PublishedSliceMode;
+}): Promise<PublishedProjectionPreview> {
+  const records = publishableObjects(input.objectIds, await input.state.listObjects());
+  const limiter = createLimiter(8);
+  const objects = await Promise.all(
+    records.map((record) =>
+      limiter.run(async () => ({ path: record.path, markdown: await input.vault.readTextFile(record.path) }))
+    )
+  );
+  return previewPublishedProjection({ mode: input.mode, objects, ...defaultPublishedPropertyPolicy() });
 }
 
 export async function assignMobileWorkspaceRole(input: {

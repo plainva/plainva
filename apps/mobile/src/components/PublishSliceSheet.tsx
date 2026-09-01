@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { publishedSliceProviderInstructions, type PublishedSliceProvider } from "@plainva/core";
+import {
+  publishedSliceProviderInstructions,
+  type PublishedProjectionPreview,
+  type PublishedSliceMode,
+  type PublishedSliceProvider,
+} from "@plainva/core";
 import { Banner, Button, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
@@ -39,11 +44,14 @@ export type PublishSliceValues = {
 export function PublishSliceSheet({
   sliceName,
   onClose,
+  onPreview,
   onSubmit,
 }: {
   /** Prefills the publication name — recipients recognise the slice, not an id. */
   sliceName: string;
   onClose: () => void;
+  /** Reads the covered notes and projects them — asked, never automatic (M4). */
+  onPreview: (mode: PublishedSliceMode) => Promise<PublishedProjectionPreview>;
   onSubmit: (values: PublishSliceValues) => Promise<void>;
 }) {
   const { t } = useTranslation();
@@ -53,8 +61,25 @@ export function PublishSliceSheet({
   const [provider, setProvider] = useState<PublishedSliceProvider>("google-drive");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ mode: PublishedSliceMode; data: PublishedProjectionPreview } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   const valid = name.trim().length > 0;
+
+  /* Derived rather than cleared in an effect: an answer computed for the other
+     mode is not this mode's answer, and a count that outlives the rule it was
+     computed for is worse than no count. */
+  const shown = preview && preview.mode === mode ? preview.data : null;
+
+  const runPreview = () => {
+    if (previewBusy) return;
+    setPreviewBusy(true);
+    setError(null);
+    void onPreview(mode)
+      .then((data) => setPreview({ mode, data }))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setPreviewBusy(false));
+  };
 
   const submit = () => {
     if (!valid || busy) return;
@@ -130,8 +155,11 @@ export function PublishSliceSheet({
           value={mode}
           onChange={(v) => setMode(v as "exact" | "sanitized")}
         />
+        {/* Once a preview exists, `unchanged` decides the wording, not the mode:
+            a sanitized publication that happens to remove nothing should say so
+            rather than promise a cleanup it did not perform. */}
         <p className="m-hint">
-          {mode === "exact"
+          {(shown ? shown.unchanged : mode === "exact")
             ? t("workspaceSecurity.projectionExactHint", {
                 defaultValue: "An exact publication hands the notes out as they are - nothing is removed.",
               })
@@ -139,6 +167,50 @@ export function PublishSliceSheet({
                 defaultValue: "This leaves the vault. Everything counted here is removed from the published copy.",
               })}
         </p>
+
+        {/* Explicit, because it reads every covered note. The desktop asks on its
+            own review step; the sheet has no steps, so the button is the step. */}
+        <Button variant="tonal" disabled={busy || previewBusy} data-testid="publish-preview" onClick={runPreview}>
+          {previewBusy ? <span className="m-actionspin" aria-hidden /> : null}
+          {t("workspaceSecurity.preview", { defaultValue: "Preview" })}
+        </Button>
+        {previewBusy && !shown && (
+          <p className="m-hint">
+            {t("workspaceSecurity.projectionLoading", {
+              defaultValue: "Reading the covered notes to show what would leave the vault.",
+            })}
+          </p>
+        )}
+        {shown && (
+          <div className="m-publish-preview" data-testid="publish-preview-result">
+            <p className="m-sectionlabel">{t("workspaceSecurity.previewCount", { count: shown.objectCount })}</p>
+            {!shown.unchanged && (
+              <>
+                <div className="m-row m-row--static">
+                  <span>{t("workspaceSecurity.projectionRemovedProperties", { defaultValue: "Properties removed" })}</span>
+                  <span>{shown.removedProperties.length}</span>
+                </div>
+                <div className="m-row m-row--static">
+                  <span>{t("workspaceSecurity.projectionNeutralizedLinks", { defaultValue: "Links neutralized" })}</span>
+                  <span>{shown.neutralizedLinks.length}</span>
+                </div>
+                <div className="m-row m-row--static">
+                  <span>{t("workspaceSecurity.projectionRemovedEmbeds", { defaultValue: "Embeds omitted" })}</span>
+                  <span>{shown.removedEmbeds.length}</span>
+                </div>
+              </>
+            )}
+            {shown.sample && (
+              <>
+                <p className="m-hint">{shown.sample.path}</p>
+                <p className="m-sectionlabel">{t("workspaceSecurity.projectionBefore", { defaultValue: "In the vault" })}</p>
+                <pre className="m-publish-sample"><code>{shown.sample.before}</code></pre>
+                <p className="m-sectionlabel">{t("workspaceSecurity.projectionAfter", { defaultValue: "Handed out" })}</p>
+                <pre className="m-publish-sample"><code>{shown.sample.after}</code></pre>
+              </>
+            )}
+          </div>
+        )}
 
         <button className="m-row" data-testid="publish-access" onClick={pickAccess}>
           <span>{t("workspaceSecurity.access", { defaultValue: "Access" })}</span>

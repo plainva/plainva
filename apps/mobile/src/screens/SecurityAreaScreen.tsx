@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -317,6 +317,23 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     });
     const chosen = open.find((entry) => entry.sliceId === picked);
     if (chosen) setPublishFor({ sliceId: chosen.sliceId, name: chosen.name });
+  };
+
+  /* What the published copy would contain, asked from inside the sheet (M4).
+     The coverage comes from the slice's `materializedObjectIds` - the same list
+     `isScopeMatch` authorises against - so the preview cannot describe a set the
+     publication would not actually carry. */
+  const previewPublish = async (mode: "exact" | "sanitized") => {
+    const rt = vault.workspaceRuntime;
+    const state = vault.workspaceState;
+    if (!rt || !state || !publishFor) throw new Error("workspace unavailable");
+    const slice = rt.policy.payload.slices.find((entry) => entry.sliceId === publishFor.sliceId);
+    return previewMobilePublication({
+      state,
+      vault: vault.files,
+      objectIds: slice?.materializedObjectIds ?? [],
+      mode,
+    });
   };
 
   /* Deliberately NOT through runGovernance: that helper swallows the failure
@@ -886,6 +903,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       {publishFor && <PublishSliceSheet
                        sliceName={publishFor.name}
                        onClose={() => setPublishFor(null)}
+                       onPreview={previewPublish}
                        onSubmit={submitPublish}
                      />}
       {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
