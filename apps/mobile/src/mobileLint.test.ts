@@ -2423,6 +2423,25 @@ describe("managing shares from the phone", () => {
     // The rows became actionable: a list you can only read is what this step
     // exists to end.
     expect(screen).toMatch(/onInviteMember|inviteMember/);
+    // Publications are the other half of that sentence, and this assertion used
+    // to stop before it. That is how a publications list that could only be
+    // read, under a banner pointing at the desktop, sat here through a whole
+    // stage without anything going red: the guard reassured without guarding.
+    // So it now names what this surface has to be able to do.
+    expect(screen, "the publication surface still sends people to the desktop").not.toMatch(
+      /publicationDesktopOnly/,
+    );
+    expect(screen, "no way to publish a slice from the phone").toMatch(
+      /publishSlice|createPublication/,
+    );
+    const at = screen.indexOf('"workspaceSecurity.publications"');
+    expect(at, "publication section not found").toBeGreaterThan(0);
+    // Bounded by the section, not a character window: the publish affordance
+    // may well sit above this block, and a window would answer for rows that
+    // still do nothing.
+    const next = screen.indexOf("<SectionLabel", at);
+    const section = screen.slice(at, next > at ? next : screen.length);
+    expect(section, "a publication list you can only read").toMatch(/onClick=/);
   });
 });
 

@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Check, Cloud, Copy, QrCode, RefreshCw, ShieldCheck, ShieldOff, Smartphone, Upload } from "lucide-react";
 import { QrScanner } from "../components/QrScanner";
+import { PublishSliceSheet, type PublishSliceValues } from "../components/PublishSliceSheet";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
-import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspaceRole } from "@plainva/core";
+import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobileWorkspaceGroup, createMobileWorkspaceSlice, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
-import { mConfirm, mPrompt } from "../services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 
 /** File chooser with an app-styled trigger (Punkt 16.8 / F5): the raw
  *  <input type=file> shows browser chrome in the OS language; the button here
@@ -99,6 +100,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [sliceName, setSliceName] = useState("");
   const [sliceFolder, setSliceFolder] = useState("");
   const [slicePreview, setSlicePreview] = useState<{ objectId: string; path: string }[] | null>(null);
+  /* The list comes from the state store, NOT from `policy.slices[].publication`
+     (M3): that block is the claim somebody ticked, this is the publication that
+     actually exists - own keys, own folder, own record. */
+  const [publications, setPublications] = useState<WorkspacePublicationRecord[]>([]);
+  const [publishFor, setPublishFor] = useState<{ sliceId: string; name: string } | null>(null);
 
   const [connection, setConnection] = useState<ConnectionState>({ kind: "checking" });
 
@@ -112,6 +118,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
+    setPublications(vault.workspaceState ? await listMobilePublications(vault.workspaceState) : []);
     // Bring the object counts in line before anyone reads them (finding 2026-08-25).
     const store = await getMobileWorkspaceObjectStore(vault.vaultId);
     const rt = vault.workspaceRuntime;
@@ -289,6 +296,54 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const addSlice = () => void runGovernance("slice", (store, rt) =>
     sliceObjects().then((objects) => createMobileWorkspaceSlice({ vaultId: vault.vaultId, store, runtime: rt, name: sliceName.trim(), folder: sliceFolder.trim(), objects }))
       .then(() => { setSliceName(""); setSliceFolder(""); setSlicePreview(null); }), t("workspaceSecurity.sliceCreated"));
+
+  /* Two doors into the same sheet (SC2): from a slice row, and from the
+     publications section. Only-at-creation would force deleting a slice to
+     publish it later - and a deleted slice takes its access rules with it. */
+  const startPublish = async (slice?: { sliceId: string; name: string }) => {
+    if (slice) { setPublishFor(slice); return; }
+    const rt = vault.workspaceRuntime;
+    if (!rt) return;
+    const open = rt.policy.payload.slices.filter(
+      (entry) => !publications.some((record) => record.sliceId === entry.sliceId),
+    );
+    if (open.length === 0) { toast.error(t("workspaceSecurity.publishNoSlice", { defaultValue: "Every Vault Slice is already published." })); return; }
+    // One candidate needs no question.
+    if (open.length === 1) { setPublishFor({ sliceId: open[0].sliceId, name: open[0].name }); return; }
+    const picked = await mSelect({
+      title: t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" }),
+      options: open.map((entry) => ({ value: entry.sliceId, label: entry.name })),
+      value: open[0].sliceId,
+    });
+    const chosen = open.find((entry) => entry.sliceId === picked);
+    if (chosen) setPublishFor({ sliceId: chosen.sliceId, name: chosen.name });
+  };
+
+  /* Deliberately NOT through runGovernance: that helper swallows the failure
+     into a toast, which would close the sheet and lose what was typed. The
+     sheet promises the opposite - the error surfaces there and the values
+     stay. So this rethrows and only clears on success. */
+  const submitPublish = async (values: PublishSliceValues) => {
+    const rt = vault.workspaceRuntime;
+    const state = vault.workspaceState;
+    if (!rt || !state || !publishFor) return;
+    await createMobilePublication({
+      vaultId: vault.vaultId,
+      store: await getMobileWorkspaceObjectStore(vault.vaultId),
+      runtime: rt,
+      state,
+      sliceId: publishFor.sliceId,
+      name: values.name,
+      mode: values.mode,
+      access: values.access,
+      provider: values.provider,
+    });
+    setPublishFor(null);
+    toast.success(t("workspaceSecurity.publicationCreated"));
+    // The desktop pokes the sync worker here; the phone has no handle on one,
+    // so the refresh below supplies the same effect.
+    await refresh();
+  };
 
   /**
    * What the folder would hand out, asked before it is signed (P6).
@@ -597,7 +652,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               says so, instead of showing "0 objects" as if it were merely empty. */}
           <GroupCard><RowList>{runtime.policy.payload.slices.map((slice) => {
             const broken = brokenSlices.find((entry) => entry.sliceId === slice.sliceId);
-            return <Row key={slice.sliceId} subtitle={broken ? t("workspaceSecurity.sliceBroken") : `${slice.kind} · ${slice.materializedObjectIds.length}`} title={slice.name} />;
+            const published = publications.some((record) => record.sliceId === slice.sliceId);
+            return <Row
+                     key={slice.sliceId}
+                     subtitle={broken ? t("workspaceSecurity.sliceBroken") : `${slice.kind} · ${slice.materializedObjectIds.length}`}
+                     title={slice.name}
+                     end={broken || published ? undefined : <IconButton
+                                                              label={t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })}
+                                                              onClick={() => void startPublish({ sliceId: slice.sliceId, name: slice.name })}
+                                                            ><Upload size={ICON.ui} /></IconButton>}
+                   />;
           })}</RowList></GroupCard>
           {/* Folder slices only here (S38): a selection slice needs a multi-select
               over objects and a dynamic one the query builder — neither surface
@@ -620,13 +684,21 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           <Button variant="tonal" disabled={busy || !sliceName.trim() || !sliceFolder.trim()} onClick={addSlice}>
             {busyAction === "slice" ? <span className="m-actionspin" aria-hidden /> : null}{t("workspaceSecurity.addSlice")}
           </Button>
-          <SectionLabel>{t("workspaceSecurity.publications")}</SectionLabel>
-          {/* Publishing runs on the desktop (S5b); the phone lists what exists
-              and says so plainly. The asymmetry is a recorded gap
-              (`workspace-publication-create` in featureParity.ts), not an
-              oversight - Stufe C builds it here and deletes the entry. */}
-          <Banner kind="info" rounded>{t("workspaceSecurity.publicationDesktopOnly", { defaultValue: "Publishing runs on the desktop for now. Publications created there are listed here." })}</Banner>
-          <GroupCard><RowList>{runtime.policy.payload.slices.filter((slice) => slice.publication).map((slice) => <Row key={`pub-${slice.sliceId}`} subtitle={`${slice.publication?.mode} · ${slice.publication?.access}`} title={slice.name} />)}</RowList></GroupCard>
+          <SectionLabel end={publications.length || undefined}>{t("workspaceSecurity.publications")}</SectionLabel>
+          {/* Publishing happens here now (M3). The list is the state store's,
+              not `policy.slices[].publication`: that block is what somebody
+              asked for, and a screen built on it lists a publication the moment
+              the box was ticked - including where the workspace behind it was
+              never created. */}
+          {publications.length > 0 && <GroupCard><RowList>{publications.map((record) => <Row
+                                                                                          key={record.publicationId}
+                                                                                          subtitle={`${t(`workspaceSecurity.publicationModeName.${record.config.mode}`, { defaultValue: record.config.mode })} · ${t(`workspaceSecurity.publicationAccessName.${record.config.access}`, { defaultValue: record.config.access })}`}
+                                                                                          title={record.config.name}
+                                                                                        />)}</RowList></GroupCard>}
+          <p className="m-hint">{t("workspaceSecurity.publicationChoiceHint")}</p>
+          <Button variant="tonal" disabled={busy || runtime.policy.payload.slices.length === 0} onClick={() => void startPublish()}>
+            {t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })}
+          </Button>
         </>}
         </>}
         {(area === "overview" || area === "recovery") && <>
@@ -702,8 +774,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             screen only described joining a TEAM, and a recipient who was handed
             a code for one shared folder had no reason to believe it belonged in
             this field. The phone is the likelier place to be a recipient, so it
-            is the place that has to say it. Creating a publication stays on the
-            desktop (`workspace-publication-create` in featureParity.ts). */}
+            is the place that has to say it. Creating one happens under Vault
+            Slices on this same screen (M3). */}
         <p className="m-hint">{t("workspaceSecurity.joinPublicationHint", { defaultValue: "A code for a shared publication works here too: connect this vault to the folder you were given, then paste the code. You only see what was published - not the rest of that vault." })}</p>
         <GroupCard><RowList>
           <SettingField label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}><TextInput value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} /></SettingField>
@@ -811,6 +883,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         <SectionLabel end={quarantine.length}>{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</SectionLabel>
         <GroupCard tone="warn"><RowList>{quarantine.map((entry) => <Row key={entry.quarantineId} subtitle={`${entry.reason} · ${entry.status}`} title={entry.artifactKind} />)}</RowList></GroupCard>
       </>}
+      {publishFor && <PublishSliceSheet
+                       sliceName={publishFor.name}
+                       onClose={() => setPublishFor(null)}
+                       onSubmit={submitPublish}
+                     />}
       {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
       {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
     </div>

@@ -4,10 +4,13 @@ import {
   applyWorkspaceGovernanceUpdate,
   assignWorkspaceRole,
   createPersonalWorkspaceBootstrap,
+  createPublication,
   createWorkspaceGroup,
   createWorkspaceSlice,
   createWorkspaceSliceDefinition,
   defaultPublishedPropertyPolicy,
+  emptyPublicationManifest,
+  evaluateWorkspaceAccess,
   previewWorkspaceSlice,
   refreshWorkspaceSliceMaterialization,
   type WorkspaceSliceObject,
@@ -39,8 +42,10 @@ import {
   type CreatedWorkspacePairingRequest,
   type IVaultAdapter,
   type PersonalWorkspaceRuntime,
+  type PublishedSliceProvider,
   type WorkspaceGovernanceUpdate,
   type WorkspaceObjectStore,
+  type WorkspacePublicationRecord,
   type WorkspaceRekeyMode,
   type WorkspaceRole,
   type WorkspaceStateStore,
@@ -466,6 +471,100 @@ export async function refreshMobileWorkspaceSliceCounts(input: {
   if (!refreshed) return false;
   await commitGovernance(input.vaultId, input.store, input.runtime, { policy: refreshed.policy, grants: [] });
   return true;
+}
+
+
+/**
+ * Turns a slice into a publication — the mobile half of the desktop's
+ * `addSlicePublication` (M3; schliesst die Paritaets-Luecke
+ * `workspace-publication-create`).
+ *
+ * Creating a slice WITH a `publication` block (above) writes only the policy's
+ * **claim**: mode, access and provider, as intent. This is the **realization** —
+ * the publication's own workspace, its own keys, its own folder. Both shells
+ * split it the same way, and they have to: the claim is governance and travels
+ * with the policy, while the keys are per-device material that never may.
+ *
+ * The id is derived inside `createPublication` and comes back on the handle; it
+ * is never passed in, so what gets persisted here is what was actually written.
+ */
+export async function createMobilePublication(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  /** Handed in, never built here — this service owns no state store. */
+  state: WorkspaceStateStore;
+  sliceId: string;
+  name: string;
+  mode: "exact" | "sanitized";
+  access: "read" | "comment" | "suggest";
+  provider: PublishedSliceProvider;
+}): Promise<string> {
+  // The same gate as the desktop: handing a slice to somebody outside the vault
+  // IS an invitation, so it takes the capability that governs invitations.
+  const permitted = evaluateWorkspaceAccess(input.runtime.policy.payload, {
+    memberId: input.runtime.memberId,
+    deviceId: input.runtime.device.publicIdentity.deviceId,
+    capability: "members.invite",
+  }).allowed;
+  if (!permitted) throw new Error("workspace-publication-not-permitted");
+
+  const deviceDisplayName =
+    input.runtime.policy.payload.devices.find(
+      (device) => device.deviceId === input.runtime.device.publicIdentity.deviceId,
+    )?.displayName ?? input.runtime.device.publicIdentity.displayName;
+
+  const handle = await createPublication({
+    runtime: input.runtime,
+    store: input.store,
+    config: {
+      sliceId: input.sliceId,
+      name: input.name,
+      mode: input.mode,
+      access: input.access,
+      provider: input.provider,
+      // Shared with the desktop rather than copied (S3b): two copies of a
+      // property policy are equal only until somebody edits one of them. An
+      // exact publication carries no allowlist — that is what "exact" means.
+      ...(input.mode === "sanitized"
+        ? defaultPublishedPropertyPolicy()
+        : { propertyAllowlist: null, privateProperties: [] }),
+    },
+    deviceDisplayName,
+    platform: Capacitor.getPlatform() === "ios" ? "ios" : "android",
+    // The service's own floor, kept identical to the desktop wizard's — a
+    // publication created on the phone stays joinable from a desktop of the
+    // same generation.
+    minimumClientVersion: MINIMUM_CLIENT_VERSION,
+  });
+
+  // Key material to the keystore, like the vault's own; the record that follows
+  // carries config and manifest, and nothing openable.
+  await persistMobilePublicationRuntime(input.vaultId, handle.publicationId, handle.runtime);
+  await input.state.savePublication({
+    publicationId: handle.publicationId,
+    sliceId: handle.config.sliceId,
+    config: handle.config,
+    manifest: emptyPublicationManifest(handle.publicationId),
+    lastError: null,
+    lastRefreshedAt: null,
+    createdAt: handle.config.createdAt,
+  });
+  return handle.publicationId;
+}
+
+/**
+ * What this device actually published, read from the state records.
+ *
+ * Deliberately NOT `policy.slices[].publication`: that block is the claim (see
+ * above), and a screen built on it lists a publication the moment somebody
+ * ticked the box — including where the realization never ran, or failed. A
+ * record exists only where a publication workspace exists.
+ */
+export async function listMobilePublications(
+  state: WorkspaceStateStore,
+): Promise<WorkspacePublicationRecord[]> {
+  return state.listPublications();
 }
 
 export async function assignMobileWorkspaceRole(input: {
