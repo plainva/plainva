@@ -202,10 +202,10 @@ describe("PimCacheRepository", () => {
     expect(cals.find((c) => c.id === "cal2")!.selected).toBe(true); // default on
 
     await repo.replaceTaskLists("acc1", [{ id: "l1", name: "A" }]);
-    expect((await repo.listTaskLists("acc1"))[0].selected).toBe(false); // task lists default OFF
-    await repo.setTaskListSelected("acc1", "l1", true);
+    expect((await repo.listTaskLists("acc1"))[0].selected).toBe(true); // task lists default ON, like calendars (E4)
+    await repo.setTaskListSelected("acc1", "l1", false);
     await repo.replaceTaskLists("acc1", [{ id: "l1", name: "A2" }]);
-    expect((await repo.listTaskLists("acc1"))[0].selected).toBe(true);
+    expect((await repo.listTaskLists("acc1"))[0].selected).toBe(false); // preserved
   });
 
   it("stores tasks and scope state round-trip", async () => {
@@ -344,5 +344,42 @@ describe("PimCacheRepository", () => {
     // until the next pull fills it.
     expect(rows).toEqual([{ uid: "kept", title: "Zahnarzt", reminders: null }]);
     await old.close();
+  });
+});
+
+describe("selection defaults and parked choices (feedback round 2026-09-01, M1)", () => {
+  let repo: PimCacheRepository;
+  beforeEach(async () => {
+    const db = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+    await initializeSchema(db);
+    repo = new PimCacheRepository(db);
+    await repo.upsertAccount({ id: "acc1", provider: "caldav", label: "N", config: {}, enabled: true });
+  });
+
+  it("a task list nobody chose yet is selected by default, like a calendar", async () => {
+    await repo.replaceTaskLists("acc1", [{ id: "l1", name: "Aufgaben" }]);
+    await repo.replaceCalendars("acc1", [{ id: "c1", name: "Kalender" }]);
+    expect((await repo.listTaskLists("acc1")).map((l) => l.selected)).toEqual([true]);
+    expect((await repo.listCalendars("acc1")).map((c) => c.selected)).toEqual([true]);
+  });
+
+  it("a choice the user makes beats a parked one — the parked value is dropped", async () => {
+    await repo.upsertAccount({
+      id: "acc1", provider: "caldav", label: "N", enabled: true,
+      config: { plainvaPendingTaskListSelections: { l1: false, l2: false }, plainvaPendingCalendarSelections: { c1: false } },
+    });
+    await repo.replaceTaskLists("acc1", [{ id: "l1", name: "A" }, { id: "l2", name: "B" }]);
+    // The parked `false` applied on the first replace — as intended for a
+    // selection imported before the rows existed.
+    expect((await repo.listTaskLists("acc1")).map((l) => l.selected)).toEqual([false, false]);
+    // Now the user switches l1 on. The parked value for l1 must not come back...
+    await repo.setTaskListSelected("acc1", "l1", true);
+    await repo.replaceTaskLists("acc1", [{ id: "l1", name: "A" }, { id: "l2", name: "B" }]);
+    expect((await repo.listTaskLists("acc1")).map((l) => l.selected)).toEqual([true, false]);
+    // ...and the same for a calendar.
+    await repo.replaceCalendars("acc1", [{ id: "c1", name: "K" }]);
+    await repo.setCalendarSelected("acc1", "c1", true);
+    await repo.replaceCalendars("acc1", [{ id: "c1", name: "K" }]);
+    expect((await repo.listCalendars("acc1")).map((c) => c.selected)).toEqual([true]);
   });
 });

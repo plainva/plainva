@@ -271,6 +271,31 @@ export class PimCacheRepository {
       accountId,
       calId,
     ]);
+    await this.forgetParkedSelection(accountId, "plainvaPendingCalendarSelections", calId);
+  }
+
+  /**
+   * A choice the user makes NOW beats one parked for later (feedback round
+   * 2026-09-01, M1). The parked map — a selection imported before the account's
+   * first sync created its rows — used to be applied on the next `replace…`
+   * regardless, so a still-pending `false` overwrote a toggle the user had set
+   * in the meantime. Once the user has spoken, the parked value for that id is
+   * moot and is dropped.
+   */
+  private async forgetParkedSelection(
+    accountId: string,
+    key: "plainvaPendingCalendarSelections" | "plainvaPendingTaskListSelections",
+    id: string
+  ): Promise<void> {
+    const account = await this.db.queryOne<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
+    const config = safeJson(account?.config ?? null) as Record<string, unknown> | null;
+    const parked = config?.[key] as Record<string, unknown> | undefined;
+    if (!config || !parked || !Object.prototype.hasOwnProperty.call(parked, id)) return;
+    const rest = { ...parked };
+    delete rest[id];
+    if (Object.keys(rest).length) config[key] = rest;
+    else delete config[key];
+    await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
   }
 
   // ---- events -------------------------------------------------------------
@@ -436,7 +461,13 @@ export class PimCacheRepository {
       const values: unknown[] = [];
       for (const l of group) {
         const pendingSelected = typeof pending?.[l.id] === "boolean" ? pending[l.id] as boolean : undefined;
-        values.push(accountId, l.id, l.name, (pendingSelected ?? prevSel.get(l.id) ?? false) ? 1 : 0);
+        // `?? true`, like the calendars four hundred lines up (feedback round
+        // 2026-09-01, M1/E4). It was `?? false` here and `?? true` there, so the
+        // moment a previous selection failed to match an id — a re-created
+        // account row, an adopted account, a profile re-import — the calendar
+        // came back ON and the task list came back OFF, silently. One shared
+        // code path, one default.
+        values.push(accountId, l.id, l.name, (pendingSelected ?? prevSel.get(l.id) ?? true) ? 1 : 0);
       }
       await this.db.execute(
         `INSERT INTO pim_tasklists (account_id, list_id, name, selected) VALUES ` +
@@ -466,6 +497,7 @@ export class PimCacheRepository {
       accountId,
       listId,
     ]);
+    await this.forgetParkedSelection(accountId, "plainvaPendingTaskListSelections", listId);
   }
 
   async replaceTasks(accountId: string, listId: string, tasks: PimTask[]): Promise<void> {

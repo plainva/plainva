@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { PendingShare } from "./services/shareTarget";
 import { consumeReminderIntent } from "./services/reminderScheduler";
-import { runReminderIntent } from "./services/reminderActions";
+import { runReminderIntent, type CalendarFocus } from "./services/reminderActions";
 
 /**
  * Runs the intents that arrive from outside the app — a launcher shortcut, a
@@ -32,7 +32,7 @@ export function PendingIntentRunner({
   onCaptureShared: (share: PendingShare) => void;
   onOpenToday: () => void;
   onOpenNote: (path: string) => void;
-  onOpenCalendar: () => void;
+  onOpenCalendar: (focus?: CalendarFocus) => void;
 }) {
   // A tapped reminder can arrive on a COLD start: the OS wakes the process and
   // the vault is not open yet. The scheduler therefore parks the intent and

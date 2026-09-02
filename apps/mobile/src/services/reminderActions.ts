@@ -12,11 +12,23 @@ import type { ReminderIntent } from "./reminderScheduler";
  * how to open things. This is the piece in between.
  */
 
+/** The appointment a tapped reminder points at — enough to find it in the cache. */
+export interface CalendarFocus {
+  uid: string;
+  accountId: string;
+  calendarId: string;
+  startTs: number;
+}
+
 export interface ReminderActionHost {
   /** Opens a note by vault path. */
   openNote: (path: string) => void;
-  /** Brings the calendar area to the front. */
-  openCalendar: () => void;
+  /**
+   * Brings the calendar to the front — at the appointment's day, with the
+   * appointment opened, when a focus is given (feedback round 2026-09-01,
+   * M4). Without one it simply opens the calendar.
+   */
+  openCalendar: (focus?: CalendarFocus) => void;
 }
 
 export async function runReminderIntent(intent: ReminderIntent, host: ReminderActionHost): Promise<void> {
@@ -33,6 +45,9 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
       }
       return;
     }
+    // For a task the intent's `uid` IS the note path: the scheduler keys task
+    // subjects by `row.path` (dueTaskSubjects), and `setTaskDone` above takes
+    // the same value. Not a uid-to-path lookup waiting to be written.
     host.openNote(intent.uid);
     return;
   }
@@ -56,5 +71,7 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
     return;
   }
 
-  host.openCalendar();
+  // "open": the tap lands on the appointment itself, not on "today". The
+  // intent carries everything needed; it was only never passed on.
+  host.openCalendar({ uid: intent.uid, accountId: intent.accountId, calendarId: intent.calendarId, startTs: intent.startTs });
 }

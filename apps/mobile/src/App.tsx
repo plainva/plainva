@@ -477,7 +477,7 @@ export default function App() {
           if (notePath) setNav((s2) => pushCapturedNote(s2, slots, notePath));
         })();
       }}
-      onOpenCalendar={() => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: "" }))}
+      onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
       onOpenToday={() => openDaily(isoOf(new Date()))}
       pendingShare={pendingShare}

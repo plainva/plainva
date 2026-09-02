@@ -31,7 +31,7 @@ import { OkfMigrationScreen } from "./screens/OkfMigrationScreen";
 import { ImageViewerScreen } from "./screens/ImageViewerScreen";
 import { NoteScreen } from "./screens/NoteScreen";
 import { PimAccountsScreen } from "./screens/PimAccountsScreen";
-import { PimCalendarScreen } from "./screens/PimCalendarScreen";
+import { PimCalendarScreen, parseCalendarFocus } from "./screens/PimCalendarScreen";
 import { FindReplaceScreen } from "./screens/FindReplaceScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { SettingsScreen } from "./SettingsScreen";
@@ -303,9 +303,10 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   today: (_e, c) => (
     <TodayScreen bump={c.bump} onBack={c.pop} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />
   ),
-  pimcalendar: (_e, c) => (
+  pimcalendar: (e, c) => (
     <PimCalendarScreen
       bump={c.bump}
+      focus={parseCalendarFocus(e.path)}
       onBack={c.pop}
       onOpenNote={c.openNote}
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}

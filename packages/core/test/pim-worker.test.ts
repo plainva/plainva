@@ -101,15 +101,17 @@ describe("PimWorker", () => {
     expect(cals.map((c) => c.id).sort()).toEqual(["cal1", "cal2"]);
     const events = await cache.listEvents(NOW - 86400_000, NOW + 30 * 86400_000);
     expect(events.map((e) => e.uid)).toEqual(["e1"]);
-    // Task LISTS are cached; tasks only for SELECTED lists (default off).
+    // Task LISTS are cached; tasks for SELECTED lists — and a new list is
+    // selected by default, like a new calendar (feedback round 2026-09-01, E4).
     expect((await cache.listTaskLists("a1")).map((l) => l.id)).toEqual(["l1"]);
-    expect(await cache.listTasks("a1", "l1")).toEqual([]);
+    expect((await cache.listTasks("a1", "l1")).map((t) => t.uid)).toEqual(["t1"]);
     expect(dataChanged).toHaveBeenCalled();
     expect(statuses).toEqual(["syncing", "idle"]);
 
-    await cache.setTaskListSelected("a1", "l1", true);
+    // Switched off by the user: the choice survives the next refresh.
+    await cache.setTaskListSelected("a1", "l1", false);
     await worker.triggerImmediate();
-    expect((await cache.listTasks("a1", "l1")).map((t) => t.uid)).toEqual(["t1"]);
+    expect((await cache.listTaskLists("a1")).map((l) => l.selected)).toEqual([false]);
   });
 
   // S8: the choke point every provider's rows pass through. A series occurrence

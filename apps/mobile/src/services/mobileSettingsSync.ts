@@ -92,6 +92,7 @@ import { readSyncRootFolder } from "./syncRootFolder";
 import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
+import { isMemberProfileField } from "@plainva/ui";
 
 const GUARD_VERSION = 1;
 const KEYFILE_PATH = ".plainva/sync/keyfile.json";
@@ -931,7 +932,15 @@ async function reportLegacyPublisher(vaultId: string, reason: LegacyClientDiagno
     recordLegacyClient(diagnostics, new Date().toISOString(), reason));
 }
 
-function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
+/**
+ * `memberId` is the workspace member this device belongs to, or null outside
+ * an encrypted workspace. Without it the phone wrote every member-scoped
+ * field — the calendar and task-list selection among them — into the SHARED
+ * profile while the desktop kept it in the member partition (feedback round
+ * 2026-09-01, M1). The two lanes never met, and the import stamped the
+ * phone's choice back on every cycle.
+ */
+function sidebandSteps(vault: MobileVault, device: string, memberId: string | null): SidebandSteps {
   const vaultId = vault.vaultId;
   return {
     async profile(raw: IVaultAdapter): Promise<SettingsSyncStep | null> {
@@ -952,6 +961,8 @@ function sidebandSteps(vault: MobileVault, device: string): SidebandSteps {
       return new SettingsSyncStep({
         port: createMobileProfilePort(vault),
         deviceId: device,
+        memberId: memberId ?? undefined,
+        isMemberField: isMemberProfileField,
         // Once per session and only for a real change (E1): the arrival is a
         // moment, not a state — from then on the diagnostics record names the
         // fields. Before the roundtrip fix this fired on nearly every cycle.
@@ -1052,7 +1063,11 @@ export async function prepareMobileSettingsSync(
   if ((await rawVault.exists(KEYFILE_PATH)) && !ring && typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("m-encryption-locked"));
   }
-  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, sidebandSteps(vault, await deviceId()));
+  // The member lane (M1): resolved once per prepare, like the desktop does per
+  // vault. Loaded lazily to keep the workspace module out of this one's imports.
+  const { loadMobileWorkspaceRuntime } = await import("./mobileWorkspaceSecurity");
+  const memberId = (await loadMobileWorkspaceRuntime(vault.vaultId).catch(() => null))?.memberId ?? null;
+  const runner = new MobileSidebandRunner(vault.vaultId, connectionId, keyfile, sidebandSteps(vault, await deviceId(), memberId));
   if (!ring) return { target: rawTarget, runner };
   const manifestBytes = await rawTarget.download(ENCRYPTION_MANIFEST_PATH);
   if (!manifestBytes) return { target: rawTarget, runner };

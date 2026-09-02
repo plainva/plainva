@@ -33,6 +33,44 @@ import { getMobileSettings, updateMobileSettings } from "../services/mobileSetti
  */
 
 type PimView = "day" | "3day" | "week" | "month" | "agenda";
+const ALL_VIEWS: PimView[] = ["day", "3day", "week", "month", "agenda"];
+/**
+ * The same key the desktop uses (`CalendarView.tsx`): device-local, not synced
+ * — which view you like on a phone is a fact about the phone. It was a bare
+ * `useState("day")` here while the overlays two lines down were persisted
+ * (feedback round 2026-09-01, A1).
+ */
+const VIEW_KEY = "plainva-calendar-view";
+function storedView(): PimView {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    return (ALL_VIEWS as string[]).includes(v ?? "") ? (v as PimView) : "day";
+  } catch {
+    return "day";
+  }
+}
+
+/** The appointment a pushed calendar should land on (a tapped reminder, M4). */
+export interface CalendarFocus {
+  uid: string;
+  accountId: string;
+  calendarId: string;
+  startTs: number;
+}
+
+/** Route payload → focus; an empty or foreign payload is simply "no focus". */
+export function parseCalendarFocus(path: string): CalendarFocus | undefined {
+  if (!path) return undefined;
+  try {
+    const v = JSON.parse(path) as Partial<CalendarFocus>;
+    if (typeof v.uid === "string" && typeof v.accountId === "string" && typeof v.calendarId === "string" && typeof v.startTs === "number") {
+      return { uid: v.uid, accountId: v.accountId, calendarId: v.calendarId, startTs: v.startTs };
+    }
+  } catch {
+    /* not a focus */
+  }
+  return undefined;
+}
 /** The hour gutter, one value for the header, the all-day strip and the grid. */
 const GUTTER_PX = 44;
 const PX_PER_HOUR = 40;
@@ -45,10 +83,13 @@ export function PimCalendarScreen({
   onMenu,
   onOpenSettings,
   onOpenNote,
+  focus,
 }: {
   /** Absent when this surface is pushed — the root offers the search. */
   onSearch?: () => void;
   bump: number;
+  /** Land on this appointment (a tapped reminder); see CalendarFocus. */
+  focus?: CalendarFocus;
   onBack?: () => void;
   /** App settings in the leading slot of a root surface (N1.5). */
   onMenu?: () => void;
@@ -58,8 +99,15 @@ export function PimCalendarScreen({
 }) {
   const { t, i18n } = useTranslation();
   const status = useSyncExternalStore(subscribePimStatus, getPimStatus);
-  const [view, setView] = useState<PimView>("day");
-  const [anchor, setAnchor] = useState(() => new Date());
+  const [view, setView] = useState<PimView>(storedView);
+  const [anchor, setAnchor] = useState(() => (focus ? new Date(focus.startTs) : new Date()));
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      /* preference simply doesn't persist */
+    }
+  }, [view]);
   const [events, setEvents] = useState<PimEventRow[]>([]);
   // Calendar colours, so an event without its own colour still reads as
   // belonging to its calendar (desktop parity).
@@ -290,6 +338,28 @@ export function PimCalendarScreen({
   // RSVP replies all live in the shared editor now (N1.3), so "Today" can open
   // an appointment without a second copy of the same decisions.
   const editor = useEventEditor({ bump, onOpenNote, rows: events });
+  // A tapped reminder lands on ITS appointment: the day view at its day, and
+  // the appointment opened — not "today" (feedback round 2026-09-01, M4).
+  // Looked up in the cache by its ids; a moved or deleted appointment says so
+  // and leaves the day view where the reminder pointed.
+  const focusedKey = focus ? `${focus.accountId}|${focus.calendarId}|${focus.uid}|${focus.startTs}` : null;
+  useEffect(() => {
+    if (!focus) return;
+    let alive = true;
+    setView("day");
+    setAnchor(new Date(focus.startTs));
+    void (async () => {
+      const cache = getPimCache();
+      const row = cache ? await cache.getEventByUid(focus.accountId, focus.calendarId, focus.uid).catch(() => null) : null;
+      if (!alive) return;
+      if (row) editor.openEvent(row);
+      else toast.error(t("reminders.eventGone"));
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedKey]);
 
   const periodTitle = () => {
     if (view === "day") return new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(anchor);

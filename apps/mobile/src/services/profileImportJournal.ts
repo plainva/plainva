@@ -217,12 +217,13 @@ export async function restoreProfileSnapshot(vault: MobileVault, snapshot: Profi
         config: { ...row.config, ...deviceLocalPimConfig(currentById.get(row.id)?.config ?? {}) },
       });
     }
-    for (const c of snapshot.pimSelections?.calendars ?? []) {
-      await cache.setCalendarSelected(c.accountId, c.id, c.selected);
-    }
-    for (const l of snapshot.pimSelections?.taskLists ?? []) {
-      await cache.setTaskListSelected(l.accountId, l.id, l.selected);
-    }
+    // The calendar and task-list SELECTION is deliberately NOT rolled back
+    // (feedback round 2026-09-01, M1). On a phone an import interrupted in the
+    // background is the normal case, and restoring the snapshot's selection
+    // here put the old choice back over one the user had made since — the
+    // fourth of four ways a task list "would not stay selected". A selection
+    // is not import state; it is the user's, and the import journal has no
+    // business with it. The snapshot still records it for diagnostics.
   }
 
   if (snapshot.bookmarks.existed) {
