@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
-import { CheckSquare } from "lucide-react";
+import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
@@ -28,6 +28,7 @@ export function useBaseCells({
   onOpenNote,
   onRowContextMenu,
   dateFormat = "default",
+  commentedProperties,
 }: {
   dbConfig: any;
   dbData: any[];
@@ -47,6 +48,12 @@ export function useBaseCells({
   onRowContextMenu?: (path: string, ev: React.MouseEvent) => void;
   /** Per-view display format of date values (plan W4/P12). */
   dateFormat?: DateDisplayFormat;
+  /**
+   * Cells carrying an open property comment, by note path and column key
+   * (Stufe E, E2). The host resolves the anchors once for the whole database;
+   * the cell layer only reads a number. Undefined = no workspace, no dots.
+   */
+  commentedProperties?: Map<string, Map<string, number>>;
 }) {
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
@@ -609,6 +616,22 @@ export function useBaseCells({
       );
     };
 
+    // Open property comments on THIS cell (Stufe E, E2). The dot is a SPAN, not
+    // a button: the cell itself already takes the click to start editing, and a
+    // button inside a clickable cell would swallow it. It counts, it does not act.
+    const commentCount = commentedProperties?.get(path)?.get(col) ?? 0;
+    const commentDot = commentCount > 0 ? (
+      <span
+        className="base-cell-comments"
+        data-testid={`cell-comments-${col}`}
+        data-tip={t("workspaceSecurity.commentThreadCount", { count: commentCount })}
+        aria-label={t("workspaceSecurity.commentThreadCount", { count: commentCount })}
+      >
+        <MessageSquare size={ICON.meta} />
+        {commentCount}
+      </span>
+    ) : null;
+
     return (
       <div
         onDoubleClick={(e) => { e.stopPropagation(); if (!isEditing && !isReadOnly && !isCheckbox) startEditing(path, col, val); }}
@@ -625,7 +648,10 @@ export function useBaseCells({
         {isEditing && !isReadOnly && !isCheckbox ? (
           renderEditor()
         ) : (
-          col === 'file.name' ? <span style={{ fontWeight: 500, cursor: "pointer", color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => { e.stopPropagation(); onOpenNote?.(path, e); }}>{displayVal}</span> : displayVal
+          <>
+            {col === 'file.name' ? <span style={{ fontWeight: 500, cursor: "pointer", color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => { e.stopPropagation(); onOpenNote?.(path, e); }}>{displayVal}</span> : displayVal}
+            {commentDot}
+          </>
         )}
       </div>
     );

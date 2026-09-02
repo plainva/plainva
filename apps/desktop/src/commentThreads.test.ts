@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { buildCommentOverview, buildCommentThreads, isCommentThreadOpen } from "@plainva/ui";
+import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, isCommentThreadOpen } from "@plainva/ui";
 
 /**
  * The thread rules used to live twice - once in the desktop column, once in the
@@ -72,5 +72,61 @@ describe("buildCommentOverview", () => {
     const [note, ...rest] = buildCommentOverview(entries, "m2", names, { onlyAddressed: true });
     expect(rest).toEqual([]);
     expect(note.path).toBe("mid.md");
+  });
+});
+
+describe("buildPropertyCommentCells", () => {
+  const propAnchor = (key: string) =>
+    ({
+      markerId: "ab12",
+      quote: "",
+      before: "",
+      after: "",
+      approximateOffset: 0,
+      display: { kind: "property", key },
+    }) as WorkspaceCommentRecord["anchor"];
+
+  it("counts one dot per open thread on the column that carries the key today", () => {
+    const cells = buildPropertyCommentCells(
+      [
+        {
+          path: "a.md",
+          comments: [
+            comment({ commentId: "1", anchor: propAnchor("status") }),
+            comment({ commentId: "2", anchor: propAnchor("status") }),
+            comment({ commentId: "3", anchor: propAnchor("due") }),
+          ],
+        },
+      ],
+      (key) => key === "status" || key === "due",
+    );
+    expect(cells.get("a.md")?.get("status")).toBe(2);
+    expect(cells.get("a.md")?.get("due")).toBe(1);
+  });
+
+  it("follows a rename and drops a key no column claims any more", () => {
+    const cells = buildPropertyCommentCells(
+      [{ path: "a.md", comments: [comment({ commentId: "1", anchor: propAnchor("state") }), comment({ commentId: "2", anchor: propAnchor("gone") })] }],
+      (key) => key === "status",
+      (former) => (former === "state" ? "status" : null),
+    );
+    expect(cells.get("a.md")?.get("status")).toBe(1);
+    expect(cells.get("a.md")?.has("gone")).toBe(false);
+  });
+
+  it("ignores replies and settled threads - a dot that never leaves is a dot nobody reads", () => {
+    const cells = buildPropertyCommentCells(
+      [
+        {
+          path: "a.md",
+          comments: [
+            comment({ commentId: "root", anchor: propAnchor("status"), resolvedAt: "2026-08-26T11:00:00.000Z" }),
+            comment({ commentId: "reply", parentCommentId: "root", anchor: null }),
+          ],
+        },
+      ],
+      () => true,
+    );
+    expect(cells.size).toBe(0);
   });
 });

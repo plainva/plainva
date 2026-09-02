@@ -5,9 +5,9 @@ import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY } from "@plainva/core";
+import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, clickSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { errorText, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { buildPropertyCommentCells, errorText, parseBaseConfig, propertyAliasResolver, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
@@ -118,7 +118,7 @@ export function BaseViewer({
   hostPath?: string;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments } = useVault();
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -332,6 +332,42 @@ export function BaseViewer({
   }, [peekPath]);
 
 
+  // Open property comments of the notes this database shows (Stufe E, E2).
+  // ONE vault-wide read per open: the records live outside the vault, so no file
+  // event announces them - a write anywhere in the app raises the window event
+  // instead, and a short debounce keeps a burst of replies to a single reload.
+  const [noteComments, setNoteComments] = useState<Map<string, WorkspaceCommentRecord[]>>(() => new Map());
+  const loadComments = useStableHandler(() => listAllWorkspaceComments());
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = () => {
+      loadComments()
+        .then((map) => { if (alive) setNoteComments(map); })
+        .catch(() => { if (alive) setNoteComments(new Map()); });
+    };
+    load();
+    const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 150); };
+    window.addEventListener("plainva-workspace-comments-changed", onChanged);
+    return () => { alive = false; clearTimeout(timer); window.removeEventListener("plainva-workspace-comments-changed", onChanged); };
+  }, [loadComments, vaultPath]);
+
+  // A comment anchors on the note's BARE frontmatter key; this database answers
+  // with the column that carries it today, following a rename through the
+  // `previousKeys` trail the same way the note's own panel does. Only columns
+  // this view actually shows can take a dot - an orphan has no cell to sit in.
+  const commentedProperties = useMemo(() => {
+    if (noteComments.size === 0 || visibleColumns.length === 0) return new Map<string, Map<string, number>>();
+    const rendered = new Set(visibleColumns);
+    const shown = new Set<string>();
+    for (const row of dbData) { const p = row?.['file.path']; if (typeof p === 'string') shown.add(p); }
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments }); }
+    if (entries.length === 0) return new Map<string, Map<string, number>>();
+    const aliasOf = propertyAliasResolver(dbConfig?.columns ? [{ columns: dbConfig.columns }] : []);
+    return buildPropertyCommentCells(entries, (key) => rendered.has(key), aliasOf);
+  }, [noteComments, dbData, visibleColumns, dbConfig]);
+
   // Shared cell layer (typed display + inline editing), used by every view.
   const cells = useBaseCells({
     dbConfig,
@@ -344,6 +380,7 @@ export function BaseViewer({
       setRowMenu({ path, at: { x: ev.clientX, y: ev.clientY } });
     },
     dateFormat: dbConfig?.views?.[activeViewIndex]?.dateFormat ?? "default",
+    commentedProperties,
   });
 
   // Register this base's row count so a markdown page that embeds it can show the

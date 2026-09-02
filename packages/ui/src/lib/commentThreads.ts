@@ -6,7 +6,7 @@
  * A thread is a structural fact about the records, not a property of the surface
  * that draws it, so it belongs here.
  */
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { propertyAnchorKey, resolvePropertyAnchor, type WorkspaceCommentRecord } from "@plainva/core";
 import { mentionsMember } from "./commentMentions.js";
 
 export interface CommentThread {
@@ -103,4 +103,51 @@ export function buildCommentOverview(
       Number(b.addressedCount > 0) - Number(a.addressedCount > 0) ||
       a.path.localeCompare(b.path, undefined, { sensitivity: "base" }),
   );
+}
+
+/** One note's comments, as the caller already holds them. */
+export interface PropertyCommentCellsInput {
+  path: string;
+  comments: readonly WorkspaceCommentRecord[];
+}
+
+/**
+ * Which CELLS of a `.base` carry an open property comment (Stufe E, E2).
+ *
+ * The panel of a note and a database ask the same question of the same anchor,
+ * but not of the same thing: the panel resolves a key against that note's
+ * FRONTMATTER, a database against its COLUMNS. Hence an orphan looks different
+ * on the two surfaces - the panel has no row for it and still shows the card,
+ * a table has no cell to put a dot on and shows none. The note's comment column
+ * keeps naming it either way, so nothing is lost, only unmarked.
+ *
+ * THREADS, not messages: a reply inherits its thread's anchor and carries none
+ * of its own, so `propertyAnchorKey` is null for every reply and roots are
+ * counted by construction. A settled thread - resolved, or a suggestion that was
+ * applied or declined - drops out, because a dot that never disappears is a dot
+ * nobody reads.
+ */
+export function buildPropertyCommentCells(
+  entries: readonly PropertyCommentCellsInput[],
+  hasColumn: (key: string) => boolean,
+  aliasOf?: (former: string) => string | null,
+): Map<string, Map<string, number>> {
+  const cells = new Map<string, Map<string, number>>();
+  for (const entry of entries) {
+    for (const comment of entry.comments) {
+      if (!comment.anchor) continue;
+      const key = propertyAnchorKey(comment.anchor);
+      if (!key) continue;
+      if (!isCommentThreadOpen(comment)) continue;
+      const resolution = resolvePropertyAnchor(key, hasColumn, aliasOf);
+      if (resolution.status === "orphan") continue;
+      let columns = cells.get(entry.path);
+      if (!columns) {
+        columns = new Map<string, number>();
+        cells.set(entry.path, columns);
+      }
+      columns.set(resolution.key, (columns.get(resolution.key) ?? 0) + 1);
+    }
+  }
+  return cells;
 }

@@ -25,10 +25,11 @@ import {
   Trash2,
   MoreHorizontal,
   CheckSquare,
+  MessageSquare,
   X,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
-import { parseWikiLinkValue, buildSubItemsTree, Button, capitalizeFirst, Chip, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -40,6 +41,8 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
+import { listAllMobileComments } from "../../services/mobileComments";
+import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -313,6 +316,58 @@ export function BaseScreen({
         .filter((key: string) => key !== "file.name" && !key.startsWith("file.")),
     [view],
   );
+
+  // Open property comments of the notes this database shows (Stufe E, E2).
+  // ONE read of the bundle per open - it holds them all anyway; a write on any
+  // screen raises the same window event the comments overview listens to.
+  const [noteComments, setNoteComments] = useState<Map<string, WorkspaceCommentRecord[]>>(() => new Map());
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = () => {
+      listAllMobileComments(vault)
+        .then((map) => { if (alive) setNoteComments(map); })
+        .catch(() => { if (alive) setNoteComments(new Map()); });
+    };
+    load();
+    const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 150); };
+    window.addEventListener("plainva-workspace-comments-changed", onChanged);
+    return () => { alive = false; clearTimeout(timer); window.removeEventListener("plainva-workspace-comments-changed", onChanged); };
+  }, [vault]);
+
+  // The anchor names the note's BARE frontmatter key; this database answers with
+  // the column carrying it today, following a rename the same way the note's own
+  // context sheet does. Only columns this view shows can take a dot.
+  const commentedProperties = useMemo(() => {
+    if (noteComments.size === 0 || orderedColumns.length === 0 || !rows) return new Map<string, Map<string, number>>();
+    const rendered = new Set(orderedColumns);
+    const shown = new Set(rows.map((r) => String(r["file.path"] ?? "")));
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments }); }
+    if (entries.length === 0) return new Map<string, Map<string, number>>();
+    const aliasOf = propertyAliasResolver(config?.columns ? [{ columns: config.columns }] : []);
+    return buildPropertyCommentCells(entries, (key) => rendered.has(key), aliasOf);
+  }, [noteComments, rows, orderedColumns, config]);
+
+  /**
+   * The comment count on a cell. A SPAN, never a button: it rides inside the
+   * <button> of a card property as often as inside a table cell, and a button
+   * in a button is invalid HTML that kills the inner control (issue #34).
+   */
+  const commentDot = (path: string, col: string) => {
+    const count = commentedProperties.get(path)?.get(col) ?? 0;
+    if (count === 0) return null;
+    return (
+      <span
+        className="m-prop-comments"
+        data-testid={`cell-comments-${col}`}
+        aria-label={t("workspaceSecurity.commentThreadCount", { count })}
+      >
+        <MessageSquare size={ICON.meta} />
+        {count}
+      </span>
+    );
+  };
 
   const rowTitle = (r: Row) => String(r["file.name"] ?? "");
   const rowPath = (r: Row) => String(r["file.path"] ?? "");
@@ -784,6 +839,7 @@ export function BaseScreen({
           }}
         >
           <span className="m-prop-key">{columnLabel(c)}</span> {displayCell(c, r[c])}
+          {commentDot(rowPath(r), c)}
         </button>
       ) : null,
     );
@@ -885,6 +941,7 @@ export function BaseScreen({
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, c))}>
                   {displayCell(c, r[c])}
+                  {commentDot(rowPath(r), c)}
                 </td>
               ))}
             </tr>
@@ -907,6 +964,7 @@ export function BaseScreen({
           {orderedColumns[0] && (
             <Chip onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, orderedColumns[0]))}>
               {displayCell(orderedColumns[0], r[orderedColumns[0]]) || "—"}
+              {commentDot(rowPath(r), orderedColumns[0])}
             </Chip>
           )}
         </div>
@@ -1098,6 +1156,7 @@ export function BaseScreen({
           {chips.map((x: { c: string; text: string }) => (
             <Chip size="sm" tone="muted" key={x.c}>
               {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
+              {commentDot(rowPath(r), x.c)}
             </Chip>
           ))}
         </span>
@@ -1139,6 +1198,7 @@ export function BaseScreen({
                     }
                   >
                     {cellText(r[groupBy]) || "—"}
+                    {commentDot(rowPath(r), groupBy)}
                   </Chip>
                   {boardMiniChips(r, groupBy)}
                 </div>
