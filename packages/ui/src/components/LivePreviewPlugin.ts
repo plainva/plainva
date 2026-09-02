@@ -8,6 +8,7 @@ import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
 import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
+import { listDepthAt } from "./listIndent";
 
 const HIDE = Decoration.replace({});
 
@@ -118,16 +119,37 @@ export function frontmatterHidePlugin(isLive: boolean): Extension {
   return [frontmatterStateField(isLive), frontmatterProtectPlugin(isLive)];
 }
 
+/**
+ * Bullet glyph per nesting level (feedback round 2026-09-01, T8b): disc,
+ * circle, square — then again, the way the read view's native `<ul>` and
+ * Obsidian do it. Purely visual: the source keeps its `-`, `*` or `+`.
+ */
+export const BULLET_GLYPHS = ["•", "◦", "▪"] as const;
+export function bulletGlyphForDepth(depth: number): string {
+  const level = Math.max(1, depth);
+  return BULLET_GLYPHS[(level - 1) % BULLET_GLYPHS.length];
+}
+
 class BulletWidget extends WidgetType {
-  eq() { return true; }
+  constructor(readonly glyph: string) { super(); }
+  eq(other: BulletWidget) { return other.glyph === this.glyph; }
   toDOM() {
     const span = document.createElement("span");
-    span.textContent = "•";
+    span.textContent = this.glyph;
     span.className = "cm-md-bullet";
     return span;
   }
 }
-const bulletDeco = Decoration.replace({ widget: new BulletWidget() });
+const bulletDecos = new Map<string, Decoration>();
+function bulletDecoFor(depth: number): Decoration {
+  const glyph = bulletGlyphForDepth(depth);
+  let deco = bulletDecos.get(glyph);
+  if (!deco) {
+    deco = Decoration.replace({ widget: new BulletWidget(glyph) });
+    bulletDecos.set(glyph, deco);
+  }
+  return deco;
+}
 
 // Interactive task checkbox. Clicking toggles the source character between
 // " " and "x" at the recorded document position.
@@ -636,7 +658,7 @@ export function markdownDecorationPlugin(isLive: boolean) {
                     if (/^\s*\[[ xX]\]/.test(after)) {
                       decos.push(HIDE.range(node.from, after.startsWith(" ") ? node.to + 1 : node.to));
                     } else {
-                      decos.push(bulletDeco.range(node.from, node.to));
+                      decos.push(bulletDecoFor(listDepthAt(state, node.from)).range(node.from, node.to));
                     }
                   }
                   return;

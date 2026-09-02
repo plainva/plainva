@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { forceFullParse } from "../test-parse";
-import { isListMarkerLine, listIndentStyle, listDepthAt } from "@plainva/ui";
+import { isListMarkerLine, listIndentStyle, listDepthAt, listMarkerPrefixLength, listItemAt, bulletGlyphForDepth } from "@plainva/ui";
 
 describe("isListMarkerLine", () => {
   it("recognizes bullet and ordered markers, nested or not", () => {
@@ -28,14 +28,46 @@ describe("listIndentStyle", () => {
     expect(listIndentStyle(-1, false)).toBeNull();
   });
 
-  it("gives marker lines a hanging indent (negative text-indent), one level in from body", () => {
-    expect(listIndentStyle(1, true)).toBe("padding-left:3em;text-indent:-1em;");
-    expect(listIndentStyle(2, true)).toBe("padding-left:4.5em;text-indent:-1em;");
+  it("falls back to an em hanging indent before the first measurement, half a step in from body", () => {
+    expect(listIndentStyle(1, true)).toBe("padding-left:2.25em;text-indent:-1em;");
+    expect(listIndentStyle(2, true)).toBe("padding-left:3.75em;text-indent:-1em;");
   });
 
   it("gives continuation lines only the block padding", () => {
-    expect(listIndentStyle(1, false)).toBe("padding-left:3em;");
-    expect(listIndentStyle(3, false)).toBe("padding-left:6em;");
+    expect(listIndentStyle(1, false)).toBe("padding-left:2.25em;");
+    expect(listIndentStyle(3, false)).toBe("padding-left:5.25em;");
+  });
+
+  it("uses the MEASURED prefix as the hanging indent and never lets it leave the line box", () => {
+    // The marker line pulls its first row back by exactly its rendered prefix...
+    expect(listIndentStyle(1, true, { own: 21.3, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);text-indent:-21.5px;");
+    // ...a continuation line is padded to the same edge and hangs by its OWN
+    // leading whitespace, so its text lands under the item text...
+    expect(listIndentStyle(1, false, { own: 9, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);text-indent:-9px;");
+    expect(listIndentStyle(1, false, { own: 0, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);");
+    // ...and a wide prefix (two tabs + `10.`) still gets a gutter in front of it.
+    expect(listIndentStyle(3, true, { own: 120, item: 120 })).toBe("padding-left:max(5.25em,124px);text-indent:-120px;");
+  });
+});
+
+describe("listMarkerPrefixLength", () => {
+  it("counts leading whitespace, the marker and its space — and a task box", () => {
+    expect(listMarkerPrefixLength("- item")).toBe(2);
+    expect(listMarkerPrefixLength("		* item")).toBe(4);
+    expect(listMarkerPrefixLength("    10. item")).toBe(8);
+    expect(listMarkerPrefixLength("- [ ] task")).toBe(6);
+    expect(listMarkerPrefixLength("- [x] done")).toBe(6);
+    expect(listMarkerPrefixLength("plain")).toBeNull();
+  });
+});
+
+describe("bulletGlyphForDepth", () => {
+  it("cycles disc, circle, square by level", () => {
+    expect(bulletGlyphForDepth(1)).toBe("•");
+    expect(bulletGlyphForDepth(2)).toBe("◦");
+    expect(bulletGlyphForDepth(3)).toBe("▪");
+    expect(bulletGlyphForDepth(4)).toBe("•");
+    expect(bulletGlyphForDepth(0)).toBe("•");
   });
 });
 

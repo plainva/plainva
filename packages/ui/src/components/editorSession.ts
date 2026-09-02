@@ -286,6 +286,10 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         { showAddActions: cfg.headerAddActions !== false }
       ),
       tableField(isLive),
+      // Visual list indentation (live + source), mirroring the read view (#2).
+      // Live mode hides the leading whitespace of list lines (T1: a tab's width
+      // and the hanging indent chase each other); source mode shows it raw.
+      listIndentPlugin({ hideLeadingWhitespace: isLive }),
       // Math + mermaid render in place in LIVE mode only (P3.4 + Nachfass);
       // source mode stays raw markdown. Caret inside = raw, like every widget.
       isLive
@@ -439,8 +443,6 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // the matching grammar for ```lang fences.
     markdown({ base: markdownLanguage, codeLanguages }),
     EditorView.lineWrapping,
-    // Visual list indentation (live + source), mirroring the read view (#2).
-    listIndentPlugin(),
     // Markdown list auto-continuation (#10): Enter/Tab/Shift-Tab.
     Prec.high(keymap.of(listKeymap)),
     // Selection formatting shortcuts (bold/italic/strike/highlight/link/task).

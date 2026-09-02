@@ -2631,3 +2631,98 @@ test('background settings: two switches, both off, and the reminder condition fo
 
 
 
+
+test('List indent: continuation text aligns under the item text at every level, with spaces, tabs, numbers and a task box', async ({ page }) => {
+  // Feedback round 2026-09-01, T1: the hanging indent used to be a constant
+  // (-1em) while the rendered prefix is not — at level three a continuation
+  // row sat LEFT of the bullet. The prefix is measured now; this pins the
+  // alignment across the shapes that made the constant wrong.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Listen.md'] =
+      '# Listen\n\n' +
+      '- eins\n  weiter eins\n' +
+      '  - zwei\n    weiter zwei\n' +
+      '    - drei\n      weiter drei\n' +
+      '\t- tab zwei\n\t  weiter tab zwei\n' +
+      '\t\t- tab drei\n\t\t  weiter tab drei\n' +
+      '10. zehn\n    weiter zehn\n' +
+      '- [ ] aufgabe\n  weiter aufgabe\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Listen', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Listen', { exact: true }).click();
+  await expect(page.locator('.cm-content').getByText('weiter tab drei')).toBeVisible();
+  // Let the plugin's measure/redraw round trip settle.
+  await page.waitForTimeout(300);
+
+  const leftOf = async (text: string) =>
+    page.evaluate((needle) => {
+      const lines = Array.from(document.querySelectorAll('.cm-content .cm-line'));
+      const line = lines.find((l) => (l.textContent ?? '').includes(needle));
+      if (!line) return null;
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      let node: Text | null;
+      while ((node = walker.nextNode() as Text | null)) {
+        const idx = node.data.indexOf(needle);
+        if (idx >= 0) {
+          const range = document.createRange();
+          range.setStart(node, idx);
+          range.setEnd(node, idx + 1);
+          return range.getBoundingClientRect().left;
+        }
+      }
+      return null;
+    }, text);
+
+  const pairs: Array<[string, string]> = [
+    ['eins', 'weiter eins'],
+    ['zwei', 'weiter zwei'],
+    ['drei', 'weiter drei'],
+    ['tab zwei', 'weiter tab zwei'],
+    ['tab drei', 'weiter tab drei'],
+    ['zehn', 'weiter zehn'],
+    ['aufgabe', 'weiter aufgabe'],
+  ];
+  for (const [item, cont] of pairs) {
+    const a = await leftOf(item);
+    const b = await leftOf(cont);
+    expect(a, item).not.toBeNull();
+    expect(b, cont).not.toBeNull();
+    expect(Math.abs((a as number) - (b as number)), `${cont} under ${item}`).toBeLessThan(1.5);
+  }
+  // Deeper levels sit further right, and the bullet glyph changes per level.
+  const l1 = (await leftOf('eins')) as number;
+  const l2 = (await leftOf('zwei')) as number;
+  const l3 = (await leftOf('drei')) as number;
+  expect(l2).toBeGreaterThan(l1);
+  expect(l3).toBeGreaterThan(l2);
+  const glyphs = await page.locator('.cm-md-bullet').allTextContents();
+  expect(glyphs.slice(0, 3)).toEqual(['•', '◦', '▪']);
+});
+
+test('Table widget: a wide table scrolls inside its own box, the note never scrolls sideways', async ({ page }) => {
+  // Feedback round 2026-09-01, T2: measured 190 px of overhang over the whole
+  // note for a six-column table; the colour stripe drifted with it.
+  await page.addInitScript(() => {
+    const header = '| ' + Array.from({ length: 8 }, (_, i) => `Spalte ${i + 1} mit langem Titel`).join(' | ') + ' |';
+    const sep = '|' + ' --- |'.repeat(8);
+    const row = '| ' + Array.from({ length: 8 }, (_, i) => `Wert ${i + 1} in einer breiten Zelle`).join(' | ') + ' |';
+    (window as any).mockFs['/test-vault/Breit.md'] = `# Breit\n\n${header}\n${sep}\n${row}\n\nText danach.\n`;
+  });
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto('/');
+  await expect(page.getByText('Breit', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Breit', { exact: true }).click();
+  await expect(page.locator('.cm-md-table')).toBeVisible();
+
+  const m = await page.evaluate(() => {
+    const scroller = document.querySelector('.cm-scroller') as HTMLElement;
+    const wrap = document.querySelector('.cm-md-table-wrap') as HTMLElement;
+    return {
+      noteOverhang: scroller.scrollWidth - scroller.clientWidth,
+      tableOverhang: wrap.scrollWidth - wrap.clientWidth,
+    };
+  });
+  expect(m.noteOverhang).toBe(0);
+  expect(m.tableOverhang).toBeGreaterThan(50);
+});

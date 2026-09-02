@@ -494,7 +494,13 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             }
             return <blockquote style={{ borderLeft: '4px solid var(--quote-border)', margin: '0.6em 0', paddingLeft: '16px', color: 'var(--text-muted)' }}>{children}</blockquote>;
           },
-          table: ({ node: _node, ...props }) => <table style={{ borderCollapse: 'collapse', width: 'auto', margin: '0.8em 0' }} {...props} />,
+          // A wide table scrolls inside its own box; the page never scrolls
+          // sideways (feedback round 2026-09-01, T2 — same rule as the editor).
+          table: ({ node: _node, ...props }) => (
+            <div className="pv-reader-table-wrap">
+              <table style={{ borderCollapse: 'collapse', width: 'auto' }} {...props} />
+            </div>
+          ),
           thead: ({ node: _node, ...props }) => <thead style={{ background: 'var(--bg-secondary)' }} {...props} />,
           th: ({ node: _node, ...props }) => <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'left', verticalAlign: 'top', color: 'var(--text-main)' }} {...props} />,
           td: ({ node: _node, ...props }) => <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} {...props} />,

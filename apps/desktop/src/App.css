@@ -231,6 +231,14 @@ button.pv-doc-header-icon:hover {
   background: transparent;
 }
 
+/* Read view: a wide table scrolls inside its own box, the page never scrolls
+   sideways (feedback round 2026-09-01, T2 — same rule as the editor widget). */
+.pv-reader-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0.8em 0;
+}
+
 /* Version-history diff (@codemirror/merge): theme the MergeView with tokens —
    its stock chunk colors are light-theme literals and unreadable on dark
    themes. The rgba overlays stay legible on both. */

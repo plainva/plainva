@@ -125,6 +125,15 @@ export const editorTheme = EditorView.theme({
     padding: "4px 0",
     overflowX: "auto",
     cursor: "text",
+    // The wrapper must not report the table's width as its own: `.cm-content`
+    // grows to its widest child, and a six-column table then stretched the
+    // whole note — every line scrolled sideways, the colour stripe drifted
+    // with it (feedback round 2026-09-01, T2). Zero intrinsic width plus a
+    // 100 % minimum keeps the wrapper at the note's width, so only the table
+    // scrolls, inside its own box.
+    width: 0,
+    minWidth: "100%",
+    boxSizing: "border-box",
   },
   ".cm-md-table": {
     borderCollapse: "collapse",
