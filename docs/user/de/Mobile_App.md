@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-08-26
+Stand: 2026-09-02
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -235,3 +235,9 @@ Auf einem Tablet oder einem gedrehten großen Telefon bekommst Du damit dasselbe
 **Die Auswahl gehört zum Vault**, nicht zum Gerät: Was Du am Rechner einblendest, findest Du hier vor, sobald die Einstellungs-Synchronisation gelaufen ist. Terminieren geht am Telefon über das Blatt des Eintrags — Ziehen bleibt dem Rechner vorbehalten.
 
 Umgekehrt zeigt die Kalenderansicht einer Datenbank auf Wunsch die **Zahl der echten Termine** eines Tages in der Ecke der Zelle — Du siehst, wogegen Du planst.
+
+## Benachrichtigungen zu Anmerkungen
+
+Hat jemand etwas an eine Notiz geschrieben, kann Plainva Dich benachrichtigen — dieselben drei Stufen und derselbe Vorschau-Schalter wie am Desktop, unter **Einstellungen → Inhalt & Struktur**. Ein Tipp auf die Meldung öffnet die Notiz und hebt die gemeinte Karte hervor. Eine einzelne Notiz schaltest Du im Kommentar-Blatt über die Glocke stumm.
+
+**Die Meldung kommt hier später als am Desktop, und das ist eine Eigenschaft, kein Fehler.** Plainva hat keinen Server, der Dein Telefon anstupsen könnte — den zu bauen hieße, dass ein fremder Server erfährt, wann wer welche Notiz kommentiert hat. Eine Anmerkung fällt deshalb dort auf, wo das Telefon ohnehin nachsieht: nach einem Sync-Zyklus und beim Zurückkehren in den Vordergrund. Im Hintergrund läuft dafür kein Zeitgeber; das erlaubt keine Telefon-Plattform.

@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-08-26
+Laatst bijgewerkt: 2026-09-02
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -235,3 +235,9 @@ Boven de agendaweergaven staat een rij chips: elke `.base`-weergave van het type
 **De keuze hoort bij de kluis**, niet bij het apparaat: wat je op de computer toont, staat hier zodra de instellingensynchronisatie is gelopen. Op de telefoon plan je via het blad van het item — slepen blijft aan de computer.
 
 Andersom kan de agendaweergave van een database het **aantal echte afspraken** van een dag in de hoek van de cel tonen — je ziet waartegen je plant.
+
+## Meldingen over opmerkingen
+
+Heeft iemand bij een notitie iets geschreven, dan kan Plainva je dat melden — dezelfde drie niveaus en dezelfde voorbeeldschakelaar als op de desktop, onder **Instellingen → Inhoud en structuur**. Een tik op de melding opent de notitie en licht de bedoelde kaart op. Eén losse notitie zet je stil met de bel in het opmerkingenblad.
+
+**De melding komt hier later dan op de desktop, en dat is een eigenschap, geen fout.** Plainva heeft geen server die je telefoon kan porren — er een bouwen zou betekenen dat een vreemde server verneemt wanneer wie welke notitie becommentarieerde. Een opmerking valt daarom op waar de telefoon toch al kijkt: na een synchronisatieronde en bij terugkeer naar de voorgrond. Er loopt daarvoor geen timer op de achtergrond; geen enkel telefoonplatform staat dat toe.

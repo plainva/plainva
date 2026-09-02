@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-08-26
+Última actualización: 2026-09-02
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -235,3 +235,9 @@ Sobre las vistas del calendario hay una fila de chips: cualquier vista `.base` d
 **La selección pertenece al vault**, no al dispositivo: lo que muestres en el ordenador está aquí en cuanto se sincronicen los ajustes. En el teléfono se planifica desde la hoja de la entrada; arrastrar queda para el ordenador.
 
 Al revés, la vista de calendario de una base de datos puede mostrar el **número de citas reales** del día en la esquina de la celda: ves frente a qué estás planificando.
+
+## Notificaciones de anotaciones
+
+Cuando alguien ha escrito en una nota, Plainva puede avisarte: los mismos tres niveles y el mismo interruptor de vista previa que en el escritorio, en **Ajustes → Contenido y estructura**. Al tocar el mensaje se abre la nota y se resalta la tarjeta correspondiente. Silencias una nota concreta con la campana de la hoja de comentarios.
+
+**Aquí el mensaje llega más tarde que en el escritorio, y eso es una propiedad, no un fallo.** Plainva no tiene ningún servidor que pueda avisar a tu teléfono: construirlo significaría que un servidor ajeno sabría cuándo comentó quién qué nota. Por eso una anotación se detecta donde el teléfono mira de todos modos: tras un ciclo de sincronización y al volver al primer plano. Para ello no se ejecuta ningún temporizador en segundo plano; ninguna plataforma de teléfono lo permite.

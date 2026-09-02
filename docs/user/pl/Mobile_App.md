@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-08-26
+Stan na: 2026-09-02
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -235,3 +235,9 @@ Nad widokami kalendarza stoi rząd chipów: każdy widok `.base` typu **kalendar
 **Wybór należy do sejfu**, nie do urządzenia: to, co pokażesz na komputerze, zastaniesz tutaj, gdy tylko przejdzie synchronizacja ustawień. W telefonie termin ustawia się przez arkusz wpisu — przeciąganie zostaje na komputerze.
 
 I odwrotnie: widok kalendarza bazy danych może pokazać **liczbę prawdziwych terminów** danego dnia w rogu komórki — widzisz, wobec czego planujesz.
+
+## Powiadomienia o uwagach
+
+Gdy ktoś napisał coś przy notatce, Plainva może o tym powiadomić — te same trzy poziomy i ten sam przełącznik podglądu co na komputerze, w **Ustawieniach → Treść i struktura**. Dotknięcie powiadomienia otwiera notatkę i wyróżnia właściwą kartę. Pojedynczą notatkę wyciszasz dzwonkiem w arkuszu komentarzy.
+
+**Powiadomienie przychodzi tu później niż na komputerze i jest to cecha, a nie usterka.** Plainva nie ma serwera, który mógłby trącić telefon — zbudowanie go oznaczałoby, że obcy serwer dowiaduje się, kto i kiedy skomentował którą notatkę. Uwaga zostaje więc zauważona tam, gdzie telefon i tak zagląda: po cyklu synchronizacji i przy powrocie na pierwszy plan. Nie działa w tym celu żaden licznik w tle; nie pozwala na to żadna platforma telefonu.

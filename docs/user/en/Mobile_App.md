@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-08-26
+Last updated: 2026-09-02
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -235,3 +235,9 @@ Above the calendar views sits a row of chips: every `.base` view of type **calen
 **The selection belongs to the vault**, not to the device: what you show on your computer is here once settings sync has run. Scheduling on the phone happens through the entry's sheet — dragging stays on the computer.
 
 The other way round, a database's calendar view can show the **number of real appointments** for a day in the corner of its cell — so you can see what you are planning against.
+
+## Remark notifications
+
+When somebody has written on a note, Plainva can tell you — the same three levels and the same preview switch as on the desktop, under **Settings → Content & structure**. Tapping the message opens the note and highlights the card it means. You silence a single note with the bell in the comments sheet.
+
+**The message arrives later here than on the desktop, and that is a property rather than a fault.** Plainva has no server that could nudge your phone — building one would mean a foreign server learning when who commented on which note. A remark is therefore noticed where the phone looks anyway: after a sync cycle and on returning to the foreground. No timer runs in the background for it; no phone platform allows one.
