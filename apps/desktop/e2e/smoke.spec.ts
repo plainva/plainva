@@ -345,9 +345,11 @@ test('Lists: nested items get a stepped hanging indent in the editor', async ({ 
   const nestedLine = page.locator('.cm-line').filter({ hasText: 'nested item' }).first();
   await expect(topLine).toBeVisible();
 
-  // (depth+1) * 1.5em at 16px: depth 1 -> 48px, depth 2 -> 72px.
-  await expect(topLine).toHaveCSS('padding-left', '48px');
-  await expect(nestedLine).toHaveCSS('padding-left', '72px');
+  // (depth + 0.5) * 1.5em at 16px since the measured indent (feedback round
+  // 2026-09-01, T1/T8a): depth 1 -> 36px, depth 2 -> 60px. The bullet prefix
+  // is far narrower than either, so the em step wins the `max()`.
+  await expect(topLine).toHaveCSS('padding-left', '36px');
+  await expect(nestedLine).toHaveCSS('padding-left', '60px');
 });
 
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
@@ -1456,7 +1458,7 @@ test('Sync error dialog: lists .CONFLICT copies and opens the merge UI (Nachfass
   // The dialog lists the conflict copy; clicking it opens the merge UI.
   await expect(page.getByText(/Gefundene Konfliktkopien|Conflict copies found/)).toBeVisible();
   await page.getByRole('button', { name: /Welcome\.CONFLICT-2026-01-01T00-00-00Z\.md/ }).click();
-  await expect(page.getByRole('heading', { name: /Sync-Konflikt lösen|Resolve sync conflict/ })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: /Fassungen vergleichen|Compare versions/ })).toBeVisible({ timeout: 10000 });
   await expect(page.getByRole('heading', { name: /Sync-Fehler|Sync Error/ })).toHaveCount(0);
 });
 

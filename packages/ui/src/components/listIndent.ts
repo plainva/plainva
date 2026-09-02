@@ -139,16 +139,24 @@ export interface ListIndentOptions {
 
 interface LineToMeasure {
   lineFrom: number;
+  /** 1-based line number - the key widths are stored under (see Widths). */
+  lineNumber: number;
   /** Where this line's visible text begins (after marker/box, or after leading whitespace). */
   textStart: number;
-  /** Set for marker lines: the item whose text edge this prefix defines. */
-  itemFrom: number | null;
+  /** Set for marker lines: the line number of the item whose text edge this prefix defines. */
+  itemLine: number | null;
 }
 
+/**
+ * Measured widths, keyed by LINE NUMBER rather than document offset: typing
+ * inside a line shifts every later offset but no line number, so a keystroke
+ * that changes no width dispatches nothing. Only a new or removed line shifts
+ * the keys - one re-measure, one repaint, then quiet again.
+ */
 interface Widths {
-  /** Own prefix per line start. */
+  /** Own prefix per line. */
   lines: Map<number, number>;
-  /** Marker-line prefix per ListItem start. */
+  /** Marker-line prefix per ListItem, keyed by the item's first line. */
   items: Map<number, number>;
 }
 
@@ -183,8 +191,9 @@ function buildDecorations(
         if (depth > 0) {
           const prefixLen = listMarkerPrefixLength(text);
           const isMarker = prefixLen !== null;
-          const own = widths.lines.get(line.from);
-          const item = itemFrom !== null ? widths.items.get(itemFrom) : undefined;
+          const itemLine = itemFrom !== null ? state.doc.lineAt(itemFrom).number : null;
+          const own = widths.lines.get(line.number);
+          const item = itemLine !== null ? widths.items.get(itemLine) : undefined;
           const measured = own !== undefined && item !== undefined ? { own, item } : null;
           const style = listIndentStyle(depth, isMarker, measured);
           if (style) lines.add(line.from, line.from, Decoration.line({ attributes: { style } }));
@@ -197,8 +206,9 @@ function buildDecorations(
           if (!tabInWs) {
             toMeasure.push({
               lineFrom: line.from,
+              lineNumber: line.number,
               textStart: line.from + (prefixLen ?? wsLen),
-              itemFrom: isMarker ? itemFrom : null,
+              itemLine: isMarker ? itemLine : null,
             });
           }
         }
@@ -221,7 +231,7 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
       private readonly measure = {
         read: (view: EditorView): Widths => {
           const next: Widths = { lines: new Map(), items: new Map() };
-          for (const { lineFrom, textStart, itemFrom } of this.toMeasure) {
+          for (const { lineFrom, lineNumber, textStart, itemLine } of this.toMeasure) {
             // Both rects sit on the line's first row (the text-indent moves them
             // together), so their distance is the rendered prefix — whatever
             // font or marker produced it.
@@ -231,8 +241,8 @@ export function listIndentPlugin(options: ListIndentOptions = {}): Extension {
             if (Math.abs(text.top - start.top) > 1) continue; // wrapped inside the prefix: leave it
             const w = text.left - start.left;
             if (!Number.isFinite(w) || w < 0) continue;
-            next.lines.set(lineFrom, w);
-            if (itemFrom !== null) next.items.set(itemFrom, w);
+            next.lines.set(lineNumber, w);
+            if (itemLine !== null) next.items.set(itemLine, w);
           }
           return next;
         },

@@ -287,11 +287,11 @@ test('typing + save cycle far below the init-parse window keeps the view still',
   expect(await markerAlive(page)).toBe(true);
 
   // The list indent decorations must be in place the whole time (same values
-  // the smoke suite asserts: (depth+1) * 1.5em at 16px).
+  // the smoke suite asserts: (depth + 0.5) * 1.5em at 16px).
   const topLine = page.locator('.cm-line').filter({ hasText: 'oben' }).first();
   const nestedLine = page.locator('.cm-line').filter({ hasText: 'verschachtelt' }).first();
-  await expect(topLine).toHaveCSS('padding-left', '48px');
-  await expect(nestedLine).toHaveCSS('padding-left', '72px');
+  await expect(topLine).toHaveCSS('padding-left', '36px');
+  await expect(nestedLine).toHaveCSS('padding-left', '60px');
 });
 
 test('an identical external update is a complete no-op', async ({ page }) => {
