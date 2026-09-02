@@ -25,12 +25,12 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, trustSignalsFromBlock } from "@plainva/ui";
+import { type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -180,6 +180,16 @@ export function NoteScreen({
    * was renamed, and the walk over every `.base` of the vault never runs.
    */
   const [pendingPropertyAnchor, setPendingPropertyAnchor] = useState<WorkspaceCommentAnchor | null>(null);
+  /**
+   * Stufe E (E4): the range a widget was asked about, parked until the card is
+   * posted.
+   *
+   * Kept apart from `pendingPropertyAnchor` on purpose: a property anchor is a
+   * FINISHED record (its key and value are read the moment the sheet opens),
+   * while a text anchor has to be built against the text as it stands at SUBMIT
+   * time — the quote it carries is what makes it survive an edit.
+   */
+  const [pendingRange, setPendingRange] = useState<{ from: number; to: number; display: AnchorFrameHint } | null>(null);
   const [propertyAliasColumns, setPropertyAliasColumns] = useState<Record<string, unknown> | null>(null);
   const propertyAnchorKeys = useMemo(
     () => comments.map((c) => (c.anchor ? propertyAnchorKey(c.anchor) : null)),
@@ -210,6 +220,25 @@ export function NoteScreen({
     });
     return map;
   }, [comments, propertyAnchorKeys, doc, propertyAliasColumns]);
+  /**
+   * Stufe E (E4): resolve every open comment against the text the editor shows.
+   *
+   * An ORPHAN contributes nothing - its passage is gone, and tinting an
+   * arbitrary spot would be worse than tinting none; its card says so instead.
+   * A widget-backed range carries a frame hint, because a mark can only paint
+   * over text and a replaced range shows none.
+   */
+  const anchorHighlights = useMemo<readonly AnchorHighlight[]>(() => {
+    if (doc === null) return [];
+    const out: AnchorHighlight[] = [];
+    for (const comment of comments) {
+      if (comment.resolvedAt || !comment.anchor) continue;
+      const resolution = resolveCommentAnchor(doc, comment.anchor);
+      if (resolution.status === "orphan") continue;
+      out.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, frame: toAnchorFrameHint(comment.anchor.display) });
+    }
+    return out;
+  }, [comments, doc]);
   const propertyCommentCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const res of propertyResolutions.values()) {
@@ -589,7 +618,8 @@ export function NoteScreen({
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
           canComment={canComment}
-          onCommentAnchorRequest={() => setCommentsOpen(true)}
+          anchorHighlights={anchorHighlights}
+          onCommentAnchorRequest={(req) => { setPendingRange(req); setPendingPropertyAnchor(null); setCommentsOpen(true); }}
           onOpenNote={onOpenNote}
           path={path}
           vault={vault}
@@ -629,14 +659,45 @@ export function NoteScreen({
           propertyResolutions={propertyResolutions}
           canComment={canComment}
           canWrite={workspaceCanWrite}
-          onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); }}
+          onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); }}
           onSubmit={async (body, parentCommentId) => {
-            /* A reply inherits its thread's anchor, so a parked property anchor
-               belongs to a ROOT only - otherwise the reply would claim a second
-               anchor of its own. */
-            const anchor = parentCommentId === null ? pendingPropertyAnchor : null;
-            await postMobileComment(vault, { path, body, parentCommentId, anchor, authorName: getMobileSettings().verifierName });
+            /* A reply inherits its thread's anchor, so a parked anchor belongs
+               to a ROOT only - otherwise the reply would claim a second anchor
+               of its own. */
+            const root = parentCommentId === null;
+            const text = doc;
+            let anchor = root ? pendingPropertyAnchor : null;
+            /* Stufe E (E4): a parked RANGE becomes its anchor here, against the
+               text as it stands - the quote is what carries it across an edit,
+               so capturing it when the sheet opened would already be stale. */
+            let marker: { before: string } | null = null;
+            if (root && anchor === null && pendingRange && text !== null) {
+              const id = mintAnchorMarkerId(text);
+              anchor = buildCommentAnchor(text, pendingRange.from, pendingRange.to, id, pendingRange.display);
+              /* The marker only goes in where writing is allowed. Without it
+                 the anchor still resolves - quote first, then context - it is
+                 just less precise after a heavy edit. */
+              if (workspaceCanWrite) {
+                const next = insertAnchorMarkers(text, pendingRange.from, pendingRange.to, id);
+                marker = { before: text };
+                setDoc(next);
+                noteSaver.schedule(vault, path, next);
+              }
+            }
+            try {
+              await postMobileComment(vault, { path, body, parentCommentId, anchor, authorName: getMobileSettings().verifierName });
+            } catch (error) {
+              /* The markers are already in the buffer. If the record never
+                 landed, the note must not keep a pair pointing at a comment
+                 that does not exist. */
+              if (marker) {
+                setDoc(marker.before);
+                noteSaver.schedule(vault, path, marker.before);
+              }
+              throw error;
+            }
             setPendingPropertyAnchor(null);
+            setPendingRange(null);
             setCommentTick((n) => n + 1);
           }}
           onResolve={(commentId) => {

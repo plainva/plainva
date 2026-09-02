@@ -23,7 +23,7 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
@@ -66,6 +66,7 @@ export function EditorHost({
   editable,
   canComment,
   onCommentAnchorRequest,
+  anchorHighlights,
 }: {
   vault: MobileVault;
   path: string;
@@ -76,10 +77,19 @@ export function EditorHost({
   canComment?: boolean;
   /** A widget was asked to be commented on. The screen owns the comment sheet. */
   onCommentAnchorRequest?: (req: { from: number; to: number; display: AnchorFrameHint }) => void;
+  /**
+   * Stufe E (E4): resolved comment ranges to tint and frame.
+   *
+   * The screen owns the comments, so it owns the resolution too; the host only
+   * pushes the result into the session. `sessionRef` is internal, which is why
+   * this arrives as a prop rather than the screen reaching for the view.
+   */
+  anchorHighlights?: readonly AnchorHighlight[];
 }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
+  const highlightsRef = useRef<readonly AnchorHighlight[]>([]);
   const editableRef = useRef(editable);
   // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
   // blockHandles plugin); this host renders it as a bottom sheet.
@@ -186,6 +196,13 @@ export function EditorHost({
       queryService: vault.queryService,
       vaultContext: null,
       hostPath: path,
+      // Stufe E (E4): without these two the selection bubble is INERT on the
+      // phone - the shared session asks the deps whether anchors are on, and a
+      // missing getter reads as "off". `canComment` already carries the same
+      // condition the desktop feeds its widgets (capability plus the per-vault
+      // setting), so the affordance appears in exactly the same places.
+      commentAnchorsEnabled: () => canComment === true && getMobileSettings().commentAnchors,
+      onCommentAnchorRequest: (req) => onCommentAnchorRequest?.(req),
       onOpenPath: (p) => onOpenNote(p),
       openWikiTarget: (target, _newTab, kind) => {
         void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
@@ -397,6 +414,10 @@ export function EditorHost({
       touchInput: true,
     });
     sessionRef.current = session;
+    // A fresh session starts blank, so the frames have to be re-applied here -
+    // the effect below only fires when the LIST changes, and remounting the
+    // host (key change on note switch) does not change it.
+    session.setAnchorHighlights(highlightsRef.current);
     // {{selection}} in a template reads from HERE (plan Vorlagen-Engine P6):
     // the reader is registered, never the text — see editorSelection.ts.
     setEditorSelectionReader(() => {
@@ -762,6 +783,18 @@ export function EditorHost({
       view.focus();
     }
   }, [editable]);
+
+  // Stufe E (E4): push the resolved ranges into the session. The screen resolves
+  // them (it owns the comments); an orphan never reaches here, because tinting a
+  // random place would be worse than tinting none.
+  useEffect(() => {
+    /* The ref is written HERE, not during render: a session that is rebuilt
+       without the host remounting reads it at mount and would otherwise start
+       blank. On the very first mount this effect runs right after that one, so
+       an empty read is corrected a tick later. */
+    highlightsRef.current = anchorHighlights ?? [];
+    sessionRef.current?.setAnchorHighlights(anchorHighlights ?? []);
+  }, [anchorHighlights]);
 
   useEffect(() => {
     const onConflict = (event: Event) => {
