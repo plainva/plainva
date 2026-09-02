@@ -50,6 +50,38 @@ export interface WorkspaceCommentAnchorDisplay {
    * comment belongs to the note and not to any one query over it.
    */
   key?: string;
+  /**
+   * The marked region inside the picture. Only for `image`, always optional.
+   *
+   * Deliberately an OPTIONAL FIELD rather than a fifth `kind`: an unknown kind
+   * fails validation and takes the whole anchor with it, so a comment written
+   * on a newer device could not be opened at all on an older one. An unknown
+   * field is ignored instead, and the older reader frames the whole picture -
+   * one step less precise, never broken.
+   *
+   * Never written for a web image: at a foreign URL Plainva can guarantee
+   * neither the size nor that the picture is still the same one.
+   */
+  rect?: WorkspaceCommentAnchorRect;
+}
+
+/**
+ * A rectangle over a picture, in fractions of the picture's own size.
+ *
+ * RELATIVE on purpose (plan Stufe E, section 4): the same image is drawn at one
+ * width in the sidebar, another in read mode and a third on a phone, so pixels
+ * would be wrong the first time anything resizes. A fraction of the picture is
+ * the same spot at every size.
+ */
+export interface WorkspaceCommentAnchorRect {
+  /** Left edge, 0..1 of the picture's width. */
+  x: number;
+  /** Top edge, 0..1 of the picture's height. */
+  y: number;
+  /** Width, 0..1 of the picture's width. */
+  w: number;
+  /** Height, 0..1 of the picture's height. */
+  h: number;
 }
 
 export interface WorkspaceCommentAnchor {
@@ -384,4 +416,25 @@ function assertWorkspaceCommentAnchorDisplay(display: WorkspaceCommentAnchorDisp
     "comment anchor display property key is invalid",
   );
   protocolAssert(property || display.key === undefined, "format", "comment anchor display carries a property key without a property");
+  // A region belongs to a picture and nowhere else, and it has to describe a
+  // rectangle that can exist: inside the picture, with a real extent. Anything
+  // else would be drawn somewhere the reader never marked.
+  protocolAssert(display.kind === "image" || display.rect === undefined, "format", "comment anchor display carries a rect without an image");
+  if (display.rect !== undefined) assertWorkspaceCommentAnchorRect(display.rect);
+}
+
+function assertUnitFraction(value: number, label: string): void {
+  protocolAssert(typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1, "bounds", label + " is out of range");
+}
+
+function assertWorkspaceCommentAnchorRect(rect: WorkspaceCommentAnchorRect): void {
+  protocolAssert(typeof rect === "object" && rect !== null, "format", "comment anchor display rect is invalid");
+  assertUnitFraction(rect.x, "comment anchor display rect x");
+  assertUnitFraction(rect.y, "comment anchor display rect y");
+  assertUnitFraction(rect.w, "comment anchor display rect width");
+  assertUnitFraction(rect.h, "comment anchor display rect height");
+  // A zero-width marking is a stray click, not a region; the UI refuses to make
+  // one, and a device that sends one anyway should not have it drawn.
+  protocolAssert(rect.w > 0 && rect.h > 0, "bounds", "comment anchor display rect is empty");
+  protocolAssert(rect.x + rect.w <= 1 && rect.y + rect.h <= 1, "bounds", "comment anchor display rect leaves the image");
 }

@@ -1,5 +1,6 @@
 import { StateEffect, StateField, Facet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
+import { applyRegionStyle, type AnchorRegionRect, type RegionPick } from "./anchorRegion";
 
 /**
  * Where a comment sits in the note, as the editor currently resolves it.
@@ -26,6 +27,13 @@ export interface AnchorFrameHint {
   row?: number;
   /** Column inside the rendered table, 0-based. Only for `tableCell`. */
   column?: number;
+  /**
+   * The marked region inside the picture, in fractions of it. Only for `image`.
+   *
+   * Absent means the comment is about the whole picture - the gesture E1
+   * shipped, and what every note written before E3 still carries.
+   */
+  rect?: AnchorRegionRect;
 }
 
 /** A frontmatter property a comment hangs on - named on the card, never framed. */
@@ -184,12 +192,41 @@ export function anchorFrameAt(state: EditorState, from: number, to: number): Anc
 }
 
 /**
+ * EVERY frame over a widget's range.
+ *
+ * A picture can carry more than one marking: "this field" and "that button" on
+ * the same screenshot is the normal case for a region comment, not an edge one.
+ * `anchorFrameAt` answers the older question - which ONE frame - and stays as it
+ * is, because a table cell and a diagram frame exactly one range.
+ *
+ * Quiet frames come first so the active one paints on top of them.
+ */
+export function anchorFramesAt(state: EditorState, from: number, to: number): AnchorFrame[] {
+  const set = state.field(anchorFrameField, false);
+  if (!set) return [];
+  const found: AnchorFrame[] = [];
+  set.between(from, to, (_f, _t, deco) => {
+    const frame = (deco.spec as { pvFrame?: AnchorFrame }).pvFrame;
+    if (frame) found.push(frame);
+  });
+  return [...found.filter((f) => !f.active), ...found.filter((f) => f.active)];
+}
+
+/**
  * A widget's identity has to change with its frame, or CodeMirror keeps the DOM
  * it already built and the frame never appears. Every widget `eq()` folds this in.
  */
 export function anchorFrameSignature(frame: AnchorFrame | null): string {
   if (!frame) return "";
-  return [frame.commentId, frame.active ? "1" : "0", frame.kind, frame.row ?? "", frame.column ?? ""].join(":");
+  // The rectangle belongs to the identity too: a marking that moved is a
+  // different picture to draw, and without it the widget keeps the DOM it has.
+  const rect = frame.rect ? [frame.rect.x, frame.rect.y, frame.rect.w, frame.rect.h].join(",") : "";
+  return [frame.commentId, frame.active ? "1" : "0", frame.kind, frame.row ?? "", frame.column ?? "", rect].join(":");
+}
+
+/** The same for a widget that draws SEVERAL frames - see `anchorFramesAt`. */
+export function anchorFramesSignature(frames: readonly AnchorFrame[]): string {
+  return frames.map((frame) => anchorFrameSignature(frame)).join("|");
 }
 
 /**
@@ -204,6 +241,23 @@ export function anchorFrameSignature(frame: AnchorFrame | null): string {
  * old coordinates as fact would be a quiet lie - the card says they may have moved.
  */
 /**
+ * The display record exactly as the core seals it: one plain shape with a
+ * widened `kind`, carrying every field any anchor kind may need.
+ *
+ * Both converters below take THIS type rather than repeating its shape inline.
+ * Written twice, the two copies drift: `key` reached only the lower one, so
+ * handing the upper one a property record - the case it documents and handles -
+ * failed to compile.
+ */
+export interface StoredAnchorDisplay {
+  kind: string;
+  row?: number;
+  column?: number;
+  key?: string;
+  rect?: AnchorRegionRect;
+}
+
+/**
  * Narrows the stored display record to the hint a card or a widget can use.
  *
  * The core keeps ONE record with a widened `kind` (it is serialised into a
@@ -212,17 +266,23 @@ export function anchorFrameSignature(frame: AnchorFrame | null): string {
  * one of them can be drawn around a range. These two helpers are the single
  * place that crosses between the two, so no call site has to cast.
  */
-export function toAnchorFrameHint(display: { kind: string; row?: number; column?: number } | null | undefined): AnchorFrameHint | undefined {
+export function toAnchorFrameHint(
+  display: StoredAnchorDisplay | null | undefined,
+): AnchorFrameHint | undefined {
   if (!display) return undefined;
   // A property has no range to frame - a comment on `status` marks a key in the
   // frontmatter, and the tint would have nothing to paint on.
   if (display.kind !== "image" && display.kind !== "diagram" && display.kind !== "tableCell") return undefined;
-  return { kind: display.kind, row: display.row, column: display.column };
+  // Only a picture carries a region. The core refuses to seal a rect on
+  // anything else; dropping a stray one here keeps the reading side from
+  // drawing a rectangle over a table because a foreign writer sent one.
+  const rect = display.kind === "image" ? display.rect : undefined;
+  return { kind: display.kind, row: display.row, column: display.column, rect };
 }
 
 /** The same for a card's label, which can name a property as well as a frame. */
 export function toAnchorDisplayHint(
-  display: { kind: string; row?: number; column?: number; key?: string } | null | undefined,
+  display: StoredAnchorDisplay | null | undefined,
   renamedTo?: string,
 ): AnchorDisplayHint | undefined {
   if (!display) return undefined;
@@ -243,7 +303,11 @@ export function anchorDisplayLabel(display: AnchorDisplayHint): { key: string; p
     }
     return { key: "workspaceSecurity.commentAtProperty", params: { key: display.key } };
   }
-  if (display.kind === "image") return { key: "workspaceSecurity.commentAtImage" };
+  if (display.kind === "image") {
+    // A region names a place INSIDE the picture, and saying so is the whole
+    // point of it - "on the picture" would hide what the writer marked.
+    return { key: display.rect ? "workspaceSecurity.commentAtImageRegion" : "workspaceSecurity.commentAtImage" };
+  }
   if (display.kind === "diagram") return { key: "workspaceSecurity.commentAtDiagram" };
   if (display.row === undefined || display.column === undefined) return { key: "workspaceSecurity.commentCellMoved" };
   return {
@@ -307,6 +371,44 @@ const anchorHighlightTheme = EditorView.baseTheme({
   },
   ".cm-anchor-host:hover .cm-anchor-bubble": { display: "inline-flex" },
   ".cm-anchor-bubble:focus-visible": { display: "inline-flex" },
+  // The host is an inline-block around an inline image, so it inherits the
+  // baseline gap under it. A few stray pixels of height would skew every
+  // percentage the markings are positioned with.
+  ".cm-anchor-region-host": { position: "relative", lineHeight: "0" },
+  // While drawing: crosshair over the picture, and touch scrolling suspended so
+  // a finger draws a rectangle instead of moving the note.
+  ".cm-anchor-region-arm": { cursor: "crosshair", touchAction: "none" },
+  // The bubble sits exactly where a drag would start. Same specificity as the
+  // hover rule above and written after it, so source order decides.
+  ".cm-anchor-region-arm.cm-anchor-host .cm-anchor-bubble": { display: "none" },
+  ".cm-anchor-region": {
+    position: "absolute",
+    border: "2px solid var(--comment-anchor-line, color-mix(in srgb, var(--accent-color) 45%, transparent))",
+    borderRadius: "var(--radius-sm)",
+    backgroundColor: "var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent))",
+    cursor: "pointer",
+  },
+  ".cm-anchor-region--active": {
+    borderColor: "var(--comment-anchor-line-active, var(--accent-color))",
+    backgroundColor: "var(--comment-anchor-bg-active, color-mix(in srgb, var(--accent-color) 30%, transparent))",
+  },
+  // The rubber band is not a target - it follows the pointer that draws it.
+  ".cm-anchor-region--draft": { pointerEvents: "none" },
+  ".cm-anchor-region-hint": {
+    position: "absolute",
+    left: "50%",
+    top: "8px",
+    transform: "translateX(-50%)",
+    padding: "2px 8px",
+    border: "1px solid var(--border-color)",
+    borderRadius: "var(--radius-pill)",
+    background: "var(--bg-primary)",
+    color: "var(--text-muted)",
+    fontSize: "var(--text-xs)",
+    lineHeight: "1.4",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+  },
 });
 
 /**
@@ -352,19 +454,47 @@ export function decorateAnchorTarget(opts: {
   display: AnchorFrameHint;
   frame: AnchorFrame | null;
   /**
+   * Frames that mark a REGION instead of the whole widget, drawn as overlays
+   * inside the host so several markings on one picture stay apart.
+   */
+  regions?: readonly AnchorFrame[];
+  /**
+   * Lets the reader draw a region before the comment is requested. Supplied
+   * only where a region can mean anything: a picture that lives in the vault.
+   * A picture from the net has no stable size to measure fractions against.
+   */
+  pickRegion?: () => Promise<RegionPick>;
+  /**
    * Omitted where the widget already offers commenting some other way: the table
    * carries the action in its cell menu, and a second button floating over it
    * would be two doors into one room.
    */
   bubbleLabel?: string;
 }): void {
-  const { view, host, target, range, display, frame, bubbleLabel } = opts;
+  const { view, host, target, range, display, frame, regions, pickRegion, bubbleLabel } = opts;
   host.classList.add("cm-anchor-host");
   if (frame) {
     target.classList.add("cm-anchor-frame");
     if (frame.active) target.classList.add("cm-anchor-frame--active");
     // Same hook the tint uses, so one click handler serves text and widgets.
     target.setAttribute("data-pv-comment", frame.commentId);
+  }
+  for (const region of regions ?? []) {
+    if (!region.rect) continue;
+    const mark = host.ownerDocument.createElement("span");
+    mark.className = region.active ? "cm-anchor-region cm-anchor-region--active" : "cm-anchor-region";
+    applyRegionStyle(mark, region.rect);
+    // The MARKING carries the id, not the picture: a click has to name the
+    // comment drawn here, and two markings on one screenshot would otherwise
+    // be indistinguishable to the handler.
+    mark.setAttribute("data-pv-comment", region.commentId);
+    mark.addEventListener("mousedown", (e) => {
+      // Deliberately no stopPropagation: the shared handler still has to see
+      // this and open the card. Only the caret is refused - it would land in
+      // the source and flip the picture back to raw Markdown.
+      e.preventDefault();
+    });
+    host.appendChild(mark);
   }
   if (!bubbleLabel) return;
   const handlers = view.state.facet(commentAnchorHandlers);
@@ -384,7 +514,17 @@ export function decorateAnchorTarget(opts: {
   bubble.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    handlers.request({ from: range.from, to: range.to, display });
+    if (!pickRegion) {
+      handlers.request({ from: range.from, to: range.to, display });
+      return;
+    }
+    void pickRegion().then((pick) => {
+      // Cancelled means the reader changed their mind. Falling back to the
+      // whole picture would put a comment where nobody asked for one.
+      if (pick.kind === "cancelled") return;
+      const next = pick.kind === "region" ? { ...display, rect: pick.rect } : display;
+      handlers.request({ from: range.from, to: range.to, display: next });
+    });
   });
   host.appendChild(bubble);
 }

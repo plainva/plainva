@@ -5,9 +5,12 @@ import {
   anchorDisplayLabel,
   anchorFrameAt,
   anchorFrameSignature,
+  anchorFramesAt,
+  anchorFramesSignature,
   anchorHighlightExtension,
   hasAnchorHighlightChange,
   setAnchorHighlights,
+  toAnchorFrameHint,
   type AnchorHighlight,
 } from "@plainva/ui";
 
@@ -15,6 +18,10 @@ const DOC = "Intro line\n\n| a | b |\n| - | - |\n| 1 | 2 |\n";
 // The stretch of Markdown the table widget covers.
 const TABLE_FROM = DOC.indexOf("| a |");
 const TABLE_TO = DOC.length;
+// A second range, standing in for a picture. The field tracks ranges and does
+// not care which widget covers one.
+const PIC_FROM = 0;
+const PIC_TO = "Intro line".length;
 
 function stateWith(extra: Extension = []): EditorState {
   return EditorState.create({ doc: DOC, extensions: [anchorHighlightExtension(() => {}), extra] });
@@ -42,6 +49,13 @@ describe("anchorDisplayLabel", () => {
   it("names the image and the diagram without parameters", () => {
     expect(anchorDisplayLabel({ kind: "image" })).toEqual({ key: "workspaceSecurity.commentAtImage" });
     expect(anchorDisplayLabel({ kind: "diagram" })).toEqual({ key: "workspaceSecurity.commentAtDiagram" });
+  });
+
+  it("says a marked spot instead of the whole picture when there is a region", () => {
+    // "On the picture" would hide what the writer actually pointed at.
+    expect(anchorDisplayLabel({ kind: "image", rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } })).toEqual({
+      key: "workspaceSecurity.commentAtImageRegion",
+    });
   });
 
   it("reads the column one-based and keeps the row as stored", () => {
@@ -93,6 +107,34 @@ describe("anchor frames", () => {
   });
 });
 
+describe("anchorFramesAt", () => {
+  it("hands a picture EVERY marking on it, not just one", () => {
+    // Two regions on one screenshot is the normal case; the singular helper
+    // would show whichever came first and drop the rest.
+    const state = apply(stateWith(), [
+      { commentId: "a", from: PIC_FROM, to: PIC_TO, frame: { kind: "image", rect: { x: 0, y: 0, w: 0.4, h: 0.4 } } },
+      { commentId: "b", from: PIC_FROM, to: PIC_TO, frame: { kind: "image", rect: { x: 0.5, y: 0.5, w: 0.3, h: 0.3 } } },
+    ]);
+    expect(anchorFramesAt(state, PIC_FROM, PIC_TO).map((f) => f.commentId).sort()).toEqual(["a", "b"]);
+    expect(anchorFrameAt(state, PIC_FROM, PIC_TO)?.commentId).toBe("a");
+    expect(anchorFramesAt(state, TABLE_FROM, TABLE_TO)).toEqual([]);
+  });
+
+  it("puts the open card's marking last, so it is drawn on top", () => {
+    const state = apply(stateWith(), [
+      { commentId: "open", from: PIC_FROM, to: PIC_TO, active: true, frame: { kind: "image", rect: { x: 0, y: 0, w: 0.4, h: 0.4 } } },
+      { commentId: "quiet", from: PIC_FROM, to: PIC_TO, frame: { kind: "image", rect: { x: 0.1, y: 0.1, w: 0.4, h: 0.4 } } },
+    ]);
+    expect(anchorFramesAt(state, PIC_FROM, PIC_TO).map((f) => f.commentId)).toEqual(["quiet", "open"]);
+  });
+
+  it("carries the region through, so the widget can place it", () => {
+    const rect = { x: 0.25, y: 0.5, w: 0.25, h: 0.125 };
+    const state = apply(stateWith(), [{ commentId: "c1", from: PIC_FROM, to: PIC_TO, frame: { kind: "image", rect } }]);
+    expect(anchorFramesAt(state, PIC_FROM, PIC_TO)[0]?.rect).toEqual(rect);
+  });
+});
+
 describe("anchorFrameSignature", () => {
   it("changes when the frame appears or opens, so a widget rebuilds its DOM", () => {
     // CodeMirror reuses DOM whenever eq() says equal; a signature that ignored
@@ -102,6 +144,45 @@ describe("anchorFrameSignature", () => {
     expect(anchorFrameSignature(quiet)).not.toBe("");
     expect(anchorFrameSignature({ ...quiet, active: true })).not.toBe(anchorFrameSignature(quiet));
     expect(anchorFrameSignature({ ...quiet, column: 1 })).not.toBe(anchorFrameSignature(quiet));
+  });
+
+  it("changes when a marking moves inside the picture", () => {
+    // An edit can shift a region; without this the widget keeps the DOM it has
+    // and the marking stays where it was drawn.
+    const framed = { commentId: "c1", kind: "image", active: false, rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } } as const;
+    expect(anchorFrameSignature(framed)).not.toBe(anchorFrameSignature({ ...framed, rect: { x: 0.3, y: 0.1, w: 0.2, h: 0.2 } }));
+    // A comment on the whole picture is a different drawing from one on a spot.
+    expect(anchorFrameSignature({ commentId: "c1", kind: "image", active: false })).not.toBe(anchorFrameSignature(framed));
+  });
+});
+
+describe("anchorFramesSignature", () => {
+  it("changes when one of several markings changes", () => {
+    const a = { commentId: "a", kind: "image", active: false, rect: { x: 0, y: 0, w: 0.2, h: 0.2 } } as const;
+    const b = { commentId: "b", kind: "image", active: false, rect: { x: 0.5, y: 0.5, w: 0.2, h: 0.2 } } as const;
+    expect(anchorFramesSignature([])).toBe("");
+    expect(anchorFramesSignature([a, b])).not.toBe(anchorFramesSignature([a]));
+    expect(anchorFramesSignature([a, b])).not.toBe(anchorFramesSignature([a, { ...b, rect: { x: 0.6, y: 0.5, w: 0.2, h: 0.2 } }]));
+    // Order matters: it decides which marking is drawn on top.
+    expect(anchorFramesSignature([a, b])).not.toBe(anchorFramesSignature([b, a]));
+  });
+});
+
+describe("toAnchorFrameHint", () => {
+  const rect = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+
+  it("carries a region on a picture and drops one anywhere else", () => {
+    // The core refuses to seal a rect on anything but an image; dropping a
+    // stray one here keeps a foreign writer from drawing a rectangle over a
+    // table.
+    expect(toAnchorFrameHint({ kind: "image", rect })).toEqual({ kind: "image", row: undefined, column: undefined, rect });
+    expect(toAnchorFrameHint({ kind: "diagram", rect })?.rect).toBeUndefined();
+    expect(toAnchorFrameHint({ kind: "tableCell", row: 1, column: 0, rect })?.rect).toBeUndefined();
+  });
+
+  it("leaves a property without a frame - there is no range to draw around", () => {
+    expect(toAnchorFrameHint({ kind: "property", key: "status" })).toBeUndefined();
+    expect(toAnchorFrameHint(undefined)).toBeUndefined();
   });
 });
 

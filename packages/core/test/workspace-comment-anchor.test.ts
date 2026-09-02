@@ -238,6 +238,54 @@ describe("comment anchor display hint (Stufe E)", () => {
   });
 });
 
+describe("image region (Stufe E, E3)", () => {
+  const base: WorkspaceCommentAnchor = { markerId: "7f3a", quote: "x", before: "", after: "", approximateOffset: 0 };
+  const rect = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+
+  it("accepts a rectangle on an image, and an image without one", () => {
+    // The field is additive: a comment on the whole picture stays exactly what
+    // it was in E1, and an older writer never sends a rect at all.
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect } })).not.toThrow();
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image" } })).not.toThrow();
+    // The corners may sit on the edge - a marking around the whole picture is
+    // still a marking somebody drew.
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { x: 0, y: 0, w: 1, h: 1 } } })).not.toThrow();
+  });
+
+  it("refuses a rectangle on anything that is not a picture", () => {
+    // Same contradiction as a column on an image: a diagram has no picture to
+    // measure fractions against.
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "diagram", rect } })).toThrow(/rect without an image/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "tableCell", row: 1, column: 0, rect } })).toThrow(/rect without an image/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "property", key: "status", rect } })).toThrow(/rect without an image/);
+  });
+
+  it("refuses a rectangle that could not be drawn", () => {
+    // Out of the unit square, empty, or leaving the picture: each of those would
+    // put the marking somewhere the reader never pointed.
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { ...rect, x: -0.1 } } })).toThrow(/rect x is out of range/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { ...rect, h: 1.5 } } })).toThrow(/rect height is out of range/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { ...rect, w: 0 } } })).toThrow(/rect is empty/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { x: 0.8, y: 0.1, w: 0.3, h: 0.2 } } })).toThrow(/leaves the image/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { x: 0.1, y: 0.8, w: 0.2, h: 0.3 } } })).toThrow(/leaves the image/);
+  });
+
+  it("refuses a rectangle that arrives malformed from another device", () => {
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: null } as never })).toThrow(/rect is invalid/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { ...rect, y: Number.NaN } } })).toThrow(/rect y is out of range/);
+    expect(() => assertWorkspaceCommentAnchor({ ...base, display: { kind: "image", rect: { ...rect, w: "0.3" } } as never })).toThrow(/rect width is out of range/);
+  });
+
+  it("keeps the rectangle through the sealed record", () => {
+    // The anchor travels as canonical JSON; a field that fell out on the way
+    // would leave the reader with a comment on the whole picture instead.
+    const anchor: WorkspaceCommentAnchor = { ...base, display: { kind: "image", rect } };
+    const round = JSON.parse(JSON.stringify(anchor)) as WorkspaceCommentAnchor;
+    expect(round.display).toEqual({ kind: "image", rect });
+    expect(() => assertWorkspaceCommentAnchor(round)).not.toThrow();
+  });
+});
+
 describe("comment anchor round trip", () => {
   it("survives markers, stripping and resolution unchanged", () => {
     const { raw, anchor } = anchorPhrase(SENTENCE, "bis Ende des Jahres");

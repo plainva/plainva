@@ -437,8 +437,13 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "system's own copy bubble. This is a gap, not a platform limit — a phone can " +
       "select text — and it is written up in the collected-remainders plan " +
       "(Sammelplan, C26). The read half was the urgent one: on a phone you mostly " +
-      "answer what somebody else pointed at.",
-    verified: "2026-08-26",
+      "answer what somebody else pointed at. Since Stufe E the desktop also starts " +
+      "a comment on things that are not a passage at all — a picture (and a region " +
+      "inside it), a diagram, a table cell, a database property. Those need no text " +
+      "selection, so the reason above does not cover them: the phone simply never " +
+      "feeds commentAnchorsEnabled, which leaves the bubble inert. Same gap, and " +
+      "the same plan closes it (Stufe E, E4).",
+    verified: "2026-09-02",
   },
   {
     id: "lift-encryption",

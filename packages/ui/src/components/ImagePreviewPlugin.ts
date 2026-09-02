@@ -2,7 +2,8 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
 import { resolveVaultRelative } from "../adapters/pathGuard";
-import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
+import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
+import { pickImageRegion } from "./anchorRegion";
 import i18n from "../i18n";
 
 /**
@@ -49,14 +50,21 @@ class ImageWidget extends WidgetType {
     /** The embed's range in the document — what a comment on the picture anchors to. */
     readonly from: number,
     readonly to: number,
-    readonly frame: AnchorFrame | null,
+    /**
+     * Every comment anchored to this picture, not just one.
+     *
+     * Several markings on one screenshot is the normal case for a region, so the
+     * widget draws a set - unlike a table cell or a diagram, which frame exactly
+     * one range and keep the singular helper.
+     */
+    readonly frames: readonly AnchorFrame[],
     readonly onImageContext?: ImageContextFn,
   ) { super(); }
 
   eq(other: ImageWidget) {
-    // The frame joins the identity: without it CodeMirror reuses the DOM it
-    // already built and the frame would never appear.
-    return this.key === other.key && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame);
+    // The frames join the identity: without them CodeMirror reuses the DOM it
+    // already built and a frame - or a region moved by an edit - never appears.
+    return this.key === other.key && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames);
   }
 
   toDOM(view: EditorView) {
@@ -90,6 +98,15 @@ class ImageWidget extends WidgetType {
     }
 
     container.appendChild(img);
+    // Regions are positioned in percent against this box, and the class is what
+    // makes the box equal the picture: an inline-block around an inline image
+    // inherits the baseline gap, and those stray pixels would skew every
+    // fraction downwards.
+    container.classList.add("cm-anchor-region-host");
+    // A comment on the WHOLE picture still frames the whole picture; one with a
+    // rectangle draws its own overlay instead, so it must not do both.
+    const whole = this.frames.find((f) => !f.rect) ?? null;
+    const regions = this.frames.filter((f) => f.rect);
     decorateAnchorTarget({
       view,
       host: container,
@@ -98,7 +115,14 @@ class ImageWidget extends WidgetType {
       target: img,
       range: { from: this.from, to: this.to },
       display: { kind: "image" },
-      frame: this.frame,
+      frame: whole,
+      regions,
+      // Only a picture from the vault (plan Stufe E, section 4). At a foreign URL
+      // Plainva can guarantee neither the size the fractions were measured
+      // against nor that the picture is still the same one.
+      pickRegion: this.source.kind === "vault"
+        ? () => pickImageRegion({ host: container, box: img }, { hint: i18n.t("workspaceSecurity.commentRegionHint") })
+        : undefined,
       bubbleLabel: i18n.t("workspaceSecurity.commentOnImage"),
     });
     return container;
@@ -186,7 +210,7 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readB
               readBinary,
               matchStart,
               matchEnd,
-              anchorFrameAt(view.state, matchStart, matchEnd),
+              anchorFramesAt(view.state, matchStart, matchEnd),
               onImageContext,
             );
             if (!hideSyntax || isFocused) {
