@@ -61,6 +61,7 @@ vi.mock("./services/mobileSettings", () => ({
 let syncSettled = true;
 vi.mock("./services/syncService", () => ({
   firstSyncSettled: () => syncSettled,
+  currentDeletionJournal: () => null,
 }));
 
 import { startTaskSyncRuntime, runMobileTaskSync, __resetTaskSyncRuntimeForTest } from "./services/pim/taskSyncRuntime";

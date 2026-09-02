@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -17,7 +17,7 @@ import { createLimiter, noteLargeFileTrimmed, plainvaProducer, profileDefault, s
 import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
-import { buildSettingsSyncStep, getActiveConnectionId } from "../services/settingsProfile";
+import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
@@ -887,6 +887,11 @@ export const VaultProvider: React.FC<{
       let firstSyncSettled = true;
       let taskSyncRunning = false;
       let taskSyncQueued = false;
+      // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
+      // confirmed here, so the other devices mirror them instead of guarding
+      // against them — and vice versa. Written through the raw adapter (it is a
+      // sideband file, not a note); the sync worker merges it every cycle.
+      const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());
       const runTaskSyncNow = async () => {
         if (taskSyncRunning) {
           taskSyncQueued = true;
@@ -900,7 +905,16 @@ export const VaultProvider: React.FC<{
             const noteType = ((await store.get<string>(defaultNoteTypeKey(path))) ?? "").trim() || DEFAULT_NOTE_TYPE;
             const allNotePaths = (await queryService.listNotes()).map((n) => n.path);
             const res = await runTaskSync({
-              adapter: vaultAdapter,
+              adapter: {
+                readTextFile: (p) => vaultAdapter.readTextFile(p),
+                writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+                exists: (p) => vaultAdapter.exists(p),
+                createDir: (p) => vaultAdapter.createDir(p),
+                // A note whose task a person deleted elsewhere (journal, P1)
+                // goes through the same chain, so the deletion reaches the remote.
+                deleteFile: (p) => vaultAdapter.deleteItem(p),
+              },
+              deletionJournal,
               cache: pimRuntime.cache,
               buildTarget: pimRuntime.buildTarget,
               taskDbPath,
@@ -1258,7 +1272,7 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync });
+            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal });
             firstSyncSettled = false;
             // Reported every cycle, empty included, so a renamed pair takes the
             // card down again by itself. Not on the encrypted worker: that one
@@ -1332,6 +1346,42 @@ export const VaultProvider: React.FC<{
                   }
                 }
               })();
+            };
+            syncWorker.onDeletionMirroringSuspended = ({ missing, confirmed }) => {
+              // The pull-side guard tripped and the journal does not explain the
+              // absences: either somebody deleted outside the app, or the cloud
+              // answered incompletely. Until now this was a dead end (an error
+              // status with no exit) — and the held files went back UP on the
+              // next cycle, undoing a deletion nobody here could see. Ask, with
+              // Cancel/Escape on the safe branch: keep the local copies.
+              void (async () => {
+                const applyHere = await appConfirm({
+                  title: i18n.t("sync.pullGuardTitle"),
+                  message: i18n.t("sync.pullGuardBody", { n: missing, total: confirmed }),
+                  kind: "danger",
+                  confirmLabel: i18n.t("sync.pullGuardApply"),
+                  cancelLabel: i18n.t("sync.pullGuardKeep"),
+                });
+                if (applyHere) {
+                  guardedWorker.approveSuspendedDeletions();
+                } else {
+                  try {
+                    const kept = await guardedWorker.keepSuspendedDeletionsLocal();
+                    toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+                  } catch (e) {
+                    console.error("[VaultContext] keepSuspendedDeletionsLocal failed", e);
+                    toast.error(i18n.t("sync.pullGuardFailed"));
+                  }
+                }
+              })();
+            };
+            syncWorker.onDeletionReport = (report) => {
+              // A remote deletion the worker did NOT mirror because the local
+              // copy carries unsynced edits used to be silent — and silence is
+              // how a "deleted" note came back without anyone knowing why.
+              if (report.keptLocalEdits.length > 0) {
+                toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+              }
             };
             syncWorker.start();
           }

@@ -30,6 +30,13 @@ export const memberProfilePath = (memberId: string, sealed: boolean): string =>
 /** Sealed account-secrets bundle (K_secrets). */
 export const SECRETS_SYNC_PATH = ".plainva/sync/secrets.enc";
 /**
+ * Deletion journal (feedback round 2026-09-01, P1): the deletions a user
+ * CONFIRMED, so the other devices mirror them instead of guarding against them.
+ * Plain JSON — it carries paths, and the remote listing already shows every
+ * path in plaintext (the content decorator seals bytes, not names).
+ */
+export const DELETIONS_SYNC_PATH = ".plainva/sync/deletions.json";
+/**
  * Comments and suggestions for a vault WITHOUT an encrypted workspace (Stufe D).
  *
  * Two paths, never both in use: plaintext until a passphrase exists, sealed

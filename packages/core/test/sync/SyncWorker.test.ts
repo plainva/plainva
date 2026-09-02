@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError, syncErrorMessage, syncErrorReason, TRANSIENT_FAILURES_BEFORE_ERROR } from "../../src/sync/SyncWorker.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
+import { DeletionJournal, serializeDeletionJournal } from "../../src/sync/deletionJournal.js";
 
 describe("syncErrorMessage", () => {
   it("normalizes empty native/WebView rejections", () => {
@@ -1040,6 +1041,195 @@ describe("SyncWorker", () => {
       target.pull.mockResolvedValueOnce({ etagMap: new Map() });
       await worker.runCycle();
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("deletion journal (feedback round 2026-09-01, P1)", () => {
+    // 12 previously synced files, the listing suddenly carries only one. Without
+    // an explanation that is a broken listing; WITH the journal it is what it
+    // is: eleven deletions somebody confirmed on another device.
+    const knownTwelve = Array.from({ length: 12 }, (_, i) => `note-${i}.md`);
+    async function arrangeListingWithOnlyOne() {
+      const baseSha = await sha("same");
+      target.pull.mockResolvedValue({ etagMap: new Map([["note-0.md", "etag-0"]]) });
+      stateRepo.getAllStates.mockResolvedValue(
+        new Map(knownTwelve.map((p) => [p, { remote_etag: "etag-old", base_sha256: baseSha }]))
+      );
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue("same");
+      target.download.mockResolvedValue(new TextEncoder().encode("same"));
+      target.push = vi.fn().mockResolvedValue(undefined);
+    }
+    function journalFor(deviceId: string) {
+      const files = new Map<string, string>();
+      const journalVault = {
+        exists: async (p: string) => files.has(p),
+        readTextFile: async (p: string) => files.get(p) ?? "",
+        writeTextFile: async (p: string, c: string) => void files.set(p, c),
+      };
+      return new DeletionJournal(journalVault as any, deviceId, { now: () => 5_000 });
+    }
+
+    it("RED CHECK: without a journal the same listing trips the guard and nothing is deleted", async () => {
+      await arrangeListingWithOnlyOne();
+      const suspended = vi.fn();
+      worker.onDeletionMirroringSuspended = suspended;
+
+      await worker.runCycle();
+
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(suspended).toHaveBeenCalledWith({ missing: 11, confirmed: 12 });
+    });
+
+    it("mirrors deletions the journal explains without tripping the guard", async () => {
+      await arrangeListingWithOnlyOne();
+      // Device B's journal already carries what device A confirmed. The remote
+      // journal says so, the local one is empty: the cycle merges it in first.
+      const remoteJournal = journalFor("dev-A");
+      await remoteJournal.recordPaths(knownTwelve.slice(1));
+      target.download.mockImplementation(async (p: string) =>
+        new TextEncoder().encode(p === ".plainva/sync/deletions.json" ? serializeDeletionJournal(remoteJournal.list()) : "same")
+      );
+      const journal = journalFor("dev-B");
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w["isRunning"] = true;
+      const suspended = vi.fn();
+      w.onDeletionMirroringSuspended = suspended;
+      const report = vi.fn();
+      w.onDeletionReport = report;
+      const statusSpy = vi.fn();
+      w.onStatusChange = statusSpy;
+
+      await w.runCycle();
+
+      for (const p of knownTwelve.slice(1)) expect(vault.deleteItem).toHaveBeenCalledWith(p);
+      expect(suspended).not.toHaveBeenCalled();
+      expect(statusSpy.mock.calls.find(([s]) => s === "error")).toBeUndefined();
+      expect(report).toHaveBeenCalledWith({ mirrored: 11, explained: 11, keptLocalEdits: [] });
+    });
+
+    it("a journal entry older than the file's last sync does not explain it", async () => {
+      await arrangeListingWithOnlyOne();
+      const baseSha = await sha("same");
+      // The files were synced AFTER the journal entry: recreated since -> unexplained.
+      stateRepo.getAllStates.mockResolvedValue(
+        new Map(knownTwelve.map((p) => [p, { remote_etag: "etag-old", base_sha256: baseSha, last_sync_ts: 9_000 }]))
+      );
+      const journal = journalFor("dev-B");
+      await journal.recordPaths(knownTwelve.slice(1)); // deletedAt 5_000 < last_sync_ts 9_000
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w["isRunning"] = true;
+      const suspended = vi.fn();
+      w.onDeletionMirroringSuspended = suspended;
+
+      await w.runCycle();
+
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(suspended).toHaveBeenCalledTimes(1);
+    });
+
+    it("the suspended guard has an exit: approve mirrors them and journals the confirmation", async () => {
+      await arrangeListingWithOnlyOne();
+      const journal = journalFor("dev-B");
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w["isRunning"] = true;
+      const suspended = vi.fn();
+      w.onDeletionMirroringSuspended = suspended;
+
+      await w.runCycle();
+      expect(suspended).toHaveBeenCalledTimes(1);
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+
+      w.approveSuspendedDeletions();
+      await w.runCycle();
+
+      for (const p of knownTwelve.slice(1)) expect(vault.deleteItem).toHaveBeenCalledWith(p);
+      // Confirmed here -> journaled for the next device.
+      expect(journal.explainsPath("note-5.md")).not.toBeNull();
+      // Asked exactly once; a later NEW incident may ask again (re-armed).
+      expect(suspended).toHaveBeenCalledTimes(1);
+    });
+
+    it("the other exit keeps the local copies and queues them for upload as new files", async () => {
+      await arrangeListingWithOnlyOne();
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journalFor("dev-B") });
+      w["isRunning"] = true;
+      w.onDeletionMirroringSuspended = vi.fn();
+
+      await w.runCycle();
+      const queued = await w.keepSuspendedDeletionsLocal();
+
+      expect(queued).toBe(11);
+      expect(queue.queueWrite).toHaveBeenCalledTimes(11);
+      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("note-3.md");
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+    });
+
+    it("a deletion kept because of unsynced local edits is counted and reported, not silent", async () => {
+      // One known file missing from a full listing of the other one; the local
+      // copy diverged from the base -> kept, and the report says so.
+      target.pull.mockResolvedValue({ etagMap: new Map([["keep.md", "e1"]]) });
+      stateRepo.getAllStates.mockResolvedValue(
+        new Map([
+          ["keep.md", { remote_etag: "e1", base_sha256: await sha("same") }],
+          ["edited.md", { remote_etag: "e2", base_sha256: await sha("old") }],
+        ])
+      );
+      vault.exists.mockResolvedValue(true);
+      vault.readTextFile.mockResolvedValue("same");
+      target.download.mockResolvedValue(new TextEncoder().encode("same"));
+      const report = vi.fn();
+      worker.onDeletionReport = report;
+
+      await worker.runCycle();
+
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
+    });
+
+    it("a queued delete the journal explains does not count towards the push-side guard", async () => {
+      queue.getPendingDeletePaths.mockResolvedValue(Array.from({ length: 12 }, (_, i) => `del-${i}.md`));
+      stateRepo.getAllStates.mockResolvedValue(
+        new Map(Array.from({ length: 20 }, (_, i) => [`s-${i}.md`, { remote_etag: `e${i}` }]))
+      );
+      const journal = journalFor("dev-A");
+      target.push = vi.fn().mockResolvedValue(undefined);
+      // Confirmed before a restart: the session allowlist is empty, the journal is not.
+      await journal.recordPaths(Array.from({ length: 12 }, (_, i) => `del-${i}.md`));
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w["isRunning"] = true;
+      const pendingSpy = vi.fn();
+      w.onMassDeletionPending = pendingSpy;
+
+      await w.runCycle();
+
+      expect(pendingSpy).not.toHaveBeenCalled();
+      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+    });
+
+    it("noteUserInitiatedDeletion writes the confirmation into the journal", async () => {
+      const journal = journalFor("dev-A");
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w.noteUserInitiatedDeletion(["Projekte/Alt"]);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(journal.explainsPath("Projekte/Alt/notiz.md")).toMatchObject({ deviceId: "dev-A" });
+    });
+
+    it("a failing journal sync never stops the file cycle", async () => {
+      const journal = journalFor("dev-B");
+      const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
+      w["isRunning"] = true;
+      target.download.mockImplementation(async (p: string) => {
+        if (p === ".plainva/sync/deletions.json") throw new Error("journal unreachable");
+        return new Uint8Array();
+      });
+      const statusSpy = vi.fn();
+      w.onStatusChange = statusSpy;
+
+      await w.runCycle();
+
+      expect(engine.processQueue).toHaveBeenCalledTimes(1);
+      expect(statusSpy.mock.calls.find(([s]) => s === "error")).toBeUndefined();
     });
   });
 

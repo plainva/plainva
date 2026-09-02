@@ -171,6 +171,15 @@ async function settingsStore() {
   return getPlatformServices().loadSettings();
 }
 
+/**
+ * This device's stable id for the sync sidebands (settings/secrets merge
+ * tiebreak, comment authorship — and, since P1 of the feedback round
+ * 2026-09-01, the deletion journal). Minted once, kept in the settings store.
+ */
+export async function mobileSyncDeviceId(): Promise<string> {
+  return deviceId();
+}
+
 async function deviceId(): Promise<string> {
   const store = await settingsStore();
   let value = await store.get<string>(deviceKey);

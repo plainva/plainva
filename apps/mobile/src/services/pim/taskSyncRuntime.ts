@@ -11,7 +11,7 @@ import {
 } from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
 import { getMobileSettings } from "../mobileSettings";
-import { firstSyncSettled } from "../syncService";
+import { currentDeletionJournal, firstSyncSettled } from "../syncService";
 import type { MobileVault } from "../vaultService";
 
 /**
@@ -95,7 +95,13 @@ export async function runMobileTaskSync(): Promise<void> {
         writeTextFile: (p, c) => w.vault.files.writeTextFile(p, c),
         exists: (p) => w.vault.files.exists(p),
         createDir: (p) => w.vault.files.createDir(p),
+        // A note whose task a person deleted elsewhere (journal, P1) goes
+        // through the same chain, so the deletion reaches the remote too.
+        deleteFile: (p) => w.vault.files.deleteItem(p),
       },
+      // The sync deletion journal: records a task deletion carried out here
+      // for the other devices, and answers whether one happened elsewhere.
+      deletionJournal: currentDeletionJournal() ?? undefined,
       cache: w.cache,
       buildTarget: w.buildTarget,
       taskDbPath,

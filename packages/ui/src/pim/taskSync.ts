@@ -45,6 +45,23 @@ export interface TaskSyncAdapter {
   writeTextFile(path: string, content: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
+  /**
+   * Removes a note. Only used for a deletion the journal explains (see
+   * `deletionJournal`); without it such a note is kept as a plain note.
+   */
+  deleteFile?(path: string): Promise<void>;
+}
+
+/**
+ * The slice of the sync deletion journal the task reconciler needs (feedback
+ * round 2026-09-01, P1). A task whose note was deleted — and whose provider
+ * copy followed — is recorded on the deleting device; the other devices then
+ * remove THEIR copy of the note instead of keeping it as an orphan, provided it
+ * carries no unsynced edits.
+ */
+export interface TaskDeletionJournal {
+  recordTask(key: TaskDeletionIntent): Promise<void>;
+  findTask(key: TaskDeletionIntent): { deletedAt: number } | null;
 }
 
 export interface TaskSyncOptions {
@@ -98,6 +115,8 @@ export interface TaskSyncOptions {
    * still knows.
    */
   deletionsInFlight?: ReadonlyArray<TaskDeletionIntent>;
+  /** See TaskDeletionJournal. Undefined = a remotely deleted task leaves its note as before. */
+  deletionJournal?: TaskDeletionJournal;
 }
 
 /**
@@ -127,6 +146,8 @@ export interface TaskSyncResult {
   conflicts: number;
   /** Tasks deleted at the provider because their note was deleted here. */
   deletedRemote: number;
+  /** Notes removed here because the journal says their task was deleted elsewhere (P1). */
+  deletedNotes: string[];
   errors: string[];
 }
 
@@ -189,6 +210,7 @@ export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult
     pushed: 0,
     conflicts: 0,
     deletedRemote: 0,
+    deletedNotes: [],
     errors: [],
   };
   if (!opts.taskDbPath) return result;
@@ -264,6 +286,15 @@ async function reconcileList(
         await cache.deleteTaskState(account.id, listId, rt.uid);
         opts.onDeletionResolved?.(order, "done");
         result.deletedRemote++;
+        // The provider copy is gone; tell the other devices that this was a
+        // confirmed deletion, so they drop their note instead of orphaning it.
+        if (opts.deletionJournal) {
+          try {
+            await opts.deletionJournal.recordTask(taskId(rt.uid));
+          } catch (e) {
+            console.warn("[taskSync] recording the task deletion in the journal failed", e);
+          }
+        }
       } catch (e) {
         if (e instanceof PimConflictError) {
           // Somebody changed the task at the provider while the window ran.
@@ -410,10 +441,28 @@ async function reconcileList(
     await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: newEtag, baseFields: merged });
   }
 
-  // Remote deletions: drop the state, keep the note (it becomes a normal note).
+  // Remote deletions: drop the state, keep the note (it becomes a normal note) —
+  // UNLESS the journal says a person deleted this task on another device and
+  // the note here carries no unsynced edits. Then the note follows (P1): a
+  // deletion someone confirmed must not survive as an orphan elsewhere.
   for (const st of states) {
-    if (!remoteUids.has(st.uid)) {
-      await cache.deleteTaskState(account.id, listId, st.uid);
+    if (remoteUids.has(st.uid)) continue;
+    await cache.deleteTaskState(account.id, listId, st.uid);
+    if (!opts.deletionJournal || !opts.adapter.deleteFile || st.notePath === null) continue;
+    if (!opts.deletionJournal.findTask(taskId(st.uid))) continue;
+    if ((opts.deletionsInFlight ?? []).some((d) => anchorMatchesTask(d, taskId(st.uid)))) continue;
+    try {
+      if (!(await adapter.exists(st.notePath))) continue;
+      const content = await adapter.readTextFile(st.notePath);
+      const base = st.baseFields;
+      if (!base) continue;
+      const local = readNoteFields(content, db, base.completed);
+      const unchanged = local.title === base.title && local.due === base.due && local.completed === base.completed;
+      if (!unchanged) continue;
+      await opts.adapter.deleteFile(st.notePath);
+      result.deletedNotes.push(st.notePath);
+    } catch (e) {
+      result.errors.push(`${account.label}/${listId}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }

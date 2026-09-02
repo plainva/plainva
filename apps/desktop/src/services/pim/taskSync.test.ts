@@ -801,3 +801,95 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     expect(target.deleteTask).not.toHaveBeenCalled();
   });
 });
+
+describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)", () => {
+  let db: NodeSqliteAdapter;
+  let cache: PimCacheRepository;
+
+  beforeEach(async () => {
+    db = new NodeSqliteAdapter();
+    await initializeSchema(db);
+    cache = new PimCacheRepository(db);
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Test", config: {}, enabled: true });
+    await cache.replaceTaskLists("a1", [{ id: "l1", name: "Aufgaben" }]);
+    await cache.setTaskListSelected("a1", "l1", true);
+  });
+
+  function journal(entries: Array<{ uid: string; list: string }> = []) {
+    const recorded: Array<{ uid: string; list: string }> = [];
+    return {
+      recorded,
+      recordTask: async (k: { uid: string; list: string }) => {
+        recorded.push({ uid: k.uid, list: k.list });
+      },
+      findTask: (k: { uid: string; list: string }) =>
+        entries.some((e) => e.uid === k.uid && e.list === k.list) ? { deletedAt: 1 } : null,
+    };
+  }
+
+  function opts(vault: ReturnType<typeof fakeVault>, target: IPimTarget | null): TaskSyncOptions {
+    return {
+      adapter: { ...vault.adapter, deleteFile: async (p) => void vault.files.delete(p) },
+      cache,
+      buildTarget: async () => target,
+      taskDbPath: "Aufgaben.base",
+      noteType: "Task",
+      allNotePaths: [...vault.files.keys()].filter((p) => p.endsWith(".md")),
+      anchorsByUid: new Map(),
+    };
+  }
+
+  it("a deletion carried out at the provider is written into the journal", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    vault.files.delete("Aufgaben/T.md");
+    const j = journal();
+
+    await runTaskSync({ ...opts(vault, fakeTarget()), pendingDeletions: [{ uid: "u1", list: "l1" }], deletionJournal: j });
+
+    expect(j.recorded).toEqual([{ uid: "u1", list: "l1" }]);
+  });
+
+  it("on the other device the journal removes the unchanged note instead of orphaning it", async () => {
+    // Device B imported the task, then A deleted it (note + provider) and journaled it.
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+
+    // The next pull no longer lists the task.
+    await cache.replaceTasks("a1", "l1", []);
+    const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([{ uid: "u1", list: "l1" }]) });
+
+    expect(vault.files.has("Aufgaben/T.md")).toBe(false);
+    expect(res.deletedNotes).toEqual(["Aufgaben/T.md"]);
+    expect(await cache.getTaskStates("a1", "l1")).toHaveLength(0);
+  });
+
+  it("RED CHECK: without a journal entry the note stays as a plain note (unchanged rule)", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    await cache.replaceTasks("a1", "l1", []);
+
+    const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([]) });
+
+    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(res.deletedNotes).toEqual([]);
+  });
+
+  it("a note with unsynced local edits is kept even when the journal says deleted", async () => {
+    await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
+    const vault = fakeVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(opts(vault, null));
+    const edited = vault.files.get("Aufgaben/T.md")!.replace("# T", "# T (edited here)");
+    vault.files.set("Aufgaben/T.md", edited);
+    await cache.replaceTasks("a1", "l1", []);
+
+    const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([{ uid: "u1", list: "l1" }]) });
+
+    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(res.deletedNotes).toEqual([]);
+  });
+});

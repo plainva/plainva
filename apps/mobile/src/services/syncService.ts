@@ -5,6 +5,7 @@ import {
   S3SyncTarget,
   SyncEngine,
   SyncWorker,
+  DeletionJournal,
   EncryptedWorkspaceWorker,
   createProviderWorkspaceObjectStore,
   initializePersonalWorkspaceMigration,
@@ -27,7 +28,7 @@ import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import { getMobileVault, switchVault, type MobileVault } from "./vaultService";
-import { prepareMobileSettingsSync } from "./mobileSettingsSync";
+import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
 import {
@@ -131,6 +132,13 @@ type MobileSyncWorker = {
   onFilesChanged?: SyncWorker["onFilesChanged"];
 };
 let worker: MobileSyncWorker | null = null;
+/** The running vault's deletion journal (P1); null until a sync worker exists. */
+let deletionJournal: DeletionJournal | null = null;
+
+/** For the task reconciler: the journal of the vault the worker currently serves. */
+export function currentDeletionJournal(): DeletionJournal | null {
+  return deletionJournal;
+}
 
 /** Cascade deletion (plan Kaskadenloeschung): user-confirmed deletions must
  * not trip — or be resurrected by — the sync mass-deletion guard. */
@@ -412,6 +420,7 @@ export function syncSoon(): void {
 export function stopSync(): void {
   worker?.stop();
   worker = null;
+  deletionJournal = null;
 }
 
 /**
@@ -422,6 +431,7 @@ export function stopSync(): void {
 export async function stopSyncAndDrain(): Promise<void> {
   const w = worker;
   worker = null;
+  deletionJournal = null;
   if (w) await w.stopAndDrain();
 }
 
@@ -744,10 +754,16 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   // Smaller download windows than the desktop (P3.3): phones have tighter
   // memory budgets, and a batch of large attachments must not balloon RAM.
   firstCycleSettled = false;
+  // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
+  // confirmed here reach the other devices as an intent, and theirs reach us.
+  // Raw adapter — it is a sideband file, not a note.
+  const journal = new DeletionJournal(v.backup ?? v.adapter, await mobileSyncDeviceId());
+  deletionJournal = journal;
   const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,
+    deletionJournal: journal,
   });
   w.onStatusChange = (status, errorMsg, _reason, retryAt) => {
     setState({ status, message: errorMsg ?? null, retryAt });
@@ -796,6 +812,36 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
         toast.error(i18n.t("sync.massDeleteRestoreFailed"));
       }
     });
+  };
+  w.onDeletionMirroringSuspended = ({ missing, confirmed }) => {
+    // Pull-side guard with an exit (P1): the journal does not explain these
+    // absences, so a person decides — and Cancel keeps the local copies.
+    void import("@capacitor/dialog").then(async ({ Dialog }) => {
+      const { value } = await Dialog.confirm({
+        title: i18n.t("sync.pullGuardTitle"),
+        message: i18n.t("sync.pullGuardBody", { n: missing, total: confirmed }),
+        okButtonTitle: i18n.t("sync.pullGuardApply"),
+        cancelButtonTitle: i18n.t("sync.pullGuardKeep"),
+      });
+      if (value) {
+        w.approveSuspendedDeletions();
+        return;
+      }
+      try {
+        const kept = await w.keepSuspendedDeletionsLocal();
+        toast.info(i18n.t("sync.pullGuardKept", { n: kept }));
+      } catch (e) {
+        console.error("[syncService] keepSuspendedDeletionsLocal failed", e);
+        toast.error(i18n.t("sync.pullGuardFailed"));
+      }
+    });
+  };
+  w.onDeletionReport = (report) => {
+    // Same rule as the desktop: a deletion kept back because of unsynced local
+    // edits is said, not swallowed.
+    if (report.keptLocalEdits.length > 0) {
+      toast.info(i18n.t("sync.deletionsKeptLocalEdits", { n: report.keptLocalEdits.length }));
+    }
   };
   worker = w;
   setState({ status: "idle", message: null });

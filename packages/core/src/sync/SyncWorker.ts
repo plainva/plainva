@@ -9,6 +9,7 @@ import { findCollidingPath } from "./pathIdentity.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, type SyncErrorKind } from "./errorKind.js";
+import type { DeletionJournal } from "./deletionJournal.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -218,6 +219,27 @@ export interface SyncWorkerOptions {
    * the file sync. Undefined = feature off.
    */
   settingsSync?: SettingsSyncRunner;
+  /**
+   * Deletion journal (feedback round 2026-09-01, P1). Merged with its remote
+   * twin at the start of every cycle, BEFORE the pull: a path the journal lists
+   * is an explained absence — mirrored without counting towards the pull-side
+   * guard — and a queued delete the journal lists does not count towards the
+   * push-side guard either. Undefined = the guards behave exactly as before.
+   */
+  deletionJournal?: DeletionJournal;
+}
+
+/** What became of one remote deletion the worker tried to mirror locally. */
+export type MirrorDeletionOutcome = "deleted" | "gone" | "keptLocalEdits" | "collision" | "localOnly";
+
+/** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
+export interface DeletionReport {
+  /** Local files removed because the remote no longer has them. */
+  mirrored: number;
+  /** Of those, the ones the journal explained (confirmed on another device). */
+  explained: number;
+  /** Kept although the remote deleted them: they carry unsynced local edits. */
+  keptLocalEdits: string[];
 }
 
 /**
@@ -362,6 +384,23 @@ export class SyncWorker {
   /** The pending guard state was already signaled to the host (no re-fire every poll). */
   private massDeletionSignaled = false;
   /**
+   * Fired once when the PULL-side guard trips: an implausible share of the
+   * previously synced files is missing from the remote listing and the journal
+   * does not explain them. Until the host answers, the files are kept locally
+   * and their mirroring is suspended (status "error"). The host asks the user
+   * and calls either approveSuspendedDeletions() (mirror them — they really were
+   * deleted elsewhere) or keepSuspendedDeletionsLocal() (keep the local copies
+   * and upload them again). Re-armed once the condition clears.
+   */
+  public onDeletionMirroringSuspended?: (info: { missing: number; confirmed: number }) => void;
+  private suspendedMirroringApproved = false;
+  private suspendedMirroringSignaled = false;
+  /** The paths the last suspended cycle held back — what the two answers act on. */
+  private suspendedMissingPaths: string[] = [];
+  /** Fired after every cycle that mirrored or held back at least one deletion. */
+  public onDeletionReport?: (report: DeletionReport) => void;
+  private readonly deletionJournal?: DeletionJournal;
+  /**
    * Incremental-pull state for change-token providers (Drive). `cursor` is the change
    * token from the last pull; `cyclesSinceFull` forces a periodic full listing. Both live
    * only in memory for the session: a full listing must run first each session anyway to
@@ -416,6 +455,7 @@ export class SyncWorker {
     private readonly options: SyncWorkerOptions = {}
   ) {
     this.settingsSyncRunner = options.settingsSync;
+    this.deletionJournal = options.deletionJournal;
   }
 
   /** Profile-sync sideband, toggled live when the vault opt-in changes. */
@@ -510,10 +550,54 @@ export class SyncWorker {
       const norm = p.replace(/\\/g, "/").replace(/\/+$/, "");
       if (norm) this.userDeletionPrefixes.push(norm);
     }
+    // The confirmation also goes into the journal, so it reaches the OTHER
+    // devices (and survives a restart here — a deletion a human confirmed is
+    // not the "destructive intent" the session scope above protects against).
+    if (this.deletionJournal) {
+      this.deletionJournal.recordPaths(paths).catch((e) => {
+        console.error("[SyncWorker] recording confirmed deletions in the journal failed:", e);
+      });
+    }
   }
 
   private isUserInitiatedDeletion(path: string): boolean {
-    return this.userDeletionPrefixes.some((pre) => path === pre || path.startsWith(pre + "/"));
+    if (this.userDeletionPrefixes.some((pre) => path === pre || path.startsWith(pre + "/"))) return true;
+    return this.deletionJournal ? this.deletionJournal.explainsPath(path) !== null : false;
+  }
+
+  /**
+   * Answer to onDeletionMirroringSuspended: the files really were deleted
+   * elsewhere — mirror them on the next (full-listing) cycle, and write the
+   * confirmation into the journal so no further device asks again.
+   */
+  public approveSuspendedDeletions(): void {
+    this.suspendedMirroringApproved = true;
+    if (this.deletionJournal && this.suspendedMissingPaths.length > 0) {
+      this.deletionJournal.recordPaths(this.suspendedMissingPaths).catch((e) => {
+        console.error("[SyncWorker] recording approved deletions in the journal failed:", e);
+      });
+    }
+    this.cursor = undefined; // full listing next cycle -> the missing set is re-derived
+    this.triggerImmediate();
+  }
+
+  /**
+   * Answer to onDeletionMirroringSuspended: keep the local copies and upload
+   * them again (the remote lost them, whatever the cause). Their sync_state is
+   * cleared so the push treats them as new files instead of as an update to a
+   * remote that no longer exists. Returns how many files were queued.
+   */
+  public async keepSuspendedDeletionsLocal(): Promise<number> {
+    const paths = this.suspendedMissingPaths;
+    this.suspendedMissingPaths = [];
+    for (const p of paths) {
+      if (!(await this.vault.exists(p))) continue;
+      await this.stateRepo.deleteSyncState(p);
+      await this.queue.queueWrite(p);
+    }
+    this.cursor = undefined;
+    if (paths.length > 0) this.triggerImmediate();
+    return paths.length;
   }
 
   /**
@@ -815,8 +899,8 @@ export class SyncWorker {
     stateMap: Map<string, SyncState>,
     changedPaths: string[],
     collisions?: NameCollision[]
-  ): Promise<void> {
-    if (isLocalOnlyPath(path)) return;
+  ): Promise<MirrorDeletionOutcome> {
+    if (isLocalOnlyPath(path)) return "localOnly";
 
     // Never delete while a name collision is in play. Two known paths that differ
     // only in capitalization or accent spelling are ONE file for Drive's search and
@@ -829,14 +913,14 @@ export class SyncWorker {
       console.warn(
         `[SyncWorker] not mirroring deletion of ${path}: collides with ${twin} (capitalization/accents)`
       );
-      return;
+      return "collision";
     }
 
     const state = stateMap.get(path) ?? null;
     const localExists = await this.vault.exists(path);
     if (!localExists) {
       await this.stateRepo.deleteSyncState(path);
-      return;
+      return "gone";
     }
     const localSha = isTextFile(path)
       ? await sha256Hash(await this.vault.readTextFile(path))
@@ -845,8 +929,11 @@ export class SyncWorker {
       await this.vault.deleteItem(path);
       await this.stateRepo.deleteSyncState(path);
       changedPaths.push(path);
+      return "deleted";
     }
-    // else: local has unsynced edits -> keep it.
+    // Local has unsynced edits -> keep it. Counted and reported (P1): a silent
+    // skip is how a "deleted" note used to reappear without anyone knowing why.
+    return "keptLocalEdits";
   }
 
   /**
@@ -1069,6 +1156,18 @@ export class SyncWorker {
         await this.settingsSyncRunner.guardBeforeCycle(this.target, this.vault);
       }
 
+      // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
+      // the reconcile below already knows which absences a human confirmed.
+      // Its own try/catch: a journal hiccup falls back to the local journal and
+      // never stops the file sync.
+      if (this.deletionJournal && alive()) {
+        try {
+          await this.deletionJournal.sync(this.target);
+        } catch (e) {
+          console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
+        }
+      }
+
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the
       // whole tree every cycle — with a periodic full listing as a safety net. Every other
@@ -1192,6 +1291,15 @@ export class SyncWorker {
 
       // 2b. Mirror remote deletions.
       let deletionMirroringSuspended: string | null = null;
+      const deletionReport: DeletionReport = { mirrored: 0, explained: 0, keptLocalEdits: [] };
+      const noteMirror = (path: string, outcome: MirrorDeletionOutcome, explained: boolean) => {
+        if (outcome === "deleted") {
+          deletionReport.mirrored++;
+          if (explained) deletionReport.explained++;
+        } else if (outcome === "keptLocalEdits") {
+          deletionReport.keptLocalEdits.push(path);
+        }
+      };
       // Paths the remote knows under a spelling that only differs in case/accents.
       // Deleting on that evidence destroyed user notes, so they are reported instead.
       const nameCollisions: NameCollision[] = [];
@@ -1206,7 +1314,10 @@ export class SyncWorker {
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
-          await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions));
+          await guardPullStep(path, async () => {
+            const outcome = await this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions);
+            noteMirror(path, outcome, this.deletionJournal?.explainsPath(path) != null);
+          });
         }
       } else if (alive() && remotePaths.size > 0) {
         // FULL listing: derive deletions from files we confirmed before that are now
@@ -1239,18 +1350,71 @@ export class SyncWorker {
           missing.push(candidate);
         }
 
+        // An absence the journal explains — a human confirmed the deletion on
+        // another device (or here, before a restart) — is mirrored regardless of
+        // how many there are: the guard below exists for listings that LOOK
+        // broken, and a confirmed deletion is not one. An entry older than our
+        // last sync of the file does not count: the file was recreated since.
+        const explained: Array<{ path: string; state: SyncState }> = [];
+        const unexplained: Array<{ path: string; state: SyncState }> = [];
+        for (const candidate of missing) {
+          const entry = this.deletionJournal?.explainsPath(candidate.path, candidate.state.last_sync_ts ?? null) ?? null;
+          (entry ? explained : unexplained).push(candidate);
+        }
+        for (const { path } of explained) {
+          if (!alive()) break;
+          await guardPullStep(path, async () => {
+            noteMirror(path, await this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions), true);
+          });
+        }
+
         // Sanity guard: when an implausibly large share of previously confirmed files
-        // vanishes at once, assume a broken/partial listing (truncated response, parser
-        // miss, server hiccup) rather than a genuine mass deletion — suspend mirroring and
-        // surface a sync error instead of deleting local files.
-        if (missing.length > 10 && missing.length > confirmed.length * 0.2) {
-          deletionMirroringSuspended = `${missing.length} of ${confirmed.length} previously synced files are missing from the remote listing; deletion mirroring suspended for safety`;
+        // vanishes at once WITHOUT the journal explaining it, assume a broken/partial
+        // listing (truncated response, parser miss, server hiccup) rather than a
+        // genuine mass deletion — suspend mirroring, surface a sync error and ask the
+        // host ONCE (P1: a dead end with no exit was how a wanted deletion kept
+        // coming back). The user's answer arrives as approveSuspendedDeletions()
+        // or keepSuspendedDeletionsLocal().
+        const looksBroken =
+          unexplained.length > MASS_DELETE_MIN && unexplained.length > confirmed.length * MASS_DELETE_SHARE;
+        if (looksBroken && !this.suspendedMirroringApproved) {
+          deletionMirroringSuspended = `${unexplained.length} of ${confirmed.length} previously synced files are missing from the remote listing; deletion mirroring suspended for safety`;
           console.warn(`[SyncWorker] ${deletionMirroringSuspended}`);
-        } else {
-          for (const { path } of missing) {
-            if (!alive()) break;
-            await guardPullStep(path, () => this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions));
+          this.suspendedMissingPaths = unexplained.map((m) => m.path);
+          if (!this.suspendedMirroringSignaled) {
+            this.suspendedMirroringSignaled = true;
+            try {
+              this.onDeletionMirroringSuspended?.({ missing: unexplained.length, confirmed: confirmed.length });
+            } catch (e) {
+              console.error("[SyncWorker] onDeletionMirroringSuspended consumer failed:", e);
+            }
           }
+        } else {
+          for (const { path } of unexplained) {
+            if (!alive()) break;
+            await guardPullStep(path, async () => {
+              noteMirror(path, await this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions), false);
+            });
+          }
+          if (!looksBroken) {
+            // Condition cleared (listing complete again, or the answer was carried
+            // out): re-arm the guard for a NEW incident.
+            this.suspendedMirroringApproved = false;
+            this.suspendedMirroringSignaled = false;
+            this.suspendedMissingPaths = [];
+          }
+        }
+      }
+      if (deletionReport.keptLocalEdits.length > 0) {
+        console.warn(
+          `[SyncWorker] ${deletionReport.keptLocalEdits.length} file(s) deleted on the remote were kept locally (unsynced edits): ${deletionReport.keptLocalEdits.join(", ")}`
+        );
+      }
+      if (deletionReport.mirrored > 0 || deletionReport.keptLocalEdits.length > 0) {
+        try {
+          this.onDeletionReport?.(deletionReport);
+        } catch (e) {
+          console.error("[SyncWorker] onDeletionReport consumer failed:", e);
         }
       }
 
