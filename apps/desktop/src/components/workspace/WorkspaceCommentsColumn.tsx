@@ -1,8 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
+import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -74,6 +74,16 @@ export interface WorkspaceCommentsColumnProps {
    * different act than writing in the note.
    */
   publicationComments?: readonly PublicationCommentEntry[];
+  /**
+   * Whether this note is silenced, and how to change that (Stufe F, §3 rule 4).
+   *
+   * It sits in the column rather than in a settings page because silence is a
+   * state of THIS note, and the moment somebody wants it is the moment they are
+   * looking at the remarks. Absent when the shell does not offer notifications
+   * at all, in which case the row does not appear.
+   */
+  muted?: boolean;
+  onToggleMute?(): void;
 }
 
 /**
@@ -89,7 +99,7 @@ export interface WorkspaceCommentsColumnProps {
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
   onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask,
-  publicationComments = [],
+  publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -223,6 +233,19 @@ export function WorkspaceCommentsColumn({
 
   return (
     <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
+      {onToggleMute && (
+        <div className="pv-comment-column__head">
+          {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
+          <IconButton
+            label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
+            active={muted}
+            onClick={onToggleMute}
+            data-testid="comment-mute"
+          >
+            {muted ? <BellOff size={ICON.ui} /> : <Bell size={ICON.ui} />}
+          </IconButton>
+        </div>
+      )}
       {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
       {threads.map(({ root, replies, addressed }) => (
         <div

@@ -3823,5 +3823,31 @@
     "restoreWindowsDesc": "起動時に、前回開いていた追加ウィンドウを開き直します。未送信のメッセージは復元されません。",
     "noVaultTitle": "Vault が開かれていません",
     "noVaultBody": "このウィンドウは現在どの Vault も表示していません。最近使ったものを選ぶか、フォルダーを指定してください。"
+  },
+  "commentNotify": {
+    "actionOpen": "開く",
+    "enable": "新しい注釈を知らせる",
+    "enableHint": "Plainva にはサーバーがないため、注釈は同期サイクルの中で見つかります。デスクトップではほぼ即座に、スマートフォンでは開いたときに気づきます。",
+    "level": "知らせる範囲",
+    "levelAll": "すべて",
+    "levelAllHint": "この保管庫のすべての新しい注釈。",
+    "levelMentions": "メンションのみ",
+    "levelMentionsHint": "誰かが @ とあなたの名前を書いたときだけ。",
+    "levelRelevant": "自分に関係するもの",
+    "levelRelevantHint": "メンション、自分が書いたスレッドへの返信、自分のノートへの注釈、自分の提案に対する判断。",
+    "mute": "このノートを通知しない",
+    "muted": "通知オフ",
+    "preview": "通知にノートと本文を表示する",
+    "previewHint": "オフにすると、通知は何か届いたことだけを伝えます。名前もノート名も本文も表示しません。ロック中の保管庫ではプレビューは表示されません。",
+    "quiet": "Plainva を開いて確認してください。",
+    "section": "注釈の通知",
+    "someone": "誰か",
+    "titleCatchUp_other": "前回の閲覧以降に {{count}} 件の注釈",
+    "titleGuest": "ゲストが「{{name}}」にコメントしました",
+    "titleOne": "新しい注釈",
+    "titleOneNamed": "{{author}} が「{{note}}」にコメントしました",
+    "unmute": "このノートを再び通知する",
+    "titleMany_other": "新しい注釈 {{count}} 件",
+    "inNotes_other": "{{count}} 件のノート"
   }
 }

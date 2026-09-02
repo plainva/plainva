@@ -2915,6 +2915,10 @@ tr.is-selected > td { color: var(--on-accent-container); }
 .pv-comment-compose__replacement { border-color: var(--success-border); }
 .pv-comment-compose textarea { width: 100%; }
 .pv-comment-column__empty { margin: 0; color: var(--text-faint); font-size: var(--text-sm); }
+/* The column's own row: silencing this note lives where the note's remarks are,
+   not in a settings page somebody would have to go looking for (Stufe F, §3). */
+.pv-comment-column__head { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.pv-comment-column__muted { margin-right: auto; color: var(--text-faint); font-size: var(--text-sm); }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }
 

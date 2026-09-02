@@ -5,6 +5,7 @@ import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, okf
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
+import { CommentNotificationSettings } from "../comments/CommentNotificationSettings";
 import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
@@ -446,6 +447,10 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           <input type="checkbox" id="commentAnchors" checked={p.commentAnchors} onChange={(e) => p.onCommentAnchors(e.target.checked)} />
         </SettingRow>
       </SettingCard>
+      {/* Stufe F: beside the anchor setting, because both answer "what happens
+          around a remark" - and the privacy switch has to be reachable in the
+          same moment notifications are switched on. */}
+      {p.isActiveVault && <CommentNotificationSettings />}
     </div>
   );
 };

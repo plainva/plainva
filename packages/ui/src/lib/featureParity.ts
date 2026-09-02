@@ -444,6 +444,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-02",
   },
   {
+    id: "comment-notification-latency",
+    title: "How soon you are told about a new remark",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Plainva has no server that could push a notification, so a remark can only " +
+      "be noticed where a device looks anyway - in a sync cycle. The desktop " +
+      "worker runs continuously (15 s by default), so it tells you almost at " +
+      "once. A phone runs no timer in the background, so it notices when the app " +
+      "is in the foreground or returns there - the same platform limit the PIM " +
+      "refresh hit (services/appLifecycle.ts). This is a decision rather than a " +
+      "gap because closing it would mean a push service, and a push service means " +
+      "a foreign server learning when who commented on which note - exactly what " +
+      "the encryption prevents. The surface says so once, when notifications are " +
+      "switched on, rather than making a promise the phone cannot keep.",
+    verified: "2026-09-02",
+  },
+  {
     id: "lift-encryption",
     title: "Turn encryption off and go back to plain files",
     area: "security",

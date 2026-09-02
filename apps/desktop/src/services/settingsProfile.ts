@@ -993,6 +993,17 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
       } catch (error) {
         toast.error(i18n.t("settingsSync.commentsFailed", { error: error instanceof Error ? error.message : String(error) }));
       }
+      // Stufe F: the one moment a device can learn that somebody wrote
+      // something — there is no server to push it. Announced even when the step
+      // above failed: the workspace path brings comments in through the ordinary
+      // file sync, so a sideband failure does not mean nothing arrived. The
+      // notifier reads state rather than this event's contents, so a spurious
+      // wake-up costs one query and reports nothing.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("plainva-comments-synced", { detail: { vaultPath: this.vaultPath } }),
+        );
+      }
     }
   }
 

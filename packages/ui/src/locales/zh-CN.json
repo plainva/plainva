@@ -3823,5 +3823,31 @@
     "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。",
     "noVaultTitle": "未打开任何知识库",
     "noVaultBody": "此窗口当前没有显示任何知识库。请选择最近使用的一个，或指定一个文件夹。"
+  },
+  "commentNotify": {
+    "actionOpen": "打开",
+    "enable": "有新批注时通知我",
+    "enableHint": "Plainva 没有服务器，因此批注是在同步周期中被发现的。桌面端几乎即时；手机在你打开时才会察觉。",
+    "level": "通知范围",
+    "levelAll": "全部",
+    "levelAllHint": "此仓库中的每一条新批注。",
+    "levelMentions": "仅提及",
+    "levelMentionsHint": "仅当有人写下 @ 和你的名字时。",
+    "levelRelevant": "与我相关的",
+    "levelRelevantHint": "提及、你参与过的会话中的回复、对你笔记的批注，以及对你建议的处理结果。",
+    "mute": "静音此笔记",
+    "muted": "已静音",
+    "preview": "在通知中显示笔记和内容",
+    "previewHint": "关闭后，通知只说明有新内容到达 —— 不显示姓名、笔记标题和正文。已锁定的仓库不会显示预览。",
+    "quiet": "打开 Plainva 查看。",
+    "section": "批注通知",
+    "someone": "某人",
+    "titleCatchUp_other": "自你上次查看以来有 {{count}} 条批注",
+    "titleGuest": "有访客在“{{name}}”中发表了评论",
+    "titleOne": "新的批注",
+    "titleOneNamed": "{{author}} 评论了“{{note}}”",
+    "unmute": "重新通知此笔记",
+    "titleMany_other": "{{count}} 条新批注",
+    "inNotes_other": "位于 {{count}} 条笔记中"
   }
 }

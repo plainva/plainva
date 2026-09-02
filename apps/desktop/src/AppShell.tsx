@@ -85,7 +85,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, getCommentSelfId } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -301,6 +301,38 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // key.
     layoutScope: windowLabel,
   });
+
+  /**
+   * Remark notifications (Stufe F, F2).
+   *
+   * Registered here because this is the one place that can answer all of it at
+   * once: what the vault holds, who this device is, and where a click should
+   * land. The notifier owns no state beyond its ledger - it wakes on the
+   * sideband cycle's event and asks these functions.
+   */
+  useEffect(() => {
+    if (!vaultPath) return;
+    let disposer: (() => void) | undefined;
+    void import("./services/commentNotifier").then(({ setCommentNotifierDeps, startCommentNotifier }) => {
+      setCommentNotifierDeps({
+        listNotes: async () =>
+          [...(await listAllWorkspaceComments())].map(([path, comments]) => ({ path, comments })),
+        listNames: async () =>
+          new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
+        identity: async () => ({ memberId: await getCommentSelfId(), deviceId: null }),
+        openComment: ({ path }) => openTab(0, path, false),
+        openOverview: () => openTab(0, COMMENTS_TAB_PATH, false),
+        // A window in the foreground has the column; a system notification for
+        // something already on screen is noise (FB5).
+        isForeground: () => document.visibilityState === "visible" && document.hasFocus(),
+      });
+      disposer = startCommentNotifier();
+    });
+    return () => {
+      disposer?.();
+      void import("./services/commentNotifier").then(({ setCommentNotifierDeps }) => setCommentNotifierDeps(null));
+    };
+  }, [vaultPath, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, openTab]);
 
   // Apply either the global note preference or a contextless temporary close.
   const activeTabKind = tabKindOf(activePath);

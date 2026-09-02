@@ -27,6 +27,7 @@ import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propert
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
 import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
+import { useCommentMute } from "../hooks/useCommentMute";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -119,6 +120,9 @@ export const Editor: React.FC<{
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  // Stufe F: whether this note is silenced. Null - and therefore no bell in the
+  // column - while notifications are off for the vault entirely.
+  const commentMute = useCommentMute(vaultPath, activePath);
   // The quote a NEW comment would attach to. Held as text, not as a range: the
   // selection moves on every keystroke, and re-rendering the editor that often
   // is the fan-out class this project has fought before. Only a changed quote
@@ -2584,6 +2588,8 @@ export const Editor: React.FC<{
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
           onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+          muted={commentMute.muted ?? false}
+          onToggleMute={commentMute.toggle}
         />
       )}
       </div>
