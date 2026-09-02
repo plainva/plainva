@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-08-19
+Last reviewed: 2026-09-02
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -170,6 +170,7 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 - **Automatic scope inside a related element**: when you embed a database inside a single element of a *related* database, it is automatically filtered to that element — embed the task database inside a project note and you only see that project's tasks. This works in both directions (embed the "many" side to see the rows that point at the host element, or the "one" side to see what the host points at) and for self-referential databases with a parent/sub-items hierarchy (embedding the database inside an element shows that element's sub-items, nested). A small **Filter** chip in the embedded header shows what it is scoped to; use it to switch the relation or choose **Show all**. The scope is never written into the `.base` file, so the same database shows the right rows in every element it is embedded in.
 - **New entries inherit the link**: creating an entry with **Entry** inside such a scoped embed automatically links it to the host element (a task you create in a project's embedded task list belongs to that project right away). For the reverse direction the host is linked to the new entry instead; an already assigned single-value relation is left untouched.
 - **Explicit "This note" filter (like Notion's "this page")**: instead of relying on the automatic scope, you can make it explicit and permanent. In **Configure → Filter**, add a rule on a relation property and pick the value **This note**. The database is then scoped to whichever note it is embedded in — ideal for **templates**: embed the task database in a project template, and every project created from it shows its own tasks. It works for any wiki-link property, not only detected relations, and an explicit **This note** filter takes precedence over the automatic scope. This filter lives only in Plainva (it is not written into the `.base` as a normal filter), so both Obsidian and a standalone open show all rows.
+- **Comments on a cell**: when a property carries remarks, its cell shows a small dot with the number of open threads — in **Table**, **Board** and **Gallery**. A comment hangs on the **note and its property key**, not on the `.base`: the same remark therefore appears in every database that shows the note, and in the note's own **Properties** panel. **Comment on this property** in the cell menu starts a new thread. Renaming a column carries the comments along; if the property is deleted, the card stays readable and names the value it recorded. More on this under [Security & Sharing](Security_and_Sharing.md).
 
 ## Several entries at once
 

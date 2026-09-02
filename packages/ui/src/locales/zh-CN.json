@@ -3460,7 +3460,7 @@
     "commentOnProperty": "评论此属性",
     "commentAtProperty": "针对属性“{{key}}”",
     "commentAtPropertyRenamed": "针对属性“{{key}}”（现为“{{current}}”）",
-    "commentPropertyOrphan": "属性「{{key}}」已不存在。",
+    "commentPropertyOrphan": "属性“{{key}}”已不存在。",
     "commentPropertyOrphanValue": "当时记录的值：{{value}}",
     "commentThreadCount_other": "{{count}} 条评论",
     "commentOnNote": "针对整篇笔记",

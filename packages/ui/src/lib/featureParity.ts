@@ -431,18 +431,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "partial",
     mobileReason:
       "The phone reads every thread, replies, resolves, jumps to a passage by " +
-      "tapping its quote, and accepts or declines a proposal. What it cannot do is " +
-      "START one against a passage: both flows begin with a text selection, and the " +
-      "note opens read-first there, so the selection would have to compete with the " +
-      "system's own copy bubble. This is a gap, not a platform limit — a phone can " +
-      "select text — and it is written up in the collected-remainders plan " +
-      "(Sammelplan, C26). The read half was the urgent one: on a phone you mostly " +
-      "answer what somebody else pointed at. Since Stufe E the desktop also starts " +
-      "a comment on things that are not a passage at all — a picture (and a region " +
-      "inside it), a diagram, a table cell, a database property. Those need no text " +
-      "selection, so the reason above does not cover them: the phone simply never " +
-      "feeds commentAnchorsEnabled, which leaves the bubble inert. Same gap, and " +
-      "the same plan closes it (Stufe E, E4).",
+      "tapping its quote, and accepts or declines a proposal. Since Stufe E it also " +
+      "STARTS a comment on everything that is not a passage: a picture (and a " +
+      "region drawn inside it with a finger), a diagram, a table cell, a database " +
+      "property. None of those need selected text, which is why they could be " +
+      "closed first. What is left is the passage itself: both flows begin with a " +
+      "text selection, and the note opens read-first on the phone, so the selection " +
+      "would have to compete with the system's own copy bubble. That is a gap, not " +
+      "a platform limit — a phone can select text — and it is written up in the " +
+      "collected-remainders plan (Sammelplan, C26). The read half was the urgent " +
+      "one either way: on a phone you mostly answer what somebody else pointed at.",
     verified: "2026-09-02",
   },
   {

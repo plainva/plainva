@@ -3490,7 +3490,7 @@
     "commentOnProperty": "Deze eigenschap becommentarieren",
     "commentAtProperty": "Bij de eigenschap “{{key}}”",
     "commentAtPropertyRenamed": "Bij de eigenschap “{{key}}” (nu “{{current}}”)",
-    "commentPropertyOrphan": "De eigenschap ‘{{key}}’ bestaat niet meer.",
+    "commentPropertyOrphan": "De eigenschap “{{key}}” bestaat niet meer.",
     "commentPropertyOrphanValue": "Vastgelegde waarde: {{value}}",
     "commentThreadCount_one": "1 opmerking",
     "commentThreadCount_other": "{{count}} opmerkingen",
