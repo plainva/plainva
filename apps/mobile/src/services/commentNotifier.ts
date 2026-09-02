@@ -2,6 +2,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import {
   buildCommentOverview,
   commentBaseline,
+  commentNotificationText,
   planCommentNotifications,
   requestCommentJump,
   toast,
@@ -191,58 +192,25 @@ export async function runMobileCommentNotifications(): Promise<CommentNotificati
   await updateMobileSettings({ commentNotifySeen: [...seen] });
   if (plan.kind === "none") return plan;
 
-  await announce(plan, settings.commentNotifyPreview && !(current.isLocked?.() ?? false), names, notes);
+  await announce(plan, settings.commentNotifyPreview && !(current.isLocked?.() ?? false), names);
   return plan;
-}
-
-const EXCERPT_CHARS = 120;
-
-/** A lock-screen line, not a paragraph. Cut on a word where one is near. */
-function excerpt(body: string): string {
-  const flat = body.replace(/\s+/g, " ").trim();
-  if (flat.length <= EXCERPT_CHARS) return flat;
-  const cut = flat.slice(0, EXCERPT_CHARS);
-  const space = cut.lastIndexOf(" ");
-  return `${space > EXCERPT_CHARS - 24 ? cut.slice(0, space) : cut}…`;
-}
-
-/** The note's name as a person would say it, not its path. */
-function noteName(path: string): string {
-  return (path.split("/").pop() ?? path).replace(/\.md$/i, "");
 }
 
 async function announce(
   plan: CommentNotificationPlan,
   preview: boolean,
   names: ReadonlyMap<string, string>,
-  notes: readonly CommentNotificationNote[],
 ): Promise<void> {
   if (plan.kind === "none") return;
-  let title: string;
-  let body: string;
-  let extra: CommentIntent | null = null;
-
-  if (!preview) {
-    // Neither name, nor note title, nor a word of the text (§5, FB2). A locked
-    // vault lands here too: the records came in sealed and nothing can open them.
-    title = plan.kind === "single" ? i18n.t("commentNotify.titleOne") : i18n.t("commentNotify.titleMany", { count: plan.commentCount });
-    body = i18n.t("commentNotify.quiet");
-    if (plan.kind === "single") extra = { path: plan.notice.path, commentId: plan.notice.commentId };
-  } else if (plan.kind === "single") {
-    const notice = plan.notice;
-    const author = names.get(notice.authorMemberId) ?? i18n.t("commentNotify.someone");
-    title =
-      notice.source === "publication" && notice.publicationName
-        ? i18n.t("commentNotify.titleGuest", { name: notice.publicationName })
-        : i18n.t("commentNotify.titleOneNamed", { author, note: noteName(notice.path) });
-    body = excerpt(notice.body);
-    extra = { path: notice.path, commentId: notice.commentId };
-  } else {
-    title = plan.catchUp
-      ? i18n.t("commentNotify.titleCatchUp", { count: plan.commentCount })
-      : i18n.t("commentNotify.titleMany", { count: plan.commentCount });
-    body = i18n.t("commentNotify.inNotes", { count: plan.noteCount });
-  }
+  // One rule for what a lock screen may show, shared with the desktop: two
+  // copies would drift, and the drift would only ever surface on somebody's
+  // lock screen. A locked vault suppresses the preview regardless of the
+  // setting - the caller has already ANDed that in.
+  const text = commentNotificationText({ plan, preview, names, t: i18n.t.bind(i18n) });
+  if (!text) return;
+  const { title, body } = text;
+  const extra: CommentIntent | null =
+    plan.kind === "single" ? { path: plan.notice.path, commentId: plan.notice.commentId } : null;
 
   try {
     const permission = await LocalNotifications.checkPermissions();
@@ -277,7 +245,6 @@ async function announce(
     }
   };
   toast.info(`${title} · ${body}`, { label: i18n.t("commentNotify.actionOpen"), run: open });
-  void notes;
 }
 
 /**

@@ -2,6 +2,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 import {
   buildCommentOverview,
   commentBaseline,
+  commentNotificationText,
   planCommentNotifications,
   toast,
   type CommentNotificationNote,
@@ -59,54 +60,6 @@ let permissionAsked = false;
 /** Registered once at startup, like the mail token resolver next door. */
 export function setCommentNotifierDeps(next: CommentNotifierDeps | null): void {
   deps = next;
-}
-
-/**
- * The text of one message.
- *
- * Split out because it is the part with a rule in it, not because it is long:
- * with the preview off - or the vault locked - a notification must not leak the
- * note title, the person or a word of the text onto a lock screen (§5, FB2). A
- * locked vault reaching this point is not a bug: the comment came in sealed and
- * nothing here can open it.
- */
-export function commentNotificationText(
-  plan: CommentNotificationPlan,
-  options: { preview: boolean; names: ReadonlyMap<string, string>; noteName: (path: string) => string },
-): { title: string; body: string } | null {
-  if (plan.kind === "none") return null;
-  if (!options.preview) {
-    return plan.kind === "single"
-      ? { title: i18n.t("commentNotify.titleOne"), body: i18n.t("commentNotify.quiet") }
-      : { title: i18n.t("commentNotify.titleMany", { count: plan.commentCount }), body: i18n.t("commentNotify.quiet") };
-  }
-  if (plan.kind === "single") {
-    const notice = plan.notice;
-    const author = options.names.get(notice.authorMemberId) ?? i18n.t("commentNotify.someone");
-    const note = options.noteName(notice.path);
-    const title =
-      notice.source === "publication" && notice.publicationName
-        ? i18n.t("commentNotify.titleGuest", { name: notice.publicationName })
-        : i18n.t("commentNotify.titleOneNamed", { author, note });
-    return { title, body: excerpt(notice.body) };
-  }
-  return {
-    title: plan.catchUp
-      ? i18n.t("commentNotify.titleCatchUp", { count: plan.commentCount })
-      : i18n.t("commentNotify.titleMany", { count: plan.commentCount }),
-    body: i18n.t("commentNotify.inNotes", { count: plan.noteCount }),
-  };
-}
-
-const EXCERPT_CHARS = 120;
-
-/** A lock-screen line, not a paragraph. Cut on a word where one is near. */
-function excerpt(body: string): string {
-  const flat = body.replace(/\s+/g, " ").trim();
-  if (flat.length <= EXCERPT_CHARS) return flat;
-  const cut = flat.slice(0, EXCERPT_CHARS);
-  const space = cut.lastIndexOf(" ");
-  return `${space > EXCERPT_CHARS - 24 ? cut.slice(0, space) : cut}…`;
 }
 
 /**
@@ -191,7 +144,7 @@ async function announce(
   const { names, vaultPath, deps: current } = context;
   // A locked vault has nothing to preview - the records came in sealed (§5).
   const preview = settings.preview && !(current.isLocked?.(vaultPath) ?? false);
-  const text = commentNotificationText(plan, { preview, names, noteName });
+  const text = commentNotificationText({ plan, preview, names, t: i18n.t.bind(i18n) });
   if (!text) return;
 
   const target: NewCommentNotice | null = plan.kind === "single" ? plan.notice : null;
@@ -217,12 +170,6 @@ async function announce(
     console.warn("[commentNotifier] notification failed", error);
   }
   toast.info(`${text.title} · ${text.body}`, { label: i18n.t("commentNotify.actionOpen"), run: open });
-}
-
-/** The note's name as a person would say it, not its path. */
-function noteName(path: string): string {
-  const file = path.split("/").pop() ?? path;
-  return file.replace(/\.md$/i, "");
 }
 
 /**
