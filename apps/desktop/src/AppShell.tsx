@@ -30,7 +30,7 @@ const CommentsOverview = lazy(() => import('./components/comments/CommentsOvervi
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
-import { requestCommentJump } from "@plainva/ui";
+import { requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
@@ -86,7 +86,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, getCommentSelfId } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -316,11 +316,29 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     let disposer: (() => void) | undefined;
     void import("./services/commentNotifier").then(({ setCommentNotifierDeps, startCommentNotifier }) => {
       setCommentNotifierDeps({
-        listNotes: async () =>
-          [...(await listAllWorkspaceComments())].map(([path, comments]) => ({ path, comments })),
+        listNotes: async () => {
+          // Two sources, one list. A guest remark is reported on every level
+          // (§4), so it travels as its own entry with `source: "publication"`
+          // rather than being merged into the note's own thread - they come
+          // from outside the vault and cannot be answered from this side.
+          const [own, guests] = await Promise.all([listAllWorkspaceComments(), listAllPublicationComments()]);
+          const notes: CommentNotificationNote[] = [...own].map(([path, comments]) => ({ path, comments }));
+          for (const [path, entries] of guests) {
+            for (const entry of entries) {
+              notes.push({
+                path,
+                comments: [entry.comment],
+                source: "publication" as const,
+                publicationName: entry.publicationName,
+              });
+            }
+          }
+          return notes;
+        },
         listNames: async () =>
           new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
         identity: async () => ({ memberId: await getCommentSelfId(), deviceId: null }),
+        ownedPaths: () => listOwnedPaths(),
         openComment: ({ path, commentId }) => {
           // The request is parked BEFORE the tab opens, so a note that mounts
           // fresh finds it already waiting rather than racing the event.
@@ -338,7 +356,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       disposer?.();
       void import("./services/commentNotifier").then(({ setCommentNotifierDeps }) => setCommentNotifierDeps(null));
     };
-  }, [vaultPath, listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, openTab]);
+  }, [vaultPath, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, openTab]);
 
   // Apply either the global note preference or a contextless temporary close.
   const activeTabKind = tabKindOf(activePath);

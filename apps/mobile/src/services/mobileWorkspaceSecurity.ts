@@ -57,6 +57,8 @@ import {
   type PublishedSliceMode,
   type PublishedSliceProvider,
   type WorkspaceGovernanceUpdate,
+  collectPublicationComments,
+  type PublicationComment,
   type WorkspaceObjectStore,
   type WorkspacePublicationRecord,
   type WorkspaceRekeyMode,
@@ -579,6 +581,61 @@ export async function listMobilePublications(
   state: WorkspaceStateStore,
 ): Promise<WorkspacePublicationRecord[]> {
   return state.listPublications();
+}
+
+/**
+ * Every remark the guests of this vault's publications wrote back (Stufe F, F4).
+ *
+ * The desktop grew this for its column (D7); the phone never had the column and
+ * so never collected them. For a notification that difference does not hold up:
+ * a guest remark reaches the owner on EVERY level precisely because a share
+ * would otherwise be a one-way street - and that argument is about the person,
+ * not about which device is at hand.
+ *
+ * Nothing is rebuilt here. `collectPublicationComments` is the same core helper
+ * the desktop calls, on the same records; this walks the publications once,
+ * unlocking each at most a single time, and keys the result by the publisher's
+ * own note path.
+ *
+ * A publication whose key is missing on this device is skipped rather than
+ * raised. A missing key is a fact the security surface states plainly; a
+ * notification cycle is not where somebody should learn it.
+ */
+export async function listAllMobilePublicationComments(input: {
+  state: WorkspaceStateStore;
+  store: WorkspaceObjectStore;
+  runtime: PersonalWorkspaceRuntime;
+  vaultId: string;
+}): Promise<Map<string, Array<PublicationComment & { publicationName: string }>>> {
+  const byPath = new Map<string, Array<PublicationComment & { publicationName: string }>>();
+  const known = new Set((await input.state.listObjects()).map((object) => object.objectId));
+  for (const record of await input.state.listPublications()) {
+    const sourceObjectIds = record.manifest.objects
+      .map((entry) => entry.sourceObjectId)
+      .filter((objectId) => known.has(objectId));
+    if (sourceObjectIds.length === 0) continue;
+    try {
+      const publicationRuntime = await loadMobilePublicationRuntime(input.vaultId, record.publicationId);
+      if (!publicationRuntime) continue;
+      const found = await collectPublicationComments({
+        publicationId: record.publicationId,
+        runtime: publicationRuntime,
+        store: publicationStoreFor(input.store, input.runtime.workspaceId, record.config.sliceId),
+        manifest: record.manifest,
+        mode: record.config.mode,
+        sourceObjectIds,
+      });
+      for (const entry of found) {
+        const withName = { ...entry, publicationName: record.config.name };
+        const list = byPath.get(entry.path);
+        if (list) list.push(withName);
+        else byPath.set(entry.path, [withName]);
+      }
+    } catch {
+      continue;
+    }
+  }
+  return byPath;
 }
 
 /**

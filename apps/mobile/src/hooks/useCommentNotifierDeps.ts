@@ -6,6 +6,8 @@ import {
   mobileCommentSelfId,
 } from "../services/mobileComments";
 import type { MobileVault } from "../services/vaultService";
+import type { CommentNotificationNote } from "@plainva/ui";
+import type { WorkspaceCommentRecord } from "@plainva/core";
 
 /**
  * Hands the notifier what only the shell can read (Stufe F, F3).
@@ -32,8 +34,25 @@ export function useCommentNotifierDeps(
     void import("../services/commentNotifier").then((m) => {
       if (cancelled) return;
       m.setMobileCommentNotifierDeps({
-        listNotes: async () =>
-          [...(await listAllMobileComments(vault))].map(([path, comments]) => ({ path, comments })),
+        listNotes: async () => {
+          // Two sources, one list. A guest remark reaches the owner on EVERY
+          // level (§4) - that argument is about the person, not about which
+          // device is at hand, so the phone collects them too since F4.
+          const notes: CommentNotificationNote[] = [...(await listAllMobileComments(vault))].map(
+            ([path, comments]) => ({ path, comments }),
+          );
+          for (const [path, entries] of await guestComments(vault)) {
+            for (const entry of entries) {
+              notes.push({
+                path,
+                comments: [entry.comment],
+                source: "publication",
+                publicationName: entry.publicationName,
+              });
+            }
+          }
+          return notes;
+        },
         listNames: async () => await listMobileCommentAuthors(vault),
         identity: async () => ({ memberId: await mobileCommentSelfId(), deviceId: null }),
         openComment: ({ path, commentId }) => {
@@ -54,4 +73,34 @@ export function useCommentNotifierDeps(
       void import("../services/commentNotifier").then((m) => m.setMobileCommentNotifierDeps(null));
     };
   }, [vault, navigate]);
+}
+
+/**
+ * Guest remarks for the open vault, or nothing.
+ *
+ * Every precondition is a plain "then there are none": no workspace, no object
+ * store, no key for a publication. None of them is an error worth surfacing
+ * from a notification cycle - the security screen is where a missing key is
+ * stated plainly.
+ */
+async function guestComments(
+  vault: MobileVault,
+): Promise<Map<string, Array<{ comment: WorkspaceCommentRecord; publicationName: string }>>> {
+  if (!vault.workspaceState || !vault.workspaceRuntime) return new Map();
+  try {
+    const [{ listAllMobilePublicationComments }, { getMobileWorkspaceObjectStore }] = await Promise.all([
+      import("../services/mobileWorkspaceSecurity"),
+      import("../services/syncService"),
+    ]);
+    const store = await getMobileWorkspaceObjectStore(vault.vaultId);
+    if (!store) return new Map();
+    return await listAllMobilePublicationComments({
+      state: vault.workspaceState,
+      store,
+      runtime: vault.workspaceRuntime,
+      vaultId: vault.vaultId,
+    });
+  } catch {
+    return new Map();
+  }
 }
