@@ -8,7 +8,7 @@ vi.mock("@plainva/ui/i18n", () => ({
   default: { language: "de", t: (k: string, p?: Record<string, unknown>) => (p ? `${k} ${JSON.stringify(p)}` : k) },
 }));
 import { nextLine, nextStart } from "./reminderScheduler";
-import { forgetTrayNext, reportTrayNext, resetTrayNext } from "./trayNext";
+import { forgetTrayNext, reportTrayComments, reportTrayNext, resetTrayNext } from "./trayNext";
 import { setTrayNext } from "./background";
 
 const NOW = Date.parse("2026-08-12T09:00:00Z");
@@ -92,5 +92,58 @@ describe("nextStart (what the merge sorts by)", () => {
 
   it("reports nothing for a vault with no appointment left", () => {
     expect(nextStart([s({ startTs: NOW - 60_000 })], NOW)).toBe(null);
+  });
+});
+
+/**
+ * The tray counter (Stufe F, F2). It states what is WAITING, not what just
+ * arrived - a notification is about a moment, this line is about a state.
+ */
+describe("tray comment counter", () => {
+  beforeEach(() => {
+    resetTrayNext();
+    vi.mocked(setTrayNext).mockClear();
+  });
+
+  const lastLine = () => {
+    // Index rather than `.at(-1)`: this package's lib target predates it.
+    const calls = vi.mocked(setTrayNext).mock.calls;
+    return calls.length ? calls[calls.length - 1][0] : "";
+  };
+
+  it("says nothing at zero - a line that always claims '0 waiting' stops being read", () => {
+    reportTrayNext("/v", "Next: X", NOW + 600_000);
+    expect(lastLine()).not.toContain("trayComments");
+    reportTrayComments("/v", 0);
+    expect(lastLine()).not.toContain("trayComments");
+  });
+
+  it("appends the count to the appointment line", () => {
+    reportTrayNext("/v", "Next: X", NOW + 600_000);
+    reportTrayComments("/v", 3);
+    expect(lastLine()).toContain("Next: X");
+    expect(lastLine()).toContain("\"count\":3");
+  });
+
+  it("sums across vaults, because the tray has one line", () => {
+    reportTrayComments("/a", 2);
+    reportTrayComments("/b", 3);
+    expect(lastLine()).toContain("\"count\":5");
+  });
+
+  it("redraws nothing when the count is unchanged", () => {
+    reportTrayComments("/v", 2);
+    const before = vi.mocked(setTrayNext).mock.calls.length;
+    reportTrayComments("/v", 2);
+    expect(vi.mocked(setTrayNext).mock.calls.length).toBe(before);
+    // Absent and zero are the same statement, so this must not redraw either.
+    reportTrayComments("/other", 0);
+    expect(vi.mocked(setTrayNext).mock.calls.length).toBe(before);
+  });
+
+  it("forgets a closed vault's count", () => {
+    reportTrayComments("/v", 4);
+    forgetTrayNext("/v");
+    expect(lastLine()).not.toContain("trayComments");
   });
 });

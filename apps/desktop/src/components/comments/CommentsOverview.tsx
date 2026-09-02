@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, MessageSquare, RefreshCw, Replace } from "lucide-react";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, Segmented, buildCommentOverview, noteDisplayName, parseCommentMentions } from "@plainva/ui";
+import { Button, ICON, Segmented, buildCommentOverview, noteDisplayName, parseCommentMentions, requestCommentJump } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
 /**
@@ -101,7 +101,18 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
               <span className="pv-comment-overview__badge">{note.threads.length}</span>
             </button>
             {note.threads.map(({ root, replies, addressed }) => (
-              <div className="pv-comment-card" key={root.commentId} onClick={() => onOpenPath(note.path)}>
+              <div
+                className="pv-comment-card"
+                key={root.commentId}
+                onClick={() => {
+                  // Land on THIS card, not merely in the note (Stufe F, §6).
+                  // The overview is where somebody picks one thread out of many;
+                  // dropping them at the top of the note would make them find it
+                  // a second time.
+                  requestCommentJump({ path: note.path, commentId: root.commentId });
+                  onOpenPath(note.path);
+                }}
+              >
                 {addressed && (
                   <span className="pv-comment-card__state">
                     <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}

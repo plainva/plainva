@@ -13,6 +13,24 @@ import { profileDefault, type FolderTemplateRule, type TypeTemplateRule } from "
 export const MIN_SYNC_INTERVAL_SECONDS = 5;
 
 export interface VaultScopedSettings {
+  /**
+   * Remark notifications (Stufe F, F3). Device-local: NONE of these appear in
+   * `profileFields.ts`, and that is the point - a notification is a statement
+   * about THIS device. Carrying the level along would mean a phone silenced for
+   * the commute also silences the desktop.
+   */
+  commentNotifyEnabled: boolean;
+  commentNotifyLevel: string;
+  /** Whether a message may name the note, the person and the text (FB2). */
+  commentNotifyPreview: boolean;
+  /** Notes silenced individually, vault-relative paths. */
+  commentNotifyMuted: string[];
+  /**
+   * Comment ids this device has already accounted for. Not a preference but a
+   * ledger - it is what makes "no catching up" hold across restarts. Pruned to
+   * what still exists on every write, so it stays bounded by the vault.
+   */
+  commentNotifySeen: string[];
   dailyFolder: string;
   /** ＋-capture target when no folder is open (R3.6). */
   inboxFolder: string;
@@ -164,6 +182,13 @@ export interface VaultScopedSettings {
 }
 
 export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
+  // Stufe F, F3. Per VAULT but device-local: none of these appear in
+  // profileFields, so a phone silenced for the commute leaves the desktop alone.
+  "commentNotifyEnabled",
+  "commentNotifyLevel",
+  "commentNotifyPreview",
+  "commentNotifyMuted",
+  "commentNotifySeen",
   "dailyFolder",
   "inboxFolder",
   "attachmentFolder",
@@ -252,6 +277,14 @@ export function vaultDefaults(): VaultScopedSettings {
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
+    // Off until asked for: switching on is what draws the baseline (FB3), and
+    // a notification nobody asked for is the second inbox this plan avoids.
+    // The defaults match the desktop's - one product, one behaviour.
+    commentNotifyEnabled: false,
+    commentNotifyLevel: "relevant",
+    commentNotifyPreview: true,
+    commentNotifyMuted: [],
+    commentNotifySeen: [],
     mailThreads: false,
     mailSnoozed: [],
     mailAccountId: "",
@@ -297,6 +330,11 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,
+    commentNotifyEnabled: src.commentNotifyEnabled ?? d.commentNotifyEnabled,
+    commentNotifyLevel: src.commentNotifyLevel ?? d.commentNotifyLevel,
+    commentNotifyPreview: src.commentNotifyPreview ?? d.commentNotifyPreview,
+    commentNotifyMuted: src.commentNotifyMuted ?? d.commentNotifyMuted,
+    commentNotifySeen: src.commentNotifySeen ?? d.commentNotifySeen,
     mailThreads: src.mailThreads ?? d.mailThreads,
     mailSnoozed: Array.isArray(src.mailSnoozed) ? src.mailSnoozed : d.mailSnoozed,
     mailAccountId: src.mailAccountId ?? d.mailAccountId,

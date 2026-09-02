@@ -25,7 +25,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
+import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
@@ -41,6 +41,7 @@ import { NoteContextSheet, type ContextTab } from "../components/NoteContextShee
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
+import { useCommentMute } from "../hooks/useCommentMute";
 import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
@@ -145,6 +146,28 @@ export function NoteScreen({
   const [comments, setComments] = useState<WorkspaceCommentRecord[]>([]);
   const [commentNames, setCommentNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // Stufe F: silenced or not. Null - and so no bell - while notifications are
+  // off for the vault entirely.
+  const commentMute = useCommentMute(path);
+
+  /**
+   * Landing on the card somebody pointed at (Stufe F, §6).
+   *
+   * The request may already be parked when this note mounts - a tapped
+   * notification opened it, or the overview did - or it may arrive while the
+   * note is open. Both open the sheet, which is where a card lives on the
+   * phone; taking the request clears it, so a re-render cannot reopen the sheet
+   * behind the user's back.
+   */
+  useEffect(() => {
+    if (!path) return;
+    const apply = () => {
+      if (takeCommentJump(path)) setCommentsOpen(true);
+    };
+    apply();
+    window.addEventListener(COMMENT_JUMP_EVENT, apply);
+    return () => window.removeEventListener(COMMENT_JUMP_EVENT, apply);
+  }, [path]);
   const [commentTick, setCommentTick] = useState(0);
   // Read once and kept: the device id does not change while a screen is open,
   // and null until it is here means nothing counts as addressed to you.
@@ -653,6 +676,8 @@ export function NoteScreen({
 
       {commentsOpen && (
         <CommentsSheet
+          muted={commentMute.muted ?? false}
+          onToggleMute={commentMute.toggle}
           comments={comments}
           memberNames={commentNames}
           selfMemberId={commentSelfId}

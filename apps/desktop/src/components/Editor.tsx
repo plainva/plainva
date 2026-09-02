@@ -28,6 +28,7 @@ import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBl
 import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
+import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -178,6 +179,26 @@ export const Editor: React.FC<{
     refresh(); window.addEventListener("plainva-workspace-comments-changed", listener);
     return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
   }, [activePath, listWorkspaceComments, workspaceCanReadComments]);
+
+  /**
+   * Landing on the card somebody pointed at (Stufe F, §6).
+   *
+   * Two triggers, one handler: the request may already be parked when this note
+   * mounts (a notification opened it, or the overview did), or it may arrive
+   * while the note is already open. Both end in the same place, and taking the
+   * request clears it - a card that re-selects itself on every render could
+   * never be deselected by clicking it.
+   */
+  useEffect(() => {
+    if (!activePath) return;
+    const apply = () => {
+      const jump = takeCommentJump(activePath);
+      if (jump) setActiveCommentId(jump.commentId);
+    };
+    apply();
+    window.addEventListener(COMMENT_JUMP_EVENT, apply);
+    return () => window.removeEventListener(COMMENT_JUMP_EVENT, apply);
+  }, [activePath]);
 
   /**
    * What the recipients of this note's publications wrote back (D7).

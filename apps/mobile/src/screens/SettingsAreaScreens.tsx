@@ -113,6 +113,22 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
 export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
+  // Stufe F: the same three levels the desktop offers, through the phone's own
+  // picker rather than a select - one product, two idioms.
+  const levelSuffix = (level: string) =>
+    level === "mentions" ? "Mentions" : level === "all" ? "All" : "Relevant";
+  const pickNotifyLevel = () => {
+    void mSelect({
+      title: t("commentNotify.level"),
+      options: ["mentions", "relevant", "all"].map((value) => ({
+        value,
+        label: t(`commentNotify.level${levelSuffix(value)}`),
+      })),
+      value: settings.commentNotifyLevel,
+    }).then((v) => {
+      if (v !== null) void update({ commentNotifyLevel: v });
+    });
+  };
   const [pickFor, setPickFor] = useState<
     "dailyFolder" | "inboxFolder" | "attachmentFolder" | "templateFolder" | null
   >(null);
@@ -266,6 +282,57 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         </GroupCard>
 
         <TemplateRules onChange={update} settings={settings} vault={vault} />
+
+        {/* Stufe F, F3: the same three questions the desktop asks, in the same
+            order - whether at all, about what, and how much the message may
+            say. The privacy switch sits here rather than in a privacy area,
+            because it is needed in the moment notifications are switched on
+            (§5, FB2). The sentence under the first row states the phone's limit
+            plainly: no timer runs in the background, so it notices on opening
+            rather than at once. */}
+        <SectionLabel>{t("commentNotify.section")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.commentNotifyEnabled}
+                label={t("commentNotify.enable")}
+                onChange={(next) => {
+                  // The baseline is drawn BEFORE the flag is stored, so no cycle
+                  // can slip between the two and release the backlog (FB3).
+                  void (async () => {
+                    if (next) {
+                      const m = await import("../services/commentNotifier");
+                      await m.drawMobileCommentBaseline();
+                    }
+                    await update({ commentNotifyEnabled: next });
+                  })();
+                }}
+              />}
+              title={t("commentNotify.enable")}
+            />
+            {settings.commentNotifyEnabled && (
+              <>
+                <MobileSettingRow
+                  label={t("commentNotify.level")}
+                  onClick={pickNotifyLevel}
+                  value={t(`commentNotify.level${levelSuffix(settings.commentNotifyLevel)}`)}
+                />
+                <Row
+                  end={<Switch
+                    checked={settings.commentNotifyPreview}
+                    label={t("commentNotify.preview")}
+                    onChange={(next) => void update({ commentNotifyPreview: next })}
+                  />}
+                  title={t("commentNotify.preview")}
+                />
+              </>
+            )}
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">
+          {settings.commentNotifyEnabled ? t("commentNotify.previewHint") : t("commentNotify.enableHint")}
+        </p>
       </div>
 
       {pickFor && (

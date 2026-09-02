@@ -3755,7 +3755,9 @@
     "offerTitle": "Op de achtergrond blijven?",
     "offerBody": "Herinneringen verschijnen alleen zolang Plainva draait. Moet Plainva bij het sluiten van het venster in het systeemvak doorlopen?",
     "offerYes": "Ja, op de achtergrond blijven",
-    "offerNo": "Nee, bedankt"
+    "offerNo": "Nee, bedankt",
+    "trayComments_one": "{{count}} opmerking wacht",
+    "trayComments_other": "{{count}} opmerkingen wachten"
   },
   "vacation": {
     "section": "Afwezigheidsbericht",

@@ -3714,7 +3714,8 @@
     "offerTitle": "バックグラウンドに残しますか？",
     "offerBody": "リマインダーは Plainva が動いているあいだだけ表示されます。ウィンドウを閉じたあとも通知領域で動かし続けますか。",
     "offerYes": "はい、残す",
-    "offerNo": "いいえ"
+    "offerNo": "いいえ",
+    "trayComments_other": "注釈 {{count}} 件が待っています"
   },
   "vacation": {
     "section": "不在通知",

@@ -3714,7 +3714,8 @@
     "offerTitle": "留在后台？",
     "offerBody": "提醒只在 Plainva 运行时出现。关闭窗口后，是否让 Plainva 在通知区域继续运行？",
     "offerYes": "好，留在后台",
-    "offerNo": "不用了"
+    "offerNo": "不用了",
+    "trayComments_other": "{{count}} 条批注在等待"
   },
   "vacation": {
     "section": "外出自动回复",

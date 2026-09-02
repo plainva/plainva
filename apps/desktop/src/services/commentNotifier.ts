@@ -1,5 +1,6 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import {
+  buildCommentOverview,
   commentBaseline,
   planCommentNotifications,
   toast,
@@ -9,6 +10,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
+import { reportTrayComments } from "./trayNext";
 import {
   loadCommentNotificationSettings,
   loadSeenComments,
@@ -150,6 +152,14 @@ export async function runCommentNotifications(vaultPath: string): Promise<Commen
 
   for (const id of plan.seen) seen.add(id);
   await saveSeenComments(store, vaultPath, seen, present);
+
+  // The tray counts what is WAITING, not what just arrived: a notification is
+  // about a moment, the tray line is about a state. Computed from the same
+  // overview the surface uses, so the two cannot disagree.
+  const addressed = buildCommentOverview(notes, identity.memberId, names, { onlyAddressed: true })
+    .reduce((sum, note) => sum + note.addressedCount, 0);
+  reportTrayComments(vaultPath, addressed);
+
   if (plan.kind === "none") return plan;
 
   await announce(plan, settings, { names, vaultPath, deps: current });

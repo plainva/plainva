@@ -30,6 +30,7 @@ const CommentsOverview = lazy(() => import('./components/comments/CommentsOvervi
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { requestCommentJump } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
@@ -320,7 +321,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         listNames: async () =>
           new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
         identity: async () => ({ memberId: await getCommentSelfId(), deviceId: null }),
-        openComment: ({ path }) => openTab(0, path, false),
+        openComment: ({ path, commentId }) => {
+          // The request is parked BEFORE the tab opens, so a note that mounts
+          // fresh finds it already waiting rather than racing the event.
+          requestCommentJump({ path, commentId });
+          openTab(0, path, false);
+        },
         openOverview: () => openTab(0, COMMENTS_TAB_PATH, false),
         // A window in the foreground has the column; a system notification for
         // something already on screen is noise (FB5).

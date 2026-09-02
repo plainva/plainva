@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Check, ListChecks, MessageSquare } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, MentionTextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
+import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare } from "lucide-react";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -46,6 +46,17 @@ export interface CommentsSheetProps {
   /** Tapping an anchored quote reveals the passage in the note (D6). */
   onRevealAnchor(comment: WorkspaceCommentRecord): void;
   onClose(): void;
+  /**
+   * Whether this note is silenced, and how to change it (Stufe F, §3 rule 4).
+   *
+   * The same control the desktop column carries, in the phone's own idiom -
+   * silence is a state of THIS note, and the moment somebody wants it is the
+   * moment they are looking at the remarks. Absent while notifications are off
+   * for the vault: a switch that silences something which never speaks reads as
+   * broken.
+   */
+  muted?: boolean;
+  onToggleMute?(): void;
 }
 
 /**
@@ -91,6 +102,8 @@ export function CommentsSheet({
   onPromoteToTask,
   onRevealAnchor,
   onClose,
+  muted,
+  onToggleMute,
 }: CommentsSheetProps) {
   const { t } = useTranslation();
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -155,7 +168,18 @@ export function CommentsSheet({
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <p className="m-sheet-title">{t("workspaceSecurity.comments")}</p>
+        <div className="pv-comment-column__head">
+          <p className="m-sheet-title">{t("workspaceSecurity.comments")}</p>
+          {onToggleMute && (
+            <IconButton
+              label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
+              active={muted}
+              onClick={onToggleMute}
+            >
+              {muted ? <BellOff size={ICON.touch} /> : <Bell size={ICON.touch} />}
+            </IconButton>
+          )}
+        </div>
         {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
         <div className="pv-comment-list">
           {threads.map(({ root, replies, addressed }) => {

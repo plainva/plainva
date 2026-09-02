@@ -451,16 +451,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktop: "yes",
     mobile: "partial",
     mobileReason:
-      "Plainva has no server that could push a notification, so a remark can only " +
-      "be noticed where a device looks anyway - in a sync cycle. The desktop " +
-      "worker runs continuously (15 s by default), so it tells you almost at " +
-      "once. A phone runs no timer in the background, so it notices when the app " +
-      "is in the foreground or returns there - the same platform limit the PIM " +
-      "refresh hit (services/appLifecycle.ts). This is a decision rather than a " +
-      "gap because closing it would mean a push service, and a push service means " +
-      "a foreign server learning when who commented on which note - exactly what " +
-      "the encryption prevents. The surface says so once, when notifications are " +
-      "switched on, rather than making a promise the phone cannot keep.",
+      "Everything ELSE about remark notifications is the same on both shells " +
+      "since F3: the same three levels, the same preview switch, the same " +
+      "per-note silencing, the same landing on the card that was pointed at. " +
+      "What differs is WHEN, and only that. Plainva has no server that could " +
+      "push a notification, so a remark can only be noticed where a device looks " +
+      "anyway - in a sync cycle. The desktop worker runs continuously (15 s by " +
+      "default), so it tells you almost at once. A phone runs no timer in the " +
+      "background, so it notices after a sideband cycle and on returning to the " +
+      "foreground - the same platform limit the PIM refresh hit " +
+      "(services/appLifecycle.ts). This is a decision rather than a gap because " +
+      "closing it would mean a push service, and a push service means a foreign " +
+      "server learning when who commented on which note - exactly what the " +
+      "encryption prevents. The settings screen says so in its own words rather " +
+      "than making a promise the phone cannot keep.",
     verified: "2026-09-02",
   },
   {

@@ -3796,7 +3796,10 @@
     "offerTitle": "Rester en arrière-plan ?",
     "offerBody": "Les rappels n'apparaissent que tant que Plainva fonctionne. Plainva doit-il continuer dans la zone de notification lorsque vous fermez la fenêtre ?",
     "offerYes": "Oui, rester en arrière-plan",
-    "offerNo": "Non merci"
+    "offerNo": "Non merci",
+    "trayComments_one": "{{count}} annotation en attente",
+    "trayComments_many": "{{count}} annotations en attente",
+    "trayComments_other": "{{count}} annotations en attente"
   },
   "vacation": {
     "section": "Message d’absence",

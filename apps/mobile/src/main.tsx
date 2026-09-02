@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
 import { initReminderScheduler } from "./services/reminderScheduler";
+import { initMobileCommentNotifier } from "./services/commentNotifier";
 import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
@@ -134,6 +135,10 @@ async function boot(): Promise<void> {
   // still returns keys leaves a raw key on the notification until the next cold
   // start (plan Mobile-Feedback, P1).
   initReminderScheduler();
+  // Stufe F: after i18nReady for the same reason the reminder scheduler is -
+  // an action type registered before the language file has loaded keeps the raw
+  // key on its button for the life of the process (finding 2026-08-22).
+  initMobileCommentNotifier();
   // Before the first paint: a stylesheet keyed on the window class must not
   // see a phone layout for one frame on a tablet.
   initWindowClass();

@@ -26,6 +26,10 @@ import { pimForegroundSync } from "./pim/pimService";
  */
 export function onAppForeground(): void {
   foregroundSync();
+  // Stufe F: the second of the phone's two moments. A remark that arrived while
+  // the app was away is noticed on return - the parity catalogue says so
+  // plainly rather than promising the desktop's near-immediacy.
+  void import("./commentNotifier").then((m) => m.runMobileCommentNotifications()).catch(() => {});
   pimForegroundSync();
   window.dispatchEvent(new CustomEvent("m-backup-due"));
   window.dispatchEvent(new CustomEvent("m-poll-share"));

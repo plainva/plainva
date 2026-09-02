@@ -3755,7 +3755,9 @@
     "offerTitle": "Stay in the background?",
     "offerBody": "Reminders only appear while Plainva is running. Should Plainva keep running in the tray when you close the window?",
     "offerYes": "Yes, stay in the background",
-    "offerNo": "No thanks"
+    "offerNo": "No thanks",
+    "trayComments_one": "{{count}} remark waiting",
+    "trayComments_other": "{{count}} remarks waiting"
   },
   "vacation": {
     "section": "Out-of-office notice",

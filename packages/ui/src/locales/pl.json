@@ -3837,7 +3837,11 @@
     "offerTitle": "Zostać w tle?",
     "offerBody": "Przypomnienia pojawiają się tylko wtedy, gdy Plainva działa. Czy Plainva ma po zamknięciu okna działać dalej w obszarze powiadomień?",
     "offerYes": "Tak, zostań w tle",
-    "offerNo": "Nie, dziękuję"
+    "offerNo": "Nie, dziękuję",
+    "trayComments_one": "{{count}} uwaga czeka",
+    "trayComments_few": "{{count}} uwagi czekają",
+    "trayComments_many": "{{count}} uwag czeka",
+    "trayComments_other": "{{count}} uwagi czeka"
   },
   "vacation": {
     "section": "Wiadomość o nieobecności",

@@ -118,6 +118,7 @@ export * from "./lib/newNoteContent";
 export * from "./lib/fileStem";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
+export * from "./lib/commentJump";
 export * from "./lib/commentMentions";
 export * from "./lib/commentNotifications";
 export * from "./lib/commentExport";

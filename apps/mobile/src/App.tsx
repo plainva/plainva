@@ -22,6 +22,7 @@ import {
   toast,
   type AreaOrder,
 } from "@plainva/ui";
+import { useCommentNotifierDeps } from "./hooks/useCommentNotifierDeps";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
@@ -391,6 +392,7 @@ export default function App() {
   // switch, so the timer is cancelled on pointerup/leave. Declared above the
   // early return: hooks must run in the same order on every render.
 
+  useCommentNotifierDeps(vault, useCallback((entry) => setNav((s) => pushEntry(s, entry)), []));
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);

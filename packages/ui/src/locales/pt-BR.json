@@ -3796,7 +3796,10 @@
     "offerTitle": "Permanecer em segundo plano?",
     "offerBody": "Os lembretes só aparecem enquanto o Plainva estiver em execução. O Plainva deve continuar na área de notificação ao fechar a janela?",
     "offerYes": "Sim, permanecer em segundo plano",
-    "offerNo": "Não, obrigado"
+    "offerNo": "Não, obrigado",
+    "trayComments_one": "{{count}} anotação aguardando",
+    "trayComments_many": "{{count}} anotações aguardando",
+    "trayComments_other": "{{count}} anotações aguardando"
   },
   "vacation": {
     "section": "Mensagem de ausência",

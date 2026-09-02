@@ -3796,7 +3796,10 @@
     "offerTitle": "Restare sullo sfondo?",
     "offerBody": "I promemoria compaiono solo finché Plainva è in esecuzione. Plainva deve restare nell'area di notifica quando chiudi la finestra?",
     "offerYes": "Sì, resta sullo sfondo",
-    "offerNo": "No, grazie"
+    "offerNo": "No, grazie",
+    "trayComments_one": "{{count}} annotazione in attesa",
+    "trayComments_many": "{{count}} annotazioni in attesa",
+    "trayComments_other": "{{count}} annotazioni in attesa"
   },
   "vacation": {
     "section": "Risposta automatica",

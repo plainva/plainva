@@ -838,6 +838,12 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         // Silent by design: the surface shows what it has, and a bundle it
         // could not read is not something the user can act on mid-sync.
       }
+      // Stufe F: one of the two moments a phone can notice that somebody wrote
+      // something - there is no server to push it, and no timer runs in the
+      // background. Fired even after a failure above: in an encrypted workspace
+      // comments arrive through the ordinary file sync, so a sideband failure
+      // does not mean nothing came.
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-comments-synced"));
     }
   }
 

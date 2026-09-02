@@ -3796,7 +3796,10 @@
     "offerTitle": "¿Quedarse en segundo plano?",
     "offerBody": "Los recordatorios solo aparecen mientras Plainva está en marcha. ¿Debe Plainva seguir en el área de notificación al cerrar la ventana?",
     "offerYes": "Sí, quedarse en segundo plano",
-    "offerNo": "No, gracias"
+    "offerNo": "No, gracias",
+    "trayComments_one": "{{count}} anotación esperando",
+    "trayComments_many": "{{count}} anotaciones esperando",
+    "trayComments_other": "{{count}} anotaciones esperando"
   },
   "vacation": {
     "section": "Mensaje de ausencia",
