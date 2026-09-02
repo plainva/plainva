@@ -2158,6 +2158,17 @@
     "mermaidError": "No se pudo renderizar el diagrama Mermaid",
     "mermaidLoading": "Cargando diagrama…"
   },
+  "browse": {
+    "sort": "Ordenar",
+    "sortBy": "Ordenar por",
+    "sortTitle": "Título",
+    "sortModified": "Última modificación",
+    "sortCreated": "Creación",
+    "sortAsc": "Ascendente",
+    "sortDesc": "Descendente",
+    "filter": "Buscar en esta carpeta",
+    "noMatches": "Nada aquí coincide con «{{q}}»."
+  },
   "compare": {
     "title": "Comparar versiones",
     "conflictExplainer": "Esta nota se modificó en dos lugares a la vez. Plainva conservó ambas versiones: no se perdió nada.",

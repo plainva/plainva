@@ -1,3 +1,4 @@
+import { compareFolderEntries, DEFAULT_FOLDER_SORT, type FolderSort } from "@plainva/ui";
 /**
  * Pure model of the file tree (plan UI-UX-Paket P7/P9): tree building, the
  * visible row order, Explorer-style click selection, bulk-path pruning and
@@ -9,6 +10,8 @@ export interface TreeNode {
   path: string; // "" for root
   title?: string;
   mode?: string;
+  mtime?: number | null;
+  ctime?: number | null;
   children?: Record<string, TreeNode>;
 }
 
@@ -17,6 +20,8 @@ export interface TreeFileRow {
   title: string;
   mode?: string;
   isDir?: boolean;
+  mtime?: number | null;
+  ctime?: number | null;
 }
 
 export const buildTree = (files: TreeFileRow[]): TreeNode => {
@@ -37,7 +42,7 @@ export const buildTree = (files: TreeFileRow[]): TreeNode => {
             current.children[part] = { name: part, path: currentPath, children: {} };
           }
         } else {
-          current.children[part] = { name: part, path: file.path, title: file.title, mode: file.mode };
+          current.children[part] = { name: part, path: file.path, title: file.title, mode: file.mode, mtime: file.mtime, ctime: file.ctime };
         }
       } else {
         // It's a folder
@@ -52,10 +57,13 @@ export const buildTree = (files: TreeFileRow[]): TreeNode => {
 };
 
 /** Render order of a folder's children: subfolders first, then the folder's own
- *  index.md, then the remaining files, each A-Z. index.md leads the FILES (so the
- *  folder overview sits at the top of the file list instead of at "i" among them)
- *  but stays below the subfolders (Issue #9 refinement). */
-export function sortedChildren(node: TreeNode): TreeNode[] {
+ *  index.md, then the remaining files under the chosen sort (P11: title, last
+ *  modified or created — the same rule the phone's folder view follows).
+ *  Subfolders always go by name; index.md leads the FILES (so the folder
+ *  overview sits at the top of the file list instead of at "i" among them) but
+ *  stays below the subfolders (Issue #9 refinement). */
+export function sortedChildren(node: TreeNode, sort: FolderSort = DEFAULT_FOLDER_SORT): TreeNode[] {
+  const byName: FolderSort = { key: "title", dir: sort.key === "title" ? sort.dir : "asc" };
   return Object.values(node.children || {}).sort((a, b) => {
     const aIsFolder = !!a.children;
     const bIsFolder = !!b.children;
@@ -64,7 +72,11 @@ export function sortedChildren(node: TreeNode): TreeNode[] {
     const aIsIndex = !a.children && a.name.toLowerCase() === "index.md";
     const bIsIndex = !b.children && b.name.toLowerCase() === "index.md";
     if (aIsIndex !== bIsIndex) return aIsIndex ? -1 : 1;
-    return a.name.localeCompare(b.name);
+    return compareFolderEntries(
+      { title: a.name, mtime: a.mtime, ctime: a.ctime },
+      { title: b.name, mtime: b.mtime, ctime: b.ctime },
+      aIsFolder ? byName : sort
+    );
   });
 }
 

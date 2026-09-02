@@ -63,8 +63,8 @@ describe("a row with an action can be swiped", () => {
     // wrapped afterwards (that is how the note rows are written), so "is there
     // a SwipeRow directly above the row" would ask the wrong question.
     const lists: Array<[string, string, string]> = [
-      ["folder", "listing.folders.map(", "listing.bases.map("],
-      ["database", "listing.bases.map(", "listing.notes.map("],
+      ["folder", "shown.folders.map(", "shown.bases.map("],
+      ["database", "shown.bases.map(", "shown.notes.map("],
     ];
     for (const [name, from, to] of lists) {
       const start = src.indexOf(from);

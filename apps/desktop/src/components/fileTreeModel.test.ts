@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expandedKey } from "./FileTree";
+import { sortedChildren } from "./fileTreeModel";
 import {
   ancestorsOf,
   applyClickSelection,
@@ -200,5 +201,26 @@ describe("expandedKey (multi-window C1)", () => {
     // key would have them fight over the tree on every click.
     expect(expandedKey("C:/Vaults/Wiki", "full-1")).toBe("plainva-expanded-C:/Vaults/Wiki-full-1");
     expect(expandedKey("C:/Vaults/Wiki", "full-1")).not.toBe(expandedKey("C:/Vaults/Wiki", "full-2"));
+  });
+});
+
+describe("sortedChildren under a chosen sort (feedback round 2026-09-01, P11)", () => {
+  const tree = buildTree([
+    { path: "Sub", title: "Sub", isDir: true },
+    { path: "index.md", title: "Index", mtime: 50, ctime: 50 },
+    { path: "b.md", title: "b", mtime: 300, ctime: 1 },
+    { path: "a.md", title: "a", mtime: 100, ctime: 3 },
+    { path: "c.md", title: "c", mtime: 200, ctime: 2 },
+  ]);
+  const names = (sort: Parameters<typeof sortedChildren>[1]) => sortedChildren(tree, sort).map((n) => n.name);
+
+  it("keeps subfolders first and index.md at the top of the files whatever the sort", () => {
+    expect(names({ key: "modified", dir: "desc" })).toEqual(["Sub", "index.md", "b.md", "c.md", "a.md"]);
+    expect(names({ key: "created", dir: "asc" })).toEqual(["Sub", "index.md", "b.md", "c.md", "a.md"]);
+    expect(names({ key: "title", dir: "desc" })).toEqual(["Sub", "index.md", "c.md", "b.md", "a.md"]);
+  });
+
+  it("defaults to title A-Z, exactly the old order", () => {
+    expect(names(undefined)).toEqual(["Sub", "index.md", "a.md", "b.md", "c.md"]);
   });
 });

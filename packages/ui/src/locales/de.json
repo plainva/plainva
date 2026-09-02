@@ -2148,6 +2148,17 @@
     "mermaidError": "Mermaid-Diagramm konnte nicht gerendert werden",
     "mermaidLoading": "Diagramm wird geladen…"
   },
+  "browse": {
+    "sort": "Sortieren",
+    "sortBy": "Sortieren nach",
+    "sortTitle": "Titel",
+    "sortModified": "Zuletzt geändert",
+    "sortCreated": "Erstellt",
+    "sortAsc": "Aufsteigend",
+    "sortDesc": "Absteigend",
+    "filter": "In diesem Ordner suchen",
+    "noMatches": "Hier passt nichts zu „{{q}}“."
+  },
   "compare": {
     "title": "Fassungen vergleichen",
     "conflictExplainer": "Diese Notiz wurde an zwei Stellen gleichzeitig geändert. Plainva hat beide Fassungen aufgehoben — nichts ist verloren.",

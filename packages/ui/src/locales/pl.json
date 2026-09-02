@@ -2168,6 +2168,17 @@
     "mermaidError": "Nie udało się wyrenderować diagramu Mermaid",
     "mermaidLoading": "Ładowanie diagramu…"
   },
+  "browse": {
+    "sort": "Sortuj",
+    "sortBy": "Sortuj według",
+    "sortTitle": "Tytuł",
+    "sortModified": "Ostatnia zmiana",
+    "sortCreated": "Utworzono",
+    "sortAsc": "Rosnąco",
+    "sortDesc": "Malejąco",
+    "filter": "Szukaj w tym folderze",
+    "noMatches": "Nic tutaj nie pasuje do „{{q}}”."
+  },
   "compare": {
     "title": "Porównaj wersje",
     "conflictExplainer": "Ta notatka została zmieniona w dwóch miejscach jednocześnie. Plainva zachowała obie wersje — nic nie przepadło.",

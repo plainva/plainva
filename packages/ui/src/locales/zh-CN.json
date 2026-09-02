@@ -2138,6 +2138,17 @@
     "mermaidError": "无法渲染 Mermaid 图表",
     "mermaidLoading": "正在加载图表…"
   },
+  "browse": {
+    "sort": "排序",
+    "sortBy": "排序方式",
+    "sortTitle": "标题",
+    "sortModified": "最近修改",
+    "sortCreated": "创建时间",
+    "sortAsc": "升序",
+    "sortDesc": "降序",
+    "filter": "在此文件夹中搜索",
+    "noMatches": "这里没有与“{{q}}”匹配的内容。"
+  },
   "compare": {
     "title": "比较版本",
     "conflictExplainer": "这条笔记在两处同时被修改。Plainva 保留了两个版本，没有任何内容丢失。",

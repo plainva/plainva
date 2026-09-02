@@ -112,6 +112,7 @@ export * from "./components/SelectionToolbar";
 export * from "./lib/inlineMarkdown";
 export * from "./lib/lineDiff";
 export * from "./lib/compareVersions";
+export * from "./lib/folderSort";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
 export * from "./lib/folderTemplates";

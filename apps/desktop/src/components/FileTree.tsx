@@ -47,6 +47,7 @@ import {
 } from "./fileTreeModel";
 import { detectMac } from "./WindowControls";
 import { useTranslation } from "react-i18next";
+import { DEFAULT_FOLDER_SORT, type FolderSort } from "@plainva/ui";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -92,6 +93,9 @@ interface ContextMenuState {
 // changes — context-menu/session state flips in FileTree no longer walk every
 // visible row. All handler props are wrapped in useStableHandler so the
 // shallow compare holds across renders.
+/** The active folder sort, read by every nested folder without prop threading. */
+const TreeSortContext = React.createContext<FolderSort>(DEFAULT_FOLDER_SORT);
+
 const TreeNodeView: React.FC<{
   node: TreeNode;
   activePath: string | null;
@@ -123,6 +127,7 @@ const TreeNodeView: React.FC<{
   handleNewItemSubmit: (e?: React.FormEvent) => void;
 }> = React.memo(({ node, activePath, pendingPaths, docIcons, selection, expandedFolders, onItemClick, onItemAuxClick, onContextMenu, depth, renamingItemParams, renamingName, renamingError, setRenamingName, handleRenameSubmit, cancelRenaming, onDragStart, onDragOver, onDrop, onDragEnd, draggedPath, dropTarget, newItemParams, newItemName, newItemError, setNewItemName, handleNewItemSubmit }) => {
   const { t } = useTranslation();
+  const treeSort = React.useContext(TreeSortContext);
   const isOpen = expandedFolders.has(node.path);
   const isFile = !node.children;
   const isSelected = selection.has(node.path);
@@ -206,7 +211,7 @@ const TreeNodeView: React.FC<{
   }
 
   // Folder
-  const childrenNodes = sortedChildren(node);
+  const childrenNodes = sortedChildren(node, treeSort);
 
   const isRenaming = renamingItemParams?.path === node.path;
 
@@ -365,7 +370,9 @@ export const FileTree: React.FC<{
   /** Reports whether any folder is expanded — feeds the sidebar's
    *  collapse/expand-all toggle icon (E3 2026-07-09). */
   onExpandedStateChange?: (hasExpanded: boolean) => void;
-}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange }) => {
+  /** Order of a folder's files (P11): title, last modified or created. */
+  sort?: FolderSort;
+}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange, sort = DEFAULT_FOLDER_SORT }) => {
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
@@ -447,16 +454,17 @@ export const FileTree: React.FC<{
     const fetchFiles = async () => {
       try {
         if (effectiveQuery.trim() === "") {
-          const dbFiles = await queryService.db.query<{ path: string; title: string; mode: string }>(
-            `SELECT path, title, mode FROM files ORDER BY path ASC`
+          const dbFiles = await queryService.db.query<{ path: string; title: string; mode: string; mtime_local: number | null; ctime: number | null }>(
+            `SELECT path, title, mode, mtime_local, ctime FROM files ORDER BY path ASC`
           );
 
-          const allFiles: { path: string; title: string; mode?: string; isDir?: boolean }[] =
-            [...dbFiles, ...diskFolders];
+          const allFiles: { path: string; title: string; mode?: string; isDir?: boolean; mtime?: number | null; ctime?: number | null }[] =
+            [...dbFiles.map((f) => ({ path: f.path, title: f.title, mode: f.mode, mtime: f.mtime_local, ctime: f.ctime })), ...diskFolders];
 
           // Keep the previous reference when nothing tree-relevant changed, so a
           // content-only autosave does not rebuild + re-render the whole tree.
-          if (!cancelled) setFiles((prev) => (sameTreeFiles(prev, allFiles) ? prev : allFiles));
+          // Under a time sort the times ARE tree-relevant (a save moves the row).
+          if (!cancelled) setFiles((prev) => (sameTreeFiles(prev, allFiles, sort.key !== "title") ? prev : allFiles));
         } else {
           // FTS5 search — prefix matching + snippets/title highlight (P1/P2).
           const { perfMeasure } = await import("../services/perfMetrics");
@@ -1290,7 +1298,7 @@ export const FileTree: React.FC<{
     );
   } else {
     // Tree view
-    const childrenNodes = sortedChildren(tree);
+    const childrenNodes = sortedChildren(tree, sort);
 
     content = childrenNodes.map(child => (
       <TreeNodeView
@@ -1383,7 +1391,7 @@ export const FileTree: React.FC<{
             </div>
           </form>
         )}
-        {content}
+        <TreeSortContext.Provider value={sort}>{content}</TreeSortContext.Provider>
       </div>
       {contextMenu && (
         // The menu itself lives in FileContextMenu so the pinned lists above

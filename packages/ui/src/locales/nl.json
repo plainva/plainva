@@ -2148,6 +2148,17 @@
     "mermaidError": "Mermaid-diagram kon niet worden weergegeven",
     "mermaidLoading": "Diagram wordt geladen…"
   },
+  "browse": {
+    "sort": "Sorteren",
+    "sortBy": "Sorteren op",
+    "sortTitle": "Titel",
+    "sortModified": "Laatst gewijzigd",
+    "sortCreated": "Aangemaakt",
+    "sortAsc": "Oplopend",
+    "sortDesc": "Aflopend",
+    "filter": "In deze map zoeken",
+    "noMatches": "Niets hier komt overeen met ‘{{q}}’."
+  },
   "compare": {
     "title": "Versies vergelijken",
     "conflictExplainer": "Deze notitie is op twee plekken tegelijk gewijzigd. Plainva heeft beide versies bewaard — er is niets verloren.",

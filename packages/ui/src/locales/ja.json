@@ -2138,6 +2138,17 @@
     "mermaidError": "Mermaid 図をレンダリングできませんでした",
     "mermaidLoading": "図を読み込んでいます…"
   },
+  "browse": {
+    "sort": "並べ替え",
+    "sortBy": "並べ替え順",
+    "sortTitle": "タイトル",
+    "sortModified": "最終更新",
+    "sortCreated": "作成日",
+    "sortAsc": "昇順",
+    "sortDesc": "降順",
+    "filter": "このフォルダー内を検索",
+    "noMatches": "「{{q}}」に一致するものはありません。"
+  },
   "compare": {
     "title": "バージョンを比較",
     "conflictExplainer": "このノートは2か所で同時に変更されました。Plainva は両方のバージョンを保持しています。失われたものはありません。",

@@ -2148,6 +2148,17 @@
     "mermaidError": "Mermaid diagram could not be rendered",
     "mermaidLoading": "Loading diagram…"
   },
+  "browse": {
+    "sort": "Sort",
+    "sortBy": "Sort by",
+    "sortTitle": "Title",
+    "sortModified": "Last modified",
+    "sortCreated": "Created",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "filter": "Search in this folder",
+    "noMatches": "Nothing here matches “{{q}}”."
+  },
   "compare": {
     "title": "Compare versions",
     "conflictExplainer": "This note was changed in two places at once. Plainva kept both versions — nothing is lost.",

@@ -2678,6 +2678,24 @@ textarea {
   font: inherit;
   font-size: var(--text-xs);
 }
+/* Folder tools (feedback round 2026-09-01, P11): search field and sort
+   button on one row above the listing. */
+.m-browse-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+.m-browse-tools > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* Keeps a sheet row's label aligned when no check mark leads it. */
+.m-row-spacer {
+  display: inline-block;
+  width: 1.25em;
+  flex-shrink: 0;
+}
 /* One comparison surface (feedback round 2026-09-01, P2): two side cards
    (left = in the note, right = the other version), the stacked diff, a
    footer that prices the decision in lines, then the exits. */

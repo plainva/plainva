@@ -59,7 +59,8 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw } from "lucide-react";
+import { Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw, ArrowUpDown } from "lucide-react";
+import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
@@ -207,6 +208,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     leftSearchRef.current?.focus();
   };
   const [showNewMenu, setShowNewMenu] = useState(false);
+  // Folder sort (feedback round 2026-09-01, P11): the same three keys and the
+  // same device-local memory as the phone's folder view. Title A–Z is the
+  // default the tree always had; the choice is remembered per device.
+  const [treeSort, setTreeSort] = useState<FolderSort>(() => readStoredFolderSort());
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const sortBtnRef = useRef<HTMLButtonElement>(null);
+  const chooseTreeSort = (key: FolderSortKey) => {
+    setTreeSort((current) => {
+      const next = nextFolderSort(current, key);
+      writeStoredFolderSort(next);
+      return next;
+    });
+  };
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
@@ -1292,6 +1306,33 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           />
           </div>
           <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              ref={sortBtnRef}
+              aria-haspopup="menu"
+              aria-expanded={showSortMenu}
+              aria-label={t('browse.sortBy')}
+              data-tip={t('browse.sortBy')}
+              data-testid="sidebar-sort"
+              onClick={() => setShowSortMenu((s) => !s)}
+              className={`pv-btn pv-btn--ghost${treeSort.key !== 'title' ? ' is-active' : ''}`}
+              style={{ width: 34, height: 34, padding: 0 }}
+            >
+              <ArrowUpDown size={ICON.ui} />
+            </button>
+            <DropdownMenu
+              open={showSortMenu}
+              anchorRef={sortBtnRef}
+              onClose={() => setShowSortMenu(false)}
+              ariaLabel={t('browse.sortBy')}
+              items={(['title', 'modified', 'created'] as const).map((key) => ({
+                id: `sort-${key}`,
+                label: t(key === 'title' ? 'browse.sortTitle' : key === 'modified' ? 'browse.sortModified' : 'browse.sortCreated'),
+                hint: treeSort.key === key ? t(treeSort.dir === 'asc' ? 'browse.sortAsc' : 'browse.sortDesc') : undefined,
+                onSelect: () => chooseTreeSort(key),
+              }))}
+            />
+          </div>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <div style={{ display: 'flex' }}>
               <button
                 ref={newBtnRef}
@@ -1390,6 +1431,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   onCloseTabsByPrefix={closeTabsByPrefix}
                   onRenameTabPrefix={renameTabPrefix}
                   externalQuery={leftQueryDebounced}
+                  sort={treeSort}
                   onOpenInSplit={openPathInSplit}
                   isBookmarked={(p) => bookmarks.includes(p)}
                   onToggleBookmarkPath={toggleBookmark}

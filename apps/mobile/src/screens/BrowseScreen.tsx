@@ -19,8 +19,11 @@ import {
   Pencil,
   Trash2,
   X,
+  ArrowUpDown,
+  Check,
 } from "lucide-react";
-import { Button, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SectionLabel } from "@plainva/ui";
+import { Button, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
+import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
@@ -81,6 +84,20 @@ export function BrowseScreen({
   const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
   const [movePick, setMovePick] = useState<{ path: string; title: string } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  // Sorting and searching in the folder (feedback round 2026-09-01, P11/T5):
+  // a real vault put 640 notes in one folder, hard-sorted by title with no
+  // search box. The sort is the desktop tree's and is remembered per device
+  // under the same key; the query filters every kind of row by its name.
+  const [sort, setSort] = useState<FolderSort>(() => readStoredFolderSort());
+  const [query, setQuery] = useState("");
+  const [sortSheet, setSortSheet] = useState(false);
+  const chooseSort = (key: FolderSortKey) => {
+    setSort((current) => {
+      const next = nextFolderSort(current, key);
+      writeStoredFolderSort(next);
+      return next;
+    });
+  };
   const [conflictSheet, setConflictSheet] = useState<{ path: string; original: string } | null>(
     null,
   );
@@ -149,6 +166,21 @@ export function BrowseScreen({
     };
   }, [vault, folder, bump]);
 
+  // What the screen shows: the listing under the chosen sort, narrowed by the
+  // query. Folders keep their name order in every mode (they have no times).
+  const shown = {
+    folders: listing.folders.filter((f) => matchesFolderQuery(f.name, query)),
+    bases: sortFolderEntries(listing.bases.filter((b) => matchesFolderQuery(b.title, query)), { key: "title", dir: sort.key === "title" ? sort.dir : "asc" }),
+    notes: sortFolderEntries(listing.notes.filter((n) => matchesFolderQuery(n.title, query)), sort),
+    attachments: listing.attachments.filter((a) => matchesFolderQuery(a.name, query)),
+  };
+  // "218 days ago" under every row of a vault copied in one go says nothing
+  // and costs half a row: when the times cannot tell the rows apart, the
+  // subtitle goes (T5, second finding).
+  const showRel = !timesAreUniform(listing.notes);
+  const nothingMatches = query.trim() !== "" && shown.folders.length + shown.bases.length + shown.notes.length + shown.attachments.length === 0;
+  const hasRows = listing.folders.length + listing.bases.length + listing.notes.length + listing.attachments.length > 0;
+
   const noteRow = (n: { path: string; title: string; rel?: string }) => {
     const conflict = isConflictCopyPath(n.path);
     const row = (
@@ -180,7 +212,7 @@ export function BrowseScreen({
           : docIcons.get(n.path)
             ? <DocIcon color={docIcons.get(n.path)!.color} icon={docIcons.get(n.path)!.icon} size={ICON.ui} />
             : <FileText size={ICON.ui} />}
-        subtitle={n.rel}
+        subtitle={showRel ? n.rel : undefined}
         title={n.title}
       />
     );
@@ -379,11 +411,31 @@ export function BrowseScreen({
       )}
       {/* Said once per vault, above the first list that HAS swipeable rows —
           notes, folders and databases all live below this line (R1.1). */}
-      {(listing.folders.length > 0 || listing.bases.length > 0 || listing.notes.length > 0) && <SwipeHint />}
-      {listing.folders.length > 0 && <SectionLabel>{t("mobile.folders")}</SectionLabel>}
+      {hasRows && (
+        <div className="m-browse-tools">
+          <SearchField
+            clearLabel={t("sidebar.clearSearch")}
+            onValueChange={setQuery}
+            placeholder={t("browse.filter")}
+            value={query}
+            data-testid="browse-filter"
+          />
+          <IconButton
+            active={sort.key !== "title"}
+            label={t("browse.sortBy")}
+            onClick={() => setSortSheet(true)}
+            data-testid="browse-sort"
+          >
+            <ArrowUpDown size={ICON.ui} />
+          </IconButton>
+        </div>
+      )}
+      {nothingMatches && <p className="m-hint">{t("browse.noMatches", { q: query.trim() })}</p>}
+      {(shown.folders.length > 0 || shown.bases.length > 0 || shown.notes.length > 0) && <SwipeHint />}
+      {shown.folders.length > 0 && <SectionLabel>{t("mobile.folders")}</SectionLabel>}
       <GroupCard>
       <RowList>
-      {listing.folders.map(({ name, count }) => {
+      {shown.folders.map(({ name, count }) => {
         const full = folder ? `${folder}/${name}` : name;
         const target = { path: full, title: name };
         return (
@@ -416,7 +468,7 @@ export function BrowseScreen({
           </SwipeRow>
         );
       })}
-      {listing.bases.map((b) => {
+      {shown.bases.map((b) => {
         const row = (
           <Row
             onClick={() => {
@@ -456,13 +508,13 @@ export function BrowseScreen({
           </SwipeRow>
         );
       })}
-      {listing.notes.map(noteRow)}
+      {shown.notes.map(noteRow)}
 
       {/* Attachments (S42). They were in the vault, synced and backed up, and
           no screen admitted they existed — a photo inserted into a note simply
           vanished from view. An image opens in the viewer; everything else is
           handed to the system, which knows what a PDF is and Plainva does not. */}
-      {listing.attachments.map((a) => (
+      {shown.attachments.map((a) => (
         <Row
           icon={a.isImage
             ? <ImageIcon className="m-accent" size={ICON.ui} />
@@ -611,6 +663,29 @@ export function BrowseScreen({
               <Trash2 size={ICON.head} />
               <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {sortSheet && (
+        <div className="m-sheet-backdrop" onClick={() => setSortSheet(false)}>
+          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="browse-sort-sheet">
+            <SheetGrip onClose={() => setSortSheet(false)} />
+            <p className="m-sheet-title">{t("browse.sortBy")}</p>
+            {(["title", "modified", "created"] as const).map((key) => (
+              <button
+                key={key}
+                className="m-row"
+                onClick={() => chooseSort(key)}
+                aria-pressed={sort.key === key}
+              >
+                {sort.key === key ? <Check size={ICON.head} /> : <span className="m-row-spacer" />}
+                <span>{t(key === "title" ? "browse.sortTitle" : key === "modified" ? "browse.sortModified" : "browse.sortCreated")}</span>
+                {sort.key === key && (
+                  <span className="m-row-detail">{t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
       )}
