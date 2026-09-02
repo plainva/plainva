@@ -1032,7 +1032,9 @@ test('reminder settings: rows appear, the condition is stated, the calendar filt
   await expect(card).toBeVisible();
   // Off by default: one row, nothing else — the settings do not describe a
   // machinery that is not running.
-  await expect(card.getByRole('switch')).toHaveCount(1);
+  // Two switches from the start (P3/E3): appointments AND due tasks stand
+  // side by side; the task switch no longer hides behind the appointment one.
+  await expect(card.getByRole('switch')).toHaveCount(2);
 
   await card.getByRole('switch').first().click();
   // Mockup order: lead time, all-day, due tasks, calendar filter.
