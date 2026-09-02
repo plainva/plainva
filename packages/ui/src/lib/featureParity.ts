@@ -339,6 +339,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "compare-merge",
+    title: "Merging two versions line by line in the comparison view",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells compare the same two sides under the same rule (left is what " +
+      "the note holds, right is the other version) and offer the same exits: take " +
+      "the other version whole, keep both, discard the copy, decide later. What " +
+      "the phone does not offer is the per-chunk arrow that pulls one block over " +
+      "while the rest stays — that is a mouse gesture on a side-by-side editor, " +
+      "and a phone shows the differences stacked, not side by side. Whoever needs " +
+      "to merge does it at the desk (feedback round 2026-09-01, P2 / mockup " +
+      "\"Zwei Fassungen auf 375 Pixeln\").",
+    verified: "2026-09-02",
+  },
+  {
     id: "haptics",
     title: "Haptic feedback at gesture thresholds",
     area: "platform",

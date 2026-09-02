@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { RotateCcw, History } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
-import { formatBytes } from "./VersionHistoryModal";
+import { formatBytes } from "./CompareModal";
 import { ICON, Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import {
-  ArchiveRestore, Bookmark, Check, ClipboardCopy, Columns2, Copy, Database, Download,
+  ArchiveRestore, Bookmark, ClipboardCopy, Columns2, Copy, Database, Download,
   ExternalLink, FilePlus, FolderPlus, History, ListTree, Pencil, RefreshCw, Rows2, Trash2,
   XCircle, FolderTree, X as XIcon, Files } from "lucide-react";
 import { ICON, MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
@@ -49,9 +49,8 @@ export interface FileContextMenuProps {
   onRemoveFromList?: (path: string) => void;
   onDelete?: (path: string, isFolder: boolean) => void;
 
-  /* Conflict copies */
-  onKeepConflict?: (path: string) => void;
-  onDiscardConflict?: (path: string) => void;
+  /* Conflict copies: the ONLY way out leads through the comparison (P2) —
+     the two blind entries ("keep this version" / "discard conflict") are gone. */
   onResolveConflict?: (path: string) => void;
 
   /* New / folder (tree only) */
@@ -115,17 +114,6 @@ export function FileContextMenu(props: FileContextMenuProps) {
 
   return surface(
     <>
-      {conflict && (props.onKeepConflict || props.onDiscardConflict) && (
-        <>
-          {props.onKeepConflict && (
-            <MenuItem icon={<Check size={ICON.ui} />} onSelect={() => props.onKeepConflict!(path)}>{t("fileTree.keepVersion")}</MenuItem>
-          )}
-          {props.onDiscardConflict && (
-            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => props.onDiscardConflict!(path)}>{t("fileTree.discardConflict")}</MenuItem>
-          )}
-          <MenuSeparator />
-        </>
-      )}
       {isFolder ? (
         <>
           {props.onNewItem && (

@@ -2668,10 +2668,66 @@ textarea {
   opacity: 0.75;
 }
 .m-diff-skip {
+  display: block;
+  width: 100%;
   padding: 2px 10px;
+  border: 0;
+  background: transparent;
   color: var(--text-faint);
   text-align: center;
+  font: inherit;
   font-size: var(--text-xs);
+}
+/* One comparison surface (feedback round 2026-09-01, P2): two side cards
+   (left = in the note, right = the other version), the stacked diff, a
+   footer that prices the decision in lines, then the exits. */
+.m-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
+}
+.m-compare-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+.m-compare-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
+  min-width: 0;
+}
+.m-compare-side-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.m-compare-side-sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.m-compare .m-diff,
+.m-compare .m-version-preview {
+  margin: 0;
+}
+.m-compare-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.m-compare-stats {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.m-compare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 /* Draft recovery banner (package G): compact strip above the editor. */
 .m-draftbanner {

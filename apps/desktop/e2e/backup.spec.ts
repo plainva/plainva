@@ -210,6 +210,11 @@ test('version history lists snapshots, shows a diff and restores an older versio
   // Newest first: the diff view (default for text files) is mounted.
   await expect(page.getByTestId('version-diff-host')).toBeVisible();
   await expect(page.getByTestId('version-diff-host')).toContainText('alte Fassung zwei');
+  // The rule (P2): LEFT is what the note holds now, RIGHT is the saved version.
+  await expect(page.locator('.pv-merge-host .cm-merge-a')).toContainText('aktuelle Fassung');
+  await expect(page.locator('.pv-merge-host .cm-merge-b')).toContainText('alte Fassung zwei');
+  // D5: the comparison scrolls inside the merge view, not nowhere.
+  expect(await page.locator('.pv-merge-host .cm-mergeView').evaluate((el) => getComputedStyle(el).overflowY)).toMatch(/auto|scroll/);
 
   // Pick the OLDER snapshot and restore it (confirmed via the in-app dialog,
   // plan Designsprache P3). The fixture timestamps are deliberately over-age
@@ -279,4 +284,58 @@ test('a failing backup shows the warning state that opens the settings', async (
 
   await errorChip.click();
   await expect(page.getByTestId('backup-zip-enabled')).toBeVisible({ timeout: 10000 });
+});
+
+// ---- the comparison surface for a sync conflict (feedback round 2026-09-01, P2)
+
+const CONFLICT_PATH = '/test-vault/Doc.CONFLICT-2026-07-05T12-30-00-000Z.md';
+
+async function openConflictCompare(page: Page) {
+  await page.addInitScript((p) => {
+    // No H1: the tree then shows the file name, which is what a user sees too.
+    (window as any).mockFs[p] = 'Kopie von diesem Geraet\n\naktuelle Fassung';
+  }, CONFLICT_PATH);
+  await openVault(page);
+  const copy = page.getByTestId('file-tree').getByText(/Doc\.CONFLICT-/);
+  await expect(copy).toBeVisible();
+  await copy.click({ button: 'right' });
+  await page.getByTestId('tree-resolve-conflict').click();
+  await expect(page.getByTestId('compare-modal')).toBeVisible();
+  // The rule, pinned: LEFT is what the note holds, RIGHT is the copy.
+  await expect(page.locator('.pv-merge-host .cm-merge-a')).toContainText('# Doc');
+  await expect(page.locator('.pv-merge-host .cm-merge-b')).toContainText('Kopie von diesem Geraet');
+  // The footer prices the decision before it is taken.
+  await expect(page.getByTestId('compare-stats')).toContainText('+1');
+}
+
+test('conflict: the tree leads to the comparison, and taking the copy writes it into the note', async ({ page }) => {
+  await openConflictCompare(page);
+  await page.getByTestId('compare-adopt').click();
+  // The confirmation names the decision; primary = take the copy.
+  await page.locator('.pv-modal-footer button.pv-btn--primary').last().click();
+  await expect(page.getByTestId('compare-modal')).not.toBeVisible({ timeout: 10000 });
+  expect(await mockFile(page, '/test-vault/Doc.md')).toContain('Kopie von diesem Geraet');
+  expect(await mockFile(page, CONFLICT_PATH)).toBeUndefined();
+});
+
+test('conflict: keeping both turns the copy into a sibling named by its time', async ({ page }) => {
+  await openConflictCompare(page);
+  await page.getByTestId('compare-keep-both').click();
+  await page.locator('.pv-modal-footer button.pv-btn--primary').last().click();
+  await expect(page.getByTestId('compare-modal')).not.toBeVisible({ timeout: 10000 });
+  const files = await page.evaluate(() => Object.keys((window as any).mockFs));
+  expect(files.find((f) => /\/test-vault\/Doc \(Version 2026-07-05 \d\d-30\)\.md$/.test(f)), files.join('\n')).toBeDefined();
+  expect(await mockFile(page, CONFLICT_PATH)).toBeUndefined();
+  expect(await mockFile(page, '/test-vault/Doc.md')).toContain('aktuelle Fassung');
+});
+
+test('conflict: the blind exits are gone from the context menu', async ({ page }) => {
+  await page.addInitScript((p) => {
+    (window as any).mockFs[p] = 'Kopie von diesem Geraet';
+  }, CONFLICT_PATH);
+  await openVault(page);
+  await page.getByTestId('file-tree').getByText(/Doc\.CONFLICT-/).click({ button: 'right' });
+  await expect(page.getByTestId('tree-resolve-conflict')).toBeVisible();
+  await expect(page.getByText('Keep this Version')).toHaveCount(0);
+  await expect(page.getByText('Discard Conflict')).toHaveCount(0);
 });

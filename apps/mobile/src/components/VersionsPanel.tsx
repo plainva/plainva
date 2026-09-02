@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, Chip, collapseContext, EmptyState, ICON, lineDiff, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, toast, versionCopyPath } from "@plainva/ui";
+import { CompareVersions } from "./CompareVersions";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
@@ -12,10 +13,12 @@ import { syncSoon } from "../services/syncService";
  * snapshots into .plainva/backups through the shared BackupVaultAdapter —
  * this surfaces them on touch as a SEGMENT of the note context sheet.
  * Rows group by day and carry a size-delta badge against the previous
- * snapshot; preview is read-only with an optional line diff against the
- * current content; restore flushes pending saves first and forces a
- * pre-restore snapshot (the desktop's data-loss guard), then writes through
- * the sync chain.
+ * snapshot. A selected version opens in the ONE comparison surface
+ * (feedback round 2026-09-01, P2): the note's current text on the left,
+ * the saved version on the right — the same rule and the same words as
+ * the desktop and the conflict sheet. Restore flushes pending saves first
+ * and forces a pre-restore snapshot (the desktop's data-loss guard), then
+ * writes through the sync chain.
  */
 export function VersionsPanel({
   vault,
@@ -35,7 +38,7 @@ export function VersionsPanel({
   const [selected, setSelected] = useState<FileVersion | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [current, setCurrent] = useState<string>("");
-  const [showDiff, setShowDiff] = useState(false);
+  const [currentMtime, setCurrentMtime] = useState<number | null>(null);
 
   useEffect(() => {
     let stale = false;
@@ -43,8 +46,14 @@ export function VersionsPanel({
       if (!stale) setVersions(v);
     });
     void vaultOps.read(vault, path).then((text) => {
-      if (!stale) setCurrent(text);
+      if (!stale) setCurrent(text.replace(/\r\n/g, "\n"));
     });
+    void vault.adapter
+      .getFileInfo(path)
+      .then((info) => {
+        if (!stale) setCurrentMtime(info.mtime);
+      })
+      .catch(() => {});
     return () => {
       stale = true;
     };
@@ -53,14 +62,14 @@ export function VersionsPanel({
   const open = (v: FileVersion) => {
     setSelected(v);
     setPreview(null);
-    setShowDiff(false);
     void service
       .readVersionText(v.backupPath)
-      .then(setPreview)
+      .then((text) => setPreview(text.replace(/\r\n/g, "\n")))
       .catch(() => setPreview(t("versions.binaryNoPreview")));
   };
 
-  const when = (ts: number) => new Date(ts).toLocaleString(i18n.language);
+  const whenLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  const when = (ts: number | null) => (ts === null ? "—" : whenLabel.format(ts));
   const timeOf = new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" });
   const dayOf = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
 
@@ -72,7 +81,7 @@ export function VersionsPanel({
           name: path.split("/").pop(),
           when: when(v.timestamp),
         }),
-        confirmLabel: t("versions.restore"),
+        confirmLabel: t("compare.restoreThis"),
       });
       if (!ok) return;
       await noteSaver.flush(path);
@@ -106,14 +115,15 @@ export function VersionsPanel({
 
   const doRestoreAsCopy = (v: FileVersion) => {
     void (async () => {
-      const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-      const base = path.split("/").pop()!.replace(/\.md$/i, "");
-      let name = `${base} ${t("database.copySuffix")}`;
-      let n = 2;
-      while (await vault.files.exists(`${dir ? `${dir}/` : ""}${name}.md`)) {
-        name = `${base} ${t("database.copySuffix")} ${n++}`;
-      }
-      const target = `${dir ? `${dir}/` : ""}${name}.md`;
+      // One grammar with "keep both" and the desktop: `<note> (Version <stamp>)`,
+      // and the name is on the table before the file exists.
+      const target = await versionCopyPath(path, new Date(v.timestamp), (p) => vault.files.exists(p));
+      const ok = await mConfirm({
+        title: t("compare.copyTitle"),
+        message: t("compare.copyMsg", { when: when(v.timestamp), name: target }),
+        confirmLabel: t("versions.restoreAsCopy"),
+      });
+      if (!ok) return;
       await service.restoreVersion({
         backupPath: v.backupPath,
         targetPath: target,
@@ -130,12 +140,6 @@ export function VersionsPanel({
       onDone();
     })();
   };
-
-  const diff = useMemo(() => {
-    if (!showDiff || preview === null) return null;
-    const d = lineDiff(preview, current);
-    return d ? collapseContext(d, 2) : null;
-  }, [showDiff, preview, current]);
 
   // Size delta against the previous (older) snapshot — cheap and honest
   // (backups carry no cause metadata; the list is newest-first).
@@ -167,39 +171,26 @@ export function VersionsPanel({
           <ChevronLeft size={ICON.head} />
           <span>{when(selected.timestamp)}</span>
         </button>
-        <div className="m-config-actions">
-          <Button variant="primary" size="sm" onClick={() => doRestore(selected)}>
-            {t("versions.restore")}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => doRestoreAsCopy(selected)}>
-            {t("versions.restoreAsCopy")}
-          </Button>
-          <Chip selected={showDiff} onClick={() => setShowDiff((s) => !s)}>
-            {t("versions.diffToggle")}
-          </Chip>
-        </div>
         {preview === null ? (
           <p className="m-hint">{t("versions.loading")}</p>
-        ) : showDiff ? (
-          diff === null ? (
-            <p className="m-hint">{t("versions.binaryNoPreview")}</p>
-          ) : (
-            <div className="m-diff">
-              {diff.map((l, idx) =>
-                l.type === "skip" ? (
-                  <div className="m-diff-skip" key={idx}>
-                    ··· {l.count} ···
-                  </div>
-                ) : (
-                  <div className={`m-diff-line is-${l.type}`} key={idx}>
-                    {l.text || " "}
-                  </div>
-                ),
-              )}
-            </div>
-          )
         ) : (
-          <pre className="m-version-preview">{preview}</pre>
+          <CompareVersions
+            inNote={current}
+            other={preview}
+            noteMeta={{ title: t("compare.tabNote"), subtitle: `${t("compare.currentState")} · ${when(currentMtime)}` }}
+            otherMeta={{ title: t("compare.savedVersion"), subtitle: when(selected.timestamp) }}
+            cost={(s) => t("compare.costRestore", { added: s.added, removed: s.removed })}
+            actions={
+              <>
+                <Button variant="primary" onClick={() => doRestore(selected)}>
+                  {t("compare.restoreThis")}
+                </Button>
+                <Button variant="ghost" onClick={() => doRestoreAsCopy(selected)}>
+                  {t("versions.restoreAsCopy")}
+                </Button>
+              </>
+            }
+          />
         )}
       </>
     );

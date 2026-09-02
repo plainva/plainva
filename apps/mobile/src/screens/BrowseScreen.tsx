@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Bookmark,
   MoreVertical,
-  Check,
   CheckSquare,
   ChevronRight,
   CopyPlus,
@@ -24,7 +23,7 @@ import {
 import { Button, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SectionLabel } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { noteSaver, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
@@ -33,8 +32,7 @@ import { generateOverviewForFolder, overviewState, type FolderIndexState } from 
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
-import { ConflictDiff } from "../components/ConflictDiff";
-import { clearConflict } from "../services/conflictState";
+import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -254,31 +252,6 @@ export function BrowseScreen({
         }
       }
       setSelected(null);
-    })();
-  };
-
-  // Conflict resolution (P5): both branches drop exactly one version, but
-  // every write/delete goes through the backup adapter, so nothing is lost
-  // for good. "Keep this copy" promotes the conflict text into the note.
-  const resolveConflict = (keepCopy: boolean) => {
-    const target = conflictSheet;
-    if (!target) return;
-    setConflictSheet(null);
-    void (async () => {
-      if (keepCopy) {
-        // S2: the original may be open with unsaved keystrokes — exactly the
-        // situation that produced the conflict. Land them first, otherwise the
-        // queued save settles after the promotion and puts the losing version
-        // straight back.
-        await noteSaver.flush(target.original);
-        const text = await vaultOps.read(vault, target.path);
-        await vaultOps.save(vault, target.original, text);
-      }
-      await vaultOps.remove(vault, target.path);
-      // S5: the note's banner is tied to this copy — resolving it here is what
-      // takes the banner down, whichever branch the user chose.
-      clearConflict(target.original);
-      setConflicts((c) => c.filter((p) => p !== target.path));
     })();
   };
 
@@ -643,33 +616,16 @@ export function BrowseScreen({
       )}
 
       {conflictSheet && (
-        <div className="m-sheet-backdrop" onClick={() => setConflictSheet(null)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setConflictSheet(null)} />
-            <p className="m-sheet-title">{t("mobile.conflictResolve")}</p>
-            <p className="m-hint">{t("mobile.conflictHint")}</p>
-            <button
-              className="m-row"
-              onClick={() => {
-                const p = conflictSheet.path;
-                setConflictSheet(null);
-                onOpenNote(p);
-              }}
-            >
-              <FileText size={ICON.head} />
-              <span>{t("mobile.conflictOpenCopy")}</span>
-            </button>
-            <button className="m-row" onClick={() => resolveConflict(true)}>
-              <Check size={ICON.head} />
-              <span>{t("mobile.conflictKeepCopy")}</span>
-            </button>
-            <button className="m-row" onClick={() => resolveConflict(false)}>
-              <Trash2 size={ICON.head} />
-              <span>{t("mobile.conflictKeepOriginal")}</span>
-            </button>
-            <ConflictDiff conflictPath={conflictSheet.path} originalPath={conflictSheet.original} vault={vault} />
-          </div>
-        </div>
+        <ConflictCompareSheet
+          vault={vault}
+          conflictPath={conflictSheet.path}
+          originalPath={conflictSheet.original}
+          onClose={() => setConflictSheet(null)}
+          onResolved={(touched) => {
+            setConflictSheet(null);
+            setConflicts((c) => c.filter((p) => !touched.includes(p)));
+          }}
+        />
       )}
 
       {movePick && (

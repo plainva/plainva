@@ -41,7 +41,7 @@ import {
 } from "./services/vaultService";
 import { Banner, conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
-import { ConflictDiff } from "./components/ConflictDiff";
+import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
 import { mConfirm, mSelect } from "./services/mobileDialogs";
 import { applyTemplateInteractive } from "./services/templateInteractive";
@@ -1141,13 +1141,13 @@ export function EditorHost({
       {/* S5: "what is different" — the same read-only diff the browser shows
           for a conflict copy, so there is one definition of that answer. */}
       {conflict && conflictDiff && (
-        <div className="m-sheet-backdrop" onClick={() => setConflictDiff(false)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setConflictDiff(false)} />
-            <p className="m-sheet-title">{t("mobile.conflictShowDiff")}</p>
-            <ConflictDiff conflictPath={conflict.copyPath} originalPath={path} vault={vault} />
-          </div>
-        </div>
+        <ConflictCompareSheet
+          vault={vault}
+          conflictPath={conflict.copyPath}
+          originalPath={path}
+          onClose={() => setConflictDiff(false)}
+          onResolved={() => setConflictDiff(false)}
+        />
       )}
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>

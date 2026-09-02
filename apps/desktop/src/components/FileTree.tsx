@@ -5,7 +5,7 @@ import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ICON, toast, errorText } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isTextFile, isInternalPath, VaultQueryService } from "@plainva/core";
+import { isInternalPath, VaultQueryService } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
@@ -53,9 +53,6 @@ import { useTranslation } from "react-i18next";
 const IS_MAC = detectMac();
 
 const isConflictPath = (p: string) => p.includes(".CONFLICT-");
-
-/** Maps a .CONFLICT-<timestamp> sibling back to the original file path. */
-const originalOfConflict = (p: string) => p.replace(/\.CONFLICT-[0-9TZ-]+(\.[^.\\/]+)?$/, "$1");
 
 type NewItemType = "file" | "folder" | "base";
 
@@ -592,47 +589,6 @@ export const FileTree: React.FC<{
     e.preventDefault();
     handleOpen(path, true);
   });
-
-  const resolveConflictKeep = async (conflictPath: string) => {
-    setContextMenu(null);
-    if (!vaultAdapter || !indexer) return;
-    try {
-      const original = originalOfConflict(conflictPath);
-      // Binary attachments must be copied byte-wise; text round-trip would corrupt them.
-      if (isTextFile(original)) {
-        const content = await vaultAdapter.readTextFile(conflictPath);
-        await vaultAdapter.writeTextFile(original, content);
-      } else {
-        const bytes = await vaultAdapter.readBinaryFile(conflictPath);
-        await vaultAdapter.writeBinaryFile(original, bytes);
-      }
-      await vaultAdapter.deleteItem(conflictPath);
-      await applyIndexChanges(indexer, { removed: [conflictPath], added: [original] });
-      triggerFileTreeUpdate();
-      window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: original } }));
-    } catch (e) {
-      console.error("Failed to keep conflict version", e);
-    }
-  };
-
-  const resolveConflictDiscard = async (conflictPath: string) => {
-    setContextMenu(null);
-    if (!vaultAdapter || !indexer) return;
-    const ok = await appConfirm({
-      title: t("dialogs.discardConflictTitle"),
-      message: t("dialogs.discardConflictMsg", { name: conflictPath.split(/[/\\]/).pop() }),
-      kind: "danger",
-      confirmLabel: t("common.delete", { defaultValue: "Löschen" }),
-    });
-    if (!ok) return;
-    try {
-      await vaultAdapter.deleteItem(conflictPath);
-      await applyIndexChanges(indexer, { removed: [conflictPath] });
-      triggerFileTreeUpdate();
-    } catch (e) {
-      console.error("Failed to discard conflict", e);
-    }
-  };
 
   const createNewItem = React.useCallback((type: "file" | "folder" | "base", parentPath: string, template?: string, initialName?: string) => {
     // Make the inline input visible: expand the target folder and its ancestors.
@@ -1449,8 +1405,6 @@ export const FileTree: React.FC<{
           onVersionHistory={(path: string) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } }))}
           onCopyPath={copyContextPath}
           onDelete={handleDelete}
-          onKeepConflict={resolveConflictKeep}
-          onDiscardConflict={resolveConflictDiscard}
           onResolveConflict={(path: string) => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path } }))}
           onNewItem={createNewItem}
           onNewFromTemplate={(parentPath) => { setContextMenu(null); setTemplateTarget({ parentPath }); }}

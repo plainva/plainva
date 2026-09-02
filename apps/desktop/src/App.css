@@ -246,9 +246,10 @@ button.pv-doc-header-icon:hover {
   height: 100%;
   background: var(--bg-primary);
 }
-.pv-merge-host .cm-mergeViewEditors {
-  height: 100%;
-}
+/* No height on .cm-mergeViewEditors: @codemirror/merge keeps each editor at
+   overflow:hidden and scrolls the OUTER .cm-mergeView. Forcing the editors to
+   100% stretched and clipped them — the version diff could not be scrolled
+   anywhere (feedback round 2026-09-01, D5). */
 .pv-merge-host .cm-editor {
   background: var(--bg-primary);
   color: var(--text-main);

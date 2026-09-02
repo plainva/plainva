@@ -84,10 +84,12 @@ describe("the two callers that rewrite notes they do not own", () => {
 
   it("promoting a conflict copy lands the original's pending save first", () => {
     // The original is open and edited — that is what produced the conflict.
-    const screen = readFileSync(join(__dirname, "..", "screens", "BrowseScreen.tsx"), "utf-8");
-    const resolve = screen.slice(screen.indexOf("const resolveConflict ="));
-    const flush = resolve.search(/noteSaver\.flush\(target\.original\)/);
-    expect(flush, "resolveConflict must flush the original").toBeGreaterThan(-1);
-    expect(flush).toBeLessThan(resolve.search(/vaultOps\.save\(/));
+    // Since P2 (feedback round 2026-09-01) the promotion lives in the shared
+    // conflict sheet, reached from the folder banner and the note's banner.
+    const sheet = readFileSync(join(__dirname, "..", "components", "ConflictCompareSheet.tsx"), "utf-8");
+    const adopt = sheet.slice(sheet.indexOf("const adopt = async () => {"));
+    const flush = adopt.search(/noteSaver\.flush\(originalPath\)/);
+    expect(flush, "adopt must flush the original").toBeGreaterThan(-1);
+    expect(flush).toBeLessThan(adopt.search(/vaultOps\.save\(/));
   });
 });

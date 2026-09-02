@@ -6,10 +6,10 @@ import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
 // paint the first frame, and each becomes its own chunk that only ever
 // downloads when the user opens it.
-const VersionHistoryModal = lazy(() => import("./components/VersionHistoryModal").then(m => ({ default: m.VersionHistoryModal })));
+import type { CompareSubject } from "./components/CompareModal";
+const CompareModal = lazy(() => import("./components/CompareModal").then(m => ({ default: m.CompareModal })));
 const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
 const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
-const ConflictResolveModal = lazy(() => import("./components/ConflictResolveModal").then(m => ({ default: m.ConflictResolveModal })));
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
@@ -140,21 +140,21 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
-  const [versionHistoryTarget, setVersionHistoryTarget] = useState<{ path: string; orphan?: boolean } | null>(null);
+  // Both open the ONE comparison surface (feedback round 2026-09-01, P2):
+  // the version history with its timeline, or a sync-conflict copy. The
+  // conflict entry is fired from the editor's conflict banner, the tree's
+  // .CONFLICT context entry and the sync-error dialog's conflict rows.
+  const [compareTarget, setCompareTarget] = useState<CompareSubject | null>(null);
   const [showDeletedFiles, setShowDeletedFiles] = useState(false);
-  // Sync conflict resolution (P3.11): opened via "plainva-resolve-conflict"
-  // from the editor's conflict banner, the tree's .CONFLICT context entry, or
-  // the sync-error dialog's conflict rows below.
-  const [conflictResolveTarget, setConflictResolveTarget] = useState<string | null>(null);
   useEffect(() => {
     const onShowVersions = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string; orphan?: boolean } | undefined;
-      if (detail?.path) setVersionHistoryTarget({ path: detail.path, orphan: detail.orphan });
+      if (detail?.path) setCompareTarget({ kind: "version", path: detail.path, orphan: detail.orphan });
     };
     const onShowDeleted = () => setShowDeletedFiles(true);
     const onResolveConflict = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
-      if (detail?.path) setConflictResolveTarget(detail.path);
+      if (detail?.path) setCompareTarget({ kind: "conflict", conflictPath: detail.path });
     };
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
     const onComposeMail = (e: Event) => {
@@ -1617,37 +1617,28 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
           fallback is never visible longer than the chunk download. */}
       <Suspense fallback={null}>
-        {versionHistoryTarget && (
-          <VersionHistoryModal
-            path={versionHistoryTarget.path}
-            orphan={versionHistoryTarget.orphan}
-            onClose={() => setVersionHistoryTarget(null)}
-          />
-        )}
-        {showDeletedFiles && <DeletedFilesModal onClose={() => setShowDeletedFiles(false)} />}
-        {conflictResolveTarget && (
-          <ConflictResolveModal
-            conflictPath={conflictResolveTarget}
-            onClose={() => setConflictResolveTarget(null)}
-            onResolved={(originalPath, conflictPath, mergedContent) => {
-              setConflictResolveTarget(null);
-              closeTabsByPrefix(conflictPath);
-              if (mergedContent !== null) {
+        {compareTarget && (
+          <CompareModal
+            subject={compareTarget}
+            onClose={() => setCompareTarget(null)}
+            onResolved={(outcome) => {
+              setCompareTarget(null);
+              closeTabsByPrefix(outcome.conflictPath);
+              if (outcome.mergedContent !== null) {
                 // Same adoption path as a version restore: the open editor
                 // takes the merged text without re-dirtying or racing a save.
-                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: originalPath, content: mergedContent } }));
+                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
               }
               void (async () => {
                 if (indexer) {
-                  await indexer.indexPath(originalPath).catch(console.error);
-                  await indexer.indexPath(conflictPath).catch(console.error);
+                  for (const p of outcome.touched) await indexer.indexPath(p).catch(console.error);
                 }
-                triggerFileTreeUpdate([originalPath, conflictPath]);
+                triggerFileTreeUpdate(outcome.touched);
               })();
-              toast.success(t("conflict.resolvedToast"));
             }}
           />
         )}
+        {showDeletedFiles && <DeletedFilesModal onClose={() => setShowDeletedFiles(false)} />}
       </Suspense>
       {showCommandPalette && (
         <CommandPalette
@@ -1688,7 +1679,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openShortcuts: () => setShowShortcuts(true),
             openFindReplace: () => setShowFindReplace(true),
             activePath: () => activePath,
-            showVersionHistory: (path) => setVersionHistoryTarget({ path }),
+            showVersionHistory: (path) => setCompareTarget({ kind: "version", path }),
             backupNow: () => window.dispatchEvent(new CustomEvent("plainva-backup-now")),
             updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
             refreshVault: () => { void refreshVault(); },
