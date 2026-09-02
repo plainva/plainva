@@ -181,6 +181,8 @@ Ambas configuraciones — el espacio de trabajo cifrado y la frase de contraseñ
 
 **Los recursos compartidos se gestionan ahora aquí**, no solo en el escritorio: en **Personas y permisos** invitas a un miembro con un rol (**Invitar** lo crea — su dispositivo lo vinculas después), creas un grupo y cambias el rol de un grupo directamente en su fila. En **Slices** creas un recurso compartido para una **Carpeta**. Deliberadamente no en el teléfono: los slices a partir de una selección libre o de una regla dinámica —ambos necesitarían superficies que aquí no existen.
 
+**Dejar que otra app sincronice la carpeta (iPhone y iPad).** La carpeta de Plainva aparece en la app **Archivos**, en **En mi iPhone** → **Plainva**. Así, otro programa — por ejemplo un cliente de Syncthing — puede seleccionarla y mantenerla sincronizada entre tus dispositivos sin que Plainva se conecte a ningún servicio en la nube. El vault que creaste en el dispositivo está ahí como `vault`; cada conexión en la nube recibe su propia subcarpeta dentro de `vaults`. Lo contrario no vale: Plainva trabaja en su propia carpeta, no en la de otra app. En Android esta carpeta no es visible para otros programas.
+
 ## Red de seguridad
 
 Los snapshots (historial de versiones), un diario de borradores (tras un fallo, la nota ofrece tu último estado sin guardar) y las copias en conflicto con una vista de comparación protegen tus datos. La retención se configura en **Ajustes** → **Copias de seguridad y versionado**.

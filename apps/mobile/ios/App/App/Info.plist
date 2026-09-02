@@ -37,6 +37,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Plainva connects to the mail server you configure. If that server runs on your local network, iOS asks for this permission.</string>
 	<key>NSCameraUsageDescription</key>
@@ -45,6 +47,8 @@
 	<string>Plainva accesses your photo library so you can add a picture to a note.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Plainva can save a photo when you add it to a note.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

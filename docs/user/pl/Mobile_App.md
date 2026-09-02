@@ -181,6 +181,8 @@ Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacj
 
 **Udostępnieniami zarządzasz teraz tutaj**, a nie tylko na komputerze: w sekcji **Osoby i uprawnienia** zapraszasz członka z rolą (**Zaproś** go tworzy — jego urządzenie parujesz później), tworzysz grupę i zmieniasz rolę grupy bezpośrednio w jej wierszu. W sekcji **Slices** tworzysz udostępnienie dla **Folder**. Świadomie nie na telefonie: slices z dowolnego wyboru lub z reguły dynamicznej — obie potrzebowałyby ekranów, których tu nie ma.
 
+**Synchronizacja folderu przez inną aplikację (iPhone i iPad).** Folder Plainvy pojawia się w aplikacji **Pliki**, w sekcji **Na moim iPhonie** → **Plainva**. Inny program — na przykład klient Syncthing — może go tam wskazać i utrzymywać w synchronizacji między Twoimi urządzeniami, bez łączenia Plainvy z jakąkolwiek usługą w chmurze. Vault utworzony na urządzeniu leży w nim jako `vault`; każde połączenie z chmurą dostaje własny podfolder w `vaults`. W drugą stronę to nie działa: Plainva pracuje we własnym folderze, nie w folderze innej aplikacji. Na Androidzie ten folder nie jest widoczny dla innych programów.
+
 ## Sieć bezpieczeństwa
 
 Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje Twój ostatni niezapisany stan) oraz kopie konfliktów z widokiem porównania chronią Twoje dane. Przechowywanie konfigurujesz w **Ustawieniach** → **Backup i historia wersji**.

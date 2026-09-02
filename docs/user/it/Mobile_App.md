@@ -181,6 +181,8 @@ Entrambe le configurazioni — l'area di lavoro crittografata e la passphrase di
 
 **Le condivisioni si gestiscono ora qui**, non più solo sul desktop: in **Persone e permessi** inviti un membro con un ruolo (**Invita** lo crea — il suo dispositivo lo associ dopo), crei un gruppo e cambi il ruolo di un gruppo direttamente nella sua riga. In **Slice** crei una condivisione per una **Cartella**. Deliberatamente non sul telefono: le slice da una selezione libera o da una regola dinamica — entrambe richiederebbero superfici che qui non esistono.
 
+**Lasciare che un'altra app sincronizzi la cartella (iPhone e iPad).** La cartella di Plainva compare nell'app **File**, sotto **Su iPhone** → **Plainva**. Un altro programma — per esempio un client Syncthing — può quindi selezionarla e tenerla sincronizzata tra i tuoi dispositivi, senza che Plainva sia collegato ad alcun servizio cloud. Il vault che hai creato sul dispositivo si trova lì come `vault`; ogni connessione cloud riceve la propria sottocartella in `vaults`. Il contrario non vale: Plainva lavora nella propria cartella, non in quella di un'altra app. Su Android questa cartella non è visibile agli altri programmi.
+
 ## Rete di sicurezza
 
 Gli snapshot (cronologia delle versioni), un diario delle bozze (dopo un arresto anomalo la nota offre l'ultimo stato non salvato) e le copie in conflitto con una vista di confronto proteggono i tuoi dati. La conservazione si configura in **Impostazioni** → **Backup e cronologia delle versioni**.

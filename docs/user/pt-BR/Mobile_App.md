@@ -181,6 +181,8 @@ As duas configurações — o espaço de trabalho criptografado e a frase secret
 
 **Os compartilhamentos são gerenciados aqui agora**, não apenas no desktop: em **Pessoas e permissões** você convida um membro com um papel (**Convidar** o cria — o dispositivo dele você pareia depois), cria um grupo e altera o papel de um grupo direto na linha dele. Em **Slices** você cria um compartilhamento para uma **Pasta**. Deliberadamente fora do celular: slices a partir de uma seleção livre ou de uma regra dinâmica — ambos exigiriam telas que não existem aqui.
 
+**Deixar outro app sincronizar a pasta (iPhone e iPad).** A pasta do Plainva aparece no app **Arquivos**, em **No meu iPhone** → **Plainva**. Assim, outro programa — um cliente Syncthing, por exemplo — pode selecioná-la e mantê-la sincronizada entre seus dispositivos sem que o Plainva se conecte a nenhum serviço de nuvem. O vault que você criou no dispositivo fica ali como `vault`; cada conexão na nuvem ganha sua própria subpasta em `vaults`. O contrário não vale: o Plainva trabalha na própria pasta, não na de outro app. No Android essa pasta não fica visível para outros programas.
+
 ## Rede de segurança
 
 Snapshots (histórico de versões), um diário de rascunhos (depois de uma falha, a nota oferece o último estado não salvo) e cópias em conflito com uma visão de comparação protegem seus dados. A retenção é configurada em **Configurações** → **Backup e versionamento**.

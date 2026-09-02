@@ -25,6 +25,18 @@ import type { MobileVault } from "./vaultService";
  *    last one" rather than "at 03:00". A schedule that only fires while the app
  *    happens to be open must not pretend to be a clock.
  *
+ * **Measured caveat on Android (finding 2026-08-25).** `Directory.Documents`
+ * is the PUBLIC folder there, and the files in it belong to the UID of the app
+ * that created them. After an uninstall+reinstall the archives survive on disk
+ * but this app can no longer reach them — and `readdir` then returns an EMPTY
+ * LIST rather than an error, so both call sites below sail straight past their
+ * catch blocks: retention finds nothing to prune (archives grow without bound)
+ * and `listBackups()` reports zero to the vault detail screen while the files
+ * are sitting right there. Nothing is lost — new archives still write — but the
+ * count lies. Tracked as C25 in the maintainer's backlog. No parity entry: the
+ * desktop has no `Documents` notion, so this is an Android platform fact, not
+ * an asymmetry between the two shells.
+ *
  * Naming, retention and the due-check are the shared ones (`@plainva/ui`), so
  * two devices archiving the same vault prune by one rule.
  */

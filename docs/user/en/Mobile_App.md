@@ -181,6 +181,8 @@ Both setups — the encrypted workspace and the sync passphrase — now run as *
 
 **Shares are managed here now**, not only on the desktop: under **People & permissions** you invite a member with a role (**Invite** creates them — you pair their device afterwards), create a group, and change a group's role right in its row. Under **Slices** you create a share for a **Folder**. Deliberately not on the phone: slices built from a free selection or a dynamic rule — both would need surfaces that do not exist here.
 
+**Letting another app sync the folder (iPhone and iPad).** Plainva's folder shows up in the **Files** app under **On My iPhone** → **Plainva**. Another program — a Syncthing client, for instance — can pick it from there and keep it in sync across your devices without Plainva talking to any cloud service. The vault you created on the device sits inside it as `vault`; every cloud connection gets its own subfolder under `vaults`. The reverse does not hold: Plainva works in its own folder, not in another app's. On Android this folder is not visible to other programs.
+
 ## Safety net
 
 Snapshots (version history), a draft journal (after a crash the note offers your last unsaved state) and conflict copies with a comparison view protect your data. Retention is configured under **Settings** → **Backup & version history**.

@@ -181,6 +181,8 @@ Les deux configurations — l'espace de travail chiffré et la phrase secrète d
 
 **Les partages se gèrent désormais ici**, et plus seulement sur le bureau : dans **Personnes et droits**, vous invitez un membre avec un rôle (**Inviter** le crée — son appareil est appairé ensuite), vous créez un groupe et vous changez le rôle d'un groupe directement dans sa ligne. Dans **Slices**, vous créez un partage pour un **Dossier**. Délibérément absents du téléphone : les slices issus d'une sélection libre ou d'une règle dynamique — les deux exigeraient des surfaces qui n'existent pas ici.
 
+**Laisser une autre app synchroniser le dossier (iPhone et iPad).** Le dossier de Plainva apparaît dans l'app **Fichiers**, sous **Sur mon iPhone** → **Plainva**. Un autre programme — un client Syncthing, par exemple — peut donc le sélectionner et le garder synchronisé entre vos appareils, sans que Plainva soit relié à un service cloud. Le vault que vous avez créé sur l'appareil s'y trouve sous `vault` ; chaque connexion cloud reçoit son propre sous-dossier dans `vaults`. L'inverse n'est pas vrai : Plainva travaille dans son propre dossier, pas dans celui d'une autre app. Sous Android, ce dossier n'est pas visible pour les autres programmes.
+
 ## Filet de sécurité
 
 Les instantanés (historique des versions), un journal des brouillons (après un plantage, la note propose votre dernier état non enregistré) et des copies en conflit avec une vue de comparaison protègent vos données. La rétention se configure dans **Paramètres** → **Sauvegarde & historique des versions**.

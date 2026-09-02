@@ -181,6 +181,8 @@ Beide instellingen — de versleutelde werkruimte en de synchronisatiewachtwoord
 
 **Deelrechten beheer je nu hier**, niet meer alleen op de desktop: onder **Personen en rechten** nodig je een lid met een rol uit (**Uitnodigen** maakt het aan — het apparaat koppel je daarna), maak je een groep aan en wijzig je de rol van een groep direct in de regel zelf. Onder **Slices** maak je een deelrecht voor een **Map**. Bewust niet op de telefoon: slices op basis van een vrije selectie of een dynamische regel — beide zouden schermen vereisen die hier niet bestaan.
 
+**Een andere app de map laten synchroniseren (iPhone en iPad).** De map van Plainva verschijnt in de app **Bestanden**, onder **Op mijn iPhone** → **Plainva**. Een ander programma — bijvoorbeeld een Syncthing-client — kan hem daar kiezen en over je apparaten synchroon houden, zonder dat Plainva met een clouddienst praat. De vault die je op het apparaat hebt aangemaakt staat daarin als `vault`; elke cloudverbinding krijgt een eigen submap onder `vaults`. Omgekeerd geldt dat niet: Plainva werkt in zijn eigen map, niet in die van een andere app. Op Android is deze map niet zichtbaar voor andere programma's.
+
 ## Vangnet
 
 Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notitie je laatste niet-opgeslagen staat aan) en conflictkopieën met een vergelijkingsweergave beschermen je gegevens. De bewaartermijn stel je in bij **Instellingen** → **Backup & versiegeschiedenis**.

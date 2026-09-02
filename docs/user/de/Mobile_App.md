@@ -181,6 +181,8 @@ Beide Einrichtungen — der verschlüsselte Workspace und die Sync-Passphrase �
 
 **Freigaben verwaltest Du jetzt hier**, nicht mehr nur am Desktop: unter **Personen & Rechte** lädst Du ein Mitglied mit einer Rolle ein (**Einladen** legt es an — sein Gerät koppelst Du danach), legst eine Gruppe an und änderst die Rolle einer Gruppe direkt in ihrer Zeile. Unter **Slices** erstellst Du eine Freigabe für einen **Ordner**. Bewusst nicht auf dem Telefon: Slices aus einer freien Auswahl oder einer dynamischen Regel — beide bräuchten Flächen, die es hier nicht gibt.
 
+**Von einer anderen App synchronisieren lassen (iPhone und iPad).** Plainvas Ordner erscheint in der **Dateien**-App unter **Auf meinem iPhone** → **Plainva**. Ein anderes Programm — etwa ein Syncthing-Client — kann ihn damit auswählen und über Deine Geräte hinweg synchron halten, ganz ohne Cloud-Verbindung in Plainva. Der Vault, den Du auf dem Gerät angelegt hast, liegt darin als `vault`, jede Cloud-Verbindung als eigener Unterordner unter `vaults`. Umgekehrt gilt das nicht: Plainva arbeitet in seinem eigenen Ordner, nicht in dem einer anderen App. Unter Android ist dieser Ordner für andere Programme nicht sichtbar.
+
 ## Sicherheitsnetz
 
 Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die Notiz den letzten ungespeicherten Stand an) und Konflikt-Kopien mit Vergleichsansicht schützen Deine Daten. Die Aufbewahrung stellst Du unter **Einstellungen** → **Backup & Versionierung** ein.
