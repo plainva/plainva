@@ -53,7 +53,7 @@ describe("listIndentStyle", () => {
 describe("listMarkerPrefixLength", () => {
   it("counts leading whitespace, the marker and its space — and a task box", () => {
     expect(listMarkerPrefixLength("- item")).toBe(2);
-    expect(listMarkerPrefixLength("		* item")).toBe(4);
+    expect(listMarkerPrefixLength("\t\t* item")).toBe(4);
     expect(listMarkerPrefixLength("    10. item")).toBe(8);
     expect(listMarkerPrefixLength("- [ ] task")).toBe(6);
     expect(listMarkerPrefixLength("- [x] done")).toBe(6);
@@ -104,5 +104,14 @@ describe("listDepthAt", () => {
   it("reports depth 0 for ordinary paragraphs", () => {
     const state = stateFor("just a paragraph\n");
     expect(listDepthAt(state, firstNonWs(state, 1))).toBe(0);
+  });
+
+  it("a lazy continuation line belongs to the same ListItem as its marker line", () => {
+    const state = stateFor("- item\n  continues here\n- next\n");
+    const marker = listItemAt(state, firstNonWs(state, 1));
+    const cont = listItemAt(state, firstNonWs(state, 2));
+    expect(marker.depth).toBe(1);
+    expect(cont.itemFrom).toBe(marker.itemFrom);
+    expect(listItemAt(state, firstNonWs(state, 3)).itemFrom).not.toBe(marker.itemFrom);
   });
 });
