@@ -2772,6 +2772,7 @@
     "diagNoTaskDb": "此设备上没有任务数据库 — 它通过设置同步获得。",
     "diagTaskDbUnreadable": "无法读取任务数据库。",
     "diagTaskDueNotDate": "到期列未设置为日期类型 — 在配置 → 属性中修改。",
+    "diagTasksOff": "任务提醒已关闭——见上方的“到期任务”开关。",
     "calendarsNoAccount": "未连接账户",
     "calendarsNone": "暂无日历",
     "calendarsNoAccountHint": "连接日历账户后，即可将提醒限定到特定日历。可在本页下方添加一个账户。",

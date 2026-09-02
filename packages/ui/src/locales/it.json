@@ -2818,6 +2818,7 @@
     "diagNoTaskDb": "Nessun database delle attività su questo dispositivo: arriva con la sincronizzazione delle impostazioni.",
     "diagTaskDbUnreadable": "Non è stato possibile leggere il database delle attività.",
     "diagTaskDueNotDate": "La colonna di scadenza non è tipizzata come data — modificala in Configura → Proprietà.",
+    "diagTasksOff": "I promemoria delle attività sono disattivati: l'interruttore «Attività in scadenza» qui sopra.",
     "calendarsNoAccount": "Nessun account collegato",
     "calendarsNone": "Ancora nessun calendario",
     "calendarsNoAccountHint": "I promemoria possono essere limitati a determinati calendari non appena è collegato un account calendario. Puoi aggiungerne uno più in basso in questa pagina.",

@@ -2795,6 +2795,7 @@
     "diagNoTaskDb": "No task database on this device — it arrives through the settings sync.",
     "diagTaskDbUnreadable": "The task database could not be read.",
     "diagTaskDueNotDate": "The due column is not typed as a date — change it under Configure → Properties.",
+    "diagTasksOff": "Task reminders are switched off — the switch \"Due tasks\" above.",
     "calendarsNoAccount": "No account connected",
     "calendarsNone": "No calendars yet",
     "calendarsNoAccountHint": "Reminders can be limited to particular calendars once a calendar account is connected. You can add one further down this page.",

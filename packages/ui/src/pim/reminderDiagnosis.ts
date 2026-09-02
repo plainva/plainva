@@ -44,6 +44,7 @@ export interface ReminderDiagnosis {
 }
 
 const REASON_KEYS: Partial<Record<ReminderReason, string>> = {
+  tasksOff: "reminders.diagTasksOff",
   noTaskDb: "reminders.diagNoTaskDb",
   taskDbUnreadable: "reminders.diagTaskDbUnreadable",
   taskDueNotDate: "reminders.diagTaskDueNotDate",
@@ -58,8 +59,12 @@ const REASON_KEYS: Partial<Record<ReminderReason, string>> = {
  * reader to skip this line — which is the one place the non-obvious reasons
  * appear.
  *
- * `tasksOff` deliberately gets no second sentence: the switch above it is the
- * explanation, and "task reminders are off" under an off switch is noise.
+ * `tasksOff` DOES get its sentence (feedback round 2026-09-01, P3/E3). It
+ * used to be left out as noise under an off switch - and exactly that silence
+ * is where the report "task reminders do not work" got stuck: the switch sat
+ * in a block that only showed once appointment reminders were on, so the
+ * reader saw neither the switch nor a word about it. Naming "switched off"
+ * costs one line and ends that.
  */
 export function reminderDiagnosis(
   state: ReminderRunState,

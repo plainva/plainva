@@ -2818,6 +2818,7 @@
     "diagNoTaskDb": "No hay base de tareas en este dispositivo: llega con la sincronización de ajustes.",
     "diagTaskDbUnreadable": "No se pudo leer la base de tareas.",
     "diagTaskDueNotDate": "La columna de vencimiento no está tipada como fecha — cámbiala en Configurar → Propiedades.",
+    "diagTasksOff": "Los recordatorios de tareas están desactivados: el interruptor «Tareas pendientes» de arriba.",
     "calendarsNoAccount": "Ninguna cuenta conectada",
     "calendarsNone": "Aún no hay calendarios",
     "calendarsNoAccountHint": "Los recordatorios pueden limitarse a determinados calendarios en cuanto haya una cuenta de calendario conectada. Puedes añadir una más abajo en esta página.",

@@ -354,6 +354,10 @@ async function dueTaskSubjects(
   windowEndTs: number
 ): Promise<{ subjects: ReminderSubject[]; reason: ReminderReason }> {
   const db = getMobileSettings().taskDatabase.trim();
+  // DECISION, not a gap (feedback round 2026-09-01, E3): only the task
+  // DATABASE feeds reminders - a checkbox task in a note has no typed due
+  // value to plan from. Same rule as the desktop scheduler.
+  //
   // The commonest silence: the task database is a per-vault setting that
   // reaches the phone through the settings sync, so a sync that is off or
   // failing leaves this empty and every task reminder simply never happens.

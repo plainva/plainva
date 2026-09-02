@@ -2795,6 +2795,7 @@
     "diagNoTaskDb": "Geen takendatabase op dit apparaat — die komt via de instellingensynchronisatie.",
     "diagTaskDbUnreadable": "De takendatabase kon niet worden gelezen.",
     "diagTaskDueNotDate": "De vervalkolom is niet als datum getypeerd — pas dit aan onder Configureren → Eigenschappen.",
+    "diagTasksOff": "Taakherinneringen staan uit — de schakelaar ‘Taken met vervaldatum’ hierboven.",
     "calendarsNoAccount": "Geen account verbonden",
     "calendarsNone": "Nog geen agenda’s",
     "calendarsNoAccountHint": "Herinneringen kunnen tot bepaalde agenda’s worden beperkt zodra er een agenda-account is verbonden. Verderop op deze pagina kun je er een toevoegen.",

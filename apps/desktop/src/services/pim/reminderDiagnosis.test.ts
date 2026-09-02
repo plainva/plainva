@@ -33,10 +33,10 @@ describe("reminderDiagnosis", () => {
     });
   });
 
-  it("adds no second sentence when tasks are simply switched off", () => {
-    // The switch above the line is the explanation; repeating it under an off
-    // switch is noise, and noise is what makes this line get skipped.
-    expect(reminderDiagnosis(state({ tasks: 0, reason: "tasksOff" }), time)?.reasonKey).toBeNull();
+  it("names switched-off tasks instead of staying silent (P3/E3)", () => {
+    // It used to say nothing here - and that silence is where the report
+    // "task reminders do not work" got stuck.
+    expect(reminderDiagnosis(state({ tasks: 0, reason: "tasksOff" }), time)?.reasonKey).toBe("reminders.diagTasksOff");
   });
 
   it.each([

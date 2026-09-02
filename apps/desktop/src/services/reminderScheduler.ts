@@ -314,6 +314,12 @@ async function collectSubjects(
 
   if (settings.tasks && deps.queryService) {
     try {
+      // DECISION, not a gap (feedback round 2026-09-01, E3): only the task
+      // DATABASE feeds reminders. A checkbox task in an ordinary note carries
+      // its date, if at all, as text in the middle of a line - there is
+      // nothing typed to plan a moment from. "Tasks created in Plainva" means
+      // "created in the task database". Do not read this line as an omission.
+      //
       // Asked separately so the two silences stay distinguishable: no database
       // configured at all, versus one whose due column is not typed as a date.
       // Both used to end as an empty list with nothing said about either.

@@ -222,6 +222,38 @@ export function ReminderSettings() {
         />
       </SettingRow>
 
+      {/* Equal to the appointments switch, not tucked under it (feedback round
+          2026-09-01, P3/E3): it used to appear only once appointment reminders
+          were on, so whoever never switched those on never saw that task
+          reminders exist at all. Opt-in stays - a notification is something
+          you choose - but the choice is in plain sight. */}
+      <SettingRow label={t("reminders.tasks")}>
+        <Switch
+          checked={settings.tasks}
+          label={t("reminders.tasks")}
+          onChange={(on) => void save({ ...settings, tasks: on }, remindTasksKey(vaultPath ?? ""), on)}
+        />
+      </SettingRow>
+
+      {/* Directly under the switch it belongs to: on its own it would read
+          like a second, unrelated task setting. */}
+      {settings.tasks && (
+        <DayTimeRow
+          label={t("reminders.tasksNoTime")}
+          days={[
+            { value: 0, label: t("reminders.dayOfDue") },
+            { value: 1, label: t("reminders.dayBeforeDue") },
+          ]}
+          day={settings.rule.taskLeadDays}
+          minutes={settings.rule.taskAtMinutes}
+          preview={(d, m) =>
+            t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: toField(m) })
+          }
+          testId="reminder-tasktime"
+          onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
+        />
+      )}
+
       {settings.enabled && (
         <>
           <SettingRow label={t("reminders.lead")}>
@@ -254,33 +286,6 @@ export function ReminderSettings() {
             testId="reminder-allday"
             onChange={(d, m) => saveRule({ allDayLeadDays: d, allDayAtMinutes: m })}
           />
-
-          <SettingRow label={t("reminders.tasks")}>
-            <Switch
-              checked={settings.tasks}
-              label={t("reminders.tasks")}
-              onChange={(on) => void save({ ...settings, tasks: on }, remindTasksKey(vaultPath ?? ""), on)}
-            />
-          </SettingRow>
-
-          {/* Directly under the switch it belongs to: on its own it would read
-              like a second, unrelated task setting. */}
-          {settings.tasks && (
-            <DayTimeRow
-              label={t("reminders.tasksNoTime")}
-              days={[
-                { value: 0, label: t("reminders.dayOfDue") },
-                { value: 1, label: t("reminders.dayBeforeDue") },
-              ]}
-              day={settings.rule.taskLeadDays}
-              minutes={settings.rule.taskAtMinutes}
-              preview={(d, m) =>
-                t(d > 0 ? "reminders.previewDueBefore" : "reminders.previewDueDay", { time: toField(m) })
-              }
-              testId="reminder-tasktime"
-              onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
-            />
-          )}
 
           {calendarOptions.length > 1 && (
             <SettingRow
