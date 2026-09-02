@@ -160,7 +160,19 @@ export function WorkspaceCommentsColumn({
     const property = propertyResolutions?.get(comment.commentId);
     if (property) {
       if (property.status === "orphan") {
-        return <span className="pv-comment-card__state">{t("workspaceSecurity.commentPropertyOrphan")}</span>;
+        // The property is gone, so the card carries the whole record: the key
+        // it was written against, and the value it held at the time. Without
+        // the value an orphan is a name with nothing behind it.
+        return (
+          <span className="pv-comment-card__state">
+            {t("workspaceSecurity.commentPropertyOrphan", {
+              key: comment.anchor.display?.kind === "property" ? comment.anchor.display.key : "",
+            })}
+            {comment.anchor.quote
+              ? ` ${t("workspaceSecurity.commentPropertyOrphanValue", { value: comment.anchor.quote })}`
+              : ""}
+          </span>
+        );
       }
       // The record itself is sealed, so the renamed key is composed here for
       // display only - nothing writes it back into the anchor.

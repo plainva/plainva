@@ -128,7 +128,15 @@ export function CommentsSheet({
     // time of writing) would read like a passage that is still there.
     const property = propertyResolutions?.get(comment.commentId);
     if (property) {
-      if (property.status === "orphan") return t("workspaceSecurity.commentPropertyOrphan");
+      if (property.status === "orphan") {
+        // Same record as the desktop card: the key it was written against plus
+        // the value it held. A name alone leaves the reader nothing to place.
+        const gone = t("workspaceSecurity.commentPropertyOrphan", {
+          key: comment.anchor.display?.kind === "property" ? comment.anchor.display.key : "",
+        });
+        if (!comment.anchor.quote) return gone;
+        return `${gone} ${t("workspaceSecurity.commentPropertyOrphanValue", { value: comment.anchor.quote })}`;
+      }
       const hint = toAnchorDisplayHint(
         comment.anchor.display,
         property.status === "renamed" ? property.key : undefined,
