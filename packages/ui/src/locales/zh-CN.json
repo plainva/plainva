@@ -3564,7 +3564,7 @@
     "suggestBandTitle": "你正在提出建议。",
     "suggestBandBody": "只有在有人接受后笔记才会改变。",
     "suggestCount": "目前 {{n}} 处更改。",
-    "suggestNotePlaceholder": "给这一轮写一句话（可选）",
+    "suggestNotePlaceholder": "关于更改的说明（可选）",
     "suggestDiscard": "放弃",
     "suggestDiscardConfirm": "放弃 {{n}} 处更改？笔记保持原样。",
     "suggestSend": "发送建议（{{n}}）",

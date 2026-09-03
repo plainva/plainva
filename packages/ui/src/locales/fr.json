@@ -3628,7 +3628,7 @@
     "suggestBandTitle": "Tu fais des propositions.",
     "suggestBandBody": "La note ne change que lorsque quelqu'un accepte.",
     "suggestCount": "{{n}} modifications jusqu'ici.",
-    "suggestNotePlaceholder": "Une phrase pour la série (facultatif)",
+    "suggestNotePlaceholder": "Remarque sur la modification (facultatif)",
     "suggestDiscard": "Abandonner",
     "suggestDiscardConfirm": "Abandonner {{n}} modifications ? La note reste telle quelle.",
     "suggestSend": "Envoyer les propositions ({{n}})",

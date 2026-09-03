@@ -2992,10 +2992,22 @@ tr.is-selected > td { color: var(--on-accent-container); }
   font-size: var(--text-ui);
 }
 .pv-suggest-band__text { flex: 1; min-width: 0; }
-.pv-suggest-band__note { flex: 0 1 22rem; }
+/* The note field sits on the amber band, where a transparent field with a
+   faint border vanished (finding 2026-09-03): it takes the page's surface. */
+.pv-suggest-band__note {
+  flex: 0 1 24rem;
+  height: var(--control-md);
+  background: var(--bg-primary);
+  border-color: var(--warning-border);
+}
+/* A proposal's decision is one row of its own (finding 2026-09-03): accept and
+   decline belong side by side, never split by a wrap. */
+.pv-comment-card__decision { display: flex; gap: var(--space-2); align-items: center; flex-wrap: nowrap; }
 /* The toolbar button that shows or hides the column, with the count of open
    threads riding on it (K3). */
 .pv-comment-toggle { position: relative; }
+/* In a peek the toolbar is gone, so the switch floats over the note (finding 2026-09-03). */
+.pv-comment-toggle--peek { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 3; background: var(--bg-primary); }
 .pv-comment-toggle__badge { position: absolute; top: -3px; right: -5px; height: 16px; min-width: 16px; padding: 0 4px; pointer-events: none; }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }

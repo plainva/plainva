@@ -24,7 +24,9 @@
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { PimEventDraft, PimEventRef } from "@plainva/core";
+import type { PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember } from "@plainva/core";
+import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
+import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
@@ -56,6 +58,14 @@ export interface BroadcastMap {
    * pinboard `.base` in another window would keep showing the old card text.
    */
   "note-saved": { path: string };
+  /**
+   * A remark was posted, arrived, resolved or retracted in the owner
+   * (Vorschlagsmodus, V7). The owner bridges its local event; a client
+   * re-dispatches it, so the editor code stays identical in both windows.
+   */
+  "comments-changed": { path: string };
+  /** The owner's workspace security status moved; a client asks for it again (V7). */
+  "workspace-security-changed": Record<string, never>;
   /**
    * The owner's sync status, mirrored into every other window (C3).
    *
@@ -131,6 +141,32 @@ export interface RpcMap {
   "focus-content": { args: { path: string }; result: boolean };
   /** Waits for a foreign editor's pending save before a write path touches it. */
   "flush-pending": { args: { path: string }; result: void };
+  /**
+   * The comment surface of an auxiliary window (Vorschlagsmodus, V7).
+   *
+   * A client opens the vault read-mostly: it has neither the workspace runtime
+   * (keys, policy, object store) nor the sideband bundle, so every question the
+   * editor asks about remarks - who may comment, which threads exist, post,
+   * resolve, retract - is answered by the owner. The shapes mirror
+   * VaultContext one to one; the client's context hands the calls over and
+   * the editor never learns which window it runs in. Finding 2026-09-03: a note
+   * in its own window could neither comment nor suggest.
+   */
+  "comment-capabilities": { args: { path: string }; result: WorkspaceCapability[] | null };
+  "comment-list": { args: { path: string }; result: WorkspaceCommentRecord[] };
+  "comment-list-publication": { args: { path: string }; result: PublicationCommentEntry[] };
+  "comment-members": { args: Record<string, never>; result: WorkspacePolicyMember[] };
+  "comment-self": { args: Record<string, never>; result: string | null };
+  "comment-post": {
+    args: { path: string; body: string; parentCommentId: string | null; anchor: WorkspaceCommentAnchor | null; suggestion: { replacement: string } | null; batch: { batchId: string; index: number; note: string | null } | null };
+    result: void;
+  };
+  "comment-resolve": { args: { path: string; commentId: string; suggestionOutcome: "applied" | "declined" | null }; result: void };
+  "comment-retract": { args: { path: string; commentId: string }; result: void };
+  "comment-retry": { args: { outboxId: string }; result: void };
+  "comment-discard": { args: { outboxId: string }; result: void };
+  /** The owner's public workspace security status - what gates the comment surface. */
+  "workspace-status": { args: Record<string, never>; result: WorkspaceSecurityPublicStatus | null };
   /** Draft snapshot of an unsaved buffer — the owner owns the journal on disk. */
   "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number }; result: void };
   /** Clears a journal entry; `upToRevision: null` forces (Infinity over JSON). */
@@ -307,6 +343,8 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "index-changed": "vault",
   "file-changed": "vault",
   "note-saved": "vault",
+  "comments-changed": "vault",
+  "workspace-security-changed": "vault",
   "sync-status": "vault",
   "pim-changed": "vault",
   // App- or window-scoped: appearance is one setting for the process, and the
@@ -339,6 +377,18 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "pim-refresh": "vault",
   // Touches the bookmark list of one vault, so it is addressed like a write.
   "toggle-bookmark": "vault",
+  // Remarks belong to one vault's workspace or sideband bundle (V7).
+  "comment-capabilities": "vault",
+  "comment-list": "vault",
+  "comment-list-publication": "vault",
+  "comment-members": "vault",
+  "comment-self": "vault",
+  "comment-post": "vault",
+  "comment-resolve": "vault",
+  "comment-retract": "vault",
+  "comment-retry": "vault",
+  "comment-discard": "vault",
+  "workspace-status": "vault",
   // Answered once for the process: these route windows, hand over drafts, open
   // owner surfaces or carry their vault in the arguments already.
   "focus-content": "app",

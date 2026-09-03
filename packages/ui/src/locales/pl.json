@@ -3660,7 +3660,7 @@
     "suggestBandTitle": "Tworzysz propozycje.",
     "suggestBandBody": "Notatka zmieni się dopiero, gdy ktoś je zaakceptuje.",
     "suggestCount": "Dotąd {{n}} zmian.",
-    "suggestNotePlaceholder": "Zdanie do tej rundy (opcjonalnie)",
+    "suggestNotePlaceholder": "Uwaga do zmiany (opcjonalnie)",
     "suggestDiscard": "Odrzuć",
     "suggestDiscardConfirm": "Odrzucić {{n}} zmian? Notatka pozostanie bez zmian.",
     "suggestSend": "Wyślij propozycje ({{n}})",

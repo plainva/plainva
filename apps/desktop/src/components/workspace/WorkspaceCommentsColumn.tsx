@@ -359,6 +359,26 @@ export function WorkspaceCommentsColumn({
             // of those would queue behind a remark that may never land.
             <div className="pv-comment-card__actions">{pendingState(root, root.authorMemberId === selfMemberId)}</div>
           ) : (
+          <>
+          {root.suggestion && !root.resolvedAt && (canWrite || canComment) && (
+            // The decision on a proposal is its own row (finding 2026-09-03):
+            // accept and decline side by side, always visible - the reply and
+            // task row below stays quiet until the card is hovered.
+            <div className="pv-comment-card__decision">
+              {/* Accepting is an ordinary write, so it needs write access;
+                  declining only closes the thread. */}
+              {canWrite && (
+                <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onApplySuggestion(root); }}>
+                  <Check size={ICON.meta} /> {t("workspaceSecurity.suggestionApply")}
+                </Button>
+              )}
+              {canComment && (
+                <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDeclineSuggestion(root); }}>
+                  <X size={ICON.meta} /> {t("workspaceSecurity.suggestionDecline")}
+                </Button>
+              )}
+            </div>
+          )}
           <div className="pv-comment-card__actions pv-comment-card__actions--quiet">
             {canComment && !root.resolvedAt && (
               <Button
@@ -379,30 +399,14 @@ export function WorkspaceCommentsColumn({
             )}
             {root.resolvedAt
               ? !root.suggestion && <span className="pv-comment-card__state"><Check size={ICON.meta} /> {t("workspaceSecurity.resolved")}</span>
-              : root.suggestion
-                ? (
-                  <>
-                    {/* Accepting is an ordinary write, so it needs write access;
-                        declining only closes the thread. */}
-                    {canWrite && (
-                      <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onApplySuggestion(root); }}>
-                        <Check size={ICON.meta} /> {t("workspaceSecurity.suggestionApply")}
-                      </Button>
-                    )}
-                    {canComment && (
-                      <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDeclineSuggestion(root); }}>
-                        <X size={ICON.meta} /> {t("workspaceSecurity.suggestionDecline")}
-                      </Button>
-                    )}
-                  </>
-                )
-                : canComment && (
+              : !root.suggestion && canComment && (
                   <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onResolve(root.commentId); }}>
                     {t("workspaceSecurity.resolve")}
                   </Button>
                 )}
             {deleteControl(root)}
           </div>
+          </>
           )}
           {confirmBox(root, replies.length)}
           {replyTo === root.commentId && (

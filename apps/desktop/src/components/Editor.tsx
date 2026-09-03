@@ -540,13 +540,18 @@ export const Editor: React.FC<{
     () => workspaceComments.filter((comment) => !comment.parentCommentId && !comment.resolvedCommentId && isCommentThreadOpen(comment)).length,
     [workspaceComments],
   );
-  const commentColumnOpen = workspaceCanReadComments && (commentColumnSession ?? commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed")) === "open";
+  // A peek starts without the column (finding 2026-09-03): it is a glance at a
+  // note, and a column that the vault preference or an open thread forced
+  // open took half of it. Its switch is a session choice - a peek never
+  // rewrites the preference the main pane keeps.
+  const commentColumnOpen = workspaceCanReadComments && (commentColumnSession ?? (peek ? "closed" : commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed"))) === "open";
   const toggleCommentColumn = useCallback(() => {
     const next = commentColumnOpen ? "closed" : "open";
     setCommentColumnSession(next);
+    if (peek) return;
     setCommentColumnPref(next);
     if (vaultPath) void getSettingsStore().then((store) => store.set(commentColumnKey(vaultPath), next).then(() => store.save())).catch(() => {});
-  }, [commentColumnOpen, vaultPath]);
+  }, [commentColumnOpen, vaultPath, peek]);
   useEffect(() => {
     if (!vaultPath) return;
     let alive = true;
@@ -2518,7 +2523,20 @@ export const Editor: React.FC<{
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
+      {/* The peek hides the toolbar, so the column's switch floats over the
+          note's top right until the column is open - which has its own X. */}
+      {peek && workspaceCanReadComments && !commentColumnOpen && (
+        <IconButton
+          label={t("workspaceSecurity.commentColumnShow")}
+          onClick={toggleCommentColumn}
+          className="pv-comment-toggle pv-comment-toggle--peek"
+          data-testid="peek-comments-toggle"
+        >
+          <MessageSquare size={ICON.ui} />
+          {openCommentThreads > 0 && <span className="pv-badge pv-badge--accent pv-comment-toggle__badge">{openCommentThreads}</span>}
+        </IconButton>
+      )}
       {workspaceReadOnly && <div className="pv-banner pv-banner--info">{workspaceCanComment ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
       {!peek && (
       <div className="pv-appbar pv-appbar--split" data-testid="editor-toolbar">

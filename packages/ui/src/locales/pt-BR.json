@@ -3628,7 +3628,7 @@
     "suggestBandTitle": "Você está sugerindo.",
     "suggestBandBody": "A nota só muda quando alguém aceita.",
     "suggestCount": "{{n}} alterações até agora.",
-    "suggestNotePlaceholder": "Uma frase para a rodada (opcional)",
+    "suggestNotePlaceholder": "Observação sobre a alteração (opcional)",
     "suggestDiscard": "Descartar",
     "suggestDiscardConfirm": "Descartar {{n}} alterações? A nota fica como estava.",
     "suggestSend": "Enviar sugestões ({{n}})",

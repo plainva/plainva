@@ -3596,7 +3596,7 @@
     "suggestBandTitle": "You are suggesting.",
     "suggestBandBody": "The note only changes when somebody accepts.",
     "suggestCount": "{{n}} changes so far.",
-    "suggestNotePlaceholder": "A sentence for the round (optional)",
+    "suggestNotePlaceholder": "A note on the change (optional)",
     "suggestDiscard": "Discard",
     "suggestDiscardConfirm": "Discard {{n}} changes? The note stays as it was.",
     "suggestSend": "Send suggestions ({{n}})",

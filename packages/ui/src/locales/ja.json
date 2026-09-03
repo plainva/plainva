@@ -3564,7 +3564,7 @@
     "suggestBandTitle": "提案モードです。",
     "suggestBandBody": "誰かが承認するまでノートは変わりません。",
     "suggestCount": "これまでに {{n}} 件の変更。",
-    "suggestNotePlaceholder": "この提案についての一言（任意）",
+    "suggestNotePlaceholder": "変更についてのメモ（任意）",
     "suggestDiscard": "破棄",
     "suggestDiscardConfirm": "{{n}} 件の変更を破棄しますか？ノートは元のままです。",
     "suggestSend": "提案を送信（{{n}}）",

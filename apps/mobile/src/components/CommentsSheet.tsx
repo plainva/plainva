@@ -239,17 +239,19 @@ export function CommentsSheet({
                     {confirmBox(reply, 0)}
                   </div>
                 ))}
+                {state === "open" && canWrite && (
+                  // The decision is its own row (finding 2026-09-03, desktop
+                  // parity): accept and decline side by side, never wrapped apart.
+                  <div className="pv-comment-card__decision">
+                    <Button size="sm" onClick={() => onApplySuggestion(root)}>
+                      {t("workspaceSecurity.suggestionApply")}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => onDeclineSuggestion(root)}>
+                      {t("workspaceSecurity.suggestionDecline")}
+                    </Button>
+                  </div>
+                )}
                 <div className="pv-comment-card__actions">
-                  {state === "open" && canWrite && (
-                    <>
-                      <Button size="sm" onClick={() => onApplySuggestion(root)}>
-                        {t("workspaceSecurity.suggestionApply")}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => onDeclineSuggestion(root)}>
-                        {t("workspaceSecurity.suggestionDecline")}
-                      </Button>
-                    </>
-                  )}
                   {state === "applied" && (
                     <span className="pv-comment-card__state">{t("workspaceSecurity.suggestionApplied")}</span>
                   )}

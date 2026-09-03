@@ -209,6 +209,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
 
   const reindexed: string[] = [];
   const syncCalls: string[] = [];
+  const commentCalls: string[] = [];
   const dispose = await installOwnerBus({
     vaultPath: "/vault",
     vaultAdapter: createAdapter(calls),
@@ -232,8 +233,50 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
         syncCalls.push("noted:" + paths.join(","));
       },
     },
+    // The comment surface (Vorschlagsmodus, V7): records what the owner was
+    // asked, answers with fixed values so the wire's fidelity is what is tested.
+    comments: {
+      capabilities: async (path) => {
+        commentCalls.push("capabilities:" + path);
+        return ["comment.read", "comment.create"];
+      },
+      list: async (path) => {
+        commentCalls.push("list:" + path);
+        return [];
+      },
+      listPublication: async (path) => {
+        commentCalls.push("publication:" + path);
+        return [];
+      },
+      members: async () => {
+        commentCalls.push("members");
+        return [];
+      },
+      selfId: async () => {
+        commentCalls.push("self");
+        return "m1";
+      },
+      post: async ({ path, body, batch }) => {
+        commentCalls.push("post:" + path + ":" + body + ":" + (batch?.batchId ?? "-"));
+      },
+      resolve: async ({ commentId, suggestionOutcome }) => {
+        commentCalls.push("resolve:" + commentId + ":" + (suggestionOutcome ?? "-"));
+      },
+      retract: async ({ commentId }) => {
+        commentCalls.push("retract:" + commentId);
+      },
+      retry: async (outboxId) => {
+        commentCalls.push("retry:" + outboxId);
+      },
+      discard: async (outboxId) => {
+        commentCalls.push("discard:" + outboxId);
+      },
+      status: async () => {
+        commentCalls.push("status");
+        return { phase: "active" } as never;
+      },
+    },
   });
-  // The app-scoped half is installed once for the process, not per vault.
   const disposeApp = await installOwnerAppBus();
 
   return {
@@ -244,6 +287,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     triggered,
     reindexed,
     syncCalls,
+    commentCalls,
     dispose: () => {
       dispose();
       disposeApp();
@@ -740,5 +784,46 @@ describe("owner bus with two vaults open", () => {
     } finally {
       stop();
     }
+  });
+});
+
+/**
+ * A note in its own window could neither comment nor suggest (finding
+ * 2026-09-03): the client opens the vault without the workspace runtime and
+ * the sideband bundle. Since V7 every question about remarks is answered by
+ * the owner, with the functions its own editor calls.
+ */
+describe("remarks from a client window (Vorschlagsmodus, V7)", () => {
+  it("answers who may comment, what was written and the workspace status with the owner's functions", async () => {
+    const { aux, commentCalls, dispose } = await setup();
+    expect(await aux.request("comment-capabilities", { path: "Note.md" })).toEqual(["comment.read", "comment.create"]);
+    expect(await aux.request("comment-list", { path: "Note.md" })).toEqual([]);
+    expect(await aux.request("comment-self", {})).toBe("m1");
+    expect(await aux.request("workspace-status", {})).toEqual({ phase: "active" });
+    expect(commentCalls).toEqual(["capabilities:Note.md", "list:Note.md", "self", "status"]);
+    dispose();
+  });
+
+  it("posts, resolves and retracts through the owner - one path per remark, the round included", async () => {
+    const { aux, commentCalls, dispose } = await setup();
+    await aux.request("comment-post", { path: "Note.md", body: "", parentCommentId: null, anchor: null, suggestion: { replacement: "x" }, batch: { batchId: "r1", index: 0, note: null } });
+    await aux.request("comment-resolve", { path: "Note.md", commentId: "c1", suggestionOutcome: "applied" });
+    await aux.request("comment-retract", { path: "Note.md", commentId: "c1" });
+    await aux.request("comment-retry", { outboxId: "o1" });
+    expect(commentCalls).toEqual(["post:Note.md::r1", "resolve:c1:applied", "retract:c1", "retry:o1"]);
+    dispose();
+  });
+
+  it("bridges the owner's comment event to the other windows", async () => {
+    const { aux, dispose } = await setup();
+    const seen: string[] = [];
+    const off = await aux.onBroadcast("comments-changed", ({ path }) => {
+      seen.push(path);
+    });
+    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "Note.md" } }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(seen).toEqual(["Note.md"]);
+    off();
+    dispose();
   });
 });

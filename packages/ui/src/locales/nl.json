@@ -3596,7 +3596,7 @@
     "suggestBandTitle": "Je doet voorstellen.",
     "suggestBandBody": "De notitie verandert pas als iemand ze overneemt.",
     "suggestCount": "{{n}} wijzigingen tot nu toe.",
-    "suggestNotePlaceholder": "Een zin bij de ronde (optioneel)",
+    "suggestNotePlaceholder": "Opmerking bij de wijziging (optioneel)",
     "suggestDiscard": "Verwerpen",
     "suggestDiscardConfirm": "{{n}} wijzigingen verwerpen? De notitie blijft zoals ze was.",
     "suggestSend": "Voorstellen verzenden ({{n}})",

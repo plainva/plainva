@@ -3628,7 +3628,7 @@
     "suggestBandTitle": "Stai proponendo.",
     "suggestBandBody": "La nota cambia solo quando qualcuno accetta.",
     "suggestCount": "{{n}} modifiche finora.",
-    "suggestNotePlaceholder": "Una frase per il giro (facoltativo)",
+    "suggestNotePlaceholder": "Nota sulla modifica (facoltativa)",
     "suggestDiscard": "Scarta",
     "suggestDiscardConfirm": "Scartare {{n}} modifiche? La nota resta com'era.",
     "suggestSend": "Invia proposte ({{n}})",

@@ -3596,7 +3596,7 @@
     "suggestBandTitle": "Du machst Vorschläge.",
     "suggestBandBody": "Die Notiz ändert sich erst, wenn jemand sie übernimmt.",
     "suggestCount": "{{n}} Änderungen bisher.",
-    "suggestNotePlaceholder": "Ein Satz zur Runde (optional)",
+    "suggestNotePlaceholder": "Anmerkung zur Änderung (optional)",
     "suggestDiscard": "Verwerfen",
     "suggestDiscardConfirm": "{{n}} Änderungen verwerfen? Die Notiz bleibt, wie sie war.",
     "suggestSend": "Vorschläge senden ({{n}})",

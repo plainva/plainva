@@ -1,7 +1,7 @@
 import { PimConflictError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
-import { getWindowBus } from "./windowBus";
+import { getWindowBus, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
@@ -39,9 +39,30 @@ import type { PimRuntime } from "./pim/pimRuntime";
  * are a different, higher-level request and get their own RPC when a window
  * actually needs one.
  */
+/**
+ * What the owner answers about remarks (Vorschlagsmodus, V7). The same
+ * functions the owner's own editor calls, reached through a ref in
+ * VaultContext so a re-installed bus never holds yesterday's closures.
+ */
+export interface OwnerCommentDeps {
+  capabilities: (path: string) => Promise<RpcMap["comment-capabilities"]["result"]>;
+  list: (path: string) => Promise<RpcMap["comment-list"]["result"]>;
+  listPublication: (path: string) => Promise<RpcMap["comment-list-publication"]["result"]>;
+  members: () => Promise<RpcMap["comment-members"]["result"]>;
+  selfId: () => Promise<string | null>;
+  post: (args: RpcMap["comment-post"]["args"]) => Promise<void>;
+  resolve: (args: RpcMap["comment-resolve"]["args"]) => Promise<void>;
+  retract: (args: RpcMap["comment-retract"]["args"]) => Promise<void>;
+  retry: (outboxId: string) => Promise<void>;
+  discard: (outboxId: string) => Promise<void>;
+  status: () => Promise<RpcMap["workspace-status"]["result"]>;
+}
+
 export interface OwnerBusDeps {
   /** Absolute path of the open vault — auxiliary windows belong to one vault. */
   vaultPath: string;
+  /** The comment surface for auxiliary windows (V7); absent only in tests that never ask. */
+  comments?: OwnerCommentDeps;
   /** The full owner chain — never the raw adapter. */
   vaultAdapter: IVaultAdapter;
   /** The owner's indexer, so a delegated write lands in the index at once. */
@@ -104,9 +125,12 @@ export function broadcastIndexChanged(paths: string[], structural: boolean, vaul
  * cannot bounce back.
  */
 function installEventBridges(vaultPath: string): () => void {
-  const bridges: Array<[string, "note-saved" | "file-changed"]> = [
+  const bridges: Array<[string, "note-saved" | "file-changed" | "comments-changed"]> = [
     ["plainva-note-saved", "note-saved"],
     ["plainva-external-update", "file-changed"],
+    // Every place that posts, resolves, retracts or receives a remark dispatches
+    // this (V7) - the bridge is what keeps a client's column current.
+    ["plainva-workspace-comments-changed", "comments-changed"],
   ];
   const offs = bridges.map(([local, channel]) => {
     const handler = (e: Event) => {
@@ -119,8 +143,16 @@ function installEventBridges(vaultPath: string): () => void {
     window.addEventListener(local, handler);
     return () => window.removeEventListener(local, handler);
   });
+  // The security status has no path: a client re-asks the owner for it (V7).
+  const onSecurity = () => {
+    void getWindowBus()
+      .then((bus) => bus.broadcast("workspace-security-changed", {}, vaultPath))
+      .catch(() => {});
+  };
+  window.addEventListener("plainva-workspace-security-changed", onSecurity);
   return () => {
     for (const off of offs) off();
+    window.removeEventListener("plainva-workspace-security-changed", onSecurity);
   };
 }
 
@@ -236,6 +268,26 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       deps.refresh();
     }, { vaultPath: deps.vaultPath }),
   );
+
+  // The comment surface of an auxiliary window (V7): every call lands on the
+  // owner's own functions, so a remark from a second window takes exactly the
+  // path a remark from the central window takes - outbox, bundle, worker.
+  const comments = (): OwnerCommentDeps => {
+    if (!deps.comments) throw new Error("comments are not served in this window");
+    return deps.comments;
+  };
+  const scoped = { vaultPath: deps.vaultPath };
+  offs.push(await bus.handle("comment-capabilities", ({ path }) => comments().capabilities(path), scoped));
+  offs.push(await bus.handle("comment-list", ({ path }) => comments().list(path), scoped));
+  offs.push(await bus.handle("comment-list-publication", ({ path }) => comments().listPublication(path), scoped));
+  offs.push(await bus.handle("comment-members", () => comments().members(), scoped));
+  offs.push(await bus.handle("comment-self", () => comments().selfId(), scoped));
+  offs.push(await bus.handle("comment-post", (args) => comments().post(args), scoped));
+  offs.push(await bus.handle("comment-resolve", (args) => comments().resolve(args), scoped));
+  offs.push(await bus.handle("comment-retract", (args) => comments().retract(args), scoped));
+  offs.push(await bus.handle("comment-retry", ({ outboxId }) => comments().retry(outboxId), scoped));
+  offs.push(await bus.handle("comment-discard", ({ outboxId }) => comments().discard(outboxId), scoped));
+  offs.push(await bus.handle("workspace-status", () => comments().status(), scoped));
 
   offs.push(
     await bus.handle("sync-control", async ({ what, paths }) => {

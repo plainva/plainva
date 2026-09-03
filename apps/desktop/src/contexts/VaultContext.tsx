@@ -32,7 +32,7 @@ import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror } from "../services/ownerBus";
+import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
@@ -313,6 +313,26 @@ interface VaultContextType extends VaultState {
 }
 
 export const VaultContext = createContext<VaultContextType | undefined>(undefined);
+
+/**
+ * The comment surface of an auxiliary window (Vorschlagsmodus, V7): every call
+ * is a request to the owner, which answers with its own functions. Module
+ * level on purpose - nothing here depends on this window's state, and a
+ * memoised object would only add a dependency the context value has to track.
+ */
+const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "listWorkspaceComments" | "listPublicationComments" | "listWorkspaceMembers" | "getCommentSelfId" | "postWorkspaceComment" | "resolveWorkspaceComment" | "retractWorkspaceComment" | "retryWorkspaceComment" | "discardWorkspaceComment"> = {
+  getWorkspaceCapabilities: (path) => getWindowBus().then((bus) => bus.request("comment-capabilities", { path })),
+  listWorkspaceComments: (path) => getWindowBus().then((bus) => bus.request("comment-list", { path })),
+  listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path })),
+  listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {})),
+  getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {})),
+  postWorkspaceComment: (path, body, parentCommentId = null, anchor = null, suggestion = null, batch = null) =>
+    getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch })),
+  resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome })),
+  retractWorkspaceComment: (path, commentId) => getWindowBus().then((bus) => bus.request("comment-retract", { path, commentId })),
+  retryWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-retry", { outboxId })),
+  discardWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-discard", { outboxId })),
+};
 
 // Store filename lives with the desktop settings adapter now (ADR 0011);
 // re-exported here because many modules import their store KEYS from this hub.
@@ -1485,6 +1505,11 @@ export const VaultProvider: React.FC<{
     if (!state.vaultPath || !state.vaultAdapter) return;
     let dispose: (() => void) | null = null;
     let cancelled = false;
+    const commentOps = (): OwnerCommentDeps => {
+      const ops = commentOpsRef.current;
+      if (!ops) throw new Error("vault not ready");
+      return ops;
+    };
     void installOwnerBus({
       vaultPath: state.vaultPath,
       vaultAdapter: state.vaultAdapter,
@@ -1497,6 +1522,22 @@ export const VaultProvider: React.FC<{
       // because it still held yesterday's sync worker.
       refreshVault: () => vaultOpsRef.current.refreshVault(),
       rebuildIndex: () => vaultOpsRef.current.rebuildIndex(),
+      // The comment surface for auxiliary windows (Vorschlagsmodus, V7): the
+      // owner holds the workspace runtime and the sideband bundle, so a client
+      // asks here. Through the ref, for the same reason as the two above.
+      comments: {
+        capabilities: (path) => commentOps().capabilities(path),
+        list: (path) => commentOps().list(path),
+        listPublication: (path) => commentOps().listPublication(path),
+        members: () => commentOps().members(),
+        selfId: () => commentOps().selfId(),
+        post: (args) => commentOps().post(args),
+        resolve: (args) => commentOps().resolve(args),
+        retract: (args) => commentOps().retract(args),
+        retry: (outboxId) => commentOps().retry(outboxId),
+        discard: (outboxId) => commentOps().discard(outboxId),
+        status: () => commentOps().status(),
+      },
       // Same reason, one step further: the worker is created AFTER the vault
       // has loaded, so a captured one would always be the null it was at
       // install time — and "sync now" from another window would do nothing.
@@ -1578,6 +1619,22 @@ export const VaultProvider: React.FC<{
             window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           }),
         );
+        // Remarks live in the owner (V7): its bridged event becomes the local
+        // one the editor already listens for, and a moved security status is
+        // read again rather than mirrored - the status is what gates the column.
+        offs.push(
+          await bus.onBroadcast("comments-changed", ({ path }) => {
+            window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+          }),
+        );
+        offs.push(
+          await bus.onBroadcast("workspace-security-changed", (_p, _from, vault) => {
+            if (!vault) return;
+            void bus.request("workspace-status", {}).then((status) => {
+              setState((s) => (s.vaultPath === vault ? { ...s, workspaceSecurityStatus: status } : s));
+            }).catch(() => {});
+          }),
+        );
         if (cancelled) for (const off of offs.splice(0)) off();
         else stop = () => { for (const off of offs.splice(0)) off(); };
       })
@@ -1635,9 +1692,14 @@ export const VaultProvider: React.FC<{
       const bus = await getWindowBus();
       const services = await openClientVault(path, bus);
       clientServicesRef.current = services;
+      // The owner's public security status (V7): with it the editor asks for
+      // capabilities and shows the column; without it a note in its own window
+      // could neither comment nor suggest (finding 2026-09-03).
+      const workspaceSecurityStatus = await bus.request("workspace-status", {}).catch(() => null);
       setState((s) => ({
         ...s,
         vaultPath: path,
+        workspaceSecurityStatus,
         vaultAdapter: services.vaultAdapter,
         dbAdapter: services.dbAdapter,
         queryService: services.queryService,
@@ -1682,6 +1744,7 @@ export const VaultProvider: React.FC<{
         indexer: null,
         pimRuntime: null,
         syncWorker: null,
+        workspaceSecurityStatus: null,
         fileTreeVersion: 0,
         isLoading: false,
         error: null,
@@ -2155,6 +2218,8 @@ export const VaultProvider: React.FC<{
   useEffect(() => {
     vaultOpsRef.current = { refreshVault, rebuildIndex, syncWorker: state.syncWorker };
   });
+  /** The comment functions an auxiliary window is served with (V7); filled below, once they exist. */
+  const commentOpsRef = useRef<OwnerCommentDeps | null>(null);
 
   // Build recovery material before any remote state is created. Activation is a
   // separate, recovery-confirmed step in the Security Center.
@@ -3128,6 +3193,24 @@ export const VaultProvider: React.FC<{
    * throw instead of quietly doing nothing — an auxiliary window that silently
    * ignored "switch vault" would leave the user staring at the old one.
    */
+  // What the owner serves auxiliary windows with (V7): the very functions the
+  // owner's own editor calls, so both windows take one path per remark.
+  useEffect(() => {
+    commentOpsRef.current = {
+      capabilities: getWorkspaceCapabilities,
+      list: listWorkspaceComments,
+      listPublication: listPublicationComments,
+      members: listWorkspaceMembers,
+      selfId: getCommentSelfId,
+      post: ({ path, body, parentCommentId, anchor, suggestion, batch }) => postWorkspaceComment(path, body, parentCommentId, anchor, suggestion, batch),
+      resolve: ({ path, commentId, suggestionOutcome }) => resolveWorkspaceComment(path, commentId, suggestionOutcome),
+      retract: ({ path, commentId }) => retractWorkspaceComment(path, commentId),
+      retry: retryWorkspaceComment,
+      discard: discardWorkspaceComment,
+      status: async () => state.workspaceSecurityStatus,
+    };
+  });
+
   const clientLifecycle: VaultLifecycleApi = useMemo(
     () => ({
       selectVault: async () => {
@@ -3167,7 +3250,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );
