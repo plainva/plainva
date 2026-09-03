@@ -37,6 +37,8 @@ Caso especial do **Nextcloud**: UM único formulário cobre arquivos **e** calen
 
 Endereços de servidor típicos (Nextcloud, Koofr, MagentaCLOUD, Storage Box e muitos outros) estão listados em [Compatibilidade de Sincronização](Sync_Compatibility.md).
 
+**O endereço aponta para a própria pasta do vault.** Tudo que está abaixo dele pertence ao vault, portanto um endereço um nível acima também arrasta as pastas vizinhas. No WebDAV a pasta faz parte do endereço do servidor: para mover o vault mais tarde, conecte a conta novamente.
+
 Se a senha de aplicativo mudar depois, informe-a **uma única vez** nos detalhes da conta em **Credenciais**: o Plainva a verifica em todos os serviços dessa conta e só a salva quando todos aceitam — assim nenhum serviço fica com a senha antiga.
 
 ## Google Drive

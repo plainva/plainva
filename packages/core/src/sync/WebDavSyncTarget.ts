@@ -63,6 +63,35 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
   return entries;
 }
 
+/**
+ * Percent-encodes a path one segment at a time. `encodeURI` is wrong here: it
+ * leaves `#` and `?` untouched, so a note named "Draft #1.md" produced a URL
+ * whose fragment started at the `#` — the PUT then landed on "Draft " and the
+ * real name never reached the server.
+ */
+export function encodeDavPath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
+ * The inverse of `encodeDavPath`. Decoding per segment keeps an encoded `/`
+ * inside a segment escaped — a file name can never carry the separator — and a
+ * malformed escape (`%zz`, which `decodeURIComponent` throws on) keeps its raw
+ * segment instead of failing the whole listing.
+ */
+export function decodeDavPath(path: string): string {
+  return path
+    .split("/")
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    })
+    .join("/");
+}
+
 export type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export class WebDavSyncTarget implements ISyncTarget {
@@ -132,7 +161,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     if (normalized.startsWith("/")) {
       normalized = normalized.substring(1);
     }
-    return this.creds.url + encodeURI(normalized);
+    return this.creds.url + encodeDavPath(normalized);
   }
 
   /**
@@ -239,6 +268,9 @@ export class WebDavSyncTarget implements ISyncTarget {
     const res = await this.request("PROPFIND", url, {
       headers: { ...this.headers, "Depth": "1" }
     });
+    // Only the top level is asked for the base URL itself, so only its answer
+    // reveals a redirect without having to subtract `rel` again.
+    if (!rel) this.rememberEffectiveBase(res);
     if (res.status === 404) return [];
     if (!res.ok) throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
     const names: string[] = [];
@@ -284,6 +316,9 @@ export class WebDavSyncTarget implements ISyncTarget {
         "Depth": "infinity"
       }
     });
+    // Before the first href is resolved: a redirect moves the base path, and
+    // resolving against the typed URL would put every entry outside the vault.
+    this.rememberEffectiveBase(res);
 
     let responses: WebDavResponse[];
     if (res.ok) {
@@ -342,7 +377,21 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
   }
 
-  /** Vault-relative path (no leading slash) for a multistatus href. */
+  /**
+   * Vault-relative path (no leading slash) for a multistatus href.
+   *
+   * Both sides are compared DECODED (issue #78). The old code decoded the href
+   * but compared it against the still-encoded pathname of the configured URL,
+   * so any vault whose own path carried a space or an umlaut failed the prefix
+   * test — and a failed test silently returned the server's full path as if it
+   * were vault-relative. The worker then created `<vault>/users/x/school/term1/…`
+   * locally, pushed it back, and grew one level deeper on every cycle.
+   *
+   * A href that genuinely sits outside the vault is an error now. Skipping it
+   * instead would feed the worker a listing missing those files, and "missing
+   * from the remote listing" is what drives the mirror-deletions path — the one
+   * failure worse than an aborted sync.
+   */
   private relativeHref(rawHref: string): string {
     let href = rawHref;
     // RFC 4918 allows absolute URIs in <href> (webdav-server does this;
@@ -354,13 +403,44 @@ export class WebDavSyncTarget implements ISyncTarget {
         /* keep the raw value */
       }
     }
-    href = decodeURI(href);
-    const basePath = new URL(this.creds.url).pathname;
-    if (href.startsWith(basePath)) {
-      href = href.substring(basePath.length);
+    const path = decodeDavPath(href);
+    const base = decodeDavPath(this.basePath);
+    // The collection itself comes back with or without the trailing slash.
+    if (path === base || `${path}/` === base) return "";
+    if (!path.startsWith(base)) {
+      throw new Error(
+        `WebDAV listing returned "${rawHref}", which is not below the configured vault path "${base}". ` +
+        `Refusing to treat it as a vault-relative path — that would copy the server's folder structure ` +
+        `into the vault (issue #78). A redirect to a different base path is the usual cause; check the URL.`
+      );
     }
-    if (href.startsWith("/")) href = href.substring(1);
-    return href;
+    return path.substring(base.length).replace(/^\/+/, "");
+  }
+
+  /**
+   * Path the hrefs are resolved against. Normally the configured URL, but a
+   * server that redirects (a bare host to `/remote.php/dav/files/<user>/`, say)
+   * answers under a different base than the one that was typed — `fetch`
+   * follows the redirect, the hrefs carry the new prefix, and every entry would
+   * otherwise fail the check above. `pull` records the effective URL of the
+   * listing response; before the first one, and for fetch mocks that carry no
+   * `url`, this falls back to the configured value.
+   */
+  private get basePath(): string {
+    return this.effectiveBasePath ?? new URL(this.creds.url).pathname;
+  }
+
+  private effectiveBasePath: string | undefined;
+
+  /** Remembers where the listing actually came from (see `basePath`). */
+  private rememberEffectiveBase(res: Response): void {
+    if (typeof res.url !== "string" || !res.url) return;
+    try {
+      const pathname = new URL(res.url).pathname;
+      this.effectiveBasePath = pathname.endsWith("/") ? pathname : `${pathname}/`;
+    } catch {
+      /* leave the configured path in place */
+    }
   }
 
   /** Device-local folders never worth walking (the worker skips their files anyway). */

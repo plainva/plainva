@@ -357,4 +357,113 @@ describe("WebDavSyncTarget", () => {
     expect(pullRes.etagMap.get("Sub/Note A.md")).toBe("a1");
     expect(pullRes.etagMap.size).toBe(1);
   });
+
+  // Issue #78: the vault's own path was compared encoded against a decoded
+  // href. Every vault below a folder with a space or an umlaut failed that
+  // test, and a failed test used to return the server's whole path as if it
+  // were vault-relative — the worker then recreated the server's folder chain
+  // inside the vault and pushed it one level deeper on every cycle.
+  describe("vault paths that need escaping (issue #78)", () => {
+    const listing = (href: string) => `<d:multistatus xmlns:d="DAV:">
+        <d:response>
+          <d:href>${href}</d:href>
+          <d:propstat><d:prop><d:getetag>"a1"</d:getetag></d:prop></d:propstat>
+        </d:response>
+      </d:multistatus>`;
+
+    it("strips a base path containing a space", async () => {
+      const spaced = new WebDavSyncTarget(
+        { url: "https://cloud.example.com/dav/School Term 1", user: "u", pass: "p" },
+        mockFetch
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => listing("/dav/School%20Term%201/Note.md")
+      });
+
+      const res = await spaced.pull();
+
+      expect([...res.etagMap.keys()]).toEqual(["Note.md"]);
+    });
+
+    it("strips a base path containing an umlaut", async () => {
+      const umlaut = new WebDavSyncTarget(
+        { url: "https://cloud.example.com/dav/Schlüssel", user: "u", pass: "p" },
+        mockFetch
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => listing("/dav/Schl%C3%BCssel/Note.md")
+      });
+
+      const res = await umlaut.pull();
+
+      expect([...res.etagMap.keys()]).toEqual(["Note.md"]);
+    });
+
+    it("reports the vault root itself as the empty path, with or without a trailing slash", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => `<d:multistatus xmlns:d="DAV:">
+          <d:response>
+            <d:href>/remote.php/webdav</d:href>
+            <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+          </d:response>
+          <d:response>
+            <d:href>/remote.php/webdav/</d:href>
+            <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat>
+          </d:response>
+        </d:multistatus>`
+      });
+
+      const res = await target.pull();
+
+      // The root is not a child folder — it must not show up as one.
+      expect(res.folders).toEqual([]);
+    });
+
+    it("refuses to guess when an href sits outside the vault instead of nesting it", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => listing("/some/other/place/Note.md")
+      });
+
+      // The old behaviour: "some/other/place/Note.md" as a vault path.
+      await expect(target.pull()).rejects.toThrow(/not below the configured vault path/);
+    });
+
+    it("resolves hrefs against the base the server actually answered from", async () => {
+      // A redirect moves the base path; fetch follows it and reports the final
+      // URL. Resolving against the typed URL would push every entry outside.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        url: "https://cloud.example.com/remote.php/dav/files/testuser/",
+        text: async () => listing("/remote.php/dav/files/testuser/Note.md")
+      });
+
+      const res = await target.pull();
+
+      expect([...res.etagMap.keys()]).toEqual(["Note.md"]);
+    });
+  });
+
+  it("escapes a name containing # and ? on write (issue #78)", async () => {
+    // encodeURI left both alone: the URL's fragment began at the #, so the PUT
+    // landed on "Draft " and the note never reached the server under its name.
+    mockFetch.mockResolvedValueOnce({ ok: true, headers: new Headers({ "ETag": '"e1"' }) });
+
+    await target.push({
+      id: 1,
+      file_path: "Notes/Draft #1 (why?).md",
+      operation: "write",
+      content: new Uint8Array([1]),
+      retry_count: 0,
+      next_retry_at: 0,
+      queued_at: 0
+    });
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      "https://cloud.example.com/remote.php/webdav/Notes/Draft%20%231%20(why%3F).md"
+    );
+  });
 });

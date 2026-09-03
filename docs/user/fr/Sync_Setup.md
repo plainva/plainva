@@ -37,6 +37,8 @@ Particularité **Nextcloud** : UN seul formulaire couvre les fichiers **et** le 
 
 Les adresses de serveur typiques (Nextcloud, Koofr, MagentaCLOUD, Storage Box et bien d'autres) sont listées dans [Compatibilité de synchronisation](Sync_Compatibility.md).
 
+**L'adresse pointe sur le dossier du vault lui-même.** Tout ce qui se trouve en dessous appartient au vault ; une adresse un niveau trop haut y entraîne donc aussi les dossiers voisins. Avec WebDAV, le dossier fait partie de l'adresse du serveur : pour déplacer le vault plus tard, reconnectez le compte.
+
 Si le mot de passe d'application change plus tard, saisissez-le **une seule fois** dans les détails du compte sous **Identifiants** : Plainva le vérifie sur chaque service de ce compte et ne l'enregistre que si tous l'acceptent — aucun service ne reste ainsi sur un ancien mot de passe.
 
 ## Google Drive

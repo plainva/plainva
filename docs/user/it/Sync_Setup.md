@@ -37,6 +37,8 @@ Particolarità **Nextcloud**: UN solo modulo copre file **e** calendario — Pla
 
 Gli indirizzi tipici dei server (Nextcloud, Koofr, MagentaCLOUD, Storage Box e molti altri) sono elencati in [Compatibilità di sincronizzazione](Sync_Compatibility.md).
 
+**L'indirizzo punta alla cartella del vault stessa.** Tutto ciò che si trova sotto appartiene al vault, quindi un indirizzo un livello troppo in alto trascina con sé anche le cartelle vicine. Con WebDAV la cartella fa parte dell'indirizzo del server: per spostare il vault in seguito, riconnetti l'account.
+
 Se la password per app cambia in seguito, inseriscila **una sola volta** nei dettagli dell'account sotto **Credenziali**: Plainva la verifica su ogni servizio di quell'account e la salva solo quando tutti la accettano, così nessun servizio resta con la vecchia password.
 
 ## Google Drive

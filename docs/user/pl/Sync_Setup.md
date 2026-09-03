@@ -37,6 +37,8 @@ Szczególny przypadek **Nextcloud**: JEDEN formularz obsługuje pliki **i** kale
 
 Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele innych) znajdziesz w [Zgodności synchronizacji](Sync_Compatibility.md).
 
+**Adres wskazuje na sam folder vaulta.** Wszystko poniżej należy do vaulta, więc adres o poziom za wysoko wciąga również sąsiednie foldery. W WebDAV folder jest częścią adresu serwera — aby przenieść vault później, połącz konto ponownie.
+
 Jeśli hasło aplikacji zmieni się później, wpisz je **raz** w szczegółach konta w sekcji **Dane logowania**: Plainva sprawdzi je w każdej usłudze tego konta i zapisze dopiero wtedy, gdy wszystkie je zaakceptują — dzięki temu żadna usługa nie zostanie ze starym hasłem.
 
 ## Google Drive

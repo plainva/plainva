@@ -37,6 +37,8 @@ The simplest route for self-hosted servers and most cloud storages:
 
 Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many more) are listed in [Sync Compatibility](Sync_Compatibility.md).
 
+**The address points at the vault folder itself.** Everything below it belongs to the vault, so an address one level too high pulls the neighbouring folders in as well. With WebDAV the folder is part of the server address — to move the vault later, connect the account again.
+
 If the app password changes later, enter it **once** in the account details under **Credentials**: Plainva verifies it against every service of that account and only stores it when all of them accept — so no service is left behind on an old password.
 
 ## Google Drive

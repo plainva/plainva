@@ -37,6 +37,8 @@ Besonderheit **Nextcloud**: EIN Formular reicht für Dateien **und** Kalender �
 
 Typische Server-Adressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box u. v. m.) findest Du in der [Sync-Kompatibilität](Sync_Compatibility.md).
 
+**Die Adresse zeigt auf den Vault-Ordner selbst.** Alles darunter gehört zum Vault — eine Adresse eine Ebene zu hoch zieht die Nachbarordner mit hinein. Bei WebDAV gehört der Ordner zur Server-Adresse; um den Vault später zu verschieben, verbindest Du das Konto neu.
+
 Ändert sich das App-Passwort später, trägst Du es **einmal** in den Konto-Details unter **Zugangsdaten** ein: Plainva prüft es gegen jeden Dienst dieses Kontos und speichert es erst, wenn alle es akzeptieren — so bleibt kein Dienst mit einem alten Passwort zurück.
 
 ## Google Drive

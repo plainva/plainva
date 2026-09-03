@@ -37,6 +37,8 @@ Bijzonderheid **Nextcloud**: ÉÉN formulier dekt bestanden **en** agenda — Pl
 
 Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele andere) vind je in [Sync-compatibiliteit](Sync_Compatibility.md).
 
+**Het adres wijst naar de vault-map zelf.** Alles daaronder hoort bij de vault, dus een adres dat één niveau te hoog ligt trekt ook de naburige mappen mee. Bij WebDAV maakt de map deel uit van het serveradres — om de vault later te verplaatsen, verbind je het account opnieuw.
+
 Verandert het app-wachtwoord later, voer het dan **één keer** in bij de accountgegevens onder **Inloggegevens**: Plainva controleert het bij elke dienst van dat account en slaat het pas op als ze het allemaal accepteren — zo blijft geen dienst achter met een oud wachtwoord.
 
 ## Google Drive
