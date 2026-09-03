@@ -16,6 +16,7 @@ import {
 } from "./LivePreviewPlugin";
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
+import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
@@ -462,7 +463,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     updateListener,
     // Syntax-highlight fenced code blocks (#10/#3): codeLanguages lazy-loads
     // the matching grammar for ```lang fences.
-    markdown({ base: markdownLanguage, codeLanguages }),
+    // A comment anchor never starts an HTML block (finding 2026-09-03): the
+    // list item behind a marker keeps its bullet, indent and formatting.
+    markdown({ base: markdownLanguage, codeLanguages, extensions: [anchorAwareHtmlBlock] }),
     EditorView.lineWrapping,
     // Markdown list auto-continuation (#10): Enter/Tab/Shift-Tab.
     Prec.high(keymap.of(listKeymap)),

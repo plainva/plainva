@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, type AnchorHighlight } from '@plainva/ui';
+import { stripAnchorMarkers } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
@@ -249,7 +250,17 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
 export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, anchors, onActivateAnchor }) => {
   // Rebuilt only when the anchors change: react-markdown re-runs the pipeline
   // whenever the plugin list is a new array.
-  const anchorPlugin = useMemo(() => (anchors && anchors.length > 0 ? rehypeReadAnchors(anchors) : null), [anchors]);
+  // The anchor markers leave the source BEFORE remark sees it (finding
+  // 2026-09-03): a marker at the head of a list item or paragraph made the
+  // whole line an HTML block for CommonMark, and this view dropped it. The
+  // highlights arrive in raw offsets and are mapped onto the marker-free text
+  // the same way the editor's soft anchors are.
+  const stripped = useMemo(() => stripAnchorMarkers(content), [content]);
+  const anchorPlugin = useMemo(() => {
+    if (!anchors || anchors.length === 0) return null;
+    const mapped = anchors.map((a) => ({ ...a, from: stripped.toClean(a.from), to: stripped.toClean(a.to) }));
+    return rehypeReadAnchors(mapped);
+  }, [anchors, stripped]);
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
   // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
@@ -342,8 +353,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // ![img](wiki-image://img). (==highlight== spans become real <mark> elements
   // AST-side via remarkStripHighlightMarks; the markers never render literally.)
   const processedContent = useMemo(() => {
-    if (embedDepth > 2) return content;
-    let result = content;
+    if (embedDepth > 2) return stripped.text;
+    let result = stripped.text;
     
     // Strip frontmatter
     if (result.startsWith("---")) {

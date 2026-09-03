@@ -14,6 +14,8 @@ import {
   parseTablesIn,
   stripWidgetAnchorMarkers,
   openAnchorMarker,
+  placeAnchorRange,
+  repairAnchorMarkerPlacement,
   propertyAnchorKey,
   removeAnchorMarkers,
   resolveCommentAnchor,
@@ -495,5 +497,86 @@ describe("table cell anchors (Tabellenzelle, V7)", () => {
     ]);
     expect(removed).toEqual(["2222"]);
     expect(text).toBe(`Intro <!--pv#1111-->word<!--/pv#1111--> and\n${TABLE}\n`);
+  });
+});
+
+/**
+ * A marker never starts a block (finding 2026-09-03): CommonMark reads a line
+ * that begins with `<!--` as an HTML block, and the list item behind it lost
+ * its bullet, its indent and its formatting in every view.
+ */
+describe("placeAnchorRange", () => {
+  const LIST = "Intro\n- Vorlagen sind Notiz-Vorlagen\n- Zweiter Punkt\n";
+
+  it("moves a start inside the list marker behind it and keeps the end off the line break", () => {
+    const from = LIST.indexOf("- Vorlagen");
+    const to = LIST.indexOf("- Zweiter");
+    const placed = placeAnchorRange(LIST, from, to);
+    expect(LIST.slice(placed.from, placed.to)).toBe("Vorlagen sind Notiz-Vorlagen");
+  });
+
+  it("steps over a task box, a blockquote and a heading prefix", () => {
+    const text = "- [ ] Kartons bestellen\n> Ein Zitat\n## Titel der Woche\n";
+    const task = placeAnchorRange(text, 0, text.indexOf("\n"));
+    expect(text.slice(task.from, task.to)).toBe("Kartons bestellen");
+    const quoteFrom = text.indexOf("> Ein");
+    const quote = placeAnchorRange(text, quoteFrom, text.indexOf("\n", quoteFrom));
+    expect(text.slice(quote.from, quote.to)).toBe("Ein Zitat");
+    const headFrom = text.indexOf("## ");
+    const head = placeAnchorRange(text, headFrom, text.length);
+    expect(text.slice(head.from, head.to)).toBe("Titel der Woche");
+  });
+
+  it("never covers the prefix of the following line", () => {
+    const text = "- eins\n- zwei\n";
+    const placed = placeAnchorRange(text, 0, text.indexOf("- zwei") + 2);
+    expect(text.slice(placed.from, placed.to)).toBe("eins");
+  });
+
+  it("leaves a range inside running text alone, including an insertion point", () => {
+    const text = "Ein Satz mit Wort darin.\n";
+    expect(placeAnchorRange(text, 4, 8)).toEqual({ from: 4, to: 8 });
+    expect(placeAnchorRange(text, 4, 4)).toEqual({ from: 4, to: 4 });
+    expect(placeAnchorRange(text, 8, 4)).toEqual({ from: 4, to: 8 });
+  });
+
+  it("a selection that only covers the marker collapses to an insertion point behind it", () => {
+    expect(placeAnchorRange("- item\n", 0, 2)).toEqual({ from: 2, to: 2 });
+  });
+});
+
+describe("repairAnchorMarkerPlacement", () => {
+  it("moves an opening marker written before the list marker behind it", () => {
+    const raw = "Intro\n<!--pv#7f3a-->- Vorlagen<!--/pv#7f3a-->\n";
+    const { text, edits } = repairAnchorMarkerPlacement(raw);
+    expect(text).toBe("Intro\n- <!--pv#7f3a-->Vorlagen<!--/pv#7f3a-->\n");
+    expect(edits.length).toBe(2);
+  });
+
+  it("moves a closing marker at the next line's start to the end of the line before", () => {
+    const raw = "- <!--pv#7f3a-->eins\n<!--/pv#7f3a-->- zwei\n";
+    expect(repairAnchorMarkerPlacement(raw).text).toBe("- <!--pv#7f3a-->eins<!--/pv#7f3a-->\n- zwei\n");
+  });
+
+  it("handles a task box, a quote and both markers on one line", () => {
+    expect(repairAnchorMarkerPlacement("<!--pv#1111-->- [ ] Kartons<!--/pv#1111-->\n").text).toBe("- [ ] <!--pv#1111-->Kartons<!--/pv#1111-->\n");
+    expect(repairAnchorMarkerPlacement("> <!--pv#2222-->Zitat<!--/pv#2222-->").text).toBe("> <!--pv#2222-->Zitat<!--/pv#2222-->");
+    expect(repairAnchorMarkerPlacement("<!--/pv#3333-->-<!--pv#4444--> Punkt<!--/pv#4444-->").text).toBe("- <!--pv#4444--><!--/pv#3333-->Punkt<!--/pv#4444-->");
+  });
+
+  it("changes nothing on a note whose markers already sit behind the prefix or in running text", () => {
+    const raw = "- <!--pv#7f3a-->eins<!--/pv#7f3a-->\nEin <!--pv#1111-->Wort<!--/pv#1111--> im Satz.\n<!-- -->\n";
+    const { text, edits } = repairAnchorMarkerPlacement(raw);
+    expect(text).toBe(raw);
+    expect(edits).toEqual([]);
+  });
+
+  it("returns edits that reproduce the text when applied back to front", () => {
+    const raw = "<!--pv#7f3a-->- a<!--/pv#7f3a-->\n<!--pv#1111-->1. b<!--/pv#1111-->\n";
+    const { text, edits } = repairAnchorMarkerPlacement(raw);
+    let applied = raw;
+    for (let i = edits.length - 1; i >= 0; i -= 1) applied = applied.slice(0, edits[i].from) + edits[i].insert + applied.slice(edits[i].to);
+    expect(applied).toBe(text);
+    expect(text).toBe("- <!--pv#7f3a-->a<!--/pv#7f3a-->\n1. <!--pv#1111-->b<!--/pv#1111-->\n");
   });
 });

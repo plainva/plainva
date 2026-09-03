@@ -252,6 +252,127 @@ export function removeAnchorMarkers(raw: string, markerId: string): string {
   return raw.split(openAnchorMarker(markerId)).join("").split(closeAnchorMarker(markerId)).join("");
 }
 
+/**
+ * The block prefix of a line: indentation, blockquote markers, a list or task
+ * marker, or an ATX heading's hashes - everything Markdown reads as structure
+ * before the line's own text begins.
+ *
+ * A marker must never land in front of it (finding 2026-09-03): CommonMark
+ * makes a line that starts with `<!--` an HTML block, and an HTML block is
+ * opaque - the `- ` inside it is no list item, the `**bold**` no emphasis, and
+ * the read view drops the whole line. A selection made from the line start
+ * (triple-click, Home + Shift+End) put the opening marker exactly there, and
+ * the list item lost its bullet, its indent and its formatting.
+ */
+const BLOCK_PREFIX_RE = /^[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?|#{1,6}[ \t]+)?/;
+const ANCHOR_MARKER_SOURCE = "<!--(\\/?)pv#([0-9a-f]{4})-->";
+
+/** Length of the block prefix of one line's text (0 for a plain line). */
+export function blockPrefixLength(lineText: string): number {
+  return BLOCK_PREFIX_RE.exec(lineText)?.[0].length ?? 0;
+}
+
+function lineBoundsAt(raw: string, at: number): { start: number; end: number } {
+  const start = raw.lastIndexOf("\n", Math.max(0, at - 1)) + 1;
+  const nl = raw.indexOf("\n", start);
+  return { start, end: nl < 0 ? raw.length : nl };
+}
+
+/**
+ * Where an anchor may sit for a raw selection: never inside a line's block
+ * prefix, never across the line break at the end, never inside the prefix of
+ * a following line. Both callers - the marker pair and the soft anchor's quote -
+ * take the same range, so the quote carries no `- ` either.
+ */
+export function placeAnchorRange(raw: string, from: number, to: number): { from: number; to: number } {
+  const clamp = (n: number): number => Math.max(0, Math.min(raw.length, n));
+  let start = clamp(Math.min(from, to));
+  let end = clamp(Math.max(from, to));
+  const line = lineBoundsAt(raw, start);
+  const prefixEnd = line.start + blockPrefixLength(raw.slice(line.start, line.end));
+  if (start < prefixEnd) start = Math.min(prefixEnd, line.end);
+  for (;;) {
+    while (end > start && (raw[end - 1] === "\n" || raw[end - 1] === "\r")) end -= 1;
+    const endLine = lineBoundsAt(raw, end);
+    const endPrefix = endLine.start + blockPrefixLength(raw.slice(endLine.start, endLine.end));
+    if (end > start && endLine.start > start && end <= endPrefix) {
+      end = endLine.start;
+      continue;
+    }
+    break;
+  }
+  if (end < start) end = start;
+  return { from: start, to: end };
+}
+
+export interface AnchorMarkerRepair {
+  text: string;
+  /** Raw-offset edits that turn the input into `text`, sorted by position. */
+  edits: Array<{ from: number; to: number; insert: string }>;
+}
+
+/**
+ * Moves markers that were written before `placeAnchorRange` existed out of a
+ * line's block prefix: an opening marker behind the prefix, a closing marker
+ * to the end of the line before. Same rule as `stripWidgetAnchorMarkers`: run
+ * once when a note opens, and only what actually moved counts as a change.
+ */
+export function repairAnchorMarkerPlacement(raw: string): AnchorMarkerRepair {
+  const edits: AnchorMarkerRepair["edits"] = [];
+  let lineStart = 0;
+  for (;;) {
+    const nl = raw.indexOf("\n", lineStart);
+    const lineEnd = nl < 0 ? raw.length : nl;
+    const lineText = raw.slice(lineStart, lineEnd);
+    if (lineText.includes("<!--")) {
+      const markers = [...lineText.matchAll(new RegExp(ANCHOR_MARKER_SOURCE, "g"))];
+      const clean = lineText.replace(new RegExp(ANCHOR_MARKER_SOURCE, "g"), "");
+      const prefixLen = markers.length > 0 ? blockPrefixLength(clean) : 0;
+      if (prefixLen > 0) {
+        // The raw offset where the clean prefix ends, stepping over markers.
+        let cleanIndex = 0;
+        let rawIndex = 0;
+        let next = 0;
+        while (cleanIndex < prefixLen) {
+          const marker = markers[next];
+          if (marker && marker.index === rawIndex) {
+            rawIndex += marker[0].length;
+            next += 1;
+            continue;
+          }
+          cleanIndex += 1;
+          rawIndex += 1;
+        }
+        const opening: string[] = [];
+        const closing: string[] = [];
+        for (const marker of markers) {
+          if ((marker.index ?? 0) >= rawIndex) break;
+          edits.push({ from: lineStart + (marker.index ?? 0), to: lineStart + (marker.index ?? 0) + marker[0].length, insert: "" });
+          (marker[1] === "/" ? closing : opening).push(marker[0]);
+        }
+        if (opening.length > 0) edits.push({ from: lineStart + rawIndex, to: lineStart + rawIndex, insert: opening.join("") });
+        if (closing.length > 0) {
+          let at = lineStart + rawIndex;
+          if (lineStart > 0) {
+            at = lineStart - 1;
+            if (raw[at - 1] === "\r") at -= 1;
+          }
+          edits.push({ from: at, to: at, insert: closing.join("") });
+        }
+      }
+    }
+    if (nl < 0) break;
+    lineStart = nl + 1;
+  }
+  edits.sort((a, b) => a.from - b.from || a.to - b.to);
+  let text = raw;
+  for (let i = edits.length - 1; i >= 0; i -= 1) {
+    const edit = edits[i];
+    text = text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
+  }
+  return { text, edits };
+}
+
 function capBytes(value: string, limit: number): string {
   if (utf8Encode(value).length <= limit) return value;
   let result = "";

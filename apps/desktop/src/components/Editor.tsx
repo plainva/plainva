@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -2202,7 +2202,6 @@ export const Editor: React.FC<{
     widgetMarkerCleanupRef.current = activePath;
     const doc = view.state.doc.toString();
     const { removed } = stripWidgetAnchorMarkers(doc, workspaceComments.map((comment) => comment.anchor as WorkspaceCommentAnchor | null));
-    if (removed.length === 0) return;
     const changes: Array<{ from: number; to: number; insert: string }> = [];
     for (const id of removed) {
       for (const marker of [`<!--pv#${id}-->`, `<!--/pv#${id}-->`]) {
@@ -2210,6 +2209,10 @@ export const Editor: React.FC<{
       }
     }
     if (changes.length > 0) view.dispatch({ changes, userEvent: "delete" });
+    // Markers written before `placeAnchorRange` (finding 2026-09-03) move out
+    // of the block prefix - the list item gets its bullet back.
+    const repair = repairAnchorMarkerPlacement(view.state.doc.toString());
+    if (repair.edits.length > 0) view.dispatch({ changes: repair.edits, userEvent: "input" });
   }, [workspaceComments, activePath, workspaceReadOnly, suggesting]);
   useEffect(() => {
     const session = sessionRef.current;
@@ -2325,7 +2328,11 @@ export const Editor: React.FC<{
     }
     const raw = view.state.doc.toString();
     const markerId = mintAnchorMarkerId(raw);
-    const anchor = buildCommentAnchor(raw, range.from, range.to, markerId, parked?.display);
+    // A text range never starts inside a line's block prefix nor runs over the
+    // line break (finding 2026-09-03): a marker before the `- ` made the whole
+    // line an HTML block. A widget target keeps its range - it has no prefix.
+    const placed = parked?.display ? { from: range.from, to: range.to } : placeAnchorRange(raw, range.from, range.to);
+    const anchor = buildCommentAnchor(raw, placed.from, placed.to, markerId, parked?.display);
     if (!anchor.quote) {
       if (suggestion) throw new Error("workspace-suggestion-needs-selection");
       await postWorkspaceComment(activePath, body, null, null);
@@ -2340,7 +2347,7 @@ export const Editor: React.FC<{
     // table into a paragraph in every view. The handbook always said these
     // anchors write nothing - the display hint plus the quote is the anchor.
     const marked = !workspaceReadOnly && commentAnchorsEnabled && !parked?.display;
-    if (marked) view.dispatch({ changes: [{ from: range.from, insert: openAnchorMarker(markerId) }, { from: range.to, insert: closeAnchorMarker(markerId) }] });
+    if (marked) view.dispatch({ changes: [{ from: placed.from, insert: openAnchorMarker(markerId) }, { from: placed.to, insert: closeAnchorMarker(markerId) }] });
     try {
       await postWorkspaceComment(activePath, body, null, anchor, suggestion);
     } catch (error) {

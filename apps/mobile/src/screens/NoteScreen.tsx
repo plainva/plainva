@@ -32,7 +32,7 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -298,8 +298,12 @@ export function NoteScreen({
     if (doc === null || comments.length === 0 || !workspaceCanWrite || suggesting) return;
     if (widgetMarkerCleanupRef.current === path) return;
     widgetMarkerCleanupRef.current = path;
-    const { text, removed } = stripWidgetAnchorMarkers(doc, comments.map((comment) => comment.anchor));
-    if (removed.length === 0) return;
+    const stripped = stripWidgetAnchorMarkers(doc, comments.map((comment) => comment.anchor));
+    /* Markers written before `placeAnchorRange` (finding 2026-09-03) move out
+       of the block prefix - same repair as the desktop. */
+    const repaired = repairAnchorMarkerPlacement(stripped.text);
+    if (stripped.removed.length === 0 && repaired.edits.length === 0) return;
+    const text = repaired.text;
     setDoc(text);
     noteSaver.schedule(vault, path, text);
     setReloadTick((n) => n + 1);
@@ -831,7 +835,11 @@ export function NoteScreen({
             let marker: { before: string } | null = null;
             if (root && anchor === null && pendingRange && text !== null) {
               const id = mintAnchorMarkerId(text);
-              anchor = buildCommentAnchor(text, pendingRange.from, pendingRange.to, id, pendingRange.display);
+              /* Never inside a line's block prefix, never over the line break
+                 (finding 2026-09-03) - same rule as the desktop; a widget
+                 target keeps its range. */
+              const placed = pendingRange.display ? { from: pendingRange.from, to: pendingRange.to } : placeAnchorRange(text, pendingRange.from, pendingRange.to);
+              anchor = buildCommentAnchor(text, placed.from, placed.to, id, pendingRange.display);
               /* The marker only goes in where writing is allowed. Without it
                  the anchor still resolves - quote first, then context - it is
                  just less precise after a heavy edit. */
@@ -839,7 +847,7 @@ export function NoteScreen({
                  would wrap the whole source range and break the table in every
                  view (finding 2026-09-03) - same rule as the desktop. */
               if (workspaceCanWrite && !pendingRange.display) {
-                const next = insertAnchorMarkers(text, pendingRange.from, pendingRange.to, id);
+                const next = insertAnchorMarkers(text, placed.from, placed.to, id);
                 marker = { before: text };
                 setDoc(next);
                 noteSaver.schedule(vault, path, next);
