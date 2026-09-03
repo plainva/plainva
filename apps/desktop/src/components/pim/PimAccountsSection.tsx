@@ -50,7 +50,7 @@ import { setPimAccountEnabled } from "../../services/pim/pimAccounts";
  * Only rendered for the OPEN vault (the runtime is bound to its index DB).
  */
 
-export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: () => void }) {
+export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: (accountRef?: string) => void }) {
   const { t } = useTranslation();
 
   /**
@@ -234,7 +234,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
             {t("pim.noAccounts", { defaultValue: "Noch keine Kalender-Konten verbunden." })}
           </p>
           {onOpenCloudAccounts && (
-            <Button variant="primary" onClick={onOpenCloudAccounts} data-testid="pim-open-cloudaccounts">
+            <Button variant="primary" onClick={() => onOpenCloudAccounts()} data-testid="pim-open-cloudaccounts">
               {t("cloudAccounts.openArea")}
             </Button>
           )}
@@ -276,7 +276,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                 {t("pim.accountEnabled", { defaultValue: "Aktiv" })}
               </label>
               {onOpenCloudAccounts && (
-                <Button variant="ghost" size="sm" onClick={onOpenCloudAccounts}>
+                <Button variant="ghost" size="sm" onClick={() => onOpenCloudAccounts(account.id)}>
                   {t("cloudAccounts.manageAccount")}
                 </Button>
               )}
@@ -292,7 +292,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                       {/* An expired grant cannot be retried into working. The
                           primary action has to be the one that helps. */}
                       {needsReauthorisation(accErrors.account) && onOpenCloudAccounts && (
-                        <Button variant="secondary" size="sm" onClick={() => onOpenCloudAccounts()} data-testid="pim-reauthorise">
+                        <Button variant="secondary" size="sm" onClick={() => onOpenCloudAccounts(account.id)} data-testid="pim-reauthorise">
                           {t("pim.signInAgain")}
                         </Button>
                       )}

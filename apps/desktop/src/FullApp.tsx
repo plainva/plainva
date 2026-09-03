@@ -51,7 +51,7 @@ export function FullApp() {
   const openOwnerSurface = useCallback(
     (
       surface: OwnerSurface,
-      opts?: { provider?: string; area?: string },
+      opts?: { provider?: string; area?: string; accountId?: string },
     ) => {
       void (async () => {
         try {

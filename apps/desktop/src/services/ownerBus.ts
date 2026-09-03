@@ -451,7 +451,7 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("owner-surface", async ({ surface, provider, area, vaultPath }) => {
+    await bus.handle("owner-surface", async ({ surface, provider, area, accountId, vaultPath }) => {
       // Bring this window forward first: opening a dialog in a window the user
       // cannot see is the same as doing nothing, only more confusing.
       try {
@@ -476,7 +476,7 @@ export async function installOwnerAppBus(): Promise<() => void> {
       // `new-window` carries the vault it should show: since stage D the asking
       // window may be looking at a different one than this window is.
       const detail =
-        surface === "settings" ? { provider, area } : surface === "new-window" && vaultPath ? { vaultPath } : undefined;
+        surface === "settings" ? { provider, area, accountId } : surface === "new-window" && vaultPath ? { vaultPath } : undefined;
       window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));
     }),
   );

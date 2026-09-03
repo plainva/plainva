@@ -21,12 +21,21 @@ vi.mock("./components/AuxPane", () => ({
   AuxPane: ({ path }: { path: string }) => <div data-testid="pane">{path}</div>,
 }));
 vi.mock("./components/AuxTitleBar", () => ({
-  AuxTitleBar: ({ title, tabs }: { title: string; tabs?: unknown }) => (
+  AuxTitleBar: ({ title, tabs, actions }: { title: string; tabs?: unknown; actions?: unknown }) => (
     <div data-testid="titlebar">
       {title}
       {tabs as never}
+      {actions as never}
     </div>
   ),
+}));
+/** The context sidebar, reduced to what this shell decides: which sections it may show. */
+const sidebarSections: unknown[] = [];
+vi.mock("./components/RightSidebar", () => ({
+  RightSidebar: ({ sections }: { sections?: readonly string[] }) => {
+    sidebarSections.push(sections);
+    return <div data-testid="sidebar">{(sections ?? []).join(",")}</div>;
+  },
 }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => null }));
 vi.mock("@tauri-apps/api/window", () => ({
@@ -43,6 +52,7 @@ const vault = {
   vaultPath: "/vault",
   isLoading: false,
   error: null as string | null,
+  fileTreeVersion: 0,
 };
 vi.mock("./contexts/VaultContext", () => ({ useVault: () => vault }));
 
@@ -81,6 +91,7 @@ const panes = () => Array.from(host.querySelectorAll('[data-testid="pane"]')).ma
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
+  sidebarSections.length = 0;
 });
 
 afterEach(async () => {
@@ -146,5 +157,26 @@ describe("what an auxiliary window starts with", () => {
     const bar = host.querySelector('[data-testid="titlebar"]');
     expect(bar?.textContent).toContain("Alpha.md");
     expect(bar?.textContent).not.toContain("Plainva");
+  });
+});
+
+describe("the context sidebar of an auxiliary window (finding 2026-09-01, D4)", () => {
+  it("shows the note-bound sections and never the calendar (E5)", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Notes%2FAlpha.md&label=aux-9");
+    expect(host.querySelector('[data-testid="aux-right-sidebar"]')).not.toBeNull();
+    expect(sidebarSections[sidebarSections.length - 1]).toEqual(["outline", "graph", "databases", "backlinks", "properties"]);
+  });
+
+  it("folds away per window and remembers it", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Notes%2FAlpha.md&label=aux-9");
+    const toggle = host.querySelector('[data-testid="aux-right-toggle"]') as HTMLButtonElement;
+    expect(toggle).not.toBeNull();
+    await act(async () => { toggle.click(); });
+    expect(host.querySelector('[data-testid="aux-right-sidebar"]')).toBeNull();
+    // Another window's key is untouched: the state is scoped to this window.
+    const keys = Object.keys(localStorage).filter((k) => k.includes("plainva-aux-right-collapsed"));
+    expect(keys.length).toBe(1);
+    expect(keys[0]).not.toBe("plainva-aux-right-collapsed");
+    expect(localStorage.getItem(keys[0])).toBe("true");
   });
 });

@@ -66,6 +66,9 @@ interface SettingsModalProps {
   /** Opens a specific VAULT settings page (e.g. "backup" from the status-bar
    * backup-error chip, "cloudAccounts" from the mail/calendar empty states). */
   initialArea?: string;
+  /** Lands Cloud-Konten on this account's detail page (D2): the record id, or
+   * the id of the mail/calendar account it owns. */
+  initialAccountId?: string;
 }
 
 const GENERAL = "general";
@@ -83,7 +86,7 @@ const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = (
   </div>
 );
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
@@ -678,6 +681,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // One page per area (redesign P2): a rail click renders exactly that page.
   // The section contract (GENERAL vs. vault path) is untouched — it still
   // decides which WORLD the content shows and keys every persistence handler.
+  // Which cloud account the accounts page should open (D2). The nonce lets the
+  // same account be asked for twice in a row — the page applies each request once.
+  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number } | null>(() =>
+    initialAccountId ? { ref: initialAccountId, nonce: 1 } : null,
+  );
+  const openCloudAccounts = (accountRef?: string) => {
+    if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1 }));
+    openArea("vault", "cloudAccounts");
+  };
   const openArea = (world: SettingsWorld, areaId: string) => {
     setSecurityArea(null); // any nav click leaves the security second level
     if (world === "app") {
@@ -832,14 +844,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
-                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} />
+                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} focusAccount={cloudAccountFocus} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
                       selectedVault={selectedVault}
                       isActiveVault={isActiveVault}
                       activeProvider={activeProvider}
-                      onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")}
+                      onOpenCloudAccounts={openCloudAccounts}
                       intervalSec={intervalSec}
                       onIntervalChange={handleIntervalChange}
                       onIntervalBlur={normalizeIntervalDisplay}
@@ -864,10 +876,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
-                    <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")} />
+                    <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "mail"}>
-                    <MailPage isActiveVault={isActiveVault} onOpenCloudAccounts={() => openArea("vault", "cloudAccounts")} />
+                    <MailPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage

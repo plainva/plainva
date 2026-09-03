@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArchiveRestore, Bookmark, ClipboardCopy, Columns2, Copy, Database, Download,
   ExternalLink, FilePlus, FolderPlus, History, ListTree, Pencil, RefreshCw, Rows2, Trash2,
-  XCircle, FolderTree, X as XIcon, Files } from "lucide-react";
+  XCircle, FolderTree, X as XIcon, Files, FolderInput } from "lucide-react";
 import { ICON, MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isVirtualPath } from "./graph/virtualPaths";
 
@@ -40,6 +40,8 @@ export interface FileContextMenuProps {
   onNewFromTemplate?: (parentPath: string) => void;
   onRename?: (path: string, isFolder: boolean) => void;
   onDuplicate?: (paths: string[]) => void;
+  /** Opens the folder picker for the given paths (Issue #77: a way without drag). */
+  onMove?: (paths: string[]) => void;
   isBookmarked?: (path: string) => boolean;
   onToggleBookmark?: (path: string) => void;
   onVersionHistory?: (path: string) => void;
@@ -63,6 +65,7 @@ export interface FileContextMenuProps {
 
   /* Bulk (tree only) */
   onBulkDuplicate?: () => void;
+  onBulkMove?: () => void;
   onClearSelection?: () => void;
   onBulkDelete?: () => void;
 }
@@ -86,6 +89,9 @@ export function FileContextMenu(props: FileContextMenuProps) {
         <MenuLabel>{t("fileTree.selectedCount", { count: selectionCount })}</MenuLabel>
         {props.onBulkDuplicate && (
           <MenuItem icon={<Copy size={ICON.ui} />} onSelect={props.onBulkDuplicate}>{t("fileTree.duplicate")}</MenuItem>
+        )}
+        {props.onBulkMove && (
+          <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="tree-move-to" onSelect={props.onBulkMove}>{t("fileTree.moveTo")}</MenuItem>
         )}
         {props.onClearSelection && (
           <MenuItem icon={<XCircle size={ICON.ui} />} onSelect={props.onClearSelection}>{t("fileTree.clearSelection")}</MenuItem>
@@ -159,6 +165,9 @@ export function FileContextMenu(props: FileContextMenuProps) {
               {props.onRename && (
                 <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => props.onRename!(path, true)}>{t("common.rename")}</MenuItem>
               )}
+              {props.onMove && (
+                <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="tree-move-to" onSelect={() => props.onMove!([path])}>{t("fileTree.moveTo")}</MenuItem>
+              )}
               {props.onCopyPath && (
                 <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={() => props.onCopyPath!(path)}>{t("fileTree.copyPath")}</MenuItem>
               )}
@@ -184,6 +193,9 @@ export function FileContextMenu(props: FileContextMenuProps) {
           )}
           {!conflict && props.onDuplicate && (
             <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => props.onDuplicate!([path])}>{t("fileTree.duplicate")}</MenuItem>
+          )}
+          {props.onMove && (
+            <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="tree-move-to" onSelect={() => props.onMove!([path])}>{t("fileTree.moveTo")}</MenuItem>
           )}
           {props.onToggleBookmark && (
             <MenuItem

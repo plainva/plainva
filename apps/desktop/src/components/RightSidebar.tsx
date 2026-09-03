@@ -51,7 +51,7 @@ function frontmatterKeyCount(content: string): number {
   }
 }
 
-type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
+export type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
 let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
 /**
  * Read on first use, not while this module LOADS (C20): reaching across a
@@ -81,9 +81,17 @@ interface RightSidebarProps {
   /** Date of the open daily note (if any), highlighted with precedence over today. */
   activeDailyDate?: Date | null;
   refreshToken: number;
+  /**
+   * Which sections this window may show at all (finding 2026-09-01, D4 / E5):
+   * an auxiliary window gets the note-bound ones — outline, graph, databases,
+   * backlinks, properties — while the calendar stays with the central window,
+   * whose owner services it needs. Order and visibility inside that set still
+   * follow the shared bar layout. Omit for the central window (everything).
+   */
+  sections?: readonly SectionId[];
 }
 
-export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken }: RightSidebarProps) {
+export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
@@ -172,7 +180,10 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     [vaultPath, source],
   );
 
-  const shown = useMemo(() => visibleAreas(layout) as SectionId[], [layout]);
+  const shown = useMemo(() => {
+    const all = visibleAreas(layout) as SectionId[];
+    return sections ? all.filter((id) => sections.includes(id)) : all;
+  }, [layout, sections]);
 
   const sectionAtY = useCallback((clientY: number): SectionId | null => {
     for (const sid of shown) {

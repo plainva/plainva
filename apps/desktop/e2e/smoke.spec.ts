@@ -2728,3 +2728,37 @@ test('Table widget: a wide table scrolls inside its own box, the note never scro
   expect(m.noteOverhang).toBe(0);
   expect(m.tableOverhang).toBeGreaterThan(50);
 });
+
+test('Tree context menu: "Move to…" moves a note without a drag (Issue #77)', async ({ page }) => {
+  // macOS swallowed every HTML5 drag; the context menu is the way that needs none.
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Ablage.md'] = '# Ablage\n\nStill here.\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  const aside = page.getByTestId('file-tree');
+  await aside.getByText('Ablage', { exact: true }).click({ button: 'right' });
+  await page.getByTestId('tree-move-to').click();
+
+  // The picker walks the vault's folders: descend into "Projekte", take it.
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Move to folder')).toBeVisible();
+  await dialog.getByText('Projekte', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Use this folder' }).click();
+
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => ({
+          moved: '/test-vault/Projekte/Ablage.md' in (window as any).mockFs,
+          gone: !('/test-vault/Ablage.md' in (window as any).mockFs),
+        })),
+      { timeout: 10000 },
+    )
+    .toEqual({ moved: true, gone: true });
+  // The tree shows it under its new folder once that folder is opened.
+  await aside.getByText('Projekte', { exact: true }).click();
+  await expect(aside.getByText('Ablage', { exact: true })).toBeVisible();
+});

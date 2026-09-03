@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Minus, Square, X } from "lucide-react";
+import { Copy, Minus, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON } from "@plainva/ui";
 
@@ -31,9 +31,30 @@ export function WindowControls({ divider = true }: { divider?: boolean }) {
   };
   const doClose = () => { if (isTauriRuntime) win().then((w) => w.close()).catch(console.error); };
 
+  // The window is maximized and restored from OUTSIDE this button too: a
+  // double-click on the title bar, the OS window key, a snap. The state is
+  // therefore observed, not merely toggled — the icon showed a stale square
+  // after every such change (finding 2026-09-01, D3). Desktop-only chrome:
+  // the mobile shells have no window frame, see the multi-window entry in
+  // the parity catalog.
   useEffect(() => {
     if (!isTauriRuntime) return;
-    win().then(async (w) => { try { setMaximized(await w.isMaximized()); } catch { /* ignore */ } }).catch(() => {});
+    let cancelled = false;
+    let off: (() => void) | null = null;
+    const read = (w: { isMaximized(): Promise<boolean> }) =>
+      w.isMaximized().then((v) => { if (!cancelled) setMaximized(v); }).catch(() => {});
+    win()
+      .then(async (w) => {
+        await read(w);
+        const un = await w.onResized(() => { void read(w); });
+        if (cancelled) un();
+        else off = un;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      off?.();
+    };
   }, []);
 
   if (isMac || !isTauriRuntime) return null;
@@ -46,7 +67,7 @@ export function WindowControls({ divider = true }: { divider?: boolean }) {
           <Minus size={ICON.ui} />
         </button>
         <button type="button" className="pv-titlebar-btn" data-testid="window-maximize" aria-label={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} data-tip={maximized ? t("titlebar.restore", { defaultValue: "Wiederherstellen" }) : t("titlebar.maximize", { defaultValue: "Maximieren" })} onClick={doToggleMax}>
-          <Square size={ICON.ui} />
+          {maximized ? <Copy size={ICON.ui} data-testid="window-restore-icon" /> : <Square size={ICON.ui} data-testid="window-maximize-icon" />}
         </button>
         <button type="button" className="pv-titlebar-btn pv-winbtn--close" data-testid="window-close" aria-label={t("titlebar.close", { defaultValue: "Schließen" })} data-tip={t("titlebar.close", { defaultValue: "Schließen" })} onClick={doClose}>
           <X size={ICON.ui} />

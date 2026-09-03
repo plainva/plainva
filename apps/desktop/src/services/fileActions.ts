@@ -1,6 +1,6 @@
 import { isTextFile, type VaultQueryService } from "@plainva/core";
-import { retargetTemplateForInFolder, sweepPinboardRefs } from "@plainva/ui";
-import { copyCandidate } from "../components/fileTreeModel";
+import { retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
+import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
 /**
@@ -276,4 +276,93 @@ export async function promptRenameFile(path: string, ctx: PromptRenameContext): 
     console.error("[fileActions] rename failed", err);
     ctx.toast.error(ctx.t("dialogs.renameErrorMsg", { error: (err as Error).message }));
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Move                                                                */
+
+export interface MoveOp {
+  type: "move";
+  from: string;
+  to: string;
+  isFolder: boolean;
+}
+
+export interface MoveItemsDeps {
+  adapter: FileActionAdapter;
+  queryService: PinboardSweepDeps["queryService"];
+  indexer: RenameReindexer | null | undefined;
+  /** Whether a path is a folder — the tree knows, the adapter would need a stat. */
+  isFolder: (path: string) => boolean;
+  /** Hears every executed move, so open tabs can follow the file. */
+  onMoved?: (from: string, to: string) => void;
+}
+
+export interface MoveItemsResult {
+  moved: MoveOp[];
+  /** Names that stayed where they were: the target exists, or the adapter refused. */
+  errors: string[];
+  /** Pinboard .base files rewritten because they referenced a moved path. */
+  sweptBases: string[];
+}
+
+/**
+ * Sources that may legitimately move into `target`: never into themselves or
+ * one of their descendants, and not into the folder they are already in.
+ */
+export function movableInto(sources: readonly string[], target: string): string[] {
+  return sources.filter((p) => Boolean(p) && p !== target && !target.startsWith(p + "/") && parentOf(p) !== target);
+}
+
+/**
+ * Moves files and folders into `target` ("" = vault root). Drag & drop in the
+ * tree and the context menu's "Move to…" (Issue #77) both run through here,
+ * so a move behaves the same whichever way it was asked for: the pinboard
+ * references follow (plan Pinboard P5; folders rewrite by prefix), the index
+ * relocates the paths, and moves deliberately rewrite no links — a moved note
+ * keeps its raw paths exactly as a drag always did.
+ */
+export async function moveItems(deps: MoveItemsDeps, sources: readonly string[], target: string): Promise<MoveItemsResult> {
+  const moved: MoveOp[] = [];
+  const errors: string[] = [];
+  for (const from of movableInto(sources, target)) {
+    const name = from.split(/[/\\]/).pop();
+    if (!name) continue;
+    const to = target ? `${target}/${name}` : name;
+    try {
+      if (await deps.adapter.exists(to)) {
+        errors.push(name);
+        continue;
+      }
+      await deps.adapter.renameItem(from, to);
+      deps.onMoved?.(from, to);
+      moved.push({ type: "move", from, to, isFolder: deps.isFolder(from) });
+    } catch (err) {
+      console.error("[fileActions] move failed", from, err);
+      errors.push(name);
+    }
+  }
+  let sweptBases: string[] = [];
+  if (moved.length > 0) {
+    try {
+      sweptBases = await sweepPinboardRefs(
+        { adapter: deps.adapter, queryService: deps.queryService },
+        moved.filter((o) => !o.isFolder).map((o) => ({ from: o.from, to: o.to })),
+        moved.filter((o) => o.isFolder).map((o) => ({ from: o.from, to: o.to })),
+      );
+    } catch (err) {
+      console.warn("[fileActions] pinboard sweep after move failed", err);
+    }
+    if (deps.indexer) {
+      // A moved folder changes many descendant paths → full scan; moved files
+      // just relocate.
+      const anyFolder = moved.some((o) => o.isFolder);
+      await applyIndexChanges(deps.indexer, {
+        needsFullScan: anyFolder,
+        removed: anyFolder ? [] : moved.map((o) => o.from),
+        added: anyFolder ? [] : [...moved.map((o) => o.to), ...sweptBases],
+      });
+    }
+  }
+  return { moved, errors, sweptBases };
 }

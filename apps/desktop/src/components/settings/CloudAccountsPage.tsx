@@ -24,6 +24,7 @@ import {
   type CloudServiceId,
   type GuidedAccountRepairPlan,
 } from "@plainva/ui";
+import { findCloudAccountByRef } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
@@ -71,9 +72,15 @@ import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, ser
 
 type Mode = { kind: "list" } | { kind: "wizard" } | { kind: "detail"; id: string };
 
-export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvider?: string }> = ({
+export const CloudAccountsPage: React.FC<{
+  selectedVault: string;
+  initialProvider?: string;
+  /** Open this account's detail page as soon as it is known (D2). */
+  focusAccount?: { ref: string; nonce: number } | null;
+}> = ({
   selectedVault,
   initialProvider,
+  focusAccount,
 }) => {
   const { t } = useTranslation();
   const { dbAdapter, pimRuntime, vaultPath } = useVault();
@@ -92,6 +99,19 @@ export const CloudAccountsPage: React.FC<{ selectedVault: string; initialProvide
   /** Accounts that still hold one refresh token per service (stage B offer). */
   const [unifiable, setUnifiable] = useState<Set<string>>(new Set());
   const backfilled = useRef(false);
+  // A deep link that names an account lands on its DETAIL page — the only
+  // place with the reconnect button (finding 2026-09-01, D2). Applied once per
+  // request, and only once the records are loaded; an unknown reference simply
+  // leaves the list on screen.
+  const focusApplied = useRef(0);
+  useEffect(() => {
+    if (!focusAccount || focusApplied.current === focusAccount.nonce) return;
+    const hit = findCloudAccountByRef(records, focusAccount.ref);
+    if (!hit) return;
+    focusApplied.current = focusAccount.nonce;
+    setReconStatus({});
+    setMode({ kind: "detail", id: hit.id });
+  }, [focusAccount, records]);
 
   const reload = useCallback(async () => {
     const store = await getSettingsStore();

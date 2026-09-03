@@ -77,6 +77,7 @@ describe("FileContextMenu", () => {
         onOpenInSplit={() => {}}
         onRename={() => {}}
         onDuplicate={() => {}}
+        onMove={() => {}}
         isBookmarked={() => false}
         onToggleBookmark={() => {}}
         onVersionHistory={() => {}}
@@ -85,7 +86,7 @@ describe("FileContextMenu", () => {
       />,
     );
     const items = entries();
-    for (const label of ["Open in New Tab", "Rename", "Duplicate", "Copy Path", "Delete"]) {
+    for (const label of ["Open in New Tab", "Rename", "Duplicate", "Move to…", "Copy Path", "Delete"]) {
       expect(items).toContain(label);
     }
     // "Remove from list" is the lists' entry — the tree never asked for it.

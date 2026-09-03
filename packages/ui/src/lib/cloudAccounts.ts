@@ -436,3 +436,16 @@ export function accountServices(record: CloudAccountRecord): CloudServiceId[] {
 export function hasCloudService(records: readonly CloudAccountRecord[], service: CloudServiceId): boolean {
   return records.some((r) => accountServices(r).includes(service));
 }
+
+/**
+ * The card a deep link means (finding 2026-09-01, D2). Callers rarely hold the
+ * cloud record's own id — the mail view knows its mail account, the calendar
+ * its pim account — so a reference may be any of the three: the record id, or
+ * the id of the mail or calendar account the record owns. Ids are UUIDs, the
+ * three namespaces cannot collide.
+ */
+export function findCloudAccountByRef(records: readonly CloudAccountRecord[], ref: string): CloudAccountRecord | undefined {
+  return records.find(
+    (r) => r.id === ref || r.services.mail?.mailAccountId === ref || r.services.calendar?.pimAccountId === ref,
+  );
+}

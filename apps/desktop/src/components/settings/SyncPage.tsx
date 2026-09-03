@@ -66,7 +66,7 @@ export interface SyncPageProps {
   selectedVault: string;
   isActiveVault: boolean;
   activeProvider: SyncProvider;
-  onOpenCloudAccounts: () => void;
+  onOpenCloudAccounts: (accountRef?: string) => void;
   intervalSec: string;
   onIntervalChange: (raw: string) => void;
   onIntervalBlur: () => void;
@@ -241,7 +241,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           <EmptyState title={t("cloudAccounts.noneYet")} icon={<Users size={ICON.empty} />}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)" }}>
               {t("settings.pageDescCloudAccounts")}
-              <Button variant="primary" onClick={p.onOpenCloudAccounts} data-testid="sync-open-cloudaccounts">
+              <Button variant="primary" onClick={() => p.onOpenCloudAccounts()} data-testid="sync-open-cloudaccounts">
                 {t("cloudAccounts.openArea")}
               </Button>
             </div>
@@ -258,7 +258,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
               <div className="pv-acct-name">{t("cloudAccounts.filesVia", { name: accountName || provider })}</div>
               <div className="pv-acct-id">{rootFolder || t("cloudAccounts.cloudFolderHint")}</div>
             </div>
-            <Button variant="ghost" onClick={p.onOpenCloudAccounts} data-testid="sync-manage-account">
+            <Button variant="ghost" onClick={() => p.onOpenCloudAccounts(filesAccount?.id)} data-testid="sync-manage-account">
               {t("cloudAccounts.manageAccount")}
             </Button>
           </div>

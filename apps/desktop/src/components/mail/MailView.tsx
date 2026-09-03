@@ -1704,7 +1704,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                     onClick={() =>
                       window.dispatchEvent(
                         new CustomEvent("plainva-open-sync-settings", {
-                          detail: { area: mailIsOauth ? "cloudAccounts" : "mail" },
+                          // The OAuth mailbox lands on ITS cloud account (D2); the IMAP
+                          // one on the mail page, whose row holds the password field.
+                          detail: { area: mailIsOauth ? "cloudAccounts" : "mail", accountId: mailIsOauth ? account?.id : undefined },
                         })
                       )
                     }

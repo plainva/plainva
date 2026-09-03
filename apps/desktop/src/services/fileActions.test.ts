@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyIndexChanges, carryMirroredHeading, duplicateFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
+import { applyIndexChanges, carryMirroredHeading, duplicateFile, moveItems, movableInto, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
 function makeAdapter(initial: Record<string, string | Uint8Array>) {
@@ -314,5 +314,77 @@ describe("renameToName with carryHeading", () => {
     const { adapter, files } = makeAdapter({ "Tasks/Task_1.md": "# Task_1\n\nBody\n" });
     await renameToName({ adapter, queryService: null, oldPath: "Tasks/Task_1.md", newName: "Fencing quote", isFolder: false });
     expect(files.get("Tasks/Fencing quote.md")).toBe("# Task_1\n\nBody\n");
+  });
+});
+
+describe("moveItems (Issue #77: drag & drop and \"Move to…\" share one path)", () => {
+  const isFolder = (p: string) => !/\.[a-z]+$/i.test(p);
+
+  it("refuses the impossible targets before touching the vault", () => {
+    // Moving a note UP into "b" is fine; "b" itself and the empty path are not.
+    expect(movableInto(["a/Note.md", "b", "b/sub/x.md", ""], "b")).toEqual(["a/Note.md", "b/sub/x.md"]);
+    // Into itself, into a descendant, and "where it already is" all stay put.
+    expect(movableInto(["b"], "b")).toEqual([]);
+    expect(movableInto(["b"], "b/sub")).toEqual([]);
+    expect(movableInto(["b/sub/x.md"], "b/sub")).toEqual([]);
+    expect(movableInto(["Root.md"], "")).toEqual([]);
+  });
+
+  it("moves a note, tells the tabs, and relocates the index entry", async () => {
+    const { adapter, files } = makeAdapter({ "Inbox/Note.md": "# N", "Projects/.keep": "" });
+    const moved: string[] = [];
+    const index = { removed: [] as string[], added: [] as string[], full: 0 };
+    const indexer: RenameReindexer = {
+      indexVaultFull: async () => { index.full += 1; },
+      indexPath: async (p) => { index.added.push(p); },
+      removePathFromIndex: async (p) => { index.removed.push(p); },
+    };
+    const r = await moveItems(
+      { adapter, queryService: null, indexer, isFolder, onMoved: (f, t) => moved.push(`${f}>${t}`) },
+      ["Inbox/Note.md"],
+      "Projects",
+    );
+    expect(r.errors).toEqual([]);
+    expect(r.moved).toEqual([{ type: "move", from: "Inbox/Note.md", to: "Projects/Note.md", isFolder: false }]);
+    expect(files.has("Projects/Note.md")).toBe(true);
+    expect(files.has("Inbox/Note.md")).toBe(false);
+    expect(moved).toEqual(["Inbox/Note.md>Projects/Note.md"]);
+    expect(index).toEqual({ removed: ["Inbox/Note.md"], added: ["Projects/Note.md"], full: 0 });
+  });
+
+  it("moves to the vault root and rescans fully when a folder moves", async () => {
+    const { adapter: base, files } = makeAdapter({ "A/B/x.md": "x", "A/y.md": "y" });
+    // The in-memory adapter knows files only; a folder rename moves the prefix.
+    const adapter: FileActionAdapter = {
+      ...base,
+      renameItem: async (from, to) => {
+        for (const key of [...files.keys()]) {
+          if (key === from || key.startsWith(from + "/")) {
+            files.set(to + key.slice(from.length), files.get(key)!);
+            files.delete(key);
+          }
+        }
+      },
+    };
+    const index = { full: 0, added: [] as string[] };
+    const indexer: RenameReindexer = {
+      indexVaultFull: async () => { index.full += 1; },
+      indexPath: async (p) => { index.added.push(p); },
+      removePathFromIndex: async () => {},
+    };
+    const r = await moveItems({ adapter, queryService: null, indexer, isFolder }, ["A/B"], "");
+    expect(r.moved).toEqual([{ type: "move", from: "A/B", to: "B", isFolder: true }]);
+    expect(files.has("B/x.md")).toBe(true);
+    expect(files.has("A/B/x.md")).toBe(false);
+    expect(index).toEqual({ full: 1, added: [] });
+  });
+
+  it("keeps a note whose name is already taken and reports it by name", async () => {
+    const { adapter, files } = makeAdapter({ "Inbox/Note.md": "new", "Projects/Note.md": "old" });
+    const r = await moveItems({ adapter, queryService: null, indexer: null, isFolder }, ["Inbox/Note.md"], "Projects");
+    expect(r.moved).toEqual([]);
+    expect(r.errors).toEqual(["Note.md"]);
+    expect(files.get("Projects/Note.md")).toBe("old");
+    expect(files.get("Inbox/Note.md")).toBe("new");
   });
 });

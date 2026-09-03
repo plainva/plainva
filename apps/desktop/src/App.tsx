@@ -60,18 +60,24 @@ function App() {
   // backup-error chip lands on Backup, the mail/calendar empty states on PIM.
   const [settingsInitialProvider, setSettingsInitialProvider] = useState<string | null>(null);
   const [settingsInitialArea, setSettingsInitialArea] = useState<string | null>(null);
-  const openSettings = useCallback((opts?: { provider?: string; area?: string }) => {
+  // accountId (D2): the reauth offers name the account they are about, and the
+  // settings land on ITS detail page — the only place with the button.
+  const [settingsInitialAccountId, setSettingsInitialAccountId] = useState<string | null>(null);
+  const openSettings = useCallback((opts?: { provider?: string; area?: string; accountId?: string }) => {
     setSettingsInitialProvider(opts?.provider ?? null);
     setSettingsInitialArea(opts?.area ?? null);
+    setSettingsInitialAccountId(opts?.accountId ?? null);
     setShowSettings(true);
   }, []);
   useEffect(() => {
     const onOpenSyncSettings = (e: Event) => {
       const provider = (e as CustomEvent).detail?.provider;
       const area = (e as CustomEvent).detail?.area;
+      const accountId = (e as CustomEvent).detail?.accountId;
       openSettings({
         provider: typeof provider === "string" ? provider : undefined,
         area: typeof area === "string" ? area : undefined,
+        accountId: typeof accountId === "string" ? accountId : undefined,
       });
     };
     window.addEventListener("plainva-open-sync-settings", onOpenSyncSettings);
@@ -362,7 +368,7 @@ function App() {
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
           fallback is never visible longer than the chunk download. */}
       <Suspense fallback={null}>
-        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); }} />}
+        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); }} />}
         {showOkfWizard && (
           <OkfConversionModal
             onClose={() => setShowOkfWizard(false)}

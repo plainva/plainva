@@ -1,6 +1,9 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState } from "@plainva/ui";
+import { EmptyState, ICON, IconButton } from "@plainva/ui";
+import { PanelRight } from "lucide-react";
+import { RightSidebar, type SectionId } from "./components/RightSidebar";
+import { windowStateKey } from "./services/windowContext";
 import { AuxTitleBar } from "./components/AuxTitleBar";
 import { AuxPane } from "./components/AuxPane";
 import { PaneTabStrip } from "./components/PaneTabStrip";
@@ -13,6 +16,10 @@ import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { PRESET_CONTENT } from "./services/windowManager";
+
+/** Sections an auxiliary window may show (E5): everything note-bound, no calendar. */
+const AUX_SECTIONS: readonly SectionId[] = ["outline", "graph", "databases", "backlinks", "properties"];
+const AUX_RIGHT_WIDTH = 300;
 
 const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then((m) => ({ default: m.ComposeWindow })));
 
@@ -36,7 +43,20 @@ export function AuxApp() {
   const { heldVaults } = useApp();
   const { t } = useTranslation();
   const params = currentWindowParams();
-  const { vaultAdapter, vaultPath, isLoading, error } = useVault();
+  const { vaultAdapter, vaultPath, isLoading, error, fileTreeVersion } = useVault();
+  // Per window (multi-window C4 convention): whether the context sidebar is
+  // open describes THIS window's view.
+  const rightCollapsedKey = windowStateKey("plainva-aux-right-collapsed");
+  const [rightCollapsed, setRightCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(rightCollapsedKey) === "true"; } catch { return false; }
+  });
+  const toggleRightSidebar = useCallback(() => {
+    setRightCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem(rightCollapsedKey, String(next)); } catch { /* storage unavailable */ }
+      return next;
+    });
+  }, [rightCollapsedKey]);
   const label = params.label;
 
   const validatePath = useCallback(
@@ -53,7 +73,7 @@ export function AuxApp() {
   const {
     layout, splitRatio, activePath, isSplit, activeSplitDirection,
     openTab, openInFocusedPane, openInOtherPane, selectTab, closeTab, focusPane,
-    splitEditor, splitEditorWithTab, moveTabTo, setSplitRatio,
+    splitEditorWithTab, moveTabTo, setSplitRatio,
   } = usePaneLayout({
     vaultPath,
     validatePath,
@@ -282,6 +302,18 @@ export function AuxApp() {
   }
 
   const single = layout.panes[0];
+  const activePaneIndex = layout.activePaneIndex;
+  const rightSidebarToggle = (
+    <IconButton
+      label={t("titlebar.toggleRightSidebar")}
+      size="sm"
+      active={!rightCollapsed}
+      data-testid="aux-right-toggle"
+      onClick={toggleRightSidebar}
+    >
+      <PanelRight size={ICON.ui} />
+    </IconButton>
+  );
   // One row of chrome wherever possible: an unsplit window with several tabs
   // shows them IN the title bar. Split panes carry their own strips, because
   // one strip cannot say which pane a tab belongs to.
@@ -303,10 +335,12 @@ export function AuxApp() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>
-      <AuxTitleBar title={title} tabs={titleBarTabs} label={label} />
+      <AuxTitleBar title={title} tabs={titleBarTabs} label={label} actions={rightSidebarToggle} />
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}>
       <main
         style={{
           flex: 1,
+          minWidth: 0,
           minHeight: 0,
           display: "flex",
           flexDirection: layout.direction === "vertical" ? "row" : "column",
@@ -374,7 +408,6 @@ export function AuxApp() {
                       onOpenPath={(p) => openPath(i, p)}
                       onOpenInSplit={(p) => openInOtherPane(i, p)}
                       onToggleBookmark={toggleBookmark}
-                      onSplit={splitEditor}
                       activeSplitDirection={activeSplitDirection}
                     />
                   </div>
@@ -383,6 +416,28 @@ export function AuxApp() {
             );
           })}
       </main>
+      {/* The note-bound context of what this window shows (finding 2026-09-01,
+          D4): outline, graph, databases, backlinks, properties. The calendar
+          stays with the central window — it needs the owner's services (E5).
+          Read-only client services carry everything these sections ask for. */}
+      {!rightCollapsed && !error && !!vaultAdapter && (
+        <aside
+          aria-label="Right Sidebar"
+          data-testid="aux-right-sidebar"
+          style={{ width: `${AUX_RIGHT_WIDTH}px`, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", background: "var(--bg-secondary)" }}
+        >
+          <RightSidebar
+            sections={AUX_SECTIONS}
+            activePath={activePath}
+            onOpenPath={(p) => openPath(activePaneIndex, p)}
+            onOpenPathInSplit={(p) => openInOtherPane(activePaneIndex, p)}
+            onSelectDate={() => {}}
+            loadMarkedDates={async () => new Set<string>()}
+            refreshToken={fileTreeVersion}
+          />
+        </aside>
+      )}
+      </div>
     </div>
   );
 }

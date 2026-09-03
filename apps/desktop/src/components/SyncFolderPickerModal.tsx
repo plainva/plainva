@@ -28,6 +28,8 @@ interface SyncFolderPickerModalProps {
   createFolder?: (path: string) => Promise<void>;
   onSelect: (path: string) => void;
   onCancel: () => void;
+  /** Dialog title; defaults to the sync wording ("Select Vault Folder"). */
+  title?: string;
 }
 
 export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
@@ -37,6 +39,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
   createFolder,
   onSelect,
   onCancel,
+  title,
 }) => {
   const { t } = useTranslation();
   const [segments, setSegments] = useState<string[]>([]);
@@ -102,7 +105,7 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
   return (
     <Modal
       onClose={onCancel}
-      title={t("webDavPicker.title")}
+      title={title ?? t("webDavPicker.title")}
       size="lg"
       footer={
         <>

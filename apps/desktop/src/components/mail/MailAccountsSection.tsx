@@ -42,7 +42,7 @@ function MailAccountRow({
   account: MailAccountConfig;
   signedIn: DeviceSignInState;
   onSignedIn: () => void;
-  onOpenCloudAccounts?: () => void;
+  onOpenCloudAccounts?: (accountRef?: string) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -91,12 +91,12 @@ function MailAccountRow({
           </Button>
         )}
         {needsSignIn && oauth && onOpenCloudAccounts && (
-          <Button variant="primary" onClick={onOpenCloudAccounts} data-testid="mail-signin-oauth">
+          <Button variant="primary" onClick={() => onOpenCloudAccounts(account.id)} data-testid="mail-signin-oauth">
             {t("deviceSignIn.action", { defaultValue: "Auf diesem Gerät anmelden" })}
           </Button>
         )}
         {onOpenCloudAccounts && (
-          <Button variant="ghost" onClick={onOpenCloudAccounts}>
+          <Button variant="ghost" onClick={() => onOpenCloudAccounts(account.id)}>
             {t("cloudAccounts.manageAccount")}
           </Button>
         )}
@@ -299,7 +299,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
             {onOpenCloudAccounts && (
-              <Button variant="primary" onClick={onOpenCloudAccounts} data-testid="mail-open-cloudaccounts">
+              <Button variant="primary" onClick={() => onOpenCloudAccounts()} data-testid="mail-open-cloudaccounts">
                 {t("cloudAccounts.openArea")}
               </Button>
             )}

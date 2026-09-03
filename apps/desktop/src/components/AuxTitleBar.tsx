@@ -17,7 +17,7 @@ import { getWindowBus } from "../services/windowBus";
  * a theme change identically and no new CSS surface appears that the theme
  * matrix would have to cover.
  */
-export function AuxTitleBar({ title, tabs, label }: { title: string; tabs?: ReactNode; label?: string | null }) {
+export function AuxTitleBar({ title, tabs, label, actions }: { title: string; tabs?: ReactNode; label?: string | null; actions?: ReactNode }) {
   const { t } = useTranslation();
   const isMac = detectMac();
   const [pinned, setPinned] = useState(false);
@@ -97,6 +97,7 @@ export function AuxTitleBar({ title, tabs, label }: { title: string; tabs?: Reac
           {title}
         </span>
       )}
+      {actions}
       <IconButton
         label={pinned ? t("window.unpinOnTop") : t("window.pinOnTop")}
         size="sm"

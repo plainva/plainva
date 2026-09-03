@@ -20,7 +20,7 @@ import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
  * semantics stay in SettingsModal and arrive as props.
  */
 
-export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: () => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
+export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
   const { t } = useTranslation();
   return (
     <div>
@@ -45,7 +45,7 @@ export const PimPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: ()
 
 /** Email service page (cloud-accounts split): mailbox references + capture
  * behavior; connecting/removing mailboxes lives in the Cloud-Konten area. */
-export const MailPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: () => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
+export const MailPage: React.FC<{ isActiveVault: boolean; onOpenCloudAccounts: (accountRef?: string) => void }> = ({ isActiveVault, onOpenCloudAccounts }) => {
   const { t } = useTranslation();
   return (
     <div>

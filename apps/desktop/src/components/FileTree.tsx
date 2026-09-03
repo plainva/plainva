@@ -22,8 +22,9 @@ import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { currentWindowParams } from "../services/windowContext";
 import { DocIcon, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
-import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
-import { sweepPinboardRefs } from "@plainva/ui";
+import { applyIndexChanges, duplicateFile, moveItems, movableInto, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
+import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
+import { listVaultFolders } from "../services/vaultFolders";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
@@ -39,7 +40,6 @@ import {
   clickSelectionMode,
   collectFolderPaths,
   flattenVisibleTree,
-  parentOf,
   pruneNestedPaths,
   resolveCreateTarget,
   sortedChildren,
@@ -625,6 +625,8 @@ export const FileTree: React.FC<{
   // names the note. Keeping the naming step identical to a plain new note means
   // there is one creation flow, not two.
   const [templateTarget, setTemplateTarget] = useState<{ parentPath: string; name?: string } | null>(null);
+  // "Move to…" (Issue #77): the paths waiting for a target folder.
+  const [moveSources, setMoveSources] = useState<string[] | null>(null);
 
   // A new .base goes through the source wizard (plan W3/P1) — the file is only
   // written once the wizard confirms; cancelling creates nothing.
@@ -1045,6 +1047,39 @@ export const FileTree: React.FC<{
     setDropTarget(null);
   });
 
+  /**
+   * The one move path (Issue #77): drag & drop and the context menu's
+   * "Move to…" both end here, so both relocate the tabs, the pinboard
+   * references and the index the same way.
+   */
+  const runMove = useStableHandler(async (sources: string[], targetFolderPath: string) => {
+    if (!vaultAdapter) return;
+    const candidates = movableInto(sources, targetFolderPath);
+    if (candidates.length === 0) {
+      // Only reachable from the picker: a drop already filters these targets.
+      if (sources.length > 0) toast.info(t("fileTree.moveNoop"));
+      return;
+    }
+    const { moved, errors } = await moveItems(
+      {
+        adapter: vaultAdapter,
+        queryService,
+        indexer,
+        isFolder: (path) => folderPaths.has(path),
+        onMoved: (from, to) => onRenameTabPrefix?.(from, to),
+      },
+      candidates,
+      targetFolderPath,
+    );
+    if (moved.length > 0) {
+      triggerFileTreeUpdate();
+      notifyFileOps(moved);
+    }
+    if (errors.length > 0) {
+      toast.error(t("dialogs.bulkErrorsMsg", { count: errors.length, names: errors.join(", ") }));
+    }
+  });
+
   const handleDrop = useStableHandler(async (e: React.DragEvent, targetFolderPath: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1061,63 +1096,8 @@ export const FileTree: React.FC<{
       const single = e.dataTransfer.getData("plainva/path");
       if (single) sources = [single];
     }
-    // Per-path validation: never into itself/descendants, no same-folder moves.
-    sources = sources.filter((p) =>
-      p && p !== targetFolderPath && !targetFolderPath.startsWith(p + "/") && parentOf(p) !== targetFolderPath
-    );
-    if (sources.length === 0) return;
-
-    const errors: string[] = [];
-    const movedOps: { type: "move"; from: string; to: string; isFolder: boolean }[] = [];
-    for (const sourcePath of sources) {
-      const sourceName = sourcePath.split(/[/\\]/).pop();
-      if (!sourceName) continue;
-      const newPath = targetFolderPath ? `${targetFolderPath}/${sourceName}` : sourceName;
-      try {
-        if (await vaultAdapter?.exists(newPath)) {
-          errors.push(sourceName);
-          continue;
-        }
-        await vaultAdapter?.renameItem(sourcePath, newPath);
-        onRenameTabPrefix?.(sourcePath, newPath);
-        movedOps.push({ type: "move", from: sourcePath, to: newPath, isFolder: folderPaths.has(sourcePath) });
-      } catch (err) {
-        console.error("Fehler beim Verschieben", sourcePath, err);
-        errors.push(sourceName);
-      }
-    }
-    if (movedOps.length > 0) {
-      // Pinboard arrangements store vault-relative paths — retarget them for
-      // every move (plan Pinboard P5; folder moves rewrite by prefix). Moves
-      // deliberately do no link rewrite, so this is the only path fix-up.
-      let sweptBases: string[] = [];
-      if (vaultAdapter) {
-        try {
-          sweptBases = await sweepPinboardRefs(
-            { adapter: vaultAdapter, queryService },
-            movedOps.filter((o) => !o.isFolder).map((o) => ({ from: o.from, to: o.to })),
-            movedOps.filter((o) => o.isFolder).map((o) => ({ from: o.from, to: o.to })),
-          );
-        } catch (err) {
-          console.warn("[FileTree] pinboard sweep after move failed", err);
-        }
-      }
-      if (indexer) {
-        // A moved folder changes many descendant paths → full scan; moved files
-        // just relocate (moves keep raw paths, no vault-wide link rewrite).
-        const anyFolder = movedOps.some((o) => o.isFolder);
-        await applyIndexChanges(indexer, {
-          needsFullScan: anyFolder,
-          removed: anyFolder ? [] : movedOps.map((o) => o.from),
-          added: anyFolder ? [] : [...movedOps.map((o) => o.to), ...sweptBases],
-        });
-      }
-      triggerFileTreeUpdate();
-      notifyFileOps(movedOps);
-    }
-    if (errors.length > 0) {
-      toast.error(t("dialogs.bulkErrorsMsg", { count: errors.length, names: errors.join(", ") }));
-    }
+    if (movableInto(sources, targetFolderPath).length === 0) return;
+    await runMove(sources, targetFolderPath);
   });
 
   const handleDragEnd = useStableHandler(() => {
@@ -1422,6 +1402,7 @@ export const FileTree: React.FC<{
           onOpenInSplit={onOpenInSplit}
           onRename={startRenaming}
           onDuplicate={handleDuplicate}
+          onMove={(paths) => { setContextMenu(null); setMoveSources(paths); }}
           isBookmarked={isBookmarked}
           onToggleBookmark={onToggleBookmarkPath}
           onVersionHistory={(path: string) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } }))}
@@ -1436,8 +1417,23 @@ export const FileTree: React.FC<{
           onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
           onRestoreDeleted={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}
           onBulkDuplicate={() => handleDuplicate([...selection])}
+          onBulkMove={() => { setContextMenu(null); setMoveSources(pruneNestedPaths([...selection])); }}
           onClearSelection={() => { setSelection(new Set()); setSelectionAnchor(null); }}
           onBulkDelete={() => handleBulkDelete([...selection])}
+        />
+      )}
+      {moveSources !== null && vaultAdapter && (
+        <SyncFolderPickerModal
+          allowRoot
+          title={t("fileTree.moveTitle")}
+          rootLabel={(vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "Vault"}
+          listFolders={(path) => listVaultFolders(vaultAdapter, path)}
+          onSelect={(picked) => {
+            const sources = moveSources;
+            setMoveSources(null);
+            void runMove(sources, picked);
+          }}
+          onCancel={() => setMoveSources(null)}
         />
       )}
       {templateTarget !== null && (

@@ -195,6 +195,9 @@ export interface RpcMap {
       | "new-window";
       provider?: string;
       area?: string;
+      /** "settings" only: land on THIS cloud account's detail page (D2) —
+       *  its own id, or the id of the mail/calendar account it owns. */
+      accountId?: string;
       /** `new-window` only: which vault the new window shows (stage D). */
       vaultPath?: string;
     };
