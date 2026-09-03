@@ -178,11 +178,17 @@ export interface SuggestionRound {
   open: number;
 }
 
+/**
+ * Comments and proposals are two tools (Vorschlagsmodus, V4): a proposal - in
+ * a round or on its own - goes to the proposals tab, everything else stays a
+ * comment. Rounds are grouped; a lone proposal (written before the mode
+ * existed) is a round of one without an id.
+ */
 export function groupSuggestionRounds(threads: readonly CommentThread[]): { rounds: SuggestionRound[]; threads: CommentThread[] } {
   const byBatch = new Map<string, SuggestionRound>();
   const rest: CommentThread[] = [];
   for (const thread of threads) {
-    const batchId = thread.root.suggestionBatchId ?? null;
+    const batchId = thread.root.suggestionBatchId ?? (thread.root.suggestion ? `single:${thread.root.commentId}` : null);
     if (!batchId || !thread.root.suggestion) { rest.push(thread); continue; }
     let round = byBatch.get(batchId);
     if (!round) {

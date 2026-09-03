@@ -242,31 +242,10 @@ describe("workspace comment column", () => {
     declined.unmount();
   });
 
-  it("offers a suggestion only where there is a passage to replace", async () => {
-    // A proposal names the text it replaces. Without a selection there is
-    // nothing to propose against, so the switch must not even appear - the
-    // protocol would refuse the comment, and the refusal would arrive as an
-    // error after the writing.
-    const without = render(<WorkspaceCommentsColumn {...props()} />);
-    expect([...without.host.querySelectorAll("button")].map((b) => b.textContent?.trim())).not.toContain(tr("workspaceSecurity.suggestionStart"));
-    without.unmount();
-
-    const onSubmit = vi.fn(async () => {});
-    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ selectionQuote: "bis Ende des Jahres", onSubmit })} />);
-    const start = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === tr("workspaceSecurity.suggestionStart"));
-    expect(start).toBeDefined();
-    act(() => { start!.click(); });
-
-    // The proposal starts as the selected text - a suggestion is nearly always
-    // an edit of the passage, not a blank page.
-    const field = host.querySelector<HTMLTextAreaElement>(".pv-comment-compose__replacement");
-    expect(field?.value).toBe("bis Ende des Jahres");
-
-    const send = [...host.querySelectorAll("button")].find((b) => b.textContent?.trim() === tr("workspaceSecurity.suggestionSend"));
-    // A suggestion may carry no sentence at all: the replacement IS the content.
-    expect(send?.hasAttribute("disabled")).toBe(false);
-    await act(async () => { send!.click(); });
-    expect(onSubmit).toHaveBeenCalledWith("", null, { replacement: "bis Ende des Jahres" });
+  it("no longer offers to propose from the compose box - the suggestion mode does that (V4)", () => {
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ selectionQuote: "bis Ende des Jahres" })} />);
+    expect(host.querySelector(".pv-comment-compose__replacement")).toBeNull();
+    expect([...host.querySelectorAll("button")].map((b) => b.textContent?.trim())).toContain(tr("workspaceSecurity.send"));
     unmount();
   });
   it("marks a thread that names you and lifts it to the top", () => {
@@ -614,6 +593,7 @@ describe("proposal rounds (V3)", () => {
       comment({ commentId: id, anchor: ANCHOR, suggestion: SUGGESTION, suggestionBatchId: "ab".repeat(16), batchIndex: index, batchNote: "From the PDF", authorMemberId: "9999888877776666", ...over });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[block("b1", 0), block("b2", 1)]} onApplyRound={onApplyRound} />);
     try {
+      act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
       const round = host.querySelector(".pv-comment-round")!;
       expect(round.textContent).toContain("From the PDF");
       expect(round.textContent).toContain(tr("workspaceSecurity.suggestRoundCount").replace("{{n}}", "2"));

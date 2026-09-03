@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, MessageSquare, RefreshCw, Replace } from "lucide-react";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, Segmented, buildCommentOverview, noteDisplayName, parseCommentMentions, requestCommentJump, COMMENT_OVERVIEW_FOCUS_EVENT, takeCommentOverviewFocus } from "@plainva/ui";
+import { Button, ICON, Segmented, buildCommentOverview, groupSuggestionRounds, noteDisplayName, parseCommentMentions, requestCommentJump, COMMENT_OVERVIEW_FOCUS_EVENT, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
 /**
@@ -115,7 +115,26 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
               </span>
               <span className="pv-comment-overview__badge">{note.threads.length}</span>
             </button>
-            {note.threads.map(({ root, replies, addressed }) => (
+            {/* A proposal round is one row (V4): what one "send" produced,
+                with its sentence, landing on its first block. */}
+            {groupSuggestionRounds(note.threads).rounds.map((round) => (
+              <div
+                className="pv-comment-card pv-comment-round"
+                key={round.batchId}
+                data-testid="comments-overview-round"
+                onClick={() => {
+                  requestCommentJump({ path: note.path, commentId: round.blocks[0].root.commentId });
+                  onOpenPath(note.path);
+                }}
+              >
+                <p className="pv-comment-round__meta">
+                  <strong>{t("workspaceSecurity.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor") })}</strong>
+                  {" · "}{t("workspaceSecurity.suggestRoundCount", { n: round.open })}
+                  {round.note ? <em> · „{round.note}“</em> : null}
+                </p>
+              </div>
+            ))}
+            {groupSuggestionRounds(note.threads).threads.map(({ root, replies, addressed }) => (
               <div
                 className="pv-comment-card"
                 key={root.commentId}

@@ -157,12 +157,14 @@ describe("groupSuggestionRounds (V3)", () => {
       proposal("done", "r1", 2, { createdAt: "2026-09-03T10:00:02.000Z", suggestion: { replacement: "x", appliedAt: "2026-09-03T11:00:00.000Z", appliedBy: "m1", declinedAt: null }, resolvedAt: "2026-09-03T11:00:00.000Z" }),
     ], null, names);
     const { rounds, threads: rest } = groupSuggestionRounds(threads);
-    expect(rounds).toHaveLength(1);
+    // A lone proposal is a round of one (V4): the proposals tab lists rounds only.
+    expect(rounds.map((round) => round.batchId).sort()).toEqual(["r1", "single:single"]);
+    expect(rounds.find((round) => round.batchId === "r1")!.blocks).toHaveLength(3);
     expect(rounds[0].batchId).toBe("r1");
     expect(rounds[0].note).toBe("From the PDF");
     expect(rounds[0].createdAt).toBe("2026-09-03T10:00:00.000Z");
     expect(rounds[0].blocks.map((b) => b.root.commentId)).toEqual(["b1", "b2", "done"]);
     expect(rounds[0].open).toBe(2);
-    expect(rest.map((thread) => thread.root.commentId).sort()).toEqual(["plain", "single"]);
+    expect(rest.map((thread) => thread.root.commentId)).toEqual(["plain"]);
   });
 });

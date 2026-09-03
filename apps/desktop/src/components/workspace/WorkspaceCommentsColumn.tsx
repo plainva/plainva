@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -124,10 +124,13 @@ export function WorkspaceCommentsColumn({
   const { t, i18n } = useTranslation();
   /** "Open" hides what is settled; "all" brings resolved threads back (K3). */
   const [filter, setFilter] = useState<"open" | "all">("open");
+  /** Comments or proposals (V4): two tools, two lists, one head. */
+  const [kind, setKind] = useState<"comments" | "suggestions">("comments");
+  const kindTouched = useRef(false);
   const [draft, setDraft] = useState("");
   // The replacement starts as the selected text: a suggestion is almost always
   // an edit of the passage, not a blank page.
-  const [replacement, setReplacement] = useState<string | null>(null);
+
   const [replyTo, setReplyTo] = useState<string | null>(null);
   /** The remark whose deletion is being confirmed, in its own card (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -168,6 +171,19 @@ export function WorkspaceCommentsColumn({
   // Rounds (V3) are grouped out of the shown threads: what a "send" produced
   // stays together, with its sentence and one decision for all of it.
   const grouped = useMemo(() => groupSuggestionRounds(shownThreads), [shownThreads]);
+  const openByKind = useMemo(() => {
+    const all = groupSuggestionRounds(threads);
+    return {
+      comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length,
+      suggestions: all.rounds.reduce((n, round) => n + round.open, 0),
+    };
+  }, [threads]);
+  // A note that carries proposals and no remarks opens on the proposals -
+  // until the reader picks a tab by hand.
+  useEffect(() => {
+    if (kindTouched.current) return;
+    if (openByKind.comments === 0 && grouped.rounds.length > 0) setKind("suggestions");
+  }, [openByKind, grouped]);
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
@@ -209,7 +225,7 @@ export function WorkspaceCommentsColumn({
     setBusy(true);
     try {
       await onSubmit(body, parent, suggestion);
-      if (parent === null) { setDraft(""); setReplacement(null); }
+      if (parent === null) setDraft("");
       else { setReplyDraft(""); setReplyTo(null); }
     } catch (error) {
       // A refused post used to be an unhandled rejection: the draft stayed and
@@ -410,10 +426,17 @@ export function WorkspaceCommentsColumn({
   return (
     <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
       <div className="pv-comment-column__head">
-        <h3 className="pv-comment-column__title">
-          {t("workspaceSecurity.comments")}
-          <span className="pv-comment-column__count" data-testid="comment-open-count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
-        </h3>
+        <Segmented
+          size="sm"
+          ariaLabel={t("workspaceSecurity.comments")}
+          value={kind}
+          onChange={(next) => { kindTouched.current = true; setKind(next); }}
+          options={[
+            { value: "comments", label: `${t("workspaceSecurity.comments")} · ${openByKind.comments}`, testId: "comment-kind-comments" },
+            { value: "suggestions", label: `${t("workspaceSecurity.suggestions")} · ${openByKind.suggestions}`, testId: "comment-kind-suggestions" },
+          ]}
+        />
+        <span className="pv-comment-column__count" data-testid="comment-open-count" hidden>{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
         <span className="pv-comment-column__spacer" />
         {threads.length > 0 && (
           <Segmented
@@ -455,11 +478,13 @@ export function WorkspaceCommentsColumn({
         )}
       </div>
       <div className="pv-comment-column__body">
-      {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {grouped.rounds.map((round) => {
+      {kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+      {kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+      {kind === "suggestions" && grouped.rounds.map((round) => {
         const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
         return (
           <section key={round.batchId} className="pv-comment-round" aria-label={t("workspaceSecurity.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor") })}>
+            {!round.batchId.startsWith("single:") && (
             <div className="pv-comment-round__head">
               <CommentCardHead name={memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
               <p className="pv-comment-round__meta">
@@ -481,11 +506,12 @@ export function WorkspaceCommentsColumn({
                 </div>
               )}
             </div>
+            )}
             <div className="pv-comment-round__blocks">{round.blocks.map(renderThread)}</div>
           </section>
         );
       })}
-      {grouped.threads.map(renderThread)}
+      {kind === "comments" && grouped.threads.map(renderThread)}
       </div>
       {canComment && (
         <div className="pv-comment-column__foot">
@@ -495,43 +521,19 @@ export function WorkspaceCommentsColumn({
               ? t("workspaceSecurity.commentOnSelection", { quote: selectionQuote })
               : t("workspaceSecurity.commentOnNote")}
           </p>
-          {/* Deliberately a plain field: this text becomes the NOTE. An `@Name`
-              picked in here would be written into the document, where it means
-              nothing and nobody would ever be notified. */}
-          {replacement !== null && (
-            <TextArea
-              value={replacement}
-              rows={2}
-              className="pv-comment-compose__replacement"
-              placeholder={t("workspaceSecurity.suggestionPlaceholder")}
-              onChange={(event) => setReplacement(event.target.value)}
-            />
-          )}
+          {/* Proposing left this box with the suggestion mode (V4, decision F6):
+              a remark is written here, a change is proposed in the text. */}
           <MentionTextArea
             value={draft}
             rows={3}
             names={memberNames}
             pickerLabel={t("workspaceSecurity.commentMentionPicker")}
-            placeholder={replacement !== null ? t("workspaceSecurity.suggestionWhyPlaceholder") : t("workspaceSecurity.addComment")}
+            placeholder={t("workspaceSecurity.addComment")}
             onChange={setDraft}
           />
           <div className="pv-comment-compose__actions">
-            {/* A proposal has to name the passage it replaces - without a
-                selection there is nothing to propose against, so the switch
-                only appears once something is selected. */}
-            {selectionQuote !== null && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReplacement(replacement === null ? selectionQuote : null)}
-              >
-                <Replace size={ICON.meta} /> {replacement === null ? t("workspaceSecurity.suggestionStart") : t("workspaceSecurity.suggestionCancel")}
-              </Button>
-            )}
-            {/* A suggestion may carry no sentence at all: the replacement text
-                IS the content. A plain remark still needs words. */}
-            <Button size="sm" disabled={busy || (replacement === null && !draft.trim())} onClick={() => void post(draft.trim(), null, replacement === null ? null : { replacement })}>
-              <MessageSquare size={ICON.meta} /> {replacement === null ? t("workspaceSecurity.send") : t("workspaceSecurity.suggestionSend")}
+            <Button size="sm" disabled={busy || !draft.trim()} onClick={() => void post(draft.trim(), null)}>
+              <MessageSquare size={ICON.meta} /> {t("workspaceSecurity.send")}
             </Button>
           </div>
         </div>
