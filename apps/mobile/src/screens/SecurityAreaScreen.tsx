@@ -4,6 +4,7 @@ import { QrScanner } from "../components/QrScanner";
 import { PublishSliceSheet, type PublishSliceValues } from "../components/PublishSliceSheet";
 import { PublicationRecipientsSheet } from "../components/PublicationRecipientsSheet";
 import { WithdrawPublicationSheet } from "../components/WithdrawPublicationSheet";
+import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
@@ -102,6 +103,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [groupName, setGroupName] = useState("");
   const [sliceName, setSliceName] = useState("");
   const [sliceFolder, setSliceFolder] = useState("");
+  const [sliceFolderPick, setSliceFolderPick] = useState(false);
   const [slicePreview, setSlicePreview] = useState<{ objectId: string; path: string }[] | null>(null);
   /* The list comes from the state store, NOT from `policy.slices[].publication`
      (M3): that block is the claim somebody ticked, this is the publication that
@@ -805,7 +807,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               desktop link this replaces. */}
           <GroupCard><RowList>
             <SettingField label={t("workspaceSecurity.name")}><TextInput value={sliceName} onChange={(event) => { setSliceName(event.target.value); setSlicePreview(null); }} /></SettingField>
-            <SettingField label={t("database.folder")}><TextInput value={sliceFolder} onChange={(event) => { setSliceFolder(event.target.value); setSlicePreview(null); }} /></SettingField>
+            <SettingField label={t("database.folder")}>
+              <TextInput value={sliceFolder} aria-label={t("database.folder")} onChange={(event) => { setSliceFolder(event.target.value); setSlicePreview(null); }} />
+              {/* Picked from the vault, not typed (finding 2026-09-03) - the
+                  same sheet "Move to…" uses; the field stays for who types. */}
+              <Button variant="ghost" onClick={() => setSliceFolderPick(true)}>{t("settings.browseFolders")}</Button>
+            </SettingField>
           </RowList></GroupCard>
           <Banner kind="info" rounded>{t("workspaceSecurity.slicePreview")}</Banner>
           {slicePreview && (
@@ -1054,6 +1061,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
                         onClose={() => setWithdrawFor(null)}
                         onWithdraw={() => withdrawPublication(withdrawFor)}
                       />}
+      {sliceFolderPick && <FolderPickerSheet vault={vault} title={t("settings.browseFolders")} onPick={(path) => { setSliceFolder(path); setSlicePreview(null); setSliceFolderPick(false); }} onClose={() => setSliceFolderPick(false)} />}
       {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
       {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
     </div>

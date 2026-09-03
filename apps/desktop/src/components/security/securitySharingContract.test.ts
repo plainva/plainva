@@ -91,6 +91,14 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(dialog).toContain('["details", "content", "permissions", "review"]');
   });
 
+  it("source: the folder of a folder slice is picked from the vault on both shells (finding 2026-09-03)", () => {
+    expect(dialog).toContain('data-testid="slice-folder-browse"');
+    expect(dialog).toContain("<SyncFolderPickerModal");
+    expect(dialog).toContain("listVaultFolders(vaultAdapter, path)");
+    expect(mobile).toContain("<FolderPickerSheet");
+    expect(mobile).toContain("setSliceFolder(path)");
+  });
+
   it("source: recovery setup still renders a numbered verification flow", () => {
     for (const className of ["pv-security-recovery-task", "pv-security-task-number", "pv-security-code-groups", "pv-security-code-group", "pv-security-challenge-grid", "pv-security-next"]) expect(wizard).toContain(className);
     expect(wizard).toContain("data-requested={requested}");

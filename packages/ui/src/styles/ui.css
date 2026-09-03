@@ -2293,6 +2293,10 @@ button.pv-acct:hover { background: var(--state-hover); }
 }
 .pv-security-steps > span[data-active="true"] { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-security-field { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--text-sm); }
+/* A field with a picker beside it (finding 2026-09-03: the slice folder is
+   chosen, not typed): the input takes the width, the button its own. */
+.pv-security-field-row { display: flex; align-items: center; gap: var(--space-2); }
+.pv-security-field-row > :first-child { flex: 1 1 auto; min-width: 0; }
 .pv-security-code {
   display: block;
   padding: var(--space-3);
