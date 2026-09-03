@@ -2980,6 +2980,19 @@ tr.is-selected > td { color: var(--on-accent-container); }
    so the compose box stays reachable however long the list is. */
 .pv-comment-column__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); align-content: start; }
 .pv-comment-column__foot { padding: var(--space-3); border-top: 1px solid var(--border-color-light); }
+/* The band of the suggestion mode (plan Vorschlagsmodus, V2): the one place
+   that says, for as long as the mode is on, that typing does not change the
+   note. Amber - a warning tone, not the accent - because the accent pair is
+   this system's "selected" idiom and the band is a state, not a selection. */
+.pv-suggest-band {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--warning-bg); color: var(--warning-text);
+  border-bottom: 1px solid var(--warning-border);
+  font-size: var(--text-ui);
+}
+.pv-suggest-band__text { flex: 1; min-width: 0; }
+.pv-suggest-band__note { flex: 0 1 22rem; }
 /* The toolbar button that shows or hides the column, with the count of open
    threads riding on it (K3). */
 .pv-comment-toggle { position: relative; }

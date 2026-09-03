@@ -136,6 +136,7 @@ export * from "./components/CommentCardHead";
 export * from "./components/CommentBody";
 export * from "./lib/wordDiff";
 export * from "./components/SuggestionDiff";
+export { suggestionBase, suggestionChunks, type SuggestionChunk } from "./components/suggestMode";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";

@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, MessageSquare } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -24,10 +24,11 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
+import { Button as UiButton, TextInput } from "@plainva/ui";
 import { IconButton, isCommentThreadOpen } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
@@ -134,6 +135,18 @@ export const Editor: React.FC<{
    */
   const [commentColumnSession, setCommentColumnSession] = useState<"open" | "closed" | null>(null);
   const [commentColumnPref, setCommentColumnPref] = useState<"open" | "closed" | null>(null);
+  /**
+   * The suggestion mode (plan Vorschlagsmodus, V2): the person edits a copy,
+   * the file stays the base, nothing is saved until "send" turns the change
+   * blocks into a proposal round. A copy with unsent changes is parked per
+   * note when the note is left and restored when it is opened again
+   * (decision F5, first half; parking across an app close is still open).
+   */
+  const [suggesting, setSuggesting] = useState(false);
+  const suggestingRef = useRef(false);
+  const [suggestCount, setSuggestCount] = useState(0);
+  const [suggestNote, setSuggestNote] = useState("");
+  const suggestParkRef = useRef(new Map<string, { copy: string; note: string }>());
   /** Open suggestions drawn in the text (K5, decision E4: on by default), remembered per vault. */
   const [suggestionsInline, setSuggestionsInline] = useState(true);
   // Stufe F: whether this note is silenced. Null - and therefore no bell in the
@@ -751,6 +764,12 @@ export const Editor: React.FC<{
 
   // Session callback: a real (non-external) edit happened in the view.
   const onDocChanged = (view: EditorView) => {
+    // In the suggestion mode the view holds a COPY (V2): nothing is dirty,
+    // nothing is saved, nothing is journaled - the copy is parked instead.
+    if (suggestingRef.current) {
+      if (activePath) suggestParkRef.current.set(activePath, { copy: view.state.doc.toString(), note: suggestNote });
+      return;
+    }
     isDirtyRef.current = true;
     if (activePath) dirtyStore.set(activePath, true);
     // E3: debounce the React-state mirror — the status bar / properties panel
@@ -1998,6 +2017,7 @@ export const Editor: React.FC<{
       onCommentAnchorRequest: (req) => requestWidgetComment(req),
       // The pill on an inline suggestion (K5): accepting is a write, declining
       // only closes the thread - the same rights the card asks for.
+      onSuggestionChunks: (count) => setSuggestCount(count),
       onSuggestionApply: workspaceReadOnly ? undefined : (commentId) => { const found = workspaceComments.find((c) => c.commentId === commentId); if (found) suggestionActionsRef.current?.apply(found); },
       onSuggestionDecline: workspaceCanComment ? (commentId) => { const found = workspaceComments.find((c) => c.commentId === commentId); if (found) suggestionActionsRef.current?.decline(found); } : undefined,
       onPickIcon: setIconPicker,
@@ -2354,6 +2374,87 @@ export const Editor: React.FC<{
     suggestionActionsRef.current = { apply: (comment) => { void applySuggestion(comment); }, decline: (comment) => { void declineSuggestion(comment); } };
   });
 
+  const startSuggesting = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || !activePath) return;
+    if (viewMode === "source") { setViewMode("live"); rememberSessionViewMode(activePath, "live"); }
+    suggestingRef.current = true;
+    setSuggesting(true);
+    session.setSuggesting(true);
+    const parked = suggestParkRef.current.get(activePath);
+    if (parked) {
+      const view = session.view;
+      if (parked.copy !== view.state.doc.toString()) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: parked.copy } });
+      setSuggestNote(parked.note);
+    }
+  }, [activePath, viewMode]);
+
+  const stopSuggesting = useCallback(() => {
+    suggestingRef.current = false;
+    setSuggesting(false);
+    setSuggestCount(0);
+    setSuggestNote("");
+    sessionRef.current?.setSuggesting(false);
+  }, []);
+
+  const discardSuggestions = useCallback(async () => {
+    if (!activePath) return;
+    if (suggestCount > 0) {
+      const ok = await appConfirm({ title: t("workspaceSecurity.suggestDiscard"), message: t("workspaceSecurity.suggestDiscardConfirm", { n: suggestCount }), kind: "warning" });
+      if (!ok) return;
+    }
+    suggestParkRef.current.delete(activePath);
+    stopSuggesting();
+  }, [activePath, suggestCount, stopSuggesting, t]);
+
+  /**
+   * One round: every change block between base and copy becomes a proposal
+   * record with the round's id, its position and the sentence for the round.
+   * The base's text of a block is the anchor's quote (an empty one is an
+   * insertion point), the copy's text its replacement. Nothing is written
+   * into the note - not even a marker pair - until somebody accepts.
+   */
+  const sendSuggestions = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || !activePath) return;
+    const { base, chunks } = session.suggestion();
+    if (base === null || chunks.length === 0) { toast.info(t("workspaceSecurity.suggestNothing")); return; }
+    const tooLarge = chunks.find((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES);
+    if (tooLarge) { toast.warning(t("workspaceSecurity.suggestTooLarge")); return; }
+    const batchId = createWorkspaceObjectId();
+    const note = suggestNote.trim() || null;
+    let index = 0;
+    try {
+      for (const chunk of chunks) {
+        const anchor = buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base));
+        if (!anchor.quote && !chunk.replacement) continue;
+        await postWorkspaceComment(activePath, "", null, anchor, { replacement: chunk.replacement }, { batchId, index, note });
+        index += 1;
+      }
+    } catch (error) {
+      toast.error(errorText(error));
+      return;
+    }
+    suggestParkRef.current.delete(activePath);
+    stopSuggesting();
+    toast.info(t("workspaceSecurity.suggestSent", { n: index }));
+  }, [activePath, suggestNote, postWorkspaceComment, stopSuggesting, t]);
+
+  // A note left in the mode keeps its copy parked (F5); a note opened with a
+  // parked copy comes back in the mode. The session is rebuilt per note, so
+  // the restore runs after that effect, with the same triggers.
+  useEffect(() => {
+    if (isLoading || isReadMode || !activePath) return;
+    if (suggestParkRef.current.has(activePath) && !suggestingRef.current) startSuggesting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, isReadMode, activePath]);
+  useEffect(() => () => {
+    // The session goes with the note; the flag must not outlive it.
+    suggestingRef.current = false;
+    setSuggesting(false);
+    setSuggestCount(0);
+  }, [activePath]);
+
   // Live <-> source switches swap ONE compartment — the parser state survives,
   // so nothing collapses or jumps.
   useEffect(() => {
@@ -2421,6 +2522,20 @@ export const Editor: React.FC<{
             >
               <Code size={ICON.ui} />
             </button>
+            {/* The suggestion mode (V2) sits with the views: it changes what
+                typing MEANS, not where the text goes. Amber, not the accent -
+                the band below says the same in words. */}
+            {workspaceCanComment && !managedIndex && (
+              <IconButton
+                label={t("workspaceSecurity.suggestMode")}
+                active={suggesting}
+                onClick={() => { if (suggesting) void discardSuggestions(); else startSuggesting(); }}
+                data-testid="editor-suggest-mode"
+                style={suggesting ? { background: "var(--warning-bg)", color: "var(--warning-text)" } : undefined}
+              >
+                <PenLine size={ICON.ui} />
+              </IconButton>
+            )}
           </div>}
 
           {workspaceCanReadComments && (
@@ -2639,6 +2754,17 @@ export const Editor: React.FC<{
         </div>
       )}
 
+      {suggesting && (
+        <div className="pv-suggest-band" role="status" data-testid="suggest-band">
+          <PenLine size={ICON.ui} />
+          <span className="pv-suggest-band__text">
+            <strong>{t("workspaceSecurity.suggestBandTitle")}</strong> {t("workspaceSecurity.suggestBandBody")} {t("workspaceSecurity.suggestCount", { n: suggestCount })}
+          </span>
+          <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
+          <UiButton size="sm" variant="ghost" onClick={() => { void discardSuggestions(); }}>{t("workspaceSecurity.suggestDiscard")}</UiButton>
+          <UiButton size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">{t("workspaceSecurity.suggestSend", { n: suggestCount })}</UiButton>
+        </div>
+      )}
       <div className={workspaceCanReadComments ? "pv-comment-layout" : undefined} style={workspaceCanReadComments ? undefined : { display: "contents" }}>
       <div ref={readScrollRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: "var(--bg-primary)", overflowY: viewMode === 'read' ? "auto" : "hidden" }}>
         {viewMode === 'read' ? (

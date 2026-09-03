@@ -304,7 +304,7 @@ interface VaultContextType extends VaultState {
    * then nothing counts as addressed to you.
    */
   getCommentSelfId: () => Promise<string | null>;
-  postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null, suggestion?: { replacement: string } | null) => Promise<void>;
+  postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null, suggestion?: { replacement: string } | null, batch?: { batchId: string; index: number; note: string | null } | null) => Promise<void>;
   resolveWorkspaceComment: (path: string, commentId: string, suggestionOutcome?: "applied" | "declined" | null) => Promise<void>;
   /** Deletes a remark by appending a retraction marker (K7): its author, or a member who governs the workspace. */
   retractWorkspaceComment: (path: string, commentId: string) => Promise<void>;
@@ -2956,13 +2956,13 @@ export const VaultProvider: React.FC<{
     return workspaceControlPlane().runtime.memberId;
   };
 
-  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null): Promise<void> => {
+  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null, batch: { batchId: string; index: number; note: string | null } | null = null): Promise<void> => {
     const local = localCommentContext();
     if (local) {
       // The reviewer field this vault already carries — the person at this
       // keyboard, device-local — rather than asking the same question twice.
       const authorName = await (await getSettingsStore()).get<string>(verifierNameKey(local.vaultPath));
-      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, authorName });
+      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, suggestionBatchId: batch?.batchId ?? null, batchIndex: batch?.index ?? null, batchNote: batch?.note ?? null, authorName });
       state.syncWorker?.triggerImmediate();
       window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
       return;
@@ -2981,6 +2981,7 @@ export const VaultProvider: React.FC<{
     const entry: WorkspaceCommentOutboxEntry = {
       outboxId: createWorkspaceObjectId(), commentId: createWorkspaceObjectId(), path, targetObjectId: object.objectId,
       body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId,
+      suggestionBatchId: batch?.batchId ?? null, batchIndex: batch?.index ?? null, batchNote: batch?.note ?? null,
       createdAt: new Date().toISOString(), attempts: 0, lastError: null,
     };
     await workspaceState.enqueueCommentOutbox(entry);
@@ -3035,7 +3036,7 @@ export const VaultProvider: React.FC<{
     window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
   };
 
-  const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor, suggestion);
+  const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, batch: { batchId: string; index: number; note: string | null } | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor, suggestion, null, null, batch);
   // A resolve marker is a fact, not a message: it carries no body. The literal
   // English "Resolved" that used to travel here appeared verbatim in all ten
   // languages, on every device, for good — a marker has no text to translate.

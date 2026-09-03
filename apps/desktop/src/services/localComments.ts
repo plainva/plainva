@@ -129,6 +129,10 @@ export interface PostLocalCommentInput {
   suggestionOutcome?: "applied" | "declined" | null;
   /** A retraction marker (K7): deletes the record it names, if this device wrote that record. */
   retractsCommentId?: string | null;
+  /** The proposal round (V2), on proposals only. */
+  suggestionBatchId?: string | null;
+  batchIndex?: number | null;
+  batchNote?: string | null;
   /**
    * How this device signs the record. Passed in rather than read here: the
    * reviewer name belongs to the vault context, and reaching back into it from a
@@ -157,6 +161,9 @@ export async function postLocalComment(vaultPath: string, raw: IVaultAdapter, in
     resolvedCommentId: input.resolvedCommentId ?? null,
     suggestionOutcome: input.suggestionOutcome ?? null,
     retractsCommentId: input.retractsCommentId ?? null,
+    suggestionBatchId: input.suggestionBatchId ?? null,
+    batchIndex: input.batchIndex ?? null,
+    batchNote: input.batchNote ?? null,
     authorDeviceId: await getDeviceId(store),
     body: input.body,
     anchor: input.anchor ?? null,

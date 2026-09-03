@@ -19,6 +19,7 @@ import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
+import { createSuggestMode, suggestionBase, suggestionChunks, type SuggestionChunk } from "./suggestMode";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -154,6 +155,8 @@ export interface EditorSessionDeps {
    */
   onSuggestionApply?: (commentId: string) => void;
   onSuggestionDecline?: (commentId: string) => void;
+  /** How many change blocks the suggestion mode holds right now (V2); fires on every edit in the mode. */
+  onSuggestionChunks?: (count: number) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
   /**
@@ -244,6 +247,13 @@ export interface EditorSession {
    * Returns true when a change was dispatched.
    */
   applyExternalText(text: string): boolean;
+  /**
+   * The suggestion mode (plan Vorschlagsmodus, V2): on, the person edits a
+   * copy and the base stays what the file is; off puts the base back. The
+   * host stops saving while it is on and turns `suggestion()` into records.
+   */
+  setSuggesting(on: boolean): void;
+  suggestion(): { base: string | null; chunks: SuggestionChunk[] };
   destroy(): void;
 }
 
@@ -251,6 +261,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
   const editableComp = new Compartment();
+  const suggestMode = createSuggestMode();
   // A grammar arrives after the session may already be gone (file switched,
   // pane closed): dispatching into a destroyed view throws.
   let destroyed = false;
@@ -506,6 +517,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     anchorHighlightExtension((commentId) => deps.current.onAnchorActivate?.(commentId)),
     editableComp.of(editableExtensions(cfg.editable !== false)),
     modeComp.of(modeExtensions(cfg.mode)),
+    suggestMode.extension,
   ];
 
   const view = new EditorView({
@@ -515,9 +527,19 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
 
   let currentMode = cfg.mode;
   let currentEditable = cfg.editable !== false;
+  let suggesting = false;
 
   return {
     view,
+    setSuggesting(on) {
+      if (on === suggesting) return;
+      suggesting = on;
+      if (on) suggestMode.start(view, (count) => deps.current.onSuggestionChunks?.(count));
+      else suggestMode.stop(view);
+    },
+    suggestion() {
+      return { base: suggestionBase(view.state), chunks: suggestionChunks(view.state) };
+    },
     setMode(mode) {
       if (mode === currentMode) return;
       currentMode = mode;
