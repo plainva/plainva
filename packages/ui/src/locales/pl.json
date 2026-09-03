@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "Ustawienia przejęte z innego urządzenia.",
+    "adoptedAreas": "Przejęto ustawienia z innego urządzenia: {{areas}}.",
     "legacyPublisherUpgrade": "Starsza wersja Plainva nadal publikuje wycofane dane konta. Zaktualizuj Plainva na wszystkich urządzeniach; to urządzenie zignorowało te dane i zachowało lokalne logowanie.",
     "area_accounts": "Konta",
     "area_backup": "Reguły kopii zapasowych",

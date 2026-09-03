@@ -20,6 +20,7 @@ import {
   Share2,
   Smile,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
@@ -856,6 +857,18 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 share();
+              },
+            },
+            {
+              // The way IN, next to the way out (feedback round 2026-09-01, T4):
+              // "save as template" stood here alone, and the only place to insert
+              // one was a slash command behind the keyboard bar's plus — which is
+              // where the tester looked and did not find it. Same picker.
+              icon: <FileText size={ICON.head} />,
+              label: t("shortcuts.insertTemplate"),
+              onClick: () => {
+                setMenu(false);
+                window.dispatchEvent(new CustomEvent("plainva-open-template-picker"));
               },
             },
             {

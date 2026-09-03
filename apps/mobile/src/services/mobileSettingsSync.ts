@@ -31,6 +31,7 @@ import {
 import {
   cloudRegistryToLogical,
   shouldAnnounceProfileImport,
+  profileChangeAreaKeys,
   pimAccountsForProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
@@ -967,7 +968,10 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
         // moment, not a state — from then on the diagnostics record names the
         // fields. Before the roundtrip fix this fired on nearly every cycle.
         onAdopted: (_from, changedNames) => {
-          if (shouldAnnounceProfileImport(vault.vaultId, changedNames)) toast.info(i18n.t("settingsSync.adopted"));
+          if (!shouldAnnounceProfileImport(vault.vaultId, changedNames)) return;
+          // Says WHAT arrived (M5): the areas the changed fields belong to.
+          const areas = profileChangeAreaKeys(changedNames).map((k) => i18n.t(k));
+          toast.info(areas.length ? i18n.t("settingsSync.adoptedAreas", { areas: areas.join(", ") }) : i18n.t("settingsSync.adopted"));
         },
         onExchange: async (info) => {
           const at = new Date().toISOString();

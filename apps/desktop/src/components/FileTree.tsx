@@ -454,12 +454,26 @@ export const FileTree: React.FC<{
     const fetchFiles = async () => {
       try {
         if (effectiveQuery.trim() === "") {
-          const dbFiles = await queryService.db.query<{ path: string; title: string; mode: string; mtime_local: number | null; ctime: number | null }>(
-            `SELECT path, title, mode, mtime_local, ctime FROM files ORDER BY path ASC`
+          const dbFiles = await queryService.db.query<{ path: string; title: string; mode: string }>(
+            `SELECT path, title, mode FROM files ORDER BY path ASC`
           );
+          // The times only matter under a time sort (P11) — asked separately so
+          // the tree's own query stays what it always was (the E2E mock answers
+          // queries by their text), and a failure here costs the order, not the tree.
+          const times = new Map<string, { mtime: number | null; ctime: number | null }>();
+          if (sort.key !== "title") {
+            try {
+              const rows = await queryService.db.query<{ path: string; mtime_local: number | null; ctime: number | null }>(
+                `SELECT path, mtime_local, ctime FROM files`
+              );
+              for (const r of rows) times.set(r.path, { mtime: r.mtime_local, ctime: r.ctime });
+            } catch (e) {
+              console.warn("[FileTree] file times unavailable; sorting by name", e);
+            }
+          }
 
           const allFiles: { path: string; title: string; mode?: string; isDir?: boolean; mtime?: number | null; ctime?: number | null }[] =
-            [...dbFiles.map((f) => ({ path: f.path, title: f.title, mode: f.mode, mtime: f.mtime_local, ctime: f.ctime })), ...diskFolders];
+            [...dbFiles.map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
 
           // Keep the previous reference when nothing tree-relevant changed, so a
           // content-only autosave does not rebuild + re-render the whole tree.

@@ -66,6 +66,7 @@ import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, trackPendingWrite } from "../services/pendingWrites";
 import { propertyCommentStore } from "../services/propertyComments";
+import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -2001,6 +2002,26 @@ export const Editor: React.FC<{
     });
     sessionRef.current = session;
     session.setEditable(!workspaceReadOnly);
+    // Where you were (feedback round 2026-09-01, A5/E7): the scroll position
+    // per file, device-local, restored once the view has laid the document
+    // out, and remembered on the way out and while scrolling.
+    const scrollKey = vaultPath && activePath ? { vault: vaultPath, path: activePath } : null;
+    const remembered = scrollKey ? recallScrollTop(scrollKey.vault, scrollKey.path) : null;
+    if (remembered !== null) {
+      requestAnimationFrame(() => {
+        if (sessionRef.current === session) session.view.scrollDOM.scrollTop = remembered;
+      });
+    }
+    let scrollTimer: number | null = null;
+    const onScroll = () => {
+      if (!scrollKey) return;
+      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(() => {
+        scrollTimer = null;
+        rememberScrollTop(scrollKey.vault, scrollKey.path, session.view.scrollDOM.scrollTop);
+      }, 400);
+    };
+    session.view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     // Seed the freshly created view with the current resolver set so unresolved
     // links style immediately instead of only after the next resolver bump.
     if (wikiResolverRef.current) session.view.dispatch({ effects: setWikiResolver.of(wikiResolverRef.current) });
@@ -2021,6 +2042,9 @@ export const Editor: React.FC<{
         saveTimeoutRef.current = null;
         void persistText(text);
       }
+      session.view.scrollDOM.removeEventListener("scroll", onScroll);
+      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
+      if (scrollKey) rememberScrollTop(scrollKey.vault, scrollKey.path, session.view.scrollDOM.scrollTop);
       sessionRef.current = null;
       session.destroy();
     };
@@ -2324,6 +2348,11 @@ export const Editor: React.FC<{
               </MenuItem>
               <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => { void handleMenuDuplicate(); }}>
                 {t("fileTree.duplicate")}
+              </MenuItem>
+              {/* The way in beside the palette and the slash command (T4 parity):
+                  the phone's menu gained it, the desktop's should not lack it. */}
+              <MenuItem icon={<FileDown size={ICON.ui} />} data-testid="editor-menu-insert-template" onSelect={() => window.dispatchEvent(new CustomEvent("plainva-open-template-picker"))}>
+                {t("shortcuts.insertTemplate")}
               </MenuItem>
               {isTemplateFile && (
                 <MenuItem icon={<Database size={ICON.ui} />} data-testid="editor-menu-template-targets" onSelect={() => setShowTemplateTargets(true)}>

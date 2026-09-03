@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "已采用来自另一台设备的设置。",
+    "adoptedAreas": "已从另一台设备采用设置：{{areas}}。",
     "legacyPublisherUpgrade": "旧版 Plainva 仍在发布已停用的账户数据。请在所有设备上更新 Plainva；此设备已忽略这些数据并保留本地登录。",
     "area_accounts": "账户",
     "area_backup": "备份规则",

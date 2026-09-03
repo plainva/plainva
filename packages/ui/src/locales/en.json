@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "Settings adopted from another device.",
+    "adoptedAreas": "Settings adopted from another device: {{areas}}.",
     "legacyPublisherUpgrade": "An older Plainva version is still publishing retired account data. Update Plainva on every device; this device ignored those data and kept its local sign-in.",
     "area_accounts": "Accounts",
     "area_backup": "Backup rules",

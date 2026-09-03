@@ -77,6 +77,7 @@ export function PinboardView({
   onMutated,
   onPatchView,
   onNeedsConfig,
+  captureSignal,
 }: {
   vault: MobileVault;
   config: any;
@@ -94,6 +95,8 @@ export function PinboardView({
   onPatchView: (patch: Record<string, unknown>) => void;
   /** Capture without a folder source: open the configure sheet (createBaseItem parity). */
   onNeedsConfig: () => void;
+  /** Bumped by the screen's FAB: open the capture card (M2). */
+  captureSignal?: number;
 }) {
   const { t } = useTranslation();
   const rowPath = (r: Record<string, any>) => String(r["file.path"] ?? "");
@@ -516,6 +519,9 @@ export function PinboardView({
 
   // ── Quick capture (P4/P6; Keep-style title popup 2026-07-17) ──
   const [captureOpen, setCaptureOpen] = useState(false);
+  useEffect(() => {
+    if (captureSignal) setCaptureOpen(true);
+  }, [captureSignal]);
   const [captureTitle, setCaptureTitle] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [captureBusy, setCaptureBusy] = useState(false);

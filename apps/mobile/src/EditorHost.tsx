@@ -50,6 +50,7 @@ import { getMobileSettings } from "./services/mobileSettings";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
+import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -414,6 +415,24 @@ export function EditorHost({
       touchInput: true,
     });
     sessionRef.current = session;
+    // Where you were (feedback round 2026-09-01, A5/E7): the scroll position
+    // per file, device-local, restored once the view has laid the document
+    // out, and remembered on the way out and while scrolling.
+    const remembered = recallScrollTop(vault.vaultId, path);
+    if (remembered !== null) {
+      requestAnimationFrame(() => {
+        if (sessionRef.current === session) session.view.scrollDOM.scrollTop = remembered;
+      });
+    }
+    let scrollTimer: number | null = null;
+    const onScroll = () => {
+      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(() => {
+        scrollTimer = null;
+        rememberScrollTop(vault.vaultId, path, session.view.scrollDOM.scrollTop);
+      }, 400);
+    };
+    session.view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     // A fresh session starts blank, so the frames have to be re-applied here -
     // the effect below only fires when the LIST changes, and remounting the
     // host (key change on note switch) does not change it.
@@ -544,6 +563,9 @@ export function EditorHost({
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path);
       setEditorSelectionReader(null);
+      session.view.scrollDOM.removeEventListener("scroll", onScroll);
+      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
+      rememberScrollTop(vault.vaultId, path, session.view.scrollDOM.scrollTop);
       sessionRef.current = null;
       session.destroy();
     };

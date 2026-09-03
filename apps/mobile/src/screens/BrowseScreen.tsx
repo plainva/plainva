@@ -32,7 +32,7 @@ import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { generateOverviewForFolder, overviewState, type FolderIndexState } from "../services/indexOverviews";
-import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { refreshVaultAction, usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
@@ -132,7 +132,15 @@ export function BrowseScreen({
     };
   }, [sheet, vault]);
   const ptrRef = useRef<HTMLDivElement>(null);
-  const ptrIndicator = usePullToRefresh(ptrRef);
+  // The pull reads THIS folder first and lets the sync run behind it
+  // (feedback round 2026-09-01, M3). The default handler ran a full resync,
+  // waited up to eight seconds for it and only then re-read the folder — the
+  // one thing the gesture was for came last.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const ptrIndicator = usePullToRefresh(ptrRef, async () => {
+    setRefreshTick((n) => n + 1);
+    void refreshVaultAction();
+  });
   useEffect(() => {
     let stale = false;
     // Custom note icons (desktop tree parity): one indexed map per load.
@@ -164,7 +172,7 @@ export function BrowseScreen({
     return () => {
       stale = true;
     };
-  }, [vault, folder, bump]);
+  }, [vault, folder, bump, refreshTick]);
 
   // What the screen shows: the listing under the chosen sort, narrowed by the
   // query. Folders keep their name order in every mode (they have no times).

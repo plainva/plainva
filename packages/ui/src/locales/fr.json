@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "Paramètres repris d'un autre appareil.",
+    "adoptedAreas": "Réglages repris d'un autre appareil : {{areas}}.",
     "legacyPublisherUpgrade": "Une ancienne version de Plainva publie encore des données de compte retirées. Mettez Plainva à jour sur tous les appareils ; celui-ci a ignoré ces données et conservé sa connexion locale.",
     "area_accounts": "Comptes",
     "area_backup": "Règles de sauvegarde",

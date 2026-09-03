@@ -231,6 +231,9 @@ export function BaseViewer({
 
   // Views, Filters, Sorts UI
   const [currentViewType, setCurrentViewType] = useState<string>("table");
+  // On a pinboard "+ New item" opens the capture card instead of minting a
+  // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6) — same rule as the phone.
+  const [captureSignal, setCaptureSignal] = useState(0);
 
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   // Color picker for the database icon (P7): anchored under the header icon.
@@ -2096,6 +2099,7 @@ export function BaseViewer({
     if (currentViewType === "pinboard")
       return (
         <BasePinboardView
+          captureSignal={captureSignal}
           dbData={scopedData}
           dbConfig={dbConfig}
           activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
@@ -2251,7 +2255,10 @@ export function BaseViewer({
           defaultTemplate={typeof dbConfig?.newItemTemplate === "string" && dbConfig.newItemTemplate ? dbConfig.newItemTemplate : null}
           loadTemplates={loadTemplatesForMenu}
           onToggleAssign={toggleTemplateAssignment}
-          onCreate={(tpl) => { void createNewItem(tpl); }}
+          onCreate={(tpl) => {
+            if (currentViewType === "pinboard" && !tpl) setCaptureSignal((n) => n + 1);
+            else void createNewItem(tpl);
+          }}
           onSetDefaultTemplate={setDefaultTemplate}
           onCreateTemplate={() => { void createTemplate(); }}
           onChangeFolder={() => {

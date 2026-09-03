@@ -41,7 +41,7 @@ import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
-import { createNavActions } from "./services/navActions";
+import { createNavActions, restoreLastOpenNote } from "./services/navActions";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
 import { createTemplatePrompt, newNoteFromTemplate } from "./services/templatePrompt";
@@ -211,6 +211,7 @@ export default function App() {
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
+      void restoreLastOpenNote(v, setNav); // pick up where you stopped (T6)
       void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
       void startPim(v).catch((e) => console.error("[boot] pim start failed", e));
@@ -412,8 +413,7 @@ export default function App() {
     // Databases, images and attachments are routed by the feature (issue #55);
     // every path into the app comes through here, so this is the one gate.
     if (routeVaultPath(path, { openBase: (p) => push({ kind: "base", path: p }), openAttachment })) return;
-    // Real MRU (B2): the "Zuletzt" strip lists what was OPENED, not what synced.
-    void vaultOps.pushRecent(vault, path);
+    void vaultOps.noteOpened(vault, path); // real MRU (B2) + next cold start (T6)
     push({ kind: "note", path });
   };
   const openBase = (path: string) => {

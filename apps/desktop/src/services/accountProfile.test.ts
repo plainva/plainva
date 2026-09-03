@@ -23,6 +23,7 @@ import {
   shouldReportWaitingAccounts,
   remapCloudRegistry,
   shouldAnnounceProfileImport,
+  profileChangeAreaKeys,
   clearProfileAnnouncement,
   type AccountImportPorts,
   type CloudAccountRecord,
@@ -501,14 +502,28 @@ describe("export shape", () => {
 });
 
 describe("adoption notice policy", () => {
-  it("announces once per session and vault, and only for a real change", () => {
-    clearProfileAnnouncement("/vault");
-    expect(shouldAnnounceProfileImport("/vault", [])).toBe(false); // nothing changed
-    expect(shouldAnnounceProfileImport("/vault", ["dailyNotesFolder"])).toBe(true);
-    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(false); // said it already
-    expect(shouldAnnounceProfileImport("/other", ["mailAccounts"])).toBe(true); // another vault
-    clearProfileAnnouncement("/vault");
-    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"])).toBe(true); // reopened
+  it("announces a change once - the same change never again, a different one is news (M5)", () => {
+    // A storage stands in for localStorage, so the memory survives a "restart".
+    const m = new Map<string, string>();
+    const storage = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+    clearProfileAnnouncement("/vault", storage);
+    expect(shouldAnnounceProfileImport("/vault", [], storage)).toBe(false); // nothing changed
+    expect(shouldAnnounceProfileImport("/vault", ["dailyNotesFolder"], storage)).toBe(true);
+    expect(shouldAnnounceProfileImport("/vault", ["dailyNotesFolder"], storage)).toBe(false); // said it already
+    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"], storage)).toBe(true); // a different change
+    expect(shouldAnnounceProfileImport("/other", ["mailAccounts"], storage)).toBe(true); // another vault
+    // The phone restarts all day: the memory must outlive the module state.
+    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"], storage)).toBe(false);
+    clearProfileAnnouncement("/vault", storage);
+    expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"], storage)).toBe(true); // forgotten with the vault
+  });
+
+  it("names the areas a change touched, in catalog order, without repeats", () => {
+    expect(profileChangeAreaKeys(["mailFolder", "dailyNotesFolder", "templateFolder", "bogus"])).toEqual([
+      "settingsSync.area_content",
+      "settingsSync.area_mail",
+    ]);
+    expect(profileChangeAreaKeys(["bogus"])).toEqual([]);
   });
 });
 

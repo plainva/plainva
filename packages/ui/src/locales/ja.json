@@ -1,6 +1,7 @@
 {
   "settingsSync": {
     "adopted": "設定は別の端末から採用されました。",
+    "adoptedAreas": "別の端末から設定を引き継ぎました：{{areas}}。",
     "legacyPublisherUpgrade": "古いバージョンのPlainvaが廃止済みのアカウントデータを送信しています。すべての端末でPlainvaを更新してください。この端末はそのデータを無視し、ローカルのサインインを保持しました。",
     "area_accounts": "アカウント",
     "area_backup": "バックアップ規則",

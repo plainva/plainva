@@ -86,6 +86,7 @@ export function BasePinboardView({
   onOpenInSplit,
   onQuickCapture,
   embedded,
+  captureSignal,
 }: {
   dbData: any[];
   /** Full config (sources for the source-tag exclusion, columns for label options). */
@@ -103,6 +104,8 @@ export function BasePinboardView({
   onQuickCapture?: (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }) => Promise<boolean>;
   /** Embedded boards are read-mostly (D5): no drag reorder, no capture. */
   embedded?: boolean;
+  /** Bumped by the viewer's "+ New item": open the capture card (M2). */
+  captureSignal?: number;
 }) {
   const { t } = useTranslation();
   const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
@@ -456,6 +459,9 @@ export function BasePinboardView({
 
   // ── Quick capture (P4; Keep-style title popup 2026-07-17) ──
   const [captureOpen, setCaptureOpen] = useState(false);
+  useEffect(() => {
+    if (captureSignal) setCaptureOpen(true);
+  }, [captureSignal]);
   const [captureTitle, setCaptureTitle] = useState("");
   const [captureText, setCaptureText] = useState("");
   const [captureBusy, setCaptureBusy] = useState(false);

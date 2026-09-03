@@ -633,8 +633,17 @@ export function BaseScreen({
     }
   }, [rowSel, vault, config, viewIndex, requery, t]);
 
+  // On a pinboard the FAB opens the capture card instead of minting a
+  // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6): the board's own
+  // entry asks for a title and makes it file name + H1; the FAB used to bypass
+  // exactly that, which read as "the pinboard does not ask for a name".
+  const [captureSignal, setCaptureSignal] = useState(0);
   const newItem = () => {
     if (!config) return;
+    if (effectiveRender === "pinboard") {
+      setCaptureSignal((n) => n + 1);
+      return;
+    }
     void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then((p) => {
       if (p) onOpenNote(p);
       else setShowConfig(true); // no folder source to store into
@@ -1744,6 +1753,7 @@ export function BaseScreen({
       ) : effectiveRender === "pinboard" ? (
         // Before the empty check: the capture field must show on an empty board.
         <PinboardView
+          captureSignal={captureSignal}
           vault={vault}
           config={config}
           view={view}

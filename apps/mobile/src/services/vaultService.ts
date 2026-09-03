@@ -73,6 +73,7 @@ import {
   notifyFileOps,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { rememberLastOpen } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -854,6 +855,15 @@ export const vaultOps = {
     } catch {
       return [];
     }
+  },
+
+  /**
+   * A NOTE was opened: the real MRU (B2) and the last-open memory the next
+   * cold start picks up (T6). Bases and attachments only join the MRU.
+   */
+  async noteOpened(v: MobileVault, path: string): Promise<void> {
+    rememberLastOpen(v.vaultId, path);
+    await this.pushRecent(v, path);
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {
