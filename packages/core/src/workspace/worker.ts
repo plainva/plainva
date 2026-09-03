@@ -56,6 +56,8 @@ import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { resolveWorkspacePolicyChain } from "./policy.js";
 import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceSliceObject } from "./slices.js";
+import { quarantineReasonCode } from "./quarantineReasons.js";
+import { splitDeviceChains } from "./deviceChains.js";
 import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
@@ -70,6 +72,15 @@ function deviceSigner(runtime: PersonalWorkspaceRuntime): WorkspaceDocumentSigne
 }
 
 function nowIso(): string { return new Date().toISOString(); }
+
+/** The id of a quarantine entry: one per remote artifact CONTENT. */
+export function quarantineIdFor(kind: string, remoteKey: string, artifactSha256: string): string {
+  return sha256Hex(utf8Encode(`${kind}\0${remoteKey}\0${artifactSha256}`));
+}
+
+function quarantineKeyOf(kind: string, remoteKey: string): string {
+  return `${kind}\0${remoteKey}`;
+}
 
 function operationCapability(operation: WorkspaceOperationName): WorkspaceOperationPayload["capability"] {
   switch (operation) {
@@ -183,10 +194,33 @@ export class EncryptedWorkspaceWorker {
     private readonly options: EncryptedWorkspaceWorkerOptions = {}
   ) { this.activePolicy = runtime.policy; }
 
+  /**
+   * The remote artifacts with an open quarantine entry, `<kind>\0<key>`, read
+   * once per cycle. Whatever validates now closes its entry (finding
+   * 2026-09-03: nothing ever did, so a successful retry changed nothing).
+   */
+  private pendingQuarantine = new Set<string>();
+
   start(): void {
     if (this.running) return;
     this.running = true;
     this.triggerImmediate();
+  }
+
+  /**
+   * One cycle, awaited: the "check again" of the quarantine list needs to
+   * answer, and a fire-and-forget trigger has nothing to say. A cycle already
+   * running is let finish; the immediate one queued behind it is the answer.
+   */
+  async runNow(): Promise<void> {
+    if (!this.running) return;
+    if (this.syncing) {
+      this.pendingImmediate = true;
+      await this.syncing.catch(() => undefined);
+    } else {
+      this.triggerImmediate();
+    }
+    await this.syncing?.catch(() => undefined);
   }
 
   stop(): void {
@@ -257,6 +291,7 @@ export class EncryptedWorkspaceWorker {
   }
 
   async runCycle(signal?: AbortSignal): Promise<void> {
+    this.pendingQuarantine = new Set((await this.state.listQuarantine("pending")).map((entry) => quarantineKeyOf(entry.artifactKind, entry.remoteKey)));
     await this.verifyBootstrap(signal);
     await resumeWorkspaceRekey(this.state);
     // A prepared mutation has already consumed a device sequence and is an
@@ -415,6 +450,7 @@ export class EncryptedWorkspaceWorker {
         const hash = workspaceDocumentHash(parsed);
         protocolAssert(info.key.endsWith(`-${hash}.pvrec`) && sha256Hex(bytes) === hash, "integrity", "recovery anchor path hash mismatch");
         anchors.push(parsed as WorkspaceSignedDocument<"recovery", WorkspaceRecoveryAnchorPayload>);
+        await this.acceptArtifact("recovery", info.key);
       } catch (error) {
         await this.quarantineArtifact("recovery", info.key, bytes, error);
       }
@@ -424,10 +460,12 @@ export class EncryptedWorkspaceWorker {
     const recoveryKeys = new Map<string, Uint8Array>([[recovery.recoveryId, recoveryKey]]);
     for (const anchor of anchors) recoveryKeys.set(anchor.payload.recovery.recoveryId, decodeBase64Exact(anchor.payload.recovery.signingPublicKey, 32, "recovery anchor key"));
     const resolved = resolveWorkspacePolicyChain({ initial, candidates, recoveryPublicKeys: recoveryKeys });
-    for (const hash of resolved.ignoredHashes) {
+    const ignoredPolicyHashes = new Set<string>(resolved.ignoredHashes);
+    for (const hash of ignoredPolicyHashes) {
       const artifact = candidateBytes.get(hash);
       if (artifact) await this.quarantineArtifact("policy", artifact.key, artifact.bytes, new WorkspaceProtocolError("authorization", "policy is not on the accepted successor chain"));
     }
+    for (const [hash, artifact] of candidateBytes) if (!ignoredPolicyHashes.has(hash)) await this.acceptArtifact("policy", artifact.key);
     this.activePolicy = resolved.current;
     this.runtime.policy = resolved.current;
     const meta = await this.state.loadMeta();
@@ -439,21 +477,33 @@ export class EncryptedWorkspaceWorker {
     return resolved.current.payload;
   }
 
-  private async quarantineArtifact(kind: Parameters<WorkspaceStateStore["saveQuarantine"]>[0]["artifactKind"], remoteKey: string, bytes: Uint8Array, error: unknown): Promise<void> {
+  private async quarantineArtifact(kind: Parameters<WorkspaceStateStore["saveQuarantine"]>[0]["artifactKind"], remoteKey: string, bytes: Uint8Array, error: unknown, details: Record<string, unknown> | null = null): Promise<void> {
     const timestamp = nowIso();
     const hash = sha256Hex(bytes);
+    this.pendingQuarantine.add(quarantineKeyOf(kind, remoteKey));
     await this.state.saveQuarantine({
-      quarantineId: sha256Hex(utf8Encode(`${kind}\0${remoteKey}\0${hash}`)),
+      quarantineId: quarantineIdFor(kind, remoteKey, hash),
       artifactKind: kind,
       remoteKey,
       artifactBase64: toBase64(bytes),
       artifactSha256: hash,
       errorCode: error instanceof WorkspaceProtocolError ? error.code : "unknown",
+      reasonCode: quarantineReasonCode(kind, error),
       reason: error instanceof Error ? error.message.slice(0, 512) : "workspace artifact validation failed",
+      details: details && Object.keys(details).length > 0 ? details : null,
       firstSeenAt: timestamp,
       lastTriedAt: timestamp,
       status: "pending",
+      resolvedAt: null,
     });
+  }
+
+  /** An artifact that validated on this pull closes the entry it had. */
+  private async acceptArtifact(kind: Parameters<WorkspaceStateStore["saveQuarantine"]>[0]["artifactKind"], remoteKey: string): Promise<void> {
+    const key = quarantineKeyOf(kind, remoteKey);
+    if (!this.pendingQuarantine.has(key)) return;
+    this.pendingQuarantine.delete(key);
+    await this.state.resolveQuarantine(kind, remoteKey, nowIso());
   }
 
   private async pull(signal?: AbortSignal): Promise<string[]> {
@@ -461,17 +511,32 @@ export class EncryptedWorkspaceWorker {
     const meta = await this.requireMeta();
     const visibleRefs = await this.loadVisibleCatalogRefs(policy, signal);
     const operationInfos = await listAll(this.objectStore, ".pvws/operations/", signal);
+    // An operation whose entry is open but whose object left the remote is
+    // over: nothing will ever validate it, and nothing needs to.
+    const listedOperationKeys = new Set(operationInfos.map((info) => info.key));
+    for (const pendingKey of [...this.pendingQuarantine]) {
+      const [kind, remoteKey] = pendingKey.split("\0");
+      if (kind === "operation" && remoteKey && !listedOperationKeys.has(remoteKey)) await this.acceptArtifact("operation", remoteKey);
+    }
     const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }> = [];
     for (const info of operationInfos) {
       const bytes = await this.objectStore.get(info.key, { signal });
       if (!bytes) continue;
+      // What the check knew when it failed, for the entry's explanation
+      // (finding 2026-09-03): the device by name, the policy hashes.
+      const details: Record<string, unknown> = {};
       try {
         const parsed = parseWorkspaceDocument(bytes);
         protocolAssert(parsed.kind === "operation" && parsed.workspaceId === meta.workspaceId, "integrity", "operation workspace binding mismatch");
         const document = parsed as WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>;
+        details.deviceId = document.payload.deviceId;
+        details.deviceName = this.activePolicy.payload.devices.find((entry) => entry.deviceId === document.payload.deviceId)?.displayName ?? null;
+        details.sequence = document.payload.sequence;
         const hash = workspaceDocumentHash(document);
         protocolAssert(info.key.endsWith(`-${hash}.pvop`), "integrity", "operation path hash mismatch");
-        const operationPolicy = document.payload.policyHash === workspaceDocumentHash(this.activePolicy) ? policy : null;
+        const acceptedPolicyHash = workspaceDocumentHash(this.activePolicy);
+        const operationPolicy = document.payload.policyHash === acceptedPolicyHash ? policy : null;
+        if (!operationPolicy) { details.policyHash = document.payload.policyHash.slice(0, 12); details.acceptedPolicyHash = acceptedPolicyHash.slice(0, 12); }
         protocolAssert(!!operationPolicy, "authorization", "operation uses an unaccepted policy");
         const device = operationPolicy.devices.find((entry) => entry.deviceId === document.payload.deviceId && entry.memberId === document.payload.memberId && entry.state === "active");
         protocolAssert(!!device, "authorization", "operation author is not an active policy device");
@@ -487,7 +552,7 @@ export class EncryptedWorkspaceWorker {
         protocolAssert(verifyWorkspaceDocumentSignatures(document, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null), "crypto", "operation signature verification failed");
         operations.push({ document, hash, key: info.key, bytes });
       } catch (error) {
-        await this.quarantineArtifact("operation", info.key, bytes, error);
+        await this.quarantineArtifact("operation", info.key, bytes, error, details);
       }
     }
     const chained = await this.validateDeviceChains(operations);
@@ -499,7 +564,7 @@ export class EncryptedWorkspaceWorker {
       progress = false;
       for (let index = 0; index < pending.length;) {
         const entry = pending[index];
-        if (await this.state.hasOperation(entry.hash)) { pending.splice(index, 1); progress = true; continue; }
+        if (await this.state.hasOperation(entry.hash)) { await this.acceptArtifact("operation", entry.key); pending.splice(index, 1); progress = true; continue; }
         const payloadHash = entry.document.payload.payloadHash;
         if (entry.document.payload.operation !== "delete" && entry.document.payload.operation !== "comment" && payloadHash && !visibleRefs.has(`${entry.document.payload.objectId}:${entry.document.payload.revisionId}:${payloadHash}`)) {
           // Catalogs are selective acceleration indexes, not authorization
@@ -523,6 +588,7 @@ export class EncryptedWorkspaceWorker {
         try {
           const appliedPaths = await this.applyIncoming(entry.document, entry.hash, meta, signal);
           changed.push(...appliedPaths);
+          await this.acceptArtifact("operation", entry.key);
         } catch (error) {
           await this.quarantineArtifact("operation", entry.key, entry.bytes, error);
         }
@@ -536,28 +602,13 @@ export class EncryptedWorkspaceWorker {
   }
 
   private async validateDeviceChains<T extends { document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }>(operations: T[]): Promise<T[]> {
-    const byDevice = new Map<string, T[]>();
-    for (const operation of operations) {
-      const items = byDevice.get(operation.document.payload.deviceId) ?? [];
-      items.push(operation);
-      byDevice.set(operation.document.payload.deviceId, items);
-    }
-    const valid: T[] = [];
-    for (const items of byDevice.values()) {
-      items.sort((left, right) => left.document.payload.sequence - right.document.payload.sequence);
-      let expectedHash: string | null = null;
-      let broken = false;
-      for (let index = 0; index < items.length; index += 1) {
-        const item = items[index];
-        if (broken || item.document.payload.sequence !== index + 1 || item.document.payload.previousDeviceOperationHash !== expectedHash) {
-          broken = true;
-          await this.quarantineArtifact("operation", item.key, item.bytes, new WorkspaceProtocolError("integrity", "device operation chain has a gap or predecessor mismatch"));
-          continue;
-        }
-        valid.push(item);
-        expectedHash = item.hash;
-      }
-    }
+    // The rule lives in `deviceChains.ts`; this only records what it found:
+    // the first break as the gap, everything behind it as blocked by it.
+    const { valid, broken } = splitDeviceChains(operations, {
+      deviceName: (deviceId) => this.activePolicy.payload.devices.find((device) => device.deviceId === deviceId)?.displayName ?? null,
+      quarantineId: (item) => quarantineIdFor("operation", item.key, sha256Hex(item.bytes)),
+    });
+    for (const entry of broken) await this.quarantineArtifact("operation", entry.item.key, entry.item.bytes, new WorkspaceProtocolError("integrity", entry.reason), entry.details);
     return valid;
   }
 
@@ -578,6 +629,7 @@ export class EncryptedWorkspaceWorker {
           const signer = policy.devices.find((device) => device.deviceId === document.signatures[0]?.signerId && device.state === "active");
           protocolAssert(!!signer && verifyWorkspaceDocumentSignatures(document, () => decodeBase64Exact(signer.signingPublicKey, 32, "catalog signer key")), "crypto", "catalog signature is invalid");
           valid.push({ version: document.payload.catalogVersion, body: openWorkspaceCatalog(document, key.catalogKey) });
+          await this.acceptArtifact("catalog", info.key);
         } catch (error) {
           await this.quarantineArtifact("catalog", info.key, bytes, error);
         }
@@ -630,6 +682,7 @@ export class EncryptedWorkspaceWorker {
       await this.quarantineArtifact("object", objectKey, objectBytes, error);
       throw error;
     }
+    await this.acceptArtifact("object", objectKey);
     protocolAssert(opened.workspaceId === meta.workspaceId && opened.objectId === operation.objectId && opened.revisionId === operation.revisionId, "integrity", "PVO1 operation binding mismatch");
     let plaintext = opened.plaintext;
     if (!plaintext && opened.manifest) {
@@ -1122,12 +1175,14 @@ export class EncryptedWorkspaceWorker {
               }
               return null;
             }), "crypto", "workspace checkpoint signature verification failed");
+            await this.acceptArtifact("checkpoint", checkpointKey);
           } catch (error) {
             await this.quarantineArtifact("checkpoint", checkpointKey, checkpointBytes, error);
             throw error;
           }
         }
         meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
+        await this.acceptArtifact("head", info.key);
       } catch (error) {
         await this.quarantineArtifact("head", info.key, bytes, error);
       }

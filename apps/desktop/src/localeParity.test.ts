@@ -285,6 +285,9 @@ const VERBATIM_THRESHOLD = 6;
 const VERBATIM_ALLOWED = new Set<string>([
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
+  // The artifact kind and the worker's raw sentence, joined by a colon - the
+  // fallback for a cause the catalogue does not know (finding 2026-09-03).
+  "workspaceSecurity.quarantineReason.unknown.explain",
   "cloudAccounts.familyAol",
   "cloudAccounts.familyApple",
   "cloudAccounts.familyDropbox",

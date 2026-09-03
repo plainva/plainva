@@ -10,6 +10,7 @@ import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
 import { parseSliceForm, roleName, type Diagnostics, type Governance, type GovernanceForm, type WorkspaceRole } from "./securityForms";
 import { RekeyProgressCard, RevokeDialog, RoleMatrix, TechDetails, type RevokeSubject } from "./securityPanels";
+import { QuarantineCard } from "./QuarantineCard";
 import { WorkspaceGovernanceDialog } from "./WorkspaceGovernanceDialog";
 import { WorkspaceSetupWizard } from "./WorkspaceSetupWizard";
 import { WorkspaceJoinDialog } from "./WorkspaceJoinDialog";
@@ -70,6 +71,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     prepareWorkspaceOwnerTransfer,
     activateWorkspaceOwnerTransfer,
     updateWorkspaceQuarantine,
+    exportWorkspaceQuarantineDiagnostics,
     exportWorkspaceQuarantine,
     detectJoinableWorkspace,
     openVault,
@@ -715,12 +717,22 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       )}
 
       {area === null && (<>
-      {governance && (governance.quarantine.length > 0 || governance.localForks.length > 0) && (
-        <SettingCard label={t("workspaceSecurity.integrityCard", { defaultValue: "Integrity & local forks" })}>
-          {governance.quarantine.map((entry) => <SettingRow key={entry.quarantineId} label={`${entry.artifactKind} · ${entry.status}`} desc={entry.reason}><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "retry"), t("workspaceSecurity.retryQueued", { defaultValue: "Retry queued" }))}>{t("workspaceSecurity.retry")}</Button><Button variant="ghost" size="sm" onClick={() => void exportQuarantine(entry.quarantineId)}>{t("workspaceSecurity.export")}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "repaired"), t("workspaceSecurity.repaired", { defaultValue: "Marked as repaired" }))}>{t("workspaceSecurity.markRepaired", { defaultValue: "Repaired" })}</Button><Button variant="ghost" size="sm" onClick={() => void runGovernance(() => updateWorkspaceQuarantine(entry.quarantineId, "ignore"), t("workspaceSecurity.ignored", { defaultValue: "Ignored" }))}>{t("workspaceSecurity.ignore", { defaultValue: "Ignore" })}</Button></SettingRow>)}
-          {governance.localForks.map((fork) => <SettingRow key={fork.forkId} label={fork.originalPath} desc={fork.reason}><code>{fork.forkPath}</code></SettingRow>)}
-          <TechDetails t={t} entries={governance.quarantine.map((entry) => [entry.artifactKind, entry.remoteKey] as const)} />
-        </SettingCard>
+      {governance && (
+        <QuarantineCard
+          quarantine={governance.quarantine}
+          localForks={governance.localForks}
+          busy={busy}
+          onRetry={async (ids) => { setBusy(true); try { return await updateWorkspaceQuarantine(ids, "retry"); } catch (error) { toast.error(publicationErrorText(error, t)); return null; } finally { setBusy(false); await refreshGovernance(); await refreshDiagnostics(); } }}
+          onIgnore={(ids) => runGovernance(() => updateWorkspaceQuarantine(ids, "ignore"), t("workspaceSecurity.ignored"))}
+          onRepaired={(ids) => runGovernance(() => updateWorkspaceQuarantine(ids, "repaired"), t("workspaceSecurity.repaired"))}
+          onExportDiagnostics={async (ids) => {
+            const json = await exportWorkspaceQuarantineDiagnostics(ids);
+            const target = await save({ defaultPath: `Plainva-Quarantine-Diagnostics-${new Date().toISOString().slice(0, 10)}.json` });
+            if (target) await writeFile(target, new TextEncoder().encode(json));
+          }}
+          onExportCiphertext={exportQuarantine}
+          onOpenPath={(path) => window.dispatchEvent(new CustomEvent("plainva-open-in-new-window", { detail: { path } }))}
+        />
       )}
 
       {status && diagnostics && diagnostics.legacyPlaintextPaths > 0 && (

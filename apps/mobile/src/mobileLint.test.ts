@@ -2183,7 +2183,11 @@ describe("the security area", () => {
     const groups = screen.match(/<GroupCard/g) ?? [];
     expect(groups.length).toBeGreaterThanOrEqual(8);
     // Quarantined artefacts are the one run that argues rather than informs.
-    expect(screen).toMatch(/<GroupCard tone="warn">/);
+    // They live in their own list now (finding 2026-09-03): groups with
+    // actions, the desktop card's twin, warn-toned while a group is open.
+    expect(screen).toMatch(/<QuarantineList/);
+    const list = stripComments(readFileSync(join(SRC, "components/QuarantineList.tsx"), "utf8"));
+    expect(list).toMatch(/<GroupCard key=\{group\.key\} tone=\{open \? "warn" : undefined\}>/);
     // Unlocking is part of the STATUS, so it sits with it and above the area
     // switch rather than below it.
     const status = screen.slice(screen.indexOf("workspaceSecurity.currentStatus"));

@@ -35,6 +35,7 @@ export * from "./lib/qrScan";
 export * from "./lib/largeFileBackupHint";
 export * from "./lib/recentSearches";
 export * from "./lib/rowSelection";
+export * from "./lib/quarantineGroups";
 export * from "./lib/profileFields";
 export * from "./lib/syncDiagnostics";
 export * from "./lib/taskList";

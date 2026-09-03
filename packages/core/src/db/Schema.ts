@@ -204,10 +204,13 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       artifact_base64  TEXT NOT NULL,
       artifact_sha256  TEXT NOT NULL,
       error_code       TEXT NOT NULL,
+      reason_code      TEXT,
       reason           TEXT NOT NULL,
+      details_json     TEXT,
       first_seen_at    TEXT NOT NULL,
       last_tried_at    TEXT NOT NULL,
-      status           TEXT NOT NULL DEFAULT 'pending'
+      status           TEXT NOT NULL DEFAULT 'pending',
+      resolved_at      TEXT
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_local_fork (
       fork_id       TEXT PRIMARY KEY,
@@ -386,6 +389,11 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     `ALTER TABLE workspace_comment_outbox ADD COLUMN suggestion_batch_id TEXT;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_index INTEGER;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_note TEXT;`,
+    // A quarantine entry names its cause, what the check knew, and when it
+    // resolved itself (finding 2026-09-03).
+    `ALTER TABLE workspace_quarantine ADD COLUMN reason_code TEXT;`,
+    `ALTER TABLE workspace_quarantine ADD COLUMN details_json TEXT;`,
+    `ALTER TABLE workspace_quarantine ADD COLUMN resolved_at TEXT;`,
   ]) {
     try {
       await db.execute(statement);

@@ -637,6 +637,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "workspace-quarantine-export",
+    title: "Exporting the diagnosis of quarantined artifacts",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop writes the JSON diagnosis to a file through a save dialog; the " +
+      "phone copies the same JSON to the clipboard. There is no save-as on the " +
+      "phone, and a share sheet for a JSON nobody opens on a phone would only move " +
+      "the copy step somewhere else - the reader of a diagnosis is a person at a " +
+      "desktop, and the clipboard is the shortest way there. Grouping, the " +
+      "explanations, check again, ignore and mark-as-fixed are the same on both " +
+      "(finding 2026-09-03). The per-entry ciphertext export stays desktop-only for " +
+      "the same reason.",
+    verified: "2026-09-03",
+  },
+  {
     id: "workspace-slice-kinds",
     title: "Which kinds of Vault Slice can be created",
     area: "security",

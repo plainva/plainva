@@ -67,6 +67,8 @@ import {
 } from "@plainva/core";
 import { createLimiter } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
+import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core";
+import type { MobileVault } from "./vaultService";
 import { Capacitor } from "@capacitor/core";
 import { secureCredentialStore } from "../platform/secureStore";
 
@@ -1114,4 +1116,30 @@ export async function decommissionMobileWorkspace(input: {
   await clearMobilePublicationRuntimes(vaultId, publicationIds);
   await state?.clearWorkspaceState();
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+}
+
+/**
+ * The quarantine's actions on the phone (finding 2026-09-03): the same
+ * service the desktop uses, over this vault's state and this shell's sync.
+ * A retry answers with what is still open; the diagnosis is a JSON string
+ * the screen hands to the clipboard - the phone has no "save as" dialog.
+ */
+export async function updateMobileQuarantine(vault: MobileVault, sync: QuarantineSync, quarantineIds: readonly string[], action: "retry" | "ignore" | "repaired"): Promise<QuarantineRetryOutcome | null> {
+  if (!vault.workspaceState) throw new Error("workspace-unavailable-or-locked");
+  const service = new WorkspaceQuarantineService(vault.workspaceState, sync);
+  let outcome: QuarantineRetryOutcome | null = null;
+  if (action === "retry") outcome = await service.retry(quarantineIds);
+  else if (action === "ignore") await service.ignore(quarantineIds);
+  else await service.markRepaired(quarantineIds);
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+  return outcome;
+}
+
+export async function exportMobileQuarantineDiagnostics(vault: MobileVault, sync: QuarantineSync, quarantineIds?: readonly string[]): Promise<string> {
+  if (!vault.workspaceState) throw new Error("workspace-unavailable-or-locked");
+  const service = new WorkspaceQuarantineService(vault.workspaceState, sync);
+  return service.exportDiagnostics(quarantineIds, {
+    workspaceId: vault.workspaceRuntime?.workspaceId ?? null,
+    deviceId: vault.workspaceRuntime?.device.publicIdentity.deviceId ?? null,
+  });
 }

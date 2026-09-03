@@ -41,6 +41,8 @@ export * from "./invite.js";
 export * from "./slices.js";
 export * from "./sliceObjects.js";
 export * from "./commentAnchor.js";
+export * from "./quarantineReasons.js";
+export * from "./deviceChains.js";
 export * from "./collaboration.js";
 export * from "./governance.js";
 export * from "./recoveryPackage.js";

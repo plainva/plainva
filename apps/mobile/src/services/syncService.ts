@@ -127,6 +127,8 @@ type MobileSyncWorker = {
   retryFailed(): void | Promise<void>;
   noteUserInitiatedDeletion(paths: string[]): void;
   fullResync?: () => Promise<void>;
+  /** One awaited cycle; only the encrypted-workspace worker offers it. */
+  runNow?: () => Promise<void>;
   onStatusChange?: SyncWorker["onStatusChange"];
   onProgress?: SyncWorker["onProgress"];
   onFilesChanged?: SyncWorker["onFilesChanged"];
@@ -377,6 +379,18 @@ let firstCycleSettled = true;
 
 export function firstSyncSettled(): boolean {
   return firstCycleSettled;
+}
+
+/**
+ * The sync the quarantine list can ask for a "check again" (finding
+ * 2026-09-03): a trigger always, an awaited cycle where the worker promises
+ * one. Read at call time - the worker is swapped when the vault changes.
+ */
+export function quarantineSync(): { trigger(): void; runNow?(): Promise<void> } {
+  return {
+    trigger: () => worker?.triggerImmediate(),
+    runNow: worker?.runNow ? () => worker!.runNow!() : undefined,
+  };
 }
 
 export function syncNow(): void {

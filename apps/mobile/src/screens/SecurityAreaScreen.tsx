@@ -5,14 +5,16 @@ import { PublishSliceSheet, type PublishSliceValues } from "../components/Publis
 import { PublicationRecipientsSheet } from "../components/PublicationRecipientsSheet";
 import { WithdrawPublicationSheet } from "../components/WithdrawPublicationSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
+import { QuarantineList } from "../components/QuarantineList";
+import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, QrImage, Row, RowList, SectionLabel, Segmented, SettingField, TextInput, toast } from "@plainva/ui";
 import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -79,7 +81,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   // long pairing/recovery steps show progress instead of only a disabled state.
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const busy = busyAction !== null;
-  const [quarantine, setQuarantine] = useState<Array<{ quarantineId: string; artifactKind: string; reason: string; status: string }>>([]);
+  const [quarantine, setQuarantine] = useState<WorkspaceQuarantineRecord[]>([]);
+  const [localForks, setLocalForks] = useState<WorkspaceLocalForkRecord[]>([]);
   const [rekey, setRekey] = useState<{ phase: string; completed: number; total: number; lastError: string | null } | null>(null);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
 
@@ -135,6 +138,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
+    setLocalForks(vault.workspaceState ? await vault.workspaceState.listLocalForks() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
     const records = vault.workspaceState ? await listMobilePublications(vault.workspaceState) : [];
     setPublications(records);
@@ -150,6 +154,13 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       : {});
   }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
+  /** One quarantine action at a time, with the spinner id and a refresh after (finding 2026-09-03). */
+  const runQuarantine = async <T,>(id: string, action: () => Promise<T>): Promise<T | null> => {
+    setBusyAction(id);
+    try { return await action(); }
+    catch (error) { toast.error(errorText(error)); return null; }
+    finally { setBusyAction(null); await refresh(); }
+  };
   // `mobileWorkspaceSecurity` dispatches this on every status write and said
   // "the screens listen for this" — nothing did (finding 2026-09-03, K8). The
   // route pop after the wizard covered activation; a lock, an unlock or a
@@ -1037,10 +1048,17 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
                                                                              ><RefreshCw size={ICON.ui} /> {t("workspaceSecurity.recheck", { defaultValue: "Check again" })}</Button>}
         </div>
       </>}
-      {quarantine.length > 0 && <>
-        <SectionLabel end={quarantine.length}>{t("workspaceSecurity.quarantine", { defaultValue: "Quarantine" })}</SectionLabel>
-        <GroupCard tone="warn"><RowList>{quarantine.map((entry) => <Row key={entry.quarantineId} subtitle={`${entry.reason} · ${entry.status}`} title={entry.artifactKind} />)}</RowList></GroupCard>
-      </>}
+      {/* Groups with actions, the desktop card's twin (finding 2026-09-03);
+          this used to be a read-only list of English sentences. */}
+      <QuarantineList
+        quarantine={quarantine}
+        localForks={localForks}
+        busy={busy}
+        onRetry={(ids) => runQuarantine("quarantineRetry", () => updateMobileQuarantine(vault, quarantineSync(), ids, "retry"))}
+        onIgnore={async (ids) => { await runQuarantine("quarantineIgnore", () => updateMobileQuarantine(vault, quarantineSync(), ids, "ignore")); }}
+        onRepaired={async (ids) => { await runQuarantine("quarantineRepaired", () => updateMobileQuarantine(vault, quarantineSync(), ids, "repaired")); }}
+        onExportDiagnostics={(ids) => exportMobileQuarantineDiagnostics(vault, quarantineSync(), ids)}
+      />
       {publishFor && <PublishSliceSheet
                        sliceName={publishFor.name}
                        onClose={() => setPublishFor(null)}

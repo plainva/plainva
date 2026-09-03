@@ -134,7 +134,13 @@ export function outboxEntryAsCommentRecord(entry: WorkspaceCommentOutboxEntry, a
   };
 }
 
-export type WorkspaceQuarantineStatus = "pending" | "ignored" | "repaired";
+/**
+ * `resolved` is the worker's own verdict (finding 2026-09-03): the artifact
+ * validated on a later pull, or it is gone from the remote. Before, nothing
+ * ever closed an entry - a retry that succeeded left the row standing as
+ * "pending", and the list only grew.
+ */
+export type WorkspaceQuarantineStatus = "pending" | "ignored" | "repaired" | "resolved";
 export interface WorkspaceQuarantineRecord {
   quarantineId: string;
   artifactKind: "policy" | "recovery" | "operation" | "object" | "catalog" | "checkpoint" | "head" | "grant";
@@ -143,10 +149,19 @@ export interface WorkspaceQuarantineRecord {
   artifactBase64: string;
   artifactSha256: string;
   errorCode: string;
+  /**
+   * A stable cause, `<kind>.<family>` (see `quarantineReasons.ts`), so a
+   * screen can name it in the person's language and group what belongs
+   * together. `reason` stays the raw diagnostic sentence.
+   */
+  reasonCode: string;
   reason: string;
+  /** What the check knew: device, sequence numbers, policy hashes - for the explanation. */
+  details: Record<string, unknown> | null;
   firstSeenAt: string;
   lastTriedAt: string;
   status: WorkspaceQuarantineStatus;
+  resolvedAt: string | null;
 }
 
 export interface WorkspaceLocalForkRecord {
@@ -345,6 +360,8 @@ export interface WorkspaceStateStore {
   listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]>;
   saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void>;
   setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void>;
+  /** Closes every open entry for this remote artifact; returns the ids it closed. */
+  resolveQuarantine(artifactKind: WorkspaceQuarantineRecord["artifactKind"], remoteKey: string, at: string): Promise<string[]>;
   listLocalForks(): Promise<WorkspaceLocalForkRecord[]>;
   saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void>;
   listPublications(): Promise<WorkspacePublicationRecord[]>;
@@ -474,9 +491,24 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {
     return [...this.quarantine.values()].filter((entry) => !status || entry.status === status).map(clone).sort((a, b) => b.firstSeenAt.localeCompare(a.firstSeenAt));
   }
-  async saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void> { this.quarantine.set(record.quarantineId, clone(record)); }
+  async saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void> {
+    const existing = this.quarantine.get(record.quarantineId);
+    // Same upsert as the SQL store: an ignored entry stays ignored, a
+    // re-quarantined one reopens.
+    const status = existing?.status === "ignored" ? "ignored" : record.status;
+    this.quarantine.set(record.quarantineId, clone({ ...record, firstSeenAt: existing?.firstSeenAt ?? record.firstSeenAt, status, resolvedAt: status === "resolved" ? record.resolvedAt : null }));
+  }
   async setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void> {
-    const record = this.quarantine.get(quarantineId); if (record) record.status = status;
+    const record = this.quarantine.get(quarantineId);
+    if (record) { record.status = status; if (status === "pending") record.resolvedAt = null; }
+  }
+  async resolveQuarantine(artifactKind: WorkspaceQuarantineRecord["artifactKind"], remoteKey: string, at: string): Promise<string[]> {
+    const resolved: string[] = [];
+    for (const record of this.quarantine.values()) {
+      if (record.artifactKind !== artifactKind || record.remoteKey !== remoteKey || (record.status !== "pending" && record.status !== "repaired")) continue;
+      record.status = "resolved"; record.resolvedAt = at; resolved.push(record.quarantineId);
+    }
+    return resolved;
   }
   async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> { return [...this.forks.values()].map(clone).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> { this.forks.set(record.forkId, clone(record)); }
@@ -629,8 +661,18 @@ function commentOutboxFromRow(row: CommentOutboxRow): WorkspaceCommentOutboxEntr
 
 interface QuarantineRow {
   quarantine_id: string; artifact_kind: WorkspaceQuarantineRecord["artifactKind"]; remote_key: string;
-  artifact_base64: string; artifact_sha256: string; error_code: string; reason: string; first_seen_at: string;
-  last_tried_at: string; status: WorkspaceQuarantineStatus;
+  artifact_base64: string; artifact_sha256: string; error_code: string; reason_code: string | null; reason: string;
+  details_json: string | null; first_seen_at: string; last_tried_at: string; status: WorkspaceQuarantineStatus; resolved_at: string | null;
+}
+
+function parseQuarantineDetails(json: string | null): Record<string, unknown> | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }
 
 interface ForkRow {
@@ -804,12 +846,24 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {
     const rows = await this.db.query<QuarantineRow>(`SELECT * FROM workspace_quarantine ${status ? "WHERE status = ?" : ""} ORDER BY first_seen_at DESC`, status ? [status] : []);
-    return rows.map((row) => ({ quarantineId: row.quarantine_id, artifactKind: row.artifact_kind, remoteKey: row.remote_key, artifactBase64: row.artifact_base64, artifactSha256: row.artifact_sha256, errorCode: row.error_code, reason: row.reason, firstSeenAt: row.first_seen_at, lastTriedAt: row.last_tried_at, status: row.status }));
+    // An entry written before the cause code existed carries none; the
+    // screens then fall back to the raw sentence.
+    return rows.map((row) => ({ quarantineId: row.quarantine_id, artifactKind: row.artifact_kind, remoteKey: row.remote_key, artifactBase64: row.artifact_base64, artifactSha256: row.artifact_sha256, errorCode: row.error_code, reasonCode: row.reason_code ?? "unknown", reason: row.reason, details: parseQuarantineDetails(row.details_json), firstSeenAt: row.first_seen_at, lastTriedAt: row.last_tried_at, status: row.status, resolvedAt: row.resolved_at ?? null }));
   }
   async saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_quarantine (quarantine_id,artifact_kind,remote_key,artifact_base64,artifact_sha256,error_code,reason,first_seen_at,last_tried_at,status) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(quarantine_id) DO UPDATE SET last_tried_at=excluded.last_tried_at,error_code=excluded.error_code,reason=excluded.reason,status=CASE WHEN workspace_quarantine.status='ignored' THEN 'ignored' ELSE excluded.status END`, [record.quarantineId, record.artifactKind, record.remoteKey, record.artifactBase64, record.artifactSha256, record.errorCode, record.reason, record.firstSeenAt, record.lastTriedAt, record.status]);
+    // A re-quarantined artifact reopens (resolved_at cleared) unless the
+    // person ignored it - that verdict outlives every retry.
+    await this.db.execute(`INSERT INTO workspace_quarantine (quarantine_id,artifact_kind,remote_key,artifact_base64,artifact_sha256,error_code,reason_code,reason,details_json,first_seen_at,last_tried_at,status,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(quarantine_id) DO UPDATE SET last_tried_at=excluded.last_tried_at,error_code=excluded.error_code,reason_code=excluded.reason_code,reason=excluded.reason,details_json=excluded.details_json,status=CASE WHEN workspace_quarantine.status='ignored' THEN 'ignored' ELSE excluded.status END,resolved_at=CASE WHEN workspace_quarantine.status='ignored' THEN workspace_quarantine.resolved_at ELSE excluded.resolved_at END`, [record.quarantineId, record.artifactKind, record.remoteKey, record.artifactBase64, record.artifactSha256, record.errorCode, record.reasonCode, record.reason, record.details ? JSON.stringify(record.details) : null, record.firstSeenAt, record.lastTriedAt, record.status, record.resolvedAt]);
   }
-  async setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void> { await this.db.execute(`UPDATE workspace_quarantine SET status = ? WHERE quarantine_id = ?`, [status, quarantineId]); }
+  async setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void> {
+    await this.db.execute(`UPDATE workspace_quarantine SET status = ?, resolved_at = CASE WHEN ? = 'pending' THEN NULL ELSE resolved_at END WHERE quarantine_id = ?`, [status, status, quarantineId]);
+  }
+  async resolveQuarantine(artifactKind: WorkspaceQuarantineRecord["artifactKind"], remoteKey: string, at: string): Promise<string[]> {
+    const rows = await this.db.query<{ quarantine_id: string }>(`SELECT quarantine_id FROM workspace_quarantine WHERE artifact_kind = ? AND remote_key = ? AND status IN ('pending','repaired')`, [artifactKind, remoteKey]);
+    if (rows.length === 0) return [];
+    await this.db.execute(`UPDATE workspace_quarantine SET status = 'resolved', resolved_at = ? WHERE artifact_kind = ? AND remote_key = ? AND status IN ('pending','repaired')`, [at, artifactKind, remoteKey]);
+    return rows.map((row) => row.quarantine_id);
+  }
   async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> {
     const rows = await this.db.query<ForkRow>(`SELECT * FROM workspace_local_fork ORDER BY created_at DESC`);
     return rows.map((row) => ({ forkId: row.fork_id, originalPath: row.original_path, forkPath: row.fork_path, reason: row.reason, createdAt: row.created_at }));

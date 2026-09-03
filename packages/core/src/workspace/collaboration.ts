@@ -301,14 +301,69 @@ export class WorkspaceRevisionHistoryService {
   }
 }
 
+/**
+ * The quarantine's actions, for both shells (finding 2026-09-03).
+ *
+ * `retry` used to flip the status and fire a trigger nobody waited for - the
+ * list showed nothing afterwards, whether the artifact validated or not. It
+ * now runs a cycle where the sync offers one, and answers with what is still
+ * open of what was asked. Ignoring and marking repaired take a whole group at
+ * once, and the diagnosis export writes what a reader of the protocol needs:
+ * cause, details, times, keys - never the ciphertext, which stays its own
+ * export for one entry.
+ */
+export interface QuarantineSync {
+  trigger(): void;
+  /** One awaited cycle; absent where the sync cannot promise one. */
+  runNow?(): Promise<void>;
+}
+
+export interface QuarantineRetryOutcome {
+  /** How many of the asked entries are still open after the cycle. */
+  open: number;
+  total: number;
+  /** False when no cycle could be awaited: the answer is "queued", not "checked". */
+  checked: boolean;
+}
+
 export class WorkspaceQuarantineService {
-  constructor(private readonly state: WorkspaceStateStore, private readonly retrySync: () => void) {}
+  private readonly sync: QuarantineSync;
+  constructor(private readonly state: WorkspaceStateStore, sync: QuarantineSync | (() => void)) {
+    this.sync = typeof sync === "function" ? { trigger: sync } : sync;
+  }
   list(status?: WorkspaceQuarantineStatus) { return this.state.listQuarantine(status); }
-  async retry(quarantineId: string): Promise<void> { await this.state.setQuarantineStatus(quarantineId, "pending"); this.retrySync(); }
-  ignore(quarantineId: string): Promise<void> { return this.state.setQuarantineStatus(quarantineId, "ignored"); }
-  markRepaired(quarantineId: string): Promise<void> { return this.state.setQuarantineStatus(quarantineId, "repaired"); }
+  async retry(quarantineIds: string | readonly string[]): Promise<QuarantineRetryOutcome> {
+    const ids = typeof quarantineIds === "string" ? [quarantineIds] : [...quarantineIds];
+    for (const id of ids) await this.state.setQuarantineStatus(id, "pending");
+    if (this.sync.runNow) {
+      await this.sync.runNow();
+    } else {
+      this.sync.trigger();
+      return { open: ids.length, total: ids.length, checked: false };
+    }
+    const still = new Set((await this.state.listQuarantine("pending")).map((entry) => entry.quarantineId));
+    return { open: ids.filter((id) => still.has(id)).length, total: ids.length, checked: true };
+  }
+  async ignore(quarantineIds: string | readonly string[]): Promise<void> {
+    for (const id of typeof quarantineIds === "string" ? [quarantineIds] : quarantineIds) await this.state.setQuarantineStatus(id, "ignored");
+  }
+  async markRepaired(quarantineIds: string | readonly string[]): Promise<void> {
+    for (const id of typeof quarantineIds === "string" ? [quarantineIds] : quarantineIds) await this.state.setQuarantineStatus(id, "repaired");
+  }
   async exportCiphertext(quarantineId: string): Promise<Uint8Array | null> {
     const record = (await this.state.listQuarantine()).find((entry) => entry.quarantineId === quarantineId);
     return record ? fromBase64(record.artifactBase64) : null;
+  }
+  /** A JSON diagnosis of the given entries (all, when none are named). */
+  async exportDiagnostics(quarantineIds?: readonly string[], context: Record<string, unknown> = {}): Promise<string> {
+    const wanted = quarantineIds ? new Set(quarantineIds) : null;
+    const entries = (await this.state.listQuarantine())
+      .filter((entry) => !wanted || wanted.has(entry.quarantineId))
+      .map((entry) => ({
+        quarantineId: entry.quarantineId, artifactKind: entry.artifactKind, remoteKey: entry.remoteKey, artifactSha256: entry.artifactSha256,
+        errorCode: entry.errorCode, reasonCode: entry.reasonCode, reason: entry.reason, details: entry.details,
+        firstSeenAt: entry.firstSeenAt, lastTriedAt: entry.lastTriedAt, status: entry.status, resolvedAt: entry.resolvedAt,
+      }));
+    return JSON.stringify({ format: "plainva-quarantine-diagnostics/1", generatedAt: new Date().toISOString(), ...context, entries }, null, 2);
   }
 }

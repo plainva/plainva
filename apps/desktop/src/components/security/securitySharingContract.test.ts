@@ -99,6 +99,14 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(mobile).toContain("setSliceFolder(path)");
   });
 
+  it("source: the quarantine is groups with actions on both shells, through the shared service (finding 2026-09-03)", () => {
+    expect(page).toContain("<QuarantineCard");
+    expect(page).not.toContain("label={`${entry.artifactKind} · ${entry.status}`}");
+    expect(mobile).toContain("<QuarantineList");
+    expect(mobile).toContain("updateMobileQuarantine(vault, quarantineSync()");
+    expect(mobile).toContain("exportMobileQuarantineDiagnostics(vault, quarantineSync()");
+  });
+
   it("source: recovery setup still renders a numbered verification flow", () => {
     for (const className of ["pv-security-recovery-task", "pv-security-task-number", "pv-security-code-groups", "pv-security-code-group", "pv-security-challenge-grid", "pv-security-next"]) expect(wizard).toContain(className);
     expect(wizard).toContain("data-requested={requested}");

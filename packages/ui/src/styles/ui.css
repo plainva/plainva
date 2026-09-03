@@ -2293,6 +2293,35 @@ button.pv-acct:hover { background: var(--state-hover); }
 }
 .pv-security-steps > span[data-active="true"] { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-security-field { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--text-sm); }
+/* Integrity & local forks (finding 2026-09-03, Mockup A): a GROUP per cause
+   on one device instead of a setting row per artifact. The text column takes
+   the width, the actions wrap on their own line - a setting row's fixed
+   300px control column is what ran four buttons over the description. The
+   card underneath is .pv-setcard, which both easter-egg themes restyle. */
+.pv-quarantine-head { display: flex; align-items: center; justify-content: flex-end; padding: var(--space-2) var(--space-4) 0; }
+.pv-quarantine-empty { margin: 0; padding: var(--space-3) var(--space-4); color: var(--text-muted); font-size: var(--text-ui); }
+.pv-quarantine-subhead { margin: 0; padding: var(--space-3) var(--space-4) 0; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); font-weight: 600; }
+.pv-quarantine-group { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-left: 3px solid var(--warning-text); }
+.pv-quarantine-group + .pv-quarantine-group { border-top: 1px solid var(--border-color-light); }
+.pv-quarantine-group.is-settled { border-left-color: var(--border-color); opacity: 0.72; }
+.pv-quarantine-group.is-fork { border-left-color: var(--accent-color); }
+.pv-quarantine-title { display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; font-size: var(--text-md); font-weight: 600; line-height: 1.35; color: var(--text-main); }
+.pv-quarantine-title > svg { flex: none; margin-top: 2px; color: var(--warning-text); }
+.pv-quarantine-group.is-settled .pv-quarantine-title > svg { color: var(--text-faint); }
+.pv-quarantine-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pv-quarantine-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 500; background: var(--bg-hover); color: var(--text-muted); white-space: nowrap; }
+.pv-quarantine-pill.is-warn { background: var(--warning-bg); color: var(--warning-text); }
+.pv-quarantine-pill.is-ok { background: var(--success-bg); color: var(--success-text); }
+.pv-quarantine-explain { margin: 0; font-size: var(--text-ui); color: var(--text-main); max-width: 58ch; overflow-wrap: anywhere; }
+.pv-quarantine-explain code { font-family: var(--font-mono); font-size: var(--text-xs); }
+.pv-quarantine-hint { margin: 0; font-size: var(--text-ui); color: var(--text-muted); max-width: 58ch; }
+.pv-quarantine-hint strong { color: var(--text-main); font-weight: 600; }
+.pv-quarantine-actions { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: center; }
+.pv-quarantine-spacer { flex: 1 1 auto; }
+.pv-quarantine-entries { list-style: none; margin: 0; padding: var(--space-2) var(--space-3); display: grid; gap: var(--space-1); background: var(--bg-secondary); border-radius: var(--radius-sm); }
+.pv-quarantine-entry { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: center; font-size: var(--text-xs); color: var(--text-muted); }
+.pv-quarantine-entry code { font-family: var(--font-mono); color: var(--text-main); overflow-wrap: anywhere; }
+
 /* A field with a picker beside it (finding 2026-09-03: the slice folder is
    chosen, not typed): the input takes the width, the button its own. */
 .pv-security-field-row { display: flex; align-items: center; gap: var(--space-2); }
