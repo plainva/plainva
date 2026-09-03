@@ -34,15 +34,36 @@ describe("suggest mode", () => {
       const reserve = view.state.doc.toString().indexOf("Reserve 10 %.\n");
       view.dispatch({ changes: { from: reserve, to: reserve + "Reserve 10 %.\n".length, insert: "" } });
       const chunks = suggestionChunks(view.state);
+      // Word-level (finding 2026-09-03): the changed clauses, not the whole
+      // line - a one-word edit must read as a one-word edit.
       expect(chunks.map((c) => [BASE.slice(c.fromA, c.toA), c.replacement])).toEqual([
-        ["The contract runs until the end of the year.\n", "The contract runs for 30 days from the offer date.\n"],
-        ["Reserve 10 %.\n", "Acceptance follows the electrics.\n"],
+        ["until the end of", "for 30 days from"],
+        ["year", "offer date"],
+        ["Reserve 10 %", "Acceptance follows the electrics"],
       ]);
-      expect(counts[counts.length - 1]).toBe(2);
+      expect(counts[counts.length - 1]).toBe(3);
       mode.stop(view);
       expect(view.state.doc.toString()).toBe(BASE);
       expect(suggestionBase(view.state)).toBeNull();
       expect(suggestionChunks(view.state)).toEqual([]);
+    } finally {
+      view.destroy();
+    }
+  });
+
+  it("draws a changed clause inside its paragraph - struck words where they stood, new words marked", () => {
+    const { view, mode } = viewWith();
+    try {
+      mode.start(view);
+      const from = BASE.indexOf("separate");
+      view.dispatch({ changes: { from, to: from + "separate".length, insert: "different" } });
+      const del = view.contentDOM.querySelector(".cm-suggest-del");
+      const ins = view.contentDOM.querySelector(".cm-suggest-ins");
+      expect(del?.textContent).toBe("separate");
+      expect(ins?.textContent).toBe("different");
+      // Both sit in the one line the change belongs to; nothing else is marked.
+      expect(view.contentDOM.querySelectorAll(".cm-suggest-del, .cm-suggest-ins").length).toBe(2);
+      expect(del?.closest(".cm-line")?.textContent).toContain("The electrician is a");
     } finally {
       view.destroy();
     }
