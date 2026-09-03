@@ -9,6 +9,8 @@ import {
   noteDisplayName,
   parseCommentMentions,
   Segmented,
+  COMMENT_OVERVIEW_FOCUS_EVENT,
+  takeCommentOverviewFocus,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { refreshVaultAction, usePullToRefresh } from "../lib/usePullToRefresh";
@@ -50,7 +52,19 @@ export function CommentsScreen({
   const [byPath, setByPath] = useState<ReadonlyMap<string, WorkspaceCommentRecord[]>>(new Map());
   const [names, setNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [selfId, setSelfId] = useState<string | null>(null);
-  const [onlyMine, setOnlyMine] = useState(false);
+  // "new" exists only while a gathered notification handed its ids in (C30).
+  const [focus, setFocus] = useState<ReadonlySet<string> | null>(() => takeCommentOverviewFocus());
+  const [filter, setFilter] = useState<"all" | "mine" | "new">(() => (focus ? "new" : "all"));
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const next = (e as CustomEvent<ReadonlySet<string> | null>).detail ?? null;
+      setFocus(next);
+      if (next) setFilter("new");
+    };
+    window.addEventListener(COMMENT_OVERVIEW_FOCUS_EVENT, onFocus);
+    return () => window.removeEventListener(COMMENT_OVERVIEW_FOCUS_EVENT, onFocus);
+  }, []);
+  const onlyMine = filter === "mine";
   const ptrRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -89,9 +103,9 @@ export function CommentsScreen({
         [...byPath].map(([path, comments]) => ({ path, comments })),
         selfId,
         names,
-        { onlyAddressed: onlyMine },
+        { onlyAddressed: onlyMine, onlyIds: filter === "new" && focus ? focus : undefined },
       ),
-    [byPath, names, selfId, onlyMine],
+    [byPath, names, selfId, onlyMine, filter, focus],
   );
 
   const nameOf = (id: string) => names.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
@@ -107,16 +121,17 @@ export function CommentsScreen({
       {ptrIndicator}
       <Segmented
         ariaLabel={t("workspaceSecurity.commentOverview")}
-        value={onlyMine ? "mine" : "all"}
-        onChange={(value) => setOnlyMine(value === "mine")}
+        value={filter}
+        onChange={(value) => setFilter(value as "all" | "mine" | "new")}
         options={[
+          ...(focus ? [{ value: "new", label: t("workspaceSecurity.commentOverviewNew") }] : []),
           { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
           { value: "mine", label: t("workspaceSecurity.commentOverviewMine") },
         ]}
       />
       {notes.length === 0 ? (
         <EmptyState icon={<MessageSquare size={ICON.empty} />}>
-          {t(onlyMine ? "workspaceSecurity.commentOverviewNoneMine" : "workspaceSecurity.commentOverviewNone")}
+          {t(filter === "new" ? "workspaceSecurity.commentOverviewNoneNew" : onlyMine ? "workspaceSecurity.commentOverviewNoneMine" : "workspaceSecurity.commentOverviewNone")}
         </EmptyState>
       ) : (
         notes.map((note) => (

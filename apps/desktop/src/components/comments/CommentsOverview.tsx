@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, MessageSquare, RefreshCw, Replace } from "lucide-react";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, Segmented, buildCommentOverview, noteDisplayName, parseCommentMentions, requestCommentJump } from "@plainva/ui";
+import { Button, ICON, Segmented, buildCommentOverview, noteDisplayName, parseCommentMentions, requestCommentJump, COMMENT_OVERVIEW_FOCUS_EVENT, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
 /**
@@ -23,7 +23,21 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
   const [byPath, setByPath] = useState<ReadonlyMap<string, WorkspaceCommentRecord[]>>(new Map());
   const [memberNames, setMemberNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [selfMemberId, setSelfMemberId] = useState<string | null>(null);
-  const [onlyAddressed, setOnlyAddressed] = useState(false);
+  // "new" exists only while a gathered notification handed its ids in (C30):
+  // the overview cannot tell new from old on its own, and a segment that is
+  // always empty would be a lie about the list.
+  const [focus, setFocus] = useState<ReadonlySet<string> | null>(() => takeCommentOverviewFocus());
+  const [filter, setFilter] = useState<"all" | "mine" | "new">(() => (focus ? "new" : "all"));
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const next = (e as CustomEvent<ReadonlySet<string> | null>).detail ?? null;
+      setFocus(next);
+      if (next) setFilter("new");
+    };
+    window.addEventListener(COMMENT_OVERVIEW_FOCUS_EVENT, onFocus);
+    return () => window.removeEventListener(COMMENT_OVERVIEW_FOCUS_EVENT, onFocus);
+  }, []);
+  const onlyAddressed = filter === "mine";
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
@@ -58,8 +72,8 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
     [byPath],
   );
   const notes = useMemo(
-    () => buildCommentOverview(entries, selfMemberId, memberNames, { onlyAddressed }),
-    [entries, memberNames, onlyAddressed, selfMemberId],
+    () => buildCommentOverview(entries, selfMemberId, memberNames, { onlyAddressed, onlyIds: filter === "new" && focus ? focus : undefined }),
+    [entries, memberNames, onlyAddressed, selfMemberId, filter, focus],
   );
   return (
     <div className="pv-comment-overview">
@@ -68,9 +82,10 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
         <h2 className="pv-comment-overview__title">{t("workspaceSecurity.commentOverview")}</h2>
         <span className="pv-comment-overview__spacer" />
         <Segmented
-          value={onlyAddressed ? "mine" : "all"}
-          onChange={(value) => setOnlyAddressed(value === "mine")}
+          value={filter}
+          onChange={(value) => setFilter(value as "all" | "mine" | "new")}
           options={[
+            ...(focus ? [{ value: "new", label: t("workspaceSecurity.commentOverviewNew"), testId: "comments-overview-new" }] : []),
             { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comments-overview-all" },
             { value: "mine", label: t("workspaceSecurity.commentOverviewMine"), testId: "comments-overview-mine" },
           ]}
@@ -82,7 +97,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
       <div className="pv-comment-overview__body">
         {notes.length === 0 && (
           <p className="pv-comment-overview__empty">
-            {onlyAddressed ? t("workspaceSecurity.commentOverviewNoneMine") : t("workspaceSecurity.commentOverviewNone")}
+            {filter === "new" ? t("workspaceSecurity.commentOverviewNoneNew") : onlyAddressed ? t("workspaceSecurity.commentOverviewNoneMine") : t("workspaceSecurity.commentOverviewNone")}
           </p>
         )}
         {notes.map((note) => (

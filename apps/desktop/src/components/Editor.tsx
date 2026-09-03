@@ -11,8 +11,7 @@ import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  type AnchorFrameHint,
-} from "@plainva/ui";
+  type AnchorFrameHint, type AnchorHighlight } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
@@ -2057,10 +2056,10 @@ export const Editor: React.FC<{
 
   // Push the resolved ranges into the editor. An orphan contributes nothing -
   // its card says so instead; tinting a random place would be worse than none.
-  useEffect(() => {
-    const session = sessionRef.current;
-    if (!session) return;
-    const highlights = [];
+  // The same list feeds the editor's tints and frames AND the read view's
+  // (Sammelplan C28): one resolution, two renderers, no drift between them.
+  const anchorHighlights = useMemo(() => {
+    const highlights: AnchorHighlight[] = [];
     for (const comment of workspaceComments) {
       if (comment.resolvedAt) continue;
       const resolution = anchorResolutions.get(comment.commentId);
@@ -2069,8 +2068,13 @@ export const Editor: React.FC<{
       // the widget draws a frame instead (Stufe E, E1).
       highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId, frame: toAnchorFrameHint(comment.anchor?.display) });
     }
-    session.setAnchorHighlights(highlights);
-  }, [workspaceComments, anchorResolutions, activeCommentId, viewMode, isLoading]);
+    return highlights;
+  }, [workspaceComments, anchorResolutions, activeCommentId]);
+  useEffect(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.setAnchorHighlights(anchorHighlights);
+  }, [anchorHighlights, viewMode, isLoading]);
 
   /**
    * Attaches a comment, minting the marker pair when the member may write.
@@ -2541,6 +2545,8 @@ export const Editor: React.FC<{
                 docIcons={docIcons}
                 showLinkIcons={managedIndex}
                 onToggleTask={managedIndex ? undefined : handleToggleTask}
+                anchors={anchorHighlights}
+                onActivateAnchor={setActiveCommentId}
               />
             </div>
           </>

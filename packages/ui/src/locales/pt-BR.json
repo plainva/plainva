@@ -3695,6 +3695,8 @@
     "commentOverviewMine": "Para mim",
     "commentOverviewNone": "Nenhum comentário aberto neste vault.",
     "commentOverviewNoneMine": "No momento ninguém está esperando por você.",
+    "commentOverviewNew": "Novos",
+    "commentOverviewNoneNew": "Não resta nada novo aqui.",
     "suggestionPending": "Sugestão aberta",
     "commentReplyCount_one": "{{count}} resposta",
     "commentReplyCount_many": "{{count}} respostas",

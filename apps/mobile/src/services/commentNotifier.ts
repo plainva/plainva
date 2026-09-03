@@ -5,6 +5,7 @@ import {
   commentNotificationText,
   planCommentNotifications,
   requestCommentJump,
+  requestCommentOverviewFocus,
   toast,
   type CommentNotificationLevel,
   type CommentNotificationNote,
@@ -63,6 +64,8 @@ export function setMobileCommentNotifierDeps(next: MobileCommentNotifierDeps | n
 export interface CommentIntent {
   path: string;
   commentId: string | null;
+  /** A gathered notification: the ids it announced, for the overview's "new" (C30). */
+  newIds?: string[];
 }
 
 let pendingIntent: CommentIntent | null = null;
@@ -114,8 +117,10 @@ export function initMobileCommentNotifier(): void {
 
   void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
     const extra = (event.notification.extra ?? {}) as Partial<CommentIntent>;
-    if (!extra.path) return;
-    pendingIntent = { path: extra.path, commentId: extra.commentId ?? null };
+    // A single remark names its note; a gathered one carries what it announced.
+    // Before C30 the gathered tap carried nothing and therefore did nothing.
+    if (!extra.path && !extra.newIds) return;
+    pendingIntent = { path: extra.path ?? "", commentId: extra.commentId ?? null, newIds: extra.newIds };
     applyIntent();
   });
 
@@ -142,6 +147,7 @@ export function applyIntent(): void {
     requestCommentJump({ path: intent.path, commentId: intent.commentId });
     current.openComment({ path: intent.path, commentId: intent.commentId });
   } else {
+    requestCommentOverviewFocus(intent.newIds ?? []);
     current.openOverview();
   }
 }
@@ -210,7 +216,11 @@ async function announce(
   if (!text) return;
   const { title, body } = text;
   const extra: CommentIntent | null =
-    plan.kind === "single" ? { path: plan.notice.path, commentId: plan.notice.commentId } : null;
+    plan.kind === "single"
+      ? { path: plan.notice.path, commentId: plan.notice.commentId }
+      : plan.kind === "bundle"
+        ? { path: "", commentId: null, newIds: [...plan.seen] }
+        : null;
 
   try {
     const permission = await LocalNotifications.checkPermissions();
@@ -237,10 +247,11 @@ async function announce(
   // The toast is for the case the app is already open - a system notification
   // for something on screen is noise, but silence would be worse.
   const open = () => {
-    if (extra) {
-      requestCommentJump({ path: extra.path, commentId: extra.commentId ?? "" });
-      deps?.openComment({ path: extra.path, commentId: extra.commentId ?? "" });
+    if (extra?.commentId) {
+      requestCommentJump({ path: extra.path, commentId: extra.commentId });
+      deps?.openComment({ path: extra.path, commentId: extra.commentId });
     } else {
+      requestCommentOverviewFocus(extra?.newIds ?? []);
       deps?.openOverview();
     }
   };

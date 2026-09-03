@@ -7,8 +7,7 @@ import {
   toast,
   type CommentNotificationNote,
   type CommentNotificationPlan,
-  type NewCommentNotice,
-} from "@plainva/ui";
+  type NewCommentNotice, requestCommentOverviewFocus } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { reportTrayComments } from "./trayNext";
@@ -148,7 +147,17 @@ async function announce(
   if (!text) return;
 
   const target: NewCommentNotice | null = plan.kind === "single" ? plan.notice : null;
-  const open = () => (target ? current.openComment({ path: target.path, commentId: target.commentId }) : current.openOverview());
+  // A gathered notification opens the overview on exactly what it announced
+  // (C30): the ledger has already recorded these as seen, so the ids travel
+  // with the click instead.
+  const open = () => {
+    if (target) {
+      current.openComment({ path: target.path, commentId: target.commentId });
+      return;
+    }
+    requestCommentOverviewFocus(plan.seen);
+    current.openOverview();
+  };
 
   // FB5: a system notification for something the user is looking at is noise.
   // The toast still appears - it belongs to the window that has focus.

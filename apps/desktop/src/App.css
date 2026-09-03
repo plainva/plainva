@@ -788,3 +788,46 @@ option {
 .pv-fr-status--warn {
   color: var(--warning-text);
 }
+
+
+/* ---- Comment anchors in the read view (Sammelplan C28) ----
+   The same three things the editor draws - tint, frame, region - with the
+   same tokens, so a note reads the same in both modes. */
+.pv-read-anchor {
+  background: var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent));
+  border-bottom: 2px solid var(--comment-anchor-line, color-mix(in srgb, var(--accent-color) 45%, transparent));
+  color: inherit;
+  cursor: pointer;
+}
+.pv-read-anchor--active {
+  background: var(--comment-anchor-bg-active, color-mix(in srgb, var(--accent-color) 30%, transparent));
+  border-bottom-color: var(--comment-anchor-line-active, var(--accent-color));
+}
+.pv-read-anchor-frame {
+  outline: 2px solid var(--comment-anchor-line, color-mix(in srgb, var(--accent-color) 45%, transparent));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pv-read-anchor-frame--active {
+  outline-color: var(--comment-anchor-line-active, var(--accent-color));
+  background: var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent));
+}
+.pv-read-anchor-host {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.pv-read-anchor-region {
+  position: absolute;
+  outline: 2px solid var(--comment-anchor-line, color-mix(in srgb, var(--accent-color) 45%, transparent));
+  outline-offset: 1px;
+  background: var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent));
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.pv-read-anchor-region--active {
+  outline-color: var(--comment-anchor-line-active, var(--accent-color));
+  background: var(--comment-anchor-bg-active, color-mix(in srgb, var(--accent-color) 30%, transparent));
+}

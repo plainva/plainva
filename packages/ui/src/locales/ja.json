@@ -3631,6 +3631,8 @@
     "commentOverviewMine": "自分宛て",
     "commentOverviewNone": "この保管庫に未解決のコメントはありません。",
     "commentOverviewNoneMine": "今のところあなたを待っている人はいません。",
+    "commentOverviewNew": "新着",
+    "commentOverviewNoneNew": "ここに新しいものは残っていません。",
     "suggestionPending": "未処理の提案",
     "commentReplyCount_other": "返信 {{count}} 件",
     "commentToTask": "タスクにする",

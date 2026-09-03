@@ -3663,6 +3663,8 @@
     "commentOverviewMine": "An mich",
     "commentOverviewNone": "Keine offenen Kommentare in diesem Vault.",
     "commentOverviewNoneMine": "Niemand wartet gerade auf Dich.",
+    "commentOverviewNew": "Neu",
+    "commentOverviewNoneNew": "Hier ist nichts Neues mehr.",
     "suggestionPending": "Offener Vorschlag",
     "commentReplyCount_one": "{{count}} Antwort",
     "commentReplyCount_other": "{{count}} Antworten",

@@ -3663,6 +3663,8 @@
     "commentOverviewMine": "Voor mij",
     "commentOverviewNone": "Geen openstaande opmerkingen in deze vault.",
     "commentOverviewNoneMine": "Op dit moment wacht niemand op jou.",
+    "commentOverviewNew": "Nieuw",
+    "commentOverviewNoneNew": "Hier is niets nieuws meer.",
     "suggestionPending": "Openstaand voorstel",
     "commentReplyCount_one": "{{count}} reactie",
     "commentReplyCount_other": "{{count}} reacties",

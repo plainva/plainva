@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { resolveVaultRelative } from '@plainva/ui';
+import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, type AnchorHighlight } from '@plainva/ui';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
@@ -41,6 +41,14 @@ interface MarkdownReaderProps {
    * managed index.md).
    */
   onToggleTask?: (index: number, checked: boolean) => void;
+  /**
+   * Open comment anchors of this note, in source offsets (Sammelplan C28):
+   * the read view tints, frames and marks them exactly as the editor does.
+   * Absent = nothing to draw (embeds, managed index.md).
+   */
+  anchors?: readonly AnchorHighlight[];
+  /** A click on a tint, frame or region opens that comment's card. */
+  onActivateAnchor?: (commentId: string) => void;
 }
 
 /**
@@ -48,7 +56,26 @@ interface MarkdownReaderProps {
  * — the asset protocol (and its filesystem-wide scope) is disabled. The URL
  * is revoked on unmount/path change.
  */
-const VaultImage: React.FC<{ path: string; alt: string }> = ({ path, alt }) => {
+/** The regions a comment marked on a picture, laid over it (C28). */
+const AnchorRegions: React.FC<{ regions: string | undefined; onActivate?: (commentId: string) => void }> = ({ regions, onActivate }) => {
+  const list = readAnchorRegions(regions);
+  if (list.length === 0) return null;
+  return (
+    <>
+      {list.map((r, i) => (
+        <span
+          key={i}
+          className={r.active ? 'pv-read-anchor-region pv-read-anchor-region--active' : 'pv-read-anchor-region'}
+          style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
+          data-comment-id={r.commentId}
+          onClick={(e) => { e.stopPropagation(); onActivate?.(r.commentId); }}
+        />
+      ))}
+    </>
+  );
+};
+
+const VaultImage: React.FC<{ path: string; alt: string; frameClass?: string; regions?: string; commentId?: string; onActivate?: (commentId: string) => void }> = ({ path, alt, frameClass, regions, commentId, onActivate }) => {
   const { vaultAdapter } = useVault();
   const [url, setUrl] = React.useState<string | null>(null);
   const [failed, setFailed] = React.useState(false);
@@ -76,10 +103,12 @@ const VaultImage: React.FC<{ path: string; alt: string }> = ({ path, alt }) => {
 
   if (failed) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || path}</span>;
   if (!url) return <span aria-hidden="true" />;
-  return (
+  const img = (
     <img
       src={url}
       alt={alt}
+      className={frameClass}
+      onClick={commentId ? () => onActivate?.(commentId) : undefined}
       onContextMenu={(e) => {
         if (!vaultAdapter) return;
         e.preventDefault();
@@ -94,6 +123,15 @@ const VaultImage: React.FC<{ path: string; alt: string }> = ({ path, alt }) => {
       }}
       style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)' }}
     />
+  );
+  // Only a commented picture gets the positioned host: the regions are laid
+  // over the image in fractions of it, so the host has to be exactly its box.
+  if (!frameClass) return img;
+  return (
+    <span className="pv-read-anchor-host">
+      {img}
+      <AnchorRegions regions={regions} onActivate={onActivate} />
+    </span>
   );
 };
 
@@ -208,7 +246,10 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
   return ord;
 }
 
-export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask }) => {
+export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, anchors, onActivateAnchor }) => {
+  // Rebuilt only when the anchors change: react-markdown re-runs the pipeline
+  // whenever the plugin list is a new array.
+  const anchorPlugin = useMemo(() => (anchors && anchors.length > 0 ? rehypeReadAnchors(anchors) : null), [anchors]);
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
   // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
@@ -355,9 +396,14 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
         remarkPlugins={mathPlugins
           ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, mathPlugins.remark as never]
           : [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks]}
-        rehypePlugins={mathPlugins ? [mathPlugins.rehype as never] : undefined}
+        rehypePlugins={[...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
+          // A tinted run of text (C28): the click opens the comment it belongs to.
+          mark: ({ node, ...props }) => {
+            const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId;
+            return <mark {...props} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} />;
+          },
           a: ({ node: _node, href, children, ...props }) => {
             if (href?.startsWith('wiki://')) {
               const target = decodeURIComponent(href.replace('wiki://', ''));
@@ -411,7 +457,12 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             }
             return <a href={href} style={{ color: 'var(--accent-color)' }} {...props}>{children}</a>;
           },
-          img: ({ node: _node, src, alt, ...props }) => {
+          img: ({ node, src, alt, ...props }) => {
+            // What applyReadAnchors left on the picture (C28), if anything.
+            const anchorProps = (node as { properties?: Record<string, unknown> } | undefined)?.properties ?? {};
+            const frameClass = Array.isArray(anchorProps.className) ? (anchorProps.className as string[]).join(' ') : typeof anchorProps.className === 'string' ? anchorProps.className : undefined;
+            const regions = typeof anchorProps.dataAnchorRegions === 'string' ? anchorProps.dataAnchorRegions : undefined;
+            const commentId = typeof anchorProps.dataCommentId === 'string' ? anchorProps.dataCommentId : undefined;
             if (src?.startsWith('wiki-embed://')) {
               const target = decodeURIComponent(src.replace('wiki-embed://', ''));
               return <EmbeddedNote target={target} depth={embedDepth} onOpenPath={onOpenPath} hostPath={sourcePath} />;
@@ -426,7 +477,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (!rel) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || target}</span>;
               }
-              return <VaultImage path={rel} alt={alt || target} />;
+              return <VaultImage path={rel} alt={alt || target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             if (src && !/^(https?:|data:|blob:)/.test(src)) {
               // Plain markdown image with a FILE-relative path (standard MD:
@@ -437,7 +488,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (!rel) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || src}</span>;
               }
-              return <VaultImage path={rel} alt={alt || rel} />;
+              return <VaultImage path={rel} alt={alt || rel} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: "var(--radius-xs)" }} {...props} />;
           },
@@ -502,8 +553,10 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             </div>
           ),
           thead: ({ node: _node, ...props }) => <thead style={{ background: 'var(--bg-secondary)' }} {...props} />,
-          th: ({ node: _node, ...props }) => <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'left', verticalAlign: 'top', color: 'var(--text-main)' }} {...props} />,
-          td: ({ node: _node, ...props }) => <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} {...props} />,
+          // A commented cell carries the frame class from applyReadAnchors (C28)
+          // and opens its comment on click.
+          th: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'left', verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
+          td: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
           code: ({ node: _node, className, children, ...props }) => {
             const text = Array.isArray(children) ? children.join("") : String(children ?? "");
             const isBlock = !!className || text.includes("\n");

@@ -3663,6 +3663,8 @@
     "commentOverviewMine": "For me",
     "commentOverviewNone": "No open comments in this vault.",
     "commentOverviewNoneMine": "Nobody is waiting on you right now.",
+    "commentOverviewNew": "New",
+    "commentOverviewNoneNew": "Nothing new is left here.",
     "suggestionPending": "Open suggestion",
     "commentReplyCount_one": "{{count}} reply",
     "commentReplyCount_other": "{{count}} replies",

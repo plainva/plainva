@@ -3631,6 +3631,8 @@
     "commentOverviewMine": "与我相关",
     "commentOverviewNone": "这个仓库里没有未处理的评论。",
     "commentOverviewNoneMine": "现在没有人在等你。",
+    "commentOverviewNew": "新的",
+    "commentOverviewNoneNew": "这里没有新的内容了。",
     "suggestionPending": "未处理的建议",
     "commentReplyCount_other": "{{count}} 条回复",
     "commentToTask": "创建任务",

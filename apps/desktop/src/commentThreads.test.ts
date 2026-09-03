@@ -73,6 +73,18 @@ describe("buildCommentOverview", () => {
     expect(rest).toEqual([]);
     expect(note.path).toBe("mid.md");
   });
+
+  it("narrows to the threads a notification announced, by root or reply (C30)", () => {
+    const withReply = [
+      ...entries,
+      { path: "reply.md", comments: [comment({ commentId: "root" }), comment({ commentId: "answer", parentCommentId: "root" })] },
+    ];
+    const byRoot = buildCommentOverview(withReply, "m2", names, { onlyIds: new Set(["a"]) });
+    expect(byRoot.map((n) => n.path)).toEqual(["zeta.md"]);
+    const byReply = buildCommentOverview(withReply, "m2", names, { onlyIds: new Set(["answer"]) });
+    expect(byReply.map((n) => n.path)).toEqual(["reply.md"]);
+    expect(buildCommentOverview(withReply, "m2", names, { onlyIds: new Set(["nobody"]) })).toEqual([]);
+  });
 });
 
 describe("buildPropertyCommentCells", () => {

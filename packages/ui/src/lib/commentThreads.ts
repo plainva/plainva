@@ -86,7 +86,15 @@ export function buildCommentOverview(
   entries: readonly CommentOverviewInput[],
   selfMemberId: string | null,
   names: ReadonlyMap<string, string>,
-  options: { onlyAddressed?: boolean } = {},
+  options: {
+    onlyAddressed?: boolean;
+    /**
+     * Only threads that contain one of these comments (C30): what a gathered
+     * notification announced. "New" is a state of the notifier's ledger, not
+     * of the records, so the caller hands the ids in.
+     */
+    onlyIds?: ReadonlySet<string>;
+  } = {},
 ): CommentOverviewNote[] {
   const notes: CommentOverviewNote[] = [];
   for (const entry of entries) {
@@ -95,6 +103,8 @@ export function buildCommentOverview(
     );
     const addressedCount = threads.filter((thread) => thread.addressed).length;
     if (options.onlyAddressed) threads = threads.filter((thread) => thread.addressed);
+    const ids = options.onlyIds;
+    if (ids) threads = threads.filter((thread) => ids.has(thread.root.commentId) || thread.replies.some((r) => ids.has(r.commentId)));
     if (threads.length === 0) continue;
     notes.push({ path: entry.path, threads, addressedCount });
   }

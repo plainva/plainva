@@ -6,7 +6,7 @@ import { parseMarkdownTable, serializeTable, setCell, type TableModel, type Tabl
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
-import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
+import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
 import { listDepthAt } from "./listIndent";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
@@ -281,14 +281,19 @@ class TableWidget extends WidgetType {
     readonly model: TableModel,
     readonly from: number,
     readonly to: number,
-    /** A comment pointing at this table, or null. See anchorHighlight. */
-    readonly frame: AnchorFrame | null = null,
+    /**
+     * EVERY comment pointing into this table (Sammelplan C29). A table is one
+     * contiguous range, so two commented cells arrive as two frames over the
+     * same range — the old single-frame question drew the first and lost the
+     * second. See anchorHighlight.
+     */
+    readonly frames: readonly AnchorFrame[] = [],
   ) { super(); }
   eq(other: TableWidget) {
     return other.from === this.from && other.to === this.to
-      // The frame joins the identity: without it CodeMirror keeps the DOM it
-      // already built and the frame would never appear.
-      && anchorFrameSignature(other.frame) === anchorFrameSignature(this.frame)
+      // The frames join the identity: without them CodeMirror keeps the DOM it
+      // already built and a frame would never appear.
+      && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames)
       && JSON.stringify(other.model) === JSON.stringify(this.model);
   }
   toDOM(view: EditorView) {
@@ -398,23 +403,31 @@ class TableWidget extends WidgetType {
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
-    if (this.frame) {
-      const cell = this.frame.kind === "tableCell"
-        ? cells[this.frame.row ?? -1]?.[this.frame.column ?? -1]
-        : undefined;
-      // Move a row and the coordinates point at nothing. Framing the whole
-      // table is then the honest answer - the card says the cell may have
-      // moved, rather than the frame quietly landing on a stranger.
+    // One frame per commented cell. Move a row and a frame's coordinates
+    // point at nothing: framing the whole table is then the honest answer -
+    // the card says the cell may have moved, rather than the frame quietly
+    // landing on a stranger. The table itself is framed at most once, by the
+    // strongest such frame (quiet ones come first, the active one last).
+    let tableFrame: AnchorFrame | null = null;
+    for (const frame of this.frames) {
+      const cell = frame.kind === "tableCell" ? cells[frame.row ?? -1]?.[frame.column ?? -1] : undefined;
+      if (!cell) {
+        tableFrame = frame;
+        continue;
+      }
       decorateAnchorTarget({
         view,
         host: wrap,
-        target: cell ?? table,
+        target: cell,
         range: { from: this.from, to: this.to },
-        display: this.frame,
-        frame: this.frame,
+        display: frame,
+        frame,
         // No bubble: commenting on a cell lives in the cell's context menu,
         // which already carries the row and column out.
       });
+    }
+    if (tableFrame) {
+      decorateAnchorTarget({ view, host: wrap, target: table, range: { from: this.from, to: this.to }, display: tableFrame, frame: tableFrame });
     }
     return wrap;
   }
@@ -450,7 +463,7 @@ function buildTableDecorations(state: EditorState, isLive: boolean): DecorationS
         const to = state.doc.line(endLine).to;
         const model = parseMarkdownTable(state.sliceDoc(from, to));
         if (model) {
-          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFrameAt(state, from, to)), block: true }).range(from, to));
+          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFramesAt(state, from, to)), block: true }).range(from, to));
         }
         return false;
       },
