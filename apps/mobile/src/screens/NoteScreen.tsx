@@ -21,12 +21,13 @@ import {
   Smile,
   Trash2,
   FileText,
+  PenLine,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
+import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
@@ -147,6 +148,10 @@ export function NoteScreen({
   const [comments, setComments] = useState<WorkspaceCommentRecord[]>([]);
   const [commentNames, setCommentNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [commentsOpen, setCommentsOpen] = useState(false);
+  /** The suggestion mode (V5): the editor holds the copy, this screen the band. */
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestCount, setSuggestCount] = useState(0);
+  const [suggestNote, setSuggestNote] = useState("");
   // Stufe F: silenced or not. Null - and so no bell - while notifications are
   // off for the vault entirely.
   const commentMute = useCommentMute(path);
@@ -160,6 +165,8 @@ export function NoteScreen({
    * phone; taking the request clears it, so a re-render cannot reopen the sheet
    * behind the user's back.
    */
+  // Declared before the listener effect below, which bumps it when a round was sent (V5).
+  const [commentTick, setCommentTick] = useState(0);
   useEffect(() => {
     if (!path) return;
     const apply = () => {
@@ -167,9 +174,17 @@ export function NoteScreen({
     };
     apply();
     window.addEventListener(COMMENT_JUMP_EVENT, apply);
-    return () => window.removeEventListener(COMMENT_JUMP_EVENT, apply);
+    // The editor reports the suggestion mode's change count and its outcome (V5).
+    const onChunks = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path) setSuggestCount(Number(d.count) || 0); };
+    const onDone = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path) { setSuggesting(false); setSuggestCount(0); setSuggestNote(""); setCommentTick((n) => n + 1); } };
+    window.addEventListener("m-editor-suggest-chunks", onChunks);
+    window.addEventListener("m-editor-suggest-done", onDone);
+    return () => {
+      window.removeEventListener(COMMENT_JUMP_EVENT, apply);
+      window.removeEventListener("m-editor-suggest-chunks", onChunks);
+      window.removeEventListener("m-editor-suggest-done", onDone);
+    };
   }, [path]);
-  const [commentTick, setCommentTick] = useState(0);
   // Read once and kept: the device id does not change while a screen is open,
   // and null until it is here means nothing counts as addressed to you.
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
@@ -496,6 +511,47 @@ export function NoteScreen({
   };
 
   /**
+   * A whole round in one write (V5, desktop parity): every open block resolved
+   * against the text as it stands, applied back to front, then closed.
+   */
+  const applyRound = async (batchId: string) => {
+    const text = doc;
+    if (text === null) return;
+    const blocks = comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
+    const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
+    for (const comment of blocks) {
+      if (!comment.anchor) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      const resolution = resolveCommentAnchor(text, comment.anchor);
+      if (resolution.status === "orphan") { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      spans.push({ comment, from: resolution.from, to: resolution.to });
+    }
+    spans.sort((a, b) => b.from - a.from || b.to - a.to);
+    for (let i = 1; i < spans.length; i += 1) if (spans[i].to > spans[i - 1].from) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+    let next = text;
+    for (const span of spans) next = next.slice(0, span.from) + span.comment.suggestion!.replacement + next.slice(span.to);
+    setDoc(next);
+    noteSaver.schedule(vault, path, next);
+    const name = getMobileSettings().verifierName;
+    try {
+      for (const span of spans) await postMobileComment(vault, { path, body: "", resolvedCommentId: span.comment.commentId, suggestionOutcome: "applied", authorName: name });
+    } catch (error) {
+      setDoc(text);
+      noteSaver.schedule(vault, path, text);
+      throw error;
+    }
+    setCommentTick((n) => n + 1);
+    toast.info(t("workspaceSecurity.suggestRoundApplied", { n: spans.length }));
+  };
+
+  const declineRound = async (batchId: string) => {
+    const name = getMobileSettings().verifierName;
+    for (const comment of comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt)) {
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined", authorName: name });
+    }
+    setCommentTick((n) => n + 1);
+  };
+
+  /**
    * Deleting a remark (K7): a retraction marker, and the marker pair out of
    * the text where this device may write - the desktop does the same.
    */
@@ -672,9 +728,20 @@ export function NoteScreen({
           </Banner>
         </div>
       )}
+      {suggesting && (
+          <div className="pv-suggest-band" role="status">
+            <PenLine size={ICON.head} />
+            <span className="pv-suggest-band__text">
+              <strong>{t("workspaceSecurity.suggestBandTitle")}</strong> {t("workspaceSecurity.suggestCount", { n: suggestCount })}
+            </span>
+            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
+            <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("workspaceSecurity.suggestDiscard")}</Button>
+            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { path, note: suggestNote } })); }}>{t("workspaceSecurity.suggestSend", { n: suggestCount })}</Button>
+          </div>
+        )}
       {doc !== null && (
         <EditorHost
-          editable={editing && workspaceCanWrite && !managedIndex}
+          editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
           canComment={canComment}
@@ -774,6 +841,8 @@ export function NoteScreen({
           onDelete={(comment) => { void deleteComment(comment).catch((e) => toast.error(errorText(e))); }}
           inlineSuggestions={suggestionsInline}
           onToggleInlineSuggestions={toggleSuggestionsInline}
+          onApplyRound={(batchId) => { void applyRound(batchId).catch((e) => toast.error(errorText(e))); }}
+          onDeclineRound={(batchId) => { void declineRound(batchId).catch((e) => toast.error(errorText(e))); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           onRevealAnchor={revealAnchor}
@@ -829,6 +898,20 @@ export function NoteScreen({
               },
             },
             ]),
+            // The suggestion mode (V5): type in a copy, send the changes as a
+            // round. Needs the right to comment, not to write.
+            ...(canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? [{
+              icon: <PenLine size={ICON.head} />,
+              label: t("workspaceSecurity.suggestMode"),
+              onClick: () => {
+                setMenu(false);
+                setEditing(true);
+                setSuggesting(true);
+                setSuggestCount(0);
+                // The editor must exist in edit shape before it takes the mode.
+                window.setTimeout(() => editorEvent("m-editor-suggest-start"), 0);
+              },
+            }] : []),
             {
               icon: <Search size={ICON.head} />,
               label: t("search.find"),

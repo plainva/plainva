@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
+import { postMobileComment } from "./services/mobileComments";
 import {
   Bold,
   Camera as CameraIcon,
@@ -26,7 +27,7 @@ import {
 import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -92,6 +93,8 @@ export function EditorHost({
   const sessionRef = useRef<EditorSession | null>(null);
   const highlightsRef = useRef<readonly AnchorHighlight[]>([]);
   const editableRef = useRef(editable);
+  /** True while the view holds the suggestion mode's copy (V5): no saving. */
+  const suggestingRef = useRef(false);
   // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
   // blockHandles plugin); this host renders it as a bottom sheet.
   const [blockMenuFrom, setBlockMenuFrom] = useState<number | null>(null);
@@ -282,11 +285,17 @@ export function EditorHost({
         return true;
       },
       onDocChanged: (view) => {
+        // The suggestion mode edits a COPY (plan Vorschlagsmodus, V5): nothing
+        // is saved while it is on; sending turns the blocks into records.
+        if (suggestingRef.current) return;
         // Save coordinator (hardening P2, finding M1): the pending text now
         // lives OUTSIDE this component — single-flight, latest-write-wins,
         // retry on failure, flushed on background/vault switch. The old
         // fire-and-forget dropped the text before the write confirmed.
         noteSaver.schedule(vault, path, view.state.doc.toString());
+      },
+      onSuggestionChunks: (count) => {
+        window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { path, count } }));
       },
       onSelectionToolbar: (at) => setSelectionAt(at),
       onSelectionStats: (stats) => setSelectionStats(stats),
@@ -760,6 +769,48 @@ export function EditorHost({
       const mode = hit && (hit.detail.mode as "live" | "source" | undefined);
       if (hit && mode) sessionRef.current?.setMode(mode);
     };
+    // The suggestion mode (V5): the note screen holds the band and the
+    // buttons; the editor holds the copy. Start, discard and send arrive as
+    // events, the count of change blocks and the outcome go back the same way.
+    const onSuggestStart = (e: Event) => {
+      const hit = forThisNote(e);
+      if (!hit) return;
+      suggestingRef.current = true;
+      sessionRef.current?.setSuggesting(true);
+    };
+    const onSuggestDiscard = (e: Event) => {
+      const hit = forThisNote(e);
+      if (!hit) return;
+      suggestingRef.current = false;
+      sessionRef.current?.setSuggesting(false);
+    };
+    const onSuggestSend = (e: Event) => {
+      const hit = forThisNote(e);
+      const session = sessionRef.current;
+      if (!hit || !session) return;
+      const note = typeof hit.detail.note === "string" && hit.detail.note.trim() ? hit.detail.note.trim() : null;
+      const { base, chunks } = session.suggestion();
+      void (async () => {
+        try {
+          if (base === null || chunks.length === 0) { toast.info(t("workspaceSecurity.suggestNothing")); return; }
+          if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("workspaceSecurity.suggestTooLarge")); return; }
+          const batchId = createWorkspaceObjectId();
+          let index = 0;
+          for (const chunk of chunks) {
+            const anchor = buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base));
+            if (!anchor.quote && !chunk.replacement) continue;
+            await postMobileComment(vault, { path, body: "", anchor, suggestion: { replacement: chunk.replacement }, suggestionBatchId: batchId, batchIndex: index, batchNote: note, authorName: getMobileSettings().verifierName });
+            index += 1;
+          }
+          suggestingRef.current = false;
+          session.setSuggesting(false);
+          window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { path, sent: index } }));
+          toast.info(t("workspaceSecurity.suggestSent", { n: index }));
+        } catch (error) {
+          toast.error(errorText(error));
+        }
+      })();
+    };
     const onFind = (e: Event) => {
       const hit = forThisNote(e);
       if (hit) openFindPanel(hit.view);
@@ -774,6 +825,9 @@ export function EditorHost({
     window.addEventListener("m-editor-goto-line", onGoto);
     window.addEventListener("m-editor-goto-range", onGotoRange);
     window.addEventListener("m-editor-set-mode", onSetMode);
+    window.addEventListener("m-editor-suggest-start", onSuggestStart);
+    window.addEventListener("m-editor-suggest-discard", onSuggestDiscard);
+    window.addEventListener("m-editor-suggest-send", onSuggestSend);
     window.addEventListener("m-editor-find", onFind);
     window.addEventListener("m-editor-pick-icon", onPickIcon);
     window.addEventListener("m-editor-pick-color", onPickColor);
@@ -781,6 +835,9 @@ export function EditorHost({
       window.removeEventListener("m-editor-goto-line", onGoto);
       window.removeEventListener("m-editor-goto-range", onGotoRange);
       window.removeEventListener("m-editor-set-mode", onSetMode);
+      window.removeEventListener("m-editor-suggest-start", onSuggestStart);
+      window.removeEventListener("m-editor-suggest-discard", onSuggestDiscard);
+      window.removeEventListener("m-editor-suggest-send", onSuggestSend);
       window.removeEventListener("m-editor-find", onFind);
       window.removeEventListener("m-editor-pick-icon", onPickIcon);
       window.removeEventListener("m-editor-pick-color", onPickColor);

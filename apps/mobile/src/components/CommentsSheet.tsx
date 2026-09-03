@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type CommentThread } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -66,6 +66,9 @@ export interface CommentsSheetProps {
   /** Whether open suggestions are drawn in the text (K5); the head carries the switch. */
   inlineSuggestions?: boolean;
   onToggleInlineSuggestions?(): void;
+  /** A whole proposal round at once (V5). */
+  onApplyRound?(batchId: string): void;
+  onDeclineRound?(batchId: string): void;
 }
 
 /**
@@ -101,6 +104,8 @@ export function CommentsSheet({
   canModerate,
   inlineSuggestions,
   onToggleInlineSuggestions,
+  onApplyRound,
+  onDeclineRound,
   onClose,
   muted,
   onToggleMute,
@@ -120,6 +125,17 @@ export function CommentsSheet({
     () => (filter === "open" ? threads.filter((thread) => isCommentThreadOpen(thread.root) || thread.root.pending) : threads),
     [threads, filter],
   );
+  const grouped = useMemo(() => groupSuggestionRounds(shownThreads), [shownThreads]);
+  const [kind, setKind] = useState<"comments" | "suggestions">("comments");
+  const kindTouched = useRef(false);
+  const openByKind = useMemo(() => {
+    const all = groupSuggestionRounds(threads);
+    return { comments: all.threads.filter((thread) => isCommentThreadOpen(thread.root)).length, suggestions: all.rounds.reduce((n, round) => n + round.open, 0) };
+  }, [threads]);
+  useEffect(() => {
+    if (kindTouched.current) return;
+    if (openByKind.comments === 0 && openByKind.suggestions > 0) setKind("suggestions");
+  }, [openByKind]);
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -188,46 +204,8 @@ export function CommentsSheet({
     return t(label.key, label.params);
   };
 
-  return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
-        <div className="pv-comment-column__head">
-          <p className="m-sheet-title">
-            {t("workspaceSecurity.comments")}
-            <span className="pv-comment-column__count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
-          </p>
-          <span className="pv-comment-column__spacer" />
-          {threads.length > 0 && (
-            <Segmented
-              size="sm"
-              ariaLabel={t("workspaceSecurity.comments")}
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "open", label: t("workspaceSecurity.commentFilterOpen") },
-                { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
-              ]}
-            />
-          )}
-          {onToggleInlineSuggestions && (
-            <IconButton label={t("workspaceSecurity.suggestionInline")} active={inlineSuggestions === true} onClick={onToggleInlineSuggestions}>
-              <Replace size={ICON.touch} />
-            </IconButton>
-          )}
-          {onToggleMute && (
-            <IconButton
-              label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
-              active={muted}
-              onClick={onToggleMute}
-            >
-              {muted ? <BellOff size={ICON.touch} /> : <Bell size={ICON.touch} />}
-            </IconButton>
-          )}
-        </div>
-        {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-        <div className="pv-comment-list">
-          {shownThreads.map(({ root, replies, addressed }) => {
+  /** One thread as a card - inside a round and on its own. */
+  const renderThread = ({ root, replies, addressed }: CommentThread) => {
             const state = suggestionState(root);
             return (
               <div key={root.commentId} className="pv-comment-card">
@@ -304,7 +282,73 @@ export function CommentsSheet({
                 {confirmBox(root, replies.length)}
               </div>
             );
-          })}
+  };
+
+  return (
+    <div className="m-sheet-backdrop" onClick={onClose}>
+      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
+        <SheetGrip onClose={onClose} />
+        <div className="pv-comment-column__head">
+          <Segmented
+            size="sm"
+            ariaLabel={t("workspaceSecurity.comments")}
+            value={kind}
+            onChange={(next) => { kindTouched.current = true; setKind(next); }}
+            options={[
+              { value: "comments", label: `${t("workspaceSecurity.comments")} · ${openByKind.comments}` },
+              { value: "suggestions", label: `${t("workspaceSecurity.suggestions")} · ${openByKind.suggestions}` },
+            ]}
+          />
+          <span className="pv-comment-column__count" hidden>{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+          <span className="pv-comment-column__spacer" />
+          {threads.length > 0 && (
+            <Segmented
+              size="sm"
+              ariaLabel={t("workspaceSecurity.comments")}
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: "open", label: t("workspaceSecurity.commentFilterOpen") },
+                { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
+              ]}
+            />
+          )}
+          {onToggleInlineSuggestions && (
+            <IconButton label={t("workspaceSecurity.suggestionInline")} active={inlineSuggestions === true} onClick={onToggleInlineSuggestions}>
+              <Replace size={ICON.touch} />
+            </IconButton>
+          )}
+          {onToggleMute && (
+            <IconButton
+              label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
+              active={muted}
+              onClick={onToggleMute}
+            >
+              {muted ? <BellOff size={ICON.touch} /> : <Bell size={ICON.touch} />}
+            </IconButton>
+          )}
+        </div>
+        {kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+        <div className="pv-comment-list">
+          {kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+          {kind === "suggestions" && grouped.rounds.map((round) => (
+            <section key={round.batchId} className="pv-comment-round">
+              {!round.batchId.startsWith("single:") && (
+                <div className="pv-comment-round__head">
+                  <CommentCardHead name={nameOf(round.authorMemberId)} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+                  <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("workspaceSecurity.suggestRoundCount", { n: round.blocks.length })}</p>
+                  {round.open > 1 && (
+                    <div className="pv-comment-card__actions">
+                      {canWrite && onApplyRound && <Button size="sm" onClick={() => onApplyRound(round.batchId)}>{t("workspaceSecurity.suggestApplyAll")}</Button>}
+                      {canComment && onDeclineRound && <Button size="sm" variant="ghost" onClick={() => onDeclineRound(round.batchId)}>{t("workspaceSecurity.suggestDeclineAll")}</Button>}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="pv-comment-round__blocks">{round.blocks.map(renderThread)}</div>
+            </section>
+          ))}
+          {kind === "comments" && grouped.threads.map(renderThread)}
         </div>
         {canComment && (
           <div className="pv-comment-compose">

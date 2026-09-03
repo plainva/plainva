@@ -101,6 +101,10 @@ export interface PostMobileCommentInput {
   suggestionOutcome?: "applied" | "declined" | null;
   /** A retraction marker (K7): deletes the record it names, if this device wrote that record. */
   retractsCommentId?: string | null;
+  /** The proposal round (V5), on proposals only. */
+  suggestionBatchId?: string | null;
+  batchIndex?: number | null;
+  batchNote?: string | null;
   /** How this device signs the record — the reviewer name this vault already has. */
   authorName?: string | null;
 }
@@ -135,6 +139,9 @@ export async function postMobileComment(vault: MobileVault, input: PostMobileCom
     resolvedCommentId: input.resolvedCommentId ?? null,
     suggestionOutcome: input.suggestionOutcome ?? null,
     retractsCommentId: input.retractsCommentId ?? null,
+    suggestionBatchId: input.suggestionBatchId ?? null,
+    batchIndex: input.batchIndex ?? null,
+    batchNote: input.batchNote ?? null,
     authorDeviceId: await deviceId(),
     body: input.body,
     anchor: input.anchor ?? null,

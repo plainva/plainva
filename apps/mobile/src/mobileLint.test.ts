@@ -1353,7 +1353,10 @@ describe("a managed overview cannot be edited by accident", () => {
   it("gates the editor, the pencil and nothing else on the marker", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));
     expect(screen).toMatch(/isPlainvaManagedIndex\(doc\)/);
-    expect(screen).toMatch(/editable=\{editing && workspaceCanWrite && !managedIndex\}/);
+    // The suggestion mode (V5) edits a copy, so it opens the editor without the
+    // write right - but never on a managed overview: its menu entry is gated too.
+    expect(screen).toMatch(/editable=\{\(editing && workspaceCanWrite && !managedIndex\) \|\| suggesting\}/);
+    expect(screen).toMatch(/canComment && resolveOpenAction\(path\) !== "text" && !managedIndex && !suggesting/);
     expect(screen).toMatch(/!editing && workspaceCanWrite && !managedIndex &&/);
     // The way out exists and removes the marker rather than just unlocking.
     expect(screen).toMatch(/stripPlainvaIndexMarker\(doc\)/);
