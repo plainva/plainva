@@ -7,6 +7,147 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-04
+
+A note used to be something you wrote alone. This release is about what happens
+when it is not: a comment can hang on a passage rather than on the file, a
+suggestion is typed in a copy of the note instead of described beside it, and a
+slice of the vault can be published to people who are not in it at all. None of
+that puts the vault out of your hands — comments never enter the Markdown, only
+an anchor does, and a publication is a workspace of its own with its own keys.
+Publishing is experimental and its cryptography has not been independently
+reviewed. This is a minor version because three product dimensions are new.
+
+### Added
+
+- **Comments anchored to a place.** An anchor is two things at once, because
+  two kinds of edit work against each other: ours, where a marker in the
+  Markdown is exact, and a foreign editor's, where the marker does not come
+  back. A hard anchor (an HTML comment pair, `<!--pv#7f3a-->`) therefore travels
+  with a soft one (the quote plus forty characters of context each side).
+  Resolution walks four stages — marker, quote-in-context, nearest candidate,
+  orphan — and **a comment without a place is kept, never dropped**.
+- **Comment on things that are not prose.** An embedded image, a Mermaid
+  diagram, a table cell and a database property each replace their Markdown
+  with a widget, so there was no text to select. A picture can carry a
+  **region** rather than the whole picture. A cell quotes *the cell*, is marked
+  by a corner triangle rather than a frame over its borders, and is found again
+  after a row is inserted above it.
+- **A column beside the note**, replacing the collapsible list underneath,
+  which could not say *which* sentence a comment was about. The card names its
+  passage and the passage lights up when the card is active; where the passage
+  has moved or is gone the card says so, and where it still fits it stays quiet.
+  Two tabs, **Comments** and **Suggestions**, each with its open count.
+- **A suggestion mode.** Beside Read, Live and Source there is now **Suggest**:
+  you edit a copy while the file stays the base, and `@codemirror/merge` draws
+  what went and what came in the app's two tones. Nothing is saved or journaled
+  while the mode is on. A band counts the change blocks and takes a sentence for
+  the round.
+- **Proposal rounds.** One send stays together and offers **Apply all /
+  Decline all** — applying resolves every block against the text as it stands,
+  refuses when one has lost its place, and writes the note in one transaction,
+  back to front. An insertion point (a proposal covering no character) is drawn
+  as a widget at its place; it had nowhere to stand before.
+- **@ a person and they see it first.** Typing @ offers the workspace's members
+  and writes the name into the body as ordinary text — mentions are never a
+  stored field, so renaming a member makes old comments follow the new name.
+  Names are claims, not identities: where one name could mean two people, the
+  notification reaches both.
+- **One place that lists every open thread of the vault.** A to-do list, not an
+  archive: resolved threads drop out.
+- **Turn a comment into a task**, through the same path every other task takes.
+  The link back is a reply, not an edit — the comment log is append-only — and
+  the thread stays open, because promoting says "this became work", not "this is
+  settled".
+- **Publications.** A slice of the vault becomes a workspace of its own: own
+  genesis, own policy, own group keys. Invite recipients, see what would leave
+  the vault before it does, refresh it as the vault changes, withdraw a single
+  recipient or the whole publication, and read what recipients wrote back in the
+  same margin you write in. Frontmatter passes an **allowlist** now, not a
+  denylist — two things Plainva itself writes defeated the old shape without
+  containing any of its words.
+- **A vault in a folder you pick, on the phone.** Beside the app container and a
+  cloud folder there is a third way: a folder another app keeps, such as
+  Syncthing or the Files app. Android uses the Storage Access Framework with a
+  persisted tree grant; iOS a security-scoped bookmark with coordinated, atomic
+  writes. Both answer "expired" and "not pickable" as states, not errors, and
+  the delete path is fenced to the container by a test.
+- **Sort a folder and search inside it**, on both shells — by title, last
+  modified or created. A real vault put 640 notes in one folder, listed
+  hard-sorted by title with no search box.
+- **Find & replace shows before and after**, so a regex with `$1` in the
+  replacement is a change you can check instead of guess. An invalid expression
+  is named at the field with the engine's reason.
+- **A font list with preview.** The content font was a text field where a typo
+  simply changed nothing. Now a curated catalog per platform: each row previews
+  itself in its own face and says, measured against the renderer, whether the
+  device actually has it.
+- **List items fold from their bullet**, on both shells. The source never
+  changes.
+- **Notifications for comments** on both shells, with a click that lands on the
+  card. What a lock screen may show follows one rule with a test behind it.
+- **A passphrase-sealed workspace can change its passphrase.** The old one is
+  asked for rather than taken from the unlocked session: an unlocked machine
+  left alone is exactly the case where a silent change would lock its owner out.
+
+### Changed
+
+- **One surface for versions and conflicts.** Comparing had grown in three
+  places that did not know each other, and the file tree offered two exits that
+  resolved a conflict without showing a difference. One rule now, pinned by a
+  shared helper and by tests: **the left side is what the note holds right now.**
+  The footer prices the decision in lines before it is taken.
+- **A list's hanging indent is measured, not guessed.** It was a constant while
+  the rendered prefix is not — a bullet, a checkbox, or `10.` in whatever font
+  you chose — and the error grew with every level until a wrapped row sat left
+  of its own bullet.
+- **Only the table scrolls.** A wide table used to take the whole note sideways.
+- **Task reminders have their own switch.** It only appeared once appointment
+  reminders were on, so whoever never switched those on never learned task
+  reminders exist. It now sits at the same level, still opt-in, and the
+  diagnosis names the switched-off state instead of staying silent.
+- **The compose box lost its "suggest a change" toggle.** A proposal comes from
+  the suggestion mode now, where the change is typed *in* the text.
+- **Deleting a comment is a retraction, not a deletion.** An append-only log
+  cannot lose a line; it can carry one that takes it back.
+
+### Fixed
+
+- **WebDAV nested the server's folder chain into the vault**
+  ([#78](https://github.com/plainva/plainva/issues/78)). `relativeHref()` decoded
+  the href from the PROPFIND answer but compared it against the still-*encoded*
+  path of the configured URL, so any vault below a folder with a space or an
+  umlaut failed that prefix test — and a failed test returned the server's whole
+  path as if it were vault-relative. Both sides are compared decoded now,
+  segment by segment; writes escape per segment (`#` and `?` in a note name
+  produced a URL whose fragment began mid-path); an href outside the vault
+  aborts instead of guessing; and a redirect moves the base path with it.
+- **Moving files on macOS**
+  ([#77](https://github.com/plainva/plainva/issues/77)). The macOS config
+  overlay replaces the whole window entry and had dropped
+  `dragDropEnabled: false`, so Tauri's native drop handling swallowed every
+  HTML5 drag. The tree also gains **Move to…** in its context menu, so a note
+  can move without a drag at all; both paths share one implementation.
+- **A deletion you confirmed no longer comes back.** It never reached the other
+  devices as an *intent* — they only saw files missing from the remote listing,
+  which is what a broken listing looks like. The sideband now carries a deletion
+  journal every device merges before it reconciles, and the pull-side guard asks
+  rather than deciding: delete here too, or keep the local copies.
+- **A task list stays selected.** Four causes, every one of them touching tasks
+  and never calendars, which is why it read as a bug in shared code.
+- **Blocking a slot says why it failed.** The three adapters threw the HTTP
+  status alone; the provider's own reason is read out now, and a 401/403 offers
+  **Sign in again**, landing on the account.
+- **Every connected provider can pick and create its cloud folder.**
+- **The read view draws comment anchors** — tint, frames, marked picture regions
+  — from the same offsets the editor uses.
+- **Six small reports**, including the pinboard's "+" minting a `{Base}_{n}`
+  note although the board's own capture card asks for a title, and "Settings
+  adopted from another device" firing once per app start.
+- **Four desktop reports**, including the maximize button of the frameless
+  window and an auxiliary window's right-hand sidebar.
+- **The database screen reserves the floating bar's strip** on the phone.
+
 ## [0.7.0] — 2026-08-24
 
 A window was never the limit. The limit was that "the vault" was one thing.
@@ -1632,6 +1773,7 @@ and every file it writes stays readable in any text editor.
   as blob URLs with a traversal guard).
 - No telemetry, no mandatory cloud; see [`SECURITY.md`](SECURITY.md).
 
-[Unreleased]: https://github.com/plainva/plainva/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/plainva/plainva/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/plainva/plainva/compare/v0.7.0...v0.8.0
 [0.1.1]: https://github.com/plainva/plainva/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/plainva/plainva/releases/tag/v0.1.0

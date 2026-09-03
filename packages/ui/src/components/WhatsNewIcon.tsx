@@ -30,6 +30,9 @@ import {
   // glyph already means "open in split" in this app, and reusing it for two
   // OS windows would be a double meaning.
   SquareStack,
+  // The SQUARE, not MessageCircle: the circle already means "this cell carries
+  // a comment" on a table cell, and one glyph with two meanings is one too many.
+  MessageSquare,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -68,6 +71,7 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'upload' ? CloudUpload
     : name === 'tasks' ? ListChecks
     : name === 'code' ? FileCode
+    : name === 'message' ? MessageSquare
     : Sparkles;
   return <Glyph size={size} />;
 };

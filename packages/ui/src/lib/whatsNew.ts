@@ -46,7 +46,8 @@ export type WhatsNewIconName =
   | "upload"
   | "tasks"
   | "code"
-  | "windows";
+  | "windows"
+  | "message";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -71,6 +72,24 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.8.0",
+    releaseDate: "2026-09-04",
+    highlights: [
+      { icon: "message" },
+      { icon: "wand" },
+      // The only experimental point of this release. Comments themselves do NOT
+      // hang on the unreviewed cryptography -- they work in a vault with no
+      // encrypted workspace at all. Publishing to outside recipients does, and
+      // it is the first thing that sends content towards other people, so the
+      // sentence says so as well: a pill is a label, not a warning.
+      { icon: "upload", experimental: true },
+      { icon: "phone" },
+      { icon: "sync" },
+      { icon: "layout" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-8-0",
+  },
   {
     version: "0.7.0",
     releaseDate: "2026-08-24",
