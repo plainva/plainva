@@ -64,6 +64,10 @@ function vaultWith(files: Record<string, string>): { vault: MobileVault; files: 
 
 const noRemote = async () => false;
 
+// Real key derivation runs in these tests. Alone they take a second each;
+// under the pre-commit's parallel turbo run (core + desktop + mobile at once)
+// two of them crossed the 5 s default twice in a row on 2026-09-03 with no code
+// change behind them. The budget matches pimForeground.test.ts.
 describe("mobile settings encryption setup", () => {
   beforeEach(async () => {
     install();
@@ -150,4 +154,4 @@ describe("mobile settings encryption setup", () => {
     await activatePreparedMobileEncryption(vault, draftId);
     expect(secrets.get("mkcache_mobile_v1")).toBeUndefined();
   });
-});
+}, 60_000);

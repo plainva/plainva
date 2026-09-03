@@ -524,6 +524,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "table-cell-comment-affordance",
+    title: "Finding the way to comment on a table cell",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop shows a speech bubble on the hovered cell (K2, finding " +
+      "2026-09-03: the cell menu alone was not found). A touch screen has no " +
+      "hover, and a bubble that appeared after a tap would stick to the last " +
+      "tapped cell, so the phone keeps the long-press sheet with the same " +
+      "entry - one gesture, not a hidden one. Both reach the same request.",
+    verified: "2026-09-03",
+  },
+  {
     id: "workspace-passphrase-change",
     title: "Change the passphrase that seals the keys on this device",
     area: "security",

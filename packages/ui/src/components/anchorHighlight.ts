@@ -371,6 +371,12 @@ const anchorHighlightTheme = EditorView.baseTheme({
   },
   ".cm-anchor-host:hover .cm-anchor-bubble": { display: "inline-flex" },
   ".cm-anchor-bubble:focus-visible": { display: "inline-flex" },
+  // A table cell is small; the picture-sized bubble would cover its text.
+  // Finding 2026-09-03 (K2): the cell menu alone was not found. On a touch
+  // screen there is no hover and the cell's long-press sheet is the way, so
+  // the bubble stays away there instead of sticking to the last tapped cell.
+  ".cm-anchor-bubble--cell": { top: "2px", right: "2px", width: "20px", height: "20px", fontSize: "var(--text-xs)" },
+  "@media (hover: none)": { ".cm-anchor-host:hover .cm-anchor-bubble--cell": { display: "none" } },
   // The host is an inline-block around an inline image, so it inherits the
   // baseline gap under it. A few stray pixels of height would skew every
   // percentage the markings are positioned with.
@@ -470,8 +476,10 @@ export function decorateAnchorTarget(opts: {
    * would be two doors into one room.
    */
   bubbleLabel?: string;
+  /** A second class on the bubble - the table cell wants a smaller one. */
+  bubbleClass?: string;
 }): void {
-  const { view, host, target, range, display, frame, regions, pickRegion, bubbleLabel } = opts;
+  const { view, host, target, range, display, frame, regions, pickRegion, bubbleLabel, bubbleClass } = opts;
   host.classList.add("cm-anchor-host");
   if (frame) {
     target.classList.add("cm-anchor-frame");
@@ -501,7 +509,7 @@ export function decorateAnchorTarget(opts: {
   if (!handlers || !handlers.enabled()) return;
   const bubble = host.ownerDocument.createElement("button");
   bubble.type = "button";
-  bubble.className = "cm-anchor-bubble";
+  bubble.className = bubbleClass ? `cm-anchor-bubble ${bubbleClass}` : "cm-anchor-bubble";
   bubble.textContent = "\u{1F4AC}";
   bubble.setAttribute("aria-label", bubbleLabel);
   bubble.setAttribute("data-tip", bubbleLabel);

@@ -18,6 +18,7 @@ import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
+import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -275,6 +276,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       // Source mode keeps line numbers for raw editing (#6); live hides all gutters.
       isLive ? [] : [lineNumbers(), highlightActiveLineGutter()],
       frontmatterHidePlugin(isLive),
+      // Comment anchor markers vanish in live preview (K1); source shows them.
+      anchorMarkerHidePlugin(isLive),
       // Document header (W3): stripe + icon widget above the hidden frontmatter.
       documentHeaderExtension(
         isLive,

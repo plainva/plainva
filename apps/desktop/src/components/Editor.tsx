@@ -2743,7 +2743,11 @@ export const Editor: React.FC<{
           y={tableMenu.y}
           kind={tableMenu.kind}
           align={tableMenu.align}
-          canComment={commentAnchorsEnabled && !workspaceReadOnly}
+          // The right the menu asks for is "may comment", as on the phone -
+          // not "may write" (finding 2026-09-03, K2): a Commenter has no
+          // content.write and lost the entry; the anchor setting only decides
+          // whether a hard marker is written, not whether one may comment.
+          canComment={workspaceCanComment}
           onAction={handleTableMenuAction}
           onClose={() => setTableMenu(null)}
         />

@@ -215,6 +215,7 @@ export * from "./hooks/useHoldDrag";
 // EditorSessionDeps / PlatformServices — never through direct shell imports.
 export * from "./adapters/pathGuard";
 export * from "./components/anchorHighlight";
+export * from "./components/anchorMarkerHide";
 export * from "./components/anchorRegion";
 export * from "./components/AtMentionPlugin";
 export * from "./components/DocIcon";

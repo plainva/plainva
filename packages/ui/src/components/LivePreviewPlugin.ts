@@ -8,6 +8,7 @@ import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
+import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
 
@@ -344,6 +345,18 @@ class TableWidget extends WidgetType {
     };
 
     const wireCell = (cell: HTMLTableCellElement, kind: "header" | "body", rowIndex: number, colIndex: number) => {
+      // The same speech bubble a picture shows on hover (K2). The cell menu
+      // keeps the entry as the second door; this is the one people see.
+      decorateAnchorTarget({
+        view,
+        host: cell,
+        target: cell,
+        range: { from: this.from, to: this.to },
+        display: { kind: "tableCell", row: kind === "header" ? 0 : rowIndex + 1, column: colIndex },
+        frame: null,
+        bubbleLabel: i18n.t("workspaceSecurity.commentOnCell"),
+        bubbleClass: "cm-anchor-bubble--cell",
+      });
       cell.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return; // left button only; right opens the menu
         // Read-only (mobile read mode): a cell tap must not open the editor —
@@ -422,8 +435,7 @@ class TableWidget extends WidgetType {
         range: { from: this.from, to: this.to },
         display: frame,
         frame,
-        // No bubble: commenting on a cell lives in the cell's context menu,
-        // which already carries the row and column out.
+        // No bubble here: `wireCell` already gave every cell its own.
       });
     }
     if (tableFrame) {
@@ -590,9 +602,15 @@ export function markdownDecorationPlugin(isLive: boolean) {
 
                 // HTML comments stay visible but unobtrusive in live mode —
                 // e.g. the invisible list separator from block drag (E2).
-                if (isLive && (name === "CommentBlock" || name === "Comment") && !activeLines.has(state.doc.lineAt(node.from).number)) {
-                  decos.push(Decoration.mark({ class: "cm-md-comment-dim" }).range(node.from, node.to));
-                  return false;
+                // A comment ANCHOR marker is not one of them: `anchorMarkerHidePlugin`
+                // replaces it outright (K1) - dimming an id nobody should read
+                // was exactly the finding.
+                if (isLive && (name === "CommentBlock" || name === "Comment")) {
+                  if (isAnchorMarkerText(state.sliceDoc(node.from, node.to))) return false;
+                  if (!activeLines.has(state.doc.lineAt(node.from).number)) {
+                    decos.push(Decoration.mark({ class: "cm-md-comment-dim" }).range(node.from, node.to));
+                    return false;
+                  }
                 }
 
                 // Blockquote: remember every spanned line (both modes). Detect an
