@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-09-02
+Stand: 2026-09-03
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -176,7 +176,7 @@ Hinweis für synchronisierte Vaults: Ordnen zwei Geräte das Brett gleichzeitig 
 
 Manchmal betrifft eine Änderung nicht einen Eintrag, sondern zwölf.
 
-**Auswählen (Desktop)**: In der **Tabelle** und in der **Liste** sitzt vor jeder Zeile ein Kästchen. Es ist unauffällig, bis Du es brauchst: Es erscheint, sobald der Mauszeiger über der Zeile steht, sobald es die Tastatur erreicht, und für alle Zeilen, sobald etwas ausgewählt ist. `Umschalt`+Klick wählt einen ganzen Bereich, das Kästchen in der Kopfzeile wählt alles. Ein Klick in eine **Zelle** bearbeitet sie weiterhin — die Auswahl nimmt ihm den Klick nicht weg.
+**Auswählen (Desktop)**: In der **Tabelle** und in der **Liste** sitzt vor jeder Zeile ein Kästchen. Es ist unauffällig, bis Du es brauchst: Es erscheint, sobald der Mauszeiger über der Zeile steht, sobald es die Tastatur erreicht, und für alle Zeilen, sobald etwas ausgewählt ist. `Umschalt`+Klick wählt einen ganzen Bereich, das Kästchen in der Kopfzeile wählt alles. Ein Klick in eine **Zelle** bearbeitet sie weiterhin — die Auswahl nimmt ihm den Klick nicht weg. Ein Klick auf ein gesetztes Kästchen wählt die Zeile wieder ab; mit **Umschalt** spannst Du einen Bereich bis zur angeklickten Zeile.
 
 **Auswählen (Handy)**: Halte eine Zeile gedrückt und wähle **Mehrere auswählen** — es ist der erste Eintrag im Blatt. Danach wählt ein Tipp aus statt zu öffnen, bis Du die Auswahl aufhebst.
 

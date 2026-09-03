@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-02
+Last reviewed: 2026-09-03
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -176,7 +176,7 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 
 Sometimes a change is not about one entry but about twelve.
 
-**Selecting (desktop)**: In the **table** and the **list** every row has a checkbox in front of it. It stays out of the way until you need it: it appears when the pointer is over the row, when the keyboard reaches it, and for every row once something is selected. `Shift`+click picks a range, the header checkbox picks everything. A click in a **cell** still edits it — selecting does not take that click away.
+**Selecting (desktop)**: In the **table** and the **list** every row has a checkbox in front of it. It stays out of the way until you need it: it appears when the pointer is over the row, when the keyboard reaches it, and for every row once something is selected. `Shift`+click picks a range, the header checkbox picks everything. A click in a **cell** still edits it — selecting does not take that click away. Clicking a ticked box unticks the row again; with **Shift** you span a range up to the clicked row.
 
 **Selecting (phone)**: Hold a row and choose **Select several** — it is the first entry in the sheet. After that a tap selects instead of opening, until you clear the selection.
 

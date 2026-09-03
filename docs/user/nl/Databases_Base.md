@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-02
+Laatst bijgewerkt: 2026-09-03
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -176,7 +176,7 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 
 Soms gaat een wijziging niet over één item, maar over twaalf.
 
-**Selecteren (desktop)**: In de **tabel** en de **lijst** staat vóór elke rij een selectievakje. Het blijft onopvallend tot je het nodig hebt: het verschijnt zodra de muisaanwijzer boven de rij zweeft, zodra het toetsenbord het bereikt, en voor elke rij zodra er iets geselecteerd is. `Shift`+klik selecteert een bereik, het selectievakje in de kop selecteert alles. Een klik in een **cel** bewerkt hem nog steeds — selecteren neemt die klik niet weg.
+**Selecteren (desktop)**: In de **tabel** en de **lijst** staat vóór elke rij een selectievakje. Het blijft onopvallend tot je het nodig hebt: het verschijnt zodra de muisaanwijzer boven de rij zweeft, zodra het toetsenbord het bereikt, en voor elke rij zodra er iets geselecteerd is. `Shift`+klik selecteert een bereik, het selectievakje in de kop selecteert alles. Een klik in een **cel** bewerkt hem nog steeds — selecteren neemt die klik niet weg. Een klik op een aangevinkt vakje maakt de selectie van de rij weer ongedaan; met **Shift** span je een bereik tot de aangeklikte rij.
 
 **Selecteren (telefoon)**: Houd een rij ingedrukt en kies **Meerdere selecteren** — het is het eerste item in het blad. Daarna selecteert een tik in plaats van te openen, tot je de selectie opheft.
 

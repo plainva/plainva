@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-02
+Última actualización: 2026-09-03
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -176,7 +176,7 @@ Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mism
 
 A veces un cambio no afecta a un elemento, sino a doce.
 
-**Seleccionar (escritorio)**: En la **tabla** y en la **lista**, cada fila tiene una casilla delante. Se mantiene discreta hasta que la necesitas: aparece cuando el puntero está sobre la fila, cuando el teclado la alcanza, y en todas las filas en cuanto algo está seleccionado. `Shift`+clic selecciona un rango, la casilla del encabezado selecciona todo. Un clic en una **celda** sigue editándola — seleccionar no le quita ese clic.
+**Seleccionar (escritorio)**: En la **tabla** y en la **lista**, cada fila tiene una casilla delante. Se mantiene discreta hasta que la necesitas: aparece cuando el puntero está sobre la fila, cuando el teclado la alcanza, y en todas las filas en cuanto algo está seleccionado. `Shift`+clic selecciona un rango, la casilla del encabezado selecciona todo. Un clic en una **celda** sigue editándola — seleccionar no le quita ese clic. Un clic en una casilla marcada vuelve a desmarcar la fila; con **Mayús** abarcas un rango hasta la fila en la que hagas clic.
 
 **Seleccionar (teléfono)**: Mantén pulsada una fila y elige **Seleccionar varios** — es la primera entrada de la hoja. A partir de ahí, un toque selecciona en lugar de abrir, hasta que borres la selección.
 
