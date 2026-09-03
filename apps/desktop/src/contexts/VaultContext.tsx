@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, workspaceRecipientGroupIds, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, prepareWorkspaceComment, publishWorkspaceComment, commitPublishedWorkspaceComment, decodeBase64Exact, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, outboxEntryAsCommentRecord, type WorkspaceCommentOutboxEntry, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -267,6 +267,10 @@ interface VaultContextType extends VaultState {
   exportWorkspaceQuarantine: (quarantineId: string) => Promise<Uint8Array | null>;
   getWorkspaceCapabilities: (path: string) => Promise<WorkspaceCapability[] | null>;
   listWorkspaceComments: (path: string) => Promise<WorkspaceCommentRecord[]>;
+  /** Tries a remark that failed to publish again, right away (K6). */
+  retryWorkspaceComment: (outboxId: string) => Promise<void>;
+  /** Drops a queued remark that never made it - the person's decision, never the worker's (K6). */
+  discardWorkspaceComment: (outboxId: string) => Promise<void>;
   /**
    * What the people this note was published to have written back (D7).
    *
@@ -1233,6 +1237,13 @@ export const VaultProvider: React.FC<{
                   });
                 };
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
+                // A queued remark published or failed, or one arrived from another
+                // device: the open column and the overview refresh themselves (K6).
+                worker.onCommentsChanged = (paths) => {
+                  for (const changedPath of paths) {
+                    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: changedPath } }));
+                  }
+                };
                 worker.onFilesChanged = (paths) => {
                   for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
                   indexQueue.enqueue(paths);
@@ -2758,9 +2769,12 @@ export const VaultProvider: React.FC<{
       const local = localCommentContext();
       return local ? listLocalComments(local.vaultPath, local.raw, path) : [];
     }
-    const { workspaceState } = workspaceControlPlane();
+    const { runtime, workspaceState } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
-    return object ? workspaceState.listComments(object.objectId) : [];
+    if (!object) return [];
+    const stored = await workspaceState.listComments(object.objectId);
+    const queued = (await workspaceState.listCommentOutbox()).filter((entry) => entry.targetObjectId === object.objectId);
+    return mergeCommentOutbox(stored, queued, runtime);
   };
 
   /**
@@ -2836,6 +2850,13 @@ export const VaultProvider: React.FC<{
       const list = byPath.get(path);
       if (list) list.push(comment);
       else byPath.set(path, [comment]);
+    }
+    // The queued ones too (K6): the overview must not miss what was just sent.
+    const queued = await workspaceState.listCommentOutbox();
+    for (const [path, list] of byPath) byPath.set(path, mergeCommentOutbox(list, queued.filter((entry) => entry.path === path), runtime));
+    for (const entry of queued) {
+      if (byPath.has(entry.path) || entry.resolvedCommentId) continue;
+      byPath.set(entry.path, mergeCommentOutbox([], queued.filter((candidate) => candidate.path === entry.path), runtime));
     }
     return byPath;
   };
@@ -2940,20 +2961,61 @@ export const VaultProvider: React.FC<{
       window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
       return;
     }
-    const { runtime, workspaceState, store } = workspaceControlPlane();
+    const { runtime, workspaceState } = workspaceControlPlane();
     const object = await workspaceState.getObjectByPath(path);
     if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
-    const meta = await workspaceState.loadMeta();
-    if (!meta) throw new Error("workspace-state-missing");
+    // The right is checked HERE, before anything is queued: a refusal must be
+    // immediate and its own, not a "not sent" card a cycle later.
     const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
     if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
-    const groupIds = workspaceRecipientGroupIds(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
-    const recipients = groupIds.map((groupId) => { const group = runtime.policy.payload.groups.find((entry) => entry.groupId === groupId)!; return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") }; });
-    const prepared = await prepareWorkspaceComment({ runtime, policyHash: meta.policyHash, sequence: meta.sequence + 1, previousDeviceOperationHash: meta.previousOperationHash, targetObjectId: object.objectId, targetRevisionId: object.currentRevisionId, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, recipients });
-    await publishWorkspaceComment(store, prepared);
-    await commitPublishedWorkspaceComment(workspaceState, prepared, meta);
+    // Into the outbox, not onto the network (K6, finding 2026-09-03). Sealing
+    // and the two verified uploads happen in the worker's next cycle, which is
+    // triggered right away; the column shows the card now, with a "sending"
+    // state, and a failure comes back as a reason on that card.
+    const entry: WorkspaceCommentOutboxEntry = {
+      outboxId: createWorkspaceObjectId(), commentId: createWorkspaceObjectId(), path, targetObjectId: object.objectId,
+      body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome,
+      createdAt: new Date().toISOString(), attempts: 0, lastError: null,
+    };
+    await workspaceState.enqueueCommentOutbox(entry);
     state.syncWorker?.triggerImmediate();
     window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+  };
+
+  /**
+   * What the outbox adds to a note's list (K6): queued remarks as pending
+   * records, and a queued resolve marker applied to the record it closes - a
+   * thread somebody just resolved must not stay open until the upload lands.
+   */
+  const mergeCommentOutbox = (stored: WorkspaceCommentRecord[], queued: WorkspaceCommentOutboxEntry[], runtime: { memberId: string; device: { publicIdentity: { deviceId: string } } }): WorkspaceCommentRecord[] => {
+    if (queued.length === 0) return stored;
+    const byId = new Map(stored.map((record) => [record.commentId, { ...record }]));
+    for (const entry of queued) {
+      if (!entry.resolvedCommentId) { byId.set(entry.commentId, outboxEntryAsCommentRecord(entry, runtime.memberId, runtime.device.publicIdentity.deviceId)); continue; }
+      const target = byId.get(entry.resolvedCommentId);
+      if (!target) continue;
+      target.resolvedAt = entry.createdAt;
+      if (target.suggestion && entry.suggestionOutcome === "applied") target.suggestion = { ...target.suggestion, appliedAt: entry.createdAt, appliedBy: runtime.memberId };
+      if (target.suggestion && entry.suggestionOutcome === "declined") target.suggestion = { ...target.suggestion, declinedAt: entry.createdAt };
+    }
+    return [...byId.values()];
+  };
+
+  const retryWorkspaceComment = async (outboxId: string): Promise<void> => {
+    const { workspaceState } = workspaceControlPlane();
+    const entry = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.outboxId === outboxId);
+    if (!entry) return;
+    await workspaceState.updateCommentOutbox(outboxId, { attempts: entry.attempts, lastError: null });
+    state.syncWorker?.triggerImmediate();
+    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
+  };
+
+  const discardWorkspaceComment = async (outboxId: string): Promise<void> => {
+    const { workspaceState } = workspaceControlPlane();
+    const entry = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.outboxId === outboxId);
+    if (!entry) return;
+    await workspaceState.deleteCommentOutbox(outboxId);
+    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
   };
 
   const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor, suggestion);
@@ -3083,7 +3145,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

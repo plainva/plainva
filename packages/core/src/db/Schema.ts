@@ -171,6 +171,23 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       resolved_comment_id TEXT,
       resolved_at       TEXT
     );`,
+    // Remarks written on this device that the worker has not published yet
+    // (K6): shown at once, uploaded in order by the next cycle. Additive.
+    `CREATE TABLE IF NOT EXISTS workspace_comment_outbox (
+      outbox_id         TEXT PRIMARY KEY,
+      comment_id        TEXT NOT NULL UNIQUE,
+      path              TEXT NOT NULL,
+      target_object_id  TEXT NOT NULL,
+      body              TEXT NOT NULL,
+      parent_comment_id TEXT,
+      resolved_comment_id TEXT,
+      anchor            TEXT,
+      suggestion        TEXT,
+      suggestion_outcome TEXT,
+      created_at        TEXT NOT NULL,
+      attempts          INTEGER NOT NULL DEFAULT 0,
+      last_error        TEXT
+    );`,
     `CREATE TABLE IF NOT EXISTS workspace_quarantine (
       quarantine_id    TEXT PRIMARY KEY,
       artifact_kind    TEXT NOT NULL,

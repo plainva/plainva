@@ -2868,6 +2868,9 @@ tr.is-selected > td { color: var(--on-accent-container); }
 /* The active card and its tinted range in the text are ONE thing seen twice. */
 .pv-comment-card.is-active { border-left-color: var(--accent-color); background: var(--accent-container); color: var(--on-accent-container); }
 .pv-comment-card.is-resolved { opacity: 0.6; }
+/* A remark still in the outbox (K6): visibly provisional, never hidden. */
+.pv-comment-card.is-pending { border-style: dashed; }
+.pv-comment-card__state[data-state="error"] { color: var(--error-text); }
 .pv-comment-card__quote {
   margin: 0; padding-left: var(--space-2);
   border-left: 2px solid var(--accent-color);

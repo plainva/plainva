@@ -58,6 +58,64 @@ export interface WorkspaceCommentRecord {
   /** Present only on an immutable resolution marker. */
   resolvedCommentId: string | null;
   resolvedAt: string | null;
+  /**
+   * Set only on a remark that is still in this device's outbox (K6, finding
+   * 2026-09-03): written the moment somebody pressed send, published by the
+   * worker afterwards. Never stored - the shell merges it in from the outbox so
+   * the column shows the remark at once instead of after two verified uploads.
+   */
+  pending?: { outboxId: string; attempts: number; lastError: string | null };
+}
+
+/**
+ * A remark waiting to be published (K6).
+ *
+ * Posting used to mean: seal, upload the object, upload the operation - each
+ * upload read back twice and listed once - and only then show the card. On a
+ * slow store that was seconds of nothing. The outbox turns the order around:
+ * the record is written locally first and the worker publishes it in its next
+ * cycle (triggered at once), in order, one device sequence at a time.
+ *
+ * `commentId` is assigned when the entry is queued, so a reply typed while
+ * its parent is still in the outbox can already name that parent, and the
+ * card the reader sees keeps its id when the publish lands.
+ */
+export interface WorkspaceCommentOutboxEntry {
+  outboxId: string;
+  commentId: string;
+  path: string;
+  targetObjectId: string;
+  body: string;
+  parentCommentId: string | null;
+  resolvedCommentId: string | null;
+  anchor: WorkspaceCommentAnchor | null;
+  suggestion: { replacement: string } | null;
+  suggestionOutcome: "applied" | "declined" | null;
+  createdAt: string;
+  attempts: number;
+  lastError: string | null;
+}
+
+/** The queued remark as the column shows it - the same shape as a stored one, plus `pending`. */
+export function outboxEntryAsCommentRecord(entry: WorkspaceCommentOutboxEntry, authorMemberId: string, authorDeviceId: string): WorkspaceCommentRecord {
+  return {
+    commentId: entry.commentId,
+    targetObjectId: entry.targetObjectId,
+    targetRevisionId: "",
+    parentCommentId: entry.parentCommentId,
+    authorMemberId,
+    authorDeviceId,
+    operationHash: "",
+    payloadHash: "",
+    body: entry.body,
+    anchor: entry.anchor,
+    createdAt: entry.createdAt,
+    suggestion: entry.suggestion ? { replacement: entry.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null,
+    suggestionOutcome: entry.suggestionOutcome,
+    resolvedCommentId: entry.resolvedCommentId,
+    resolvedAt: null,
+    pending: { outboxId: entry.outboxId, attempts: entry.attempts, lastError: entry.lastError },
+  };
 }
 
 export type WorkspaceQuarantineStatus = "pending" | "ignored" | "repaired";
@@ -257,6 +315,11 @@ export interface WorkspaceStateStore {
    */
   listAllComments(): Promise<WorkspaceCommentRecord[]>;
   saveComment(comment: WorkspaceCommentRecord): Promise<void>;
+  /** The remarks this device has not published yet (K6), oldest first. */
+  listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]>;
+  enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void>;
+  updateCommentOutbox(outboxId: string, patch: { attempts: number; lastError: string | null }): Promise<void>;
+  deleteCommentOutbox(outboxId: string): Promise<void>;
   listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]>;
   saveQuarantine(record: WorkspaceQuarantineRecord): Promise<void>;
   setQuarantineStatus(quarantineId: string, status: WorkspaceQuarantineStatus): Promise<void>;
@@ -304,6 +367,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private readonly revisions = new Map<string, WorkspaceRevisionRecord>();
   private readonly operations = new Map<string, CommitWorkspaceMutation>();
   private readonly comments = new Map<string, WorkspaceCommentRecord>();
+  private readonly commentOutbox = new Map<string, WorkspaceCommentOutboxEntry>();
   private readonly quarantine = new Map<string, WorkspaceQuarantineRecord>();
   private readonly forks = new Map<string, WorkspaceLocalForkRecord>();
   private readonly publications = new Map<string, WorkspacePublicationRecord>();
@@ -319,6 +383,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     this.revisions.clear();
     this.operations.clear();
     this.comments.clear();
+    this.commentOutbox.clear();
     this.quarantine.clear();
     this.forks.clear();
     this.publications.clear();
@@ -343,6 +408,15 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   async listAllComments(): Promise<WorkspaceCommentRecord[]> {
     return [...this.comments.values()].filter((entry) => !entry.resolvedCommentId).map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
   }
+  async listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]> {
+    return [...this.commentOutbox.values()].map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.outboxId.localeCompare(b.outboxId));
+  }
+  async enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void> { this.commentOutbox.set(entry.outboxId, clone(entry)); }
+  async updateCommentOutbox(outboxId: string, patch: { attempts: number; lastError: string | null }): Promise<void> {
+    const entry = this.commentOutbox.get(outboxId);
+    if (entry) { entry.attempts = patch.attempts; entry.lastError = patch.lastError; }
+  }
+  async deleteCommentOutbox(outboxId: string): Promise<void> { this.commentOutbox.delete(outboxId); }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
     this.comments.set(comment.commentId, clone(comment));
     if (comment.resolvedCommentId) {
@@ -487,6 +561,22 @@ interface CommentRow {
   body: string; anchor: string | null; suggestion: string | null; suggestion_applied_at: string | null; suggestion_applied_by: string | null; suggestion_declined_at: string | null; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
 }
 
+interface CommentOutboxRow {
+  outbox_id: string; comment_id: string; path: string; target_object_id: string; body: string;
+  parent_comment_id: string | null; resolved_comment_id: string | null; anchor: string | null; suggestion: string | null;
+  suggestion_outcome: "applied" | "declined" | null; created_at: string; attempts: number; last_error: string | null;
+}
+
+function commentOutboxFromRow(row: CommentOutboxRow): WorkspaceCommentOutboxEntry {
+  return {
+    outboxId: row.outbox_id, commentId: row.comment_id, path: row.path, targetObjectId: row.target_object_id, body: row.body,
+    parentCommentId: row.parent_comment_id, resolvedCommentId: row.resolved_comment_id, anchor: parseCommentAnchor(row.anchor),
+    // JSON rather than the bare replacement: an empty replacement is a deletion, and "" is not null.
+    suggestion: row.suggestion === null ? null : (JSON.parse(row.suggestion) as { replacement: string }),
+    suggestionOutcome: row.suggestion_outcome, createdAt: row.created_at, attempts: Number(row.attempts), lastError: row.last_error,
+  };
+}
+
 interface QuarantineRow {
   quarantine_id: string; artifact_kind: WorkspaceQuarantineRecord["artifactKind"]; remote_key: string;
   artifact_base64: string; artifact_sha256: string; error_code: string; reason: string; first_seen_at: string;
@@ -590,6 +680,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
         "workspace_revision",
         "workspace_operation",
         "workspace_comment",
+        "workspace_comment_outbox",
         "workspace_quarantine",
         "workspace_local_fork",
         "workspace_local_probe",
@@ -625,6 +716,19 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   async listAllComments(): Promise<WorkspaceCommentRecord[]> {
     const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at FROM workspace_comment WHERE resolved_comment_id IS NULL ORDER BY created_at, comment_id`);
     return rows.map(commentFromRow);
+  }
+  async listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]> {
+    const rows = await this.db.query<CommentOutboxRow>(`SELECT outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error FROM workspace_comment_outbox ORDER BY created_at, outbox_id`);
+    return rows.map(commentOutboxFromRow);
+  }
+  async enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void> {
+    await this.db.execute(`INSERT INTO workspace_comment_outbox (outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [entry.outboxId, entry.commentId, entry.path, entry.targetObjectId, entry.body, entry.parentCommentId, entry.resolvedCommentId, entry.anchor ? JSON.stringify(entry.anchor) : null, entry.suggestion ? JSON.stringify(entry.suggestion) : null, entry.suggestionOutcome, entry.createdAt, entry.attempts, entry.lastError]);
+  }
+  async updateCommentOutbox(outboxId: string, patch: { attempts: number; lastError: string | null }): Promise<void> {
+    await this.db.execute(`UPDATE workspace_comment_outbox SET attempts = ?, last_error = ? WHERE outbox_id = ?`, [patch.attempts, patch.lastError, outboxId]);
+  }
+  async deleteCommentOutbox(outboxId: string): Promise<void> {
+    await this.db.execute(`DELETE FROM workspace_comment_outbox WHERE outbox_id = ?`, [outboxId]);
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
     await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);

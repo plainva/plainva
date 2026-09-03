@@ -407,3 +407,65 @@ describe("workspace comment column", () => {
     });
   });
 });
+
+/**
+ * A remark still in the outbox (K6, finding 2026-09-03): the card is there the
+ * moment it was sent, says so, and once it failed offers retry and discard to
+ * the person who wrote it - and nothing else, because reply/resolve/task would
+ * queue behind a remark that may never land.
+ */
+describe("pending remarks (K6)", () => {
+  const baseProps = {
+    publicationComments: [] as PublicationCommentEntry[],
+    memberNames: NAMES,
+    selfMemberId: "aabbccdd11223344",
+    resolutions: NO_RESOLUTIONS,
+    canComment: true,
+    canWrite: true,
+    activeCommentId: null,
+    selectionQuote: null,
+    onSelect: () => {},
+    onSubmit: async () => {},
+    onResolve: () => {},
+    onApplySuggestion: () => {},
+    onDeclineSuggestion: () => {},
+    onPromoteToTask: () => {},
+  };
+
+  it("shows a just-sent remark as sending, without the usual actions", () => {
+    const pending = comment({ commentId: "c1", body: "On its way", pending: { outboxId: "o1", attempts: 0, lastError: null } });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[pending]} />);
+    try {
+      expect(host.textContent).toContain("On its way");
+      expect(host.textContent).toContain(tr("workspaceSecurity.commentSending"));
+      expect(host.querySelector(".pv-comment-card.is-pending")).not.toBeNull();
+      expect(host.textContent).not.toContain(tr("workspaceSecurity.commentReply"));
+      expect(host.textContent).not.toContain(tr("workspaceSecurity.resolve"));
+    } finally { unmount(); }
+  });
+
+  it("names the reason a remark was not sent and lets its author retry or discard it", () => {
+    const onRetryPending = vi.fn();
+    const onDiscardPending = vi.fn();
+    const failed = comment({ commentId: "c2", body: "Stuck", pending: { outboxId: "o2", attempts: 3, lastError: "workspace-object-not-synced" } });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[failed]} onRetryPending={onRetryPending} onDiscardPending={onDiscardPending} />);
+    try {
+      expect(host.textContent).toContain(tr("workspaceSecurity.commentSendFailed").replace("{{reason}}", "workspace-object-not-synced"));
+      const buttons = [...host.querySelectorAll("button")];
+      const retry = buttons.find((b) => b.textContent?.trim() === tr("workspaceSecurity.commentSendRetry"))!;
+      const discard = buttons.find((b) => b.textContent?.trim() === tr("workspaceSecurity.commentSendDiscard"))!;
+      act(() => { retry.click(); });
+      act(() => { discard.click(); });
+      expect(onRetryPending).toHaveBeenCalledWith("o2");
+      expect(onDiscardPending).toHaveBeenCalledWith("o2");
+    } finally { unmount(); }
+  });
+
+  it("offers neither retry nor discard on somebody else's stuck remark", () => {
+    const failed = comment({ commentId: "c3", body: "Theirs", authorMemberId: "9999888877776666", pending: { outboxId: "o3", attempts: 1, lastError: "x" } });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[failed]} onRetryPending={() => {}} onDiscardPending={() => {}} />);
+    try {
+      expect(host.textContent).not.toContain(tr("workspaceSecurity.commentSendRetry"));
+    } finally { unmount(); }
+  });
+});

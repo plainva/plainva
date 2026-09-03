@@ -108,7 +108,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -2644,6 +2644,8 @@ export const Editor: React.FC<{
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
           onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+          onRetryPending={(outboxId) => { void retryWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+          onDiscardPending={(outboxId) => { void discardWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
         />

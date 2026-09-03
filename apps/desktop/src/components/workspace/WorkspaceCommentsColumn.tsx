@@ -1,8 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Share2, X } from "lucide-react";
+import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -51,6 +51,10 @@ export interface WorkspaceCommentsColumnProps {
    */
   onSubmit(body: string, parentCommentId: string | null, suggestion: { replacement: string } | null): Promise<void>;
   onResolve(commentId: string): void;
+  /** A queued remark that failed to publish: try again now (K6). */
+  onRetryPending?(outboxId: string): void;
+  /** ...or let it go. Only the person who wrote it decides that. */
+  onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   /** Closes the thread without touching the note. */
@@ -98,7 +102,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t } = useTranslation();
@@ -157,9 +161,37 @@ export function WorkspaceCommentsColumn({
       await onSubmit(body, parent, suggestion);
       if (parent === null) { setDraft(""); setReplacement(null); }
       else { setReplyDraft(""); setReplyTo(null); }
+    } catch (error) {
+      // A refused post used to be an unhandled rejection: the draft stayed and
+      // nothing said why (finding 2026-09-03, K6). The draft still stays - it
+      // is the person's text - but the reason is now on screen.
+      toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
+  };
+
+  /** The sending / not-sent line of a queued remark (K6); null once it has landed. */
+  const pendingState = (record: WorkspaceCommentRecord, own: boolean) => {
+    if (!record.pending) return null;
+    if (record.pending.lastError === null) {
+      return <span className="pv-comment-card__state" data-state="sending"><Send size={ICON.meta} /> {t("workspaceSecurity.commentSending")}</span>;
+    }
+    return (
+      <>
+        <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("workspaceSecurity.commentSendFailed", { reason: record.pending.lastError })}</span>
+        {own && onRetryPending && (
+          <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onRetryPending(record.pending!.outboxId); }}>
+            {t("workspaceSecurity.commentSendRetry")}
+          </Button>
+        )}
+        {own && onDiscardPending && (
+          <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDiscardPending(record.pending!.outboxId); }}>
+            {t("workspaceSecurity.commentSendDiscard")}
+          </Button>
+        )}
+      </>
+    );
   };
 
   const anchorNote = (comment: WorkspaceCommentRecord) => {
@@ -250,7 +282,7 @@ export function WorkspaceCommentsColumn({
       {threads.map(({ root, replies, addressed }) => (
         <div
           key={root.commentId}
-          className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}`}
+          className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}${root.pending ? " is-pending" : ""}`}
           onClick={() => onSelect(activeCommentId === root.commentId ? null : root.commentId)}
         >
           {root.anchor && <blockquote className={root.suggestion ? "pv-comment-card__quote pv-comment-card__quote--replaced" : "pv-comment-card__quote"}>{root.anchor.quote}</blockquote>}
@@ -272,8 +304,14 @@ export function WorkspaceCommentsColumn({
           {replies.map((reply) => (
             <div key={reply.commentId} className="pv-comment-card__reply">
               <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} />
+              {reply.pending && <div className="pv-comment-card__actions">{pendingState(reply, reply.authorMemberId === selfMemberId)}</div>}
             </div>
           ))}
+          {root.pending ? (
+            // Still on its way (or stuck): no reply, resolve or task yet - each
+            // of those would queue behind a remark that may never land.
+            <div className="pv-comment-card__actions">{pendingState(root, root.authorMemberId === selfMemberId)}</div>
+          ) : (
           <div className="pv-comment-card__actions">
             {canComment && !root.resolvedAt && (
               <Button
@@ -317,6 +355,7 @@ export function WorkspaceCommentsColumn({
                   </Button>
                 )}
           </div>
+          )}
           {replyTo === root.commentId && (
             <div className="pv-comment-compose" onClick={(event) => event.stopPropagation()}>
               <MentionTextArea

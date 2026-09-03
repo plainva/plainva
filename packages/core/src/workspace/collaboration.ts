@@ -5,9 +5,12 @@ import { encodeWorkspaceDocument, signWorkspaceDocument, workspaceDocumentHash, 
 import { openPvc1Chunk, openPvo1Frame, sealInlinePvo1, verifyChunkedPlaintextHash, type Pvo1Recipient } from "./pvo1.js";
 import { assertWorkspaceCommentAnchor, type WorkspaceCommentAnchor } from "./commentAnchor.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
-import { fromBase64, sha256Hex, toBase64, utf8DecodeFatal, utf8Encode } from "./encoding.js";
+import { decodeBase64Exact, fromBase64, sha256Hex, toBase64, utf8DecodeFatal, utf8Encode } from "./encoding.js";
+import { evaluateWorkspaceAccess } from "./authorization.js";
+import { workspaceRecipientGroupIds, workspaceSliceIdsForObject } from "./slices.js";
+import type { WorkspacePolicyPayload } from "./documents.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
-import type { WorkspaceCommentRecord, WorkspaceQuarantineStatus, WorkspaceRevisionRecord, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
+import type { WorkspaceCommentOutboxEntry, WorkspaceCommentRecord, WorkspaceQuarantineStatus, WorkspaceRevisionRecord, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 
 export interface WorkspaceCommentBody {
   version: 1;
@@ -87,6 +90,8 @@ export async function prepareWorkspaceComment(input: {
   resolvedCommentId?: string | null;
   recipients: Pvo1Recipient[];
   now?: string;
+  /** Given by the outbox (K6): the id the card already carries. Fresh otherwise. */
+  commentId?: string;
 }): Promise<PreparedWorkspaceComment> {
   const now = input.now ?? new Date().toISOString();
   const resolvedCommentId = input.resolvedCommentId ?? null;
@@ -101,7 +106,7 @@ export async function prepareWorkspaceComment(input: {
   if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
   assertWorkspaceSuggestion(suggestion, input.anchor, input.suggestionOutcome, resolvedCommentId);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
-  const commentId = createWorkspaceObjectId();
+  const commentId = input.commentId ?? createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
   const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, resolvedCommentId, createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
@@ -128,6 +133,58 @@ export async function prepareWorkspaceComment(input: {
 export async function publishWorkspaceComment(store: WorkspaceObjectStore, prepared: PreparedWorkspaceComment, signal?: AbortSignal): Promise<void> {
   await store.putImmutable(prepared.objectRemoteKey, prepared.objectBytes, prepared.objectHash, { signal });
   await store.putImmutable(prepared.operationRemoteKey, encodeWorkspaceDocument(prepared.operation), prepared.operationHash, { signal });
+}
+
+/**
+ * Publishes one queued remark (K6): the access check, the sealing, the two
+ * uploads and the local commit that the desktop shell used to run before it
+ * showed anything. The worker calls this per outbox entry, in order, so the
+ * device sequence stays monotonic; a failure leaves the entry in the outbox
+ * with its reason and the shell shows it as "not sent".
+ */
+export async function publishQueuedWorkspaceComment(input: {
+  runtime: PersonalWorkspaceRuntime;
+  policy: WorkspacePolicyPayload;
+  state: WorkspaceStateStore;
+  store: WorkspaceObjectStore;
+  entry: WorkspaceCommentOutboxEntry;
+  signal?: AbortSignal;
+}): Promise<WorkspaceCommentRecord> {
+  const { runtime, policy, state, store, entry } = input;
+  const object = await state.getObjectById(entry.targetObjectId);
+  if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
+  const meta = await state.loadMeta();
+  if (!meta) throw new Error("workspace-state-missing");
+  const sliceObject = { objectId: object.objectId, path: object.path, contentKind: object.contentKind };
+  const sliceIds = workspaceSliceIdsForObject(policy, sliceObject);
+  if (!evaluateWorkspaceAccess(policy, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) {
+    throw new Error("workspace-comment-not-permitted");
+  }
+  const recipients: Pvo1Recipient[] = workspaceRecipientGroupIds(policy, sliceObject).map((groupId) => {
+    const group = policy.groups.find((candidate) => candidate.groupId === groupId)!;
+    return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") };
+  });
+  const prepared = await prepareWorkspaceComment({
+    runtime,
+    policyHash: meta.policyHash,
+    sequence: meta.sequence + 1,
+    previousDeviceOperationHash: meta.previousOperationHash,
+    targetObjectId: object.objectId,
+    targetRevisionId: object.currentRevisionId,
+    commentId: entry.commentId,
+    body: entry.body,
+    parentCommentId: entry.parentCommentId,
+    resolvedCommentId: entry.resolvedCommentId,
+    anchor: entry.anchor,
+    suggestion: entry.suggestion,
+    suggestionOutcome: entry.suggestionOutcome,
+    recipients,
+    // The moment the person pressed send, not the moment the network allowed it.
+    now: entry.createdAt,
+  });
+  await publishWorkspaceComment(store, prepared, input.signal);
+  await commitPublishedWorkspaceComment(state, prepared, meta);
+  return workspaceCommentRecord(prepared.comment, prepared.operation, prepared.operationHash);
 }
 
 export async function commitPublishedWorkspaceComment(state: WorkspaceStateStore, prepared: PreparedWorkspaceComment, meta: WorkspaceRuntimeMeta): Promise<void> {

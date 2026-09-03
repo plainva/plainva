@@ -56,7 +56,7 @@ import { MAX_INLINE_PLAINTEXT_BYTES } from "./constants.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
 import { resolveWorkspacePolicyChain } from "./policy.js";
 import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceSliceObject } from "./slices.js";
-import { openWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
+import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractLinksAndTags } from "../ast-scanner.js";
@@ -165,6 +165,14 @@ export class EncryptedWorkspaceWorker {
   public onStatusChange?: (status: SyncStatus, error?: string) => void;
   public onProgress?: (progress: SyncProgress | null) => void;
   public onFilesChanged?: (paths: string[]) => void;
+  /**
+   * Notes whose remarks changed in this cycle (K6): a queued remark published,
+   * a queued remark that failed, or a remark that arrived from another device.
+   * Before this the shell only heard about its OWN posts and an open column
+   * showed the list it loaded when the note was opened.
+   */
+  public onCommentsChanged?: (paths: string[]) => void;
+  private readonly commentPathsChanged = new Set<string>();
   private activePolicy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
 
   constructor(
@@ -228,6 +236,11 @@ export class EncryptedWorkspaceWorker {
     await this.resumePreparedMutations(signal);
     const changed = await this.pull(signal);
     if (changed.length) this.onFilesChanged?.(changed);
+    try {
+      await this.drainCommentOutbox(signal);
+    } finally {
+      this.flushCommentsChanged();
+    }
     await this.push(signal);
     await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);
@@ -238,6 +251,49 @@ export class EncryptedWorkspaceWorker {
     meta.lastError = null;
     if (meta.phase === "migrating" && (await this.state.listQueue(1)).length === 0 && !meta.pendingPublication) meta.phase = "active";
     await this.state.saveMeta(meta);
+  }
+
+  private flushCommentsChanged(): void {
+    if (this.commentPathsChanged.size === 0) return;
+    const paths = [...this.commentPathsChanged];
+    this.commentPathsChanged.clear();
+    try {
+      this.onCommentsChanged?.(paths);
+    } catch (error) {
+      console.error("[EncryptedWorkspaceWorker] onCommentsChanged consumer failed", error);
+    }
+  }
+
+  /**
+   * Publishes the queued remarks in order (K6).
+   *
+   * One failure does not stop everything: an entry whose parent or target is
+   * itself queued and failed waits (a reply cannot overtake the remark it
+   * answers), every other entry is still tried. The failed ones keep their
+   * reason and are retried next cycle; the shell offers retry and discard.
+   */
+  private async drainCommentOutbox(signal?: AbortSignal): Promise<void> {
+    const entries = await this.state.listCommentOutbox();
+    if (entries.length === 0) return;
+    const blocked = new Set<string>();
+    for (const entry of entries) {
+      if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+      const waitsFor = (id: string | null) => id !== null && blocked.has(id);
+      if (waitsFor(entry.parentCommentId) || waitsFor(entry.resolvedCommentId)) {
+        blocked.add(entry.commentId);
+        continue;
+      }
+      try {
+        await publishQueuedWorkspaceComment({ runtime: this.runtime, policy: this.activePolicy.payload, state: this.state, store: this.objectStore, entry, signal });
+        await this.state.deleteCommentOutbox(entry.outboxId);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") throw error;
+        const message = error instanceof Error ? error.message : String(error);
+        await this.state.updateCommentOutbox(entry.outboxId, { attempts: entry.attempts + 1, lastError: message.slice(0, 500) });
+        blocked.add(entry.commentId);
+      }
+      this.commentPathsChanged.add(entry.path);
+    }
   }
 
   private async runScheduled(): Promise<void> {
@@ -561,6 +617,7 @@ export class EncryptedWorkspaceWorker {
       protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
       const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
       await this.state.saveComment(workspaceCommentRecord(body, document, operationHash));
+      this.commentPathsChanged.add(commentTarget.path);
       await this.state.recordObservedOperation(operationHash, toBase64(encodeWorkspaceDocument(document)), operation.deviceId, operation.sequence, meta);
       return [];
     }
