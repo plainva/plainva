@@ -69,6 +69,9 @@ export function EditorHost({
   canComment,
   onCommentAnchorRequest,
   anchorHighlights,
+  onAnchorActivate,
+  onSuggestionApply,
+  onSuggestionDecline,
 }: {
   vault: MobileVault;
   path: string;
@@ -87,6 +90,19 @@ export function EditorHost({
    * this arrives as a prop rather than the screen reaching for the view.
    */
   anchorHighlights?: readonly AnchorHighlight[];
+  /**
+   * A tap on a tinted passage or a proposal names its card (finding
+   * 2026-09-03): the screen owns the sheet and opens it there. Unset, a tap
+   * did nothing on the phone while the desktop selected the card.
+   */
+  onAnchorActivate?: (commentId: string) => void;
+  /**
+   * The inline pill's accept and decline. Absent when this device may not
+   * write (accept) or comment (decline) - the pill then shows no button, as
+   * the session's `canApply`/`canDecline` read exactly this.
+   */
+  onSuggestionApply?: (commentId: string) => void;
+  onSuggestionDecline?: (commentId: string) => void;
 }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -208,6 +224,9 @@ export function EditorHost({
       // setting), so the affordance appears in exactly the same places.
       commentAnchorsEnabled: () => canComment === true && getMobileSettings().commentAnchors,
       onCommentAnchorRequest: (req) => onCommentAnchorRequest?.(req),
+      onAnchorActivate: (commentId) => onAnchorActivate?.(commentId),
+      onSuggestionApply: onSuggestionApply ? (commentId) => onSuggestionApply(commentId) : undefined,
+      onSuggestionDecline: onSuggestionDecline ? (commentId) => onSuggestionDecline(commentId) : undefined,
       onOpenPath: (p) => onOpenNote(p),
       openWikiTarget: (target, _newTab, kind) => {
         void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {

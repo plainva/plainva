@@ -397,7 +397,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     const locale = (i18n.language || "de").slice(0, 2);
     result = result.replace(DATE_TOKEN_RE, (_m, y, mo, d) => formatRelativeDate(`${y}-${mo}-${d}`, new Date(), locale));
     return result;
-  }, [content, embedDepth, i18n.language]);
+  }, [stripped, embedDepth, i18n.language]);
 
   if (embedDepth > 2) return <div style={{ color: 'var(--text-muted)', padding: '0.5rem' }}>Max embed depth reached</div>;
 
@@ -414,6 +414,12 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           mark: ({ node, ...props }) => {
             const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId;
             return <mark {...props} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} />;
+          },
+          // A proposal standing at its place (K5) opens its card the same way
+          // (finding 2026-09-03) - an insertion has no struck passage to click.
+          ins: ({ node, ...props }) => {
+            const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId;
+            return <ins {...props} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} />;
           },
           a: ({ node: _node, href, children, ...props }) => {
             if (href?.startsWith('wiki://')) {

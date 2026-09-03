@@ -185,6 +185,25 @@ export function WorkspaceCommentsColumn({
     if (kindTouched.current) return;
     if (openByKind.comments === 0 && grouped.rounds.length > 0) setKind("suggestions");
   }, [openByKind, grouped]);
+  // A card picked from the text shows on ITS tab (finding 2026-09-03): a click
+  // on a proposal's struck passage set the id, but the column stayed on
+  // "Comments" and nothing visibly answered. The pick is explicit intent and
+  // wins over the tab the reader chose - and over the "open" filter when the
+  // thread is settled. Then the card scrolls into view, for a remark as much
+  // as for a proposal: the column never did that for either.
+  const activeCardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!activeCommentId) return;
+    const thread = threads.find((entry) => entry.root.commentId === activeCommentId || entry.replies.some((reply) => reply.commentId === activeCommentId));
+    if (!thread) return;
+    setKind(thread.root.suggestion ? "suggestions" : "comments");
+    if (!isCommentThreadOpen(thread.root) && !thread.root.pending) setFilter("all");
+  }, [activeCommentId, threads]);
+  useEffect(() => {
+    const card = activeCardRef.current;
+    if (!activeCommentId || !card || typeof card.scrollIntoView !== "function") return;
+    card.scrollIntoView({ block: "nearest" });
+  }, [activeCommentId, kind, filter]);
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
@@ -338,6 +357,7 @@ export function WorkspaceCommentsColumn({
   const renderThread = ({ root, replies, addressed }: CommentThread) => (
         <div
           key={root.commentId}
+          ref={activeCommentId === root.commentId ? activeCardRef : undefined}
           className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}${root.pending ? " is-pending" : ""}`}
           onClick={() => onSelect(activeCommentId === root.commentId ? null : root.commentId)}
         >

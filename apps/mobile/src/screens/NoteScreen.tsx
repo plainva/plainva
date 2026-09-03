@@ -148,6 +148,8 @@ export function NoteScreen({
   const [comments, setComments] = useState<WorkspaceCommentRecord[]>([]);
   const [commentNames, setCommentNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [commentsOpen, setCommentsOpen] = useState(false);
+  /** The card a tap in the text named (finding 2026-09-03); the sheet opens on it. */
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   /** The suggestion mode (V5): the editor holds the copy, this screen the band. */
   const [suggesting, setSuggesting] = useState(false);
   const [suggestCount, setSuggestCount] = useState(0);
@@ -323,13 +325,15 @@ export function NoteScreen({
       const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
       out.push({
         commentId: comment.commentId, from: resolution.from, to: resolution.to,
+        // The named card's range is drawn stronger (desktop parity, finding 2026-09-03).
+        active: comment.commentId === activeCommentId,
         // The corner sits on the cell where it is TODAY (V7, desktop parity).
         frame: toAnchorFrameHint(comment.anchor.display, "cell" in resolution && resolution.cell ? { ...resolution.cell, moved: resolution.status === "moved" } : null),
         ...(suggestionsInline && open && !comment.anchor.display ? { suggestion: { replacement: open.replacement } } : {}),
       });
     }
     return out;
-  }, [comments, doc, suggestionsInline]);
+  }, [comments, doc, suggestionsInline, activeCommentId]);
   const propertyCommentCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const res of propertyResolutions.values()) {
@@ -780,6 +784,9 @@ export function NoteScreen({
           canComment={canComment}
           anchorHighlights={anchorHighlights}
           onCommentAnchorRequest={(req) => { setPendingRange(req); setPendingPropertyAnchor(null); setCommentsOpen(true); }}
+          onAnchorActivate={(commentId) => { setActiveCommentId(commentId); setCommentsOpen(true); }}
+          onSuggestionApply={workspaceCanWrite ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "applied"); } : undefined}
+          onSuggestionDecline={canComment ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "declined"); } : undefined}
           onOpenNote={onOpenNote}
           path={path}
           vault={vault}
@@ -883,6 +890,7 @@ export function NoteScreen({
           onDeclineRound={(batchId) => { void declineRound(batchId).catch((e) => toast.error(errorText(e))); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
+          activeCommentId={activeCommentId}
           onRevealAnchor={revealAnchor}
           onOpenNote={(target) => {
             // The same resolution the editor's wiki links take (K4).

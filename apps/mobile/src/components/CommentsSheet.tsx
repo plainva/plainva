@@ -71,6 +71,11 @@ export interface CommentsSheetProps {
   /** A whole proposal round at once (V5). */
   onApplyRound?(batchId: string): void;
   onDeclineRound?(batchId: string): void;
+  /**
+   * The card a tap in the text named (finding 2026-09-03): the sheet opens on
+   * its tab, scrolled to it and marked - the desktop column's behaviour.
+   */
+  activeCommentId?: string | null;
 }
 
 /**
@@ -109,6 +114,7 @@ export function CommentsSheet({
   cellPlaces,
   onApplyRound,
   onDeclineRound,
+  activeCommentId = null,
   onClose,
   muted,
   onToggleMute,
@@ -139,6 +145,22 @@ export function CommentsSheet({
     if (kindTouched.current) return;
     if (openByKind.comments === 0 && openByKind.suggestions > 0) setKind("suggestions");
   }, [openByKind]);
+  // A card named from the text shows on ITS tab and scrolls into view
+  // (finding 2026-09-03) - the tap is explicit intent and wins over the tab
+  // and the "open" filter the reader chose. Same rule as the desktop column.
+  const activeCardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!activeCommentId) return;
+    const thread = threads.find((entry) => entry.root.commentId === activeCommentId || entry.replies.some((reply) => reply.commentId === activeCommentId));
+    if (!thread) return;
+    setKind(thread.root.suggestion ? "suggestions" : "comments");
+    if (!isCommentThreadOpen(thread.root) && !thread.root.pending) setFilter("all");
+  }, [activeCommentId, threads]);
+  useEffect(() => {
+    const card = activeCardRef.current;
+    if (!activeCommentId || !card || typeof card.scrollIntoView !== "function") return;
+    card.scrollIntoView({ block: "nearest" });
+  }, [activeCommentId, kind, filter]);
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -211,7 +233,7 @@ export function CommentsSheet({
   const renderThread = ({ root, replies, addressed }: CommentThread) => {
             const state = suggestionState(root);
             return (
-              <div key={root.commentId} className="pv-comment-card">
+              <div key={root.commentId} ref={activeCommentId === root.commentId ? activeCardRef : undefined} className={`pv-comment-card${activeCommentId === root.commentId ? " is-active" : ""}`}>
                 <CommentCardHead name={nameOf(root.authorMemberId)} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
                 {addressed && (
                   <span className="pv-comment-card__state">

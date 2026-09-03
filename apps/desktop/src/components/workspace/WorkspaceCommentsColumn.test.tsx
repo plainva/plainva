@@ -603,3 +603,45 @@ describe("proposal rounds (V3)", () => {
     } finally { unmount(); }
   });
 });
+
+describe("a card named from the text (finding 2026-09-03)", () => {
+  const baseProps = {
+    publicationComments: [] as PublicationCommentEntry[],
+    memberNames: NAMES,
+    selfMemberId: "aabbccdd11223344",
+    resolutions: NO_RESOLUTIONS,
+    canComment: true,
+    canWrite: true,
+    selectionQuote: null,
+    onSelect: () => {},
+    onSubmit: async () => {},
+    onResolve: () => {},
+    onApplySuggestion: () => {},
+    onDeclineSuggestion: () => {},
+    onPromoteToTask: () => {},
+  };
+  const remark = comment({ commentId: "r1", body: "A remark", anchor: ANCHOR });
+  const proposal = comment({ commentId: "p1", anchor: ANCHOR, suggestion: SUGGESTION, authorMemberId: "9999888877776666" });
+
+  it("switches to the proposals tab when the named card is a proposal, and back for a remark", () => {
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[remark, proposal]} activeCommentId="p1" />);
+    try {
+      // The column opened on "Comments" (a remark is open) - the pick wins.
+      expect(host.querySelector(".pv-comment-round")).not.toBeNull();
+      expect(host.querySelector(".pv-comment-round .pv-comment-card.is-active")).not.toBeNull();
+    } finally { unmount(); }
+    const back = render(<WorkspaceCommentsColumn {...baseProps} comments={[remark, proposal]} activeCommentId="r1" />);
+    try {
+      expect(back.host.querySelector(".pv-comment-round")).toBeNull();
+      expect(back.host.querySelector(".pv-comment-card.is-active")?.textContent).toContain("A remark");
+    } finally { back.unmount(); }
+  });
+
+  it("brings a settled thread back under 'all' when it is the one named", () => {
+    const settled = comment({ commentId: "s1", body: "Done long ago", anchor: ANCHOR, resolvedAt: NOW });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[remark, settled]} activeCommentId="s1" />);
+    try {
+      expect(host.querySelector(".pv-comment-card.is-active")?.textContent).toContain("Done long ago");
+    } finally { unmount(); }
+  });
+});

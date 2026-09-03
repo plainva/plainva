@@ -106,3 +106,41 @@ describe("the screen turns a tapped range into an anchor", () => {
     expect(rollback, "the failure must still reach the sheet").toMatch(/throw error;/);
   });
 });
+
+/**
+ * A tap on a tinted passage names its card (finding 2026-09-03).
+ *
+ * The shared session already called `onAnchorActivate` for a comment tint, a
+ * proposal's struck passage and the inline pill - and the phone never set it,
+ * so every tap did nothing while the desktop selected the card. The pill's
+ * accept and decline hung on the same two unset deps. Source assertions for
+ * the same reason as above: the fault lives in the call sites.
+ */
+describe("a tap names its card on the phone", () => {
+  const host = strip(read("EditorHost.tsx"));
+  const depsFrom = host.indexOf("depsRef.current = {");
+  const deps = host.slice(depsFrom, host.indexOf("onOpenPath:", depsFrom));
+  const screen = strip(read("screens", "NoteScreen.tsx"));
+  const sheet = strip(read("components", "CommentsSheet.tsx"));
+
+  it("hands the tapped comment id from the session to the screen", () => {
+    expect(deps).toMatch(/onAnchorActivate:\s*\(commentId\)\s*=>\s*onAnchorActivate\?\.\(commentId\)/);
+    expect(screen).toMatch(/onAnchorActivate=\{\(commentId\)\s*=>\s*\{\s*setActiveCommentId\(commentId\);\s*setCommentsOpen\(true\);/);
+  });
+
+  it("arms the inline pill's accept and decline on the same handlers the sheet uses, gated like the sheet", () => {
+    expect(deps).toMatch(/onSuggestionApply:\s*onSuggestionApply\s*\?/);
+    expect(deps).toMatch(/onSuggestionDecline:\s*onSuggestionDecline\s*\?/);
+    expect(screen).toMatch(/onSuggestionApply=\{workspaceCanWrite\s*\?/);
+    expect(screen).toMatch(/onSuggestionDecline=\{canComment\s*\?/);
+    expect(screen).toMatch(/applySuggestion\(found, "applied"\)/);
+    expect(screen).toMatch(/applySuggestion\(found, "declined"\)/);
+  });
+
+  it("opens the sheet on the card's tab, scrolled to it and marked", () => {
+    expect(screen).toMatch(/activeCommentId=\{activeCommentId\}/);
+    expect(sheet).toMatch(/setKind\(thread\.root\.suggestion \? "suggestions" : "comments"\)/);
+    expect(sheet).toMatch(/card\.scrollIntoView\(\{ block: "nearest" \}\)/);
+    expect(sheet).toMatch(/activeCommentId === root\.commentId \? " is-active" : ""/);
+  });
+});
