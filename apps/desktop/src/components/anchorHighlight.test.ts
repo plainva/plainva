@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, type DecorationSet } from "@codemirror/view";
@@ -8,6 +9,7 @@ import {
   anchorFramesAt,
   anchorFramesSignature,
   anchorHighlightExtension,
+  decorateAnchorTarget,
   hasAnchorHighlightChange,
   setAnchorHighlights,
   toAnchorFrameHint,
@@ -210,5 +212,37 @@ describe("insertion points in the editor (V3)", () => {
     expect(markRanges(withProposal)).toEqual([{ from: 5, to: 5 }]);
     const plain = apply(stateWith(), [{ commentId: "c1", from: 5, to: 5 }]);
     expect(markRanges(plain)).toEqual([]);
+  });
+});
+
+describe("the corner triangle on a commented cell (Tabellenzelle, V7)", () => {
+  it("names the comment on mousedown even though the table owns its events", () => {
+    const activated: string[] = [];
+    const view = new EditorView({ state: EditorState.create({ doc: DOC, extensions: [anchorHighlightExtension((id) => activated.push(id))] }), parent: document.body });
+    try {
+      const cell = document.createElement("td");
+      cell.textContent = "Palette";
+      decorateAnchorTarget({
+        view,
+        host: cell,
+        target: cell,
+        range: { from: 0, to: 5 },
+        display: { kind: "tableCell", row: 1, column: 1 },
+        frame: { kind: "tableCell", row: 1, column: 1, commentId: "c1", active: false },
+        corner: { label: "Open" },
+      });
+      const corner = cell.querySelector<HTMLButtonElement>(".cm-anchor-corner");
+      expect(corner?.getAttribute("data-pv-comment")).toBe("c1");
+      expect(cell.classList.contains("cm-anchor-cell")).toBe(true);
+      // No outline class: the triangle stays inside the cell.
+      expect(cell.classList.contains("cm-anchor-frame")).toBe(false);
+      const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+      corner?.dispatchEvent(event);
+      expect(activated).toEqual(["c1"]);
+      // The caret must not land in the source behind the widget.
+      expect(event.defaultPrevented).toBe(true);
+    } finally {
+      view.destroy();
+    }
   });
 });

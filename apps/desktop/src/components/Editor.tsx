@@ -2147,6 +2147,22 @@ export const Editor: React.FC<{
 
   // Push the resolved ranges into the editor. An orphan contributes nothing -
   // its card says so instead; tinting a random place would be worse than none.
+  // A card names a place; picking it brings the place into view (finding
+  // 2026-09-03). The read view scrolls its marked element, the editor its
+  // resolved range; a remark without a place (whole note, orphan) only selects.
+  const editorRootRef = useRef<HTMLDivElement>(null);
+  const selectCommentFromColumn = useCallback((commentId: string | null) => {
+    setActiveCommentId(commentId);
+    if (!commentId) return;
+    if (isReadMode) {
+      editorRootRef.current?.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    const resolution = anchorResolutions.get(commentId);
+    const view = sessionRef.current?.view;
+    if (!view || !resolution || resolution.status === "orphan") return;
+    view.dispatch({ effects: EditorView.scrollIntoView(Math.min(resolution.from, view.state.doc.length), { y: "center" }) });
+  }, [anchorResolutions, isReadMode]);
   // The same list feeds the editor's tints and frames AND the read view's
   // (Sammelplan C28): one resolution, two renderers, no drift between them.
   const anchorHighlights = useMemo(() => {
@@ -2549,7 +2565,7 @@ export const Editor: React.FC<{
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
+    <div ref={editorRootRef} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
       {/* The peek hides the toolbar, so the column's switch floats over the
           note's top right until the column is open - which has its own X. */}
       {peek && workspaceCanReadComments && !commentColumnOpen && (
@@ -2978,7 +2994,7 @@ export const Editor: React.FC<{
           canComment={workspaceCanComment}
           activeCommentId={activeCommentId}
           selectionQuote={selectionQuote}
-          onSelect={setActiveCommentId}
+          onSelect={selectCommentFromColumn}
           onSubmit={postComment}
           canWrite={!workspaceReadOnly}
           canModerate={workspaceCapabilities?.includes("workspace.manage") === true}

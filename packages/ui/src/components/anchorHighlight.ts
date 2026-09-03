@@ -600,11 +600,24 @@ const anchorHighlightTheme = EditorView.baseTheme({
  * needs the same building block (D5); the parity rule is to lift first and wire
  * both views afterwards.
  */
+/**
+ * The activation callback, readable from inside a widget (finding 2026-09-03).
+ *
+ * The shared mousedown handler below never sees a click inside a widget
+ * whose `ignoreEvent` says the widget owns its events - the table does, so
+ * a click on a cell's corner triangle reached nobody. A widget calls this
+ * itself instead; both paths end in the same callback.
+ */
+export const anchorActivate = Facet.define<(commentId: string) => void, ((commentId: string) => void) | null>({
+  combine: (values) => values[0] ?? null,
+});
+
 export function anchorHighlightExtension(onActivate: (commentId: string) => void): Extension {
   return [
     anchorHighlightField,
     anchorFrameField,
     anchorHighlightTheme,
+    anchorActivate.of(onActivate),
     EditorView.domEventHandlers({
       mousedown(event) {
         const target = event.target instanceof HTMLElement ? event.target : null;
@@ -676,6 +689,9 @@ export function decorateAnchorTarget(opts: {
     button.setAttribute("data-pv-comment", frame.commentId);
     button.addEventListener("mousedown", (e) => {
       e.preventDefault();
+      // The table owns its events (`ignoreEvent`), so the shared handler
+      // never sees this click - the corner names the comment itself.
+      view.state.facet(anchorActivate)?.(frame.commentId);
     });
     target.appendChild(button);
   } else if (frame) {
