@@ -129,6 +129,10 @@ describe("find & replace on the phone", () => {
     await click('[data-testid="fr-replace"]');
     await act(async () => {});
     expect(Object.keys(saved)).toEqual(["b.md"]);
+    // The report survives the list refresh that follows the replace (P6): it
+    // used to be wiped by the re-run before anyone could read it.
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(q('[data-testid="fr-status"]')?.textContent ?? "").not.toBe("");
   });
 
   it("will not replace when nothing is selected", async () => {

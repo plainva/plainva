@@ -645,3 +645,146 @@ option {
   border-radius: var(--radius-md);
   background: var(--surface-container-low);
 }
+
+
+/* ---- Vault-wide find & replace (P6, finding 2026-09-01 D1) ----
+   Layout only: fields, checkboxes, buttons and the empty state are the
+   primitives; the marks use the accent pair. Every metric is a token. */
+.pv-fr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.pv-fr-scope {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.pv-fr-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+.pv-fr-field {
+  display: grid;
+  gap: var(--space-1);
+}
+.pv-fr-label {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+.pv-fr-error {
+  margin: 0;
+  color: var(--error-text);
+  font-size: var(--text-ui);
+}
+.pv-fr-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.pv-fr-grow {
+  flex: 1;
+}
+.pv-fr-results {
+  max-height: 48vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-2);
+}
+.pv-fr-results-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  font-size: var(--text-md);
+}
+.pv-fr-group {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-color-light);
+}
+.pv-fr-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.pv-fr-open {
+  min-width: 0;
+  overflow: hidden;
+}
+.pv-fr-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  white-space: nowrap;
+}
+.pv-fr-hit {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-1) var(--space-5);
+}
+.pv-fr-ln {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+.pv-fr-lines {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.pv-fr-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.pv-fr-tag {
+  flex: 0 0 4.5em;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pv-fr-tag--before {
+  color: var(--text-faint);
+}
+.pv-fr-tag--after {
+  color: var(--accent-color);
+}
+.pv-fr-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+}
+.pv-fr-txt--dim {
+  color: var(--text-muted);
+}
+.pv-fr-more {
+  padding-left: calc(var(--space-5) + 3em + var(--space-2));
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+.pv-fr-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+.pv-fr-status {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.pv-fr-status--warn {
+  color: var(--warning-text);
+}

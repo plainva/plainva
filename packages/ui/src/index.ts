@@ -143,6 +143,7 @@ export * from "./lib/textDiff";
 export * from "./lib/treeFiles";
 export * from "./lib/treeReveal";
 export * from "./lib/vaultReplace";
+export * from "./lib/findReplacePreview";
 export * from "./lib/dragAutoScroll";
 export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";

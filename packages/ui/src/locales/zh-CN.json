@@ -2503,7 +2503,22 @@
     "emptyTitle": "在所有笔记中搜索",
     "emptyBody": "输入内容，查看预览，然后只在你想要的地方替换。",
     "skipped_other": "已跳过 {{count}} 个笔记，因为它们在预览之后发生了变化。",
-    "moreHits_other": "还有 {{count}} 处匹配"
+    "moreHits_other": "还有 {{count}} 处匹配",
+    "findLabel": "查找",
+    "replaceLabel": "替换为",
+    "scope": "搜索“{{vault}}”中的所有笔记",
+    "optCase": "区分大小写",
+    "optWord": "仅匹配整个单词",
+    "optRegex": "正则表达式",
+    "selectedCount": "已选择 {{count}} 个",
+    "hitsInNote_other": "{{count}} 处",
+    "before": "替换前",
+    "after": "替换后",
+    "regexInvalid": "不是有效的正则表达式",
+    "noMatchesHint": "“{{query}}”未出现在此仓库的任何笔记中。请检查拼写。",
+    "noMatchesCaseHint": "或关闭“区分大小写”。",
+    "replacing": "正在 {{notes}} 个笔记中替换",
+    "backupHint": "每个笔记在写入前都会备份"
   },
   "tags": {
     "renameTag": "重命名标签",

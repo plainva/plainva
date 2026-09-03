@@ -131,6 +131,16 @@ test.beforeEach(async ({ page }) => {
                });
              return result;
            }
+           // The vault-wide search (findInVault) and the tag rename read the
+           // FTS table: every note with its content, straight from the mock fs.
+           if (q.includes('FROM fts_notes')) {
+             return Object.keys(fs)
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && /\.md$/i.test(p) && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
+               .map(p => {
+                 const rel = p.replace('/test-vault/', '');
+                 return { path: rel, title: rel.split('/').pop()!.replace(/\.md$/i, ''), content: typeof fs[p] === 'string' ? fs[p] : '' };
+               });
+           }
            return [];
         }
         
@@ -2761,4 +2771,39 @@ test('Tree context menu: "Move to…" moves a note without a drag (Issue #77)', 
   // The tree shows it under its new folder once that folder is opened.
   await aside.getByText('Projekte', { exact: true }).click();
   await expect(aside.getByText('Ablage', { exact: true })).toBeVisible();
+});
+
+test('Vault find & replace: previews before and after, then writes only the selected notes (P6)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Alpha.md'] = '# Alpha\n\nDie Projektleitung entscheidet.\n';
+    (window as any).mockFs['/test-vault/Beta.md'] = '# Beta\n\nRückfragen an die Projektleitung.\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  // The index has to know the two notes before the search can find them.
+  await expect(page.getByTestId('file-tree').getByText('Beta', { exact: true })).toBeVisible({ timeout: 10000 });
+
+  await page.keyboard.press('Control+Shift+F');
+  const modal = page.getByTestId('find-replace-modal');
+  await expect(modal).toBeVisible();
+  await modal.getByTestId('fr-find-input').fill('Projektleitung');
+  await modal.getByTestId('fr-replace-input').fill('Projektsteuerung');
+  await modal.getByTestId('fr-find').click();
+
+  await expect(modal.getByTestId('fr-summary')).toHaveText('2 matches in 2 notes');
+  const hits = modal.getByTestId('fr-hit');
+  await expect(hits).toHaveCount(2);
+  await expect(hits.first().getByTestId('fr-before')).toContainText('Projektleitung');
+  await expect(hits.first().getByTestId('fr-after')).toContainText('Projektsteuerung');
+
+  // Leave Beta out, replace in Alpha only.
+  const groups = modal.getByTestId('fr-group');
+  await groups.filter({ hasText: 'Beta' }).locator('input[type="checkbox"]').first().uncheck();
+  await expect(modal.getByTestId('fr-selected')).toHaveText('1 selected');
+  await modal.getByTestId('fr-replace').click();
+
+  await expect(modal.getByTestId('fr-status')).toHaveText('Replaced 1 matches in 1 notes');
+  await expect
+    .poll(async () => await page.evaluate(() => [(window as any).mockFs['/test-vault/Alpha.md'], (window as any).mockFs['/test-vault/Beta.md']]))
+    .toEqual(['# Alpha\n\nDie Projektsteuerung entscheidet.\n', '# Beta\n\nRückfragen an die Projektleitung.\n']);
 });

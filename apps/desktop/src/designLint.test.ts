@@ -78,7 +78,24 @@ const RULES: Record<string, RegExp> = {
   // A raw <select> must at least wear the field skin (`pv-field pv-field--select`,
   // the documented dense-toolbar idiom); forms/dialogs use the Select primitive.
   nakedSelect: /<select(?!(?:=>|[^>])*pv-field--select)/g,
+  // P6 (finding 2026-09-01, D1): the two things the UI rule demands that no
+  // value rule could see — build on the primitives, take spacing from the
+  // tokens. A find & replace dialog stood beside both for two years without
+  // a red commit. Markup rules run on comment-stripped source (TS/TSX only).
+  // A raw text/checkbox/radio/search input: TextInput, Checkbox, Radio,
+  // SearchField exist. file/color/range/hidden have no primitive and are exempt.
+  nakedInput: /<input\b(?![^>]*type=["'](?:file|color|range|hidden)["'])/g,
+  // A raw <button>: Button/IconButton/MenuItem exist. Rows, tabs and tree
+  // items that are buttons by role keep their budget with a justification.
+  nakedButton: /<button\b/g,
+  // gap/padding/margin with a bare number or a px/rem literal inside a style
+  // object — the --space-* tokens are the scale. Zero is not a spacing value.
+  rawSpacing: /\b(?:gap|rowGap|columnGap|padding|margin|(?:padding|margin)(?:Top|Right|Bottom|Left))\s*:\s*(?:(?!0[,\s}])-?\d+(?:\.\d+)?\b|["'`]\s*(?!0["'`])-?\d+(?:\.\d+)?(?:px|rem|em)?(?:\s+-?\d+(?:\.\d+)?(?:px|rem|em)?)*\s*["'`])/g,
 };
+
+/** Rules that describe React markup and style objects, not stylesheets. */
+const TSX_ONLY = new Set<keyof typeof RULES>(["nakedInput", "nakedButton", "rawSpacing"]);
+const MARKUP_RULES = new Set<keyof typeof RULES>(["nakedSelect", "nakedInput", "nakedButton"]);
 
 type Counts = Partial<Record<keyof typeof RULES, number>>;
 
@@ -87,8 +104,8 @@ type Counts = Partial<Record<keyof typeof RULES, number>>;
  * migrated; never raise one; new entries need a justification comment. */
 const BUDGET: Record<string, Counts> = {
   // The sweep (P2-P8, 2026-07-19) drove this map from 1253 findings in 107
-  // files down to the entries below — every remaining one is a JUSTIFIED
-  // exception documented at the finding site, not debt:
+  // files down to the value-rule entries below — every remaining one is a
+  // JUSTIFIED exception documented at the finding site, not debt:
   // - propertyModel/callouts: option-swatch DATA + var() fallback literals.
   // - EmojiPicker/HeaderColorPicker: native <input type=color> needs a
   //   resolved hex string.
@@ -97,15 +114,134 @@ const BUDGET: Record<string, Counts> = {
   // - DayTimeGrid: local stacking order inside one day column (no overlay).
   // - ThemePickerCards: neutral outline over each card's OWN swatch colors.
   // - mailSanitize: sandboxed srcdoc iframe cannot inherit app tokens.
+  //
+  // nakedInput / nakedButton / rawSpacing (P6, initialized 2026-09-03 from
+  // the tree): the debt the two markup-and-spacing rules found on the day
+  // they were added. Same contract as the value rules — a file may only go
+  // DOWN, a new raw control or bare spacing number in a file without an
+  // entry fails the commit, and a file that reaches zero leaves the map.
+  // VaultFindReplaceModal, the finding that brought the rules, starts at 0.
   "base/propertyModel.ts": {hex:8},
+  "components/AuxTitleBar.tsx": {rawSpacing:2},
+  "components/BacklinksPanel.tsx": {rawSpacing:12},
+  "components/BaseInlineEditors.tsx": {nakedInput:2,nakedButton:4,rawSpacing:4},
+  "components/BasePeekModal.tsx": {nakedButton:8},
+  "components/BasePicker.tsx": {nakedInput:1,nakedButton:2,rawSpacing:5},
+  "components/BaseViewer.tsx": {nakedButton:7,rawSpacing:7},
+  "components/BlockMenu.tsx": {nakedButton:1,rawSpacing:5},
+  "components/BookmarksList.tsx": {nakedButton:1,rawSpacing:2},
+  "components/CalendarWidget.tsx": {nakedInput:1,nakedButton:9,rawSpacing:20},
+  "components/CascadeDeleteModal.tsx": {nakedButton:1},
+  "components/CodeBlock.tsx": {nakedButton:1,rawSpacing:3},
+  "components/ColumnSchemaEditor.tsx": {nakedInput:7,nakedButton:2,rawSpacing:9},
+  "components/CommandPalette.tsx": {nakedInput:1,nakedButton:1},
+  "components/CompareModal.tsx": {nakedButton:1,rawSpacing:20},
+  "components/DatabaseSourceConfig.tsx": {rawSpacing:9},
+  "components/DatabasesList.tsx": {nakedButton:1,rawSpacing:5},
+  "components/DatePicker.tsx": {nakedInput:1,nakedButton:4,rawSpacing:9},
+  "components/DeletedFilesModal.tsx": {rawSpacing:1},
+  "components/DocumentHeaderRead.tsx": {rawSpacing:1},
+  "components/Editor.tsx": {nakedButton:15,rawSpacing:13},
+  "components/EmojiPicker.tsx": {hex:1,nakedButton:9,rawSpacing:12},
+  "components/ErrorBoundary.tsx": {nakedButton:1,rawSpacing:1},
+  "components/FileTree.tsx": {nakedInput:5,rawSpacing:19},
+  "components/HailingFrequenciesModal.tsx": {nakedInput:2,nakedButton:1,rawSpacing:10},
+  "components/HeaderColorPicker.tsx": {hex:1,nakedButton:3,rawSpacing:5},
+  "components/ImageViewer.tsx": {hex:2,nakedInput:5,nakedButton:22,rawSpacing:7},
+  "components/IndexMdModal.tsx": {rawSpacing:5},
+  "components/LeftPinnedSections.tsx": {nakedButton:1},
+  "components/LeftSidebarTabs.tsx": {nakedButton:1,rawSpacing:2},
+  "components/MarkdownReader.tsx": {nakedInput:2,rawSpacing:36},
+  "components/MarkdownTheme.ts": {rawSpacing:21},
+  "components/MermaidDiagram.tsx": {rawSpacing:5},
+  "components/MissingRequirementDialog.tsx": {nakedInput:2},
+  "components/NoteCardBody.tsx": {nakedInput:1,rawSpacing:9},
+  "components/NoteDatabaseBar.tsx": {nakedButton:2,rawSpacing:1},
+  "components/NoteDatabasesSection.tsx": {nakedButton:7,rawSpacing:6},
+  "components/NoteEmbedPlugin.tsx": {rawSpacing:3},
+  "components/OkfConversionModal.tsx": {nakedInput:2,rawSpacing:15},
+  "components/OkfMigrationModal.tsx": {rawSpacing:6},
+  "components/OnlineVaultSetup.tsx": {nakedInput:13,nakedButton:5,rawSpacing:13},
+  "components/OutlineSection.tsx": {nakedButton:1,rawSpacing:3},
+  "components/PaneTabStrip.tsx": {rawSpacing:2},
+  "components/PropertiesSection.tsx": {nakedButton:3,rawSpacing:14},
+  "components/PropertyValues.tsx": {nakedInput:10,nakedButton:23,rawSpacing:5},
+  "components/QuickSwitcher.tsx": {nakedInput:1,rawSpacing:19},
+  "components/RecentSearchesPopover.tsx": {nakedButton:2},
+  "components/RecentsSection.tsx": {nakedButton:1,rawSpacing:4},
+  "components/RightSidebar.tsx": {nakedButton:1},
+  "components/SelectionToolbar.tsx": {nakedButton:1},
+  "components/ShortcutsModal.tsx": {nakedInput:1,nakedButton:1,rawSpacing:10},
+  "components/SplashScreen.tsx": {nakedButton:17,rawSpacing:64},
+  "components/SplitButton.tsx": {nakedButton:2},
+  "components/StatusBar.tsx": {nakedButton:3,rawSpacing:11},
+  "components/SyncFolderPickerModal.tsx": {nakedInput:1,rawSpacing:1},
+  "components/TableSizePicker.tsx": {rawSpacing:2},
+  "components/TagTree.tsx": {rawSpacing:9},
+  "components/TemplatePickerModal.tsx": {nakedInput:1,rawSpacing:4},
+  "components/TemplateTargetsModal.tsx": {nakedInput:1,nakedButton:2,rawSpacing:1},
+  "components/ThemePickerCards.tsx": {rgba:2,nakedButton:2,rawSpacing:9},
+  "components/TitleBar.tsx": {nakedButton:5,rawSpacing:7},
+  "components/VaultSwitcher.tsx": {nakedButton:3,rawSpacing:3},
+  "components/WindowControls.tsx": {nakedButton:3,rawSpacing:2},
+  "components/anchorHighlight.ts": {rawSpacing:1},
+  "components/base/BaseBoardView.tsx": {nakedInput:1,nakedButton:2,rawSpacing:13},
+  "components/base/BaseCalendarView.tsx": {nakedButton:3,rawSpacing:13},
+  "components/base/BaseConfigPanel.tsx": {nakedInput:3,nakedButton:32,rawSpacing:10},
+  "components/base/BaseCreateWizard.tsx": {nakedInput:3},
+  "components/base/BaseGalleryView.tsx": {rawSpacing:8},
+  "components/base/BaseGraphView.tsx": {nakedInput:4},
+  "components/base/BaseListView.tsx": {nakedInput:1,rawSpacing:5},
+  "components/base/BasePinboardView.tsx": {nakedInput:2,nakedButton:5,rawSpacing:25},
+  "components/base/BaseTableView.tsx": {nakedInput:2,nakedButton:3,rawSpacing:6},
+  "components/base/BaseTimelineView.tsx": {nakedButton:3,rawSpacing:6},
+  "components/base/BaseViewTabs.tsx": {nakedInput:1,nakedButton:7,rawSpacing:1},
+  "components/base/NewItemButton.tsx": {nakedInput:2,nakedButton:9,rawSpacing:10},
+  "components/base/SourceConditionEditor.tsx": {nakedButton:2,rawSpacing:6},
+  "components/base/baseViewerShared.tsx": {rawSpacing:1},
+  "components/base/useBaseCells.tsx": {nakedInput:1},
   "components/callouts.ts": {hex:8},
-  "components/EmojiPicker.tsx": {hex:1},
-  "components/HeaderColorPicker.tsx": {hex:1},
-  "components/ImageViewer.tsx": {hex:2},
+  "components/comments/CommentsOverview.tsx": {nakedButton:1},
+  "components/graph/CleanupPanel.tsx": {nakedButton:11},
+  "components/graph/GraphContextSection.tsx": {nakedButton:3},
+  "components/graph/PinModeToggle.tsx": {nakedButton:1},
+  "components/graph/VaultGraphView.tsx": {nakedInput:3,nakedButton:12,rawSpacing:4},
+  "components/import/ImportWizardModal.tsx": {nakedInput:2,nakedButton:2,rawSpacing:1},
+  "components/mail/ComposeEditor.tsx": {nakedButton:2},
+  "components/mail/MailAccountsSection.tsx": {nakedInput:3},
+  "components/mail/MailDraftModal.tsx": {nakedInput:2,nakedButton:4,rawSpacing:1},
+  "components/mail/MailView.tsx": {nakedInput:1,nakedButton:13,rawSpacing:1},
+  "components/mail/RulesSettings.tsx": {nakedInput:1},
+  "components/mail/VacationSettings.tsx": {nakedInput:4},
   "components/mail/mail.css": {hex:1},
-  "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3},
-  "components/ThemePickerCards.tsx": {rgba:2},
+  "components/mathMermaidLive.ts": {rawSpacing:2},
+  "components/onboarding/FirstRunModal.tsx": {nakedButton:2,rawSpacing:1},
+  "components/pim/PimAccountsSection.tsx": {nakedInput:4,rawSpacing:29},
+  "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
+  "components/pimcal/CalendarView.tsx": {nakedButton:6,rawSpacing:28},
+  "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3,nakedButton:3,rawSpacing:18},
+  "components/pimcal/EventContextMenu.tsx": {nakedButton:2,rawSpacing:3},
+  "components/pimcal/EventEditModal.tsx": {nakedInput:7,nakedButton:3,rawSpacing:13},
+  "components/pimcal/EventPeek.tsx": {rawSpacing:10},
+  "components/pimcal/QuickCreatePopover.tsx": {nakedInput:2,rawSpacing:7},
+  "components/pimcal/TimeBlockModal.tsx": {nakedInput:3,rawSpacing:3},
+  "components/security/SecuritySharingPage.tsx": {nakedButton:2},
+  "components/security/WorkspaceGovernanceDialog.tsx": {nakedButton:1},
+  "components/settings/AppPages.tsx": {nakedInput:5,nakedButton:2,rawSpacing:12},
+  "components/settings/CloudAccountsPage.tsx": {nakedButton:1},
+  "components/settings/CloudAccountsWizard.tsx": {nakedButton:7},
+  "components/settings/EncryptionSetupModal.tsx": {nakedInput:3},
+  "components/settings/SecurityNav.tsx": {nakedButton:2,rawSpacing:4},
+  "components/settings/SettingsNav.tsx": {nakedButton:3,rawSpacing:8},
+  "components/settings/StoredCredentialsCard.tsx": {rawSpacing:3},
+  "components/settings/SyncPage.tsx": {nakedInput:1,rawSpacing:10},
+  "components/settings/VaultPages.tsx": {nakedInput:18,nakedButton:12,rawSpacing:7},
+  "components/settings/VaultPickerModal.tsx": {nakedButton:1,rawSpacing:1},
+  "components/tasks/RepeatTaskModal.tsx": {nakedInput:1,rawSpacing:1},
+  "components/tasks/TasksView.tsx": {nakedInput:3,nakedButton:8,rawSpacing:42},
   "mail/mailSanitize.ts": {hex:2,fontSizeRaw:1},
+  "src/App.tsx": {nakedButton:2,rawSpacing:11},
+  "components/AppRibbon.tsx": {nakedButton:1},
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -178,15 +314,17 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
-function countFile(source: string): Counts {
+function countFile(source: string, isStylesheet = false): Counts {
   const markupSource = stripComments(source);
   const counts: Counts = {};
   for (const [rule, re] of Object.entries(RULES)) {
+    const key = rule as keyof typeof RULES;
+    if (isStylesheet && TSX_ONLY.has(key)) continue;
     const n =
       rule === "titleAttr"
         ? countNativeTitleAttrs(source)
-        : ((rule === "nakedSelect" ? markupSource : source).match(re) || []).length;
-    if (n > 0) counts[rule as keyof typeof RULES] = n;
+        : ((MARKUP_RULES.has(key) ? markupSource : source).match(re) || []).length;
+    if (n > 0) counts[key] = n;
   }
   return counts;
 }
@@ -206,11 +344,11 @@ function scan(): Record<string, Counts> {
     record(`src/${name}`, countFile(readFileSync(join(SRC, name), "utf8")));
   }
   // App.css: full rule set (v1 only counted raw radii there).
-  record("App.css", countFile(readFileSync(join(SRC, "App.css"), "utf8")));
+  record("App.css", countFile(readFileSync(join(SRC, "App.css"), "utf8"), true));
   // mail.css: the one component stylesheet outside styles/ — same contract.
   record(
     "components/mail/mail.css",
-    countFile(readFileSync(join(SRC, "components/mail/mail.css"), "utf8"))
+    countFile(readFileSync(join(SRC, "components/mail/mail.css"), "utf8"), true)
   );
   return actual;
 }

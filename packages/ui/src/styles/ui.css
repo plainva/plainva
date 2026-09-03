@@ -2981,3 +2981,19 @@ tr.is-selected > td { color: var(--on-accent-container); }
   font-size: var(--text-sm); font-variant-numeric: tabular-nums;
 }
 .pv-comment-overview__empty { margin: 0; padding: var(--space-5); color: var(--text-muted); text-align: center; }
+
+/* Before/after marks of the vault-wide find & replace (P6) — shared, because
+   both shells render the two rows from the same preview helper. */
+.pv-fr-mark {
+  border-radius: var(--radius-sm);
+  padding: 0 0.15em;
+}
+.pv-fr-mark--hit {
+  background: var(--state-hover);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.pv-fr-mark--new {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}

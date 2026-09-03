@@ -2503,7 +2503,22 @@
     "emptyTitle": "すべてのノートを検索",
     "emptyBody": "語句を入力し、プレビューを確認してから、必要な箇所だけ置換します。",
     "skipped_other": "{{count}} 件のノートはプレビュー以降に変更されたためスキップしました。",
-    "moreHits_other": "他に {{count}} 件の一致"
+    "moreHits_other": "他に {{count}} 件の一致",
+    "findLabel": "検索",
+    "replaceLabel": "置換後",
+    "scope": "「{{vault}}」のすべてのノートを検索します",
+    "optCase": "大文字と小文字を区別",
+    "optWord": "単語全体のみ",
+    "optRegex": "正規表現",
+    "selectedCount": "{{count}} 件を選択",
+    "hitsInNote_other": "{{count}} 件",
+    "before": "変更前",
+    "after": "変更後",
+    "regexInvalid": "正規表現として無効です",
+    "noMatchesHint": "「{{query}}」はこの保管庫のどのノートにもありません。つづりを確認してください。",
+    "noMatchesCaseHint": "または「大文字と小文字を区別」をオフにしてください。",
+    "replacing": "{{notes}} 件のノートで置換中",
+    "backupHint": "各ノートは書き込み前にバックアップされます"
   },
   "tags": {
     "renameTag": "タグの名前を変更",

@@ -15,7 +15,9 @@ import {
   RowList,
   SectionLabel,
   TextInput,
+  previewLine,
   runVaultReplace,
+  type PreviewSegment,
 } from "@plainva/ui";
 import type { FindReplaceOptions, VaultFindResult } from "@plainva/core";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -76,10 +78,12 @@ export function FindReplaceScreen({
     };
   }, []);
 
-  const runFind = async () => {
+  // The search without the status reset: the replace re-runs it to refresh
+  // the list and must not wipe the report it just wrote (same fix as the
+  // desktop dialog, P6 — "Replaced n matches" was cleared before anyone saw it).
+  const search = async () => {
     if (!vault.queryService || !find) return;
     setBusy(true);
-    setStatus(null);
     try {
       const res = await vault.queryService.findInVault(find, opts);
       setResults(res);
@@ -88,6 +92,11 @@ export function FindReplaceScreen({
     } finally {
       setBusy(false);
     }
+  };
+
+  const runFind = async () => {
+    setStatus(null);
+    await search();
   };
 
   const runReplace = async () => {
@@ -129,7 +138,7 @@ export function FindReplaceScreen({
       parts.push(t("findReplace.cancelled"));
     }
     setStatus({ text: parts.join(" "), warn: res.cancelled || res.skipped.length > 0 });
-    await runFind();
+    await search();
   };
 
   const toggleNote = (path: string) =>
@@ -141,6 +150,19 @@ export function FindReplaceScreen({
     });
 
   const toggleOpt = (key: keyof FindReplaceOptions) => setOpts((o) => ({ ...o, [key]: !o[key] }));
+
+  // Before and after, per hit (P6, shared with the desktop): with a regex and
+  // `$1` in the replacement the after row is what makes the change checkable.
+  const segments = (segs: PreviewSegment[]) =>
+    segs.map((s, i) =>
+      s.kind === "plain" ? (
+        <span key={i}>{s.text}</span>
+      ) : (
+        <mark key={i} className={s.kind === "hit" ? "pv-fr-mark pv-fr-mark--hit" : "pv-fr-mark pv-fr-mark--new"}>
+          {s.text}
+        </mark>
+      ),
+    );
 
   const selectedNotes = results ? results.filter((r) => selected.has(r.path)).length : 0;
   const totalHits = results ? results.reduce((n, r) => n + r.matchCount, 0) : 0;
@@ -253,8 +275,12 @@ export function FindReplaceScreen({
                           key={`${m.start}-${i}`}
                           indent={1}
                           wrap
-                          title={m.lineText.trim()}
-                          subtitle={t("findReplace.line", { n: m.line })}
+                          title={<span data-testid="fr-before">{segments(previewLine(m.lineText.trim(), find, replace, opts).before)}</span>}
+                          subtitle={
+                            <span data-testid="fr-after">
+                              {t("findReplace.line", { n: m.line })} · {segments(previewLine(m.lineText.trim(), find, replace, opts).after)}
+                            </span>
+                          }
                           onClick={() => onOpenNote(r.path)}
                         />
                       ))}
