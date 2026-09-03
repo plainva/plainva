@@ -642,6 +642,10 @@
 /* D2 comment column. A docked panel shows its raised edge; the quote is a
    sunken well, which is how this era marked quoted-in text. Radii come from
    the theme's own tokens (all 0), so nothing is repeated here. */
+[data-theme-name="win95"] .pv-comment-round {
+  border: 1px solid #808080;
+  box-shadow: inset 1px 1px 0 #FFFFFF;
+}
 [data-theme-name="win95"] .pv-suggest-band {
   border-bottom: 1px solid #808080;
   box-shadow: inset 0 -1px 0 #FFFFFF;

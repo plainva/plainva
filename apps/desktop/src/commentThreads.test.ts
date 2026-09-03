@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, isCommentThreadOpen } from "@plainva/ui";
+import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, groupSuggestionRounds, isCommentThreadOpen } from "@plainva/ui";
 
 /**
  * The thread rules used to live twice - once in the desktop column, once in the
@@ -140,5 +140,29 @@ describe("buildPropertyCommentCells", () => {
       () => true,
     );
     expect(cells.size).toBe(0);
+  });
+});
+
+describe("groupSuggestionRounds (V3)", () => {
+  const anchor = { markerId: "7f3a", quote: "old", before: "", after: "", approximateOffset: 0 };
+  const proposal = (id: string, batch: string | null, index: number, over: Partial<WorkspaceCommentRecord> = {}) =>
+    comment({ commentId: id, anchor, suggestion: { replacement: "new", appliedAt: null, appliedBy: null, declinedAt: null }, suggestionBatchId: batch, batchIndex: index, ...over });
+
+  it("keeps the blocks of one send together, in note order, and leaves lone threads alone", () => {
+    const threads = buildCommentThreads([
+      proposal("b2", "r1", 1, { createdAt: "2026-09-03T10:00:01.000Z" }),
+      proposal("b1", "r1", 0, { batchNote: "From the PDF", createdAt: "2026-09-03T10:00:00.000Z" }),
+      proposal("single", null, 0),
+      comment({ commentId: "plain", body: "hi" }),
+      proposal("done", "r1", 2, { createdAt: "2026-09-03T10:00:02.000Z", suggestion: { replacement: "x", appliedAt: "2026-09-03T11:00:00.000Z", appliedBy: "m1", declinedAt: null }, resolvedAt: "2026-09-03T11:00:00.000Z" }),
+    ], null, names);
+    const { rounds, threads: rest } = groupSuggestionRounds(threads);
+    expect(rounds).toHaveLength(1);
+    expect(rounds[0].batchId).toBe("r1");
+    expect(rounds[0].note).toBe("From the PDF");
+    expect(rounds[0].createdAt).toBe("2026-09-03T10:00:00.000Z");
+    expect(rounds[0].blocks.map((b) => b.root.commentId)).toEqual(["b1", "b2", "done"]);
+    expect(rounds[0].open).toBe(2);
+    expect(rest.map((thread) => thread.root.commentId).sort()).toEqual(["plain", "single"]);
   });
 });

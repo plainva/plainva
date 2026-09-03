@@ -73,7 +73,9 @@ function splitText(node: HastNode, highlights: readonly AnchorHighlight[]): Hast
   // would drift — so a text whose length disagrees is left untouched rather
   // than tinted in the wrong place.
   if (end - start !== text.length) return [node];
-  const covering = highlights.filter((h) => !h.frame && overlaps(h, start, end));
+  // An insertion point (V3) covers no character; it sits BETWEEN two, and
+  // that place can be the very end of the text node.
+  const covering = highlights.filter((h) => !h.frame && (overlaps(h, start, end) || (h.suggestion && h.from === h.to && h.from >= start && h.from <= end)));
   if (covering.length === 0) return [node];
   const cuts = new Set<number>([0, text.length]);
   for (const h of covering) {
@@ -91,24 +93,25 @@ function splitText(node: HastNode, highlights: readonly AnchorHighlight[]): Hast
     const textNode: HastNode = { type: "text", value: piece };
     if (here.length === 0) {
       out.push(textNode);
-      continue;
+    } else {
+      const active = here.some((h) => h.active);
+      const first = here.find((h) => h.active) ?? here[0];
+      const struck = here.some((h) => h.suggestion);
+      out.push({
+        type: "element",
+        tagName: "mark",
+        properties: {
+          className: [READ_ANCHOR_CLASS, ...(active ? [READ_ANCHOR_ACTIVE_CLASS] : []), ...(struck ? [READ_SUGGESTION_DEL_CLASS] : [])],
+          dataCommentId: first.commentId,
+        },
+        children: [textNode],
+      });
     }
-    const active = here.some((h) => h.active);
-    const first = here.find((h) => h.active) ?? here[0];
-    const struck = here.some((h) => h.suggestion);
-    out.push({
-      type: "element",
-      tagName: "mark",
-      properties: {
-        className: [READ_ANCHOR_CLASS, ...(active ? [READ_ANCHOR_ACTIVE_CLASS] : []), ...(struck ? [READ_SUGGESTION_DEL_CLASS] : [])],
-        dataCommentId: first.commentId,
-      },
-      children: [textNode],
-    });
     // The proposal stands where the struck passage ends (K5) - once, at the
     // piece that closes the range, so a passage split by the cuts above still
-    // carries exactly one insertion.
-    for (const h of here) {
+    // carries exactly one insertion. An insertion point (V3) has no passage
+    // and stands at its place, whether or not a mark ends there.
+    for (const h of covering) {
       if (!h.suggestion || h.suggestion.replacement.length === 0 || h.to - start !== b) continue;
       out.push({
         type: "element",
@@ -134,7 +137,8 @@ export function applyReadAnchors(tree: HastNode, highlights: readonly AnchorHigh
     for (const child of node.children) {
       if (child.type === "text") {
         const pieces = splitText(child, highlights);
-        counts.marks += pieces.filter((p) => p.type === "element").length;
+        // An `ins` is a proposal standing at its place, not a mark on the text.
+        counts.marks += pieces.filter((p) => p.type === "element" && p.tagName === "mark").length;
         next.push(...pieces);
         continue;
       }

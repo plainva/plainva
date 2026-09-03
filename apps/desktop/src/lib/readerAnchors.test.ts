@@ -81,3 +81,15 @@ describe("applyReadAnchors", () => {
     expect(p.children).toHaveLength(1);
   });
 });
+
+describe("insertion points in the read view (V3)", () => {
+  it("draws the proposal at its place even though it covers no character", () => {
+    const p = el("p", [text("Die Projektleitung entscheidet.", 10)], 10, 41);
+    const tree = root(p);
+    const n = applyReadAnchors(tree, [{ commentId: "i1", from: 28, to: 28, suggestion: { replacement: " heute" } }]);
+    expect(n.marks).toBe(0);
+    const ins = (p.children ?? []).find((c) => c.tagName === "ins");
+    expect(ins?.children?.[0]?.value).toBe(" heute");
+    expect((p.children ?? []).map((c) => c.type === "text" ? c.value : `<${c.tagName}>`)).toEqual(["Die Projektleitung", "<ins>", " entscheidet."]);
+  });
+});

@@ -2341,6 +2341,53 @@ export const Editor: React.FC<{
   }, [activePath, anchorResolutions, resolveWorkspaceComment, t]);
 
   /**
+   * A whole round in ONE write (Vorschlagsmodus, V3): every open block of the
+   * round is resolved against the text as it stands, the changes are applied
+   * back to front in a single transaction (so no position shifts under a
+   * later block), and then each block is closed as applied. One block that
+   * no longer fits stops the round before anything is written - a half-applied
+   * round would be worse than none.
+   */
+  const applyRound = useCallback(async (batchId: string) => {
+    if (!activePath) return;
+    const view = sessionRef.current?.view;
+    if (!view) return;
+    const blocks = workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
+    if (blocks.length === 0) return;
+    const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
+    for (const comment of blocks) {
+      const resolution = anchorResolutions.get(comment.commentId);
+      if (!resolution || resolution.status === "orphan") { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      spans.push({ comment, from: resolution.from, to: resolution.to });
+    }
+    spans.sort((a, b) => b.from - a.from || b.to - a.to);
+    for (let i = 1; i < spans.length; i += 1) {
+      if (spans[i].to > spans[i - 1].from) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+    }
+    const before = view.state.doc.toString();
+    view.dispatch({ changes: spans.map((span) => ({ from: span.from, to: span.to, insert: span.comment.suggestion!.replacement })) });
+    try {
+      for (const span of spans) await resolveWorkspaceComment(activePath, span.comment.commentId, "applied");
+    } catch (error) {
+      const current = sessionRef.current?.view;
+      if (current) current.dispatch({ changes: { from: 0, to: current.state.doc.length, insert: before } });
+      toast.error(errorText(error));
+      return;
+    }
+    toast.info(t("workspaceSecurity.suggestRoundApplied", { n: spans.length }));
+  }, [activePath, workspaceComments, anchorResolutions, resolveWorkspaceComment, t]);
+
+  const declineRound = useCallback(async (batchId: string) => {
+    if (!activePath) return;
+    const blocks = workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
+    try {
+      for (const comment of blocks) await resolveWorkspaceComment(activePath, comment.commentId, "declined");
+    } catch (error) {
+      toast.error(errorText(error));
+    }
+  }, [activePath, workspaceComments, resolveWorkspaceComment]);
+
+  /**
    * Deleting a remark (K7): a retraction marker, plus the marker pair in the
    * text where this window may write. The pair is that comment's alone, so
    * with the comment gone it would only clutter the source; where the note is
@@ -2894,6 +2941,8 @@ export const Editor: React.FC<{
           onDelete={(comment) => { void deleteComment(comment); }}
           inlineSuggestions={suggestionsInline}
           onToggleInlineSuggestions={toggleSuggestionsInline}
+          onApplyRound={(batchId) => { void applyRound(batchId); }}
+          onDeclineRound={(batchId) => { void declineRound(batchId); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment); }}
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}

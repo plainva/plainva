@@ -585,3 +585,41 @@ describe("deleting a remark (K7)", () => {
     } finally { moderator.unmount(); }
   });
 });
+
+/**
+ * A proposal round in the column (V3): its blocks stay together under the
+ * author and the round's sentence, and one control decides all of them.
+ */
+describe("proposal rounds (V3)", () => {
+  const baseProps = {
+    publicationComments: [] as PublicationCommentEntry[],
+    memberNames: NAMES,
+    selfMemberId: "aabbccdd11223344",
+    resolutions: NO_RESOLUTIONS,
+    canComment: true,
+    canWrite: true,
+    activeCommentId: null,
+    selectionQuote: null,
+    onSelect: () => {},
+    onSubmit: async () => {},
+    onResolve: () => {},
+    onApplySuggestion: () => {},
+    onDeclineSuggestion: () => {},
+    onPromoteToTask: () => {},
+  };
+
+  it("groups the blocks of a round and hands the whole round to onApplyRound", () => {
+    const onApplyRound = vi.fn();
+    const block = (id: string, index: number, over: Partial<WorkspaceCommentRecord> = {}) =>
+      comment({ commentId: id, anchor: ANCHOR, suggestion: SUGGESTION, suggestionBatchId: "ab".repeat(16), batchIndex: index, batchNote: "From the PDF", authorMemberId: "9999888877776666", ...over });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[block("b1", 0), block("b2", 1)]} onApplyRound={onApplyRound} />);
+    try {
+      const round = host.querySelector(".pv-comment-round")!;
+      expect(round.textContent).toContain("From the PDF");
+      expect(round.textContent).toContain(tr("workspaceSecurity.suggestRoundCount").replace("{{n}}", "2"));
+      expect(round.querySelectorAll(".pv-comment-card")).toHaveLength(2);
+      act(() => { (host.querySelector("[data-testid=round-apply-" + "ab".repeat(16) + "]") as HTMLElement).click(); });
+      expect(onApplyRound).toHaveBeenCalledWith("ab".repeat(16));
+    } finally { unmount(); }
+  });
+});

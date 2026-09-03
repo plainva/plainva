@@ -2999,6 +2999,19 @@ tr.is-selected > td { color: var(--on-accent-container); }
 .pv-comment-toggle__badge { position: absolute; top: -3px; right: -5px; height: 16px; min-width: 16px; padding: 0 4px; pointer-events: none; }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }
+/* A proposal round (Vorschlagsmodus, V3): what one "send" produced, kept
+   together under its author and sentence, with one decision for all blocks.
+   Amber edge, like the mode's band - a round is the mode's output. */
+.pv-comment-round {
+  display: grid; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color-light); border-left: 3px solid var(--warning-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+.pv-comment-round__head { display: grid; gap: var(--space-1); }
+.pv-comment-round__meta { margin: 0; color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.pv-comment-round__blocks { display: grid; gap: var(--space-2); }
 
 /* What the recipients of a publication wrote back (D7).
    Set apart rather than mixed into the list above, because these records come

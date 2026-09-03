@@ -188,7 +188,9 @@ function clamp(entry: AnchorHighlight, docLength: number): { from: number; to: n
   // late arrival from throwing instead of simply not being drawn.
   const from = Math.max(0, Math.min(entry.from, docLength));
   const to = Math.max(0, Math.min(entry.to, docLength));
-  if (to <= from) return null; // an empty mark renders nothing and RangeSet rejects it
+  // An empty mark renders nothing and RangeSet rejects it - except for an
+  // insertion point (V3), which has no passage and draws only its widget.
+  if (to < from || (to === from && !entry.suggestion)) return null;
   return { from, to };
 }
 
@@ -198,7 +200,7 @@ function build(list: readonly AnchorHighlight[], docLength: number): DecorationS
     if (entry.frame) continue; // covered by a widget — see buildFrames
     const span = clamp(entry, docLength);
     if (!span) continue;
-    ranges.push(markFor(entry).range(span.from, span.to));
+    if (span.to > span.from) ranges.push(markFor(entry).range(span.from, span.to));
     if (entry.suggestion) {
       ranges.push(Decoration.widget({ widget: new SuggestionWidget(entry.commentId, entry.suggestion.replacement, entry.active === true), side: 1 }).range(span.to));
     }

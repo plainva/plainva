@@ -790,6 +790,9 @@
    instead of a hairline, and the quote well carries the same bar. The active
    card needs nothing here — it already draws the accent PAIR, which this theme
    redefines to Okuda amber. */
+[data-theme-name="lcars"] .pv-comment-round {
+  border-left: 4px solid var(--lcars-3);
+}
 [data-theme-name="lcars"] .pv-suggest-band {
   border-bottom: 4px solid var(--lcars-3);
 }

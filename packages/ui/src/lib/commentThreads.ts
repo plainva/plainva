@@ -161,3 +161,43 @@ export function buildPropertyCommentCells(
   }
   return cells;
 }
+
+/**
+ * A proposal round (Vorschlagsmodus, V3): the blocks one "send" produced,
+ * in the order they sit in the note, with the sentence written for the round.
+ * A thread is a block when its root carries a round id; everything else stays
+ * a thread of its own.
+ */
+export interface SuggestionRound {
+  batchId: string;
+  authorMemberId: string;
+  createdAt: string;
+  note: string | null;
+  blocks: CommentThread[];
+  /** Blocks nobody has decided on yet. */
+  open: number;
+}
+
+export function groupSuggestionRounds(threads: readonly CommentThread[]): { rounds: SuggestionRound[]; threads: CommentThread[] } {
+  const byBatch = new Map<string, SuggestionRound>();
+  const rest: CommentThread[] = [];
+  for (const thread of threads) {
+    const batchId = thread.root.suggestionBatchId ?? null;
+    if (!batchId || !thread.root.suggestion) { rest.push(thread); continue; }
+    let round = byBatch.get(batchId);
+    if (!round) {
+      round = { batchId, authorMemberId: thread.root.authorMemberId, createdAt: thread.root.createdAt, note: thread.root.batchNote ?? null, blocks: [], open: 0 };
+      byBatch.set(batchId, round);
+    }
+    round.blocks.push(thread);
+    if (thread.root.createdAt < round.createdAt) round.createdAt = thread.root.createdAt;
+    if (!round.note && thread.root.batchNote) round.note = thread.root.batchNote;
+  }
+  const rounds = [...byBatch.values()];
+  for (const round of rounds) {
+    round.blocks.sort((a, b) => (a.root.batchIndex ?? 0) - (b.root.batchIndex ?? 0) || a.root.createdAt.localeCompare(b.root.createdAt));
+    round.open = round.blocks.filter((block) => isCommentThreadOpen(block.root)).length;
+  }
+  rounds.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return { rounds, threads: rest };
+}

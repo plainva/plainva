@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
+import type { CommentThread } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -65,6 +66,9 @@ export interface WorkspaceCommentsColumnProps {
   /** Whether open suggestions are drawn in the text (K5); the head carries the switch. */
   inlineSuggestions?: boolean;
   onToggleInlineSuggestions?(): void;
+  /** A whole proposal round at once (V3): accept every open block in one write, or decline them all. */
+  onApplyRound?(batchId: string): void;
+  onDeclineRound?(batchId: string): void;
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
@@ -114,7 +118,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -161,6 +165,9 @@ export function WorkspaceCommentsColumn({
     () => (filter === "open" ? threads.filter((thread) => isCommentThreadOpen(thread.root) || thread.root.pending) : threads),
     [threads, filter],
   );
+  // Rounds (V3) are grouped out of the shown threads: what a "send" produced
+  // stays together, with its sentence and one decision for all of it.
+  const grouped = useMemo(() => groupSuggestionRounds(shownThreads), [shownThreads]);
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
     memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
@@ -306,56 +313,8 @@ export function WorkspaceCommentsColumn({
     return null;
   };
 
-  return (
-    <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
-      <div className="pv-comment-column__head">
-        <h3 className="pv-comment-column__title">
-          {t("workspaceSecurity.comments")}
-          <span className="pv-comment-column__count" data-testid="comment-open-count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
-        </h3>
-        <span className="pv-comment-column__spacer" />
-        {threads.length > 0 && (
-          <Segmented
-            size="sm"
-            ariaLabel={t("workspaceSecurity.comments")}
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "open", label: t("workspaceSecurity.commentFilterOpen"), testId: "comment-filter-open" },
-              { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comment-filter-all" },
-            ]}
-          />
-        )}
-        {onToggleInlineSuggestions && (
-          <IconButton
-            label={t("workspaceSecurity.suggestionInline")}
-            active={inlineSuggestions === true}
-            onClick={onToggleInlineSuggestions}
-            data-testid="comment-inline-toggle"
-          >
-            <Replace size={ICON.ui} />
-          </IconButton>
-        )}
-        {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
-        {onToggleMute && (
-          <IconButton
-            label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
-            active={muted}
-            onClick={onToggleMute}
-            data-testid="comment-mute"
-          >
-            {muted ? <BellOff size={ICON.ui} /> : <Bell size={ICON.ui} />}
-          </IconButton>
-        )}
-        {onClose && (
-          <IconButton label={t("workspaceSecurity.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
-            <X size={ICON.ui} />
-          </IconButton>
-        )}
-      </div>
-      <div className="pv-comment-column__body">
-      {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {shownThreads.map(({ root, replies, addressed }) => (
+  /** One thread as a card - the same card inside a round and on its own. */
+  const renderThread = ({ root, replies, addressed }: CommentThread) => (
         <div
           key={root.commentId}
           className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}${root.pending ? " is-pending" : ""}`}
@@ -446,7 +405,87 @@ export function WorkspaceCommentsColumn({
             </div>
           )}
         </div>
-      ))}
+  );
+
+  return (
+    <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
+      <div className="pv-comment-column__head">
+        <h3 className="pv-comment-column__title">
+          {t("workspaceSecurity.comments")}
+          <span className="pv-comment-column__count" data-testid="comment-open-count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+        </h3>
+        <span className="pv-comment-column__spacer" />
+        {threads.length > 0 && (
+          <Segmented
+            size="sm"
+            ariaLabel={t("workspaceSecurity.comments")}
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "open", label: t("workspaceSecurity.commentFilterOpen"), testId: "comment-filter-open" },
+              { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comment-filter-all" },
+            ]}
+          />
+        )}
+        {onToggleInlineSuggestions && (
+          <IconButton
+            label={t("workspaceSecurity.suggestionInline")}
+            active={inlineSuggestions === true}
+            onClick={onToggleInlineSuggestions}
+            data-testid="comment-inline-toggle"
+          >
+            <Replace size={ICON.ui} />
+          </IconButton>
+        )}
+        {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
+        {onToggleMute && (
+          <IconButton
+            label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
+            active={muted}
+            onClick={onToggleMute}
+            data-testid="comment-mute"
+          >
+            {muted ? <BellOff size={ICON.ui} /> : <Bell size={ICON.ui} />}
+          </IconButton>
+        )}
+        {onClose && (
+          <IconButton label={t("workspaceSecurity.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
+            <X size={ICON.ui} />
+          </IconButton>
+        )}
+      </div>
+      <div className="pv-comment-column__body">
+      {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+      {grouped.rounds.map((round) => {
+        const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
+        return (
+          <section key={round.batchId} className="pv-comment-round" aria-label={t("workspaceSecurity.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor") })}>
+            <div className="pv-comment-round__head">
+              <CommentCardHead name={memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+              <p className="pv-comment-round__meta">
+                {round.note ? <em>„{round.note}“ · </em> : null}
+                {t("workspaceSecurity.suggestRoundCount", { n: round.blocks.length })}
+              </p>
+              {open.length > 1 && (
+                <div className="pv-comment-card__actions">
+                  {canWrite && onApplyRound && (
+                    <Button variant="ghost" size="sm" onClick={() => onApplyRound(round.batchId)} data-testid={`round-apply-${round.batchId}`}>
+                      <Check size={ICON.meta} /> {t("workspaceSecurity.suggestApplyAll")}
+                    </Button>
+                  )}
+                  {canComment && onDeclineRound && (
+                    <Button variant="ghost" size="sm" onClick={() => onDeclineRound(round.batchId)}>
+                      <X size={ICON.meta} /> {t("workspaceSecurity.suggestDeclineAll")}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="pv-comment-round__blocks">{round.blocks.map(renderThread)}</div>
+          </section>
+        );
+      })}
+      {grouped.threads.map(renderThread)}
       </div>
       {canComment && (
         <div className="pv-comment-column__foot">

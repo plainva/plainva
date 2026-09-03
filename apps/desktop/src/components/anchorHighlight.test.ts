@@ -195,3 +195,12 @@ describe("hasAnchorHighlightChange", () => {
     expect(hasAnchorHighlightChange(withEdit)).toBe(false);
   });
 });
+
+describe("insertion points in the editor (V3)", () => {
+  it("draws only the widget for an empty range with a proposal, and nothing for an empty plain range", () => {
+    const withProposal = apply(stateWith(), [{ commentId: "i1", from: 5, to: 5, suggestion: { replacement: "more" } }]);
+    expect(markRanges(withProposal)).toEqual([{ from: 5, to: 5 }]);
+    const plain = apply(stateWith(), [{ commentId: "c1", from: 5, to: 5 }]);
+    expect(markRanges(plain)).toEqual([]);
+  });
+});
