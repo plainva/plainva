@@ -774,16 +774,24 @@ function noFileAccessError(): Error {
  * exactly like the sync worker does (a dropped rotation kills the token). Under
  * the broker the rotation belongs to the account, so no `onRotate` is passed.
  */
-export async function listSyncFoldersFromSlots(vaultPath: string, provider: SyncProviderId, path: string): Promise<string[]> {
+/**
+ * The files target of an already connected provider, from the stored slots.
+ *
+ * One builder for listing AND creating folders (K10, finding 2026-09-03): the
+ * settings paths listed folders but could not create one - not for Dropbox,
+ * not for any provider - because only the splash flow had wired the create
+ * call. Whatever the picker asks for now comes off the same target.
+ */
+export async function syncTargetFromSlots(vaultPath: string, provider: SyncProviderId): Promise<{ listFolders(path: string): Promise<string[]>; createFolder(path: string): Promise<void> }> {
   if (provider === "webdav") {
     const creds = await credentialManager.getWebDavCredentials(vaultPath);
     if (!creds) throw noFileAccessError();
-    return buildWebDavTarget(creds).listFolders(path);
+    return buildWebDavTarget(creds);
   }
   if (provider === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath);
     if (!creds) throw noFileAccessError();
-    return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true }).listFolders(path);
+    return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true });
   }
   const filesTokenProvider =
     provider === "drive" || provider === "onedrive"
@@ -801,7 +809,7 @@ export async function listSyncFoldersFromSlots(vaultPath: string, provider: Sync
         refreshToken: creds.refreshToken ?? "",
       },
       filesTokenProvider
-    ).listFolders(path);
+    );
   }
   if (provider === "onedrive") {
     const creds = await credentialManager.getOneDriveCredentials(vaultPath);
@@ -815,7 +823,7 @@ export async function listSyncFoldersFromSlots(vaultPath: string, provider: Sync
               .saveOneDriveCredentials(vaultPath, { ...creds, refreshToken })
               .catch((e) => console.error("[CloudAccounts] persisting rotated OneDrive token failed", e)),
       filesTokenProvider
-    ).listFolders(path);
+    );
   }
   const creds = await credentialManager.getDropboxCredentials(vaultPath);
   if (!creds?.refreshToken) throw noFileAccessError();
@@ -825,7 +833,16 @@ export async function listSyncFoldersFromSlots(vaultPath: string, provider: Sync
       credentialManager
         .saveDropboxCredentials(vaultPath, { ...creds, refreshToken })
         .catch((e) => console.error("[CloudAccounts] persisting rotated Dropbox token failed", e))
-  ).listFolders(path);
+  );
+}
+
+export async function listSyncFoldersFromSlots(vaultPath: string, provider: SyncProviderId, path: string): Promise<string[]> {
+  return (await syncTargetFromSlots(vaultPath, provider)).listFolders(path);
+}
+
+/** The picker's "new folder" row, for a provider that is already connected (K10). */
+export async function createSyncFolderFromSlots(vaultPath: string, provider: SyncProviderId, path: string): Promise<void> {
+  await (await syncTargetFromSlots(vaultPath, provider)).createFolder(path);
 }
 
 /**

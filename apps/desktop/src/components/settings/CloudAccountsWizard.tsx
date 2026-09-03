@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
 import { cancelOAuthLoopback } from "../../services/oauthLoopback";
@@ -34,6 +34,7 @@ import {
   bindConnectResult,
   listSyncFoldersFromSlots,
   getSyncRootFolder,
+  createSyncFolderFromSlots,
   saveSyncRootFolder,
   type ConnectRequest,
   type ConnectResult,
@@ -122,6 +123,14 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const [bound, setBound] = useState<CloudAccountRecord[] | null>(null);
   const [rootFolder, setRootFolder] = useState("");
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  /**
+   * Asked once, right after the files service is connected (K10): the splash
+   * flow always opened the folder picker on connect, this wizard only showed
+   * a "browse" button - which is how "Dropbox never asks for the folder"
+   * came to be reported. Cancelling the picker leaves the button as the way
+   * back; the question is not repeated.
+   */
+  const folderAskedRef = useRef(false);
 
   const family = tile?.family ?? null;
   const suiteDef = family ? suiteProvider(family) : null;
@@ -129,6 +138,11 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   const filesTakenBy = records.find((r) => r.services.files);
   const selected = SERVICE_ORDER.filter((s) => svc[s] && available.includes(s));
   const allDone = selected.length > 0 && selected.every((s) => status[s]?.state === "ok");
+  useEffect(() => {
+    if (!allDone || !result.filesProvider || result.filesProvider === "webdav" || rootFolder || folderAskedRef.current) return;
+    folderAskedRef.current = true;
+    setShowFolderPicker(true);
+  }, [allDone, result.filesProvider, rootFolder]);
   const failed = selected.some((s) => status[s]?.state === "error");
 
   const pickTile = (def: ProviderTileDef, presetId?: string) => {
@@ -707,6 +721,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               </div>
             );
           })}
+          {allDone && result.filesProvider === "webdav" && <SettingCardNote>{t("cloudAccounts.cloudFolderInUrl")}</SettingCardNote>}
           {allDone && result.filesProvider && result.filesProvider !== "webdav" && (
             <SettingRow label={t("cloudAccounts.cloudFolder")} desc={t("cloudAccounts.cloudFolderHint")}>
               <TextInput value={rootFolder} readOnly style={{ width: 160 }} />
@@ -774,6 +789,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       {showFolderPicker && result.filesProvider && (
         <SyncFolderPickerModal
           listFolders={(p) => listSyncFoldersFromSlots(vaultPath, result.filesProvider!, p)}
+          createFolder={(p) => createSyncFolderFromSlots(vaultPath, result.filesProvider!, p)}
           rootLabel={familyLabel(family!, tile?.flavor)}
           allowRoot={result.filesProvider === "s3"}
           onSelect={(picked) => {

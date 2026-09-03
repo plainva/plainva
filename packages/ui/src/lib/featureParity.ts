@@ -326,6 +326,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "calendar-block-in-others",
+    title: "Blocking an event as busy in other calendars",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's event menu mirrors an event into other calendars as a " +
+      "busy block or a copy; the phone's event sheet has no such entry. " +
+      "Recorded while the desktop path got its reasons back (K9, finding " +
+      "2026-09-03): the same core write path exists on the phone, only the " +
+      "sheet action and the calendar picker are missing. Build after the " +
+      "release (decision E7 of the correction round).",
+    verified: "2026-09-03",
+  },
+  {
     id: "camera-capture",
     title: "Insert a photo from camera or gallery",
     area: "platform",

@@ -1,4 +1,5 @@
 import { recurrenceToRRule } from "./recurrence.js";
+import { pimRequestError } from "./requestError.js";
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
 import type {
   IPimTarget,
@@ -313,7 +314,7 @@ export class GooglePimTarget implements IPimTarget {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(googleEventBody(draft)),
     });
-    if (!res.ok) throw new Error(`google create event ${res.status}`);
+    if (!res.ok) throw await pimRequestError("google create event", res);
     const data = (await res.json()) as { id: string; etag?: string };
     return { uid: data.id, etag: data.etag };
   }
@@ -332,7 +333,7 @@ export class GooglePimTarget implements IPimTarget {
       }
     );
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok) throw new Error(`google update event ${res.status}`);
+    if (!res.ok) throw await pimRequestError("google update event", res);
     const data = (await res.json()) as { etag?: string };
     return { etag: data.etag };
   }
@@ -344,7 +345,7 @@ export class GooglePimTarget implements IPimTarget {
     );
     if (res.status === 412) throw new PimConflictError();
     // Already gone = success (the file sync's not-found-on-delete lesson).
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`google delete event ${res.status}`);
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("google delete event", res);
   }
 
   /** RSVP: GET the event, set the own attendee's responseStatus, PATCH the full
@@ -370,7 +371,7 @@ export class GooglePimTarget implements IPimTarget {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(googleTaskBody(draft, false)),
     });
-    if (!res.ok) throw new Error(`google create task ${res.status}`);
+    if (!res.ok) throw await pimRequestError("google create task", res);
     const data = (await res.json()) as { id: string; etag?: string };
     return { uid: data.id, etag: data.etag };
   }
@@ -385,7 +386,7 @@ export class GooglePimTarget implements IPimTarget {
         body: JSON.stringify(googleTaskBody(draft, true)),
       }
     );
-    if (!res.ok) throw new Error(`google update task ${res.status}`);
+    if (!res.ok) throw await pimRequestError("google update task", res);
     const data = (await res.json()) as { etag?: string };
     return { etag: data.etag };
   }
@@ -397,7 +398,7 @@ export class GooglePimTarget implements IPimTarget {
       `${TASKS_BASE}/lists/${encodeURIComponent(ref.listId)}/tasks/${encodeURIComponent(ref.uid)}`,
       { method: "DELETE" }
     );
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`google delete task ${res.status}`);
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("google delete task", res);
   }
 }
 

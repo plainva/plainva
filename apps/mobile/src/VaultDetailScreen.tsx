@@ -14,6 +14,7 @@ import {
   subscribeSyncStatus,
   syncNow,
   type MobileSyncProvider,
+  createProviderFolder,
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
@@ -650,6 +651,7 @@ export function VaultDetailScreen({
         <CloudFolderPickerSheet
           title={t("mobile.changeCloudFolder")}
           listFolders={(path) => listProviderFolders(folderPick, path)}
+          createFolder={(path) => createProviderFolder(folderPick, path)}
           onClose={() => setFolderPick(null)}
           onPick={(path) => {
             const target = path || pickStart;

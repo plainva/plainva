@@ -1,4 +1,5 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { pimRequestError } from "./requestError.js";
 import ICAL from "ical.js";
 import { recurrenceToRRule } from "./recurrence.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
@@ -381,7 +382,7 @@ export class CalDavPimTarget implements IPimTarget {
       headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
       body: buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)),
     });
-    if (!res.ok) throw new Error(`caldav create event ${res.status}`);
+    if (!res.ok) throw await pimRequestError("caldav create event", res);
     return { uid, etag: res.headers.get("ETag") ?? undefined, href };
   }
 
@@ -444,7 +445,7 @@ export class CalDavPimTarget implements IPimTarget {
       headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
       body: buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)),
     });
-    if (!res.ok) throw new Error(`caldav create task ${res.status}`);
+    if (!res.ok) throw await pimRequestError("caldav create task", res);
     return { uid, etag: res.headers.get("ETag") ?? undefined, href };
   }
 
@@ -459,7 +460,7 @@ export class CalDavPimTarget implements IPimTarget {
       headers: ref.etag ? { "If-Match": ref.etag } : {},
     });
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`caldav delete task ${res.status}`);
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("caldav delete task", res);
   }
 
   /**

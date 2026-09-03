@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay } from "@plainva/ui";
+import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -17,6 +17,7 @@ import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { localIsoKey } from "@plainva/ui";
+import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
@@ -1157,44 +1158,56 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const source = master ?? event;
       const recurrence = master ? parseRRule(master.recurrence) : null;
       const busyLabel = t("pim.busyTitle", { defaultValue: "Beschäftigt" });
-      let ok = 0;
-      // Collect per-calendar failures so a partial failure is SURFACED (before,
-      // a failed target was silently skipped and the toast still claimed success).
-      const failed: string[] = [];
-      for (const key of selectedKeys) {
-        const [accountId, ...rest] = key.split(" ");
-        const calId = rest.join(" ");
-        if (!accountId || !calId) continue;
-        const calLabel = calName.get(key) || key;
-        const target = await targetFor(accountId);
-        if (!target) {
-          failed.push(calLabel);
-          continue;
-        }
-        try {
-          const bd = buildBlockDraft(source, mode, busyLabel, recurrence);
-          const res = await target.createEvent(calId, bd);
+      const bd = buildBlockDraft(source, mode, busyLabel, recurrence);
+      // Every failure keeps its reason (K9, finding 2026-09-03). Before, the
+      // target builder swallowed any error into null and the write was caught
+      // without binding the error - a missing scope, a calendar that is gone
+      // and a dead network all read "could not block in X".
+      const { ok, failed } = await runCalendarBlocks({
+        keys: selectedKeys,
+        labelFor: (key) => calName.get(key) || key,
+        targetFor: async (accountId) => {
+          const account = accounts.find((a) => a.id === accountId);
+          if (!account || !pimRuntime) return { target: null, reason: t("pim.blockNoTarget", { defaultValue: "Konto nicht angemeldet" }) };
+          try {
+            return { target: await pimRuntime.buildTarget(account) };
+          } catch (error) {
+            return { target: null, reason: error instanceof Error ? error.message : String(error) };
+          }
+        },
+        draft: bd,
+        onCreated: (accountId, calId, res) => {
           // Optimistic for a one-off block (a recurring block expands server-side,
           // so we let the worker re-query bring its instances).
           if (!recurrence) {
             setEvents((prev) => [...prev, { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href }]);
           }
-          ok++;
-        } catch {
-          failed.push(calLabel);
-        }
-      }
+        },
+      });
       if (ok > 0) {
         toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
         refresh();
       }
       if (failed.length > 0) {
-        toast.error(t("pim.blockFailedFor", { cals: failed.join(", "), defaultValue: "Konnte in {{cals}} nicht blockieren." }));
+        for (const failure of failed) logDiagnostic("calendar", `block in ${failure.label}: ${failure.reason}`);
+        const cals = failed.map((failure) => `${failure.label} (${failure.reason})`).join(", ");
+        const message = t("pim.blockFailedFor", { cals, defaultValue: "Konnte in {{cals}} nicht blockieren." });
+        // A 401/403 is a right the token does not carry: the fix is a fresh
+        // sign-in on that account, and the toast takes the reader there.
+        const refused = failed.find(isAuthorizationFailure);
+        if (refused) {
+          toast.error(message, {
+            label: t("pim.blockReauth", { defaultValue: "Neu anmelden" }),
+            run: () => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts", accountId: refused.accountId } })),
+          });
+        } else {
+          toast.error(message);
+        }
       } else if (ok === 0) {
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       }
     },
-    [resolveSeriesMaster, targetFor, refresh, calName, t]
+    [resolveSeriesMaster, accounts, pimRuntime, refresh, calName, t]
   );
 
   /** The OTHER writable calendars (never the event's own) for the block dialog.

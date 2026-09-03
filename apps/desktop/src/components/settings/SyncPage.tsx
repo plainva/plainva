@@ -46,7 +46,7 @@ import {
 } from "../../services/encryptionSession";
 import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
-import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder } from "../../services/cloudAccountsActions";
+import { getSyncRootFolder, listSyncFoldersFromSlots, saveSyncRootFolder, createSyncFolderFromSlots } from "../../services/cloudAccountsActions";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
 import { StoredCredentialsCard } from "./StoredCredentialsCard";
@@ -687,6 +687,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       {showPicker && provider !== "none" && provider !== "webdav" && (
         <SyncFolderPickerModal
           listFolders={(path) => listSyncFoldersFromSlots(p.selectedVault, provider, path)}
+          createFolder={(path) => createSyncFolderFromSlots(p.selectedVault, provider, path)}
           rootLabel={accountName || provider}
           allowRoot={provider === "s3"}
           onSelect={(picked) => {

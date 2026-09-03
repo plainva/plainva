@@ -1,4 +1,5 @@
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
+import { pimRequestError } from "./requestError.js";
 import type {
   IPimTarget,
   PimAttendee,
@@ -279,7 +280,7 @@ export class GraphPimTarget implements IPimTarget {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(graphEventBody(draft)),
     });
-    if (!res.ok) throw new Error(`graph create event ${res.status}`);
+    if (!res.ok) throw await pimRequestError("graph create event", res);
     const data = (await res.json()) as { id: string; "@odata.etag"?: string };
     return { uid: data.id, etag: data["@odata.etag"] };
   }
@@ -292,7 +293,7 @@ export class GraphPimTarget implements IPimTarget {
       body: JSON.stringify(graphEventBody(draft)),
     });
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok) throw new Error(`graph update event ${res.status}`);
+    if (!res.ok) throw await pimRequestError("graph update event", res);
     const data = (await res.json()) as { "@odata.etag"?: string };
     return { etag: data["@odata.etag"] };
   }
@@ -303,7 +304,7 @@ export class GraphPimTarget implements IPimTarget {
       headers: ref.etag ? { "If-Match": ref.etag } : undefined,
     });
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`graph delete event ${res.status}`);
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("graph delete event", res);
   }
 
   /** RSVP via the dedicated Graph actions; sendResponse notifies the organiser. */
@@ -323,7 +324,7 @@ export class GraphPimTarget implements IPimTarget {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(graphTaskBody(draft)),
     });
-    if (!res.ok) throw new Error(`graph create task ${res.status}`);
+    if (!res.ok) throw await pimRequestError("graph create task", res);
     const data = (await res.json()) as { id: string; "@odata.etag"?: string };
     return { uid: data.id, etag: data["@odata.etag"] };
   }
@@ -338,7 +339,7 @@ export class GraphPimTarget implements IPimTarget {
       }
     );
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok) throw new Error(`graph update task ${res.status}`);
+    if (!res.ok) throw await pimRequestError("graph update task", res);
     const data = (await res.json()) as { "@odata.etag"?: string };
     return { etag: data["@odata.etag"] };
   }
@@ -349,7 +350,7 @@ export class GraphPimTarget implements IPimTarget {
       { method: "DELETE", headers: ref.etag ? { "If-Match": ref.etag } : undefined }
     );
     if (res.status === 412) throw new PimConflictError();
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`graph delete task ${res.status}`);
+    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("graph delete task", res);
   }
 }
 
