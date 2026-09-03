@@ -27,9 +27,10 @@ vi.mock("react-i18next", async () => {
   };
   return {
     useTranslation: () => ({
-      t: (key: string, vars?: Record<string, string>) => {
+      i18n: { language: "en" },
+      t: (key: string, vars?: Record<string, string | number>) => {
         const value = lookup(key);
-        return vars ? Object.entries(vars).reduce((out, [name, v]) => out.split(`{{${name}}}`).join(v), value) : value;
+        return vars ? Object.entries(vars).reduce((out, [name, v]) => out.split(`{{${name}}}`).join(String(v)), value) : value;
       },
     }),
   };
@@ -67,6 +68,11 @@ const ANCHOR = { markerId: "7f3a", quote: "bis Ende des Jahres", before: "Der Ve
 const SUGGESTION = { replacement: "bis zum 31.12.2026", appliedAt: null, appliedBy: null, declinedAt: null };
 const NAMES = new Map([["aabbccdd11223344", "Marco"], ["9999888877776666", "Anna"]]);
 const NO_RESOLUTIONS = new Map<string, WorkspaceCommentAnchorResolution>();
+
+/** The head hides settled threads by default (K3); a test about them looks under "All". */
+function showAll(host: HTMLElement) {
+  act(() => { (host.querySelector("[data-testid=comment-filter-all]") as HTMLElement).click(); });
+}
 
 function props(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn>> = {}) {
   return {
@@ -127,7 +133,7 @@ describe("workspace comment column", () => {
     const known = comment({ commentId: "aa".repeat(16), body: "Von Marco" });
     const stranger = comment({ commentId: "bb".repeat(16), authorMemberId: "1234123412341234", body: "Von wem?" });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [known, stranger] })} />);
-    const metas = [...host.querySelectorAll(".pv-comment-card__meta")];
+    const metas = [...host.querySelectorAll(".pv-comment-card__name")];
     expect(metas[0].textContent).toContain("Marco");
     expect(metas[0].getAttribute("data-tip")).toBe("aabbccdd11223344");
     // A name is a claim the policy carries. Where it carries none, the column
@@ -148,6 +154,7 @@ describe("workspace comment column", () => {
 
     const done = comment({ commentId: "aa".repeat(16), body: "Offen", resolvedAt: NOW });
     const second = render(<WorkspaceCommentsColumn {...props({ comments: [done] })} />);
+    showAll(second.host);
     expect(second.host.textContent).toContain(tr("workspaceSecurity.resolved"));
     expect([...second.host.querySelectorAll("button")].some((b) => b.textContent?.trim() === tr("workspaceSecurity.resolve"))).toBe(false);
     second.unmount();
@@ -168,7 +175,9 @@ describe("workspace comment column", () => {
   it("shows a reader no compose box at all", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ canComment: false, comments: [comment({ commentId: "aa".repeat(16) })] })} />);
     expect(host.querySelector(".pv-comment-compose")).toBeNull();
-    expect([...host.querySelectorAll("button")]).toHaveLength(0);
+    // The head's filter is the only control left; nothing that writes.
+    const labels = [...host.querySelectorAll("button")].map((b) => b.textContent?.trim());
+    for (const key of ["send", "commentReply", "resolve", "commentToTask"]) expect(labels).not.toContain(tr(`workspaceSecurity.${key}`));
     unmount();
   });
 
@@ -218,12 +227,14 @@ describe("workspace comment column", () => {
     const applied = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, appliedAt: NOW, appliedBy: "aabbccdd11223344" } })],
     })} />);
+    showAll(applied.host);
     expect(applied.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionApplied"));
     applied.unmount();
 
     const declined = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, declinedAt: NOW } })],
     })} />);
+    showAll(declined.host);
     expect(declined.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionDeclined"));
     declined.unmount();
   });
@@ -466,6 +477,55 @@ describe("pending remarks (K6)", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[failed]} onRetryPending={() => {}} onDiscardPending={() => {}} />);
     try {
       expect(host.textContent).not.toContain(tr("workspaceSecurity.commentSendRetry"));
+    } finally { unmount(); }
+  });
+});
+
+/**
+ * The column's head (K3): the open count, the Open/All filter, the close
+ * button, and the who-and-when line on every card.
+ */
+describe("column head and card head (K3)", () => {
+  const baseProps = {
+    publicationComments: [] as PublicationCommentEntry[],
+    memberNames: NAMES,
+    selfMemberId: "aabbccdd11223344",
+    resolutions: NO_RESOLUTIONS,
+    canComment: true,
+    canWrite: true,
+    activeCommentId: null,
+    selectionQuote: null,
+    onSelect: () => {},
+    onSubmit: async () => {},
+    onResolve: () => {},
+    onApplySuggestion: () => {},
+    onDeclineSuggestion: () => {},
+    onPromoteToTask: () => {},
+  };
+
+  it("counts open threads, hides resolved ones by default and shows them under All", () => {
+    const open = comment({ commentId: "o1", body: "Still open" });
+    const done = comment({ commentId: "d1", body: "Settled", resolvedAt: NOW });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[open, done]} />);
+    try {
+      expect(host.querySelector("[data-testid=comment-open-count]")?.textContent).toBe(tr("workspaceSecurity.commentOpenCount").replace("{{n}}", "1"));
+      expect(host.textContent).toContain("Still open");
+      expect(host.textContent).not.toContain("Settled");
+      act(() => { (host.querySelector("[data-testid=comment-filter-all]") as HTMLElement).click(); });
+      expect(host.textContent).toContain("Settled");
+    } finally { unmount(); }
+  });
+
+  it("closes through the head and names author and time on the card", () => {
+    const onClose = vi.fn();
+    const c = comment({ commentId: "c1", body: "Hello", authorMemberId: "9999888877776666" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[c]} onClose={onClose} />);
+    try {
+      expect(host.querySelector(".pv-comment-card__avatar")?.textContent).toBe("AN");
+      expect(host.querySelector(".pv-comment-card__name")?.textContent).toBe("Anna");
+      expect(host.querySelector("time.pv-comment-card__when")?.getAttribute("dateTime")).toBe(NOW);
+      act(() => { (host.querySelector("[data-testid=comment-column-close]") as HTMLElement).click(); });
+      expect(onClose).toHaveBeenCalledTimes(1);
     } finally { unmount(); }
   });
 });

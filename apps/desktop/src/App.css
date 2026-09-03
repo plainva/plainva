@@ -188,12 +188,13 @@ button.pv-doc-header-icon:hover {
 .pv-comment-layout { flex: 1; display: flex; min-height: 0; }
 .pv-comment-column {
   flex: 0 0 clamp(15rem, 22vw, 20rem);
-  display: flex; flex-direction: column; gap: var(--space-2);
-  min-height: 0; overflow-y: auto;
-  padding: var(--space-3);
+  display: flex; flex-direction: column;
+  min-height: 0;
   border-left: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
+/* The head's own inset; the body and the foot carry theirs (K3). */
+.pv-comment-column > .pv-comment-column__head { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-color-light); }
 
 .pv-security-preview { display: grid; gap: 0.25rem; max-height: 12rem; overflow: auto; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
 

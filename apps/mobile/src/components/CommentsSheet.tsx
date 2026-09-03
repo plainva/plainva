@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, parseCommentMentions, toAnchorDisplayHint } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, parseCommentMentions, Segmented, toAnchorDisplayHint } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -105,13 +105,20 @@ export function CommentsSheet({
   muted,
   onToggleMute,
 }: CommentsSheetProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Same two views as the desktop column (K3): what is open, or everything. */
+  const [filter, setFilter] = useState<"open" | "all">("open");
   const threads = useMemo(
     () => buildCommentThreads(comments, selfMemberId, memberNames),
     [comments, memberNames, selfMemberId],
+  );
+  const openCount = useMemo(() => threads.filter((thread) => isCommentThreadOpen(thread.root)).length, [threads]);
+  const shownThreads = useMemo(
+    () => (filter === "open" ? threads.filter((thread) => isCommentThreadOpen(thread.root) || thread.root.pending) : threads),
+    [threads, filter],
   );
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
 
@@ -169,7 +176,23 @@ export function CommentsSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <div className="pv-comment-column__head">
-          <p className="m-sheet-title">{t("workspaceSecurity.comments")}</p>
+          <p className="m-sheet-title">
+            {t("workspaceSecurity.comments")}
+            <span className="pv-comment-column__count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+          </p>
+          <span className="pv-comment-column__spacer" />
+          {threads.length > 0 && (
+            <Segmented
+              size="sm"
+              ariaLabel={t("workspaceSecurity.comments")}
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: "open", label: t("workspaceSecurity.commentFilterOpen") },
+                { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
+              ]}
+            />
+          )}
           {onToggleMute && (
             <IconButton
               label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
@@ -182,11 +205,11 @@ export function CommentsSheet({
         </div>
         {threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
         <div className="pv-comment-list">
-          {threads.map(({ root, replies, addressed }) => {
+          {shownThreads.map(({ root, replies, addressed }) => {
             const state = suggestionState(root);
             return (
               <div key={root.commentId} className="pv-comment-card">
-                <p className="pv-comment-card__meta">{nameOf(root.authorMemberId)}</p>
+                <CommentCardHead name={nameOf(root.authorMemberId)} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
                 {addressed && (
                   <span className="pv-comment-card__state">
                     <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}
@@ -214,7 +237,7 @@ export function CommentsSheet({
                 )}
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <p className="pv-comment-card__meta">{nameOf(reply.authorMemberId)}</p>
+                    <CommentCardHead name={nameOf(reply.authorMemberId)} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
                     <CommentBody body={reply.body} names={memberNames} />
                   </div>
                 ))}

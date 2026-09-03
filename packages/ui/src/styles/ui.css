@@ -2902,6 +2902,35 @@ tr.is-selected > td { color: var(--on-accent-container); }
   overflow-wrap: anywhere; white-space: pre-wrap;
 }
 .pv-comment-card__meta { color: var(--text-muted); font-size: var(--text-sm); }
+/* Who and when, in ONE line (K3): an initials chip, the name, the relative
+   time on the right. The chip's hue comes from the member id, so one person
+   keeps one colour everywhere without anything being stored. */
+.pv-comment-card__who { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-comment-card__avatar {
+  flex: none; width: 20px; height: 20px;
+  display: inline-grid; place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent-container); color: var(--on-accent-container);
+  font-size: var(--text-xs); font-weight: 600; line-height: 1;
+}
+.pv-comment-card__avatar[data-hue="1"] { background: color-mix(in srgb, var(--callout-purple) 22%, transparent); color: var(--callout-purple); }
+.pv-comment-card__avatar[data-hue="2"] { background: color-mix(in srgb, var(--callout-orange) 22%, transparent); color: var(--callout-orange); }
+.pv-comment-card__avatar[data-hue="3"] { background: color-mix(in srgb, var(--callout-blue) 22%, transparent); color: var(--callout-blue); }
+.pv-comment-card__avatar[data-hue="4"] { background: color-mix(in srgb, var(--callout-green) 22%, transparent); color: var(--callout-green); }
+.pv-comment-card__avatar[data-hue="5"] { background: color-mix(in srgb, var(--callout-cyan) 22%, transparent); color: var(--callout-cyan); }
+.pv-comment-card__name { font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-comment-card.is-active .pv-comment-card__name { color: inherit; }
+.pv-comment-card__when { margin-left: auto; flex: none; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.pv-comment-card.is-active .pv-comment-card__when { color: inherit; opacity: 0.75; }
+/* The desktop's action row keeps quiet until the card is hovered, selected or
+   focused (K3, decision E3): four ghost buttons on every card were the noise.
+   Where there is no hover the row is simply always there. */
+.pv-comment-card__actions--quiet { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
+.pv-comment-card:hover .pv-comment-card__actions--quiet,
+.pv-comment-card.is-active .pv-comment-card__actions--quiet,
+.pv-comment-card:focus-within .pv-comment-card__actions--quiet { opacity: 1; }
+@media (hover: none) { .pv-comment-card__actions--quiet { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pv-comment-card__actions--quiet { transition: none; } }
 .pv-comment-card__body { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* An @mention inside a comment body (D8). Tinted rather than boxed: it sits in
    running text, and a chip per name would turn a sentence into a row of pills. */
@@ -2910,7 +2939,9 @@ tr.is-selected > td { color: var(--on-accent-container); }
 .pv-comment-card__reply { display: grid; gap: var(--space-1); margin-left: var(--space-3); padding-left: var(--space-2); border-left: 1px solid var(--border-color-light); }
 .pv-comment-card__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
 .pv-comment-compose { display: grid; gap: var(--space-2); justify-items: start; }
-.pv-comment-compose--new { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--border-color-light); }
+/* The new-comment box is docked at the foot of the column (K3); the foot
+   draws the hairline, so the box itself carries none. */
+.pv-comment-compose--new { width: 100%; }
 .pv-comment-compose__target { margin: 0; color: var(--text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .pv-comment-compose__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
 /* The proposed wording is the payload of a suggestion, so it leads - the
@@ -2920,8 +2951,20 @@ tr.is-selected > td { color: var(--on-accent-container); }
 .pv-comment-column__empty { margin: 0; color: var(--text-faint); font-size: var(--text-sm); }
 /* The column's own row: silencing this note lives where the note's remarks are,
    not in a settings page somebody would have to go looking for (Stufe F, §3). */
-.pv-comment-column__head { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
-.pv-comment-column__muted { margin-right: auto; color: var(--text-faint); font-size: var(--text-sm); }
+.pv-comment-column__head { display: flex; align-items: center; gap: var(--space-2); }
+/* Title with the open count beside it, then the filter, then the buttons (K3). */
+.pv-comment-column__title { margin: 0; font-size: var(--text-ui); font-weight: 600; white-space: nowrap; }
+.pv-comment-column__count { margin-left: var(--space-1); color: var(--text-faint); font-weight: 500; font-variant-numeric: tabular-nums; }
+.pv-comment-column__spacer { flex: 1; }
+.pv-comment-column__muted { color: var(--text-faint); font-size: var(--text-sm); }
+/* Head, scrolling body, docked foot - the column no longer scrolls as a whole,
+   so the compose box stays reachable however long the list is. */
+.pv-comment-column__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-3); display: grid; gap: var(--space-3); align-content: start; }
+.pv-comment-column__foot { padding: var(--space-3); border-top: 1px solid var(--border-color-light); }
+/* The toolbar button that shows or hides the column, with the count of open
+   threads riding on it (K3). */
+.pv-comment-toggle { position: relative; }
+.pv-comment-toggle__badge { position: absolute; top: -3px; right: -5px; height: 16px; min-width: 16px; padding: 0 4px; pointer-events: none; }
 /* The sheet stacks the same cards; the desktop column supplies its own gap. */
 .pv-comment-list { display: grid; gap: var(--space-3); }
 

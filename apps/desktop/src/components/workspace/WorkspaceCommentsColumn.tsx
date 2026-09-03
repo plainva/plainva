@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, ICON, IconButton, MentionTextArea, TextArea, parseCommentMentions, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, TextArea, parseCommentMentions, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -53,6 +53,8 @@ export interface WorkspaceCommentsColumnProps {
   onResolve(commentId: string): void;
   /** A queued remark that failed to publish: try again now (K6). */
   onRetryPending?(outboxId: string): void;
+  /** The head's close button (K3) - the toolbar button reopens the column. */
+  onClose?(): void;
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
@@ -102,10 +104,12 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  /** "Open" hides what is settled; "all" brings resolved threads back (K3). */
+  const [filter, setFilter] = useState<"open" | "all">("open");
   const [draft, setDraft] = useState("");
   // The replacement starts as the selected text: a suggestion is almost always
   // an edit of the passage, not a blank page.
@@ -117,6 +121,11 @@ export function WorkspaceCommentsColumn({
   const threads = useMemo(
     () => buildCommentThreads(comments, selfMemberId, memberNames),
     [comments, memberNames, selfMemberId],
+  );
+  const openCount = useMemo(() => threads.filter((thread) => isCommentThreadOpen(thread.root)).length, [threads]);
+  const shownThreads = useMemo(
+    () => (filter === "open" ? threads.filter((thread) => isCommentThreadOpen(thread.root) || thread.root.pending) : threads),
+    [threads, filter],
   );
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
@@ -265,9 +274,26 @@ export function WorkspaceCommentsColumn({
 
   return (
     <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
-      {onToggleMute && (
-        <div className="pv-comment-column__head">
-          {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
+      <div className="pv-comment-column__head">
+        <h3 className="pv-comment-column__title">
+          {t("workspaceSecurity.comments")}
+          <span className="pv-comment-column__count" data-testid="comment-open-count">{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+        </h3>
+        <span className="pv-comment-column__spacer" />
+        {threads.length > 0 && (
+          <Segmented
+            size="sm"
+            ariaLabel={t("workspaceSecurity.comments")}
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "open", label: t("workspaceSecurity.commentFilterOpen"), testId: "comment-filter-open" },
+              { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comment-filter-all" },
+            ]}
+          />
+        )}
+        {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
+        {onToggleMute && (
           <IconButton
             label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
             active={muted}
@@ -276,10 +302,16 @@ export function WorkspaceCommentsColumn({
           >
             {muted ? <BellOff size={ICON.ui} /> : <Bell size={ICON.ui} />}
           </IconButton>
-        </div>
-      )}
+        )}
+        {onClose && (
+          <IconButton label={t("workspaceSecurity.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
+            <X size={ICON.ui} />
+          </IconButton>
+        )}
+      </div>
+      <div className="pv-comment-column__body">
       {threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {threads.map(({ root, replies, addressed }) => (
+      {shownThreads.map(({ root, replies, addressed }) => (
         <div
           key={root.commentId}
           className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}${root.pending ? " is-pending" : ""}`}
@@ -300,10 +332,10 @@ export function WorkspaceCommentsColumn({
             </span>
           )}
           {anchorNote(root)}
-          <CommentBody comment={root} author={authorOf(root)} names={memberNames} />
+          <CommentBody comment={root} author={authorOf(root)} names={memberNames} locale={i18n.language} />
           {replies.map((reply) => (
             <div key={reply.commentId} className="pv-comment-card__reply">
-              <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} />
+              <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} locale={i18n.language} />
               {reply.pending && <div className="pv-comment-card__actions">{pendingState(reply, reply.authorMemberId === selfMemberId)}</div>}
             </div>
           ))}
@@ -312,7 +344,7 @@ export function WorkspaceCommentsColumn({
             // of those would queue behind a remark that may never land.
             <div className="pv-comment-card__actions">{pendingState(root, root.authorMemberId === selfMemberId)}</div>
           ) : (
-          <div className="pv-comment-card__actions">
+          <div className="pv-comment-card__actions pv-comment-card__actions--quiet">
             {canComment && !root.resolvedAt && (
               <Button
                 variant="ghost"
@@ -373,7 +405,9 @@ export function WorkspaceCommentsColumn({
           )}
         </div>
       ))}
+      </div>
       {canComment && (
+        <div className="pv-comment-column__foot">
         <div className="pv-comment-compose pv-comment-compose--new">
           <p className="pv-comment-compose__target">
             {selectionQuote
@@ -420,6 +454,7 @@ export function WorkspaceCommentsColumn({
             </Button>
           </div>
         </div>
+        </div>
       )}
       {/* What came back from the people this note was published to (D7).
           Read-only by construction: answering means writing into the
@@ -443,10 +478,10 @@ export function WorkspaceCommentsColumn({
                       : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
                   </p>
                 )}
-                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} />
+                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} />
+                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} />
                   </div>
                 ))}
                 {/* Both lines state a fact about the record, not a failure: the
@@ -477,16 +512,16 @@ function CommentBody({
   comment,
   author,
   names,
+  locale,
 }: {
   comment: WorkspaceCommentRecord;
   author: string;
   names: ReadonlyMap<string, string>;
+  locale: string;
 }) {
   return (
     <>
-      <small className="pv-comment-card__meta" data-tip={comment.authorMemberId}>
-        {author} · {new Date(comment.createdAt).toLocaleString()}
-      </small>
+      <CommentCardHead name={author} memberId={comment.authorMemberId} createdAt={comment.createdAt} locale={locale} />
       <span className="pv-comment-card__body">
         {parseCommentMentions(comment.body, names).map((segment, index) =>
           segment.kind === "mention" ? (

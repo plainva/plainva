@@ -407,6 +407,8 @@ export const mailRemoteImagesKey = (vaultPath: string) => `mailRemoteImages_${bt
  * does not would leave the same vault half-marked.
  */
 export const commentAnchorsKey = (vaultPath: string) => `commentAnchors_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** "open" | "closed": the last hand-set state of the comment column in this vault (K3). */
+export const commentColumnKey = (vaultPath: string) => `commentColumn_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const SHOW_COMPATIBILITY_WARNING_KEY = "showCompatibilityWarning";
 /**
  * Global (not per-vault) opt-in: reopen the last vault on start instead of the

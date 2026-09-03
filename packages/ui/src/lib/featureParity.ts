@@ -483,6 +483,37 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-02",
   },
   {
+    id: "comment-card-actions-hover",
+    title: "When a comment card shows its actions",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the desktop the reply/resolve/task row stays quiet until the card is " +
+      "hovered, selected or focused (K3, decision E3): four buttons on every " +
+      "card were the noise. A touch screen has no hover, so the phone's cards " +
+      "keep the row visible - the shared stylesheet does the same for any " +
+      "pointer that cannot hover.",
+    verified: "2026-09-03",
+  },
+  {
+    id: "comment-column-toggle",
+    title: "Showing and hiding the comments beside a note",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop has a toolbar button with the open-thread count that shows " +
+      "or hides the column, remembered per vault (K3, finding 2026-09-03). The " +
+      "phone shows the same records in a sheet, and a sheet IS the toggle: it " +
+      "opens from the note's menu and closes with a swipe. A second switch for " +
+      "a surface that is never permanently on screen would be a control without " +
+      "a state to show.",
+    verified: "2026-09-03",
+  },
+  {
     id: "comment-notification-latency",
     title: "How soon you are told about a new remark",
     area: "security",

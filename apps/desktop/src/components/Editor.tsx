@@ -1,10 +1,10 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, MessageSquare } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
-import { attachmentFolderKey, commentAnchorsKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
+import { attachmentFolderKey, commentAnchorsKey, commentColumnKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
@@ -28,6 +28,7 @@ import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_N
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -121,6 +122,18 @@ export const Editor: React.FC<{
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  /**
+   * Whether the comment column is on screen (K3, decision E2).
+   *
+   * Three voices, in order: what the person did in THIS note (an explicit
+   * toggle, a click on a tinted passage, a comment request from a widget),
+   * then what they last chose for this vault, then the note itself - open when
+   * it carries open threads, closed when it does not. The first voice is
+   * session state and resets with the note, so the vault choice keeps winning
+   * for every note opened afterwards.
+   */
+  const [commentColumnSession, setCommentColumnSession] = useState<"open" | "closed" | null>(null);
+  const [commentColumnPref, setCommentColumnPref] = useState<"open" | "closed" | null>(null);
   // Stufe F: whether this note is silenced. Null - and therefore no bell in the
   // column - while notifications are off for the vault entirely.
   const commentMute = useCommentMute(vaultPath, activePath);
@@ -193,7 +206,7 @@ export const Editor: React.FC<{
     if (!activePath) return;
     const apply = () => {
       const jump = takeCommentJump(activePath);
-      if (jump) setActiveCommentId(jump.commentId);
+      if (jump) { setActiveCommentId(jump.commentId); setCommentColumnSession("open"); }
     };
     apply();
     window.addEventListener(COMMENT_JUMP_EVENT, apply);
@@ -482,6 +495,29 @@ export const Editor: React.FC<{
    * not want HTML comments in their files.
    */
   const [commentAnchorsEnabled, setCommentAnchorsEnabled] = useState(true);
+  useEffect(() => {
+    if (!vaultPath) { setCommentColumnPref(null); return; }
+    let alive = true;
+    void getSettingsStore()
+      .then((store) => store.get<"open" | "closed">(commentColumnKey(vaultPath)))
+      .then((value) => { if (alive) setCommentColumnPref(value === "open" || value === "closed" ? value : null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [vaultPath]);
+  // A new note starts without a session voice - the vault choice or the note
+  // itself decides again.
+  useEffect(() => { setCommentColumnSession(null); }, [activePath]);
+  const openCommentThreads = useMemo(
+    () => workspaceComments.filter((comment) => !comment.parentCommentId && !comment.resolvedCommentId && isCommentThreadOpen(comment)).length,
+    [workspaceComments],
+  );
+  const commentColumnOpen = workspaceCanReadComments && (commentColumnSession ?? commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed")) === "open";
+  const toggleCommentColumn = useCallback(() => {
+    const next = commentColumnOpen ? "closed" : "open";
+    setCommentColumnSession(next);
+    setCommentColumnPref(next);
+    if (vaultPath) void getSettingsStore().then((store) => store.set(commentColumnKey(vaultPath), next).then(() => store.save())).catch(() => {});
+  }, [commentColumnOpen, vaultPath]);
   useEffect(() => {
     if (!vaultPath) return;
     let alive = true;
@@ -1478,6 +1514,8 @@ export const Editor: React.FC<{
     // The column shows a quote to compose against; a widget has none of its own,
     // so it borrows the Markdown it replaces.
     if (view) setSelectionQuote(view.state.sliceDoc(req.from, Math.min(req.to, req.from + 120)));
+    // The compose box lives in the column: asking to comment opens it (K3).
+    setCommentColumnSession("open");
   }, []);
 
   // Apply a context-menu action. The model is re-parsed from the current
@@ -1931,8 +1969,12 @@ export const Editor: React.FC<{
         const next = range && view ? view.state.sliceDoc(range.from, Math.min(range.to, range.from + 120)) : null;
         setSelectionQuote((previous) => (previous === next ? previous : next));
       },
-      onAnchorActivate: (commentId) => setActiveCommentId(commentId),
-      commentAnchorsEnabled: () => commentAnchorsEnabled && !workspaceReadOnly,
+      // A click on a tinted passage names its card - and brings the column
+      // back if it was hidden (K3).
+      onAnchorActivate: (commentId) => { setActiveCommentId(commentId); setCommentColumnSession("open"); },
+      // Whether a widget may offer a comment bubble at all: the right to
+      // comment, not the right to write (K2, same gate as the cell menu).
+      commentAnchorsEnabled: () => workspaceCanComment,
       onCommentAnchorRequest: (req) => requestWidgetComment(req),
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
@@ -2314,6 +2356,18 @@ export const Editor: React.FC<{
             </button>
           </div>}
 
+          {workspaceCanReadComments && (
+            <IconButton
+              label={commentColumnOpen ? t("workspaceSecurity.commentColumnHide") : t("workspaceSecurity.commentColumnShow")}
+              active={commentColumnOpen}
+              onClick={toggleCommentColumn}
+              className="pv-comment-toggle"
+              data-testid="editor-comments-toggle"
+            >
+              <MessageSquare size={ICON.ui} />
+              {openCommentThreads > 0 && <span className="pv-badge pv-badge--accent pv-comment-toggle__badge">{openCommentThreads}</span>}
+            </IconButton>
+          )}
           <button
             onClick={toggleWidth}
             data-tip={editorWidth === 'narrow' ? t("editor.widthFull", { defaultValue: "Volle Breite" }) : t("editor.widthNarrow", { defaultValue: "Lesbare Breite" })}
@@ -2626,8 +2680,9 @@ export const Editor: React.FC<{
           </>
         )}
       </div>
-      {workspaceCanReadComments && (
+      {commentColumnOpen && (
         <WorkspaceCommentsColumn
+          onClose={toggleCommentColumn}
           comments={workspaceComments}
           publicationComments={publicationComments}
           memberNames={memberNames}
