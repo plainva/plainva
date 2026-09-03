@@ -163,6 +163,29 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(ctx).toContain("loadVault(path, true)");
   });
 
+  it("source: every workspace flow reloads the vault for real, not through openVault (finding 2026-09-03, K8)", () => {
+    // `openVault(path)` on the path a window already shows is a no-op since the
+    // multi-window split (it only chooses WHICH vault the window shows). The
+    // seven flows that ended in it left the security status stale until the
+    // next app start. They go through `reloadVault` / `loadVault` now, and the
+    // status event the keychain dispatches has a listener that reads it back.
+    const ctx = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
+    expect(ctx).toContain("const reloadVault = async");
+    expect(ctx).not.toContain("await openVault(state.vaultPath)");
+    expect(ctx).not.toContain("await openVault(path)");
+    expect(ctx).not.toContain("await openVault(vaultPath)");
+    expect(ctx).toContain('window.addEventListener("plainva-workspace-security-changed"');
+    // The sweep's progress lives above the settings (store + overlay), and the
+    // wizard hands the draft over instead of discarding it on unmount.
+    expect(ctx).toContain("workspaceActivationStore.start(");
+    expect(ctx).toContain("workspaceActivationStore.finish()");
+    const wizard = readFileSync(new URL("./WorkspaceSetupWizard.tsx", import.meta.url), "utf8");
+    expect(wizard).toContain("handedOver.current = true");
+    expect(wizard).toContain("if (prepared && !handedOver.current) discardPreparedPersonalWorkspace");
+    const app = readFileSync(new URL("../../App.tsx", import.meta.url), "utf8");
+    expect(app).toContain("<WorkspaceActivationOverlay />");
+  });
+
   it("source: tearing down a workspace reads the publication ids BEFORE it drops them (finding 2026-08-30)", () => {
     const ctx = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
     // Both ways out of an encrypted workspace go through the ONE helper. They

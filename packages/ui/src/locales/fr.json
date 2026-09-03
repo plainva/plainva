@@ -3504,6 +3504,8 @@
     "activating": "Publication de l’espace et préparation de la file reprenable…",
     "activatingProgress": "{{done}} sur {{total}} fichiers",
     "activationFailed": "Échec de l’activation. Le contenu distant en clair n’a pas été supprimé.",
+    "activationTitle": "Chiffrement du vault",
+    "activationStays": "Cette fenêtre reste ouverte jusqu'à ce que la file soit prête. Les réglages peuvent être fermés entre-temps.",
     "migrationStarted": "Chiffrement lancé : {{n}} élément(s) sur {{total}} mis en file.",
     "pairDevice": "Associer un appareil",
     "approve": "Saisir le code",

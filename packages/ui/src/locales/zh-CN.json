@@ -3442,6 +3442,8 @@
     "activating": "正在发布工作区并准备可恢复的加密队列…",
     "activatingProgress": "{{done}} / {{total}} 个文件",
     "activationFailed": "启用失败。现有远程明文未被删除。",
+    "activationTitle": "正在加密 Vault",
+    "activationStays": "在队列就绪之前，此窗口会一直显示。期间可以关闭设置。",
     "migrationStarted": "加密已开始：{{total}}项中已有{{n}}项进入队列。",
     "pairDevice": "配对设备",
     "approve": "输入代码",

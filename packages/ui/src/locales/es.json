@@ -3504,6 +3504,8 @@
     "activating": "Publicando el espacio y preparando la cola reanudable…",
     "activatingProgress": "{{done}} de {{total}} archivos",
     "activationFailed": "Falló la activación. No se eliminó el texto remoto existente.",
+    "activationTitle": "Cifrando el vault",
+    "activationStays": "Esta ventana permanece hasta que la cola esté lista. Mientras tanto puedes cerrar los ajustes.",
     "migrationStarted": "Cifrado iniciado: {{n}} de {{total}} elemento(s) en cola.",
     "pairDevice": "Vincular dispositivo",
     "approve": "Introducir código",

@@ -3442,6 +3442,8 @@
     "activating": "ワークスペースを公開し、再開可能な暗号化キューを準備しています…",
     "activatingProgress": "{{done}} / {{total}} ファイル",
     "activationFailed": "有効化に失敗しました。既存のリモート平文は削除されていません。",
+    "activationTitle": "Vault を暗号化しています",
+    "activationStays": "キューの準備が終わるまでこのウィンドウは表示されたままです。その間、設定は閉じてもかまいません。",
     "migrationStarted": "暗号化を開始しました: {{total}}件中{{n}}件をキューへ追加。",
     "pairDevice": "デバイスをペアリング",
     "approve": "コードを入力",

@@ -20,6 +20,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
 import { saveConnectionState } from "../services/encryptionManifest";
+import { workspaceActivationStore } from "../services/workspaceActivationStore";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
 import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
@@ -165,6 +166,16 @@ interface VaultContextType extends VaultState {
   removeRecentVault: (path: string) => Promise<void>;
   setAutoOpenLastVault: (value: boolean) => Promise<void>;
   /** Prepare a personal encrypted workspace and its recovery package. */
+  /**
+   * Rebuilds the runtime of the vault this window shows (K8, finding 2026-09-03).
+   *
+   * Every workspace flow used to end in `openVault(state.vaultPath)`, which
+   * since the multi-window split only says WHICH vault the window shows — the
+   * same path is a no-op, so nothing re-read the security status and the
+   * settings kept saying "not set up" until the next app start. This is the
+   * real reload; owner windows only.
+   */
+  reloadVault: () => Promise<void>;
   preparePersonalWorkspace: (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => Promise<PreparedPersonalWorkspace>;
   activatePersonalWorkspace: (draftId: string, onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
@@ -1869,6 +1880,24 @@ export const VaultProvider: React.FC<{
       loadVault(state.vaultPath);
     };
 
+    const handleWorkspaceSecurityChanged = () => {
+      // The status on disk changed (activation, a failed sweep, lock/unlock).
+      // Read it back into state so the settings page shows what is true NOW —
+      // including `lastError` after a failure. The event had no listener at
+      // all before K8; the reload above is the main path, this is the one
+      // that survives a flow which does not reload.
+      const path = state.vaultPath;
+      if (!path) return;
+      void getWorkspaceSecurityStatus(path).then((status) => {
+        setState((s) => {
+          if (s.vaultPath !== path) return s;
+          if (JSON.stringify(s.workspaceSecurityStatus) === JSON.stringify(status)) return s;
+          return { ...s, workspaceSecurityStatus: status };
+        });
+      }).catch(() => undefined);
+    };
+
+    window.addEventListener("plainva-workspace-security-changed", handleWorkspaceSecurityChanged);
     window.addEventListener("plainva-credentials-saved", handleCredentialsSaved);
     window.addEventListener("plainva-sync-queued", handleSyncQueued);
     window.addEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
@@ -1879,6 +1908,7 @@ export const VaultProvider: React.FC<{
     window.addEventListener("plainva-keyfile-arrived", handleSettingsSyncToggled);
 
     return () => {
+      window.removeEventListener("plainva-workspace-security-changed", handleWorkspaceSecurityChanged);
       window.removeEventListener("plainva-credentials-saved", handleCredentialsSaved);
       window.removeEventListener("plainva-sync-queued", handleSyncQueued);
       window.removeEventListener("plainva-settings-sync-toggled", handleSettingsSyncToggled);
@@ -2116,28 +2146,64 @@ export const VaultProvider: React.FC<{
     return preparePersonalWorkspace({ vaultPath: state.vaultPath, ...input });
   };
 
+  /**
+   * `loadVault` on the vault already shown. `openVault` cannot do this any
+   * more (it only picks the vault a window shows), and the seven workspace
+   * flows below were written against the contract it had before the split.
+   */
+  const reloadVault = async (): Promise<void> => {
+    if (!state.vaultPath) return;
+    await loadVault(state.vaultPath);
+  };
+
+  /**
+   * Runs one conversion step under the app-level progress surface: the numbers
+   * go to the store the overlay reads, a failure lands there too (and is
+   * rethrown for the caller), and the slot is released only after the reload
+   * that makes the new status visible — otherwise the window would close onto
+   * a settings page still saying "not set up".
+   */
+  const underActivationOverlay = async <T,>(vaultPath: string, kind: "activate" | "resume", onProgress: ((done: number, total: number) => void) | undefined, run: (report: (done: number, total: number) => void) => Promise<T>): Promise<T> => {
+    workspaceActivationStore.start(vaultPath, kind);
+    try {
+      const result = await run((done, total) => { workspaceActivationStore.progress(done, total); onProgress?.(done, total); });
+      await reloadVault();
+      workspaceActivationStore.finish();
+      return result;
+    } catch (error) {
+      workspaceActivationStore.fail(error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  };
+
   const activateWorkspace = async (draftId: string, onProgress?: (done: number, total: number) => void): Promise<{ queued: number; total: number }> => {
     if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
       throw new Error("workspace-no-connection");
     }
-    await state.syncWorker?.stopAndDrain();
-    const workspaceState = new SqlWorkspaceStateStore(state.dbAdapter);
-    workspaceStateRef.current = workspaceState;
-    const result = await activatePreparedPersonalWorkspace({
-      draftId,
-      vaultPath: state.vaultPath,
-      provider: workspaceProviderName(syncProviderRef.current),
-      rawTarget: syncTargetRef.current,
-      rawVault: state.backupAdapter,
-      state: workspaceState,
-      onProgress,
+    const vaultPath = state.vaultPath;
+    const dbAdapter = state.dbAdapter;
+    const backupAdapter = state.backupAdapter;
+    const rawTarget = syncTargetRef.current;
+    const provider = workspaceProviderName(syncProviderRef.current);
+    return underActivationOverlay(vaultPath, "activate", onProgress, async (report) => {
+      await state.syncWorker?.stopAndDrain();
+      const workspaceState = new SqlWorkspaceStateStore(dbAdapter);
+      workspaceStateRef.current = workspaceState;
+      const result = await activatePreparedPersonalWorkspace({
+        draftId,
+        vaultPath,
+        provider,
+        rawTarget,
+        rawVault: backupAdapter,
+        state: workspaceState,
+        onProgress: report,
+      });
+      // Keep the legacy queue intact until encrypted initialization succeeds. It
+      // is ignored from now on, but clearing it earlier could lose pending work if
+      // the selected remote turns out to contain another workspace.
+      await dbAdapter.execute("DELETE FROM offline_queue");
+      return { queued: result.queued, total: result.total };
     });
-    // Keep the legacy queue intact until encrypted initialization succeeds. It
-    // is ignored from now on, but clearing it earlier could lose pending work if
-    // the selected remote turns out to contain another workspace.
-    await state.dbAdapter.execute("DELETE FROM offline_queue");
-    await openVault(state.vaultPath);
-    return { queued: result.queued, total: result.total };
   };
 
   const unlockWorkspace = async (passphrase?: string): Promise<void> => {
@@ -2150,7 +2216,7 @@ export const VaultProvider: React.FC<{
       phase: meta?.phase ?? "migrating",
       lastError: null,
     });
-    await openVault(state.vaultPath);
+    await reloadVault();
   };
 
   const lockWorkspace = async (): Promise<void> => {
@@ -2158,7 +2224,7 @@ export const VaultProvider: React.FC<{
     await state.syncWorker?.stopAndDrain();
     lockWorkspaceRuntime(state.vaultPath);
     await saveWorkspaceSecurityStatus(state.vaultPath, { ...state.workspaceSecurityStatus, phase: "locked", lastError: null });
-    await openVault(state.vaultPath);
+    await reloadVault();
   };
 
   const cleanupRemotePlaintext = async (onProgress?: (done: number, total: number) => void): Promise<number> => {
@@ -2171,19 +2237,25 @@ export const VaultProvider: React.FC<{
     if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
       throw new Error("workspace-no-connection");
     }
-    await state.syncWorker?.stopAndDrain();
-    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
-    workspaceStateRef.current = workspaceState;
-    const result = await resumePersonalWorkspaceSetup({
-      vaultPath: state.vaultPath,
-      provider: workspaceProviderName(syncProviderRef.current),
-      rawTarget: syncTargetRef.current,
-      rawVault: state.backupAdapter,
-      state: workspaceState,
-      onProgress,
+    const vaultPath = state.vaultPath;
+    const dbAdapter = state.dbAdapter;
+    const backupAdapter = state.backupAdapter;
+    const rawTarget = syncTargetRef.current;
+    const provider = workspaceProviderName(syncProviderRef.current);
+    return underActivationOverlay(vaultPath, "resume", onProgress, async (report) => {
+      await state.syncWorker?.stopAndDrain();
+      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(dbAdapter);
+      workspaceStateRef.current = workspaceState;
+      const result = await resumePersonalWorkspaceSetup({
+        vaultPath,
+        provider,
+        rawTarget,
+        rawVault: backupAdapter,
+        state: workspaceState,
+        onProgress: report,
+      });
+      return { queued: result.queued, total: result.total };
     });
-    await openVault(state.vaultPath);
-    return { queued: result.queued, total: result.total };
   };
 
   const changeWorkspacePassphrase = async (currentPassphrase: string, nextPassphrase: string): Promise<void> => {
@@ -2280,7 +2352,7 @@ export const VaultProvider: React.FC<{
     const { store, vaultPath } = joinObjectStore();
     const runtime = await completeWorkspaceJoin({ vaultPath, store, fallbackPassphrase });
     if (!runtime) return false;
-    await openVault(vaultPath);
+    await loadVault(vaultPath);
     return true;
   };
 
@@ -2608,7 +2680,7 @@ export const VaultProvider: React.FC<{
     await persistWorkspaceRuntime({ vaultPath: state.vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
     const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
     await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: state.backupAdapter, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
-    await openVault(state.vaultPath);
+    await reloadVault();
   };
 
   const rotateWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string }): Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }> => {
@@ -2951,7 +3023,7 @@ export const VaultProvider: React.FC<{
     // sync or local). The remote `.pvws/` objects stay (immutable store); the
     // user deletes the cloud folder afterwards — the handbook documents the order.
     await tearDownWorkspace(path);
-    await openVault(path);
+    await loadVault(path);
   };
 
   const liftWorkspaceEncryption = async (): Promise<void> => {
@@ -3011,7 +3083,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

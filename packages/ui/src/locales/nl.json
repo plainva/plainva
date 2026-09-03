@@ -3473,6 +3473,8 @@
     "activating": "Workspace publiceren en hervatbare wachtrij voorbereiden…",
     "activatingProgress": "{{done}} van {{total}} bestanden",
     "activationFailed": "Activering mislukt. Externe platte tekst is niet verwijderd.",
+    "activationTitle": "Vault wordt versleuteld",
+    "activationStays": "Dit venster blijft staan tot de wachtrij klaar is. De instellingen kunnen intussen worden gesloten.",
     "migrationStarted": "Versleuteling gestart: {{n}} van {{total}} item(s) in wachtrij.",
     "pairDevice": "Apparaat koppelen",
     "approve": "Code invoeren",

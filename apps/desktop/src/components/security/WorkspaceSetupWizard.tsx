@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { Banner, Button, Modal, SettingCardNote, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
@@ -33,14 +33,20 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
   const [codeRevealed, setCodeRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  /**
+   * Once activation has started, the draft belongs to the sweep, not to this
+   * dialog: the unmount cleanup below must not discard it. The wizard closes
+   * itself right after handing over — the progress is shown by the app-level
+   * overlay (K8), which a settings navigation cannot hide.
+   */
+  const handedOver = useRef(false);
 
   useEffect(() => {
     void credentialManager.checkKeychainStatus().then((mode) => setFallbackRequired(mode === "fallback"));
   }, []);
 
   useEffect(() => () => {
-    if (prepared) discardPreparedPersonalWorkspace(prepared.draftId);
+    if (prepared && !handedOver.current) discardPreparedPersonalWorkspace(prepared.draftId);
   }, [prepared]);
 
   const createRecovery = async () => {
@@ -76,19 +82,17 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
     }
   };
 
-  const activateNow = async () => {
+  const activateNow = () => {
     if (!prepared) return;
-    setBusy(true); setError(null); setProgress(null); setStep(3);
-    try {
-      const result = await activate(prepared.draftId, (done, total) => setProgress({ done, total }));
-      toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
-      onClose();
-    } catch (cause) {
-      console.error("[WorkspaceSetupWizard] activation failed", cause);
-      setError(t("workspaceSecurity.activationFailed"));
-      setProgress(null);
-      setStep(2);
-    } finally { setBusy(false); }
+    handedOver.current = true;
+    setStep(3);
+    // Not awaited here: the dialog is gone a moment later, the promise is
+    // not. The overlay reports progress and failure; the toast below is the
+    // only thing this closure still owes.
+    activate(prepared.draftId)
+      .then((result) => toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total })))
+      .catch((cause) => console.error("[WorkspaceSetupWizard] activation failed", cause));
+    onClose();
   };
 
   const copyRecoveryCode = async () => {
@@ -220,32 +224,11 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
             <details className="pv-security-tech"><summary>{t("workspaceSecurity.details")}</summary><SettingCardNote>{t("workspaceSecurity.fingerprintValue", { value: prepared.fingerprint })}</SettingCardNote></details>
           </>
         )}
-        {step === 3 && (
-          <>
-            <Banner kind="info" rounded>{t("workspaceSecurity.activating")}</Banner>
-            <div
-              className="pv-security-progress"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={progress?.total}
-              aria-valuenow={progress?.done}
-            >
-              {progress && progress.total > 0 ? (
-                <div className="pv-security-progress-bar" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
-              ) : (
-                <div className="indeterminate-progress pv-security-progress-bar" />
-              )}
-            </div>
-            {progress && progress.total > 0 && (
-              <div className="pv-security-progress-label">{t("workspaceSecurity.activatingProgress", { done: progress.done, total: progress.total })}</div>
-            )}
-          </>
-        )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
         <div className="pv-security-actions">
           <Button variant="ghost" disabled={busy} onClick={onClose}>{t("common.cancel")}</Button>
           {step === 1 && <Button variant="primary" disabled={busy || !ownerName.trim() || !deviceName.trim() || (fallbackRequired && (fallbackPassphrase.length < 10 || fallbackPassphrase !== fallbackPassphraseConfirm))} onClick={() => void createRecovery()}>{t("splash.continue")}</Button>}
-          {step === 2 && <Button variant="primary" disabled={busy || !saved || !challengeConfirmed} onClick={() => void activateNow()}>{t("workspaceSecurity.activate")}</Button>}
+          {step === 2 && <Button variant="primary" disabled={busy || !saved || !challengeConfirmed} onClick={activateNow}>{t("workspaceSecurity.activate")}</Button>}
         </div>
         <span className="pv-security-vault">{vaultPath}</span>
       </div>

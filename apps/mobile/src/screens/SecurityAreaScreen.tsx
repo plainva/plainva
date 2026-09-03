@@ -148,6 +148,15 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       : {});
   }, [vault.vaultId, vault.workspaceState, vault.workspaceRuntime, sliceObjects]);
   useEffect(() => { void refresh(); }, [refresh]);
+  // `mobileWorkspaceSecurity` dispatches this on every status write and said
+  // "the screens listen for this" — nothing did (finding 2026-09-03, K8). The
+  // route pop after the wizard covered activation; a lock, an unlock or a
+  // failed sweep while this screen stays mounted did not.
+  useEffect(() => {
+    const onChanged = () => { void refresh(); };
+    window.addEventListener("m-workspace-security-changed", onChanged);
+    return () => window.removeEventListener("m-workspace-security-changed", onChanged);
+  }, [refresh]);
 
   useEffect(() => {
     const deadline = request ? Date.parse(request.expiresAt) : Number.NaN;

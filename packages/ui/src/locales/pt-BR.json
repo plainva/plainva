@@ -3504,6 +3504,8 @@
     "activating": "Publicando o workspace e preparando a fila retomável…",
     "activatingProgress": "{{done}} de {{total}} arquivos",
     "activationFailed": "A ativação falhou. O texto simples remoto não foi removido.",
+    "activationTitle": "Criptografando o vault",
+    "activationStays": "Esta janela permanece até a fila estar pronta. As configurações podem ser fechadas enquanto isso.",
     "migrationStarted": "Criptografia iniciada: {{n}} de {{total}} item(ns) na fila.",
     "pairDevice": "Parear dispositivo",
     "approve": "Inserir código",

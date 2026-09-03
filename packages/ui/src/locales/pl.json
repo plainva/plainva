@@ -3535,6 +3535,8 @@
     "activating": "Publikowanie workspace i przygotowanie wznawialnej kolejki…",
     "activatingProgress": "{{done}} z {{total}} plików",
     "activationFailed": "Aktywacja nie powiodła się. Zdalny tekst jawny nie został usunięty.",
+    "activationTitle": "Szyfrowanie vaulta",
+    "activationStays": "To okno pozostaje otwarte, dopóki kolejka nie będzie gotowa. W tym czasie ustawienia można zamknąć.",
     "migrationStarted": "Szyfrowanie rozpoczęte: {{n}} z {{total}} elementów w kolejce.",
     "pairDevice": "Sparuj urządzenie",
     "approve": "Wprowadź kod",

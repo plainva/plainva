@@ -8,6 +8,7 @@ import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStat
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
 import { Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
+import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { WindowChromeStrip } from "./components/WindowControls";
@@ -367,6 +368,9 @@ function App() {
     <AppShell capabilities={capabilities}>
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
           fallback is never visible longer than the chunk download. */}
+      {/* Above the settings, not inside them: a running conversion must stay
+          visible while the user navigates or closes the settings (K8). */}
+      <WorkspaceActivationOverlay />
       <Suspense fallback={null}>
         {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); }} />}
         {showOkfWizard && (

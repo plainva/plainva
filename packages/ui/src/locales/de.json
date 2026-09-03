@@ -3472,6 +3472,8 @@
     "activating": "Workspace wird veröffentlicht und die fortsetzbare Verschlüsselungswarteschlange vorbereitet…",
     "activatingProgress": "{{done}} von {{total}} Dateien",
     "activationFailed": "Aktivierung fehlgeschlagen. Bestehender Remote-Klartext wurde nicht entfernt.",
+    "activationTitle": "Vault wird verschlüsselt",
+    "activationStays": "Dieses Fenster bleibt, bis die Warteschlange steht. Die Einstellungen können solange geschlossen werden.",
     "migrationStarted": "Verschlüsselung gestartet: {{n}} von {{total}} Elementen eingereiht.",
     "pairDevice": "Gerät koppeln",
     "approve": "Code eingeben",

@@ -3504,6 +3504,8 @@
     "activating": "Pubblicazione del workspace e preparazione della coda ripristinabile…",
     "activatingProgress": "{{done}} di {{total}} file",
     "activationFailed": "Attivazione non riuscita. Il contenuto remoto in chiaro non è stato rimosso.",
+    "activationTitle": "Cifratura del vault",
+    "activationStays": "Questa finestra resta aperta finché la coda non è pronta. Nel frattempo le impostazioni possono essere chiuse.",
     "migrationStarted": "Cifratura avviata: {{n}} di {{total}} elementi in coda.",
     "pairDevice": "Associa dispositivo",
     "approve": "Inserisci codice",

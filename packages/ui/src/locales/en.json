@@ -3472,6 +3472,8 @@
     "activating": "Publishing the workspace and preparing the resumable encryption queue…",
     "activatingProgress": "{{done}} of {{total}} files",
     "activationFailed": "Activation failed. The existing remote plaintext was not removed.",
+    "activationTitle": "Encrypting the vault",
+    "activationStays": "This window stays until the queue is in place. The settings can be closed in the meantime.",
     "migrationStarted": "Encryption started: {{n}} of {{total}} item(s) queued.",
     "pairDevice": "Pair device",
     "approve": "Enter code",
