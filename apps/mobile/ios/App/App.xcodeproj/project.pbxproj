@@ -22,6 +22,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		7A0002000000000000000005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000005 /* PrivacyInfo.xcprivacy */; };
 		7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0001000000000000000001 /* ShareTargetPlugin.swift */; };
+		7B0002000000000000000002 /* VaultFolderPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0001000000000000000002 /* VaultFolderPlugin.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -68,6 +69,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		7A0001000000000000000005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7B0001000000000000000001 /* ShareTargetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTargetPlugin.swift; sourceTree = "<group>"; };
+		7B0001000000000000000002 /* VaultFolderPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderPlugin.swift; sourceTree = "<group>"; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7B1009010000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7B1009020000000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -129,6 +131,7 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				7A0001000000000000000005 /* PrivacyInfo.xcprivacy */,
 				7B0001000000000000000001 /* ShareTargetPlugin.swift */,
+				7B0001000000000000000002 /* VaultFolderPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -264,6 +267,7 @@
 				7A0002000000000000000004 /* AtomicFilePlugin.swift in Sources */,
 				7A0002000000000000000003 /* MainViewController.swift in Sources */,
 				7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */,
+				7B0002000000000000000002 /* VaultFolderPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

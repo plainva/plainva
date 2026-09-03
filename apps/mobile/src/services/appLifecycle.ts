@@ -31,6 +31,9 @@ export function onAppForeground(): void {
   // plainly rather than promising the desktop's near-immediacy.
   void import("./commentNotifier").then((m) => m.runMobileCommentNotifications()).catch(() => {});
   pimForegroundSync();
+  // External vault folder (P5): somebody else may have written into the folder
+  // while the app was away — the index is brought up to date on return.
+  void import("./vaultService").then((m) => m.rescanExternalVaultOnResume()).catch(() => {});
   window.dispatchEvent(new CustomEvent("m-backup-due"));
   window.dispatchEvent(new CustomEvent("m-poll-share"));
 }

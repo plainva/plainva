@@ -65,6 +65,7 @@ export function VaultsScreen({
                   }
                   icon={<FolderClosed className={active ? "m-accent" : "m-chevron"} size={ICON.head} />}
                   key={v.id}
+                  subtitle={v.external ? t("mobile.vaultExternalSubtitle", { label: v.external.label }) : undefined}
                   // The active vault has nothing to switch to.
                   onClick={active ? undefined : () => void switchVault(v.id)}
                   title={

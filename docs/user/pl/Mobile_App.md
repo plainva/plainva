@@ -189,6 +189,8 @@ Obie konfiguracje — zaszyfrowany obszar roboczy i fraza hasłowa synchronizacj
 
 **Synchronizacja folderu przez inną aplikację (iPhone i iPad).** Folder Plainvy pojawia się w aplikacji **Pliki**, w sekcji **Na moim iPhonie** → **Plainva**. Inny program — na przykład klient Syncthing — może go tam wskazać i utrzymywać w synchronizacji między Twoimi urządzeniami, bez łączenia Plainvy z jakąkolwiek usługą w chmurze. Vault utworzony na urządzeniu leży w nim jako `vault`; każde połączenie z chmurą dostaje własny podfolder w `vaults`. W drugą stronę to nie działa: Plainva pracuje we własnym folderze, nie w folderze innej aplikacji. Na Androidzie ten folder nie jest widoczny dla innych programów.
 
+**Istniejący folder jako vault (Android i iOS).** W **Vaulty → Utwórz vault** jest trzecia droga, **Folder na tym urządzeniu**: wybierasz folder, którym zarządza inny program — Syncthing, aplikacja Pliki, drugi klient synchronizacji — a Plainva czyta i zapisuje tam, niczego nie kopiując. Folder pozostaje folderem: gdy usuniesz vault, znika tylko połączenie, pliki zostają. Zmiany, które inny program tam wprowadza, Plainva widzi po powrocie do aplikacji i przy otwarciu notatki. Synchronizacja w chmurze jest dla takich vaultów wyłączona — druga synchronizacja na tym samym magazynie nadpisałaby pierwszą — i mówi o tym karta w szczegółach vaultu. Gdy dostęp wygaśnie (folder przeniesiony, uprawnienie cofnięte), karta to nazywa, a **Połącz folder ponownie** go przywraca.
+
 ## Sieć bezpieczeństwa
 
 Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje Twój ostatni niezapisany stan) oraz kopie konfliktów z widokiem porównania chronią Twoje dane. Przechowywanie konfigurujesz w **Ustawieniach** → **Backup i historia wersji**.

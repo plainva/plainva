@@ -25,7 +25,7 @@ import {
 import { useCommentNotifierDeps } from "./hooks/useCommentNotifierDeps";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
-import { vaultOps, getMobileVault, createLocalVault, type MobileVault } from "./services/vaultService";
+import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, type MobileVault } from "./services/vaultService";
 import { createProviderFolder, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
@@ -563,15 +563,9 @@ export default function App() {
   // branch hands the template to the connect screen; local continues here.
   const createVaultFlow = () => {
     void (async () => {
-      const where = await mSelect({
-        title: t("mobile.vaultCreate"),
-        options: [
-          { value: "local", label: t("mobile.vaultLocal"), desc: t("mobile.vaultCreateLocalDesc") },
-          { value: "online", label: t("mobile.vaultCreateOnline"), desc: t("mobile.vaultCreateOnlineDesc") },
-        ],
-        value: "local",
-      });
+      const where = await chooseVaultPlace();
       if (where === null) return;
+      if (where === "folder") { await createVaultInPickedFolder(); return; }
       const defs = getVaultTemplates(i18n.language);
       const pick = await mSelect({
         title: t("mobile.templatePick"),

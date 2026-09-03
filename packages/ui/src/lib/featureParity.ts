@@ -568,4 +568,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "yes",
     verified: "2026-08-19",
   },
+  {
+    id: "external-folder-sync",
+    title: "Cloud sync for a vault that lives in a folder another program keeps",
+    area: "sync",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone can open a folder the user picked outside the app container " +
+      "(external vault folder plan, P4), but cloud sync is deliberately off for " +
+      "such a vault (E4): that folder exists because another program — Syncthing, " +
+      "the Files app, a second sync client — already keeps it, and two syncs on " +
+      "one store overwrite each other. The desktop runs the same risk and leaves " +
+      "it to the user; the phone names the reason on the vault card instead of " +
+      "offering the switch. Editing, indexing, backups and conflict copies work " +
+      "the same on both.",
+    verified: "2026-09-03",
+  },
 ];

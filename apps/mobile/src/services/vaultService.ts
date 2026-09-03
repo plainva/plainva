@@ -24,7 +24,10 @@ import {
   type VaultFileInfo,
   PimCacheRepository,
 } from "@plainva/core";
+import { mSelect } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
+import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
+import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, type VaultFolderAccess } from "../platform/vaultFolder";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "../adapters/FixtureSqliteAdapter";
 import { Directory, Filesystem } from "@capacitor/filesystem";
@@ -35,8 +38,7 @@ import {
   removeVault,
   setActiveVault,
   LOCAL_VAULT_ID,
-  type VaultEntry,
-} from "./vaultRegistry";
+  type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
 import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
 import { clearMobileSyncState } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
@@ -92,8 +94,10 @@ export interface MobileVault {
   vaultId: string;
   /** True when this boot created the vault (first run) — gates the template offer. */
   freshlySeeded: boolean;
-  /** Raw sandbox adapter (listing, binary reads). */
-  adapter: CapacitorVaultAdapter;
+  /** Raw storage adapter (listing, binary reads): the sandbox one, or the external-folder one. */
+  adapter: MobileRawAdapter;
+  /** The picked folder this vault lives in, or null for a container vault (P4). */
+  external: ExternalFolderRef | null;
   /** App-facing adapter: the conflict-aware chain natively, raw on the web. */
   files: IVaultAdapter;
   backup: BackupVaultAdapter | null;
@@ -272,11 +276,20 @@ export async function deleteVault(id: string): Promise<void> {
   // enumerated). Hence the closed database of an inactive vault is opened for
   // the length of one query rather than skipped.
   const publicationIds = await readPublicationIds(id, current?.vaultId === id ? current?.db ?? null : null);
+  const entry = await getVaultEntry(id).catch(() => null);
   if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
-  try {
-    await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
-  } catch {
-    /* container may not exist (never synced) */
+  // THE HARD LINE of the external-folder plan (§ 3.2, P6): the delete path
+  // knows only containers. For a picked folder the connection goes and the
+  // files stay — the same rmdir pointed at that folder would be the deletion
+  // of the user's real notes. Guarded here, pinned by externalVaultGuard.test.
+  if (isExternalVault(entry)) {
+    await getVaultFolderPlugin().release({ handle: entry.external.handle }).catch(() => {});
+  } else {
+    try {
+      await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
+    } catch {
+      /* container may not exist (never synced) */
+    }
   }
   // The per-service slots are named after account ids, so they have to be
   // collected while the registries that hold those ids still exist (finding
@@ -320,6 +333,83 @@ export async function createLocalVault(name: string): Promise<string> {
   return id;
 }
 
+/** Where a new vault should live — the first question of the create flow. */
+export type VaultPlace = "local" | "online" | "folder";
+
+/**
+ * The place question of "create a vault" (2026-07-13 order: place → template →
+ * destination), with the third answer of the external-folder plan (P7): a
+ * folder that already exists on the device, kept by another app. Native only —
+ * the web dev server has no picker. Lives here rather than in App.tsx because
+ * of that file's line budget, and because the choice is vault logic.
+ */
+export async function chooseVaultPlace(): Promise<VaultPlace | null> {
+  const t = i18n.t.bind(i18n);
+  const where = await mSelect({
+    title: t("mobile.vaultCreate"),
+    options: [
+      { value: "local", label: t("mobile.vaultLocal"), desc: t("mobile.vaultCreateLocalDesc") },
+      { value: "online", label: t("mobile.vaultCreateOnline"), desc: t("mobile.vaultCreateOnlineDesc") },
+      ...(isVaultFolderSupported() ? [{ value: "folder", label: t("mobile.vaultCreateFolder"), desc: t("mobile.vaultCreateFolderDesc") }] : []),
+    ],
+    value: "local",
+  });
+  return where as VaultPlace | null;
+}
+
+/**
+ * Picks a folder and makes it a vault. The folder's name is the vault's name;
+ * no template — the content is whatever the folder already holds. A location
+ * the platform refuses (Android 11's block list) is named, a cancel is silent.
+ */
+export async function createVaultInPickedFolder(): Promise<string | null> {
+  const platform = currentVaultFolderPlatform();
+  if (!platform) return null;
+  const picked = await getVaultFolderPlugin().pickFolder();
+  if (!picked.picked) {
+    if (picked.reason === "notPickable") toast.error(i18n.t("mobile.vaultFolderNotPickable"));
+    return null;
+  }
+  return createExternalVault({ handle: picked.handle, label: picked.label, platform }, picked.label);
+}
+
+/**
+ * Registers a folder the user picked as a vault of its own (E3) and switches
+ * to it. Nothing is written into the folder here — its content is the vault,
+ * the index is built in the app's own database on first boot.
+ */
+export async function createExternalVault(ref: ExternalFolderRef, name: string): Promise<string> {
+  const id = newVaultId();
+  await addVault({ id, name, external: ref });
+  await switchVault(id);
+  return id;
+}
+
+/**
+ * Foreign changes, stage 1 (P5): on return to the app an external vault is
+ * rescanned by modification times. Nothing watches the folder while the app
+ * is away — neither platform gives a reliable watcher for a foreign folder —
+ * so the rescan is the honest answer, not the lazy one.
+ */
+export async function rescanExternalVaultOnResume(): Promise<void> {
+  const v = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!v || !v.external || !v.indexer) return;
+  await v.indexer.indexVaultFull().catch(() => {});
+  window.dispatchEvent(new CustomEvent("m-vault-changed"));
+}
+
+/**
+ * What the two raw adapters have in common, as far as the rest of the app
+ * asks: the shared contract, plus the sandbox folder the streaming uploader
+ * opens natively (absent for an external folder — no sync runs there, E4)
+ * and the access state an external folder reports.
+ */
+export type MobileRawAdapter = IVaultAdapter & {
+  readonly sandboxRoot?: string;
+  readonly accessState?: VaultFolderAccess | null;
+  refreshAccess?(): Promise<VaultFolderAccess>;
+};
+
 async function boot(entry: VaultEntry): Promise<MobileVault> {
   // Paths are vault-relative: a stale lastPersisted entry from another vault
   // must never classify this vault's disk content as our own echo.
@@ -330,7 +420,12 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   // from, so an empty one is seeded (and may then be templated).
   const isDefaultLocal = entry.id === LOCAL_VAULT_ID;
   const isLocal = !entry.provider;
-  const adapter = new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
+  // An external folder is addressed by its handle, everything else by its
+  // sandbox folder. Same chain above either way (backup, queue, conflict) —
+  // never the permissioned/workspace links (E5: no encrypted workspace there).
+  const adapter: MobileRawAdapter = isExternalVault(entry)
+    ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle)
+    : new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
   await adapter.initialize();
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
   const workspaceRuntime = workspaceStatus ? await loadMobileWorkspaceRuntime(entry.id) : null;
@@ -340,7 +435,8 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let freshlySeeded = false;
   // Set when the full index pass is through — see MobileVault.indexSettled.
   let indexPassSettled = false;
-  if (isLocal && (await adapter.listDir("")).length === 0) {
+  // A picked folder is the user's: it is never seeded, however empty it is.
+  if (isLocal && !isExternalVault(entry) && (await adapter.listDir("")).length === 0) {
     for (const [path, text] of SEEDS) await adapter.writeTextFile(path, text);
     freshlySeeded = true;
   }
@@ -518,6 +614,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     vaultId: entry.id,
     freshlySeeded,
     adapter,
+    external: entry.external ?? null,
     files,
     backup,
     syncQueue: queue,
@@ -866,6 +963,13 @@ export const vaultOps = {
   async noteOpened(v: MobileVault, path: string): Promise<void> {
     rememberLastOpen(v.vaultId, path);
     await this.pushRecent(v, path);
+    // Foreign changes, stage 2 (P5): opening a note in an external folder
+    // checks its timestamp against the index, so search, links and graph do
+    // not describe a note somebody else has since rewritten.
+    if (v.external && v.indexer) {
+      const outcome = await v.indexer.indexPath(path).catch(() => "unchanged" as const);
+      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull().catch(() => {});
+    }
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {

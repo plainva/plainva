@@ -11,6 +11,19 @@ import { getPlatformServices } from "@plainva/ui";
 
 export const LOCAL_VAULT_ID = "local";
 
+/**
+ * A vault that lives in a folder the user picked on the device (external vault
+ * folder plan, P4). The handle is opaque to the WebView; the label is what the
+ * picker showed. The platform is recorded because a bookmark cannot be
+ * resolved by the other shell — a registry restored across platforms would
+ * otherwise carry a handle that looks valid and is not.
+ */
+export interface ExternalFolderRef {
+  handle: string;
+  label: string;
+  platform: "android" | "ios";
+}
+
 export interface VaultEntry {
   id: string;
   /** Display name; empty for the local vault (the UI localizes that). */
@@ -18,6 +31,13 @@ export interface VaultEntry {
   provider?: string;
   /** Sync paused ("disconnected" in the UI); credentials stay stored. */
   paused?: boolean;
+  /** Set for a vault in a user-picked folder outside the app container. */
+  external?: ExternalFolderRef;
+}
+
+/** True for a vault whose files live outside the app container (E3: an additional vault, never a replacement). */
+export function isExternalVault(entry: VaultEntry | null | undefined): entry is VaultEntry & { external: ExternalFolderRef } {
+  return Boolean(entry?.external?.handle);
 }
 
 interface RegistryState {

@@ -747,7 +747,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     target,
     v.files,
     v.syncRepo!,
-    createContentRefResolver(v.adapter.sandboxRoot),
+    // An external folder has no sandbox root — and no sync either (E4), so
+    // this resolver is never asked for one; the fallback only satisfies the type.
+    createContentRefResolver(v.adapter.sandboxRoot ?? ""),
   );
   // Pulls write through the backup adapter (not the queueing chain) — the
   // worker does its own merge and manages sync_state (desktop pattern).

@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Archive, Check, ChevronRight, Cloud, KeyRound, Layers, Pencil, Play, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
+import { AlertTriangle, Archive, Check, ChevronRight, Cloud, FolderOpen, KeyRound, Layers, Pencil, Play, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
 import { mConfirm, mPrompt, mSelect } from "./services/mobileDialogs";
 import {
   canChangeRemoteFolder,
@@ -17,8 +17,9 @@ import {
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
-import { getVaultEntry, updateVault, LOCAL_VAULT_ID, type VaultEntry } from "./services/vaultRegistry";
-import { deleteVault, switchVault, type MobileVault } from "./services/vaultService";
+import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type VaultEntry } from "./services/vaultRegistry";
+import { currentVaultFolderPlatform, getVaultFolderPlugin, type VaultFolderAccess } from "./platform/vaultFolder";
+import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
 import { readSyncRootFolder } from "./services/syncRootFolder";
@@ -140,6 +141,20 @@ export function VaultDetailScreen({
     };
   }, [entry?.name, busy]);
 
+  // External folder (P7): what the platform says about the grant right now.
+  // Asked on every open of this page — a grant can go away between two looks.
+  const [folderAccess, setFolderAccess] = useState<VaultFolderAccess | null>(null);
+  const externalRef = isExternalVault(entry) ? entry.external : null;
+  useEffect(() => {
+    if (!externalRef) return;
+    let alive = true;
+    void getVaultFolderPlugin()
+      .resolve({ handle: externalRef.handle })
+      .then((a) => { if (alive) setFolderAccess(a); })
+      .catch(() => { if (alive) setFolderAccess({ state: "expired", label: externalRef.label }); });
+    return () => { alive = false; };
+  }, [externalRef]);
+
   if (!entry) return <div className="m-page" />;
 
   const name = entry.name || t("mobile.vaultLocal");
@@ -160,11 +175,30 @@ export function VaultDetailScreen({
     })();
   };
 
+  const reconnectFolder = () => {
+    void (async () => {
+      const platform = currentVaultFolderPlatform();
+      if (!platform || !externalRef) return;
+      const picked = await getVaultFolderPlugin().pickFolder();
+      if (!picked.picked) return;
+      setBusy(true);
+      try {
+        await getVaultFolderPlugin().release({ handle: externalRef.handle }).catch(() => {});
+        await updateVault(vaultId, { external: { handle: picked.handle, label: picked.label, platform } });
+        if (isActive) await reloadActiveMobileVault();
+        setFolderAccess({ state: "ok", label: picked.label });
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
   const remove = () => {
     void (async () => {
       const ok = await mConfirm({
         title: t("mobile.vaultDelete"),
-        message: t("mobile.vaultDeleteConfirm", { name }),
+        // A picked folder: the connection goes, the files stay — said in words (P7).
+        message: externalRef ? t("mobile.vaultExternalRemoveConfirm", { name, label: externalRef.label }) : t("mobile.vaultDeleteConfirm", { name }),
         danger: true,
         confirmLabel: t("common.delete"),
       });
@@ -249,17 +283,38 @@ export function VaultDetailScreen({
               // seemed to offer is a danger row further down. The badge goes
               // with it: the title now says the same thing once.
               t("mobile.syncDisconnected")
+            ) : externalRef ? (
+              <>
+                {folderAccess?.state === "expired" ? <AlertTriangle className="m-error" size={ICON.ui} /> : <FolderOpen className="m-accent" size={ICON.ui} />}
+                {t("mobile.vaultExternalTitle")}
+              </>
             ) : (
               t("mobile.vaultNoCloudTitle")
             )}
           </span>
+          {externalRef && (
+            <>
+              <p className="m-statcard-meta" data-testid="vault-external-state">
+                {folderAccess?.state === "expired"
+                  ? t("mobile.vaultExternalExpired", { label: externalRef.label })
+                  : t("mobile.vaultExternalOk", { label: folderAccess?.state === "ok" && folderAccess.label ? folderAccess.label : externalRef.label })}
+              </p>
+              {/* E4, in words: no cloud sync for a folder another program keeps. */}
+              <p className="m-statcard-meta">{t("mobile.vaultExternalNoCloud")}</p>
+              {folderAccess?.state === "expired" && (
+                <Button variant="tonal" disabled={busy} onClick={reconnectFolder} data-testid="vault-external-reconnect">
+                  {t("mobile.vaultExternalReconnect")}
+                </Button>
+              )}
+            </>
+          )}
           {isActive && entry.provider ? (
             <p className="m-statcard-meta">{providerLine}</p>
-          ) : !entry.provider ? (
+          ) : !entry.provider && !externalRef ? (
             // Without a provider there is no state to report — say that rather
             // than leave a card that only repeats the title.
             <p className="m-statcard-meta">{t("mobile.vaultNoCloud")}</p>
-          ) : (
+          ) : !entry.provider ? null : (
             <p className="m-statcard-meta">{providerName}</p>
           )}
           {isActive && connected && (

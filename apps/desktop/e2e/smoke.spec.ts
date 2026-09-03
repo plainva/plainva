@@ -2856,13 +2856,18 @@ test('Editor settings: the content font offers a catalog with preview, the name 
   expect(await rows.count()).toBeGreaterThan(4);
 
   // A row previews itself in its own font and, picked, fills the name field.
-  const georgia = dialog.getByTestId('font-catalog-Georgia');
-  await expect(georgia.locator('.pv-grouprow-title span')).toHaveCSS('font-family', /Georgia/);
-  await georgia.click();
-  await expect(dialog.getByTestId('content-font-custom')).toHaveValue('Georgia');
-  await expect(georgia).toHaveAttribute('aria-pressed', 'true');
+  // Which fonts exist depends on the machine (the CI runner has no Georgia):
+  // the catalog says which rows are usable, the first of them is the one.
+  const usable = catalog.locator('[data-testid^="font-catalog-"]:not([disabled])').first();
+  await expect(usable).toBeVisible();
+  const css = (await usable.getAttribute('data-testid'))!.replace('font-catalog-', '');
+  const escaped = css.replace(/[.*+?^${}()|[\]\\]/g, (m) => '\\' + m);
+  await expect(usable.locator('.pv-grouprow-title span')).toHaveCSS('font-family', new RegExp(escaped, 'i'));
+  await usable.click();
+  await expect(dialog.getByTestId('content-font-custom')).toHaveValue(css);
+  await expect(usable).toHaveAttribute('aria-pressed', 'true');
   // …and the note content follows.
   await expect
     .poll(async () => await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-content')))
-    .toContain('Georgia');
+    .toContain(css);
 });
