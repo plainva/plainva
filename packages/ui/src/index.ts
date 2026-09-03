@@ -134,6 +134,8 @@ export * from "./lib/commentAuthor";
 export * from "./lib/relativeTime";
 export * from "./components/CommentCardHead";
 export * from "./components/CommentBody";
+export * from "./lib/wordDiff";
+export * from "./components/SuggestionDiff";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";

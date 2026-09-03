@@ -3649,6 +3649,7 @@
     "commentDelete": "Usuń",
     "commentDeleteConfirm": "Usunąć ten komentarz? Zobaczą to wszyscy członkowie.",
     "commentDeleteConfirmThread": "Usunąć ten wątek ze wszystkimi odpowiedziami? Zobaczą to wszyscy członkowie.",
+    "suggestionInline": "Pokaż zmiany w tekście",
     "commentReplyPlaceholder": "Napisz odpowiedź…",
     "commentsNone": "Nie ma jeszcze komentarzy.",
     "commentMentionPicker": "Wspomnij członka",

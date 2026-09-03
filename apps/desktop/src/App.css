@@ -804,6 +804,22 @@ option {
   background: var(--comment-anchor-bg-active, color-mix(in srgb, var(--accent-color) 30%, transparent));
   border-bottom-color: var(--comment-anchor-line-active, var(--accent-color));
 }
+/* An open suggestion in the read view (K5): the same two tones the editor
+   and the card use, without a pill - nobody writes in the reader. */
+.pv-read-suggestion-del {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  color: var(--error-text);
+  background: var(--error-bg);
+  border-bottom: none;
+}
+.pv-read-suggestion-ins {
+  color: var(--success-text);
+  background: var(--success-bg);
+  text-decoration: none;
+  border-bottom: 2px solid var(--success-border);
+  cursor: pointer;
+}
 .pv-read-anchor-frame {
   outline: 2px solid var(--comment-anchor-line, color-mix(in srgb, var(--accent-color) 45%, transparent));
   outline-offset: 2px;

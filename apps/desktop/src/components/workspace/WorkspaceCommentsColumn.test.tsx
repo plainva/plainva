@@ -188,8 +188,11 @@ describe("workspace comment column", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, body: "zu vage", suggestion: SUGGESTION })],
     })} />);
-    expect(host.querySelector(".pv-comment-card__quote--replaced")?.textContent).toBe("bis Ende des Jahres");
-    expect(host.querySelector(".pv-comment-card__replacement")?.textContent).toContain("bis zum 31.12.2026");
+    // One line, word by word (K5): what goes is struck, what comes is inserted.
+    const diff = host.querySelector(".pv-comment-card__diff")!;
+    expect([...diff.querySelectorAll("del")].map((d) => d.textContent).join("")).toBe("Ende des Jahres");
+    expect([...diff.querySelectorAll("ins")].map((d) => d.textContent).join("")).toBe("zum 31.12.2026");
+    expect(diff.textContent).toContain("bis ");
     unmount();
   });
 
@@ -199,7 +202,7 @@ describe("workspace comment column", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, suggestion: { replacement: "", appliedAt: null, appliedBy: null, declinedAt: null } })],
     })} />);
-    expect(host.querySelector(".pv-comment-card__replacement")?.textContent).toContain(tr("workspaceSecurity.suggestionDeletes"));
+    expect(host.querySelector(".pv-comment-card__diff")?.textContent).toContain(tr("workspaceSecurity.suggestionDeletes"));
     unmount();
   });
 
@@ -397,7 +400,7 @@ describe("workspace comment column", () => {
       expect(host.textContent).toContain(tr("workspaceSecurity.publicationSuggestionStale"));
       // The proposed wording is still shown - a recipient wrote it, whether or
       // not this side can paste it in.
-      expect(host.textContent).toContain("bis zum 31.12.2026");
+      expect([...host.querySelectorAll(".pv-comment-card__diff ins")].map((n) => n.textContent).join("")).toContain("zum 31.12.2026");
       unmount();
     });
 

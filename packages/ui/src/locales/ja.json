@@ -3553,6 +3553,7 @@
     "commentDelete": "削除",
     "commentDeleteConfirm": "このコメントを削除しますか？すべてのメンバーに反映されます。",
     "commentDeleteConfirmThread": "このスレッドを返信ごと削除しますか？すべてのメンバーに反映されます。",
+    "suggestionInline": "変更をテキスト内に表示",
     "commentReplyPlaceholder": "返信を書く…",
     "commentsNone": "まだコメントはありません。",
     "commentMentionPicker": "メンバーをメンション",

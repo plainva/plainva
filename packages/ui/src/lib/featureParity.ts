@@ -555,6 +555,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "suggestion-inline-pill",
+    title: "Accepting or declining a suggestion from its inline rendering",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells draw an open suggestion in the text (K5): the passage " +
+      "struck, the proposal behind it. The desktop adds a hover pill with " +
+      "accept and decline on the proposal itself. A touch screen has no hover, " +
+      "and a permanently visible pair of buttons inside running text is a " +
+      "tap target nobody asked for - the phone keeps accept and decline in the " +
+      "comments sheet, where the same record already carries them.",
+    verified: "2026-09-03",
+  },
+  {
     id: "table-cell-comment-affordance",
     title: "Finding the way to comment on a table cell",
     area: "security",

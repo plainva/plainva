@@ -3617,6 +3617,7 @@
     "commentDelete": "Excluir",
     "commentDeleteConfirm": "Excluir este comentário? Todos os membros verão.",
     "commentDeleteConfirmThread": "Excluir esta conversa com todas as respostas? Todos os membros verão.",
+    "suggestionInline": "Mostrar alterações no texto",
     "commentReplyPlaceholder": "Escreva uma resposta…",
     "commentsNone": "Ainda não há comentários.",
     "commentMentionPicker": "Mencionar um membro",

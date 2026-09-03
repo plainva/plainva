@@ -3585,6 +3585,7 @@
     "commentDelete": "Löschen",
     "commentDeleteConfirm": "Kommentar löschen? Das sehen alle Mitglieder.",
     "commentDeleteConfirmThread": "Diesen Faden mit allen Antworten löschen? Das sehen alle Mitglieder.",
+    "suggestionInline": "Änderungen im Text zeigen",
     "commentReplyPlaceholder": "Antwort schreiben…",
     "commentsNone": "Noch keine Kommentare.",
     "commentMentionPicker": "Mitglied erwähnen",

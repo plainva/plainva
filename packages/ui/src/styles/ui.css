@@ -2904,6 +2904,19 @@ tr.is-selected > td { color: var(--on-accent-container); }
   font-size: var(--text-sm);
   overflow-wrap: anywhere; white-space: pre-wrap;
 }
+/* A suggestion as a word diff on one line (K5): struck words in the deletion
+   tone, new words in the insertion tone. Replaces the two-block layout
+   (quote struck, proposal underneath) that made the reader compare. */
+.pv-comment-card__diff {
+  margin: 0; padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--code-bg);
+  font-size: var(--text-sm); line-height: 1.6;
+  overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.pv-comment-card__diff del { color: var(--error-text); background: var(--error-bg); text-decoration: line-through; text-decoration-thickness: 1px; border-radius: var(--radius-xs); }
+.pv-comment-card__diff ins { color: var(--success-text); background: var(--success-bg); text-decoration: none; border-bottom: 1.5px solid var(--success-border); border-radius: var(--radius-xs); }
+.pv-comment-card__diff-note { color: var(--text-faint); }
 .pv-comment-card__meta { color: var(--text-muted); font-size: var(--text-sm); }
 /* Who and when, in ONE line (K3): an initials chip, the name, the relative
    time on the right. The chip's hue comes from the member id, so one person

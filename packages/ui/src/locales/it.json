@@ -3617,6 +3617,7 @@
     "commentDelete": "Elimina",
     "commentDeleteConfirm": "Eliminare questo commento? Tutti i membri lo vedranno.",
     "commentDeleteConfirmThread": "Eliminare questa discussione con tutte le risposte? Tutti i membri lo vedranno.",
+    "suggestionInline": "Mostra le modifiche nel testo",
     "commentReplyPlaceholder": "Scrivi una risposta…",
     "commentsNone": "Ancora nessun commento.",
     "commentMentionPicker": "Menziona un membro",

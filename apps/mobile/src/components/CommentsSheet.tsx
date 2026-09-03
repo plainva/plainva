@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, toAnchorDisplayHint } from "@plainva/ui";
+import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Replace, Trash2 } from "lucide-react";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -63,6 +63,9 @@ export interface CommentsSheetProps {
   /** Deletes a remark (K7): its author, or a moderator on everything. */
   onDelete?(comment: WorkspaceCommentRecord): void;
   canModerate?: boolean;
+  /** Whether open suggestions are drawn in the text (K5); the head carries the switch. */
+  inlineSuggestions?: boolean;
+  onToggleInlineSuggestions?(): void;
 }
 
 /**
@@ -96,6 +99,8 @@ export function CommentsSheet({
   onOpenUrl,
   onDelete,
   canModerate,
+  inlineSuggestions,
+  onToggleInlineSuggestions,
   onClose,
   muted,
   onToggleMute,
@@ -205,6 +210,11 @@ export function CommentsSheet({
               ]}
             />
           )}
+          {onToggleInlineSuggestions && (
+            <IconButton label={t("workspaceSecurity.suggestionInline")} active={inlineSuggestions === true} onClick={onToggleInlineSuggestions}>
+              <Replace size={ICON.touch} />
+            </IconButton>
+          )}
           {onToggleMute && (
             <IconButton
               label={muted ? t("commentNotify.unmute") : t("commentNotify.mute")}
@@ -240,12 +250,8 @@ export function CommentsSheet({
                   </button>
                 )}
                 {root.body && <CommentBody body={root.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
-                {state && (
-                  <p className="pv-comment-card__replacement">
-                    <span className="pv-comment-card__quote pv-comment-card__quote--replaced">{root.anchor?.quote}</span>
-                    {" → "}
-                    <span>{root.suggestion?.replacement}</span>
-                  </p>
+                {state && root.suggestion && (
+                  <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
                 )}
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">

@@ -1,5 +1,5 @@
 import { StateEffect, StateField, Facet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
-import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
+import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
 import { applyRegionStyle, type AnchorRegionRect, type RegionPick } from "./anchorRegion";
 
 /**
@@ -63,7 +63,32 @@ export interface AnchorHighlight {
    * range shows none. `anchorFrameAt` is how the widget asks.
    */
   frame?: AnchorFrameHint;
+  /**
+   * Present on an OPEN suggestion while the reader wants changes shown in the
+   * text (K5): the range is drawn struck through and the proposed wording
+   * stands right behind it, Word-style. The document is untouched - this is a
+   * decoration, and accepting is still the only write.
+   */
+  suggestion?: { replacement: string };
 }
+
+/**
+ * How the inline proposal reaches the shell (K5). `canApply`/`canDecline`
+ * decide whether the little pill shows its buttons at all: a Commenter may
+ * decline but not accept, and a phone shows no pill (its sheet has the
+ * buttons) - the widget asks rather than assumes.
+ */
+export interface SuggestionActionHandlers {
+  canApply: () => boolean;
+  canDecline: () => boolean;
+  apply: (commentId: string) => void;
+  decline: (commentId: string) => void;
+  activate: (commentId: string) => void;
+}
+
+export const suggestionActionHandlers = Facet.define<SuggestionActionHandlers | null, SuggestionActionHandlers | null>({
+  combine: (values) => values[0] ?? null,
+});
 
 /** A frame over a widget's range, in the shape the widget needs to render it. */
 export interface AnchorFrame extends AnchorFrameHint {
@@ -99,10 +124,63 @@ export const commentAnchorHandlers = Facet.define<CommentAnchorHandlers, Comment
  * coordinates - the same reason `.cm-wiki-link` reads its target off the span.
  */
 function markFor(entry: AnchorHighlight): Decoration {
+  const base = entry.suggestion ? "cm-anchor-highlight cm-suggestion-del" : "cm-anchor-highlight";
   return Decoration.mark({
-    class: entry.active ? "cm-anchor-highlight cm-anchor-highlight--active" : "cm-anchor-highlight",
+    class: entry.active ? `${base} cm-anchor-highlight--active` : base,
     attributes: { "data-pv-comment": entry.commentId },
   });
+}
+
+/**
+ * The proposed wording, drawn behind the struck passage (K5).
+ *
+ * Nothing in the document changes: the widget is a decoration at the range's
+ * end. Its text can be selected with the eye but not the caret - the caret
+ * skips it like any widget - which is the honest shape for "what COULD stand
+ * here". The pill with accept/decline appears on hover, and only where the
+ * shell says the reader may do either.
+ */
+class SuggestionWidget extends WidgetType {
+  constructor(private readonly commentId: string, private readonly replacement: string, private readonly active: boolean) { super(); }
+  eq(other: SuggestionWidget) {
+    return other.commentId === this.commentId && other.replacement === this.replacement && other.active === this.active;
+  }
+  ignoreEvent() { return true; }
+  toDOM(view: EditorView) {
+    const doc = view.dom.ownerDocument;
+    const host = doc.createElement("span");
+    host.className = this.active ? "cm-suggestion-host cm-suggestion-host--active" : "cm-suggestion-host";
+    host.contentEditable = "false";
+    host.setAttribute("data-pv-comment", this.commentId);
+    const handlers = view.state.facet(suggestionActionHandlers);
+    if (this.replacement.length > 0) {
+      const ins = doc.createElement("span");
+      ins.className = "cm-suggestion-ins";
+      ins.textContent = this.replacement;
+      ins.addEventListener("mousedown", (e) => { e.preventDefault(); });
+      ins.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); handlers?.activate(this.commentId); });
+      host.appendChild(ins);
+    }
+    if (handlers && (handlers.canApply() || handlers.canDecline())) {
+      const pill = doc.createElement("span");
+      pill.className = "cm-suggestion-pill";
+      const button = (glyph: string, label: string, run: () => void) => {
+        const el = doc.createElement("button");
+        el.type = "button";
+        el.className = "cm-suggestion-pill__btn";
+        el.textContent = glyph;
+        el.setAttribute("aria-label", label);
+        el.setAttribute("data-tip", label);
+        el.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+        el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); run(); });
+        pill.appendChild(el);
+      };
+      if (handlers.canApply()) button("\u2713", "apply", () => handlers.apply(this.commentId));
+      if (handlers.canDecline()) button("\u2715", "decline", () => handlers.decline(this.commentId));
+      host.appendChild(pill);
+    }
+    return host;
+  }
 }
 
 function clamp(entry: AnchorHighlight, docLength: number): { from: number; to: number } | null {
@@ -121,6 +199,9 @@ function build(list: readonly AnchorHighlight[], docLength: number): DecorationS
     const span = clamp(entry, docLength);
     if (!span) continue;
     ranges.push(markFor(entry).range(span.from, span.to));
+    if (entry.suggestion) {
+      ranges.push(Decoration.widget({ widget: new SuggestionWidget(entry.commentId, entry.suggestion.replacement, entry.active === true), side: 1 }).range(span.to));
+    }
   }
   return Decoration.set(ranges, true);
 }
@@ -335,6 +416,47 @@ const anchorHighlightTheme = EditorView.baseTheme({
     backgroundColor: "var(--comment-anchor-bg-active, color-mix(in srgb, var(--accent-color) 30%, transparent))",
     borderBottomColor: "var(--comment-anchor-line-active, var(--accent-color))",
   },
+  // An open suggestion shown in the text (K5): the passage struck in the
+  // deletion tone, the proposal behind it in the insertion tone - the same
+  // two tones the card's diff uses, so the eye moves between them freely.
+  ".cm-suggestion-del": {
+    textDecoration: "line-through",
+    color: "var(--error-text)",
+    backgroundColor: "var(--error-bg)",
+    borderBottom: "none",
+  },
+  ".cm-suggestion-host": { position: "relative", display: "inline", whiteSpace: "pre-wrap" },
+  ".cm-suggestion-ins": {
+    color: "var(--success-text)",
+    backgroundColor: "var(--success-bg)",
+    borderBottom: "2px solid var(--success-border)",
+    cursor: "pointer",
+  },
+  ".cm-suggestion-host--active .cm-suggestion-ins": { outline: "2px solid var(--success-border)" },
+  ".cm-suggestion-pill": {
+    display: "none",
+    verticalAlign: "middle",
+    marginLeft: "var(--space-1)",
+    padding: "0",
+    border: "1px solid var(--border-color)",
+    borderRadius: "var(--radius-pill)",
+    background: "var(--bg-primary)",
+    lineHeight: "1",
+  },
+  ".cm-suggestion-host:hover .cm-suggestion-pill, .cm-suggestion-host--active .cm-suggestion-pill": { display: "inline-flex" },
+  ".cm-suggestion-pill__btn": {
+    border: "none",
+    background: "transparent",
+    width: "var(--space-6)",
+    height: "var(--space-5)",
+    borderRadius: "var(--radius-pill)",
+    cursor: "pointer",
+    color: "var(--text-muted)",
+    fontSize: "var(--text-sm)",
+    padding: "0",
+  },
+  ".cm-suggestion-pill__btn:hover": { background: "var(--bg-hover)", color: "var(--text-main)" },
+
   // A widget cannot be underlined, so the frame carries the same two states an
   // underline does: quiet while the comment is one of many, solid when it is
   // the card the reader has open.
@@ -376,7 +498,10 @@ const anchorHighlightTheme = EditorView.baseTheme({
   // screen there is no hover and the cell's long-press sheet is the way, so
   // the bubble stays away there instead of sticking to the last tapped cell.
   ".cm-anchor-bubble--cell": { top: "2px", right: "2px", width: "20px", height: "20px", fontSize: "var(--text-xs)" },
-  "@media (hover: none)": { ".cm-anchor-host:hover .cm-anchor-bubble--cell": { display: "none" } },
+  "@media (hover: none)": {
+    ".cm-anchor-host:hover .cm-anchor-bubble--cell": { display: "none" },
+    ".cm-suggestion-host:hover .cm-suggestion-pill": { display: "none" },
+  },
   // The host is an inline-block around an inline image, so it inherits the
   // baseline gap under it. A few stray pixels of height would skew every
   // percentage the markings are positioned with.

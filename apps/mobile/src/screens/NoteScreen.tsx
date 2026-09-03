@@ -252,6 +252,21 @@ export function NoteScreen({
    * A widget-backed range carries a frame hint, because a mark can only paint
    * over text and a replaced range shows none.
    */
+  /** Open suggestions drawn in the text (K5), remembered per vault like the desktop. */
+  const [suggestionsInline, setSuggestionsInline] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    void getPlatformServices().loadSettings()
+      .then((store) => store.get<boolean>(`commentInline_${vault.vaultId}`))
+      .then((value) => { if (alive) setSuggestionsInline(value !== false); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [vault.vaultId]);
+  const toggleSuggestionsInline = () => {
+    const next = !suggestionsInline;
+    setSuggestionsInline(next);
+    void getPlatformServices().loadSettings().then(async (store) => { await store.set(`commentInline_${vault.vaultId}`, next); await store.save(); }).catch(() => {});
+  };
   const anchorHighlights = useMemo<readonly AnchorHighlight[]>(() => {
     if (doc === null) return [];
     const out: AnchorHighlight[] = [];
@@ -259,10 +274,14 @@ export function NoteScreen({
       if (comment.resolvedAt || !comment.anchor) continue;
       const resolution = resolveCommentAnchor(doc, comment.anchor);
       if (resolution.status === "orphan") continue;
-      out.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, frame: toAnchorFrameHint(comment.anchor.display) });
+      const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
+      out.push({
+        commentId: comment.commentId, from: resolution.from, to: resolution.to, frame: toAnchorFrameHint(comment.anchor.display),
+        ...(suggestionsInline && open && !comment.anchor.display ? { suggestion: { replacement: open.replacement } } : {}),
+      });
     }
     return out;
-  }, [comments, doc]);
+  }, [comments, doc, suggestionsInline]);
   const propertyCommentCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const res of propertyResolutions.values()) {
@@ -750,6 +769,8 @@ export function NoteScreen({
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
           canModerate={commentCaps.includes("workspace.manage")}
           onDelete={(comment) => { void deleteComment(comment).catch((e) => toast.error(errorText(e))); }}
+          inlineSuggestions={suggestionsInline}
+          onToggleInlineSuggestions={toggleSuggestionsInline}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           onRevealAnchor={revealAnchor}

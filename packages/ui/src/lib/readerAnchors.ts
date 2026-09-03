@@ -21,6 +21,9 @@ export const READ_ANCHOR_CLASS = "pv-read-anchor";
 export const READ_ANCHOR_ACTIVE_CLASS = "pv-read-anchor--active";
 export const READ_ANCHOR_FRAME_CLASS = "pv-read-anchor-frame";
 export const READ_ANCHOR_FRAME_ACTIVE_CLASS = "pv-read-anchor-frame--active";
+/** An open suggestion in the read view (K5): struck passage, inserted proposal. */
+export const READ_SUGGESTION_DEL_CLASS = "pv-read-suggestion-del";
+export const READ_SUGGESTION_INS_CLASS = "pv-read-suggestion-ins";
 
 /** The subset of hast this needs. */
 export interface HastNode {
@@ -92,15 +95,28 @@ function splitText(node: HastNode, highlights: readonly AnchorHighlight[]): Hast
     }
     const active = here.some((h) => h.active);
     const first = here.find((h) => h.active) ?? here[0];
+    const struck = here.some((h) => h.suggestion);
     out.push({
       type: "element",
       tagName: "mark",
       properties: {
-        className: active ? [READ_ANCHOR_CLASS, READ_ANCHOR_ACTIVE_CLASS] : [READ_ANCHOR_CLASS],
+        className: [READ_ANCHOR_CLASS, ...(active ? [READ_ANCHOR_ACTIVE_CLASS] : []), ...(struck ? [READ_SUGGESTION_DEL_CLASS] : [])],
         dataCommentId: first.commentId,
       },
       children: [textNode],
     });
+    // The proposal stands where the struck passage ends (K5) - once, at the
+    // piece that closes the range, so a passage split by the cuts above still
+    // carries exactly one insertion.
+    for (const h of here) {
+      if (!h.suggestion || h.suggestion.replacement.length === 0 || h.to - start !== b) continue;
+      out.push({
+        type: "element",
+        tagName: "ins",
+        properties: { className: [READ_SUGGESTION_INS_CLASS], dataCommentId: h.commentId },
+        children: [{ type: "text", value: h.suggestion.replacement }],
+      });
+    }
   }
   return out;
 }

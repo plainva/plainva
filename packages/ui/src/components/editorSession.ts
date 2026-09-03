@@ -17,7 +17,7 @@ import {
 import { imagePreviewPlugin } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
-import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
+import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
@@ -147,6 +147,13 @@ export interface EditorSessionDeps {
    * target until the comment is actually written.
    */
   onCommentAnchorRequest?: (req: { from: number; to: number; display: AnchorFrameHint }) => void;
+  /**
+   * Accept or decline a suggestion from the pill on its inline rendering (K5).
+   * Leave either out and the pill shows no button for it: a Commenter may
+   * decline but not accept; the phone's sheet carries both instead.
+   */
+  onSuggestionApply?: (commentId: string) => void;
+  onSuggestionDecline?: (commentId: string) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
   /**
@@ -488,6 +495,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     commentAnchorHandlers.of({
       enabled: () => deps.current.commentAnchorsEnabled?.() === true,
       request: (req) => deps.current.onCommentAnchorRequest?.(req),
+    }),
+    suggestionActionHandlers.of({
+      canApply: () => typeof deps.current.onSuggestionApply === "function",
+      canDecline: () => typeof deps.current.onSuggestionDecline === "function",
+      apply: (commentId) => deps.current.onSuggestionApply?.(commentId),
+      decline: (commentId) => deps.current.onSuggestionDecline?.(commentId),
+      activate: (commentId) => deps.current.onAnchorActivate?.(commentId),
     }),
     anchorHighlightExtension((commentId) => deps.current.onAnchorActivate?.(commentId)),
     editableComp.of(editableExtensions(cfg.editable !== false)),

@@ -4,7 +4,7 @@ import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
 import { getSettingsStore } from "../services/settingsStore";
-import { attachmentFolderKey, commentAnchorsKey, commentColumnKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
+import { attachmentFolderKey, commentAnchorsKey, commentColumnKey, commentInlineKey, taskDatabaseKey, useVault } from "../contexts/VaultContext";
 import { useTranslation } from "react-i18next";
 import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
@@ -134,6 +134,8 @@ export const Editor: React.FC<{
    */
   const [commentColumnSession, setCommentColumnSession] = useState<"open" | "closed" | null>(null);
   const [commentColumnPref, setCommentColumnPref] = useState<"open" | "closed" | null>(null);
+  /** Open suggestions drawn in the text (K5, decision E4: on by default), remembered per vault. */
+  const [suggestionsInline, setSuggestionsInline] = useState(true);
   // Stufe F: whether this note is silenced. Null - and therefore no bell in the
   // column - while notifications are off for the vault entirely.
   const commentMute = useCommentMute(vaultPath, activePath);
@@ -504,6 +506,20 @@ export const Editor: React.FC<{
       .catch(() => {});
     return () => { alive = false; };
   }, [vaultPath]);
+  useEffect(() => {
+    if (!vaultPath) { setSuggestionsInline(true); return; }
+    let alive = true;
+    void getSettingsStore()
+      .then((store) => store.get<boolean>(commentInlineKey(vaultPath)))
+      .then((value) => { if (alive) setSuggestionsInline(value !== false); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [vaultPath]);
+  const toggleSuggestionsInline = useCallback(() => {
+    const next = !suggestionsInline;
+    setSuggestionsInline(next);
+    if (vaultPath) void getSettingsStore().then((store) => store.set(commentInlineKey(vaultPath), next).then(() => store.save())).catch(() => {});
+  }, [suggestionsInline, vaultPath]);
   // A new note starts without a session voice - the vault choice or the note
   // itself decides again.
   useEffect(() => { setCommentColumnSession(null); }, [activePath]);
@@ -1946,6 +1962,10 @@ export const Editor: React.FC<{
   // the latest-ref pattern: deliberately no dependency array, nothing is
   // called here — only stored for the session to read later.
   const sessionDepsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
+  // The pill on an inline suggestion (K5) reaches the accept/decline handlers
+  // through this ref: they are declared further down (they need the anchor
+  // resolutions), and a closure taken here would read them before their line.
+  const suggestionActionsRef = useRef<{ apply: (comment: WorkspaceCommentRecord) => void; decline: (comment: WorkspaceCommentRecord) => void } | null>(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     sessionDepsRef.current = {
@@ -1976,6 +1996,10 @@ export const Editor: React.FC<{
       // comment, not the right to write (K2, same gate as the cell menu).
       commentAnchorsEnabled: () => workspaceCanComment,
       onCommentAnchorRequest: (req) => requestWidgetComment(req),
+      // The pill on an inline suggestion (K5): accepting is a write, declining
+      // only closes the thread - the same rights the card asks for.
+      onSuggestionApply: workspaceReadOnly ? undefined : (commentId) => { const found = workspaceComments.find((c) => c.commentId === commentId); if (found) suggestionActionsRef.current?.apply(found); },
+      onSuggestionDecline: workspaceCanComment ? (commentId) => { const found = workspaceComments.find((c) => c.commentId === commentId); if (found) suggestionActionsRef.current?.decline(found); } : undefined,
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
@@ -2108,10 +2132,18 @@ export const Editor: React.FC<{
       if (!resolution || resolution.status === "orphan") continue;
       // A widget covers the range: the tint would have no text to paint on, so
       // the widget draws a frame instead (Stufe E, E1).
-      highlights.push({ commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId, frame: toAnchorFrameHint(comment.anchor?.display) });
+      // An open proposal is drawn in the text while the switch is on (K5):
+      // struck passage, proposed wording behind it. A decided one is a plain
+      // tint again - the thread is closed, the text says what it says.
+      const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
+      highlights.push({
+        commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId,
+        frame: toAnchorFrameHint(comment.anchor?.display),
+        ...(suggestionsInline && open && !comment.anchor?.display ? { suggestion: { replacement: open.replacement } } : {}),
+      });
     }
     return highlights;
-  }, [workspaceComments, anchorResolutions, activeCommentId]);
+  }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline]);
   useEffect(() => {
     const session = sessionRef.current;
     if (!session) return;
@@ -2312,6 +2344,10 @@ export const Editor: React.FC<{
       toast.error(errorText(error));
     }
   }, [activePath, resolveWorkspaceComment]);
+
+  useLayoutEffect(() => {
+    suggestionActionsRef.current = { apply: (comment) => { void applySuggestion(comment); }, decline: (comment) => { void declineSuggestion(comment); } };
+  });
 
   // Live <-> source switches swap ONE compartment — the parser state survives,
   // so nothing collapses or jumps.
@@ -2725,6 +2761,8 @@ export const Editor: React.FC<{
           canWrite={!workspaceReadOnly}
           canModerate={workspaceCapabilities?.includes("workspace.manage") === true}
           onDelete={(comment) => { void deleteComment(comment); }}
+          inlineSuggestions={suggestionsInline}
+          onToggleInlineSuggestions={toggleSuggestionsInline}
           onApplySuggestion={(comment) => { void applySuggestion(comment); }}
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}

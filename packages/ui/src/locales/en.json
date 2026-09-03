@@ -3585,6 +3585,7 @@
     "commentDelete": "Delete",
     "commentDeleteConfirm": "Delete this comment? Every member will see it go.",
     "commentDeleteConfirmThread": "Delete this thread with all its replies? Every member will see it go.",
+    "suggestionInline": "Show changes in the text",
     "commentReplyPlaceholder": "Write a reply…",
     "commentsNone": "No comments yet.",
     "commentMentionPicker": "Mention a member",

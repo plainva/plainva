@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -62,6 +62,9 @@ export interface WorkspaceCommentsColumnProps {
   onDelete?(comment: WorkspaceCommentRecord): void;
   /** True for a member who governs the workspace: may delete anybody's remark. */
   canModerate?: boolean;
+  /** Whether open suggestions are drawn in the text (K5); the head carries the switch. */
+  inlineSuggestions?: boolean;
+  onToggleInlineSuggestions?(): void;
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
@@ -111,7 +114,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -323,6 +326,16 @@ export function WorkspaceCommentsColumn({
             ]}
           />
         )}
+        {onToggleInlineSuggestions && (
+          <IconButton
+            label={t("workspaceSecurity.suggestionInline")}
+            active={inlineSuggestions === true}
+            onClick={onToggleInlineSuggestions}
+            data-testid="comment-inline-toggle"
+          >
+            <Replace size={ICON.ui} />
+          </IconButton>
+        )}
         {muted && <span className="pv-comment-column__muted">{t("commentNotify.muted")}</span>}
         {onToggleMute && (
           <IconButton
@@ -348,15 +361,9 @@ export function WorkspaceCommentsColumn({
           className={`pv-comment-card${root.resolvedAt ? " is-resolved" : ""}${activeCommentId === root.commentId ? " is-active" : ""}${root.pending ? " is-pending" : ""}`}
           onClick={() => onSelect(activeCommentId === root.commentId ? null : root.commentId)}
         >
-          {root.anchor && <blockquote className={root.suggestion ? "pv-comment-card__quote pv-comment-card__quote--replaced" : "pv-comment-card__quote"}>{root.anchor.quote}</blockquote>}
-          {root.suggestion && (
-            <p className="pv-comment-card__replacement">
-              <Replace size={ICON.meta} />{" "}
-              {root.suggestion.replacement.length > 0
-                ? root.suggestion.replacement
-                : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
-            </p>
-          )}
+          {root.suggestion
+            ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
+            : root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
           {addressed && (
             <span className="pv-comment-card__state">
               <AtSign size={ICON.meta} /> {t("workspaceSecurity.commentMentionsYou")}
@@ -504,15 +511,9 @@ export function WorkspaceCommentsColumn({
             const entry = group.byId.get(root.commentId);
             return (
               <div key={root.commentId} className="pv-comment-card pv-comment-card--incoming">
-                {root.anchor && <blockquote className={root.suggestion ? "pv-comment-card__quote pv-comment-card__quote--replaced" : "pv-comment-card__quote"}>{root.anchor.quote}</blockquote>}
-                {root.suggestion && (
-                  <p className="pv-comment-card__replacement">
-                    <Replace size={ICON.meta} />{" "}
-                    {root.suggestion.replacement.length > 0
-                      ? root.suggestion.replacement
-                      : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
-                  </p>
-                )}
+                {root.suggestion
+                  ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
+                  : root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
