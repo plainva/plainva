@@ -2204,6 +2204,14 @@ test('Base table: the checkbox column selects rows and the bar replaces the tool
   await page.getByTestId('base-select-row').nth(2).click({ modifiers: ['Shift'] });
   await expect(page.locator('tr.is-selected')).toHaveCount(3);
 
+  // A click on a TICKED box unticks it (finding 2026-09-03). Read as an
+  // Explorer click it re-selected the row and the tick never came off.
+  await page.getByTestId('base-select-row').nth(1).click();
+  await expect(page.locator('tr.is-selected')).toHaveCount(2);
+  await expect(page.getByTestId('base-select-row').nth(1)).not.toBeChecked();
+  await page.getByTestId('base-select-row').nth(1).click();
+  await expect(page.locator('tr.is-selected')).toHaveCount(3);
+
   // The header box clears when everything is already picked.
   await page.getByTestId('base-select-all').click();
   await expect(page.locator('tr.is-selected')).toHaveCount(0);
@@ -2221,6 +2229,18 @@ test('Base table: a selection sets one property on every picked row', async ({ p
   await page.getByTestId('base-sel-setvalue').click();
   const pop = page.getByTestId('base-bulkset');
   await expect(pop).toBeVisible();
+
+  // Both footer buttons lie INSIDE the panel (finding 2026-09-03): the panel
+  // used to inherit a 300px ceiling, and a right-aligned footer wider than that
+  // spilled to the left, cutting "Abbrechen" off where no scroll could reach it.
+  const panelBox = await pop.boundingBox();
+  const applyBox = await pop.getByTestId('base-bulkset-apply').boundingBox();
+  const cancelBox = await pop.getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).boundingBox();
+  for (const box of [applyBox, cancelBox]) {
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(panelBox!.x - 0.5);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width + 0.5);
+  }
 
   // Pick the status column and type a value (this fixture's status column is
   // untyped, so the popover offers a text field rather than an option list).

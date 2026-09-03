@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   applyClickSelection,
+  checkboxSelectionMode,
   clickSelectionMode,
   pruneSelection,
   useRowSelection,
@@ -112,6 +113,30 @@ describe("useRowSelection", () => {
     expect(shown()).toBe("a.md,b.md");
     render("k1", rows("a.md", "c.md"));
     expect(shown()).toBe("a.md");
+  });
+});
+
+describe("checkboxSelectionMode (finding 2026-09-03: a ticked box unticks on click)", () => {
+  const ev = (o: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }>) =>
+    ({ shiftKey: false, ctrlKey: false, metaKey: false, ...o });
+
+  it("reads a plain click as toggle, never as a single-select", () => {
+    expect(checkboxSelectionMode(ev({}), false)).toBe("toggle");
+    expect(checkboxSelectionMode(ev({}), true)).toBe("toggle");
+    expect(checkboxSelectionMode(ev({ ctrlKey: true }), false)).toBe("toggle");
+    expect(checkboxSelectionMode(ev({ metaKey: true }), true)).toBe("toggle");
+  });
+
+  it("keeps Shift as the range gesture and macOS Ctrl-click as the context menu", () => {
+    expect(checkboxSelectionMode(ev({ shiftKey: true }), false)).toBe("range");
+    expect(checkboxSelectionMode(ev({ ctrlKey: true }), true)).toBe("none");
+  });
+
+  it("a second click on the same box clears the selection through the reducer", () => {
+    const first = applyClickSelection(new Set(), null, rows("a.md", "b.md"), "a.md", checkboxSelectionMode(ev({}), false) as "toggle");
+    expect([...first.selection]).toEqual(["a.md"]);
+    const second = applyClickSelection(first.selection, first.anchor, rows("a.md", "b.md"), "a.md", checkboxSelectionMode(ev({}), false) as "toggle");
+    expect(second.selection.size).toBe(0);
   });
 });
 

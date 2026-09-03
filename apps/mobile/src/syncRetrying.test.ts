@@ -42,6 +42,14 @@ describe("the temporary sync state says when, not what broke", () => {
   });
 });
 
+describe("the disconnected state is a state, not the action (finding 2026-09-03)", () => {
+  it("names a paused vault 'disconnected', never 'disconnect'", () => {
+    const t = i18n.t.bind(i18n) as never;
+    expect(syncStateLabel({ status: "off" }, t)).toBe(i18n.t("mobile.syncDisconnected"));
+    expect(syncStateLabel({ status: "off" }, t)).not.toBe(i18n.t("mobile.syncDisconnect"));
+  });
+});
+
 describe("the temporary sync state is neutral, never red", () => {
   const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 

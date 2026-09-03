@@ -6,7 +6,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, clickSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, parseBaseConfig, propertyAliasResolver, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -593,8 +593,13 @@ export function BaseViewer({
     selected: rowSel.selection,
     allSelected: selRows.length > 0 && rowSel.selection.size === selRows.length,
     onToggleAll: () => rowSel.toggleAll(selRows),
+    // The only thing that calls this is the row CHECKBOX (table and list), so
+    // the gesture is a switch's: plain click toggles, Shift spans. Read as an
+    // Explorer click it re-selected a ticked row instead of unticking it
+    // (finding 2026-09-03); `clickSelectionMode` stays the row-click reading
+    // for surfaces that have row clicks.
     onClick: (path: string, e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) =>
-      rowSel.click(path, selRows, clickSelectionMode(e, IS_MAC)),
+      rowSel.click(path, selRows, checkboxSelectionMode(e, IS_MAC)),
   }), [rowSel, selRows]);
 
 

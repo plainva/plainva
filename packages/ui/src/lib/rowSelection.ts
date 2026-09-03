@@ -72,6 +72,27 @@ export function clickSelectionMode(
 }
 
 /**
+ * The gesture a click on a row CHECKBOX carries (finding 2026-09-03).
+ *
+ * A checkbox is a switch, not an Explorer row: a plain click on a ticked box
+ * must untick it. Read as `clickSelectionMode` it was "single" — replace the
+ * selection with this very row — so the tick came back on every click and the
+ * only way out was the bar's "clear selection". Shift still spans the range
+ * from the anchor; the platform's multi-select modifier toggles as well (it
+ * cannot mean anything else on a switch); macOS Ctrl-click stays the
+ * context-menu gesture and moves nothing. Mobile never had this problem: its
+ * cell calls `toggle` directly.
+ */
+export function checkboxSelectionMode(
+  e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+  isMac: boolean,
+): ClickSelectionMode {
+  if (isMac && e.ctrlKey && !e.metaKey) return "none";
+  if (e.shiftKey) return "range";
+  return "toggle";
+}
+
+/**
  * Drops selected paths that are no longer on screen.
  *
  * The failure this prevents is quiet and expensive: rows leave the result set

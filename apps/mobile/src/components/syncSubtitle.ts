@@ -58,5 +58,10 @@ export function syncStateLabel(
   }
   if (status.status === "error") return t("mobile.syncError");
   if (status.status === "idle") return t("mobile.syncIdle");
-  return t("mobile.syncDisconnect");
+  // `off` is the STATE, not the action (finding 2026-09-03). This fell through
+  // to `syncDisconnect` ("Trennen"), so a paused vault announced itself under
+  // its name with the verb of the danger row further down. The vault detail
+  // had fixed exactly that for its own headline — but not here, in the one
+  // wording every surface reads.
+  return t("mobile.syncDisconnected");
 }

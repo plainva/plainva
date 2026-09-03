@@ -2773,13 +2773,19 @@ tr.is-selected > td { color: var(--on-accent-container); }
 }
 
 /* Bulk-set popover (plan Mehrfachauswahl, P5): column, value, apply. Narrow on
-   purpose — it is three controls, not a form. */
+   purpose — it is three controls, not a form. It does NOT inherit the 300px
+   ceiling of `.pv-popover` (finding 2026-09-03): "Für 3 Einträge übernehmen"
+   beside "Abbrechen" is wider than that, and a right-aligned row that overflows
+   spills to the LEFT, where nothing can reach it — the cancel button was cut
+   off. The panel sizes to its content up to 360px, and the footer wraps. */
 .pv-bulkset {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
   min-width: 260px;
+  width: max-content;
+  max-width: 360px;
 }
 .pv-bulkset-head {
   margin: 0;
@@ -2788,6 +2794,7 @@ tr.is-selected > td { color: var(--on-accent-container); }
 }
 .pv-bulkset-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
 }
