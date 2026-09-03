@@ -490,13 +490,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "STARTS a comment on everything that is not a passage: a picture (and a " +
       "region drawn inside it with a finger), a diagram, a table cell, a database " +
       "property. None of those need selected text, which is why they could be " +
-      "closed first. What is left is the passage itself: both flows begin with a " +
-      "text selection, and the note opens read-first on the phone, so the selection " +
-      "would have to compete with the system's own copy bubble. That is a gap, not " +
-      "a platform limit — a phone can select text — and it is written up in the " +
+      "closed first. Since the suggestion mode (Vorschlagsmodus, V5) the phone also " +
+      "PROPOSES changes to a passage: the mode from the note's menu edits a copy " +
+      "and sends the blocks as a round, no selection needed. What is left is " +
+      "starting a COMMENT on a passage: that flow begins with a text selection, " +
+      "and the note opens read-first on the phone, so the selection would have to " +
+      "compete with the system's own copy bubble. That is a gap, not a platform " +
+      "limit — a phone can select text — and it is written up in the " +
       "collected-remainders plan (Sammelplan, C26). The read half was the urgent " +
       "one either way: on a phone you mostly answer what somebody else pointed at.",
-    verified: "2026-09-02",
+    verified: "2026-09-03",
   },
   {
     id: "comment-card-actions-hover",
@@ -569,6 +572,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "show a long, resumable whole-vault upload; until then the phone offers the " +
       "decommission it can finish rather than a start it cannot.",
     verified: "2026-08-25",
+  },
+  {
+    id: "suggest-mode-entry",
+    title: "Where the suggestion mode is switched on",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop carries the mode as a fourth pill beside Read, Live and " +
+      "Source (Vorschlagsmodus, V2): it IS a way of looking at the note, and " +
+      "that row is where the ways of looking live. The phone keeps its view " +
+      "switch in the note's menu, so the mode sits there too, as the entry " +
+      "\"Suggest\" (V5). Band, counter, sentence, Discard and Send are the same; " +
+      "only the switch is where each shell keeps its switches.",
+    verified: "2026-09-03",
   },
   {
     id: "suggestion-inline-pill",

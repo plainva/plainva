@@ -11,7 +11,8 @@
  *
  * - `appendix` puts the note through unchanged and lists the annotations at the
  *   end. Works in EVERY renderer - GitHub, Obsidian, a mail client, print.
- * - `critic` writes CriticMarkup (`{==passage==}{>>remark<<}`, `{~~old~>new~~}`)
+ * - `critic` writes CriticMarkup (`{==passage==}{>>remark<<}`, `{~~old~>new~~}`,
+ *   `{++inserted++}` for an insertion point and `{--gone--}` for a deletion)
  *   into the text, for the editors that understand it (iA Writer, Ulysses).
  *   Section 4 rejected the format as STORAGE for two reasons that both stop
  *   mattering here: no standard renderer hides it, and it carries neither
@@ -117,7 +118,13 @@ function planPlacements(raw: string, threads: readonly CommentThread[]): { place
       continue;
     }
     const passage = raw.slice(resolution.from, resolution.to);
-    const collides = placements.some((placed) => resolution.from < placed.to && placed.from < resolution.to);
+    // An insertion point (V6) has no width; it collides only when it falls
+    // strictly INSIDE a placed passage, where the markup could not nest.
+    const collides = placements.some((placed) =>
+      resolution.from === resolution.to
+        ? placed.from < resolution.from && resolution.from < placed.to
+        : resolution.from < placed.to && placed.from < resolution.to,
+    );
     if (collides || CRITIC_DELIMITERS.some((delimiter) => passage.includes(delimiter))) {
       leftovers.push(thread);
       continue;
@@ -130,7 +137,11 @@ function planPlacements(raw: string, threads: readonly CommentThread[]): { place
 function criticRemarks(thread: CommentThread, input: CommentExportInput): string {
   const parts: string[] = [];
   if (thread.root.suggestion) {
-    parts.push(`{>>${escapeCriticBody(`${i18n.t("editor.exportSuggestion")} — ${byline(thread.root, input)}`)}<<}`);
+    // The sentence a round was sent with (V6) travels once, on the round's
+    // first block - the other blocks of the same send say who, not why again.
+    const note = thread.root.batchNote?.trim();
+    const round = note && (thread.root.batchIndex ?? 0) === 0 ? ` — ${i18n.t("editor.exportRound", { note })}` : "";
+    parts.push(`{>>${escapeCriticBody(`${i18n.t("editor.exportSuggestion")} — ${byline(thread.root, input)}${round}`)}<<}`);
   }
   for (const comment of [thread.root, ...thread.replies]) {
     if (!comment.body.trim()) continue;
@@ -154,16 +165,24 @@ function renderList(threads: readonly CommentThread[], input: CommentExportInput
   for (const thread of threads) {
     const anchor = thread.root.anchor as WorkspaceCommentAnchor | null;
     const quote = anchor?.quote ? headingQuote(anchor.quote) : "";
-    lines.push("", `### ${quote ? `„${quote}“` : i18n.t("editor.exportWholeNote")}`);
+    // An insertion point (V6) names a place, not a passage: its heading is the
+    // context it sits after, so the reader can find where the text belongs.
+    const insertion = !!anchor && anchor.quote === "" && !!thread.root.suggestion;
+    const place = insertion ? headingQuote((anchor.before || anchor.after).trim()) : "";
+    lines.push("", `### ${quote ? `„${quote}“` : insertion ? i18n.t("editor.exportInsertionPoint", { text: place }) : i18n.t("editor.exportWholeNote")}`);
     const suggestion = thread.root.suggestion;
     if (suggestion) {
       // The passage already stands in the heading above - repeating it here
       // would make the reader compare two identical quotes for a difference.
       const replacement = suggestion.replacement.trim();
-      lines.push(
-        "",
-        `*${replacement ? i18n.t("editor.exportSuggestionReplace", { text: headingQuote(replacement) }) : i18n.t("editor.exportSuggestionDelete")}*`,
-      );
+      const verdict = insertion
+        ? i18n.t("editor.exportSuggestionInsert", { text: headingQuote(replacement) })
+        : replacement
+          ? i18n.t("editor.exportSuggestionReplace", { text: headingQuote(replacement) })
+          : i18n.t("editor.exportSuggestionDelete");
+      lines.push("", `*${verdict}*`);
+      const note = thread.root.batchNote?.trim();
+      if (note && (thread.root.batchIndex ?? 0) === 0) lines.push("", `*${i18n.t("editor.exportRound", { note })}*`);
     }
     for (const comment of [thread.root, ...thread.replies]) {
       if (!comment.body.trim()) continue;
@@ -215,7 +234,15 @@ export function renderNoteExport(input: CommentExportInput): CommentExportResult
   for (const placement of [...placements].sort((a, b) => b.from - a.from)) {
     const passage = text.slice(placement.from, placement.to);
     const suggestion = placement.thread.root.suggestion;
-    const marked = suggestion ? `{~~${passage}~>${suggestion.replacement}~~}` : `{==${passage}==}`;
+    // CriticMarkup has a word for each shape a proposal can take (V6): a
+    // replacement, a pure insertion at a point, a pure deletion.
+    const marked = !suggestion
+      ? `{==${passage}==}`
+      : passage.length === 0
+        ? `{++${suggestion.replacement}++}`
+        : suggestion.replacement.length === 0
+          ? `{--${passage}--}`
+          : `{~~${passage}~>${suggestion.replacement}~~}`;
     text = text.slice(0, placement.from) + marked + criticRemarks(placement.thread, input) + text.slice(placement.to);
   }
   return {

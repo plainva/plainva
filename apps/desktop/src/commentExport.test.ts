@@ -111,6 +111,36 @@ describe("renderNoteExport", () => {
     expect(text).toContain("Ada");
   });
 
+  it("writes an insertion point as inserted text and a deletion as struck text (V6)", () => {
+    const plain = "The first claim needs a source.\n";
+    const insertion = comment({
+      commentId: "i",
+      anchor: { markerId: "", quote: "", before: "first claim", after: " needs", approximateOffset: 15 },
+      suggestion: { replacement: " really", appliedAt: null, appliedBy: null, declinedAt: null },
+      suggestionBatchId: "r1",
+      batchIndex: 0,
+      batchNote: "From the PDF",
+    });
+    const deletion = comment({
+      commentId: "x",
+      anchor: { markerId: "", quote: "a source", before: "needs ", after: ".", approximateOffset: 22 },
+      suggestion: { replacement: "", appliedAt: null, appliedBy: null, declinedAt: null },
+      suggestionBatchId: "r1",
+      batchIndex: 1,
+    });
+    const { text, placed, listed } = render([insertion, deletion], "critic", plain);
+    expect(text).toContain("The first claim{++ really++}");
+    expect(text).toContain("needs {--a source--}");
+    // The round's sentence travels once, on its first block.
+    expect(text.split("From the PDF").length - 1).toBe(1);
+    expect(placed).toBe(2);
+    expect(listed).toBe(0);
+    const list = render([insertion], "appendix", plain).text;
+    expect(list).toContain(i18n.t("editor.exportInsertionPoint", { text: "first claim" }));
+    expect(list).toContain(i18n.t("editor.exportSuggestionInsert", { text: "really" }));
+    expect(list).toContain(i18n.t("editor.exportRound", { note: "From the PDF" }));
+  });
+
   it("keeps every offset valid by inserting back to front", () => {
     // Two passages, the second AFTER the first. Inserting front to back would
     // shift the second by the length of the first insertion, and its wrap would
