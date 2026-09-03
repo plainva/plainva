@@ -441,6 +441,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "system-back",
+    title: "Go back with a system gesture or button, not only through the app's own arrow",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "A desktop window has no navigation stack to go back in: tabs, panes and " +
+      "windows are all visible at once, and the browser-style history lives inside " +
+      "one tab (its own back/forward arrows). There is nothing here for a system " +
+      "back to act on.",
+    mobile: "partial",
+    mobileReason:
+      "Android has a system back trigger (gesture or button) and it pops the same " +
+      "navigation stack as the app bar's arrow; iOS has none of ours — the maintainer " +
+      "ruled out an own edge gesture on 2026-09-01 (the same movement with two " +
+      "origins on two platforms is the kind of asymmetry nobody can explain later). " +
+      "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
+      "touch target. Both shells run through one pop path; only the trigger differs.",
+    verified: "2026-09-03",
+  },
+  {
     id: "comment-anchor-create",
     title: "Attaching a comment or a suggestion to a passage",
     area: "security",

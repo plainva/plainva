@@ -219,6 +219,15 @@ export const editorTheme = EditorView.theme({
     fontWeight: "bold",
     marginRight: "4px",
   },
+  // A bullet with nested lines behind it is the fold control (T8c): the
+  // pointer says so, and a folded item shows the bullet in the accent so the
+  // "…" placeholder is not the only hint that something is hidden.
+  ".cm-md-bullet--foldable": {
+    cursor: "pointer",
+  },
+  ".cm-md-bullet--foldable.is-folded": {
+    color: "var(--accent-color)",
+  },
   ".cm-md-task": {
     marginRight: "6px",
     verticalAlign: "middle",

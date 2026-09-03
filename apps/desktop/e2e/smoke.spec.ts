@@ -2807,3 +2807,33 @@ test('Vault find & replace: previews before and after, then writes only the sele
     .poll(async () => await page.evaluate(() => [(window as any).mockFs['/test-vault/Alpha.md'], (window as any).mockFs['/test-vault/Beta.md']]))
     .toEqual(['# Alpha\n\nDie Projektsteuerung entscheidet.\n', '# Beta\n\nRückfragen an die Projektleitung.\n']);
 });
+
+test('Live preview: a bullet with nested lines folds its list on click (T8c)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Fold.md'] = '# Fold\n\n- Parent\n  - child one\n  - child two\n- Flat\n';
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.getByTestId('file-tree').getByText('Fold', { exact: true }).click();
+  const editor = page.locator('.cm-content');
+  await expect(editor.getByText('child two')).toBeVisible();
+
+  // Only the parent's bullet is a fold control; the flat item's is not.
+  const bullets = editor.locator('.cm-md-bullet');
+  await expect(bullets).toHaveCount(4);
+  await expect(editor.locator('.cm-md-bullet--foldable')).toHaveCount(1);
+
+  await editor.locator('.cm-md-bullet--foldable').first().click();
+  await expect(editor.locator('.cm-foldPlaceholder')).toHaveCount(1);
+  await expect(editor.getByText('child two')).toHaveCount(0);
+  await expect(editor.locator('.cm-md-bullet--foldable.is-folded')).toHaveCount(1);
+
+  // The placeholder unfolds too — CodeMirror's own affordance stays.
+  await editor.locator('.cm-foldPlaceholder').click();
+  await expect(editor.getByText('child two')).toBeVisible();
+  await expect(editor.locator('.cm-foldPlaceholder')).toHaveCount(0);
+
+  // Folding never touches the source: the file is exactly what it was.
+  const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Fold.md']);
+  expect(written).toBe('# Fold\n\n- Parent\n  - child one\n  - child two\n- Flat\n');
+});

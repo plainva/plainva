@@ -9,6 +9,7 @@ import { isEditorInteractive } from "./editorInteractive";
 import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
 import { listDepthAt } from "./listIndent";
+import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
 
 const HIDE = Decoration.replace({});
 
@@ -130,23 +131,41 @@ export function bulletGlyphForDepth(depth: number): string {
   return BULLET_GLYPHS[(level - 1) % BULLET_GLYPHS.length];
 }
 
+/**
+ * The bullet doubles as the fold control of a list item that has nested
+ * lines (feedback round 2026-09-01, T8c / E11): a tap target where there is
+ * something to fold, nothing where there is not. The phone has no fold
+ * keymap and no gutter, so this is the only way folding is reachable there;
+ * the desktop gets the same click on top of Ctrl/Cmd-Shift-[ and ].
+ */
 class BulletWidget extends WidgetType {
-  constructor(readonly glyph: string) { super(); }
-  eq(other: BulletWidget) { return other.glyph === this.glyph; }
-  toDOM() {
+  constructor(readonly glyph: string, readonly foldable: boolean, readonly folded: boolean) { super(); }
+  eq(other: BulletWidget) { return other.glyph === this.glyph && other.foldable === this.foldable && other.folded === this.folded; }
+  toDOM(view: EditorView) {
     const span = document.createElement("span");
     span.textContent = this.glyph;
-    span.className = "cm-md-bullet";
+    span.className = this.foldable ? (this.folded ? "cm-md-bullet cm-md-bullet--foldable is-folded" : "cm-md-bullet cm-md-bullet--foldable") : "cm-md-bullet";
+    if (this.foldable) {
+      span.setAttribute("role", "button");
+      span.setAttribute("aria-expanded", this.folded ? "false" : "true");
+      span.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const pos = view.posAtDOM(span);
+        toggleFoldAtLine(view, pos);
+      });
+    }
     return span;
   }
+  ignoreEvent() { return !this.foldable; }
 }
 const bulletDecos = new Map<string, Decoration>();
-function bulletDecoFor(depth: number): Decoration {
+function bulletDecoFor(depth: number, foldable = false, folded = false): Decoration {
   const glyph = bulletGlyphForDepth(depth);
-  let deco = bulletDecos.get(glyph);
+  const key = `${glyph}${foldable ? "|f" : ""}${folded ? "|c" : ""}`;
+  let deco = bulletDecos.get(key);
   if (!deco) {
-    deco = Decoration.replace({ widget: new BulletWidget(glyph) });
-    bulletDecos.set(glyph, deco);
+    deco = Decoration.replace({ widget: new BulletWidget(glyph, foldable, folded) });
+    bulletDecos.set(key, deco);
   }
   return deco;
 }
@@ -658,7 +677,10 @@ export function markdownDecorationPlugin(isLive: boolean) {
                     if (/^\s*\[[ xX]\]/.test(after)) {
                       decos.push(HIDE.range(node.from, after.startsWith(" ") ? node.to + 1 : node.to));
                     } else {
-                      decos.push(bulletDecoFor(listDepthAt(state, node.from)).range(node.from, node.to));
+                      const foldRange = listFoldRange(state, node.from);
+                      decos.push(
+                        bulletDecoFor(listDepthAt(state, node.from), foldRange !== null, foldRange !== null && isLineFolded(state, node.from)).range(node.from, node.to),
+                      );
                     }
                   }
                   return;

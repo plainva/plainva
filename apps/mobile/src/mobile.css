@@ -241,6 +241,14 @@ textarea {
   gap: var(--space-1);
   min-height: 52px;
 }
+/* The bar's icon buttons — the back arrow first of all — are full touch
+   targets (T3, 2026-09-01): on iOS the arrow is THE way back, there is no
+   system gesture of ours behind it, so it must not be a 28px desktop control
+   sitting on a phone. The row already stands 52px tall; the buttons fill it. */
+.m-appbar-row .pv-iconbtn {
+  width: var(--touch-sm);
+  height: var(--touch-sm);
+}
 
 /* The title block: heading plus one line of context. Both truncate — a wrapped
    title would change the bar's height on the way into a screen. */
