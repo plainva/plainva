@@ -1434,6 +1434,11 @@ textarea {
   gap: var(--space-2);
   padding: 10px 8px 4px;
 }
+/* A button row on a surface with the FAB: the FAB owns the right-hand column,
+   so the row's actions start at the left instead of ending under it. */
+.m-btnrow--start {
+  justify-content: flex-start;
+}
 .m-sheet {
   width: 100%;
   padding: 6px max(12px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));

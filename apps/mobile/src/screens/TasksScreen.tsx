@@ -822,7 +822,10 @@ export function TasksScreen({
                 })}
               </RowList>
             )}
-            <div className="m-btnrow">
+            {/* Left-aligned on purpose: this row sits on a surface with the
+                capture FAB, and right-aligned the primary "+ New task" ended
+                exactly under it (Sammelplan § 2.19). */}
+            <div className="m-btnrow m-btnrow--start">
               {onOpenBase && (
                 <Button variant="ghost" onClick={() => onOpenBase(taskDb)}>
                   <Table size={ICON.head} />

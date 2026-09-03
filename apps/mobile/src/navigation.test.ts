@@ -12,6 +12,7 @@ import {
   pushCapturedNote,
   pushEntry,
   replaceTop,
+  reservesFabStrip,
   showsCaptureFab,
   TAB_POOL,
   tapTab,
@@ -161,6 +162,19 @@ describe("nav state (overlay + tab stacks)", () => {
     overlay = pushEntry(overlay, { kind: "folder", path: "Archive/2026" });
     expect(activeFolderPath(overlay)).toBe("Archive/2026");
     expect(showsCaptureFab(navTop(overlay))).toBe(true);
+  });
+
+  it("reserves the FAB strip for the capture menu and for a database screen alike", () => {
+    // A database floats its own "+" in the same corner; the last pinboard
+    // card sat under it because only the capture menu reserved the strip.
+    let s = initialNavState("notes");
+    expect(reservesFabStrip(navTop(s), "notes")).toBe(true);
+    s = pushEntry(s, { kind: "base", path: "Boards/Ideas.base" });
+    expect(showsCaptureFab(navTop(s))).toBe(false);
+    expect(reservesFabStrip(navTop(s), "notes")).toBe(true);
+    s = pushEntry(s, { kind: "note", path: "Boards/One.md" });
+    expect(reservesFabStrip(navTop(s), "notes")).toBe(false);
+    expect(reservesFabStrip(undefined, "mail")).toBe(false);
   });
 
   it("keeps the capture FAB out of Mail, as a tab root and as a pushed screen (B2)", () => {

@@ -212,6 +212,17 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
 }
 
 /**
+ * Whether the surface has to reserve the FAB strip at its end. The capture
+ * menu is one reason; a database screen is the other — it floats its own "+"
+ * in the same corner, and without the reservation the last pinboard card's
+ * tag chips sat under it (Sammelplan § 2.17/13). One rule for both, so a new
+ * floating button cannot forget the strip again.
+ */
+export function reservesFabStrip(top?: NavEntry, activeTab?: TabScreenId): boolean {
+  return showsCaptureFab(top, activeTab) || top?.kind === "base";
+}
+
+/**
  * Surfaces whose whole point is an unfinished input. The navigation bar is
  * hidden there, because a tap on it drops the overlay stack (`tapTab`) and the
  * half-written message, the credentials or the passphrase go with it — without

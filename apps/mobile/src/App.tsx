@@ -68,7 +68,7 @@ import {
   pushCapturedNote,
   pushEntry,
   activeNotePath,
-  showsCaptureFab,
+  reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
   type NavState,
@@ -675,9 +675,9 @@ export default function App() {
     barLayout, onBarLayout,
   };
 
-  const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // reserves --m-fab-space
+  const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
-    <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${hasFab ? " has-fab" : ""}`}>
+    <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       {!onboarded && (
         <div className="m-onboarding">
