@@ -29,6 +29,12 @@ export interface LocalCommentRecord {
   parentCommentId: string | null;
   resolvedCommentId: string | null;
   suggestionOutcome: "applied" | "declined" | null;
+  /**
+   * A retraction marker (K7): deletes the record it names, if this device is
+   * that record's author - a plain vault has no roles, so nobody else's marker
+   * counts. Appended like a resolution, because the merge below is a union.
+   */
+  retractsCommentId?: string | null;
   /** The device that wrote it. In a plain vault a device IS the author. */
   authorDeviceId: string;
   body: string;
@@ -133,6 +139,7 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
     if (new TextEncoder().encode(raw.body).length > MAX_LOCAL_COMMENT_BODY_BYTES) throw new CommentBundleError("comment record body is too large");
     if (raw.parentCommentId !== null && !isHexId(raw.parentCommentId)) throw new CommentBundleError("comment parent is malformed");
     if (raw.resolvedCommentId !== null && !isHexId(raw.resolvedCommentId)) throw new CommentBundleError("comment resolution target is malformed");
+    if (raw.retractsCommentId !== undefined && raw.retractsCommentId !== null && !isHexId(raw.retractsCommentId)) throw new CommentBundleError("comment retraction target is malformed");
     if (raw.suggestionOutcome !== null && raw.suggestionOutcome !== "applied" && raw.suggestionOutcome !== "declined") throw new CommentBundleError("comment suggestion outcome is malformed");
     if (raw.anchor !== null) {
       // Same bounds the sealed path enforces - an anchor that arrives from
@@ -152,7 +159,7 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
     }
     // Same rule as the sealed path: a marker carries no text of its own, but
     // anything that is not a marker has to say something.
-    if (raw.body.length === 0 && raw.resolvedCommentId === null && raw.suggestion === null) {
+    if (raw.body.length === 0 && raw.resolvedCommentId === null && raw.suggestion === null && !raw.retractsCommentId) {
       throw new CommentBundleError("comment record has no content");
     }
   }
@@ -217,6 +224,16 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
   const byPath = new Map<string, WorkspaceCommentRecord[]>();
   if (!bundle) return byPath;
   const all = Object.values(bundle.comments);
+  // A retraction counts only from the record's own author (K7): a plain vault
+  // has no roles, so nothing else could vouch for a stranger's marker. What it
+  // retracts disappears with every reply under it.
+  const byId = new Map(all.map((record) => [record.commentId, record]));
+  const retracted = new Set<string>();
+  for (const record of all) {
+    if (!record.retractsCommentId) continue;
+    const target = byId.get(record.retractsCommentId);
+    if (target && target.authorDeviceId === record.authorDeviceId) retracted.add(target.commentId);
+  }
   const closedBy = new Map<string, { at: string; outcome: "applied" | "declined" | null; by: string }>();
   for (const record of all) {
     if (!record.resolvedCommentId) continue;
@@ -227,7 +244,7 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
     });
   }
   const records = all
-    .filter((record) => !record.resolvedCommentId)
+    .filter((record) => !record.resolvedCommentId && !record.retractsCommentId && !retracted.has(record.commentId) && !(record.parentCommentId && retracted.has(record.parentCommentId)))
     .sort((a, b) => (a.createdAt === b.createdAt ? a.commentId.localeCompare(b.commentId) : a.createdAt.localeCompare(b.createdAt)))
     .map((record) => {
       const closed = closedBy.get(record.commentId);

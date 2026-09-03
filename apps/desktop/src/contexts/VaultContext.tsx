@@ -306,6 +306,8 @@ interface VaultContextType extends VaultState {
   getCommentSelfId: () => Promise<string | null>;
   postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null, suggestion?: { replacement: string } | null) => Promise<void>;
   resolveWorkspaceComment: (path: string, commentId: string, suggestionOutcome?: "applied" | "declined" | null) => Promise<void>;
+  /** Deletes a remark by appending a retraction marker (K7): its author, or a member who governs the workspace. */
+  retractWorkspaceComment: (path: string, commentId: string) => Promise<void>;
   listWorkspaceRevisions: (path: string) => Promise<WorkspaceRevisionRecord[] | null>;
   readWorkspaceRevision: (revisionId: string) => Promise<Uint8Array>;
 }
@@ -2857,7 +2859,7 @@ export const VaultProvider: React.FC<{
     const queued = await workspaceState.listCommentOutbox();
     for (const [path, list] of byPath) byPath.set(path, mergeCommentOutbox(list, queued.filter((entry) => entry.path === path), runtime));
     for (const entry of queued) {
-      if (byPath.has(entry.path) || entry.resolvedCommentId) continue;
+      if (byPath.has(entry.path) || entry.resolvedCommentId || entry.retractsCommentId) continue;
       byPath.set(entry.path, mergeCommentOutbox([], queued.filter((candidate) => candidate.path === entry.path), runtime));
     }
     return byPath;
@@ -2952,13 +2954,13 @@ export const VaultProvider: React.FC<{
     return workspaceControlPlane().runtime.memberId;
   };
 
-  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null): Promise<void> => {
+  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null): Promise<void> => {
     const local = localCommentContext();
     if (local) {
       // The reviewer field this vault already carries — the person at this
       // keyboard, device-local — rather than asking the same question twice.
       const authorName = await (await getSettingsStore()).get<string>(verifierNameKey(local.vaultPath));
-      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, authorName });
+      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, authorName });
       state.syncWorker?.triggerImmediate();
       window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
       return;
@@ -2976,7 +2978,7 @@ export const VaultProvider: React.FC<{
     // state, and a failure comes back as a reason on that card.
     const entry: WorkspaceCommentOutboxEntry = {
       outboxId: createWorkspaceObjectId(), commentId: createWorkspaceObjectId(), path, targetObjectId: object.objectId,
-      body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome,
+      body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId,
       createdAt: new Date().toISOString(), attempts: 0, lastError: null,
     };
     await workspaceState.enqueueCommentOutbox(entry);
@@ -2993,6 +2995,13 @@ export const VaultProvider: React.FC<{
     if (queued.length === 0) return stored;
     const byId = new Map(stored.map((record) => [record.commentId, { ...record }]));
     for (const entry of queued) {
+      // A queued deletion takes the remark off the screen now, with every reply
+      // under it (K7) - the marker itself is never a card.
+      if (entry.retractsCommentId) {
+        byId.delete(entry.retractsCommentId);
+        for (const [id, record] of [...byId]) if (record.parentCommentId === entry.retractsCommentId) byId.delete(id);
+        continue;
+      }
       if (!entry.resolvedCommentId) { byId.set(entry.commentId, outboxEntryAsCommentRecord(entry, runtime.memberId, runtime.device.publicIdentity.deviceId)); continue; }
       const target = byId.get(entry.resolvedCommentId);
       if (!target) continue;
@@ -3027,6 +3036,10 @@ export const VaultProvider: React.FC<{
   // Accepting and declining close the thread the same way a plain resolve does;
   // the outcome rides ALONG on the marker instead of re-signing the proposal.
   const resolveWorkspaceComment = (path: string, commentId: string, suggestionOutcome: "applied" | "declined" | null = null) => postWorkspaceCommentRecord(path, "", null, commentId, null, null, suggestionOutcome);
+  // Deleting is an appended fact too (K7): the remark stays in the sealed
+  // ledger, every device stops showing it. Who may say it is decided by the
+  // worker on the receiving side and by the column on this one.
+  const retractWorkspaceComment = (path: string, commentId: string) => postWorkspaceCommentRecord(path, "", null, null, null, null, null, commentId);
 
   const listWorkspaceRevisions = async (path: string): Promise<WorkspaceRevisionRecord[] | null> => {
     if (!state.workspaceSecurityStatus) return null;
@@ -3147,7 +3160,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, exportWorkspaceQuarantine, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? clientLifecycle : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

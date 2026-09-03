@@ -529,3 +529,56 @@ describe("column head and card head (K3)", () => {
     } finally { unmount(); }
   });
 });
+
+/**
+ * Deleting (K7): offered to the author and to a moderator, asked IN the card,
+ * and only then handed out.
+ */
+describe("deleting a remark (K7)", () => {
+  const baseProps = {
+    publicationComments: [] as PublicationCommentEntry[],
+    memberNames: NAMES,
+    selfMemberId: "aabbccdd11223344",
+    resolutions: NO_RESOLUTIONS,
+    canComment: true,
+    canWrite: true,
+    activeCommentId: null,
+    selectionQuote: null,
+    onSelect: () => {},
+    onSubmit: async () => {},
+    onResolve: () => {},
+    onApplySuggestion: () => {},
+    onDeclineSuggestion: () => {},
+    onPromoteToTask: () => {},
+  };
+
+  it("asks first and then hands the author's remark to onDelete", () => {
+    const onDelete = vi.fn();
+    const mine = comment({ commentId: "m1", body: "Mine" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[mine]} onDelete={onDelete} />);
+    try {
+      act(() => { (host.querySelector("[data-testid=comment-delete-m1]") as HTMLElement).click(); });
+      expect(host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("workspaceSecurity.commentDeleteConfirm"));
+      expect(onDelete).not.toHaveBeenCalled();
+      act(() => { (host.querySelector("[data-testid=comment-delete-confirm]") as HTMLElement).click(); });
+      expect(onDelete).toHaveBeenCalledWith(mine);
+      expect(host.querySelector(".pv-comment-card__confirm")).toBeNull();
+    } finally { unmount(); }
+  });
+
+  it("offers a stranger's remark only to a moderator, and names the replies it takes along", () => {
+    const theirs = comment({ commentId: "t1", body: "Theirs", authorMemberId: "9999888877776666" });
+    const reply = comment({ commentId: "r1", body: "Mine under theirs", parentCommentId: "t1" });
+    const plain = render(<WorkspaceCommentsColumn {...baseProps} comments={[theirs, reply]} onDelete={() => {}} />);
+    try {
+      expect(plain.host.querySelector("[data-testid=comment-delete-t1]")).toBeNull();
+      // The reply is mine, so it carries its own control.
+      expect(plain.host.querySelector("[data-testid=comment-delete-r1]")).not.toBeNull();
+    } finally { plain.unmount(); }
+    const moderator = render(<WorkspaceCommentsColumn {...baseProps} comments={[theirs, reply]} onDelete={() => {}} canModerate />);
+    try {
+      act(() => { (moderator.host.querySelector("[data-testid=comment-delete-t1]") as HTMLElement).click(); });
+      expect(moderator.host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("workspaceSecurity.commentDeleteConfirmThread"));
+    } finally { moderator.unmount(); }
+  });
+});

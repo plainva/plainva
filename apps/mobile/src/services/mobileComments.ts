@@ -99,6 +99,8 @@ export interface PostMobileCommentInput {
   anchor?: WorkspaceCommentAnchor | null;
   suggestion?: { replacement: string } | null;
   suggestionOutcome?: "applied" | "declined" | null;
+  /** A retraction marker (K7): deletes the record it names, if this device wrote that record. */
+  retractsCommentId?: string | null;
   /** How this device signs the record — the reviewer name this vault already has. */
   authorName?: string | null;
 }
@@ -132,6 +134,7 @@ export async function postMobileComment(vault: MobileVault, input: PostMobileCom
     parentCommentId: input.parentCommentId ?? null,
     resolvedCommentId: input.resolvedCommentId ?? null,
     suggestionOutcome: input.suggestionOutcome ?? null,
+    retractsCommentId: input.retractsCommentId ?? null,
     authorDeviceId: await deviceId(),
     body: input.body,
     anchor: input.anchor ?? null,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, X } from "lucide-react";
+import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
 
@@ -58,6 +58,10 @@ export interface WorkspaceCommentsColumnProps {
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
   onOpenNote?(target: string): void;
   onOpenUrl?(url: string): void;
+  /** Deletes a remark (K7). Offered to its author, and to a moderator on everything. */
+  onDelete?(comment: WorkspaceCommentRecord): void;
+  /** True for a member who governs the workspace: may delete anybody's remark. */
+  canModerate?: boolean;
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
@@ -107,7 +111,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -118,6 +122,30 @@ export function WorkspaceCommentsColumn({
   // an edit of the passage, not a blank page.
   const [replacement, setReplacement] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  /** The remark whose deletion is being confirmed, in its own card (K7). */
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
+  const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
+    <IconButton
+      size="sm"
+      label={t("workspaceSecurity.commentDelete")}
+      onClick={(event) => { event.stopPropagation(); setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId); }}
+      data-testid={`comment-delete-${record.commentId}`}
+    >
+      <Trash2 size={ICON.meta} />
+    </IconButton>
+  ) : null;
+  const confirmBox = (record: WorkspaceCommentRecord, replyCount: number) => confirmDelete === record.commentId ? (
+    <div className="pv-comment-card__confirm" role="alertdialog" onClick={(event) => event.stopPropagation()}>
+      <span>{replyCount > 0 ? t("workspaceSecurity.commentDeleteConfirmThread") : t("workspaceSecurity.commentDeleteConfirm")}</span>
+      <div className="pv-comment-card__actions">
+        <Button variant="danger" size="sm" onClick={() => { setConfirmDelete(null); onDelete?.(record); }} data-testid="comment-delete-confirm">
+          {t("workspaceSecurity.commentDelete")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>{t("common.cancel")}</Button>
+      </div>
+    </div>
+  ) : null;
   const [replyDraft, setReplyDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -340,6 +368,8 @@ export function WorkspaceCommentsColumn({
             <div key={reply.commentId} className="pv-comment-card__reply">
               <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
               {reply.pending && <div className="pv-comment-card__actions">{pendingState(reply, reply.authorMemberId === selfMemberId)}</div>}
+              {mayDelete(reply) && <div className="pv-comment-card__actions pv-comment-card__actions--quiet">{deleteControl(reply)}</div>}
+              {confirmBox(reply, 0)}
             </div>
           ))}
           {root.pending ? (
@@ -389,8 +419,10 @@ export function WorkspaceCommentsColumn({
                     {t("workspaceSecurity.resolve")}
                   </Button>
                 )}
+            {deleteControl(root)}
           </div>
           )}
+          {confirmBox(root, replies.length)}
           {replyTo === root.commentId && (
             <div className="pv-comment-compose" onClick={(event) => event.stopPropagation()}>
               <MentionTextArea

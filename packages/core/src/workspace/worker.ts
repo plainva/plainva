@@ -616,7 +616,21 @@ export class EncryptedWorkspaceWorker {
       const commentSlices = workspaceSliceIdsForObject(this.activePolicy.payload, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
       protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
       const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
-      await this.state.saveComment(workspaceCommentRecord(body, document, operationHash));
+      const record = workspaceCommentRecord(body, document, operationHash);
+      // A retraction (K7) is honoured from its author, or from a member who
+      // governs the workspace. Anyone else's marker is refused here - the
+      // stores below would ignore it anyway, but a forged deletion belongs in
+      // quarantine, not in the ledger.
+      if (record.retractsCommentId) {
+        const retracted = (await this.state.listComments(commentTarget.objectId)).find((entry) => entry.commentId === record.retractsCommentId);
+        const governs = evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "workspace.manage" }).allowed;
+        protocolAssert(governs || !retracted || retracted.authorMemberId === record.authorMemberId, "authorization", "only the author or a workspace manager may delete a comment");
+        await this.state.saveComment(record);
+        if (governs && retracted && retracted.authorMemberId !== record.authorMemberId) await this.state.retractComment(retracted.commentId, record.createdAt);
+        this.commentPathsChanged.add(commentTarget.path);
+        return [];
+      }
+      await this.state.saveComment(record);
       this.commentPathsChanged.add(commentTarget.path);
       await this.state.recordObservedOperation(operationHash, toBase64(encodeWorkspaceDocument(document)), operation.deviceId, operation.sequence, meta);
       return [];

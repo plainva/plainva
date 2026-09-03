@@ -58,6 +58,10 @@ export interface WorkspaceCommentRecord {
   /** Present only on an immutable resolution marker. */
   resolvedCommentId: string | null;
   resolvedAt: string | null;
+  /** Present only on a retraction marker (K7); the list functions never return one. */
+  retractsCommentId?: string | null;
+  /** Set on a comment a valid retraction has reached; such a record is never listed. */
+  retractedAt?: string | null;
   /**
    * Set only on a remark that is still in this device's outbox (K6, finding
    * 2026-09-03): written the moment somebody pressed send, published by the
@@ -91,6 +95,7 @@ export interface WorkspaceCommentOutboxEntry {
   anchor: WorkspaceCommentAnchor | null;
   suggestion: { replacement: string } | null;
   suggestionOutcome: "applied" | "declined" | null;
+  retractsCommentId?: string | null;
   createdAt: string;
   attempts: number;
   lastError: string | null;
@@ -113,6 +118,7 @@ export function outboxEntryAsCommentRecord(entry: WorkspaceCommentOutboxEntry, a
     suggestion: entry.suggestion ? { replacement: entry.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null,
     suggestionOutcome: entry.suggestionOutcome,
     resolvedCommentId: entry.resolvedCommentId,
+    retractsCommentId: entry.retractsCommentId ?? null,
     resolvedAt: null,
     pending: { outboxId: entry.outboxId, attempts: entry.attempts, lastError: entry.lastError },
   };
@@ -315,6 +321,12 @@ export interface WorkspaceStateStore {
    */
   listAllComments(): Promise<WorkspaceCommentRecord[]>;
   saveComment(comment: WorkspaceCommentRecord): Promise<void>;
+  /**
+   * Applies a retraction the worker has verified against the policy (K7): a
+   * moderator's marker. The author's own marker needs no such call - the
+   * stores apply it themselves when marker and comment carry one author.
+   */
+  retractComment(commentId: string, at: string): Promise<void>;
   /** The remarks this device has not published yet (K6), oldest first. */
   listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]>;
   enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void>;
@@ -353,7 +365,7 @@ export interface WorkspaceStateStore {
  * chance for the two to drift.
  */
 function commentFromRow(row: CommentRow): WorkspaceCommentRecord {
-  return { commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at };
+  return { commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at, retractsCommentId: row.retracts_comment_id ?? null, retractedAt: row.retracted_at ?? null };
 }
 
 function clone<T>(value: T): T {
@@ -406,7 +418,18 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     return (await this.listAllComments()).filter((entry) => entry.targetObjectId === targetObjectId);
   }
   async listAllComments(): Promise<WorkspaceCommentRecord[]> {
-    return [...this.comments.values()].filter((entry) => !entry.resolvedCommentId).map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
+    // Markers of either kind are facts about other records, never cards; a
+    // retracted comment is gone, and so is every reply under it (K7) - a reply
+    // without its root would otherwise surface as a root of its own.
+    const retracted = new Set([...this.comments.values()].filter((entry) => entry.retractedAt).map((entry) => entry.commentId));
+    return [...this.comments.values()]
+      .filter((entry) => !entry.resolvedCommentId && !entry.retractsCommentId && !entry.retractedAt && !(entry.parentCommentId && retracted.has(entry.parentCommentId)))
+      .map(clone)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
+  }
+  async retractComment(commentId: string, at: string): Promise<void> {
+    const target = this.comments.get(commentId);
+    if (target) target.retractedAt = at;
   }
   async listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]> {
     return [...this.commentOutbox.values()].map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.outboxId.localeCompare(b.outboxId));
@@ -419,6 +442,17 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   async deleteCommentOutbox(outboxId: string): Promise<void> { this.commentOutbox.delete(outboxId); }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
     this.comments.set(comment.commentId, clone(comment));
+    // The author's own retraction applies in either arrival order: marker
+    // first or comment first. A stranger's marker does nothing here - the
+    // worker applies a moderator's through `retractComment` after checking
+    // the policy, which this store cannot read.
+    if (comment.retractsCommentId) {
+      const target = this.comments.get(comment.retractsCommentId);
+      if (target && target.authorMemberId === comment.authorMemberId) target.retractedAt = comment.createdAt;
+      return;
+    }
+    const retraction = [...this.comments.values()].find((entry) => entry.retractsCommentId === comment.commentId && entry.authorMemberId === comment.authorMemberId);
+    if (retraction) this.comments.get(comment.commentId)!.retractedAt = retraction.createdAt;
     if (comment.resolvedCommentId) {
       const target = this.comments.get(comment.resolvedCommentId);
       if (target) target.resolvedAt = comment.createdAt;
@@ -559,12 +593,14 @@ interface CommentRow {
   comment_id: string; target_object_id: string; target_revision_id: string; parent_comment_id: string | null;
   author_member_id: string; author_device_id: string; operation_hash: string; payload_hash: string;
   body: string; anchor: string | null; suggestion: string | null; suggestion_applied_at: string | null; suggestion_applied_by: string | null; suggestion_declined_at: string | null; created_at: string; resolved_comment_id: string | null; resolved_at: string | null;
+  retracts_comment_id?: string | null; retracted_at?: string | null;
 }
 
 interface CommentOutboxRow {
   outbox_id: string; comment_id: string; path: string; target_object_id: string; body: string;
   parent_comment_id: string | null; resolved_comment_id: string | null; anchor: string | null; suggestion: string | null;
   suggestion_outcome: "applied" | "declined" | null; created_at: string; attempts: number; last_error: string | null;
+  retracts_comment_id?: string | null;
 }
 
 function commentOutboxFromRow(row: CommentOutboxRow): WorkspaceCommentOutboxEntry {
@@ -573,7 +609,7 @@ function commentOutboxFromRow(row: CommentOutboxRow): WorkspaceCommentOutboxEntr
     parentCommentId: row.parent_comment_id, resolvedCommentId: row.resolved_comment_id, anchor: parseCommentAnchor(row.anchor),
     // JSON rather than the bare replacement: an empty replacement is a deletion, and "" is not null.
     suggestion: row.suggestion === null ? null : (JSON.parse(row.suggestion) as { replacement: string }),
-    suggestionOutcome: row.suggestion_outcome, createdAt: row.created_at, attempts: Number(row.attempts), lastError: row.last_error,
+    suggestionOutcome: row.suggestion_outcome, retractsCommentId: row.retracts_comment_id ?? null, createdAt: row.created_at, attempts: Number(row.attempts), lastError: row.last_error,
   };
 }
 
@@ -710,19 +746,22 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     return (await this.db.query<RevisionRow>(`SELECT * FROM workspace_revision WHERE object_id = ? ORDER BY sequence DESC, revision_id`, [objectId])).map(revisionFromRow);
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
-    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL ORDER BY created_at, comment_id`, [targetObjectId]);
+    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at,retracts_comment_id,retracted_at FROM workspace_comment WHERE target_object_id = ? AND resolved_comment_id IS NULL AND retracts_comment_id IS NULL AND retracted_at IS NULL AND (parent_comment_id IS NULL OR parent_comment_id NOT IN (SELECT comment_id FROM workspace_comment WHERE retracted_at IS NOT NULL)) ORDER BY created_at, comment_id`, [targetObjectId]);
     return rows.map(commentFromRow);
   }
   async listAllComments(): Promise<WorkspaceCommentRecord[]> {
-    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at FROM workspace_comment WHERE resolved_comment_id IS NULL ORDER BY created_at, comment_id`);
+    const rows = await this.db.query<CommentRow>(`SELECT comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,suggestion_applied_at,suggestion_applied_by,suggestion_declined_at,created_at,resolved_comment_id,resolved_at,retracts_comment_id,retracted_at FROM workspace_comment WHERE resolved_comment_id IS NULL AND retracts_comment_id IS NULL AND retracted_at IS NULL AND (parent_comment_id IS NULL OR parent_comment_id NOT IN (SELECT comment_id FROM workspace_comment WHERE retracted_at IS NOT NULL)) ORDER BY created_at, comment_id`);
     return rows.map(commentFromRow);
   }
+  async retractComment(commentId: string, at: string): Promise<void> {
+    await this.db.execute(`UPDATE workspace_comment SET retracted_at = ? WHERE comment_id = ?`, [at, commentId]);
+  }
   async listCommentOutbox(): Promise<WorkspaceCommentOutboxEntry[]> {
-    const rows = await this.db.query<CommentOutboxRow>(`SELECT outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error FROM workspace_comment_outbox ORDER BY created_at, outbox_id`);
+    const rows = await this.db.query<CommentOutboxRow>(`SELECT outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,retracts_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error FROM workspace_comment_outbox ORDER BY created_at, outbox_id`);
     return rows.map(commentOutboxFromRow);
   }
   async enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment_outbox (outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [entry.outboxId, entry.commentId, entry.path, entry.targetObjectId, entry.body, entry.parentCommentId, entry.resolvedCommentId, entry.anchor ? JSON.stringify(entry.anchor) : null, entry.suggestion ? JSON.stringify(entry.suggestion) : null, entry.suggestionOutcome, entry.createdAt, entry.attempts, entry.lastError]);
+    await this.db.execute(`INSERT INTO workspace_comment_outbox (outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,retracts_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [entry.outboxId, entry.commentId, entry.path, entry.targetObjectId, entry.body, entry.parentCommentId, entry.resolvedCommentId, entry.retractsCommentId ?? null, entry.anchor ? JSON.stringify(entry.anchor) : null, entry.suggestion ? JSON.stringify(entry.suggestion) : null, entry.suggestionOutcome, entry.createdAt, entry.attempts, entry.lastError]);
   }
   async updateCommentOutbox(outboxId: string, patch: { attempts: number; lastError: string | null }): Promise<void> {
     await this.db.execute(`UPDATE workspace_comment_outbox SET attempts = ?, last_error = ? WHERE outbox_id = ?`, [patch.attempts, patch.lastError, outboxId]);
@@ -731,7 +770,14 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     await this.db.execute(`DELETE FROM workspace_comment_outbox WHERE outbox_id = ?`, [outboxId]);
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt]);
+    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at,retracts_comment_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(comment_id) DO UPDATE SET resolved_at=excluded.resolved_at`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt, comment.retractsCommentId ?? null]);
+    // The author's own retraction, in either arrival order (K7). A moderator's
+    // goes through `retractComment` once the worker has checked the policy.
+    if (comment.retractsCommentId) {
+      await this.db.execute(`UPDATE workspace_comment SET retracted_at = ? WHERE comment_id = ? AND author_member_id = ?`, [comment.createdAt, comment.retractsCommentId, comment.authorMemberId]);
+      return;
+    }
+    await this.db.execute(`UPDATE workspace_comment SET retracted_at = (SELECT MIN(created_at) FROM workspace_comment r WHERE r.retracts_comment_id = ? AND r.author_member_id = ?) WHERE comment_id = ? AND EXISTS (SELECT 1 FROM workspace_comment r WHERE r.retracts_comment_id = ? AND r.author_member_id = ?)`, [comment.commentId, comment.authorMemberId, comment.commentId, comment.commentId, comment.authorMemberId]);
     if (comment.resolvedCommentId) {
       await this.db.execute(`UPDATE workspace_comment SET resolved_at = ? WHERE comment_id = ?`, [comment.createdAt, comment.resolvedCommentId]);
       // Accepting and declining both resolve; only the outcome tells a second

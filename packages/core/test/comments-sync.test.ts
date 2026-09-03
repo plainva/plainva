@@ -269,3 +269,44 @@ describe("emptyCommentsBundle", () => {
     expect(() => assertCommentsBundleStructure(emptyCommentsBundle(NOW))).not.toThrow();
   });
 });
+
+/**
+ * Deleting in a plain vault (K7): a retraction marker counts from the record's
+ * own device only - there are no roles - and takes the replies with it. The
+ * merge stays a union, so the marker travels like any other record.
+ */
+describe("comment retraction in the local bundle", () => {
+  const ID_C = "cc".repeat(16);
+  const ID_D = "dd".repeat(16);
+
+  it("hides a record retracted by its author, with its replies, and keeps everything else", async () => {
+    const bundle = emptyCommentsBundle(NOW);
+    bundle.comments[ID_A] = rec({ commentId: ID_A, body: "root by laptop" });
+    bundle.comments[ID_B] = rec({ commentId: ID_B, parentCommentId: ID_A, authorDeviceId: "phone", body: "reply by phone" });
+    bundle.comments[ID_C] = rec({ commentId: ID_C, body: "another by laptop" });
+    bundle.comments[ID_D] = rec({ commentId: ID_D, body: "", retractsCommentId: ID_A, createdAt: "2026-08-25T11:00:00Z" });
+    assertCommentsBundleStructure(bundle);
+    const { localCommentsForPath } = await import("../src/index.js");
+    expect(localCommentsForPath(bundle, "Notes/Plan.md").map((c) => c.body)).toEqual(["another by laptop"]);
+  });
+
+  it("ignores a retraction from a device that did not write the record", async () => {
+    const bundle = emptyCommentsBundle(NOW);
+    bundle.comments[ID_A] = rec({ commentId: ID_A, body: "root by laptop" });
+    bundle.comments[ID_D] = rec({ commentId: ID_D, body: "", retractsCommentId: ID_A, authorDeviceId: "phone", createdAt: "2026-08-25T11:00:00Z" });
+    const { localCommentsForPath } = await import("../src/index.js");
+    expect(localCommentsForPath(bundle, "Notes/Plan.md").map((c) => c.body)).toEqual(["root by laptop"]);
+  });
+
+  it("rejects a malformed retraction target and survives a union merge", () => {
+    const bundle = emptyCommentsBundle(NOW);
+    bundle.comments[ID_D] = rec({ commentId: ID_D, body: "", retractsCommentId: "nope" as string });
+    expect(() => assertCommentsBundleStructure(bundle)).toThrow(CommentBundleError);
+    const left = emptyCommentsBundle(NOW);
+    left.comments[ID_A] = rec({ commentId: ID_A, body: "root" });
+    const right = emptyCommentsBundle(NOW);
+    right.comments[ID_D] = rec({ commentId: ID_D, body: "", retractsCommentId: ID_A, createdAt: "2026-08-25T11:00:00Z" });
+    const merged = mergeCommentsBundles(left, right, "2026-08-25T12:00:00Z");
+    expect(Object.keys(merged.comments).sort()).toEqual([ID_A, ID_D].sort());
+  });
+});

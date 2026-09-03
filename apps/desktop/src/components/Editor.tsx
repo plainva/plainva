@@ -109,7 +109,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -2283,6 +2283,27 @@ export const Editor: React.FC<{
     }
   }, [activePath, anchorResolutions, resolveWorkspaceComment, t]);
 
+  /**
+   * Deleting a remark (K7): a retraction marker, plus the marker pair in the
+   * text where this window may write. The pair is that comment's alone, so
+   * with the comment gone it would only clutter the source; where the note is
+   * read-only it stays - hidden in live preview (K1), stripped in the reader.
+   */
+  const deleteComment = useCallback(async (comment: WorkspaceCommentRecord) => {
+    if (!activePath) return;
+    try {
+      await retractWorkspaceComment(activePath, comment.commentId);
+      const markerId = comment.anchor?.markerId;
+      const view = sessionRef.current?.view;
+      if (markerId && view && !workspaceReadOnly && !comment.parentCommentId) {
+        const found = findAnchorMarker(view.state.doc.toString(), markerId);
+        if (found) view.dispatch({ changes: [{ from: found.from - openAnchorMarker(markerId).length, to: found.from }, { from: found.to, to: found.to + closeAnchorMarker(markerId).length }] });
+      }
+    } catch (error) {
+      toast.error(errorText(error));
+    }
+  }, [activePath, retractWorkspaceComment, workspaceReadOnly]);
+
   const declineSuggestion = useCallback(async (comment: WorkspaceCommentRecord) => {
     if (!activePath) return;
     try {
@@ -2702,6 +2723,8 @@ export const Editor: React.FC<{
           onSelect={setActiveCommentId}
           onSubmit={postComment}
           canWrite={!workspaceReadOnly}
+          canModerate={workspaceCapabilities?.includes("workspace.manage") === true}
+          onDelete={(comment) => { void deleteComment(comment); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment); }}
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}

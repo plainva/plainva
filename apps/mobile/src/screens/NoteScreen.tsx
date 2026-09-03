@@ -31,7 +31,7 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -477,6 +477,21 @@ export function NoteScreen({
   };
 
   /**
+   * Deleting a remark (K7): a retraction marker, and the marker pair out of
+   * the text where this device may write - the desktop does the same.
+   */
+  const deleteComment = async (comment: WorkspaceCommentRecord) => {
+    await postMobileComment(vault, { path, body: "", retractsCommentId: comment.commentId, authorName: getMobileSettings().verifierName });
+    const markerId = comment.anchor?.markerId;
+    const text = doc;
+    if (markerId && text !== null && workspaceCanWrite && !comment.parentCommentId) {
+      const next = removeAnchorMarkers(text, markerId);
+      if (next !== text) { setDoc(next); noteSaver.schedule(vault, path, next); }
+    }
+    setCommentTick((n) => n + 1);
+  };
+
+  /**
    * Accepting a proposal is an ORDINARY edit plus a resolve (desktop parity).
    *
    * The passage is found by resolving the anchor against the text as it stands
@@ -733,6 +748,8 @@ export function NoteScreen({
               .then(() => setCommentTick((n) => n + 1));
           }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
+          canModerate={commentCaps.includes("workspace.manage")}
+          onDelete={(comment) => { void deleteComment(comment).catch((e) => toast.error(errorText(e))); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           onRevealAnchor={revealAnchor}

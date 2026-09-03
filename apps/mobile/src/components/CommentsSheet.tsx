@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare } from "lucide-react";
+import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Trash2 } from "lucide-react";
 import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, toAnchorDisplayHint } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
@@ -60,6 +60,9 @@ export interface CommentsSheetProps {
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
   onOpenNote?(target: string): void;
   onOpenUrl?(url: string): void;
+  /** Deletes a remark (K7): its author, or a moderator on everything. */
+  onDelete?(comment: WorkspaceCommentRecord): void;
+  canModerate?: boolean;
 }
 
 /**
@@ -91,6 +94,8 @@ export function CommentsSheet({
   onRevealAnchor,
   onOpenNote,
   onOpenUrl,
+  onDelete,
+  canModerate,
   onClose,
   muted,
   onToggleMute,
@@ -111,6 +116,23 @@ export function CommentsSheet({
     [threads, filter],
   );
   const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
+  /** Same question in the card as on the desktop (K7). */
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
+  const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
+    <IconButton label={t("workspaceSecurity.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
+      <Trash2 size={ICON.touch} />
+    </IconButton>
+  ) : null;
+  const confirmBox = (record: WorkspaceCommentRecord, replyCount: number) => confirmDelete === record.commentId ? (
+    <div className="pv-comment-card__confirm" role="alertdialog">
+      <span>{replyCount > 0 ? t("workspaceSecurity.commentDeleteConfirmThread") : t("workspaceSecurity.commentDeleteConfirm")}</span>
+      <div className="pv-comment-card__actions">
+        <Button variant="danger" size="sm" onClick={() => { setConfirmDelete(null); onDelete?.(record); }}>{t("workspaceSecurity.commentDelete")}</Button>
+        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>{t("common.cancel")}</Button>
+      </div>
+    </div>
+  ) : null;
 
   const send = async () => {
     const text = body.trim();
@@ -229,6 +251,8 @@ export function CommentsSheet({
                   <div key={reply.commentId} className="pv-comment-card__reply">
                     <CommentCardHead name={nameOf(reply.authorMemberId)} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
                     <CommentBody body={reply.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                    {mayDelete(reply) && <div className="pv-comment-card__actions">{deleteControl(reply)}</div>}
+                    {confirmBox(reply, 0)}
                   </div>
                 ))}
                 <div className="pv-comment-card__actions">
@@ -269,7 +293,9 @@ export function CommentsSheet({
                       )}
                     </>
                   )}
+                  {deleteControl(root)}
                 </div>
+                {confirmBox(root, replies.length)}
               </div>
             );
           })}

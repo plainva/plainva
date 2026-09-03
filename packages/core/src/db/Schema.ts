@@ -169,7 +169,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       suggestion_declined_at TEXT,
       created_at        TEXT NOT NULL,
       resolved_comment_id TEXT,
-      resolved_at       TEXT
+      resolved_at       TEXT,
+      retracts_comment_id TEXT,
+      retracted_at      TEXT
     );`,
     // Remarks written on this device that the worker has not published yet
     // (K6): shown at once, uploaded in order by the next cycle. Additive.
@@ -181,6 +183,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       body              TEXT NOT NULL,
       parent_comment_id TEXT,
       resolved_comment_id TEXT,
+      retracts_comment_id TEXT,
       anchor            TEXT,
       suggestion        TEXT,
       suggestion_outcome TEXT,
@@ -362,6 +365,20 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`ALTER TABLE workspace_revision ADD COLUMN created_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z';`);
   } catch {
     // Column might already exist
+  }
+
+  // Deleting a comment is an appended retraction marker (K7, 2026-09-03);
+  // both tables predate it on any vault opened before.
+  for (const statement of [
+    `ALTER TABLE workspace_comment ADD COLUMN retracts_comment_id TEXT;`,
+    `ALTER TABLE workspace_comment ADD COLUMN retracted_at TEXT;`,
+    `ALTER TABLE workspace_comment_outbox ADD COLUMN retracts_comment_id TEXT;`,
+  ]) {
+    try {
+      await db.execute(statement);
+    } catch {
+      // Column might already exist
+    }
   }
 
   try {
