@@ -2984,7 +2984,10 @@ export const VaultProvider: React.FC<{
       createdAt: new Date().toISOString(), attempts: 0, lastError: null,
     };
     await workspaceState.enqueueCommentOutbox(entry);
-    state.syncWorker?.triggerImmediate();
+    // The remark alone, now - not a whole cycle with a remote listing in
+    // front of it (finding 2026-09-03: "sending..." for far too long).
+    if (state.syncWorker instanceof EncryptedWorkspaceWorker) void state.syncWorker.publishQueuedComments();
+    else state.syncWorker?.triggerImmediate();
     window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
   };
 
@@ -3019,7 +3022,8 @@ export const VaultProvider: React.FC<{
     const entry = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.outboxId === outboxId);
     if (!entry) return;
     await workspaceState.updateCommentOutbox(outboxId, { attempts: entry.attempts, lastError: null });
-    state.syncWorker?.triggerImmediate();
+    if (state.syncWorker instanceof EncryptedWorkspaceWorker) void state.syncWorker.publishQueuedComments();
+    else state.syncWorker?.triggerImmediate();
     window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
   };
 

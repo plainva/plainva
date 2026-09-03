@@ -739,7 +739,10 @@ export function NoteScreen({
               /* The marker only goes in where writing is allowed. Without it
                  the anchor still resolves - quote first, then context - it is
                  just less precise after a heavy edit. */
-              if (workspaceCanWrite) {
+              /* Never around a widget (table cell, picture, diagram): the pair
+                 would wrap the whole source range and break the table in every
+                 view (finding 2026-09-03) - same rule as the desktop. */
+              if (workspaceCanWrite && !pendingRange.display) {
                 const next = insertAnchorMarkers(text, pendingRange.from, pendingRange.to, id);
                 marker = { before: text };
                 setDoc(next);

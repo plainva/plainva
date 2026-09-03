@@ -214,6 +214,35 @@ export class EncryptedWorkspaceWorker {
     void this.state.retryFailed().then(() => this.triggerImmediate());
   }
 
+  /**
+   * Publishes the queued remarks now, without a full cycle around them (K6
+   * follow-up, 2026-09-03). `triggerImmediate` ran bootstrap, resume and a
+   * complete pull before the outbox - seconds of "sending..." for a remark
+   * that only needs its two uploads. If a cycle is already running it drains
+   * the outbox itself; this then only asks for one more pass afterwards.
+   */
+  async publishQueuedComments(): Promise<void> {
+    if (!this.running) return;
+    if (this.syncing) { this.pendingImmediate = true; return; }
+    this.abort = new AbortController();
+    const signal = this.abort.signal;
+    this.syncing = (async () => {
+      await this.verifyBootstrap(signal);
+      try {
+        await this.drainCommentOutbox(signal);
+      } finally {
+        this.flushCommentsChanged();
+      }
+    })().catch((error: unknown) => {
+      if (!(error instanceof DOMException && error.name === "AbortError")) console.error("[EncryptedWorkspaceWorker] publishing queued comments failed", error);
+    }).finally(() => {
+      this.syncing = null;
+      this.abort = null;
+      if (this.running && this.pendingImmediate) { this.pendingImmediate = false; this.triggerImmediate(); }
+    });
+    await this.syncing;
+  }
+
   noteUserInitiatedDeletion(_paths: string[]): void {
     // Deletes are signed tombstones and only enter this queue after the app's
     // existing deletion confirmation; no second mass-delete inference is used.
@@ -234,13 +263,18 @@ export class EncryptedWorkspaceWorker {
     // immutable local branch. Finish it before pulling so an operation uploaded
     // immediately before a crash is not mistaken for an incoming remote edit.
     await this.resumePreparedMutations(signal);
-    const changed = await this.pull(signal);
-    if (changed.length) this.onFilesChanged?.(changed);
+    // The outbox goes out BEFORE the pull (finding 2026-09-03: "sending..."
+    // stood for as long as a full remote listing takes). A queued remark
+    // names an object this device has already synced, so nothing in the pull
+    // is a precondition for it.
     try {
       await this.drainCommentOutbox(signal);
     } finally {
       this.flushCommentsChanged();
     }
+    const changed = await this.pull(signal);
+    if (changed.length) this.onFilesChanged?.(changed);
+    this.flushCommentsChanged();
     await this.push(signal);
     await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);

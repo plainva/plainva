@@ -2267,7 +2267,12 @@ export const Editor: React.FC<{
     // Read-only means we may not write the note at all; the vault switch means
     // this vault has asked us not to. Both fall back to the quote, which still
     // resolves - the comment is never refused because of it.
-    const marked = !workspaceReadOnly && commentAnchorsEnabled;
+    // A widget target (table cell, picture, diagram) gets NO marker pair
+    // (finding 2026-09-03, maintainer's test): the pair wrapped the widget's
+    // whole source range, and an HTML comment glued to the first `|` turns a
+    // table into a paragraph in every view. The handbook always said these
+    // anchors write nothing - the display hint plus the quote is the anchor.
+    const marked = !workspaceReadOnly && commentAnchorsEnabled && !parked?.display;
     if (marked) view.dispatch({ changes: [{ from: range.from, insert: openAnchorMarker(markerId) }, { from: range.to, insert: closeAnchorMarker(markerId) }] });
     try {
       await postWorkspaceComment(activePath, body, null, anchor, suggestion);

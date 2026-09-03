@@ -90,7 +90,9 @@ describe("the screen turns a tapped range into an anchor", () => {
     // The core helper asserts the marker id and the bounds; rebuilding the
     // slices here would be a second, weaker copy of a rule that already exists.
     expect(submit, "markers must go through insertAnchorMarkers").toMatch(/insertAnchorMarkers\(/);
-    expect(submit, "a read-only workspace must not be written to").toMatch(/if \(workspaceCanWrite\)/);
+    // ...and never around a widget target (cell, picture, diagram): the pair
+    // wrapped the table's whole source and broke it (finding 2026-09-03).
+    expect(submit, "a read-only workspace must not be written to").toMatch(/if \(workspaceCanWrite && !pendingRange\.display\)/);
   });
 
   it("takes the markers back out when the comment never lands", () => {

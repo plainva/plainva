@@ -491,6 +491,7 @@ const anchorHighlightTheme = EditorView.baseTheme({
     lineHeight: "1",
     fontSize: "var(--text-sm)",
   },
+  ".cm-anchor-bubble svg": { width: "1em", height: "1em", fontSize: "var(--text-md)" },
   ".cm-anchor-host:hover .cm-anchor-bubble": { display: "inline-flex" },
   ".cm-anchor-bubble:focus-visible": { display: "inline-flex" },
   // A table cell is small; the picture-sized bubble would cover its text.
@@ -635,7 +636,10 @@ export function decorateAnchorTarget(opts: {
   const bubble = host.ownerDocument.createElement("button");
   bubble.type = "button";
   bubble.className = bubbleClass ? `cm-anchor-bubble ${bubbleClass}` : "cm-anchor-bubble";
-  bubble.textContent = "\u{1F4AC}";
+  // The same glyph the ribbon and the column use (lucide `message-square`),
+  // not an emoji: an emoji takes the platform's colour font and sits outside
+  // the app's icon language (finding 2026-09-03).
+  bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   bubble.setAttribute("aria-label", bubbleLabel);
   bubble.setAttribute("data-tip", bubbleLabel);
   bubble.addEventListener("mousedown", (e) => {

@@ -124,3 +124,22 @@ describe("comment outbox", () => {
     expect(await state.listCommentOutbox()).toEqual([]);
   });
 });
+
+describe("publishQueuedComments", () => {
+  it("publishes the outbox without a full cycle, and does nothing while stopped", async () => {
+    const { state, worker, object, changed } = await syncedWorkspace();
+    // `start()` would kick a whole cycle off; the flag alone is what the
+    // direct path asks for.
+    const flags = worker as unknown as { running: boolean };
+    flags.running = true;
+    await state.enqueueCommentOutbox(entry({ targetObjectId: object.objectId, body: "Quick." }));
+    await worker.publishQueuedComments();
+    expect(await state.listCommentOutbox()).toEqual([]);
+    expect((await state.listComments(object.objectId)).map((c) => c.body)).toEqual(["Quick."]);
+    expect(changed).toEqual([["note.md"]]);
+    flags.running = false;
+    await state.enqueueCommentOutbox(entry({ targetObjectId: object.objectId, body: "Later." }));
+    await worker.publishQueuedComments();
+    expect(await state.listCommentOutbox()).toHaveLength(1);
+  });
+});
