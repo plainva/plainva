@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { HeaderColorPicker } from "./HeaderColorPicker";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -2163,12 +2163,38 @@ export const Editor: React.FC<{
       const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
       highlights.push({
         commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId,
-        frame: toAnchorFrameHint(comment.anchor?.display),
+        // A cell is drawn where the resolution FOUND it (V7): a row inserted
+        // above moved it, and the corner has to sit on the cell, not on the
+        // coordinates the writer saw.
+        frame: toAnchorFrameHint(comment.anchor?.display, "cell" in resolution && resolution.cell ? { ...resolution.cell, moved: resolution.status === "moved" } : null),
         ...(suggestionsInline && open && !comment.anchor?.display ? { suggestion: { replacement: open.replacement } } : {}),
       });
     }
     return highlights;
   }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline]);
+  // Widget anchors written before 2026-09-03 left a marker pair around the
+  // whole table or picture, and a pair around a table keeps the parser from
+  // seeing a table (finding 2026-09-03, V7). The pair does nothing for such
+  // an anchor, so the first look at the note with its comments takes it out -
+  // an ordinary edit through the editor, versioned like any other. Once per
+  // note, never in the suggestion mode (that edits a copy), never read-only.
+  const widgetMarkerCleanupRef = useRef<string | null>(null);
+  useEffect(() => {
+    const view = sessionRef.current?.view;
+    if (!view || !activePath || workspaceComments.length === 0 || workspaceReadOnly || suggesting) return;
+    if (widgetMarkerCleanupRef.current === activePath) return;
+    widgetMarkerCleanupRef.current = activePath;
+    const doc = view.state.doc.toString();
+    const { removed } = stripWidgetAnchorMarkers(doc, workspaceComments.map((comment) => comment.anchor as WorkspaceCommentAnchor | null));
+    if (removed.length === 0) return;
+    const changes: Array<{ from: number; to: number; insert: string }> = [];
+    for (const id of removed) {
+      for (const marker of [`<!--pv#${id}-->`, `<!--/pv#${id}-->`]) {
+        for (let at = doc.indexOf(marker); at >= 0; at = doc.indexOf(marker, at + marker.length)) changes.push({ from: at, to: at + marker.length, insert: "" });
+      }
+    }
+    if (changes.length > 0) view.dispatch({ changes, userEvent: "delete" });
+  }, [workspaceComments, activePath, workspaceReadOnly, suggesting]);
   useEffect(() => {
     const session = sessionRef.current;
     if (!session) return;
@@ -3070,7 +3096,9 @@ export const Editor: React.FC<{
           // not "may write" (finding 2026-09-03, K2): a Commenter has no
           // content.write and lost the entry; the anchor setting only decides
           // whether a hard marker is written, not whether one may comment.
-          canComment={workspaceCanComment}
+          // A cell that already carries a comment offers no second one (V7):
+          // the corner leads to the thread, a reply goes there.
+          canComment={workspaceCanComment && !anchorHighlights.some((h) => h.frame?.kind === "tableCell" && h.frame.row === (tableMenu.kind === "header" ? 0 : tableMenu.rowIndex + 1) && h.frame.column === tableMenu.colIndex && h.from >= tableMenu.from && h.to <= tableMenu.to)}
           onAction={handleTableMenuAction}
           onClose={() => setTableMenu(null)}
         />

@@ -115,6 +115,7 @@ export function EditorHost({
     kind: "header" | "body";
     rowIndex: number;
     colIndex: number;
+    cellCommented: boolean;
   } | null>(null);
   const [dateMention, setDateMention] = useState<{ pos: number } | null>(null);
   const [dateValue, setDateValue] = useState("");
@@ -593,7 +594,12 @@ export function EditorHost({
         rowIndex: number;
         colIndex: number;
       };
-      setTableMenu({ from: d.from, to: d.to, kind: d.kind, rowIndex: d.rowIndex, colIndex: d.colIndex });
+      // Whether the cell already carries a comment is read HERE, in the
+      // handler, not during render (V7): a cell with a comment offers no
+      // second one - its corner leads to the thread.
+      const row = d.kind === "header" ? 0 : d.rowIndex + 1;
+      const cellCommented = highlightsRef.current.some((h) => h.frame?.kind === "tableCell" && h.frame.row === row && h.frame.column === d.colIndex && h.from >= d.from && h.to <= d.to);
+      setTableMenu({ from: d.from, to: d.to, kind: d.kind, rowIndex: d.rowIndex, colIndex: d.colIndex, cellCommented });
     };
     const onDateMention = (e: Event) => {
       const pos = ((e as CustomEvent).detail as { pos?: number } | undefined)?.pos;
@@ -1255,7 +1261,14 @@ export function EditorHost({
         </div>
       )}
 
-      {tableMenu && <TableMenuSheet canComment={canComment} onAction={handleTableAction} onClose={() => setTableMenu(null)} />}
+      {tableMenu && (
+        <TableMenuSheet
+          // A cell that already carries a comment offers no second one (V7).
+          canComment={canComment && !tableMenu.cellCommented}
+          onAction={handleTableAction}
+          onClose={() => setTableMenu(null)}
+        />
+      )}
 
       {emojiPick && (
         <EmojiPickSheet

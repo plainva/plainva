@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type CommentThread } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -66,6 +66,8 @@ export interface CommentsSheetProps {
   /** Whether open suggestions are drawn in the text (K5); the head carries the switch. */
   inlineSuggestions?: boolean;
   onToggleInlineSuggestions?(): void;
+  /** Where each cell comment was found today (V7): the card names the cell with it. */
+  cellPlaces?: ReadonlyMap<string, AnchorCellPlace>;
   /** A whole proposal round at once (V5). */
   onApplyRound?(batchId: string): void;
   onDeclineRound?(batchId: string): void;
@@ -104,6 +106,7 @@ export function CommentsSheet({
   canModerate,
   inlineSuggestions,
   onToggleInlineSuggestions,
+  cellPlaces,
   onApplyRound,
   onDeclineRound,
   onClose,
@@ -198,7 +201,7 @@ export function CommentsSheet({
       return t(renamed.key, renamed.params);
     }
     if (!comment.anchor.display) return comment.anchor.quote;
-    const hint = toAnchorDisplayHint(comment.anchor.display);
+    const hint = toAnchorDisplayHint(comment.anchor.display, undefined, cellPlaces?.get(comment.commentId) ?? null);
     if (!hint) return comment.anchor.quote;
     const label = anchorDisplayLabel(hint);
     return t(label.key, label.params);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
 import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
@@ -296,12 +297,16 @@ export function WorkspaceCommentsColumn({
         </span>
       );
     }
-    const status = resolutions.get(comment.commentId)?.status;
+    const resolution = resolutions.get(comment.commentId);
+    const status = resolution?.status;
+    // A cell is named by where it is TODAY (V7): the row and the column's
+    // header, with a caveat only when it moved or says something else.
+    const place = resolution && resolution.status !== "orphan" && resolution.cell ? { ...resolution.cell, moved: resolution.status === "moved" } : null;
     if (status === "orphan") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorOrphan")}</span>;
-    if (status === "moved") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorMoved")}</span>;
+    if (status === "moved" && !place) return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorMoved")}</span>;
     // Stufe E (E1): a widget covers the range, so there is no quote to show.
     // The card names the thing instead - "on the image" beats an empty card.
-    const displayHint = toAnchorDisplayHint(comment.anchor.display);
+    const displayHint = toAnchorDisplayHint(comment.anchor.display, undefined, place);
     if (displayHint) {
       const label = anchorDisplayLabel(displayHint);
       return (
@@ -338,7 +343,7 @@ export function WorkspaceCommentsColumn({
         >
           {root.suggestion
             ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
-            : root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
+            : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
           {addressed && (
             <span className="pv-comment-card__state">
               <AtSign size={ICON.meta} /> {t("workspaceSecurity.commentMentionsYou")}
@@ -558,7 +563,7 @@ export function WorkspaceCommentsColumn({
               <div key={root.commentId} className="pv-comment-card pv-comment-card--incoming">
                 {root.suggestion
                   ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
-                  : root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
+                  : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">

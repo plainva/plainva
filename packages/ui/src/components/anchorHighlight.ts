@@ -27,6 +27,12 @@ export interface AnchorFrameHint {
   row?: number;
   /** Column inside the rendered table, 0-based. Only for `tableCell`. */
   column?: number;
+  /** The header the column carries today, for the card (Tabellenzelle, V7). */
+  columnLabel?: string | null;
+  /** The cell was found somewhere else than the writer left it (V7). */
+  moved?: boolean;
+  /** The cell is where it was, but says something else now (V7). */
+  changed?: boolean;
   /**
    * The marked region inside the picture, in fractions of it. Only for `image`.
    *
@@ -349,8 +355,18 @@ export interface StoredAnchorDisplay {
  * one of them can be drawn around a range. These two helpers are the single
  * place that crosses between the two, so no call site has to cast.
  */
+/** Where a cell anchor was found again - what the resolution learned (V7). */
+export interface AnchorCellPlace {
+  row: number;
+  column: number;
+  columnLabel?: string | null;
+  changed?: boolean;
+  moved?: boolean;
+}
+
 export function toAnchorFrameHint(
   display: StoredAnchorDisplay | null | undefined,
+  place?: AnchorCellPlace | null,
 ): AnchorFrameHint | undefined {
   if (!display) return undefined;
   // A property has no range to frame - a comment on `status` marks a key in the
@@ -360,6 +376,12 @@ export function toAnchorFrameHint(
   // anything else; dropping a stray one here keeps the reading side from
   // drawing a rectangle over a table because a foreign writer sent one.
   const rect = display.kind === "image" ? display.rect : undefined;
+  // The resolution knows where the cell is TODAY (V7): a row inserted above
+  // moved it, and the frame has to land on the cell, not on the coordinates
+  // the writer saw. The stored hint stays untouched - it is sealed.
+  if (display.kind === "tableCell" && place) {
+    return { kind: display.kind, row: place.row, column: place.column, columnLabel: place.columnLabel ?? null, moved: place.moved === true, changed: place.changed === true, rect };
+  }
   return { kind: display.kind, row: display.row, column: display.column, rect };
 }
 
@@ -367,6 +389,7 @@ export function toAnchorFrameHint(
 export function toAnchorDisplayHint(
   display: StoredAnchorDisplay | null | undefined,
   renamedTo?: string,
+  place?: AnchorCellPlace | null,
 ): AnchorDisplayHint | undefined {
   if (!display) return undefined;
   if (display.kind === "property") {
@@ -374,7 +397,7 @@ export function toAnchorDisplayHint(
     // to whatever it shows for an anchor it cannot describe.
     return display.key ? { kind: "property", key: display.key, renamedTo } : undefined;
   }
-  return toAnchorFrameHint(display);
+  return toAnchorFrameHint(display, place);
 }
 
 export function anchorDisplayLabel(display: AnchorDisplayHint): { key: string; params?: Record<string, unknown>; caveat?: string } {
@@ -393,12 +416,15 @@ export function anchorDisplayLabel(display: AnchorDisplayHint): { key: string; p
   }
   if (display.kind === "diagram") return { key: "workspaceSecurity.commentAtDiagram" };
   if (display.row === undefined || display.column === undefined) return { key: "workspaceSecurity.commentCellMoved" };
+  // The column's header names the column where the table has one (V7), and
+  // the caveat is earned rather than automatic: only a cell that moved or
+  // changed says so - a cell that sits where it was says nothing.
   return {
-    key: "workspaceSecurity.commentAtCell",
+    key: display.columnLabel ? "workspaceSecurity.commentAtCellNamed" : "workspaceSecurity.commentAtCell",
     // Columns are stored 0-based and read 1-based; the row already counts the
     // header as 0, which is what a reader points at when they say "row 1".
-    params: { row: display.row, column: display.column + 1 },
-    caveat: "workspaceSecurity.commentCellMoved",
+    params: { row: display.row, column: display.column + 1, label: display.columnLabel ?? "" },
+    caveat: display.changed ? "workspaceSecurity.commentCellChanged" : display.moved ? "workspaceSecurity.commentCellMoved" : undefined,
   };
 }
 
@@ -501,6 +527,28 @@ const anchorHighlightTheme = EditorView.baseTheme({
   // screen there is no hover and the cell's long-press sheet is the way, so
   // the bubble stays away there instead of sticking to the last tapped cell.
   ".cm-anchor-bubble--cell": { top: "2px", right: "2px", width: "20px", height: "20px", fontSize: "var(--text-xs)" },
+  // A commented cell carries a corner triangle, the way a spreadsheet marks
+  // a note (finding 2026-09-03): it stays inside the cell where an outline
+  // ran over the borders, and a click on it opens the card. The active card
+  // tints the cell, still inside its edges.
+  ".cm-anchor-cell": { position: "relative" },
+  ".cm-anchor-cell--active": { backgroundColor: "var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent))" },
+  ".cm-anchor-corner": {
+    position: "absolute",
+    top: "0",
+    right: "0",
+    width: "0",
+    height: "0",
+    padding: "0",
+    margin: "0",
+    background: "transparent",
+    border: "0",
+    borderTop: "10px solid var(--comment-anchor-line-active, var(--accent-color))",
+    borderLeft: "10px solid transparent",
+    cursor: "pointer",
+  },
+  ".cm-anchor-cell--active .cm-anchor-corner": { borderTopWidth: "13px", borderLeftWidth: "13px" },
+  ".cm-anchor-corner:focus-visible": { outline: "2px solid var(--focus-ring, var(--accent-color))", outlineOffset: "1px" },
   "@media (hover: none)": {
     ".cm-anchor-host:hover .cm-anchor-bubble--cell": { display: "none" },
     ".cm-suggestion-host:hover .cm-suggestion-pill": { display: "none" },
@@ -606,10 +654,31 @@ export function decorateAnchorTarget(opts: {
   bubbleLabel?: string;
   /** A second class on the bubble - the table cell wants a smaller one. */
   bubbleClass?: string;
+  /**
+   * Draw the frame as a corner triangle inside the target instead of an
+   * outline around it (a table cell, V7). The label names the button.
+   */
+  corner?: { label: string };
 }): void {
-  const { view, host, target, range, display, frame, regions, pickRegion, bubbleLabel, bubbleClass } = opts;
+  const { view, host, target, range, display, frame, regions, pickRegion, bubbleLabel, bubbleClass, corner } = opts;
   host.classList.add("cm-anchor-host");
-  if (frame) {
+  if (frame && corner) {
+    target.classList.add("cm-anchor-cell");
+    if (frame.active) target.classList.add("cm-anchor-cell--active");
+    const button = host.ownerDocument.createElement("button");
+    button.type = "button";
+    button.className = "cm-anchor-corner";
+    button.setAttribute("aria-label", corner.label);
+    button.setAttribute("data-tip", corner.label);
+    // The corner carries the id, not the cell: a click on the cell's text
+    // still edits the cell, a click on the corner opens the card - through
+    // the shared mousedown handler, which is why nothing is stopped here.
+    button.setAttribute("data-pv-comment", frame.commentId);
+    button.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+    });
+    target.appendChild(button);
+  } else if (frame) {
     target.classList.add("cm-anchor-frame");
     if (frame.active) target.classList.add("cm-anchor-frame--active");
     // Same hook the tint uses, so one click handler serves text and widgets.

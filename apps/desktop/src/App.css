@@ -830,6 +830,27 @@ option {
   outline-color: var(--comment-anchor-line-active, var(--accent-color));
   background: var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent));
 }
+/* A commented cell in the read view: the corner triangle inside the cell, the
+   way the editor draws it (Tabellenzelle, V7). */
+.pv-read-anchor-cell {
+  position: relative;
+  cursor: pointer;
+}
+.pv-read-anchor-cell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-top: 10px solid var(--comment-anchor-line-active, var(--accent-color));
+  border-left: 10px solid transparent;
+}
+.pv-read-anchor-cell--active {
+  background: var(--comment-anchor-bg, color-mix(in srgb, var(--accent-color) 14%, transparent));
+}
+.pv-read-anchor-cell--active::after {
+  border-top-width: 13px;
+  border-left-width: 13px;
+}
 .pv-read-anchor-host {
   position: relative;
   display: inline-block;

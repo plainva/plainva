@@ -9,7 +9,10 @@ import {
   findAnchorMarker,
   insertAnchorMarkers,
   isAnchorMarkerId,
+  isLegacyTableQuote,
   mintAnchorMarkerId,
+  parseTablesIn,
+  stripWidgetAnchorMarkers,
   openAnchorMarker,
   propertyAnchorKey,
   removeAnchorMarkers,
@@ -409,5 +412,88 @@ describe("insertion point anchors (V1)", () => {
   it("refuses an insertion point without context or with a display hint", () => {
     expect(() => assertWorkspaceCommentAnchor({ markerId: "7f3a", quote: "", before: "", after: "", approximateOffset: 0 })).toThrow(/quote is invalid/);
     expect(() => assertWorkspaceCommentAnchor({ markerId: "7f3a", quote: "", before: "x", after: "", approximateOffset: 0, display: { kind: "image" } })).toThrow(/insertion point cannot carry/);
+  });
+});
+
+
+describe("table cell anchors (Tabellenzelle, V7)", () => {
+  const TABLE = ["| Key | Does |", "| --- | --- |", "| Mod+P | Palette |", "| Mod+O | Opener |"].join("\n");
+  const NOTE = `# Sheet\n\n${TABLE}\n\nAfter.\n`;
+  const tableFrom = NOTE.indexOf("| Key");
+  const tableTo = tableFrom + TABLE.length;
+  const cellAnchor = (row: number, column: number) => buildCommentAnchor(NOTE, tableFrom, tableTo, "7a7a", { kind: "tableCell", row, column });
+
+  it("quotes the cell, not the table, and keeps the coordinates in the hint", () => {
+    const anchor = cellAnchor(1, 1);
+    expect(anchor.quote).toBe("Palette");
+    expect(anchor.display).toEqual({ kind: "tableCell", row: 1, column: 1 });
+    expect(anchor.approximateOffset).toBe(NOTE.indexOf("Palette"));
+    // An empty cell keeps the table as its quote - an empty quote would read as an insertion point.
+    const withEmpty = NOTE.replace("| Mod+O | Opener |", "| Mod+O |  |");
+    const empty = buildCommentAnchor(withEmpty, tableFrom, tableFrom + withEmpty.indexOf("|  |") + 4 - tableFrom, "7a7b", { kind: "tableCell", row: 2, column: 1 });
+    expect(empty.quote.startsWith("| Key")).toBe(true);
+  });
+
+  it("finds the cell at its coordinates and names the column", () => {
+    const anchor = cellAnchor(1, 1);
+    const found = resolveCommentAnchor(NOTE, anchor);
+    expect(found.status).toBe("quote");
+    if (found.status === "orphan") throw new Error("unreachable");
+    expect(NOTE.slice(found.from, found.to)).toBe("Palette");
+    expect(found.cell).toEqual({ row: 1, column: 1, columnLabel: "Does" });
+  });
+
+  it("follows the cell when a row is inserted above it", () => {
+    const anchor = cellAnchor(2, 1);
+    const grown = NOTE.replace("| Mod+P | Palette |", "| Mod+K | Search |\n| Mod+P | Palette |");
+    const found = resolveCommentAnchor(grown, anchor);
+    expect(found.status).toBe("moved");
+    if (found.status === "orphan") throw new Error("unreachable");
+    expect(grown.slice(found.from, found.to)).toBe("Opener");
+    expect(found.cell).toEqual({ row: 3, column: 1, columnLabel: "Does" });
+  });
+
+  it("keeps a cell that changed its text, and says so", () => {
+    const anchor = cellAnchor(1, 1);
+    const edited = NOTE.replace("Palette", "Command palette");
+    const found = resolveCommentAnchor(edited, anchor);
+    expect(found.status).toBe("moved");
+    if (found.status === "orphan") throw new Error("unreachable");
+    expect(edited.slice(found.from, found.to)).toBe("Command palette");
+    expect(found.cell).toEqual({ row: 1, column: 1, columnLabel: "Does", changed: true });
+  });
+
+  it("orphans only when the whole table is gone", () => {
+    expect(resolveCommentAnchor("# Sheet\n\nNo table.\n", cellAnchor(1, 1)).status).toBe("orphan");
+  });
+
+  it("resolves an anchor from before V7 - the table as quote - the old way", () => {
+    const legacy = buildCommentAnchor(NOTE, tableFrom, tableTo, "7a7c");
+    const asCell = { ...legacy, display: { kind: "tableCell" as const, row: 1, column: 1 } };
+    expect(isLegacyTableQuote(asCell)).toBe(true);
+    const found = resolveCommentAnchor(NOTE, asCell);
+    expect(found.status).toBe("quote");
+    if (found.status === "orphan") throw new Error("unreachable");
+    expect(found.from).toBe(tableFrom);
+    expect("cell" in found).toBe(false);
+  });
+
+  it("parses escaped pipes and edge pipes without inventing cells", () => {
+    const tables = parseTablesIn("| a \\| b | c |\n|---|---|\n| | x |\n");
+    expect(tables).toHaveLength(1);
+    expect(tables[0].headers).toEqual(["a \\| b", "c"]);
+    expect(tables[0].cells.filter((cell) => cell.row === 1).map((cell) => cell.text)).toEqual(["", "x"]);
+  });
+
+  it("drops the marker pairs widget anchors wrote before the fix, and nothing else", () => {
+    const raw = `Intro <!--pv#1111-->word<!--/pv#1111--> and\n<!--pv#2222-->${TABLE}<!--/pv#2222-->\n`;
+    const { text, removed } = stripWidgetAnchorMarkers(raw, [
+      { markerId: "1111" },
+      { markerId: "2222", display: { kind: "tableCell", row: 1, column: 1 } },
+      { markerId: "3333", display: { kind: "image" } },
+      null,
+    ]);
+    expect(removed).toEqual(["2222"]);
+    expect(text).toBe(`Intro <!--pv#1111-->word<!--/pv#1111--> and\n${TABLE}\n`);
   });
 });

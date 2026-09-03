@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bookmark,
@@ -27,12 +27,12 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
+import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -277,6 +277,33 @@ export function NoteScreen({
       .catch(() => {});
     return () => { alive = false; };
   }, [vault.vaultId]);
+  /** Where each cell comment was found (V7): the sheet names the cell with it. */
+  const cellPlaces = useMemo(() => {
+    const out = new Map<string, AnchorCellPlace>();
+    if (doc === null) return out;
+    for (const comment of comments) {
+      if (!comment.anchor || comment.anchor.display?.kind !== "tableCell") continue;
+      const resolution = resolveCommentAnchor(doc, comment.anchor);
+      if (resolution.status === "orphan" || !resolution.cell) continue;
+      out.set(comment.commentId, { ...resolution.cell, moved: resolution.status === "moved" });
+    }
+    return out;
+  }, [doc, comments]);
+  // Widget anchors from before 2026-09-03 left a marker pair around the whole
+  // table; a pair around a table keeps the parser from seeing one (V7). The
+  // first look at the note with its comments takes the pair out - a normal
+  // save, once per note, never in the suggestion mode, never read-only.
+  const widgetMarkerCleanupRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (doc === null || comments.length === 0 || !workspaceCanWrite || suggesting) return;
+    if (widgetMarkerCleanupRef.current === path) return;
+    widgetMarkerCleanupRef.current = path;
+    const { text, removed } = stripWidgetAnchorMarkers(doc, comments.map((comment) => comment.anchor));
+    if (removed.length === 0) return;
+    setDoc(text);
+    noteSaver.schedule(vault, path, text);
+    setReloadTick((n) => n + 1);
+  }, [doc, comments, path, vault, workspaceCanWrite, suggesting]);
   const toggleSuggestionsInline = () => {
     const next = !suggestionsInline;
     setSuggestionsInline(next);
@@ -291,7 +318,9 @@ export function NoteScreen({
       if (resolution.status === "orphan") continue;
       const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
       out.push({
-        commentId: comment.commentId, from: resolution.from, to: resolution.to, frame: toAnchorFrameHint(comment.anchor.display),
+        commentId: comment.commentId, from: resolution.from, to: resolution.to,
+        // The corner sits on the cell where it is TODAY (V7, desktop parity).
+        frame: toAnchorFrameHint(comment.anchor.display, "cell" in resolution && resolution.cell ? { ...resolution.cell, moved: resolution.status === "moved" } : null),
         ...(suggestionsInline && open && !comment.anchor.display ? { suggestion: { replacement: open.replacement } } : {}),
       });
     }
@@ -841,6 +870,7 @@ export function NoteScreen({
           onDelete={(comment) => { void deleteComment(comment).catch((e) => toast.error(errorText(e))); }}
           inlineSuggestions={suggestionsInline}
           onToggleInlineSuggestions={toggleSuggestionsInline}
+          cellPlaces={cellPlaces}
           onApplyRound={(batchId) => { void applyRound(batchId).catch((e) => toast.error(errorText(e))); }}
           onDeclineRound={(batchId) => { void declineRound(batchId).catch((e) => toast.error(errorText(e))); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}

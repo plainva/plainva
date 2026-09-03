@@ -53,9 +53,10 @@ describe("applyReadAnchors", () => {
       { commentId: "c", from: 35, to: 40, frame: { ...frame, row: 1, column: 2 }, active: true },
     ]);
     expect(n.frames).toBe(2);
-    expect(cellA.properties?.className).toEqual(["pv-read-anchor-frame"]);
+    // A cell carries the corner triangle, not the outline (V7).
+    expect(cellA.properties?.className).toEqual(["pv-read-anchor-cell"]);
     expect(cellB.properties?.className).toBeUndefined();
-    expect(cellC.properties?.className).toEqual(["pv-read-anchor-frame", "pv-read-anchor-frame--active"]);
+    expect(cellC.properties?.className).toEqual(["pv-read-anchor-cell", "pv-read-anchor-cell--active"]);
     // A framed cell's text is not additionally tinted: the frame is the mark.
     expect(flat(tree)).toBe("alphabetagamma");
   });
@@ -79,6 +80,17 @@ describe("applyReadAnchors", () => {
     const tree = root(p);
     expect(applyReadAnchors(tree, [])).toEqual({ marks: 0, frames: 0 });
     expect(p.children).toHaveLength(1);
+  });
+});
+
+describe("a commented cell in the read view (Tabellenzelle, V7)", () => {
+  it("marks the cell with the corner class, not the outline, and names the comment", () => {
+    const td = el("td", [text("Palette", 30)], 30, 37);
+    const tree = root(el("tr", [td], 28, 40));
+    const n = applyReadAnchors(tree, [{ commentId: "c1", from: 30, to: 37, frame: { kind: "tableCell", row: 1, column: 1 }, active: true }]);
+    expect(n.frames).toBe(1);
+    expect(td.properties?.className).toEqual(["pv-read-anchor-cell", "pv-read-anchor-cell--active"]);
+    expect(td.properties?.dataCommentId).toBe("c1");
   });
 });
 

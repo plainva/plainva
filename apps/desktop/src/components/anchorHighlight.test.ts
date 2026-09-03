@@ -60,11 +60,19 @@ describe("anchorDisplayLabel", () => {
 
   it("reads the column one-based and keeps the row as stored", () => {
     // Row 0 is the header; column 0 is the first one a reader calls "1".
+    // No caveat by default (V7): a cell that sits where it was says nothing;
+    // only a moved or changed one earns a word.
     expect(anchorDisplayLabel({ kind: "tableCell", row: 2, column: 0 })).toEqual({
       key: "workspaceSecurity.commentAtCell",
-      params: { row: 2, column: 1 },
+      params: { row: 2, column: 1, label: "" },
+      caveat: undefined,
+    });
+    expect(anchorDisplayLabel({ kind: "tableCell", row: 3, column: 0, columnLabel: "Status", moved: true })).toEqual({
+      key: "workspaceSecurity.commentAtCellNamed",
+      params: { row: 3, column: 1, label: "Status" },
       caveat: "workspaceSecurity.commentCellMoved",
     });
+    expect(anchorDisplayLabel({ kind: "tableCell", row: 2, column: 0, changed: true }).caveat).toBe("workspaceSecurity.commentCellChanged");
   });
 
   it("says the cell may have moved instead of inventing coordinates", () => {

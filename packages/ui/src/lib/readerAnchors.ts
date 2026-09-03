@@ -21,6 +21,9 @@ export const READ_ANCHOR_CLASS = "pv-read-anchor";
 export const READ_ANCHOR_ACTIVE_CLASS = "pv-read-anchor--active";
 export const READ_ANCHOR_FRAME_CLASS = "pv-read-anchor-frame";
 export const READ_ANCHOR_FRAME_ACTIVE_CLASS = "pv-read-anchor-frame--active";
+/** A commented cell in the read view: the corner triangle, not an outline (V7). */
+export const READ_ANCHOR_CELL_CLASS = "pv-read-anchor-cell";
+export const READ_ANCHOR_CELL_ACTIVE_CLASS = "pv-read-anchor-cell--active";
 /** An open suggestion in the read view (K5): struck passage, inserted proposal. */
 export const READ_SUGGESTION_DEL_CLASS = "pv-read-suggestion-del";
 export const READ_SUGGESTION_INS_CLASS = "pv-read-suggestion-ins";
@@ -149,7 +152,13 @@ export function applyReadAnchors(tree: HastNode, highlights: readonly AnchorHigh
           const frames = highlights.filter((h) => h.frame && overlaps(h, from, to));
           if (frames.length > 0) {
             const active = frames.some((h) => h.active);
-            addClass(child, READ_ANCHOR_FRAME_CLASS, ...(active ? [READ_ANCHOR_FRAME_ACTIVE_CLASS] : []));
+            // A cell gets the corner triangle the editor draws (V7); a picture
+            // keeps its outline - it has no cell edge to stay inside of.
+            if (child.tagName !== "img" && frames.some((h) => h.frame?.kind === "tableCell")) {
+              addClass(child, READ_ANCHOR_CELL_CLASS, ...(active ? [READ_ANCHOR_CELL_ACTIVE_CLASS] : []));
+            } else {
+              addClass(child, READ_ANCHOR_FRAME_CLASS, ...(active ? [READ_ANCHOR_FRAME_ACTIVE_CLASS] : []));
+            }
             const props = (child.properties ??= {});
             props.dataCommentId = (frames.find((h) => h.active) ?? frames[0]).commentId;
             if (child.tagName === "img") {

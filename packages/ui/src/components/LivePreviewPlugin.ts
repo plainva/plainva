@@ -347,18 +347,25 @@ class TableWidget extends WidgetType {
     const wireCell = (cell: HTMLTableCellElement, kind: "header" | "body", rowIndex: number, colIndex: number) => {
       // The same speech bubble a picture shows on hover (K2). The cell menu
       // keeps the entry as the second door; this is the one people see.
+      // A cell that already carries a comment offers no second one (finding
+      // 2026-09-03): its corner triangle is the way to the thread, and a
+      // bubble beside it would sit on the triangle.
+      const row = kind === "header" ? 0 : rowIndex + 1;
+      const commented = this.frames.some((frame) => frame.kind === "tableCell" && frame.row === row && frame.column === colIndex);
       decorateAnchorTarget({
         view,
         host: cell,
         target: cell,
         range: { from: this.from, to: this.to },
-        display: { kind: "tableCell", row: kind === "header" ? 0 : rowIndex + 1, column: colIndex },
+        display: { kind: "tableCell", row, column: colIndex },
         frame: null,
-        bubbleLabel: i18n.t("workspaceSecurity.commentOnCell"),
+        bubbleLabel: commented ? undefined : i18n.t("workspaceSecurity.commentOnCell"),
         bubbleClass: "cm-anchor-bubble--cell",
       });
       cell.addEventListener("mousedown", (e) => {
         if (e.button !== 0) return; // left button only; right opens the menu
+        // The corner opens the card, not the cell editor (V7).
+        if (e.target instanceof HTMLElement && e.target.closest(".cm-anchor-corner")) return;
         // Read-only (mobile read mode): a cell tap must not open the editor —
         // the cell's own links (they stopPropagation) still handle their taps.
         if (!isEditorInteractive(view.state)) return;
@@ -436,6 +443,8 @@ class TableWidget extends WidgetType {
         display: frame,
         frame,
         // No bubble here: `wireCell` already gave every cell its own.
+        // The corner triangle instead of an outline (V7).
+        corner: { label: i18n.t("workspaceSecurity.commentCellOpen") },
       });
     }
     if (tableFrame) {

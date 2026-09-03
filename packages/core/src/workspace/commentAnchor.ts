@@ -112,13 +112,27 @@ export interface WorkspaceCommentAnchor {
 }
 
 /** How a stored anchor was found again - the four stages of section 5. */
+/**
+ * Where a cell anchor was found again (Tabellenzelle, V7): the coordinates as
+ * they are TODAY, the header the column carries, and whether the cell at the
+ * stored coordinates now says something else. A card names the cell with
+ * this; a widget draws the corner on it.
+ */
+export interface WorkspaceCellPlace {
+  row: number;
+  column: number;
+  columnLabel: string | null;
+  /** The cell is still where it was, but its text is not the quote any more. */
+  changed?: boolean;
+}
+
 export type WorkspaceCommentAnchorResolution =
   /** Stage 1: the marker pair is still there. Exact. */
-  | { status: "marker"; from: number; to: number }
+  | { status: "marker"; from: number; to: number; cell?: WorkspaceCellPlace }
   /** Stage 2: marker gone, the quote occurs exactly once. Re-anchoring is safe. */
-  | { status: "quote"; from: number; to: number }
+  | { status: "quote"; from: number; to: number; cell?: WorkspaceCellPlace }
   /** Stage 3: marker gone, several candidates - nearest to the stored offset. */
-  | { status: "moved"; from: number; to: number }
+  | { status: "moved"; from: number; to: number; cell?: WorkspaceCellPlace }
   /** Stage 4: the text is gone. The comment stays, without a place. */
   | { status: "orphan" };
 
@@ -257,6 +271,29 @@ export function buildCommentAnchor(raw: string, from: number, to: number, marker
   const stripped = stripAnchorMarkers(raw);
   const start = stripped.toClean(Math.min(from, to));
   const end = stripped.toClean(Math.max(from, to));
+  // A cell anchor quotes the CELL (Tabellenzelle, V7): the range is the whole
+  // table's source, but what the writer pointed at is one cell, and a card
+  // that quoted the table's Markdown showed the reader nothing they could
+  // recognise. The coordinates stay in the display hint; the text is what
+  // finds the cell again after a row was inserted above it. An empty cell
+  // keeps the table as its quote - an empty quote would read as an
+  // insertion point.
+  if (display?.kind === "tableCell" && display.row !== undefined && display.column !== undefined) {
+    const table = parseTablesIn(stripped.text.slice(start, end))[0];
+    const cell = table?.cells.find((candidate) => candidate.row === display.row && candidate.column === display.column);
+    if (cell && cell.text.length > 0) {
+      const cellStart = start + cell.from;
+      const cellEnd = start + cell.to;
+      return {
+        markerId,
+        quote: capBytes(cell.text, MAX_ANCHOR_QUOTE_BYTES),
+        before: stripped.text.slice(Math.max(0, cellStart - ANCHOR_CONTEXT_CHARS), cellStart),
+        after: stripped.text.slice(cellEnd, cellEnd + ANCHOR_CONTEXT_CHARS),
+        approximateOffset: cellStart,
+        display,
+      };
+    }
+  }
   const quote = capBytes(stripped.text.slice(start, end), MAX_ANCHOR_QUOTE_BYTES);
   return {
     markerId,
@@ -373,6 +410,7 @@ export function resolveCommentAnchor(raw: string, anchor: WorkspaceCommentAnchor
   const marker = findAnchorMarker(raw, anchor.markerId);
   if (marker) return { status: "marker", from: marker.from, to: marker.to };
   if (!anchor.quote) return resolveInsertionPoint(raw, anchor);
+  if (anchor.display?.kind === "tableCell" && !isLegacyTableQuote(anchor)) return resolveTableCell(raw, anchor);
   const stripped = stripAnchorMarkers(raw);
   const toRange = (start: number, status: "quote" | "moved"): WorkspaceCommentAnchorResolution => ({
     status,
@@ -385,6 +423,156 @@ export function resolveCommentAnchor(raw: string, anchor: WorkspaceCommentAnchor
   if (bare.length === 1) return toRange(bare[0], "quote");
   if (bare.length > 1) return toRange(nearest(bare, anchor.approximateOffset), "moved");
   return { status: "orphan" };
+}
+
+/**
+ * A cell anchor written before V7 quoted the whole table's Markdown. Such an
+ * anchor keeps resolving the old way - by its quote - and the card names the
+ * cell by the stored coordinates, without the cell's text.
+ */
+export function isLegacyTableQuote(anchor: Pick<WorkspaceCommentAnchor, "quote" | "display">): boolean {
+  if (anchor.display?.kind !== "tableCell") return false;
+  return anchor.quote.includes("\n") || anchor.quote.trimStart().startsWith("|");
+}
+
+/** One cell of a parsed table, with the offsets of its trimmed text. */
+export interface ParsedTableCell {
+  /** 0 is the header row, 1 the first body row (the separator line is no row). */
+  row: number;
+  column: number;
+  text: string;
+  from: number;
+  to: number;
+}
+
+export interface ParsedTable {
+  from: number;
+  to: number;
+  headers: string[];
+  cells: ParsedTableCell[];
+}
+
+const TABLE_SEPARATOR_LINE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+
+/** The cells of one table row between unescaped pipes; the edge pipes delimit, they are no cells. */
+function splitTableRow(line: string): Array<{ text: string; from: number; to: number }> {
+  const cells: Array<{ text: string; from: number; to: number }> = [];
+  const push = (start: number, end: number) => {
+    let from = start;
+    let to = end;
+    while (from < to && /\s/.test(line[from])) from += 1;
+    while (to > from && /\s/.test(line[to - 1])) to -= 1;
+    cells.push({ text: line.slice(from, to), from, to });
+  };
+  let start = 0;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "|") {
+      push(start, index);
+      start = index + 1;
+    }
+  }
+  push(start, line.length);
+  if (cells.length > 0 && cells[0].text === "" && line.trimStart().startsWith("|")) cells.shift();
+  const trimmed = line.trimEnd();
+  if (cells.length > 0 && cells[cells.length - 1].text === "" && trimmed.endsWith("|") && !trimmed.endsWith("\\|")) cells.pop();
+  return cells;
+}
+
+/**
+ * Every GFM table in a text, with its cells and their offsets (Tabellenzelle,
+ * V7). Deliberately the small grammar Plainva writes - a header line, a
+ * separator line, body lines, each starting with a pipe - so the core does
+ * not grow a Markdown parser for one question.
+ */
+export function parseTablesIn(text: string): ParsedTable[] {
+  const lines = text.split("\n");
+  const starts: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    starts.push(offset);
+    offset += line.length + 1;
+  }
+  const tables: ParsedTable[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const isHead = /^\s*\|/.test(lines[index]) && index + 1 < lines.length && lines[index + 1].includes("|") && TABLE_SEPARATOR_LINE.test(lines[index + 1]);
+    if (!isHead) {
+      index += 1;
+      continue;
+    }
+    const first = index;
+    let last = index + 1;
+    while (last + 1 < lines.length && /^\s*\|/.test(lines[last + 1])) last += 1;
+    const headerCells = splitTableRow(lines[first]);
+    const cells: ParsedTableCell[] = headerCells.map((cell, column) => ({ row: 0, column, text: cell.text, from: starts[first] + cell.from, to: starts[first] + cell.to }));
+    for (let line = first + 2; line <= last; line += 1) {
+      const row = line - first - 1;
+      for (const [column, cell] of splitTableRow(lines[line]).entries()) {
+        cells.push({ row, column, text: cell.text, from: starts[line] + cell.from, to: starts[line] + cell.to });
+      }
+    }
+    tables.push({ from: starts[first], to: starts[last] + lines[last].length, headers: headerCells.map((cell) => cell.text), cells });
+    index = last + 1;
+  }
+  return tables;
+}
+
+/**
+ * Finds a cell again (Tabellenzelle, V7): first at the stored coordinates in
+ * the table the writer looked at, then by its text - a row inserted above
+ * moves the cell and the card names the new row; a cell that is still where
+ * it was but says something else is reported as such instead of being lost.
+ */
+function resolveTableCell(raw: string, anchor: WorkspaceCommentAnchor): WorkspaceCommentAnchorResolution {
+  const stripped = stripAnchorMarkers(raw);
+  const tables = parseTablesIn(stripped.text);
+  if (tables.length === 0) return { status: "orphan" };
+  const row = anchor.display?.row;
+  const column = anchor.display?.column;
+  const place = (table: ParsedTable, cell: ParsedTableCell, status: "quote" | "moved", changed = false): WorkspaceCommentAnchorResolution => ({
+    status,
+    from: stripped.toRaw(cell.from),
+    to: stripped.toRaw(cell.to, "before"),
+    cell: { row: cell.row, column: cell.column, columnLabel: table.headers[cell.column] ?? null, ...(changed ? { changed: true } : {}) },
+  });
+  const home =
+    tables.find((table) => anchor.approximateOffset >= table.from && anchor.approximateOffset <= table.to) ??
+    tables.reduce((best, table) => (Math.abs(table.from - anchor.approximateOffset) < Math.abs(best.from - anchor.approximateOffset) ? table : best), tables[0]);
+  const atCoordinates = row !== undefined && column !== undefined ? home.cells.find((cell) => cell.row === row && cell.column === column) : undefined;
+  if (atCoordinates && atCoordinates.text === anchor.quote) return place(home, atCoordinates, "quote");
+  const inHome = home.cells.filter((cell) => cell.text === anchor.quote);
+  if (inHome.length === 1) return place(home, inHome[0], "moved");
+  const elsewhere = tables.flatMap((table) => table.cells.filter((cell) => cell.text === anchor.quote).map((cell) => ({ table, cell })));
+  if (elsewhere.length === 1) return place(elsewhere[0].table, elsewhere[0].cell, "moved");
+  if (atCoordinates) return place(home, atCoordinates, "moved", true);
+  return { status: "orphan" };
+}
+
+/**
+ * Drops the marker pairs that widget anchors wrote before 2026-09-03 (finding
+ * of that day: a pair around a table kept the parser from seeing a table).
+ * A picture, a diagram, a cell or a property is found by its display hint,
+ * never by the pair, so removing it loses nothing. Returns the ids removed,
+ * so a caller can tell a note that changed from one that did not.
+ */
+export function stripWidgetAnchorMarkers(
+  raw: string,
+  anchors: ReadonlyArray<Pick<WorkspaceCommentAnchor, "markerId" | "display"> | null | undefined>,
+): { text: string; removed: string[] } {
+  let text = raw;
+  const removed: string[] = [];
+  for (const anchor of anchors) {
+    if (!anchor?.display || !isAnchorMarkerId(anchor.markerId) || removed.includes(anchor.markerId)) continue;
+    if (!text.includes(openAnchorMarker(anchor.markerId)) && !text.includes(closeAnchorMarker(anchor.markerId))) continue;
+    text = removeAnchorMarkers(text, anchor.markerId);
+    removed.push(anchor.markerId);
+  }
+  return { text, removed };
 }
 
 /**
