@@ -34,6 +34,13 @@ export function isContentFontFamily(v: unknown): v is ContentFontFamily {
   return v === "theme" || v === "serif" || v === "sans" || v === "mono" || v === "custom";
 }
 
+/**
+ * Family keywords the renderer resolves itself. Quoted, "ui-serif" would be a
+ * font NAME nobody has; bare, it is New York on Apple and the serif face of
+ * the platform elsewhere — which is what the catalog rows for them promise.
+ */
+const GENERIC_FAMILIES = new Set(["serif", "sans-serif", "monospace", "system-ui", "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "-apple-system", "cursive", "fantasy"]);
+
 /** CSS string delimiters/escapes that must never survive sanitizing. */
 const FORBIDDEN_FONT_CHARS = ';{}"\'`\\';
 
@@ -69,7 +76,8 @@ export function resolveFontFamilyValue(family: ContentFontFamily, customName: st
   if (family === "custom") {
     const name = sanitizeFontName(customName);
     if (!name) return null;
-    const value = `"${name}", ${FONT_FAMILY_STACKS.sans}`;
+    const family = GENERIC_FAMILIES.has(name.toLowerCase()) ? name.toLowerCase() : `"${name}"`;
+    const value = `${family}, ${FONT_FAMILY_STACKS.sans}`;
     return fontFamilySupported(value) ? value : null;
   }
   return FONT_FAMILY_STACKS[family];

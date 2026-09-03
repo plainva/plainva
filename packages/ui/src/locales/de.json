@@ -376,6 +376,8 @@
     "exportDiagnostics": "Diagnose exportieren…",
     "fontCustom": "Benutzerdefiniert…",
     "fontCustomPlaceholder": "Name einer installierten Schriftart",
+    "fontNotInstalled": "Nicht installiert",
+    "fontCatalogHint": "Tippe eine Schrift an, um sie zu verwenden; das Feld darunter nimmt jeden anderen installierten Namen.",
     "fontMono": "Monospace",
     "fontSans": "Sans-Serif",
     "fontSerif": "Serif",

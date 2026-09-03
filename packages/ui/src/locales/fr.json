@@ -378,6 +378,8 @@
     "exportDiagnostics": "Exporter le diagnostic…",
     "fontCustom": "Personnalisée…",
     "fontCustomPlaceholder": "Nom d'une police installée",
+    "fontNotInstalled": "Non installée",
+    "fontCatalogHint": "Touchez une police pour l’utiliser ; le champ ci-dessous accepte toute autre famille installée.",
     "fontMono": "Monospace",
     "fontSans": "Sans-serif",
     "fontSerif": "Serif",

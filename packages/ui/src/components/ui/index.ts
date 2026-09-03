@@ -33,5 +33,6 @@ export {
   type SettingCardNoteProps,
 } from "./SettingsSurface";
 export { TooltipHost } from "./Tooltip";
+export { FontCatalogPicker, type FontCatalogPickerProps } from "./FontCatalogPicker";
 export { GroupCard, Row, RowList, SectionLabel, SettingField } from "./GroupedRows";
 export { cx } from "./cx";

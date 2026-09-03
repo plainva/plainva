@@ -380,6 +380,8 @@
     "exportDiagnostics": "Eksportuj diagnostykę…",
     "fontCustom": "Niestandardowa…",
     "fontCustomPlaceholder": "Nazwa zainstalowanej czcionki",
+    "fontNotInstalled": "Niezainstalowana",
+    "fontCatalogHint": "Dotknij czcionki, aby jej użyć; pole poniżej przyjmuje każdą inną zainstalowaną rodzinę.",
     "fontMono": "O stałej szerokości",
     "fontSans": "Bezszeryfowa",
     "fontSerif": "Szeryfowa",

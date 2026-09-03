@@ -376,6 +376,8 @@
     "exportDiagnostics": "Diagnose exporteren…",
     "fontCustom": "Aangepast…",
     "fontCustomPlaceholder": "Naam van een geïnstalleerd lettertype",
+    "fontNotInstalled": "Niet geïnstalleerd",
+    "fontCatalogHint": "Tik op een lettertype om het te gebruiken; het veld eronder accepteert elke andere geïnstalleerde naam.",
     "fontMono": "Monospace",
     "fontSans": "Sans-serif",
     "fontSerif": "Serif",

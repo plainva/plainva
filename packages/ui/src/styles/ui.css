@@ -2997,3 +2997,17 @@ tr.is-selected > td { color: var(--on-accent-container); }
   background: var(--accent-container);
   color: var(--on-accent-container);
 }
+
+/* Font catalog picker (P12): the list in front of the free-text field, on
+   both shells. Layout only — the rows are the themed .pv-grouprow. */
+.pv-fontpick {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.pv-fontpick-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}

@@ -8,6 +8,8 @@ import {
   SettingRow,
   SettingsPageHead,
   settingsArea,
+  FontCatalogPicker,
+  TextInput,
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
 import { BackgroundSettings } from "./BackgroundSettings";
@@ -220,6 +222,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
             <Select
               ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
               value={p.contentFont.family}
+              data-testid="content-font-family"
               onChange={(v) => p.onContentFont({ ...p.contentFont, family: v as ContentFontFamily })}
               options={[
                 { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
@@ -230,13 +233,23 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               ]}
             />
             {p.contentFont.family === "custom" && (
-              <input
-                autoComplete="off"
-                value={p.contentFont.customName}
-                placeholder={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
-                onChange={(e) => p.onContentFont({ ...p.contentFont, customName: e.target.value })}
-                className="pv-field" style={{ width: "100%" }}
-              />
+              /* The curated list first (T7): a preview per row and a verdict on
+                 whether the device has the font. The name field stays for a
+                 family the list does not know. */
+              <>
+                <FontCatalogPicker
+                  value={p.contentFont.customName}
+                  onPick={(font) => p.onContentFont({ ...p.contentFont, family: "custom", customName: font.css })}
+                />
+                <TextInput
+                  autoComplete="off"
+                  value={p.contentFont.customName}
+                  placeholder={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
+                  aria-label={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
+                  onChange={(e) => p.onContentFont({ ...p.contentFont, customName: e.target.value })}
+                  data-testid="content-font-custom"
+                />
+              </>
             )}
           </div>
         </SettingRow>

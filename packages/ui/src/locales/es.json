@@ -378,6 +378,8 @@
     "exportDiagnostics": "Exportar diagnóstico…",
     "fontCustom": "Personalizada…",
     "fontCustomPlaceholder": "Nombre de una fuente instalada",
+    "fontNotInstalled": "No instalada",
+    "fontCatalogHint": "Toca una fuente para usarla; el campo de abajo acepta cualquier otra familia instalada.",
     "fontMono": "Monoespaciada",
     "fontSans": "Sans-serif",
     "fontSerif": "Serif",

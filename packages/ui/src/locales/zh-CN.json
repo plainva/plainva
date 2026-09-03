@@ -374,6 +374,8 @@
     "exportDiagnostics": "导出诊断信息…",
     "fontCustom": "自定义…",
     "fontCustomPlaceholder": "已安装字体的名称",
+    "fontNotInstalled": "未安装",
+    "fontCatalogHint": "点按字体即可使用；下方的输入框可填写任何其他已安装的字体名称。",
     "fontMono": "等宽",
     "fontSans": "无衬线",
     "fontSerif": "衬线",

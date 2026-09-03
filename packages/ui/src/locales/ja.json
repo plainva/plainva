@@ -374,6 +374,8 @@
     "exportDiagnostics": "診断情報をエクスポート…",
     "fontCustom": "カスタム…",
     "fontCustomPlaceholder": "インストール済みフォント名",
+    "fontNotInstalled": "未インストール",
+    "fontCatalogHint": "フォントをタップすると使用できます。下の欄には、インストール済みの他のフォント名も入力できます。",
     "fontMono": "等幅",
     "fontSans": "サンセリフ",
     "fontSerif": "セリフ",

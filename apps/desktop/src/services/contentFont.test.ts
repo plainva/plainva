@@ -82,3 +82,11 @@ describe("uiZoom", () => {
     expect(clampUiZoom(undefined)).toBe(DEFAULT_UI_ZOOM);
   });
 });
+
+describe("resolveFontFamilyValue with the catalog's generic keywords (P12)", () => {
+  it("leaves a generic family keyword unquoted and quotes a real name", () => {
+    expect(resolveFontFamilyValue("custom", "ui-serif")).toMatch(/^ui-serif, /);
+    expect(resolveFontFamilyValue("custom", "-apple-system")).toMatch(/^-apple-system, /);
+    expect(resolveFontFamilyValue("custom", "Avenir Next")).toMatch(/^"Avenir Next", /);
+  });
+});

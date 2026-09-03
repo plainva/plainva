@@ -370,6 +370,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-banner": "status colors come from the shared --error/--warning tokens the themes already override",
   "pv-searchfield": "field family — LCARS/Win95 restyle .pv-field and inputs generically",
   "pv-selecttrigger": "renders the .pv-field metric; panel is covered via .pv-popover overrides",
+  "pv-fontpick": "layout only — a scroll host around .pv-grouprow rows, which the themes restyle; the hint is --text-muted",
   "pv-selectpanel": "popover contract — themes restyle .pv-popover/.pv-menu generically",
   "pv-selectsearch": "internal row of the select panel",
   "pv-selectopt": "menu-row grammar — themes restyle menu rows generically",

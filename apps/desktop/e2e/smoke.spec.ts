@@ -2837,3 +2837,32 @@ test('Live preview: a bullet with nested lines folds its list on click (T8c)', a
   const written = await page.evaluate(() => (window as any).mockFs['/test-vault/Fold.md']);
   expect(written).toBe('# Fold\n\n- Parent\n  - child one\n  - child two\n- Flat\n');
 });
+
+test('Editor settings: the content font offers a catalog with preview, the name field stays (T7)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  // The content font lives on the Editor page (Appearance holds theme and chrome).
+  await dialog.getByRole('button', { name: /^Editor & (notes|Notizen)$/ }).click();
+
+  // "Custom…" opens the catalog above the name field.
+  await dialog.getByTestId('content-font-family').click();
+  await page.getByRole('option', { name: /Benutzerdefiniert|Custom/ }).click();
+  const catalog = dialog.getByTestId('font-catalog');
+  await expect(catalog).toBeVisible();
+  const rows = catalog.locator('.pv-grouprow');
+  expect(await rows.count()).toBeGreaterThan(4);
+
+  // A row previews itself in its own font and, picked, fills the name field.
+  const georgia = dialog.getByTestId('font-catalog-Georgia');
+  await expect(georgia.locator('.pv-grouprow-title span')).toHaveCSS('font-family', /Georgia/);
+  await georgia.click();
+  await expect(dialog.getByTestId('content-font-custom')).toHaveValue('Georgia');
+  await expect(georgia).toHaveAttribute('aria-pressed', 'true');
+  // …and the note content follows.
+  await expect
+    .poll(async () => await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-content')))
+    .toContain('Georgia');
+});

@@ -376,6 +376,8 @@
     "exportDiagnostics": "Export diagnostics…",
     "fontCustom": "Custom…",
     "fontCustomPlaceholder": "Name of an installed font",
+    "fontNotInstalled": "Not installed",
+    "fontCatalogHint": "Tap a font to use it; the name field below takes any other installed family.",
     "fontMono": "Monospace",
     "fontSans": "Sans-serif",
     "fontSerif": "Serif",

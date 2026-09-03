@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -181,6 +181,14 @@ const MOTIONS: Array<[MotionPref, string]> = [
           value={settings.contentFontFamily}
           onChange={(v) => update({ contentFontFamily: v as ContentFontFamily })}
         />
+        {settings.contentFontFamily === "custom" && (
+          /* The curated list first (T7): preview per row, "not installed"
+             where the phone lacks the font. The name field stays below. */
+          <FontCatalogPicker
+            value={settings.contentFontCustom}
+            onPick={(font) => update({ contentFontFamily: "custom", contentFontCustom: font.css })}
+          />
+        )}
         {settings.contentFontFamily === "custom" && (
           <GroupCard>
             <RowList>
