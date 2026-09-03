@@ -35,6 +35,10 @@ export interface LocalCommentRecord {
    * counts. Appended like a resolution, because the merge below is a union.
    */
   retractsCommentId?: string | null;
+  /** The round a proposal was sent in (Vorschlagsmodus, V1). */
+  suggestionBatchId?: string | null;
+  batchIndex?: number | null;
+  batchNote?: string | null;
   /** The device that wrote it. In a plain vault a device IS the author. */
   authorDeviceId: string;
   body: string;
@@ -156,6 +160,20 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
       // A proposal names the passage it replaces; without an anchor there is no
       // passage, and the reader would have nothing to strike through.
       if (raw.anchor === null) throw new CommentBundleError("comment suggestion has no anchor");
+      // An insertion point (empty quote) only ever ADDS text (V1).
+      if ((raw.anchor as { quote?: unknown }).quote === "" && raw.suggestion.replacement.length === 0) throw new CommentBundleError("comment insertion has no text");
+    } else if (raw.anchor !== null && (raw.anchor as { quote?: unknown }).quote === "") {
+      throw new CommentBundleError("comment insertion point without a suggestion");
+    }
+    // The round (V1): id, position and note travel together, on proposals only.
+    const batchId = (raw as { suggestionBatchId?: unknown }).suggestionBatchId ?? null;
+    const batchIndex = (raw as { batchIndex?: unknown }).batchIndex ?? null;
+    const batchNote = (raw as { batchNote?: unknown }).batchNote ?? null;
+    if (batchId !== null || batchIndex !== null || batchNote !== null) {
+      if (raw.suggestion === null) throw new CommentBundleError("comment round without a suggestion");
+      if (!isHexId(batchId)) throw new CommentBundleError("comment round id is malformed");
+      if (typeof batchIndex !== "number" || !Number.isSafeInteger(batchIndex) || batchIndex < 0) throw new CommentBundleError("comment round index is malformed");
+      if (batchNote !== null && (typeof batchNote !== "string" || new TextEncoder().encode(batchNote).length > 1024)) throw new CommentBundleError("comment round note is malformed");
     }
     // Same rule as the sealed path: a marker carries no text of its own, but
     // anything that is not a marker has to say something.
@@ -271,6 +289,9 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
             }
           : null,
         suggestionOutcome: record.suggestionOutcome,
+        suggestionBatchId: record.suggestionBatchId ?? null,
+        batchIndex: record.batchIndex ?? null,
+        batchNote: record.batchNote ?? null,
         createdAt: record.createdAt,
         resolvedCommentId: record.resolvedCommentId,
         resolvedAt: closed?.at ?? null,

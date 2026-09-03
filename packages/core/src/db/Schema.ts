@@ -171,7 +171,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       resolved_comment_id TEXT,
       resolved_at       TEXT,
       retracts_comment_id TEXT,
-      retracted_at      TEXT
+      retracted_at      TEXT,
+      suggestion_batch_id TEXT,
+      batch_index       INTEGER,
+      batch_note        TEXT
     );`,
     // Remarks written on this device that the worker has not published yet
     // (K6): shown at once, uploaded in order by the next cycle. Additive.
@@ -189,7 +192,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       suggestion_outcome TEXT,
       created_at        TEXT NOT NULL,
       attempts          INTEGER NOT NULL DEFAULT 0,
-      last_error        TEXT
+      last_error        TEXT,
+      suggestion_batch_id TEXT,
+      batch_index       INTEGER,
+      batch_note        TEXT
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_quarantine (
       quarantine_id    TEXT PRIMARY KEY,
@@ -373,6 +379,13 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     `ALTER TABLE workspace_comment ADD COLUMN retracts_comment_id TEXT;`,
     `ALTER TABLE workspace_comment ADD COLUMN retracted_at TEXT;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN retracts_comment_id TEXT;`,
+    // The proposal round (Vorschlagsmodus V1, 2026-09-03).
+    `ALTER TABLE workspace_comment ADD COLUMN suggestion_batch_id TEXT;`,
+    `ALTER TABLE workspace_comment ADD COLUMN batch_index INTEGER;`,
+    `ALTER TABLE workspace_comment ADD COLUMN batch_note TEXT;`,
+    `ALTER TABLE workspace_comment_outbox ADD COLUMN suggestion_batch_id TEXT;`,
+    `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_index INTEGER;`,
+    `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_note TEXT;`,
   ]) {
     try {
       await db.execute(statement);

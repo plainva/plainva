@@ -143,3 +143,21 @@ describe("publishQueuedComments", () => {
     expect(await state.listCommentOutbox()).toHaveLength(1);
   });
 });
+
+describe("a proposal round through the outbox (V1)", () => {
+  it("keeps the round id, position and note, and an insertion point, on the published record", async () => {
+    const { state, worker, object } = await syncedWorkspace();
+    const batch = createWorkspaceObjectId();
+    const text = "The contract runs until the end of the year.";
+    const point = { markerId: "7f3a", quote: "", before: text.slice(-20), after: "", approximateOffset: text.length };
+    await state.enqueueCommentOutbox(entry({ targetObjectId: object.objectId, body: "", anchor: point, suggestion: { replacement: " It renews automatically." }, suggestionBatchId: batch, batchIndex: 0, batchNote: "From the PDF" }));
+    await worker.runCycle();
+    expect(await state.listCommentOutbox()).toEqual([]);
+    const [stored] = await state.listComments(object.objectId);
+    expect(stored.suggestionBatchId).toBe(batch);
+    expect(stored.batchIndex).toBe(0);
+    expect(stored.batchNote).toBe("From the PDF");
+    expect(stored.anchor?.quote).toBe("");
+    expect(stored.suggestion?.replacement).toBe(" It renews automatically.");
+  });
+});

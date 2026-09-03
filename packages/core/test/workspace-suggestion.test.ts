@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { assertWorkspaceSuggestion } from "../src/workspace/collaboration.js";
+import { assertWorkspaceSuggestion, assertWorkspaceSuggestionBatch } from "../src/workspace/collaboration.js";
 import type { WorkspaceCommentAnchor } from "../src/workspace/commentAnchor.js";
 
 /**
@@ -64,5 +64,26 @@ describe("workspace suggestion rules", () => {
     // undefined is what an older comment parses to. It must pass every rule
     // untouched - that is what makes the field additive.
     expect(() => assertWorkspaceSuggestion(undefined, undefined, undefined, null)).not.toThrow();
+  });
+});
+
+describe("insertion points and rounds (Vorschlagsmodus, V1)", () => {
+  const POINT: WorkspaceCommentAnchor = { markerId: "7f3a", quote: "", before: "the year.", after: " It renews", approximateOffset: 44 };
+
+  it("lets an insertion point carry only a proposal that adds text", () => {
+    expect(() => assertWorkspaceSuggestion({ replacement: "Please confirm." }, POINT, null, null)).not.toThrow();
+    expect(() => assertWorkspaceSuggestion({ replacement: "" }, POINT, null, null)).toThrow(/needs text to insert/);
+    expect(() => assertWorkspaceSuggestion(null, POINT, null, null)).toThrow(/anchors only a proposal/);
+  });
+
+  it("keeps a round's three fields together and on a proposal", () => {
+    const id = "ab".repeat(16);
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: id, batchIndex: 0, batchNote: null }, { replacement: "x" })).not.toThrow();
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: id, batchIndex: 2, batchNote: "Datum aus dem PDF" }, { replacement: "x" })).not.toThrow();
+    expect(() => assertWorkspaceSuggestionBatch({}, null)).not.toThrow();
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: id, batchIndex: 0 }, null)).toThrow(/belongs to a proposal/);
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: "nope", batchIndex: 0 }, { replacement: "x" })).toThrow(/round id is invalid/);
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: id, batchIndex: -1 }, { replacement: "x" })).toThrow(/round index is invalid/);
+    expect(() => assertWorkspaceSuggestionBatch({ suggestionBatchId: id, batchIndex: 0, batchNote: "n".repeat(1025) }, { replacement: "x" })).toThrow(/note is too large/);
   });
 });

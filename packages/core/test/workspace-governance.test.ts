@@ -223,7 +223,10 @@ describe("workspace governance P4-P7 contracts", () => {
     const base = { runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 1, previousDeviceOperationHash: null, targetObjectId: "41".repeat(16), targetRevisionId: "42".repeat(16), body: "Welches Jahr?", recipients, now: "2026-08-25T10:00:00.000Z" };
     const good = buildCommentAnchor("Der Vertrag laeuft.", 4, 11, "7f3a");
     await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, markerId: "ZZZZ" } })).rejects.toThrow(/marker id/);
-    await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, quote: "" } })).rejects.toThrow(/quote/);
+    // An empty quote is an insertion point since V1 - still refused on a plain
+    // remark, only with the word for what it now is.
+    await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, quote: "" } })).rejects.toThrow(/insertion point anchors only a proposal/);
+    await expect(prepareWorkspaceComment({ ...base, anchor: { ...good, quote: "", before: "", after: "" } })).rejects.toThrow(/quote is invalid/);
   });
 
   it("refuses a forged anchor that never passed through our own prepare step", async () => {

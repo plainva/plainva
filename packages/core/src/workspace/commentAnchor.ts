@@ -87,7 +87,15 @@ export interface WorkspaceCommentAnchorRect {
 export interface WorkspaceCommentAnchor {
   /** Same id as in the HTML comment pair. Four lowercase hex characters. */
   markerId: string;
-  /** The marked text, capped at MAX_ANCHOR_QUOTE_BYTES. */
+  /**
+   * The marked text, capped at MAX_ANCHOR_QUOTE_BYTES.
+   *
+   * Empty for an INSERTION POINT (Vorschlagsmodus, V1): a proposal that adds
+   * text has no passage, only a place, and the place is described by the
+   * context alone. Such an anchor never carries a marker pair (a pair around
+   * nothing would be a marker for nothing) and only ever belongs to a
+   * suggestion with a non-empty replacement - the protocol refuses the rest.
+   */
   quote: string;
   /** Up to ANCHOR_CONTEXT_CHARS characters before the quote. */
   before: string;
@@ -364,7 +372,7 @@ function nearest(candidates: number[], target: number): number {
 export function resolveCommentAnchor(raw: string, anchor: WorkspaceCommentAnchor): WorkspaceCommentAnchorResolution {
   const marker = findAnchorMarker(raw, anchor.markerId);
   if (marker) return { status: "marker", from: marker.from, to: marker.to };
-  if (!anchor.quote) return { status: "orphan" };
+  if (!anchor.quote) return resolveInsertionPoint(raw, anchor);
   const stripped = stripAnchorMarkers(raw);
   const toRange = (start: number, status: "quote" | "moved"): WorkspaceCommentAnchorResolution => ({
     status,
@@ -379,10 +387,44 @@ export function resolveCommentAnchor(raw: string, anchor: WorkspaceCommentAnchor
   return { status: "orphan" };
 }
 
+/**
+ * Where an insertion goes (Vorschlagsmodus, V1): the place between `before`
+ * and `after`. Both together first - that is the exact spot; then either
+ * alone, which is a guess and says so ("moved"); nothing found is an orphan,
+ * like a passage that is gone. The result is an EMPTY range at the point.
+ */
+function resolveInsertionPoint(raw: string, anchor: WorkspaceCommentAnchor): WorkspaceCommentAnchorResolution {
+  if (!anchor.before && !anchor.after) return { status: "orphan" };
+  const stripped = stripAnchorMarkers(raw);
+  const point = (start: number, status: "quote" | "moved"): WorkspaceCommentAnchorResolution => {
+    const at = stripped.toRaw(start);
+    return { status, from: at, to: at };
+  };
+  const both = occurrences(stripped.text, anchor.before + anchor.after);
+  if (both.length === 1) return point(both[0] + anchor.before.length, "quote");
+  if (both.length > 1) return point(nearest(both, Math.max(0, anchor.approximateOffset - anchor.before.length)) + anchor.before.length, "moved");
+  const befores = anchor.before ? occurrences(stripped.text, anchor.before) : [];
+  if (befores.length === 1) return point(befores[0] + anchor.before.length, "moved");
+  const afters = anchor.after ? occurrences(stripped.text, anchor.after) : [];
+  if (afters.length === 1) return point(afters[0], "moved");
+  return { status: "orphan" };
+}
+
+/** True for an anchor that names a place, not a passage (Vorschlagsmodus, V1). */
+export function isInsertionAnchor(anchor: WorkspaceCommentAnchor | null | undefined): boolean {
+  return !!anchor && anchor.quote.length === 0;
+}
+
 /** Protocol-side validation of an anchor arriving from another device. */
 export function assertWorkspaceCommentAnchor(anchor: WorkspaceCommentAnchor): void {
   protocolAssert(isAnchorMarkerId(anchor.markerId), "format", "comment anchor marker id is invalid");
-  protocolAssert(typeof anchor.quote === "string" && anchor.quote.length >= 1 && utf8Encode(anchor.quote).length <= MAX_ANCHOR_QUOTE_BYTES, "bounds", "comment anchor quote is invalid");
+  protocolAssert(typeof anchor.quote === "string" && utf8Encode(anchor.quote).length <= MAX_ANCHOR_QUOTE_BYTES, "bounds", "comment anchor quote is invalid");
+  // An insertion point (empty quote) needs context on at least one side and
+  // cannot sit on a widget - a picture has no "between".
+  if (anchor.quote.length === 0) {
+    protocolAssert((typeof anchor.before === "string" && anchor.before.length >= 1) || (typeof anchor.after === "string" && anchor.after.length >= 1), "bounds", "comment anchor quote is invalid");
+    protocolAssert(anchor.display === undefined, "format", "an insertion point cannot carry a display hint");
+  }
   protocolAssert(typeof anchor.before === "string" && [...anchor.before].length <= ANCHOR_CONTEXT_CHARS, "bounds", "comment anchor context is too large");
   protocolAssert(typeof anchor.after === "string" && [...anchor.after].length <= ANCHOR_CONTEXT_CHARS, "bounds", "comment anchor context is too large");
   assertSafeInteger(anchor.approximateOffset, 0, Number.MAX_SAFE_INTEGER, "comment anchor offset");

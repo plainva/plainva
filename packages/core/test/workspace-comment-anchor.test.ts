@@ -374,3 +374,40 @@ describe("property anchors (Stufe E, E2)", () => {
     expect(propertyAnchorKey(null)).toBeNull();
   });
 });
+
+/**
+ * An insertion point (Vorschlagsmodus, V1): an anchor with an empty quote that
+ * names a PLACE by its context. It resolves to an empty range, says "moved"
+ * when only one side of the context still matches, and is an orphan when the
+ * place is gone. It never carries a marker pair or a display hint, and the
+ * protocol refuses it on anything but a proposal that adds text.
+ */
+describe("insertion point anchors (V1)", () => {
+  const TEXT = "The contract runs until the end of the year. It renews automatically.";
+  const AT = TEXT.indexOf(" It renews");
+
+  it("captures the place with an empty quote and context on both sides", () => {
+    const anchor = buildCommentAnchor(TEXT, AT, AT, "7f3a");
+    expect(anchor.quote).toBe("");
+    expect(anchor.before.endsWith("end of the year.")).toBe(true);
+    expect(anchor.after.startsWith(" It renews")).toBe(true);
+    expect(() => assertWorkspaceCommentAnchor(anchor)).not.toThrow();
+    expect(resolveCommentAnchor(TEXT, anchor)).toEqual({ status: "quote", from: AT, to: AT });
+  });
+
+  it("finds the place again after edits elsewhere, and says 'moved' when one side is gone", () => {
+    const anchor = buildCommentAnchor(TEXT, AT, AT, "7f3a");
+    const edited = "PREAMBLE. " + TEXT;
+    expect(resolveCommentAnchor(edited, anchor)).toEqual({ status: "quote", from: AT + 10, to: AT + 10 });
+    const afterGone = "The contract runs until the end of the year. Something else.";
+    const moved = resolveCommentAnchor(afterGone, anchor);
+    expect(moved.status).toBe("moved");
+    if (moved.status === "moved") expect(moved.from).toBe("The contract runs until the end of the year.".length);
+    expect(resolveCommentAnchor("Nothing of it remains.", anchor)).toEqual({ status: "orphan" });
+  });
+
+  it("refuses an insertion point without context or with a display hint", () => {
+    expect(() => assertWorkspaceCommentAnchor({ markerId: "7f3a", quote: "", before: "", after: "", approximateOffset: 0 })).toThrow(/quote is invalid/);
+    expect(() => assertWorkspaceCommentAnchor({ markerId: "7f3a", quote: "", before: "x", after: "", approximateOffset: 0, display: { kind: "image" } })).toThrow(/insertion point cannot carry/);
+  });
+});

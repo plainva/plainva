@@ -3,7 +3,7 @@ import type { WorkspaceObjectStore } from "./objectStore.js";
 import { createWorkspaceObjectId, createWorkspaceRevisionId, type WorkspaceGroupKeyEpoch } from "./identity.js";
 import { encodeWorkspaceDocument, signWorkspaceDocument, workspaceDocumentHash, type WorkspaceOperationPayload, type WorkspaceSignedDocument } from "./documents.js";
 import { openPvc1Chunk, openPvo1Frame, sealInlinePvo1, verifyChunkedPlaintextHash, type Pvo1Recipient } from "./pvo1.js";
-import { assertWorkspaceCommentAnchor, type WorkspaceCommentAnchor } from "./commentAnchor.js";
+import { assertWorkspaceCommentAnchor, isInsertionAnchor, type WorkspaceCommentAnchor } from "./commentAnchor.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import { decodeBase64Exact, fromBase64, sha256Hex, toBase64, utf8DecodeFatal, utf8Encode } from "./encoding.js";
 import { evaluateWorkspaceAccess } from "./authorization.js";
@@ -37,6 +37,14 @@ export interface WorkspaceCommentBody {
    */
   suggestion?: { replacement: string } | null;
   /**
+   * The round this proposal was sent in (Vorschlagsmodus, V1): every block of
+   * one "send" carries the same id, its position in the round, and the
+   * optional sentence the proposer wrote for the whole round. All additive.
+   */
+  suggestionBatchId?: string | null;
+  batchIndex?: number | null;
+  batchNote?: string | null;
+  /**
    * What became of the suggestion this marker closes - only ever set together
    * with resolvedCommentId. Accepting and declining both resolve the thread;
    * without this field a second device could not tell them apart, because the
@@ -68,11 +76,34 @@ export function assertWorkspaceSuggestion(suggestion: { replacement: string } | 
     protocolAssert(typeof suggestion.replacement === "string" && utf8Encode(suggestion.replacement).length <= 64 * 1024, "bounds", "suggestion replacement is invalid");
     protocolAssert(!!anchor, "integrity", "a suggestion needs an anchored passage");
     protocolAssert(resolvedCommentId === null, "integrity", "a suggestion cannot also resolve a thread");
+    // An insertion point (empty quote) is only ever a place to ADD text: an
+    // empty replacement there would delete nothing and add nothing.
+    protocolAssert(!isInsertionAnchor(anchor) || suggestion.replacement.length >= 1, "integrity", "an insertion point needs text to insert");
+  } else {
+    // A plain remark hangs on a passage or on the whole note - never on a place
+    // between two characters; that place is a proposal's alone.
+    protocolAssert(!isInsertionAnchor(anchor), "integrity", "an insertion point anchors only a proposal");
   }
   if (outcome !== null && outcome !== undefined) {
     protocolAssert(outcome === "applied" || outcome === "declined", "format", "suggestion outcome is invalid");
     protocolAssert(resolvedCommentId !== null, "integrity", "a suggestion outcome needs the suggestion it closes");
   }
+}
+
+/**
+ * The round a proposal belongs to (Vorschlagsmodus, V1). The three fields
+ * travel together: an id without a position or a note without an id would be a
+ * round nobody can reassemble.
+ */
+export function assertWorkspaceSuggestionBatch(batch: { suggestionBatchId?: string | null; batchIndex?: number | null; batchNote?: string | null }, suggestion: { replacement: string } | null | undefined): void {
+  const id = batch.suggestionBatchId ?? null;
+  const index = batch.batchIndex ?? null;
+  const note = batch.batchNote ?? null;
+  if (id === null && index === null && note === null) return;
+  protocolAssert(suggestion !== null && suggestion !== undefined, "integrity", "a round belongs to a proposal");
+  protocolAssert(typeof id === "string" && /^[0-9a-f]{32}$/.test(id), "format", "suggestion round id is invalid");
+  protocolAssert(typeof index === "number" && Number.isSafeInteger(index) && index >= 0 && index <= 100000, "bounds", "suggestion round index is invalid");
+  protocolAssert(note === null || (typeof note === "string" && utf8Encode(note).length <= 1024), "bounds", "suggestion round note is too large");
 }
 
 export interface PreparedWorkspaceComment {
@@ -99,6 +130,9 @@ export async function prepareWorkspaceComment(input: {
   suggestionOutcome?: "applied" | "declined" | null;
   resolvedCommentId?: string | null;
   retractsCommentId?: string | null;
+  suggestionBatchId?: string | null;
+  batchIndex?: number | null;
+  batchNote?: string | null;
   recipients: Pvo1Recipient[];
   now?: string;
   /** Given by the outbox (K6): the id the card already carries. Fresh otherwise. */
@@ -120,10 +154,12 @@ export async function prepareWorkspaceComment(input: {
   protocolAssert(bodyBytes <= 64 * 1024 && (bodyBytes >= 1 || resolvedCommentId !== null || suggestion !== null || retractsCommentId !== null), "bounds", "comment body size is invalid");
   if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
   assertWorkspaceSuggestion(suggestion, input.anchor, input.suggestionOutcome, resolvedCommentId);
+  const batch = input.suggestionBatchId ? { suggestionBatchId: input.suggestionBatchId, batchIndex: input.batchIndex ?? 0, batchNote: input.batchNote ?? null } : null;
+  assertWorkspaceSuggestionBatch(batch ?? {}, suggestion);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = input.commentId ?? createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, resolvedCommentId, retractsCommentId, createdAt: now };
+  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, resolvedCommentId, retractsCommentId, ...(batch ?? {}), createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,
@@ -194,6 +230,9 @@ export async function publishQueuedWorkspaceComment(input: {
     suggestion: entry.suggestion,
     suggestionOutcome: entry.suggestionOutcome,
     retractsCommentId: entry.retractsCommentId ?? null,
+    suggestionBatchId: entry.suggestionBatchId ?? null,
+    batchIndex: entry.batchIndex ?? null,
+    batchNote: entry.batchNote ?? null,
     recipients,
     // The moment the person pressed send, not the moment the network allowed it.
     now: entry.createdAt,
@@ -228,12 +267,13 @@ export async function openWorkspaceComment(input: {
   protocolAssert(typeof body.body === "string" && utf8Encode(body.body).length <= 64 * 1024, "bounds", "comment body is too large");
   if (body.anchor !== undefined && body.anchor !== null) assertWorkspaceCommentAnchor(body.anchor);
   assertWorkspaceSuggestion(body.suggestion, body.anchor, body.suggestionOutcome, body.resolvedCommentId);
+  assertWorkspaceSuggestionBatch(body, body.suggestion);
   protocolAssert(body.retractsCommentId === undefined || body.retractsCommentId === null || (typeof body.retractsCommentId === "string" && /^[0-9a-f]{32}$/.test(body.retractsCommentId)), "format", "comment retraction target is malformed");
   return body;
 }
 
 export function workspaceCommentRecord(body: WorkspaceCommentBody, operation: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>, operationHash: string): WorkspaceCommentRecord {
-  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, resolvedAt: null };
+  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, suggestionBatchId: body.suggestionBatchId ?? null, batchIndex: body.batchIndex ?? null, batchNote: body.batchNote ?? null, resolvedAt: null };
 }
 
 export class WorkspaceRevisionHistoryService {

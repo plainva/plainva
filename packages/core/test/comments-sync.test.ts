@@ -310,3 +310,21 @@ describe("comment retraction in the local bundle", () => {
     expect(Object.keys(merged.comments).sort()).toEqual([ID_A, ID_D].sort());
   });
 });
+
+describe("proposal rounds in the local bundle (V1)", () => {
+  it("accepts a round on a proposal and refuses it on a plain remark or with a bad id", () => {
+    const point = { markerId: "7f3a", quote: "", before: "the year.", after: "", approximateOffset: 9 };
+    const good = emptyCommentsBundle(NOW);
+    good.comments[ID_A] = rec({ commentId: ID_A, body: "", anchor: point, suggestion: { replacement: "More." }, suggestionBatchId: ID_B, batchIndex: 0, batchNote: null });
+    expect(() => assertCommentsBundleStructure(good)).not.toThrow();
+    const plain = emptyCommentsBundle(NOW);
+    plain.comments[ID_A] = rec({ commentId: ID_A, body: "hi", suggestionBatchId: ID_B, batchIndex: 0 });
+    expect(() => assertCommentsBundleStructure(plain)).toThrow(/round without a suggestion/);
+    const badId = emptyCommentsBundle(NOW);
+    badId.comments[ID_A] = rec({ commentId: ID_A, body: "", anchor: point, suggestion: { replacement: "More." }, suggestionBatchId: "x", batchIndex: 0 });
+    expect(() => assertCommentsBundleStructure(badId)).toThrow(/round id is malformed/);
+    const emptyInsert = emptyCommentsBundle(NOW);
+    emptyInsert.comments[ID_A] = rec({ commentId: ID_A, body: "", anchor: point, suggestion: { replacement: "" } });
+    expect(() => assertCommentsBundleStructure(emptyInsert)).toThrow(/insertion has no text/);
+  });
+});
