@@ -3757,6 +3757,7 @@
     "commentToTask": "Utwórz zadanie",
     "commentTaskSource": "Z komentarza w",
     "commentTaskCreated": "Zamieniono w zadanie",
+    "commentTaskOpen": "Otwórz",
     "commentTaskFallback": "Komentarz"
   },
   "cascade": {

@@ -3658,6 +3658,7 @@
     "commentToTask": "创建任务",
     "commentTaskSource": "来自以下笔记的评论",
     "commentTaskCreated": "已转为任务",
+    "commentTaskOpen": "打开",
     "commentTaskFallback": "评论"
   },
   "cascade": {

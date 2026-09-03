@@ -3724,6 +3724,7 @@
     "commentToTask": "Créer une tâche",
     "commentTaskSource": "D'un commentaire dans",
     "commentTaskCreated": "Transformé en tâche",
+    "commentTaskOpen": "Ouvrir",
     "commentTaskFallback": "Commentaire"
   },
   "cascade": {

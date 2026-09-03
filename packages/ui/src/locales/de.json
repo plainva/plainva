@@ -3691,6 +3691,7 @@
     "commentToTask": "Als Aufgabe",
     "commentTaskSource": "Aus einem Kommentar in",
     "commentTaskCreated": "Als Aufgabe angelegt",
+    "commentTaskOpen": "Öffnen",
     "commentTaskFallback": "Kommentar"
   },
   "cascade": {

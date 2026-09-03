@@ -3658,6 +3658,7 @@
     "commentToTask": "タスクにする",
     "commentTaskSource": "コメントの出典",
     "commentTaskCreated": "タスクにしました",
+    "commentTaskOpen": "開く",
     "commentTaskFallback": "コメント"
   },
   "cascade": {

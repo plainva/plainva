@@ -1,8 +1,8 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, TextArea, parseCommentMentions, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, TextArea, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -55,6 +55,9 @@ export interface WorkspaceCommentsColumnProps {
   onRetryPending?(outboxId: string): void;
   /** The head's close button (K3) - the toolbar button reopens the column. */
   onClose?(): void;
+  /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
+  onOpenNote?(target: string): void;
+  onOpenUrl?(url: string): void;
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
@@ -104,7 +107,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose,
+  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl,
   publicationComments = [], muted, onToggleMute,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -332,10 +335,10 @@ export function WorkspaceCommentsColumn({
             </span>
           )}
           {anchorNote(root)}
-          <CommentBody comment={root} author={authorOf(root)} names={memberNames} locale={i18n.language} />
+          <CommentBody comment={root} author={authorOf(root)} names={memberNames} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
           {replies.map((reply) => (
             <div key={reply.commentId} className="pv-comment-card__reply">
-              <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} locale={i18n.language} />
+              <CommentBody comment={reply} author={authorOf(reply)} names={memberNames} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
               {reply.pending && <div className="pv-comment-card__actions">{pendingState(reply, reply.authorMemberId === selfMemberId)}</div>}
             </div>
           ))}
@@ -478,10 +481,10 @@ export function WorkspaceCommentsColumn({
                       : <em>{t("workspaceSecurity.suggestionDeletes")}</em>}
                   </p>
                 )}
-                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} />
+                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} />
+                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                   </div>
                 ))}
                 {/* Both lines state a fact about the record, not a failure: the
@@ -513,26 +516,20 @@ function CommentBody({
   author,
   names,
   locale,
+  onOpenNote,
+  onOpenUrl,
 }: {
   comment: WorkspaceCommentRecord;
   author: string;
   names: ReadonlyMap<string, string>;
   locale: string;
+  onOpenNote?: (target: string) => void;
+  onOpenUrl?: (url: string) => void;
 }) {
   return (
     <>
       <CommentCardHead name={author} memberId={comment.authorMemberId} createdAt={comment.createdAt} locale={locale} />
-      <span className="pv-comment-card__body">
-        {parseCommentMentions(comment.body, names).map((segment, index) =>
-          segment.kind === "mention" ? (
-            <span key={index} className="pv-comment-card__mention" data-tip={segment.memberId}>
-              {segment.text}
-            </span>
-          ) : (
-            <Fragment key={index}>{segment.text}</Fragment>
-          ),
-        )}
-      </span>
+      <SharedCommentBody body={comment.body} names={names} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
     </>
   );
 }

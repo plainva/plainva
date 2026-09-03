@@ -3724,6 +3724,7 @@
     "commentToTask": "Crea attività",
     "commentTaskSource": "Da un commento in",
     "commentTaskCreated": "Trasformato in attività",
+    "commentTaskOpen": "Apri",
     "commentTaskFallback": "Commento"
   },
   "cascade": {

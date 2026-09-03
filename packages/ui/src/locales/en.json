@@ -3691,6 +3691,7 @@
     "commentToTask": "Make a task",
     "commentTaskSource": "From a comment in",
     "commentTaskCreated": "Made into a task",
+    "commentTaskOpen": "Open",
     "commentTaskFallback": "Comment"
   },
   "cascade": {

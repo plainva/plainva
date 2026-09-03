@@ -2935,6 +2935,9 @@ tr.is-selected > td { color: var(--on-accent-container); }
 /* An @mention inside a comment body (D8). Tinted rather than boxed: it sits in
    running text, and a chip per name would turn a sentence into a row of pills. */
 .pv-comment-card__mention { color: var(--accent-color); font-weight: 600; }
+/* A link inside a remark (K4) - the reply "task created: [[…]]" is one. */
+.pv-comment-card__link { color: var(--accent-color); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.pv-comment-card.is-active .pv-comment-card__link { color: inherit; }
 .pv-comment-card__state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-faint); font-size: var(--text-sm); }
 .pv-comment-card__reply { display: grid; gap: var(--space-1); margin-left: var(--space-3); padding-left: var(--space-2); border-left: 1px solid var(--border-color-light); }
 .pv-comment-card__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }

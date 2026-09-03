@@ -26,7 +26,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
+import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
@@ -470,8 +470,10 @@ export function NoteScreen({
       authorName: getMobileSettings().verifierName,
     });
     setCommentTick((n) => n + 1);
-    await sendTaskToProviderList(vault.files, dbPath, res.notePath, title).catch(() => undefined);
-    toast.info(t("workspaceSecurity.commentTaskCreated"));
+    // The word to the person first, the provider round trip behind it (K4).
+    toast.info(t("workspaceSecurity.commentTaskCreated"), { label: t("workspaceSecurity.commentTaskOpen"), run: () => onOpenNote(res.notePath) });
+    void sendTaskToProviderList(vault.files, dbPath, res.notePath, title)
+      .catch((e) => toast.warning(errorText(e)));
   };
 
   /**
@@ -734,6 +736,11 @@ export function NoteScreen({
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           onRevealAnchor={revealAnchor}
+          onOpenNote={(target) => {
+            // The same resolution the editor's wiki links take (K4).
+            void vaultOps.resolveWikiTarget(vault, target, path).then((resolved) => { if (resolved) onOpenNote(resolved); });
+          }}
+          onOpenUrl={(url) => { void getPlatformServices().openExternal(url); }}
         />
       )}
       {menu && (

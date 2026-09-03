@@ -3691,6 +3691,7 @@
     "commentToTask": "Taak maken",
     "commentTaskSource": "Uit een opmerking in",
     "commentTaskCreated": "Omgezet in taak",
+    "commentTaskOpen": "Openen",
     "commentTaskFallback": "Opmerking"
   },
   "cascade": {

@@ -1,7 +1,7 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, parseCommentMentions, Segmented, toAnchorDisplayHint } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, toAnchorDisplayHint } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -57,6 +57,9 @@ export interface CommentsSheetProps {
    */
   muted?: boolean;
   onToggleMute?(): void;
+  /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
+  onOpenNote?(target: string): void;
+  onOpenUrl?(url: string): void;
 }
 
 /**
@@ -65,21 +68,6 @@ export interface CommentsSheetProps {
  * Derived on every render, never stored: the body is the single truth, so a
  * renamed member changes what this shows and nothing has to be migrated.
  */
-function CommentBody({ body, names }: { body: string; names: ReadonlyMap<string, string> }) {
-  return (
-    <p className="pv-comment-card__body">
-      {parseCommentMentions(body, names).map((segment, index) =>
-        segment.kind === "mention" ? (
-          <span key={index} className="pv-comment-card__mention">
-            {segment.text}
-          </span>
-        ) : (
-          <Fragment key={index}>{segment.text}</Fragment>
-        ),
-      )}
-    </p>
-  );
-}
 
 function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | "declined" | null {
   if (!comment.suggestion) return null;
@@ -101,6 +89,8 @@ export function CommentsSheet({
   onDeclineSuggestion,
   onPromoteToTask,
   onRevealAnchor,
+  onOpenNote,
+  onOpenUrl,
   onClose,
   muted,
   onToggleMute,
@@ -227,7 +217,7 @@ export function CommentsSheet({
                     {anchorText(root)}
                   </button>
                 )}
-                {root.body && <CommentBody body={root.body} names={memberNames} />}
+                {root.body && <CommentBody body={root.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
                 {state && (
                   <p className="pv-comment-card__replacement">
                     <span className="pv-comment-card__quote pv-comment-card__quote--replaced">{root.anchor?.quote}</span>
@@ -238,7 +228,7 @@ export function CommentsSheet({
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
                     <CommentCardHead name={nameOf(reply.authorMemberId)} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
-                    <CommentBody body={reply.body} names={memberNames} />
+                    <CommentBody body={reply.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                   </div>
                 ))}
                 <div className="pv-comment-card__actions">

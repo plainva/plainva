@@ -2138,6 +2138,9 @@ export const Editor: React.FC<{
    * database's template, its storage folder and its checkbox pre-fill all
    * apply, so a task born from a comment is not subtly unlike the rest.
    */
+  // Stable so the callbacks below do not re-create on every render: the wiki
+  // opener itself is a plain function of the component.
+  const openNoteFromComment = useStableHandler((target: string) => { void openWikiTarget(target, false); });
   const promoteCommentToTask = useCallback(async (comment: WorkspaceCommentRecord) => {
     if (!activePath || !vaultAdapter || !vaultPath) return;
     const store = await getSettingsStore();
@@ -2166,24 +2169,26 @@ export const Editor: React.FC<{
     }
     if (indexer) await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => undefined);
     triggerFileTreeUpdate([res.notePath]);
-    // ...and, like every other task in that database, on to the provider list
-    // it names (C4/S17). A failure there never costs the note or the reply -
-    // both are already written.
-    await sendTaskToProviderList({ adapter: vaultAdapter, dbPath, notePath: res.notePath, title, pimRuntime })
-      .catch(() => undefined);
     // The new note is in the vault now, so its own wiki target has to be
     // computed against a list that contains it - otherwise the reply links to
     // a name that could collide with a note added a moment later.
-    const reply = commentTaskReply(
-      wikiTargetForPath(res.notePath, [...allNotePaths, res.notePath]),
-      t("workspaceSecurity.commentTaskCreated"),
-    );
+    const taskTarget = wikiTargetForPath(res.notePath, [...allNotePaths, res.notePath]);
+    const reply = commentTaskReply(taskTarget, t("workspaceSecurity.commentTaskCreated"));
+    // The reply and the word to the person come FIRST (K4, finding
+    // 2026-09-03): both used to wait behind the provider round trip below, so
+    // the feedback for a click was the last thing to arrive. The reply goes
+    // through the outbox (K6) and is on the card at once.
     await postWorkspaceComment(activePath, reply, comment.commentId, null);
     // Not the checkbox wording ("moved"): nothing moved here. The comment is
     // still where it was, and saying otherwise would send the user looking for
-    // a passage that never left.
-    toast.info(t("workspaceSecurity.commentTaskCreated"));
-  }, [activePath, vaultAdapter, vaultPath, queryService, indexer, pimRuntime, triggerFileTreeUpdate, postWorkspaceComment, t]);
+    // a passage that never left. The action opens the task it just made.
+    toast.info(t("workspaceSecurity.commentTaskCreated"), { label: t("workspaceSecurity.commentTaskOpen"), run: () => openNoteFromComment(taskTarget) });
+    // ...and, like every other task in that database, on to the provider list
+    // it names (C4/S17) - in the background. A failure there never costs the
+    // note or the reply, both are already written; it gets its own word.
+    void sendTaskToProviderList({ adapter: vaultAdapter, dbPath, notePath: res.notePath, title, pimRuntime })
+      .catch((error) => toast.warning(error instanceof Error ? error.message : String(error)));
+  }, [activePath, vaultAdapter, vaultPath, queryService, indexer, pimRuntime, triggerFileTreeUpdate, postWorkspaceComment, openNoteFromComment, t]);
 
   const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
@@ -2683,6 +2688,8 @@ export const Editor: React.FC<{
       {commentColumnOpen && (
         <WorkspaceCommentsColumn
           onClose={toggleCommentColumn}
+          onOpenNote={openNoteFromComment}
+          onOpenUrl={(url) => { void openExternalUrl(url); }}
           comments={workspaceComments}
           publicationComments={publicationComments}
           memberNames={memberNames}

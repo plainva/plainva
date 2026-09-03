@@ -2977,7 +2977,10 @@ describe("tasks created on the phone reach the provider list", () => {
       ["NoteScreen", note, /createTaskInDatabase\(\{/g],
     ] as const) {
       const notes = [...src.matchAll(creator)].map((m) => m.index ?? -1);
-      const sends = [...src.matchAll(/await sendTaskToProviderList\(/g)].map((m) => m.index ?? -1);
+      // Awaited or fired behind the word to the person (K4, 2026-09-03: the
+      // NoteScreen no longer waits for the provider before it says "task
+      // created") - either way the note comes first.
+      const sends = [...src.matchAll(/(?:await|void) sendTaskToProviderList\(/g)].map((m) => m.index ?? -1);
       expect(notes.length, `${name}: the note creation moved — re-point this guard`).toBeGreaterThan(0);
       expect(sends.length, `${name}: the provider call moved — re-point this guard`).toBeGreaterThan(0);
       for (const at of sends) {

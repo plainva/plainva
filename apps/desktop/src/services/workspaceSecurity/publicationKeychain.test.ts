@@ -82,6 +82,10 @@ async function openVault(vaultPath: string): Promise<PersonalWorkspaceRuntime> {
   return runtime;
 }
 
+// Real key material is sealed and unsealed in here. Alone this runs in a
+// second or two; under the pre-commit's parallel turbo run it crossed the
+// 5 s default on 2026-09-03 with no code change behind it - the same budget
+// mobileEncryptionSetup.test.ts and pimForeground.test.ts carry.
 describe("publication runtimes in the credential store", () => {
   beforeEach(() => {
     secrets.clear();
@@ -167,4 +171,4 @@ describe("publication runtimes in the credential store", () => {
     expect((await readPublicationRuntime(VAULT_A, PUB)).state).toBe("absent");
     expect((await readPublicationRuntime(VAULT_A, "pub-second")).state).toBe("unlocked");
   });
-});
+}, 60_000);
