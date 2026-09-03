@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-08-14
+Last reviewed: 2026-09-03
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -51,6 +51,8 @@ Very old daily notes may have inherited a setting from their template that hides
 ### What is a .CONFLICT file?
 
 If the same file was changed here and on another device at the same time, Plainva first tries to merge both versions automatically. If that is not possible, **your** version is safely saved as a `.CONFLICT` file next to the original — nothing is ever lost. Conflict files are marked in the file tree; right-click to choose **Keep this Version** (the conflict version replaces the original) or **Discard Conflict**.
+
+To resolve it, **Compare versions** (right-click on the conflict file, the banner in the note, or the sync error dialog) shows both versions side by side — the note on the left, the copy on the right — with the exits **adopt**, **keep both**, **discard copy** and **later**; on the desktop the right side can also be merged line by line. Every exit that discards something asks first.
 
 ### My Google sign-in keeps expiring
 

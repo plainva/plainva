@@ -25,7 +25,6 @@ function fold(data: string): string {
 
 /** RFC 2047 for a header value; ASCII passes through untouched. */
 export function encodeHeaderValue(value: string): string {
-  // eslint-disable-next-line no-control-regex
   return /^[\x20-\x7e]*$/.test(value) ? value : `=?utf-8?B?${b64Text(value)}?=`;
 }
 

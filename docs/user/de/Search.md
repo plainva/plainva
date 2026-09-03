@@ -1,6 +1,6 @@
 # Suche
 
-Stand: 2026-08-21
+Stand: 2026-09-03
 
 Plainva bietet drei Suchwege: die Volltextsuche über den ganzen Vault, den Schnellwechsel zum Datei-Öffnen und Suchen & Ersetzen innerhalb einer Notiz.
 
@@ -42,6 +42,8 @@ Unter den Namens-Treffern erscheint zusätzlich die Gruppe **Inhalt**: Notizen, 
 ### Im ganzen Vault
 
 `Strg/Cmd+Umschalt+F` (oder **Im Vault suchen & ersetzen** in der Befehls-Palette) durchsucht alle Notizen auf einmal. Suchtext eingeben, **Suchen** drücken — die Treffer erscheinen nach Notiz gruppiert mit je einer Kontextzeile. Ersetzungstext eingeben, einzelne Notizen bei Bedarf abwählen, und **In N Notizen ersetzen** schreibt den Rest um — jede Notiz wird sicher zurückgeschrieben (atomarer Schreibvorgang + Versions-Schnappschuss), sodass eine veraltete Vorschau nie neueren Inhalt überschreibt. Groß/klein, ganzes Wort und Regex gelten auch hier; im Regex-Modus stehen `$1`/`$2`-Rückverweise in der Ersetzung zur Verfügung.
+
+Jeder Treffer zeigt zwei Zeilen: **vorher** mit der Fundstelle und **nachher** mit dem Ergebnis — bei Regex mit aufgelösten `$1`-Rückverweisen, damit die Änderung prüfbar ist, bevor etwas geschrieben wird. Ein ungültiger Ausdruck wird direkt am Feld benannt statt als leere Liste; findet die Suche nichts, sagt der Leerzustand, was zu prüfen ist. Während des Ersetzens siehst Du den Fortschritt und kannst **Abbrechen** — bereits geschriebene Notizen bleiben geschrieben und werden genannt. Am Telefon zeigt jeder Treffer dieselben zwei Zeilen.
 
 **Am Telefon** läuft dasselbe über die Lupe in der Kopfzeile, dann `>` und **Im Vault suchen & ersetzen**: Die Treffer sind nach Notiz gruppiert und eingeklappt, damit ein Begriff mit vierzig Fundstellen die Aktion nicht unter sich begräbt; ein Tipp öffnet eine Notiz, abgewählte bleiben unberührt, und der Knopf nennt seine eigene Reichweite (**In 2 Notizen ersetzen**). Verlässt Du die App, hält ein laufendes Ersetzen bei der nächsten Notiz an — bereits geschriebene Notizen bleiben geschrieben und werden benannt.
 

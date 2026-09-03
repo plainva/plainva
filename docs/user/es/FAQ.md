@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-08-14
+Última actualización: 2026-09-03
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -51,6 +51,8 @@ Las notas diarias muy antiguas pueden haber heredado un ajuste de su plantilla q
 ### ¿Qué es un archivo .CONFLICT?
 
 Si el mismo archivo se cambió aquí y en otro dispositivo al mismo tiempo, Plainva primero intenta combinar automáticamente ambas versiones. Si eso no es posible, **tu** versión se guarda de forma segura como un archivo `.CONFLICT` junto al original — nunca se pierde nada. Los archivos en conflicto están marcados en el árbol de archivos; con clic derecho eliges **Conservar esta versión** (la versión en conflicto sustituye al original) o **Descartar conflicto**.
+
+Para resolverlo, **Comparar versiones** (clic derecho en el archivo de conflicto, el aviso en la nota o el diálogo de error de sincronización) muestra ambas versiones lado a lado —la nota a la izquierda, la copia a la derecha— con las salidas **adoptar**, **conservar ambas**, **descartar copia** y **más tarde**; en el escritorio el lado derecho también se puede fusionar línea a línea. Cada salida que descarta algo pregunta antes.
 
 ### Mi inicio de sesión de Google caduca constantemente
 

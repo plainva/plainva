@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-08-24
+Stan na: 2026-09-03
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -36,8 +36,10 @@ Po uruchomieniu wita ekran powitalny:
 ## Interfejs
 
 - **Lewy pasek boczny** — trzy widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie) i **Bazy danych** (każda `.base` w vaulcie, pogrupowana według folderu — kliknij, aby ją otworzyć); **Ostatnio otwarte** i **Zakładki** to sekcje nad przełącznikiem widoków, więc pozostają widoczne we wszystkich trzech widokach. Na samej górze znajduje się pole wyszukiwania, a obok niego **+** dla Nowa notatka, Nowy folder, Nowa baza i Notatka dzienna. Tekst zastępczy w polu wyszukiwania pokazuje, czego dotyczy wyszukiwanie, a karty pokazują swoje nazwy, dopóki panel jest wystarczająco szeroki — w miarę zwężania najpierw tylko aktywna karta zachowuje nazwę, a potem zostają same ikony. Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**. Przycisk z podwójną strzałką obok czterech widoków zwija lub rozwija wszystkie foldery naraz, a **Pokaż w drzewie plików** w menu ⋮ edytora pokazuje otwartą notatkę bezpośrednio w drzewie. W widoku **Pliki** nagłówek pokazuje nazwę i ikonę aktualnego vaultu.
+- **Sortowanie** — przycisk obok pola wyszukiwania porządkuje drzewo plików według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór tego samego klucza odwraca kierunek. Podfoldery i `index.md` folderu zawsze zostają na początku; wybór jest zapamiętywany na tym urządzeniu.
 - **Pasek tytułu** — otwarte karty. Karty można przeciągać, zmieniając ich kolejność, oraz przenosić między panelami edytora.
 - **Obszar edytora** — tu czytasz i piszesz. Przez menu karty (**Podziel w prawo** / **Podziel w dół**) lub skróty `Ctrl+Alt+V` / `Ctrl+Alt+S` dzielisz edytor na dwa panele, np. notatkę obok bazy danych.
+- **Kolejne okna** — notatka w osobnym oknie pokazuje po prawej ten sam pasek boczny kontekstu (konspekt, graf, bazy danych, backlinki, właściwości; kalendarz zostaje w oknie głównym), zwijany i rozwijany z paska tytułu.
 - **Prawy pasek boczny** — cztery sekcje, których kolejność można zmieniać przez przeciąganie: **Kalendarz** (notatki dzienne), **Konspekt** (nagłówki aktywnej notatki), **Linki zwrotne** (kto tu linkuje) i **Właściwości** (frontmatter notatki).
 - **Pasek stanu** — liczba słów/znaków, status synchronizacji (Lokalnie/Online/Offline) i status zapisu (**Zapisywanie...** / **Zapisano**).
 
@@ -60,6 +62,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 - **Tworzenie:** kliknij prawym przyciskiem na folder → **Nowa notatka tutaj**, **Nowy folder** lub **Nowa baza danych (.base)**. Duży przycisk **Nowy** tworzy element w aktualnie wybranym folderze (lub w folderze nadrzędnym wybranego pliku).
 - **Zaznaczanie:** kliknięcie zaznacza, `Ctrl`+klik dodaje/usuwa pojedynczo, `Shift`+klik zaznacza zakres, kliknięcie środkowym przyciskiem otwiera w nowej karcie.
 - **Menu kontekstowe:** m.in. **Zmień nazwę** (aktualizuje linki w całym vaulcie), **Duplikuj**, **Otwórz w podziale (po prawej)** / **Otwórz w podziale (na dole)**, **Dodaj zakładkę**, **Kopiuj ścieżkę**, **Pokaż w menedżerze plików**, **Usuń**.
+- **Przenieś do…** w menu kontekstowym przenosi notatkę, folder lub cały zaznaczony zestaw do wybranego folderu — ta sama droga co przeciąganie, tylko bez przeciągania: otwarte karty, odwołania tablicy i indeks podążają za tym.
 - **Te same czynności w sekcjach nad drzewem:** kliknięcie prawym przyciskiem na wpis w **Ostatnio otwarte** lub **Zakładki** otwiera to samo menu — bez pozycji dla folderów, ale z dodatkową opcją **Usuń z listy** (to usuwa wpis tylko z listy, nigdy plik). Zmiana nazwy odbywa się tam przez okno dialogowe zamiast pola w wierszu. W **Ostatnio otwarte** mogą też znajdować się widoki kalendarza i zadań; można je otwierać i usuwać z listy, ale nie można ich zmieniać nazwy ani usuwać — to widoki, a nie pliki.
 - **Zaznaczenie wielokrotne:** usuwanie z jednym potwierdzeniem, duplikowanie i przenoszenie przez przeciąganie działają na całym zaznaczeniu. Usunięte elementy trafiają do kosza systemu operacyjnego.
 - Nowe notatki automatycznie zaczynają się od `# Nagłówka` wyprowadzonego z nazwy pliku.
@@ -137,6 +140,7 @@ Układ należy do vaultu i przenosi się na inne urządzenia (patrz [Konfiguracj
 - **Paleta poleceń**: `Ctrl+P` otwiera **Polecenia** — wpisz i naciśnij `Enter`, aby uruchomić (nowa notatka, notatka dzienna, podział, paski boczne, **Utwórz kopię zapasową teraz** i wiele więcej).
 - **Gęstość**: w **Ustawienia → Aplikacja → Wygląd** wybierz między **Komfortowy** a **Kompaktowy** — Kompaktowy zagęszcza listy, menu i wiersze tabel; treść notatek pozostaje bez zmian.
 - **Czcionka treści**: w **Ustawienia → Aplikacja → Edytor i notatki** ustaw **Rozmiar czcionki treści** (12–24 px) oraz krój czcionki (**Domyślna motywu**, **Szeryfowa**, **Bezszeryfowa**, **O stałej szerokości** lub **Niestandardowa…** z nazwą dowolnej zainstalowanej czcionki) — skaluje to tylko edytor i widok czytania; interfejs pozostaje bez zmian.
+- **Lista czcionek**: pod **Niestandardowa…** znajduje się lista czcionek Twojego systemu, każdy wiersz w swojej czcionce; niezainstalowana czcionka informuje o tym i nie da się jej wybrać. Pole nazwy poniżej przyjmuje każdą inną zainstalowaną czcionkę.
 - **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Aplikacja → Wygląd** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
 - **Okna dialogowe i powiadomienia bez natywnych okienek**: potwierdzenia pojawiają się jako okna dialogowe Plainva w stylu Twojego motywu (destrukcyjne akcje mają czerwony przycisk), krótkie komunikaty jako dyskretne powiadomienia w prawym dolnym rogu — koniec z systemowymi wyskakującymi okienkami.
 

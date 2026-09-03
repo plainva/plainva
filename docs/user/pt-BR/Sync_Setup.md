@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-08-24
+Última revisão: 2026-09-03
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -144,6 +144,8 @@ Se **Revisar contas duplicadas** aparecer em **Contas na nuvem**, o Plainva não
 O telefone carrega um pouco menos: a disposição das quatro barras do **desktop** fica no computador — sua própria barra de navegação viaja, sim, assim como a pasta de reuniões. A própria cadeia dele na página do cofre mostra o que ele carrega, e os dois dispositivos dizem abaixo o que a sincronização realmente fez por último, com os nomes das configurações que viajaram e, em um recebimento, as que mudaram. O aviso “Configurações adotadas de outro dispositivo” aparece no máximo uma vez por sessão e somente se algo realmente mudou; depois disso, são estas linhas que informam. Novo nesta versão: o telefone também assume o formato do nome das notas diárias, o tipo OKF das notas novas e seus favoritos. Antes, um cofre com outro formato de data ganhava uma segunda nota diária para o mesmo dia assim que o telefone o tocava.
 
 O diagnóstico agora separa **última verificação** (campos locais do perfil), **último download**, **última aplicação** e **último envio real**. “Enviado” só muda depois de uma gravação bem-sucedida na nuvem; rodadas sem alteração atualizam a verificação e o download, mas não o horário de envio. Os resultados de segredos aparecem separadamente como contagens de importados, inalterados, rejeitados, desatualizados, com erro ou aguardando uma conta. Eles contêm apenas códigos de motivo estáveis — nunca ID da conta, senha, token ou erro bruto. Um aviso de cliente antigo significa que o Plainva deve ser atualizado em todos os dispositivos participantes; este dispositivo ignora os dados antigos do cliente Google.
+
+**Exclusões viajam.** Uma exclusão que você confirmou fica 90 dias em um diário (`.plainva/sync/deletions.json`) e é espelhada em todos os outros dispositivos sem perguntar — também após um reinício e mesmo quando muitos arquivos faltam lá de uma vez. Se, por outro lado, faltam muitos arquivos na nuvem sem que o diário os explique, o Plainva pausa o espelhamento e pergunta: **aplicar as exclusões** ou **manter localmente** (então ele envia os arquivos de novo como novos). O mesmo vale para listas de tarefas: uma exclusão feita no provedor também remove a nota de tarefa no outro dispositivo, desde que ela esteja inalterada lá.
 
 ## Erros e nova tentativa automática
 

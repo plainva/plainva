@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-08-26
+Dernière mise à jour : 2026-09-03
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -47,6 +47,8 @@ Tapez `/` en début de ligne pour ouvrir le menu d'insertion. Il est organisé e
 - **Poignées de bloc** — une poignée apparaît à gauche de chaque paragraphe au survol : glissez-la pour déplacer le bloc, cliquez dessus pour ouvrir les **Actions de bloc** (**Transformer en** Texte/Titre/Liste/À faire/Citation/Bloc de code, **Dupliquer**, **Monter**/**Descendre**, **Supprimer le bloc**). Si vous glissez une liste à côté d'une autre liste du même type, Plainva insère une ligne de séparation invisible `<!-- -->` pour que les deux listes restent distinctes — en Markdown, des listes de même style fusionneraient sinon malgré la ligne vide (aussi dans Obsidian).
 - **Tableaux** — rendus comme un widget avec des cellules éditables en un clic. L'affichage des cellules rend la mise en forme (**gras**, *italique*, `code`, surlignage), les liens cliquables (`[[Lien interne]]`, adresses web) et `<br>` comme un saut de ligne ; en édition, vous voyez le texte brut. Le menu du tableau propose l'insertion/suppression de lignes et de colonnes ainsi que l'alignement (**Aligner à gauche**/**Centrer**/**Aligner à droite**).
 - **Les listes se poursuivent d'elles-mêmes** (Entrée insère la marque de liste suivante), les blocs de code bénéficient d'une coloration syntaxique selon le langage (aussi en mode lecture), le contenu collé est converti en Markdown (collage intelligent), et les titres peuvent être repliés.
+- **Replier les listes** — un clic sur la puce d’un élément qui a des sous-éléments les replie ; la puce prend la couleur d’accent et un « … » marque l’endroit, un second clic déplie. Le fichier ne change jamais. Les puces alternent selon le niveau (• ◦ ▪) et les lignes de continuation se placent exactement sous le texte de leur élément — sur le téléphone aussi, où la puce est la seule commande de repli.
+- **Position de défilement** — chaque note s’ouvre là où vous l’aviez laissée ; mémorisé par appareil, non synchronisé.
 - **Rechercher & remplacer** dans la note actuelle : `Ctrl+F` (voir [Recherche](Search.md)).
 
 ## Liens et backlinks

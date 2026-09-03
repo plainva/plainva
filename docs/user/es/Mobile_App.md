@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-02
+Última actualización: 2026-09-03
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -27,6 +27,8 @@ Es una versión temprana: guarda una copia de seguridad de tu vault y cuéntame 
 ## Leer y editar notas
 
 Las notas se abren **renderizadas y de solo lectura**; el lápiz de arriba a la derecha cambia al modo de edición (con una barra de herramientas sobre el teclado: formato, listas, enlace interno, comandos de barra oblicua, insertar foto). Las inclusiones `![[Nota]]` aparecen como tarjetas de vista previa que se pueden tocar.
+
+Las carpetas se pueden **buscar** y **ordenar** desde la barra sobre la lista: por **Título**, **Última modificación** o **Creación**; elegir de nuevo invierte la dirección, y el orden se recuerda en el dispositivo. En un arranque en frío se abre otra vez la última nota abierta, y cada nota se abre donde la dejaste. Las listas con subelementos se pliegan y despliegan con un toque en su viñeta.
 
 El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú ⋮) abre la ficha contextual de la nota: propiedades (editables directamente), retroenlaces, esquema, grafo y el **historial de versiones** — cada edición crea automáticamente snapshots que puedes revisar, comparar y restaurar. El código fuente Markdown y la búsqueda en la nota están en el menú ⋮.
 
@@ -75,6 +77,8 @@ La lista de etiquetas está bajo **Notas**. Tocar abre las notas de una etiqueta
 ## Buscar y reemplazar en todo el vault
 
 El camino es la lupa de la cabecera y luego `>` y **Buscar y reemplazar en el vault**. La pantalla busca en todas las notas a la vez. Escribe un término, toca **Buscar** y las coincidencias aparecen agrupadas por nota con su recuento; un toque abre las líneas de una nota y solo una permanece abierta a la vez. Desmarca las notas que quieras excluir: es por nota, nunca por línea, porque una nota se reemplaza entera o no se reemplaza. **Reemplazar en N notas** reescribe el resto, con barra de progreso y un **Cancelar** que se detiene en la siguiente nota. Cada nota se vuelve a leer justo antes de escribirla, de modo que una vista previa desactualizada nunca sobrescriba contenido más nuevo; una nota que cambió entretanto se omite y se te informa. Mayús/minús, palabra completa y regex también funcionan aquí.
+
+Cada coincidencia muestra dos líneas —**antes** con el hallazgo, **después** con el resultado, con las referencias `$1` resueltas en una expresión regular— para que compruebes el cambio antes de escribir nada.
 ## Resúmenes (index.md)
 
 En un almacén OKF, el `index.md` es el índice de una carpeta. El teléfono ofrece dos caminos, pensados para dos momentos distintos.
@@ -115,6 +119,8 @@ El **Enfoque** también puede activarse desde el menú del nodo: el mapa entonce
 ## Calendario y eventos
 
 El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Cada columna de día muestra arriba su **día de la semana y su fecha**, y debajo una franja para los **eventos de todo el día** de esa jornada; ambos se desplazan con la cuadrícula en lugar de ocupar espacio de forma permanente. Tocar un evento abre la **vista previa del evento** como hoja — la misma superficie que la ventana flotante del escritorio: franja horaria, lugar, descripción, asistentes con sus respuestas y, si pertenece a una serie, su ritmo junto con la próxima cita. Para una invitación ofrece **Aceptar**, **Provisional** y **Rechazar**, y debajo **Editar evento**, **Nota de reunión** y **Eliminar evento**. Deslizar hacia abajo cierra la hoja. Las notas diarias no están aquí: viven en **Hoy**.
+
+Tocar un recordatorio de evento abre el propio evento: la vista de día en su fecha, con el evento abierto. La vista que tenías por última vez (día, 3 días, agenda) se recuerda en el dispositivo, como en el escritorio.
 
 **Cuándo mira el teléfono.** En segundo plano, en un teléfono no corre ningún reloj: la sincronización periódica está parada mientras la aplicación no está delante. Por eso Plainva consulta por su cuenta en cuanto **vuelves a la aplicación** y cada vez que abres **Calendarios**, **Tareas** o las **Cuentas de calendario**; como mucho una vez por minuto, para que ir y venir a menudo no desencadene una cadena de sincronizaciones. Al volver también se **replanifican los recordatorios**, aunque no haya llegado nada nuevo: el reloj ha seguido corriendo igualmente. Si no quieres esperar, siguen ahí **Actualizar ahora** y tirar de la lista hacia abajo.
 
@@ -189,6 +195,8 @@ Los snapshots (historial de versiones), un diario de borradores (tras un fallo, 
 
 **Si alguien cambia la misma nota en otro lugar** mientras escribes aquí, Plainva conserva tu versión como copia junto a ella y adopta la que ha llegado. Eso ahora está **en la nota** y permanece hasta que lo resuelvas: un aviso sobre el texto indica la ruta de la copia, la abre y muestra las **diferencias** si lo pides. Antes era un mensaje que desaparecía en segundos — y el guardado seguía reintentando, así que cada ronda escribía otra copia. Ahora se escribe exactamente una.
 
+**Diferencias** abre la misma vista de comparación que en el escritorio: la nota a la izquierda, tu copia a la derecha, las líneas iguales plegadas y las mismas salidas: **adoptar**, **conservar ambas** (la copia pasa a llamarse `Nota (Version …).md`), **descartar copia**, cada una preguntando antes.
+
 **Al eliminar una carpeta**, el diálogo indica cuántos archivos contiene — el número también aparece en el botón. Plainva crea antes un snapshot de cada archivo que hay dentro, que puedes recuperar en **Ajustes** → **Mantenimiento** → **Restaurar archivos eliminados**. También declara un límite abiertamente: **solo puede conservarse lo que este teléfono haya escrito al menos una vez.** Una nota que solo llegó por sincronización y nunca se editó aquí no existe en ningún snapshot. A diferencia del escritorio, un teléfono no tiene papelera del sistema operativo que lo recoja. Si la eliminación afecta a más de diez archivos, o a más de una quinta parte del vault, Plainva pregunta una segunda vez — exactamente igual que en el escritorio.
 
 ## Compartir y accesos directos
@@ -241,5 +249,7 @@ Al revés, la vista de calendario de una base de datos puede mostrar el **númer
 ## Notificaciones de anotaciones
 
 Cuando alguien ha escrito en una nota, Plainva puede avisarte: los mismos tres niveles y el mismo interruptor de vista previa que en el escritorio, en **Ajustes → Contenido y estructura**. Al tocar el mensaje se abre la nota y se resalta la tarjeta correspondiente. Silencias una nota concreta con la campana de la hoja de comentarios.
+
+Si hay varias anotaciones nuevas a la vez, el aviso abre **Comentarios abiertos** en la pestaña **Nuevos**: exactamente los hilos a los que se refería; **Todos** y **Para mí** están al lado.
 
 **Aquí el mensaje llega más tarde que en el escritorio, y eso es una propiedad, no un fallo.** Plainva no tiene ningún servidor que pueda avisar a tu teléfono: construirlo significaría que un servidor ajeno sabría cuándo comentó quién qué nota. Por eso una anotación se detecta donde el teléfono mira de todos modos: tras un ciclo de sincronización y al volver al primer plano. Para ello no se ejecuta ningún temporizador en segundo plano; ninguna plataforma de teléfono lo permite.

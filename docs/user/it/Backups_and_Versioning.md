@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-09-03
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -25,6 +25,7 @@ Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu
 
 - A sinistra sono elencati tutti gli snapshot raggruppati per giorno, con orario e dimensione.
 - A destra viene mostrata un'anteprima; per i file di testo, **Confronta con la versione attuale** mostra la versione selezionata affiancata al contenuto attuale (la vecchia versione a sinistra, lo stato attuale a destra).
+- La vista di confronto si chiama **Confronta versioni** ed è la stessa per le versioni e per le copie di conflitto: a sinistra c’è sempre la nota, a destra l’altra versione; i blocchi uguali sono ripiegati, il piè di pagina conta le differenze e le righe che verrebbero aggiunte o perse. Con una copia di conflitto il lato destro è modificabile e si può unire riga per riga; quattro uscite — **adotta**, **tieni entrambe**, **scarta copia**, **più tardi** — e ognuna che scarta qualcosa chiede prima.
 - **Ripristina** sostituisce il contenuto attuale con la versione selezionata. Nessuna preoccupazione: lo stato attuale viene prima salvato a sua volta come snapshot — quindi un ripristino può sempre essere annullato.
 - **Ripristina come copia** crea la versione come nuovo file accanto all'originale (`Name (Version 2026-07-05 14-30).md`) senza toccarlo.
 

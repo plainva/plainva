@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-08-24
+Laatst bijgewerkt: 2026-09-03
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -144,6 +144,8 @@ Als onder **Cloudaccounts** de sectie **Dubbele accounts controleren** verschijn
 De telefoon draagt hier iets minder van: de indeling van de vier **desktop**-balken blijft op de computer — zijn eigen navigatiebalk reist wél mee, net als de vergadermap. Zijn eigen keten op de kluispagina laat zien wat hij wél draagt, en beide apparaten vertellen daaronder wat de synchronisatie het laatst werkelijk deed — met de namen van de instellingen die meereisden en, bij een ontvangst, die zijn gewijzigd. De melding “Instellingen overgenomen van een ander apparaat” verschijnt hoogstens één keer per sessie en alleen bij een echte wijziging — daarna vertellen deze regels het. Nieuw sinds deze versie neemt de telefoon ook de bestandsnaamopmaak van dagnotities, het OKF-type van nieuwe notities en je bladwijzers over — daarvoor kreeg een kluis met een andere datumopmaak een tweede dagnotitie voor dezelfde dag zodra de telefoon hem aanraakte.
 
 De diagnose toont nu afzonderlijk **laatst gecontroleerd** (lokale profielvelden), **laatst gedownload**, **laatst toegepast** en **laatst daadwerkelijk verstuurd**. ‘Verstuurd’ verandert alleen na een geslaagde cloudschrijfopdracht; ongewijzigde rondes werken dus controle en download bij, maar niet de verzendtijd. Resultaten voor geheimen staan apart als aantallen geïmporteerd, ongewijzigd, geweigerd, verouderd, mislukt of wachtend op een account. Ze bevatten alleen stabiele redencodes — nooit een account-id, wachtwoord, token of ruwe fout. Een melding over een oudere client betekent dat Plainva op alle deelnemende apparaten moet worden bijgewerkt; dit apparaat negeert de uitgefaseerde Google-clientgegevens.
+
+**Verwijderingen reizen mee.** Een verwijdering die je hebt bevestigd staat 90 dagen in een logboek (`.plainva/sync/deletions.json`) en wordt op elk ander apparaat zonder vraag overgenomen — ook na een herstart, en ook als daar veel bestanden tegelijk ontbreken. Ontbreken er daarentegen veel bestanden in de cloud zonder dat het logboek ze verklaart, dan pauzeert Plainva het spiegelen en vraagt: **verwijderingen overnemen** of **lokaal behouden** (dan uploadt het de bestanden opnieuw als nieuw). Hetzelfde geldt voor takenlijsten: een bij de aanbieder uitgevoerde verwijdering ruimt de taaknotitie ook op het andere apparaat op, zolang die daar onveranderd is.
 
 ## Fouten en automatisch opnieuw proberen
 

@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-08-24
+Ultimo aggiornamento: 2026-09-03
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -36,8 +36,10 @@ All'avvio, la schermata di benvenuto ti accoglie con:
 ## L'interfaccia
 
 - **Barra laterale sinistra** — tre viste: **File** (l'albero dei file), **Tag** (tutti i `#tag` nel vault) e **Database** (ogni `.base` nel vault, raggruppato per cartella — un clic per aprirlo); **Aperti di recente** e **Segnalibri** sono sezioni sopra il selettore delle viste, quindi restano visibili in tutte e tre le viste. In cima si trova il campo di ricerca, con un **+** accanto per Nuova nota, Nuova cartella, Nuovo database e Nota giornaliera. Il testo segnaposto del campo di ricerca indica cosa si sta cercando, e le schede mostrano il proprio nome finché il pannello è abbastanza largo — man mano che si restringe, prima solo la scheda attiva mantiene il nome, poi restano solo le icone. In basso: il selettore del vault, **Apri nota giornaliera** e **Impostazioni**. Il pulsante a doppia freccia accanto alle tre viste comprime o espande tutte le cartelle in una volta, e **Mostra nell'albero dei file** nel menu ⋮ dell'editor mostra la nota aperta direttamente nell'albero. Nella vista **File**, un'intestazione mostra il nome e l'icona del vault corrente.
+- **Ordina**: il pulsante accanto al campo di ricerca ordina l’albero dei file per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo la stessa chiave inverte la direzione. Sottocartelle e l’`index.md` di una cartella restano sempre in cima; la scelta viene ricordata su questo dispositivo.
 - **Barra del titolo** — le tue schede aperte. Le schede possono essere riordinate trascinandole e spostate tra i riquadri dell'editor.
 - **Area dell'editor** — dove leggi e scrivi. Tramite il menu della scheda (**Dividi a destra** / **Dividi in basso**) o le scorciatoie `Ctrl+Alt+V` / `Ctrl+Alt+S` dividi l'editor in due riquadri, ad es. una nota accanto a un database.
+- **Altre finestre**: una nota nella propria finestra mostra a destra la stessa barra laterale di contesto (struttura, grafo, database, backlink, proprietà; il calendario resta nella finestra principale), apribile e chiudibile dalla barra del titolo.
 - **Barra laterale destra** — quattro sezioni, riordinabili trascinandole: **Calendario** (note giornaliere), **Struttura** (i titoli della nota attiva), **Backlink** (chi collega qui) e **Proprietà** (il frontmatter della nota).
 - **Barra di stato** — conteggio di parole/caratteri, stato di sincronizzazione (Locale/Online/Offline) e stato di salvataggio (**Salvataggio...** / **Salvato**).
 
@@ -60,6 +62,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 - **Creazione:** clic destro su una cartella → **Nuova nota qui**, **Nuova cartella** o **Nuovo database (.base)**. Il grande pulsante **Nuovo** crea all'interno della cartella attualmente selezionata (o della cartella genitore di un file selezionato).
 - **Selezione:** un clic seleziona, `Ctrl`+clic aggiunge/rimuove singolarmente, `Shift`+clic seleziona un intervallo, il clic centrale apre in una nuova scheda.
 - **Menu contestuale:** include **Rinomina** (aggiorna i link in tutto il vault), **Duplica**, **Apri nella vista divisa (destra)** / **Apri nella vista divisa (in basso)**, **Aggiungi segnalibro**, **Copia percorso**, **Mostra in Esplora file**, **Elimina**.
+- **Sposta in…** nel menu contestuale sposta una nota, una cartella o l’intera selezione multipla in una cartella a tua scelta: la stessa strada del trascinamento, ma senza trascinare; schede aperte, riferimenti della bacheca e indice seguono.
 - **Le stesse azioni nelle sezioni sopra l'albero:** un clic destro su una voce in **Aperti di recente** o **Segnalibri** apre lo stesso menu — senza le voci per le cartelle, ma con in più **Rimuovi dall'elenco** (questo rimuove solo la voce dall'elenco, mai il file). Qui rinominare avviene tramite una finestra di dialogo anziché nel campo della riga. Anche le viste calendario e attività possono comparire in **Aperti di recente**; possono essere aperte e rimosse dall'elenco, ma non rinominate né eliminate — sono viste, non file.
 - **Selezione multipla:** eliminare chiede conferma una sola volta per tutti gli elementi, duplicare e spostare trascinando funzionano sull'intera selezione. Gli elementi eliminati finiscono nel cestino del sistema operativo.
 - Le nuove note iniziano automaticamente con un `# Titolo` derivato dal nome del file.
@@ -137,6 +140,7 @@ Questa disposizione appartiene al vault e viaggia sui tuoi altri dispositivi tra
 - **Palette dei comandi**: `Ctrl+P` apre **Comandi** — digita e premi `Invio` per eseguire (nuova nota, nota giornaliera, dividi, barre laterali, **Esegui backup ora** e altro ancora).
 - **Densità**: in **Impostazioni → App → Aspetto**, scegli tra **Comodo** e **Compatto** — Compatto restringe elenchi, menu e righe di tabella; il contenuto delle note resta invariato.
 - **Carattere del contenuto**: in **Impostazioni → App → Editor e note** imposta la **Dimensione carattere del contenuto** (12–24 px) e il **Carattere del contenuto** (**Predefinito del tema**, **Serif**, **Sans-serif**, **Monospazio** oppure **Personalizzato…**, con il nome di un carattere installato) — questo scala solo l'editor e la vista di lettura; l'interfaccia resta invariata.
+- **Elenco caratteri**: sotto **Personalizzato…** un elenco mostra i caratteri del tuo sistema, ogni riga nel proprio carattere; quello non installato lo dice e non si può scegliere. Il campo del nome sotto accetta qualsiasi altro carattere installato.
 - **Zoom dell'interfaccia**: scala l'INTERA interfaccia tra l'80 % e il 150 % — in **Impostazioni → App → Aspetto** oppure con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` ripristina).
 - **Finestre di dialogo e notifiche native-free**: le conferme appaiono come finestre di dialogo Plainva nello stile del tuo tema (le azioni distruttive hanno un pulsante rosso), gli avvisi brevi come notifiche discrete in basso a destra — niente più popup di sistema.
 

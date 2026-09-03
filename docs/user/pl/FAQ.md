@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-08-14
+Stan na: 2026-09-03
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -51,6 +51,8 @@ Bardzo stare notatki dzienne mogły odziedziczyć po swoim szablonie ustawienie,
 ### Czym jest plik .CONFLICT?
 
 Jeśli ten sam plik został zmieniony jednocześnie tutaj i na innym urządzeniu, Plainva najpierw próbuje automatycznie scalić obie wersje. Jeśli nie jest to możliwe, **Twoja** wersja jest bezpiecznie zapisywana jako plik `.CONFLICT` obok oryginału — nic nigdy nie ginie. Pliki konfliktów są oznaczone w drzewie plików; kliknięciem prawym przyciskiem wybierasz **Zachowaj tę wersję** (wersja konfliktu zastępuje oryginał) lub **Odrzuć konflikt**.
+
+Aby to rozwiązać, **Porównaj wersje** (prawy przycisk na pliku konfliktu, baner w notatce lub okno błędu synchronizacji) pokazuje obie wersje obok siebie — notatkę po lewej, kopię po prawej — z wyjściami **przyjmij**, **zachowaj obie**, **odrzuć kopię** i **później**; na komputerze prawą stronę można też scalać wiersz po wierszu. Każde wyjście, które coś odrzuca, najpierw pyta.
 
 ### Moje logowanie do Google ciągle wygasa
 

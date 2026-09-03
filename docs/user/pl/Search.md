@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-08-21
+Stan na: 2026-09-03
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -42,6 +42,8 @@ Poniżej trafień w nazwie przełącznik pokazuje dodatkowo grupę **Treść**: 
 ### W całym vaulcie
 
 `Ctrl/Cmd+Shift+F` (albo **Znajdź i zamień w vaulcie** w palecie poleceń) przeszukuje od razu wszystkie notatki. Wpisz termin, naciśnij **Znajdź**, a dopasowania pojawią się pogrupowane według notatki, każde z linią kontekstu. Wpisz zamiennik, odznacz notatki, które chcesz pominąć, a **Zamień w N notatkach** przepisze resztę — każda notatka jest zapisywana z powrotem w bezpieczny sposób (zapis atomowy + migawka wersji), dzięki czemu nieaktualny podgląd nigdy nie nadpisze nowszej treści. Wielkość liter, całe wyrazy i regexp działają też tutaj; w trybie regexp w zamienniku dostępne są odwołania wsteczne `$1`/`$2`.
+
+Każde trafienie pokazuje dwa wiersze: **przed** z miejscem trafienia i **po** z wynikiem — przy wyrażeniu regularnym odwołania `$1` są rozwinięte, więc zmianę można sprawdzić, zanim cokolwiek zostanie zapisane. Nieprawidłowe wyrażenie jest nazwane przy polu zamiast pustej listy; gdy nic nie pasuje, pusty stan mówi, co sprawdzić. Podczas zamiany widzisz postęp i możesz **Anulować** — już zapisane notatki pozostają zapisane i są wymienione. Na telefonie każde trafienie pokazuje te same dwa wiersze.
 
 **W telefonie** to samo znajdziesz w lupa w nagłówku, następnie `>` i **Znajdź i zamień w całym vault**: trafienia są zgrupowane według notatek i zwinięte, żeby termin z czterdziestoma trafieniami nie przykrył akcji; dotknij notatki, aby do niej zajrzeć, odznacz te, które mają zostać nietknięte, a przycisk sam nazywa swój zasięg (**Zamień w 2 notatkach**). Gdy opuścisz aplikację, trwająca zamiana zatrzyma się przy kolejnej notatce — już zapisane notatki pozostają zapisane i zostają wymienione.
 

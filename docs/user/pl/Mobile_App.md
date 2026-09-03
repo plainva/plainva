@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-02
+Stan na: 2026-09-03
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -27,6 +27,8 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 ## Czytanie i edycja notatek
 
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
+
+Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie ponownie otwiera się ostatnio otwarta notatka, a każda notatka otwiera się tam, gdzie ją zostawiono. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
 
 Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
 
@@ -75,6 +77,8 @@ Lista tagów znajduje się pod **Notatkami**. Dotknięcie otwiera notatki danego
 ## Znajdź i zamień w całym vault
 
 Droga do niego to lupa w nagłówku, następnie `>` i **Znajdź i zamień w całym vault**. Ekran przeszukuje wszystkie notatki naraz. Wpisz szukany tekst, dotknij **Znajdź** — trafienia pojawią się zgrupowane według notatek wraz z ich liczbą; dotknięcie otwiera wiersze jednej notatki i naraz otwarta pozostaje tylko jedna. Odznacz notatki, które chcesz pominąć — per notatka, nigdy per wiersz, bo notatkę zamienia się w całości albo wcale. **Zamień w N notatkach** przepisuje resztę, z paskiem postępu i przyciskiem **Anuluj**, który zatrzymuje pracę przy kolejnej notatce. Każda notatka jest odczytywana ponownie tuż przed zapisem, więc nieaktualny podgląd nigdy nie nadpisze nowszej treści; notatka zmieniona w międzyczasie zostaje pominięta i mówimy Ci o tym. Wielkość liter, całe słowo i wyrażenia regularne działają również tutaj.
+
+Każde trafienie pokazuje dwa wiersze — **przed** z miejscem trafienia, **po** z wynikiem, z rozwiniętymi odwołaniami `$1` przy wyrażeniu regularnym — abyś mógł sprawdzić zmianę, zanim cokolwiek zostanie zapisane.
 ## Przeglądy (index.md)
 
 W sejfie OKF `index.md` to spis treści folderu. Telefon oferuje dwa wejścia, pomyślane na dwie różne sytuacje.
@@ -115,6 +119,8 @@ Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na któr
 ## Kalendarz i wydarzenia
 
 **Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Każda kolumna dnia niesie u góry swój **dzień tygodnia i datę**, a pod nią pasek dla **wydarzeń całodniowych** tego dnia; oba przewijają się razem z siatką, zamiast zajmować miejsce na stałe. Dotknięcie wydarzenia otwiera **podgląd wydarzenia** jako arkusz — tę samą powierzchnię co pływające okno na komputerze: przedział czasu, miejsce, opis, uczestników wraz z ich odpowiedziami, a przy serii jej rytm oraz najbliższy termin. Przy zaproszeniu są tam **Zaakceptuj**, **Wstępnie** i **Odrzuć**, a poniżej **Edytuj wydarzenie**, **Notatka ze spotkania** i **Usuń wydarzenie**. Przeciągnięcie w dół zamyka arkusz. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**.
+
+Dotknięcie przypomnienia o wydarzeniu otwiera samo wydarzenie — widok dnia w jego dacie, z otwartym wydarzeniem. Ostatnio używany widok (dzień, 3 dni, agenda) jest zapamiętywany na urządzeniu, jak na komputerze.
 
 **Kiedy telefon sprawdza.** W tle na telefonie nie chodzi żaden zegar — regularna synchronizacja stoi więc tak długo, jak długo aplikacja jest odłożona. Dlatego Plainva sprawdza sama z siebie, gdy tylko **wracasz do aplikacji** i gdy otwierasz **Kalendarze**, **Zadania** albo **Konta kalendarza**; najwyżej raz na minutę, żeby częste przełączanie nie wyzwalało łańcucha synchronizacji. Powrót **planuje też na nowo przypomnienia**, nawet jeśli nic nowego nie doszło — zegar i tak szedł dalej. Jeśli nie chcesz czekać, nadal są **Odśwież teraz** i ściągnięcie listy w dół.
 
@@ -189,6 +195,8 @@ Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje 
 
 **Jeśli ktoś zmieni tę samą notatkę gdzie indziej**, gdy piszesz tutaj, Plainva zapisuje Twoją wersję jako kopię obok i przejmuje tę, która nadeszła. Widać to teraz **przy notatce** i pozostaje tam, dopóki tego nie rozwiążesz: komunikat nad tekstem podaje ścieżkę kopii, otwiera ją i na życzenie pokazuje **różnice**. Wcześniej był to komunikat znikający po kilku sekundach — a zapis próbował dalej, więc każda runda tworzyła kolejną kopię. Teraz powstaje dokładnie jedna.
 
+**Różnice** otwierają ten sam widok porównania co na komputerze: notatka po lewej, Twoja kopia po prawej, identyczne wiersze zwinięte, i te same wyjścia — **przyjmij**, **zachowaj obie** (kopia nazywa się wtedy `Notatka (Version …).md`), **odrzuć kopię**, każde z pytaniem.
+
 **Podczas usuwania folderu** okno dialogowe podaje, ile plików on zawiera — liczba widnieje też na przycisku. Plainva najpierw tworzy migawkę każdego znajdującego się w nim pliku, którą możesz przywrócić w **Ustawieniach** → **Konserwacja** → **Przywróć usunięte pliki**. Otwarcie podaje przy tym jedno ograniczenie: **zachować można tylko to, co ten telefon zapisał choć raz.** Notatka, która dotarła wyłącznie przez synchronizację i nigdy nie była tu edytowana, nie istnieje w żadnej migawce. W przeciwieństwie do komputera telefon nie ma kosza systemowego, który by to złapał. Jeśli usunięcie dotyczy ponad 10 plików lub ponad jedną piątą vaultu, Plainva pyta drugi raz — dokładnie tak samo jak na komputerze.
 
 ## Udostępnianie i skróty
@@ -241,5 +249,7 @@ I odwrotnie: widok kalendarza bazy danych może pokazać **liczbę prawdziwych t
 ## Powiadomienia o uwagach
 
 Gdy ktoś napisał coś przy notatce, Plainva może o tym powiadomić — te same trzy poziomy i ten sam przełącznik podglądu co na komputerze, w **Ustawieniach → Treść i struktura**. Dotknięcie powiadomienia otwiera notatkę i wyróżnia właściwą kartę. Pojedynczą notatkę wyciszasz dzwonkiem w arkuszu komentarzy.
+
+Gdy kilka uwag jest nowych naraz, powiadomienie otwiera **Otwarte komentarze** na karcie **Nowe** — dokładnie te wątki, o które chodziło; obok są **Wszystkie** i **Do mnie**.
 
 **Powiadomienie przychodzi tu później niż na komputerze i jest to cecha, a nie usterka.** Plainva nie ma serwera, który mógłby trącić telefon — zbudowanie go oznaczałoby, że obcy serwer dowiaduje się, kto i kiedy skomentował którą notatkę. Uwaga zostaje więc zauważona tam, gdzie telefon i tak zagląda: po cyklu synchronizacji i przy powrocie na pierwszy plan. Nie działa w tym celu żaden licznik w tle; nie pozwala na to żadna platforma telefonu.

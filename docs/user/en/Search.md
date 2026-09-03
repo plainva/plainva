@@ -1,6 +1,6 @@
 # Search
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-03
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
@@ -42,6 +42,8 @@ Below the name hits the switcher also shows a **Content** group: notes whose tex
 ### Across the whole vault
 
 `Ctrl/Cmd+Shift+F` (or **Find & replace in vault** in the command palette) searches every note at once. Enter a term, press **Find**, and the matches appear grouped by note with a line of context each. Type a replacement, untick any note you want to leave out, and **Replace in N notes** rewrites the rest — each note is written back safely (atomic write + a version snapshot), so a stale preview can never overwrite newer content. Match case, whole word and regex work here too; in regex mode `$1`/`$2` backreferences are available in the replacement.
+
+Every match shows two lines: **before** with the hit and **after** with the result — with a regex, `$1` back-references are resolved, so the change can be checked before anything is written. An invalid expression is named right at the field instead of answering with an empty list; when nothing matches, the empty state says what to check. While replacing you see the progress and can **Cancel** — notes already written stay written and are named. On the phone every match shows the same two lines.
 
 **On the phone** the same thing runs under the magnifier in the header, then `>` and **Find & replace in vault**: matches are grouped per note and collapsed, so a term with forty hits does not bury the action; tap a note to look inside, untick the ones you want left alone, and the button names its own scope (**Replace in 2 notes**). Leaving the app stops a running replace at the next note — notes already written stay written and are named.
 

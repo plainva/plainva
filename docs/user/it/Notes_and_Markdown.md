@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-08-26
+Ultimo aggiornamento: 2026-09-03
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -47,6 +47,8 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 - **Maniglie dei blocchi** — al passaggio del mouse compare una maniglia a sinistra di ogni paragrafo: trascinala per spostare il blocco, clicca per aprire **Azioni sul blocco** (**Trasforma in** Testo/Titolo/Elenco/Da fare/Citazione/Blocco di codice, **Duplica**, **Sposta su**/**Sposta giù**, **Elimina blocco**). Se trascini un elenco accanto a un altro elenco dello stesso tipo, Plainva inserisce una riga separatrice invisibile `<!-- -->` in modo che i due elenchi restino separati — in Markdown, elenchi dello stesso stile si fonderebbero altrimenti nonostante la riga vuota (anche in Obsidian).
 - **Tabelle** — renderizzate come widget con celle modificabili con un clic. La visualizzazione della cella rende la formattazione (**grassetto**, *corsivo*, `codice`, evidenziazione), i link cliccabili (`[[Link interno]]`, indirizzi web) e `<br>` come interruzione di riga; durante la modifica vedi il testo grezzo. Il menu della tabella offre l'inserimento/eliminazione di righe e colonne oltre all'allineamento (**Allinea a sinistra**/**Allinea al centro**/**Allinea a destra**).
 - **Gli elenchi continuano da soli** (Invio inserisce il prossimo marcatore di elenco), i blocchi di codice ottengono un'evidenziazione sensibile al linguaggio (anche in modalità lettura), il contenuto incollato viene convertito in Markdown (incolla intelligente) e i titoli possono essere ripiegati.
+- **Ripiegare gli elenchi**: un clic sul punto di una voce con sottovoci le ripiega; il punto assume il colore di accento e un «…» segna il punto, un secondo clic le riapre. Il file non cambia mai. I punti si alternano per livello (• ◦ ▪) e le righe di continuazione stanno esattamente sotto il testo della voce, anche sul telefono, dove il punto è l’unico comando di ripiegatura.
+- **Posizione di scorrimento**: ogni nota si apre dove l’avevi lasciata; ricordata per dispositivo, non sincronizzata.
 - **Trova e sostituisci** all'interno della nota corrente: `Ctrl+F` (vedi [Ricerca](Search.md)).
 
 ## Link e backlink

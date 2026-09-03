@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-08-22
+Laatst bijgewerkt: 2026-09-03
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -60,6 +60,8 @@ Het notitie-icoon bij een afspraak maakt zijn **vergadernotitie** aan (of opent 
 Herinneringslijsten (Apple Herinneringen via iCloud-CalDAV, Nextcloud-takenlijsten) zijn eigen collecties op de server en verschijnen daarom onder **Takenlijsten** — nooit onder **Agenda's**. Toont een verbonden account geen takenlijsten, dan zegt de sectie dat en biedt **Opnieuw zoeken** aan; is het zoeken zelf mislukt, dan staat daar de reden en blijft je eerdere selectie behouden.
 
 Vink bij een verbonden account een **takenlijst** aan, en de taken erin verschijnen als notities in je [standaard takendatabase](Tasks.md): de titel wordt de notitie (H1), de vervaldatum belandt in de datumkolom van de database, en voltooiing wordt afgebeeld op de **voltooid-selectievakje-eigenschap** van de database (de statuskolom volgt mee; een database zonder selectievakjekolom gebruikt de statusconventie — eerste optie = open, laatste = voltooid). De synchronisatie verloopt in beide richtingen, per veld:
+
+Nieuwe takenlijsten zijn **vanaf het begin aangevinkt** — anders dan kalenders, die je eerst kiest. Uitvinken blijft staan: na een herstart, na het vernieuwen van de lijsten en via de instellingensync.
 
 - Bewerk je de notitie (titel, vervaldatum, status) → de wijziging wordt naar de provider gepusht.
 - Verandert de taak extern → de notitie volgt.

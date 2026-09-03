@@ -709,7 +709,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         if (current()) setLoadingMessage(false);
       }
     },
-    [vaultPath, account, mailbox, dbAdapter, t]
+    // `accounts`/`accountId` are read above (code review B1): without them
+    // here, a unified-inbox row opened after an account switch resolved
+    // against the account list of the previous render.
+    [vaultPath, account, accounts, accountId, mailbox, dbAdapter, t]
   );
 
   const allowRemote = remoteOptIn || showRemoteOnce;

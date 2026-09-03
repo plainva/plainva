@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-08-24
+Stand: 2026-09-03
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -36,8 +36,10 @@ Unter **Kürzliche Vaults** findest Du alles, was Du schon einmal geöffnet hast
 ## Die Oberfläche
 
 - **Linke Seitenleiste** — drei Ansichten: **Dateien** (der Dateibaum), **Tags** (alle `#tags` im Vault) und **Datenbanken** (jede `.base` im Vault, nach Ordner gruppiert — ein Klick öffnet sie); **Zuletzt geöffnet** und **Lesezeichen** stehen als Abschnitte über dem Ansichts-Umschalter und bleiben deshalb in allen drei Ansichten sichtbar. Ganz oben liegt das Suchfeld, daneben ein **+** für Neue Notiz, Neuer Ordner, Neue Base und Tageseintrag. Der Platzhalter im Suchfeld sagt, was gerade durchsucht wird, und die Reiter tragen ihren Namen, solange die Leiste breit genug ist — wird sie schmaler, behält zuerst nur noch der aktive Reiter seinen Namen, dann bleiben die Symbole. Unten: Vault-Wechsler, **Tägliche Notiz öffnen** und **Einstellungen**. Ein Klick auf das Doppelpfeil-Symbol neben den Ansichten klappt alle Ordner auf einmal ein oder aus, und **Im Dateibaum anzeigen** im ⋮-Menü des Editors zeigt die geöffnete Notiz direkt im Baum. In der Ansicht **Dateien** zeigt eine Kopfzeile den Namen und das Icon des aktuellen Vaults.
+- **Sortieren** — der Knopf neben dem Suchfeld ordnet den Dateibaum nach **Titel**, **Zuletzt geändert** oder **Erstellt**; dieselbe Wahl noch einmal kehrt die Richtung um. Unterordner und die `index.md` eines Ordners bleiben immer vorn; die Wahl merkt sich dieses Gerät.
 - **Titelleiste** — Deine geöffneten Tabs. Tabs lassen sich per Drag umsortieren und zwischen Editor-Bereichen verschieben.
 - **Editor-Bereich** — hier liest und schreibst Du. Über das Tab-Menü (**Rechts teilen** / **Unten teilen**) oder die Kürzel `Strg+Alt+V` / `Strg+Alt+S` teilst Du den Editor in zwei Bereiche (Split), z. B. für Notiz + Datenbank nebeneinander.
+- **Weitere Fenster** — eine Notiz in einem eigenen Fenster zeigt rechts dieselbe Kontext-Seitenleiste (Gliederung, Graph, Datenbanken, Backlinks, Eigenschaften; der Kalender bleibt beim Hauptfenster), ein- und ausklappbar über die Titelleiste.
 - **Rechte Seitenleiste** — vier Abschnitte, per Drag umsortierbar: **Kalender** (Tagesnotizen), **Gliederung** (Überschriften der aktiven Notiz), **Backlinks** (wer verlinkt hierher) und **Eigenschaften** (das Frontmatter der Notiz).
 - **Statusleiste** — Wortzahl/Zeichen, Sync-Status (Lokal/Online/Offline) und Speicherstatus (**Speichert...** / **Gespeichert**).
 
@@ -60,6 +62,7 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 - **Anlegen:** Rechtsklick auf einen Ordner → **Neue Notiz hier**, **Neuer Ordner hier** oder **Neue Datenbank (.base)**. Der große **Neu**-Knopf legt im gerade ausgewählten Ordner an (bzw. im Elternordner der ausgewählten Datei).
 - **Auswählen:** Klick wählt aus, `Strg`+Klick fügt einzeln hinzu/entfernt, `Umschalt`+Klick wählt einen Bereich, Mittelklick öffnet in einem neuen Tab.
 - **Kontextmenü:** u. a. **Umbenennen** (aktualisiert Links vault-weit), **Duplizieren**, **Im Split öffnen (rechts)** / **Im Split öffnen (unten)**, **Lesezeichen hinzufügen**, **Pfad kopieren**, **Im Dateimanager zeigen**, **Löschen**.
+- **Verschieben nach…** im Kontextmenü verschiebt eine Notiz, einen Ordner oder die ganze Mehrfachauswahl in einen Ordner Deiner Wahl — derselbe Weg wie Drag & Drop, nur ohne Drag: offene Tabs, Pinnwand-Verweise und der Index ziehen mit.
 - **Dieselben Aktionen in den Abschnitten über dem Baum:** Ein Rechtsklick auf einen Eintrag in **Zuletzt geöffnet** oder **Lesezeichen** öffnet dasselbe Menü — ohne die Ordner-Einträge, dafür mit **Aus der Liste entfernen** (das nimmt nur den Eintrag aus der Liste, nie die Datei). Umbenannt wird dort über einen Abfrage-Dialog statt im Feld der Zeile. Die Kalender- und Aufgabenübersicht kann ebenfalls in **Zuletzt geöffnet** stehen; sie lässt sich öffnen und aus der Liste nehmen, aber nicht umbenennen oder löschen — sie ist eine Ansicht, keine Datei.
 - **Mehrfachauswahl:** Löschen mit einer Bestätigung, Duplizieren und Verschieben per Drag funktionieren für alle ausgewählten Elemente zusammen. Gelöschtes landet im Papierkorb des Betriebssystems.
 - Neue Notizen starten automatisch mit einer `# Überschrift` aus dem Dateinamen.
@@ -137,6 +140,7 @@ Die Anordnung gehört zum Vault und reist über die [Einstellungs-Synchronisatio
 - **Befehls-Palette**: `Strg+P` öffnet **Befehle** — tippen, mit `Enter` ausführen (Neue Notiz, Tageseintrag, Teilen, Seitenleisten, **Jetzt sichern** u. v. m.).
 - **Kompaktheitsgrad**: Unter **Einstellungen → App → Erscheinungsbild** wählst Du zwischen **Standard** und **Kompakt** — Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert.
 - **Inhalts-Schrift**: Unter **Einstellungen → App → Editor & Notizen** stellst Du die **Inhalts-Schriftgröße** (12–24 px) und die **Inhalts-Schriftart** ein (Theme-Standard, Serif, Sans-Serif, Monospace oder der Name einer installierten Schriftart) — das skaliert nur Editor und Leseansicht; die Oberfläche bleibt, wie sie ist.
+- **Schriftliste**: Unter **Benutzerdefiniert…** steht eine Liste der Schriften Deines Systems, jede Zeile in ihrer eigenen Schrift; was nicht installiert ist, sagt es und lässt sich nicht wählen. Das Namensfeld darunter nimmt jede andere installierte Schrift.
 - **Oberflächen-Zoom**: skaliert die GESAMTE Oberfläche zwischen 80 % und 150 % — unter **Einstellungen → App → Erscheinungsbild** oder per `Strg+Plus`/`Strg+Minus` (`Strg+0` setzt zurück).
 - **Eigene Dialoge & Hinweise**: Bestätigungen erscheinen als Plainva-Dialoge im Stil Deines Themes (destruktive Aktionen mit rotem Knopf), kurze Meldungen als dezente Hinweise unten rechts — keine System-Popups mehr.
 

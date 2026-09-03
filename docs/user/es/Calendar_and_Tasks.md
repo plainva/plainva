@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-08-22
+Última actualización: 2026-09-03
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -60,6 +60,8 @@ El icono de nota en cualquier evento crea (o vuelve a abrir) su **nota de reuni�
 Las listas de recordatorios (Recordatorios de Apple mediante CalDAV de iCloud, listas de tareas de Nextcloud) son colecciones propias en el servidor, por eso aparecen en **Listas de tareas** y nunca en **Calendarios**. Si una cuenta conectada no muestra listas de tareas, la sección lo indica y ofrece **Buscar de nuevo**; si la búsqueda falló, se muestra el motivo y se mantiene tu selección anterior.
 
 Marca una **Lista de tareas** en una cuenta conectada y sus tareas aparecen como notas en tu [base de datos de tareas predeterminada](Tasks.md): el título se convierte en la nota (H1), la fecha límite llega a la columna de fecha de la base de datos, y el estado completado se refleja en la **propiedad de casilla de hecho** de la base de datos (la columna de estado la sigue; una base de datos sin columna de casilla usa la convención de estado — la primera opción = abierta, la última = hecha). La sincronización es bidireccional y campo a campo:
+
+Las listas de tareas nuevas vienen **marcadas desde el principio**, a diferencia de los calendarios, que eliges primero. Desmarcar se mantiene: tras un reinicio, tras actualizar las listas y a través de la sincronización de ajustes.
 
 - Edita la nota (título, fecha límite, estado) → el cambio se envía al proveedor.
 - Cambia la tarea de forma remota → la nota lo sigue.

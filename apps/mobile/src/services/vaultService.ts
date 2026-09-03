@@ -48,6 +48,7 @@ import { listMailAccounts } from "@plainva/ui/mail";
 import {
   collectVaultSecretKeys,
   forgetVaultFiles,
+  forgetVaultMemories,
   forgetVaultSecrets,
   forgetVaultStoreKeys,
 } from "./vaultForget";
@@ -303,6 +304,7 @@ export async function deleteVault(id: string): Promise<void> {
   await forgetVaultSecrets(secretKeys);
   await forgetVaultFiles(id).catch(() => {});
   await forgetVaultStoreKeys(id).catch(() => {});
+  forgetVaultMemories(id);
   await removeVault(id);
 }
 

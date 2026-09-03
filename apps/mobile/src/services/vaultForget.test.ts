@@ -184,3 +184,20 @@ describe("what a forgotten vault leaves behind (finding 2026-08-19)", () => {
     await expect(forgetVaultFiles(VAULT)).resolves.toBeUndefined();
   });
 });
+
+describe("forgetVaultMemories (feedback round 2026-09-01, P8)", () => {
+  it("drops this vault's scroll, last-open and profile-notice memories and nothing else", async () => {
+    const { forgetVaultMemories } = await import("./vaultForget");
+    localStorage.setItem("plainva-scroll-v1", "{}");
+    localStorage.setItem("plainva-last-open-v1", "a.md");
+    localStorage.setItem("plainva-profile-announced-v1", "x");
+    localStorage.setItem("plainva-scroll-v2", "{}");
+    localStorage.setItem("plainva-folder-sort", "title");
+    forgetVaultMemories("v1");
+    expect(localStorage.getItem("plainva-scroll-v1")).toBeNull();
+    expect(localStorage.getItem("plainva-last-open-v1")).toBeNull();
+    expect(localStorage.getItem("plainva-profile-announced-v1")).toBeNull();
+    expect(localStorage.getItem("plainva-scroll-v2")).toBe("{}");
+    expect(localStorage.getItem("plainva-folder-sort")).toBe("title");
+  });
+});

@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-09-03
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -25,6 +25,7 @@ Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu
 
 - À gauche : tous les instantanés, groupés par jour, avec l'heure et la taille.
 - À droite : un aperçu ; pour les fichiers texte, **Comparer avec la version actuelle** affiche la version sélectionnée côte à côte avec le contenu actuel (l'ancienne version à gauche, l'état actuel à droite).
+- La vue de comparaison s’appelle **Comparer les versions** et sert autant aux versions qu’aux copies de conflit : la note est toujours à gauche, l’autre version à droite ; les blocs identiques sont repliés, le pied de page compte les différences et les lignes qui seraient ajoutées ou perdues. Avec une copie de conflit, le côté droit est modifiable et se fusionne ligne par ligne ; quatre issues — **adopter**, **garder les deux**, **rejeter la copie**, **plus tard** — et chacune qui rejette quelque chose demande d’abord.
 - **Restaurer** remplace le contenu actuel par la version sélectionnée. Ne vous inquiétez pas : l'état actuel est lui-même d'abord enregistré comme instantané — une restauration peut donc toujours être annulée.
 - **Restaurer en tant que copie** crée la version sous forme de nouveau fichier à côté de l'original (`Name (Version 2026-07-05 14-30).md`) sans toucher à celui-ci.
 

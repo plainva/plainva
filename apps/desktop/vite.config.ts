@@ -111,5 +111,9 @@ export default defineConfig(async () => ({
     // the app itself lazy-loads them (P2.8) and tests would otherwise assert
     // against raw keys.
     setupFiles: ['./src/test-localstorage.ts', './src/test-setup.ts'],
+    // B3 (code review): Node's experimental web storage prints a
+    // "--localstorage-file" warning at every worker start and shadows jsdom's
+    // storage; the workers run without it, the setup file covers the rest.
+    poolOptions: { forks: { execArgv: ['--no-experimental-webstorage'] } },
   },
 } as any));

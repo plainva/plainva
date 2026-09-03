@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-08-22
+Ultimo aggiornamento: 2026-09-03
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -60,6 +60,8 @@ L'icona a forma di nota su qualsiasi evento crea (o riapre) la sua **nota della 
 Gli elenchi di promemoria (Promemoria di Apple via CalDAV di iCloud, elenchi di attività di Nextcloud) sono raccolte separate sul server e compaiono quindi in **Elenchi di attività**, mai in **Calendari**. Se un account collegato non mostra elenchi di attività, la sezione lo dice e offre **Cerca di nuovo**; se la ricerca è fallita, viene mostrato il motivo e la selezione precedente resta invariata.
 
 Spunta un **elenco attività** in un account collegato e le sue attività appaiono come note nel tuo [database attività predefinito](Tasks.md): il titolo diventa la nota (H1), la scadenza finisce nella colonna della data del database, e il completamento si riflette nella **proprietà casella di controllo di completamento** del database (la colonna di stato la segue; un database senza colonna casella di controllo utilizza la convenzione di stato — prima opzione = aperta, ultima = completata). La sincronizzazione è bidirezionale e per campo:
+
+I nuovi elenchi attività sono **spuntati fin dall’inizio**, a differenza dei calendari, che scegli prima. Togliere la spunta resta: dopo un riavvio, dopo un aggiornamento degli elenchi e attraverso la sincronizzazione delle impostazioni.
 
 - Modifichi la nota (titolo, scadenza, stato) → la modifica viene inviata al provider.
 - Cambi l'attività da remoto → la nota si adegua.

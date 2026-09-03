@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-08-24
+Dernière mise à jour : 2026-09-03
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -36,8 +36,10 @@ Au démarrage, l'écran d'accueil vous accueille :
 ## L'interface
 
 - **Barre latérale gauche** — trois vues : **Fichiers** (l'arborescence de fichiers), **Tags** (tous les `#tags` du vault) et **Bases de données** (chaque `.base` du vault, regroupée par dossier — un clic l'ouvre) ; **Ouverts récemment** et **Signets** sont des sections au-dessus du sélecteur de vues, elles restent donc visibles dans les trois vues. Tout en haut se trouve le champ de recherche, avec un **+** à côté pour Nouvelle note, Nouveau dossier, Nouvelle base et Note quotidienne. Le texte indicatif du champ de recherche précise ce qui est recherché, et les onglets affichent leur nom tant que le panneau est assez large — à mesure qu'il se rétrécit, seul l'onglet actif garde d'abord son nom, puis seules les icônes restent. En bas : le sélecteur de vault, **Ouvrir la note quotidienne** et **Paramètres**. Le bouton à double chevron à côté des trois vues replie ou déplie tous les dossiers d'un coup, et **Afficher dans l'arborescence de fichiers** dans le menu ⋮ de l'éditeur affiche directement la note ouverte dans l'arborescence. Dans la vue **Fichiers**, un en-tête affiche le nom et l'icône du vault actuel.
+- **Trier** — le bouton à côté du champ de recherche classe l’arborescence par **Titre**, **Dernière modification** ou **Création** ; choisir à nouveau la même clé inverse le sens. Les sous-dossiers et l’`index.md` d’un dossier restent toujours en tête ; le choix est mémorisé sur cet appareil.
 - **Barre de titre** — vos onglets ouverts. Les onglets peuvent être réordonnés par glisser-déposer et déplacés entre les volets de l'éditeur.
 - **Zone de l'éditeur** — où vous lisez et écrivez. Via le menu de l'onglet (**Scinder à droite** / **Scinder en bas**) ou les raccourcis `Ctrl+Alt+V` / `Ctrl+Alt+S`, vous scindez l'éditeur en deux volets, par exemple une note à côté d'une base de données.
+- **Autres fenêtres** — une note dans sa propre fenêtre affiche à droite la même barre latérale de contexte (plan, graphe, bases de données, backlinks, propriétés ; le calendrier reste dans la fenêtre principale), repliable depuis la barre de titre.
 - **Barre latérale droite** — quatre sections, réorganisables par glisser-déposer : **Calendrier** (notes quotidiennes), **Plan** (titres de la note active), **Backlinks** (qui renvoie ici) et **Propriétés** (le frontmatter de la note).
 - **Barre d'état** — nombre de mots/caractères, statut de synchronisation (Local/En ligne/Hors ligne) et statut d'enregistrement (**Enregistrement...** / **Enregistré**).
 
@@ -60,6 +62,7 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 - **Créer :** clic droit sur un dossier → **Nouvelle note ici**, **Nouveau dossier** ou **Nouvelle base de données (.base)**. Le grand bouton **Nouveau** crée dans le dossier actuellement sélectionné (ou le dossier parent d'un fichier sélectionné).
 - **Sélectionner :** un clic sélectionne, `Ctrl`+clic ajoute/retire individuellement, `Shift`+clic sélectionne une plage, un clic central ouvre dans un nouvel onglet.
 - **Menu contextuel :** comprend **Renommer** (met à jour les liens dans tout le vault), **Dupliquer**, **Ouvrir dans la vue scindée (droite)** / **Ouvrir dans la vue scindée (bas)**, **Ajouter un signet**, **Copier le chemin**, **Afficher dans le gestionnaire de fichiers**, **Supprimer**.
+- **Déplacer vers…** dans le menu contextuel déplace une note, un dossier ou toute la sélection multiple vers le dossier de votre choix — le même chemin que le glisser-déposer, sans le glisser : les onglets ouverts, les références du tableau et l’index suivent.
 - **Les mêmes actions dans les sections au-dessus de l'arborescence :** un clic droit sur une entrée dans **Ouverts récemment** ou **Signets** ouvre le même menu — sans les entrées de dossier, et avec **Retirer de la liste** en plus (cela retire seulement l'entrée de la liste, jamais le fichier). Renommer s'y fait via une boîte de dialogue plutôt que dans le champ de la ligne. Les vues calendrier et tâches peuvent elles aussi apparaître dans **Ouverts récemment** ; elles peuvent être ouvertes et retirées de la liste, mais pas renommées ni supprimées — ce sont des vues, pas des fichiers.
 - **Sélection multiple :** la suppression ne demande qu'une seule confirmation pour tous les éléments, la duplication et le déplacement par glisser-déposer fonctionnent sur toute la sélection. Les éléments supprimés vont dans la corbeille du système d'exploitation.
 - Les nouvelles notes commencent automatiquement par un `# Titre` dérivé du nom du fichier.
@@ -137,6 +140,7 @@ Cet arrangement appartient au vault et se propage à vos autres appareils via [C
 - **Palette de commandes** : `Ctrl+P` ouvre **Commandes** — tapez et appuyez sur `Entrée` pour exécuter (nouvelle note, note quotidienne, scission, barres latérales, **Sauvegarder maintenant**, et bien plus).
 - **Densité** : sous **Paramètres → App → Apparence**, choisissez entre **Confortable** et **Compact** — Compact resserre les listes, menus et lignes de tableau ; le contenu des notes n'est pas affecté.
 - **Police du contenu** : sous **Paramètres → App → Éditeur et notes**, réglez la **Taille de police du contenu** (12–24 px) et la **Police du contenu** (défaut du thème, serif, sans-serif, monospace ou le nom d'une police installée) — cela ne redimensionne que l'éditeur et la vue de lecture ; l'interface reste inchangée.
+- **Liste de polices** : sous **Personnalisée…**, une liste présente les polices de votre système, chaque ligne dans sa propre police ; une police non installée le dit et ne peut pas être choisie. Le champ de nom en dessous accepte toute autre famille installée.
 - **Zoom de l'interface** : redimensionne TOUTE l'interface entre 80 % et 150 % — sous **Paramètres → App → Apparence** ou via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` réinitialise).
 - **Boîtes de dialogue et notifications natives-free** : les confirmations apparaissent comme des boîtes de dialogue Plainva stylées selon votre thème (les actions destructrices ont un bouton rouge), les brefs avis comme des toasts discrets en bas à droite — plus de fenêtres système.
 

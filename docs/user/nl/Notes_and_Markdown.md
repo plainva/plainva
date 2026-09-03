@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-08-26
+Laatst bijgewerkt: 2026-09-03
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -47,6 +47,8 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 - **Blokgrepen** — bij het overgaan met de muis verschijnt links van elke alinea een greep: sleep hem om het blok te verplaatsen, klik erop om **Blokacties** te openen (**Omzetten in** Tekst/Kop/Lijst/To-do/Citaat/Codeblok, **Dupliceren**, **Omhoog**/**Omlaag**, **Blok verwijderen**). Als je een lijst naast een andere lijst van hetzelfde soort sleept, voegt Plainva een onzichtbare scheidingsregel `<!-- -->` toe zodat beide lijsten gescheiden blijven — in Markdown zouden gelijksoortige lijsten anders ondanks de lege regel samensmelten (ook in Obsidian).
 - **Tabellen** — weergegeven als widget met klik-om-te-bewerken-cellen. De celweergave rendert opmaak (**vet**, *cursief*, `code`, markering), klikbare links (`[[Interne link]]`, webadressen) en `<br>` als regeleinde; tijdens het bewerken zie je de ruwe tekst. Het tabelmenu biedt rijen/kolommen invoegen en verwijderen plus uitlijning (**Links uitlijnen**/**Centreren**/**Rechts uitlijnen**).
 - **Lijsten zetten zichzelf voort** (Enter voegt het volgende lijstteken in), codeblokken krijgen taalbewuste kleuraccentuering (ook in de leesmodus), geplakte inhoud wordt omgezet naar Markdown (smart paste), en koppen kunnen worden ingeklapt.
+- **Lijsten invouwen** — een klik op het opsommingsteken van een item met subitems vouwt ze in; het teken krijgt de accentkleur en een „…” markeert de plek, een tweede klik vouwt weer uit. Het bestand verandert nooit. De tekens wisselen per niveau (• ◦ ▪) en vervolgregels staan precies onder de tekst van hun item — ook op de telefoon, waar het teken de enige vouwknop is.
+- **Scrollpositie** — elke notitie opent waar je haar verliet; per apparaat onthouden, niet gesynchroniseerd.
 - **Zoeken & vervangen** binnen de huidige notitie: `Ctrl+F` (zie [Zoeken](Search.md)).
 
 ## Links en backlinks

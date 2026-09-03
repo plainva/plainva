@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-08-21
+Stand: 2026-09-03
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -25,6 +25,7 @@ Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Me
 
 - Links stehen alle Snapshots nach Tag gruppiert, mit Uhrzeit und Größe.
 - Rechts siehst Du die Vorschau; bei Textdateien vergleicht **Mit aktueller Fassung vergleichen** die gewählte Version Seite an Seite mit dem aktuellen Inhalt (links die alte Version, rechts der aktuelle Stand).
+- Die Vergleichsfläche heißt **Fassungen vergleichen** und ist dieselbe für Versionen und für Konfliktkopien: links steht immer die Notiz, rechts die andere Fassung; gleiche Blöcke sind eingeklappt, die Fußzeile zählt Unterschiede und Zeilen, die hinzukommen oder verloren gehen. Bei einer Konfliktkopie ist die rechte Seite editierbar und lässt sich zeilenweise zusammenführen; vier Ausgänge — **übernehmen**, **beide behalten**, **Kopie verwerfen**, **später** — und jeder, der etwas verwirft, fragt vorher nach.
 - **Wiederherstellen** ersetzt den aktuellen Inhalt durch die gewählte Version. Keine Angst: Der aktuelle Stand wird vorher selbst als Snapshot gesichert — Wiederherstellen ist also selbst rückgängig machbar.
 - **Als Kopie wiederherstellen** legt die Version als neue Datei daneben an (`Name (Version 2026-07-05 14-30).md`), ohne das Original anzufassen.
 

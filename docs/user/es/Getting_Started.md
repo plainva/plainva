@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-08-24
+Última actualización: 2026-09-03
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -36,8 +36,10 @@ Al iniciar, la pantalla de bienvenida te saluda:
 ## La interfaz
 
 - **Barra lateral izquierda** — tres vistas: **Archivos** (el árbol de archivos), **Etiquetas** (todas las `#etiquetas` del vault) y **Bases de datos** (cada `.base` del vault, agrupada por carpeta — haz clic para abrirla); **Abiertos recientemente** y **Marcadores** son secciones encima del selector de vistas, así que permanecen visibles en las tres vistas. En la parte superior está el campo de búsqueda, con un **+** al lado para Nueva nota, Nueva carpeta, Nueva base y Nota diaria. El texto de ejemplo del campo de búsqueda indica qué se está buscando, y las pestañas muestran su nombre mientras el panel sea suficientemente ancho — a medida que se estrecha, primero solo la pestaña activa conserva su nombre, y después solo quedan los iconos. Abajo: el selector de vaults, **Abrir nota diaria** y **Configuración**. El botón de doble flecha junto a las tres vistas contrae o expande todas las carpetas de una vez, y **Mostrar en el árbol de archivos** en el menú ⋮ del editor muestra la nota abierta directamente en el árbol. En la vista **Archivos**, un encabezado muestra el nombre y el icono del vault actual.
+- **Ordenar**: el botón junto al campo de búsqueda ordena el árbol de archivos por **Título**, **Última modificación** o **Creación**; elegir la misma opción otra vez invierte la dirección. Las subcarpetas y el `index.md` de una carpeta siempre van delante; la elección se recuerda en este dispositivo.
 - **Barra de título** — tus pestañas abiertas. Las pestañas se pueden reordenar arrastrándolas y mover entre paneles del editor.
 - **Área del editor** — donde lees y escribes. A través del menú de la pestaña (**Dividir a la derecha** / **Dividir abajo**) o los atajos `Ctrl+Alt+V` / `Ctrl+Alt+S` divides el editor en dos paneles, por ejemplo una nota junto a una base de datos.
+- **Más ventanas**: una nota en su propia ventana muestra a la derecha la misma barra lateral de contexto (esquema, grafo, bases de datos, backlinks, propiedades; el calendario se queda en la ventana principal), que se pliega y despliega desde la barra de título.
 - **Barra lateral derecha** — cuatro secciones, reordenables por arrastre: **Calendario** (notas diarias), **Esquema** (encabezados de la nota activa), **Retroenlaces** (quién enlaza aquí) y **Propiedades** (el frontmatter de la nota).
 - **Barra de estado** — recuento de palabras/caracteres, estado de sincronización (Local/En línea/Sin conexión) y estado de guardado (**Guardando...** / **Guardado**).
 
@@ -60,6 +62,7 @@ También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 - **Crear:** clic derecho en una carpeta → **Nueva nota aquí**, **Nueva carpeta** o **Nueva base de datos (.base)**. El gran botón **Nuevo** crea dentro de la carpeta seleccionada actualmente (o la carpeta padre de un archivo seleccionado).
 - **Seleccionar:** un clic selecciona, `Ctrl`+clic añade o quita elementos individualmente, `Shift`+clic selecciona un rango, el clic central abre en una nueva pestaña.
 - **Menú contextual:** incluye **Renombrar** (actualiza los enlaces en todo el vault), **Duplicar**, **Abrir en panel dividido (derecha)** / **Abrir en panel dividido (abajo)**, **Añadir marcador**, **Copiar ruta**, **Mostrar en el administrador de archivos**, **Eliminar**.
+- **Mover a…** en el menú contextual mueve una nota, una carpeta o toda la selección múltiple a la carpeta que elijas: el mismo camino que arrastrar y soltar, pero sin arrastrar; las pestañas abiertas, las referencias del tablero y el índice lo siguen.
 - **Las mismas acciones en las secciones encima del árbol:** hacer clic derecho en una entrada de **Abiertos recientemente** o **Marcadores** abre el mismo menú — sin las entradas de carpeta, y con **Quitar de la lista** añadido (eso solo quita la entrada de la lista, nunca el archivo). Renombrar ahí se hace mediante un diálogo en lugar de un campo en la fila. Las vistas de calendario y tareas también pueden estar en **Abiertos recientemente**; se pueden abrir y quitar de la lista, pero no renombrar ni eliminar — son vistas, no archivos.
 - **Selección múltiple:** eliminar pregunta una sola vez por todos los elementos, duplicar y mover por arrastre funcionan sobre toda la selección. Los elementos eliminados van a la papelera del sistema operativo.
 - Las notas nuevas empiezan automáticamente con un `# Encabezado` derivado del nombre del archivo.
@@ -137,6 +140,7 @@ Esta disposición pertenece al vault y viaja a tus otros dispositivos mediante [
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — escribe y pulsa `Intro` para ejecutar (nueva nota, nota diaria, dividir, barras laterales, **Crear copia de seguridad ahora** y mucho más).
 - **Densidad**: en **Configuración → App → Apariencia**, elige entre **Cómodo** y **Compacto** — Compacto reduce listas, menús y filas de tabla; el contenido de las notas no se ve afectado.
 - **Fuente del contenido**: en **Configuración → App → Editor y notas**, ajusta el **Tamaño de fuente del contenido** (12–24 px) y la **Fuente del contenido** (**Predeterminada del tema**, **Serif**, **Sans-serif**, **Monoespaciada** o **Personalizada…** con el nombre de cualquier fuente instalada) — esto solo escala el editor y la vista de lectura; la interfaz permanece igual.
+- **Lista de fuentes**: bajo **Personalizada…** aparece una lista con las fuentes de tu sistema, cada fila en su propia fuente; la que no está instalada lo indica y no se puede elegir. El campo de nombre de abajo acepta cualquier otra fuente instalada.
 - **Zoom de la interfaz**: escala TODA la interfaz entre el 80 % y el 150 % — en **Configuración → App → Apariencia** o con `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` restablece el zoom).
 - **Diálogos y avisos sin ventanas nativas**: las confirmaciones aparecen como diálogos de Plainva con el estilo de tu tema (las acciones destructivas tienen un botón rojo), los avisos breves como notificaciones discretas abajo a la derecha — se acabaron las ventanas emergentes del sistema.
 

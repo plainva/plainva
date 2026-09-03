@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-08-14
+Laatst bijgewerkt: 2026-09-03
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -51,6 +51,8 @@ Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geë
 ### Wat is een .CONFLICT-bestand?
 
 Is hetzelfde bestand gelijktijdig hier en op een ander apparaat gewijzigd, dan probeert Plainva eerst beide versies automatisch samen te voegen. Lukt dat niet, dan wordt **jouw** versie veilig opgeslagen als een `.CONFLICT`-bestand naast het origineel — er gaat nooit iets verloren. Conflictbestanden zijn gemarkeerd in de bestandsboom; via rechtsklik kies je **Deze versie behouden** (de conflictversie vervangt het origineel) of **Conflict verwerpen**.
+
+Om het op te lossen toont **Versies vergelijken** (rechtsklik op het conflictbestand, de melding in de notitie of het synchronisatiefoutvenster) beide versies naast elkaar — links de notitie, rechts de kopie — met de uitgangen **overnemen**, **beide bewaren**, **kopie verwerpen** en **later**; op de desktop kan de rechterkant ook regel voor regel worden samengevoegd. Elke uitgang die iets verwerpt, vraagt eerst.
 
 ### Mijn Google-aanmelding verloopt steeds
 

@@ -65,7 +65,6 @@ export async function fetchWithRetry(
   const maxAttempts = opts.maxAttempts ?? 4;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let attempt = 0;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     attempt++;
     let res: Response;

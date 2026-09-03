@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-24
+Last updated: 2026-09-03
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -36,8 +36,10 @@ On launch, the welcome screen greets you:
 ## The interface
 
 - **Left sidebar** — three views: **Files** (the file tree), **Tags** (all `#tags` in the vault) and **Databases** (every `.base` in the vault, grouped by folder — click one to open it); **Recently opened** and **Bookmarks** are sections above the view switch, so they stay visible in all three views. At the very top sits the search field with a **+** beside it for New Note, New Folder, New Base and Daily Note. The search placeholder says what is being searched, and the tabs carry their names as long as the panel is wide enough — as it narrows, first only the active tab keeps its name, then the icons speak alone. At the bottom: the vault switcher, **Open Daily Note** and **Settings**. The double-chevron button next to the three views collapses or expands all folders at once, and **Reveal in file tree** in the editor's ⋮ menu jumps straight to the open note in the tree. In the **Files** view, a header shows the current vault's name and icon.
+- **Sort** — the button next to the search field orders the file tree by **Title**, **Last modified** or **Created**; choosing the same key again reverses the direction. Subfolders and a folder's `index.md` always stay in front; the choice is remembered on this device.
 - **Title bar** — your open tabs. Tabs can be reordered by dragging and moved between editor panes.
 - **Editor area** — where you read and write. Via the tab menu (**Split right** / **Split down**) or the shortcuts `Ctrl+Alt+V` / `Ctrl+Alt+S` you split the editor into two panes, e.g. a note next to a database.
+- **Further windows** — a note in its own window shows the same context sidebar on the right (outline, graph, databases, backlinks, properties; the calendar stays with the main window), folded and unfolded from the title bar.
 - **Right sidebar** — four sections, reorderable by drag: **Calendar** (daily notes), **Outline** (headings of the active note), **Backlinks** (who links here) and **Properties** (the note's frontmatter).
 - **Status bar** — word/character count, sync status (Local/Online/Offline) and save status (**Saving...** / **Saved**).
 
@@ -60,6 +62,7 @@ You can also toggle between **Readable width** and **Full width**.
 - **Creating:** right-click a folder → **New Note Here**, **New folder** or **New database (.base)**. The big **New** button creates inside the currently selected folder (or the parent folder of a selected file).
 - **Selecting:** click selects, `Ctrl`+click adds/removes individually, `Shift`+click selects a range, middle-click opens in a new tab.
 - **Context menu:** includes **Rename** (updates links vault-wide), **Duplicate**, **Open in split (right)** / **Open in split (bottom)**, **Add bookmark**, **Copy Path**, **Show in File Manager**, **Delete**.
+- **Move to…** in the context menu moves a note, a folder or the whole multi-selection into a folder of your choice — the same path as drag & drop, just without the drag: open tabs, pinboard references and the index follow.
 - **The same actions in the sections above the tree:** right-clicking an entry in **Recently opened** or **Bookmarks** opens the same menu — without the folder entries, and with **Remove from list** added (that drops the entry from the list, never the file). Renaming there runs through a prompt instead of an input field in the row. The calendar and task views can sit in **Recently opened** too; they can be opened and removed from the list, but not renamed or deleted — they are views, not files.
 - **Multi-selection:** deleting asks once for all items, duplicating and moving by drag work on the whole selection. Deleted items go to the operating system's trash.
 - New notes automatically start with a `# Heading` derived from the file name.
@@ -137,6 +140,7 @@ The arrangement belongs to the vault and travels to your other devices through [
 - **Command palette**: `Ctrl+P` opens **Commands** — type and hit `Enter` to run (new note, daily note, split, sidebars, **Back up now**, and more).
 - **Density**: under **Settings → App → Appearance**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
 - **Content font**: under **Settings → App → Editor & notes**, set the **Content font size** (12–24 px) and the **Content font** (theme default, serif, sans-serif, monospace or the name of any installed font) — this scales the editor and reading view only; the interface stays as it is.
+- **Font list**: under **Custom…** a list shows your system's fonts, each row set in its own face; a font that is not installed says so and cannot be picked. The name field below takes any other installed family.
 - **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → App → Appearance** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).
 - **Native-free dialogs**: confirmations appear as Plainva dialogs styled by your theme (destructive actions get a red button), short notices as subtle toasts in the bottom right — no more system popups.
 

@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-08-21
+Última actualización: 2026-09-03
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -25,6 +25,7 @@ Haz clic derecho en un archivo del árbol de archivos (o en su pestaña), o usa 
 
 - El lado izquierdo lista todos los snapshots agrupados por día, con hora y tamaño.
 - El lado derecho muestra una vista previa; para archivos de texto, **Comparar con la versión actual** muestra la versión seleccionada junto al contenido actual (la versión antigua a la izquierda, el estado actual a la derecha).
+- La vista de comparación se llama **Comparar versiones** y es la misma para versiones y para copias de conflicto: a la izquierda siempre está la nota, a la derecha la otra versión; los bloques iguales se pliegan y el pie cuenta las diferencias y las líneas que se añadirían o perderían. Con una copia de conflicto el lado derecho es editable y se puede fusionar línea a línea; cuatro salidas —**adoptar**, **conservar ambas**, **descartar copia**, **más tarde**— y cada una que descarta algo pregunta antes.
 - **Restaurar** reemplaza el contenido actual con la versión seleccionada. No te preocupes: el estado actual se guarda primero como un snapshot — así que una restauración siempre se puede deshacer.
 - **Restaurar como copia** crea la versión como un archivo nuevo junto al original (`Name (Version 2026-07-05 14-30).md`) sin tocarlo.
 

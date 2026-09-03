@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-08-14
+Stand: 2026-09-03
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -51,6 +51,8 @@ Sehr alte Tagesnotizen können eine Angabe aus ihrer Vorlage geerbt haben, die i
 ### Was ist eine .CONFLICT-Datei?
 
 Wurde dieselbe Datei gleichzeitig hier und auf einem anderen Gerät geändert, versucht Plainva zuerst, beide Fassungen automatisch zusammenzuführen. Geht das nicht, wird **Deine** Fassung sicher als `.CONFLICT`-Datei neben dem Original gespeichert — es geht nie etwas verloren. Konfliktdateien sind im Dateibaum markiert; per Rechtsklick wählst Du **Diese Version übernehmen** (die Konfliktfassung ersetzt das Original) oder **Konflikt verwerfen**.
+
+Zum Auflösen öffnet **Fassungen vergleichen** (Rechtsklick auf die Konfliktdatei, der Hinweis in der Notiz oder der Sync-Fehlerdialog) beide Fassungen nebeneinander — links die Notiz, rechts die Kopie — mit den Ausgängen **übernehmen**, **beide behalten**, **Kopie verwerfen** und **später**; am Desktop lässt sich rechts auch zeilenweise zusammenführen. Jeder Ausgang, der etwas verwirft, fragt vorher nach.
 
 ### Meine Google-Anmeldung läuft ständig ab
 

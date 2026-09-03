@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-03
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -25,6 +25,7 @@ Right-click a file in the file tree (or its tab), or use the **⋮** menu at the
 
 - The left side lists all snapshots grouped by day, with time and size.
 - The right side shows a preview; for text files, **Compare with current** shows the selected version side by side with the current content (old version on the left, current state on the right).
+- The comparison surface is called **Compare versions** and is the same for versions and for conflict copies: the note is always on the left, the other version on the right; identical blocks are collapsed, the footer counts differences and lines that would be added or lost. With a conflict copy the right side is editable and can be merged line by line; four exits — **adopt**, **keep both**, **discard copy**, **later** — and each one that discards something asks first.
 - **Restore** replaces the current content with the selected version. Don't worry: the current state is itself saved as a snapshot first — so a restore can always be undone.
 - **Restore as copy** creates the version as a new file next to the original (`Name (Version 2026-07-05 14-30).md`) without touching it.
 

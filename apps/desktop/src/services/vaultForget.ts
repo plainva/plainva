@@ -51,6 +51,11 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
     // expanded folders across a "forget this vault" and handed them to the
     // next vault opened at that path.
     `plainva-expanded-${vaultPath}`,
+    // Feedback round 2026-09-01, P7: scroll position per file, the last open
+    // note, and which profile change was already announced — all per vault.
+    `plainva-scroll-${vaultPath}`,
+    `plainva-last-open-${vaultPath}`,
+    `plainva-profile-announced-${vaultPath}`,
   ];
   return allKeys.filter((k) => prefixes.some((p) => k === p || k.startsWith(p)));
 }

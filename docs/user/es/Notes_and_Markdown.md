@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-08-26
+Última actualización: 2026-09-03
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -47,6 +47,8 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 - **Manejadores de bloque** — al pasar el cursor aparece un manejador a la izquierda de cada párrafo: arrástralo para mover el bloque, haz clic para abrir **Acciones de bloque** (**Convertir en** Texto/Encabezado/Lista/Tarea/Cita/Bloque de código, **Duplicar**, **Mover arriba**/**Mover abajo**, **Eliminar bloque**). Si arrastras una lista junto a otra lista del mismo tipo, Plainva inserta una línea separadora invisible `<!-- -->` para que ambas listas se mantengan separadas — en Markdown, las listas del mismo estilo se fusionarían de otro modo pese a la línea en blanco (también en Obsidian).
 - **Tablas** — se renderizan como un widget con celdas editables con un clic. La vista de la celda renderiza el formato (**negrita**, *cursiva*, `código`, resaltado), enlaces en los que se puede hacer clic (`[[Enlace interno]]`, direcciones web) y `<br>` como salto de línea; al editar ves el texto sin procesar. El menú de la tabla ofrece insertar/eliminar filas y columnas además de alineación (**Alinear a la izquierda**/**Centrar**/**Alinear a la derecha**).
 - **Las listas se continúan solas** (Enter inserta el siguiente marcador de lista), los bloques de código reciben resaltado según el lenguaje (también en el modo lectura), el contenido pegado se convierte a Markdown (pegado inteligente) y los encabezados se pueden plegar.
+- **Plegar listas**: un clic en la viñeta de un elemento con subelementos los pliega; la viñeta toma el color de acento y un «…» marca el lugar, un segundo clic los despliega. El archivo nunca cambia. Las viñetas alternan por nivel (• ◦ ▪) y las líneas de continuación quedan justo bajo el texto de su elemento, también en el teléfono, donde la viñeta es el único control de plegado.
+- **Posición de desplazamiento**: cada nota se abre donde la dejaste; se recuerda por dispositivo, sin sincronizar.
 - **Buscar y reemplazar** dentro de la nota actual: `Ctrl+F` (ver [Buscar](Search.md)).
 
 ## Enlaces y retroenlaces

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -27,6 +27,8 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 ## Reading and editing notes
 
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
+
+Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the last open note opens again, and every note opens where you left it. Lists with nested items fold and unfold with a tap on their bullet.
 
 The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
 
@@ -76,6 +78,8 @@ The tag list lives under **Notes**. Tapping opens a tag's notes; the chevron exp
 
 The way in is the magnifier in the header, then `>` and **Find & replace in vault**. It searches every note at once. Enter a term, tap **Find**, and the matches appear grouped per note with the hit count; a tap opens one note's lines, and only one note stays open at a time. Untick any note you want to leave out — this is per note, never per line, because a note is replaced wholly or not at all. **Replace in N notes** then rewrites the rest, with a progress bar and a **Cancel** that stops at the next note. Every note is re-read immediately before it is written, so a preview that has gone stale can never overwrite newer content; a note that changed in the meantime is skipped and said out loud. Match case, whole word and regex work here too.
 
+Every match shows two lines — **before** with the hit, **after** with the result, `$1` back-references resolved with a regex — so you can check the change before anything is written.
+
 ## Overviews (index.md)
 
 In an OKF vault the `index.md` is a folder's table of contents. The phone offers two ways in, meant for two different moments.
@@ -115,6 +119,8 @@ The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points 
 ## Calendar and events
 
 The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Each day column carries its **weekday and date** at the top, and below it a strip for that day's **all-day events**; both scroll away with the grid rather than holding space permanently. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**.
+
+Tapping an event reminder opens the event itself — the day view on its day, the event open. The view you last had (day, 3 days, agenda) is remembered on the device, as on the desktop.
 
 **When the phone looks.** A phone runs no clock in the background, so the regular sync stands still for as long as the app is away. Plainva therefore asks of its own accord as soon as you **come back to the app** and whenever you open **Calendars**, **Tasks** or the **Calendar accounts** — at most once a minute, so switching back and forth does not set off a chain of syncs. Coming back also **replans the reminders**, even when nothing new arrived: the clock moved on regardless. If you would rather not wait, **Refresh now** and pulling the list down are still there.
 
@@ -189,6 +195,8 @@ Snapshots (version history), a draft journal (after a crash the note offers your
 
 **If someone changes the same note elsewhere** while you are typing here, Plainva preserves your version as a copy next to it and adopts the one that arrived. That now sits **on the note** and stays until you resolve it: a notice above the text names the copy's path, opens it, and shows the **differences** on request. It used to be a message that faded after seconds — and the save kept retrying, so every round wrote another copy. Exactly one is written now.
 
+**Differences** opens the same comparison surface as on the desktop: the note on the left, your copy on the right, identical lines collapsed, and the same exits — **adopt**, **keep both** (the copy is then named `Note (Version …).md`), **discard copy**, each asking first.
+
 **When you delete a folder**, the prompt names how many files are inside — the number is on the button as well. Plainva snapshots every file in it first, and you can bring those back under **Settings** → **Maintenance** → **Restore deleted files**. The dialog states one limit openly: **only what this phone has written at least once can be preserved.** A note that merely arrived through synchronisation and was never edited here exists in no snapshot. Unlike the desktop, a phone has no system trash to catch that. If the deletion affects more than ten files, or more than a fifth of the vault, Plainva asks a second time — exactly as the desktop does.
 
 ## Sharing and shortcuts
@@ -241,5 +249,7 @@ The other way round, a database's calendar view can show the **number of real ap
 ## Remark notifications
 
 When somebody has written on a note, Plainva can tell you — the same three levels and the same preview switch as on the desktop, under **Settings → Content & structure**. Tapping the message opens the note and highlights the card it means. You silence a single note with the bell in the comments sheet.
+
+When several remarks are new at once, the notification opens **Open comments** on the **New** tab — exactly the threads it meant; **All** and **For me** stand next to it.
 
 **The message arrives later here than on the desktop, and that is a property rather than a fault.** Plainva has no server that could nudge your phone — building one would mean a foreign server learning when who commented on which note. A remark is therefore noticed where the phone looks anyway: after a sync cycle and on returning to the foreground. No timer runs in the background for it; no phone platform allows one.

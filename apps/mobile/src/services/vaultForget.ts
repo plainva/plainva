@@ -92,3 +92,22 @@ export async function forgetVaultSecrets(secretKeys: string[]): Promise<void> {
     });
   }
 }
+
+/**
+ * The device-local memories the feedback round (2026-09-01, P7) keyed by
+ * vault in localStorage: scroll position per file, the last open note, and
+ * which profile change was already announced. They are not settings and not
+ * files, so neither of the two sweeps above ever saw them — a vault forgotten
+ * and re-added at the same id would have opened its notes where a previous
+ * life left them.
+ */
+export function forgetVaultMemories(vaultId: string): void {
+  if (typeof localStorage === "undefined") return;
+  for (const key of [`plainva-scroll-${vaultId}`, `plainva-last-open-${vaultId}`, `plainva-profile-announced-${vaultId}`]) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* storage unavailable: nothing to forget */
+    }
+  }
+}

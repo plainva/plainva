@@ -1,6 +1,6 @@
 # Buscar
 
-Última actualización: 2026-08-21
+Última actualización: 2026-09-03
 
 Plainva ofrece tres formas de buscar: búsqueda de texto completo en todo el vault, el selector rápido para abrir archivos, y buscar y reemplazar dentro de una nota.
 
@@ -42,6 +42,8 @@ Debajo de las coincidencias de nombre, el selector muestra además un grupo **Co
 ### En todo el vault
 
 `Ctrl/Cmd+Shift+F` (o **Buscar y reemplazar en el vault** en la paleta de comandos) busca en todas las notas a la vez. Escribe un término, pulsa **Buscar**, y las coincidencias aparecen agrupadas por nota, con una línea de contexto cada una. Escribe un reemplazo, desmarca cualquier nota que quieras dejar fuera, y **Reemplazar en N notas** reescribe el resto — cada nota se guarda de forma segura (escritura atómica + un snapshot de versión), así que una vista previa obsoleta nunca puede sobrescribir contenido más reciente. Mayús/minús, palabra completa y regex también funcionan aquí; en modo regex, las referencias inversas `$1`/`$2` están disponibles en el reemplazo.
+
+Cada coincidencia muestra dos líneas: **antes** con el hallazgo y **después** con el resultado; con una expresión regular se resuelven las referencias `$1`, para comprobar el cambio antes de escribir nada. Una expresión no válida se indica junto al campo en lugar de devolver una lista vacía; si no hay coincidencias, el estado vacío dice qué revisar. Durante el reemplazo ves el progreso y puedes **Cancelar**: las notas ya escritas se quedan escritas y se nombran. En el teléfono cada coincidencia muestra las mismas dos líneas.
 
 **En el teléfono** lo mismo está en la lupa de la cabecera y luego `>` y **Buscar y reemplazar en el vault**: las coincidencias se agrupan por nota y aparecen plegadas, para que un término con cuarenta coincidencias no entierre la acción; toca una nota para verla por dentro, desmarca las que quieras dejar fuera y el botón indica su propio alcance (**Reemplazar en 2 notas**). Si sales de la app, un reemplazo en curso se detiene en la siguiente nota: las notas ya escritas se conservan y se nombran.
 

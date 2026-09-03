@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-08-24
+Última revisão: 2026-09-03
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -36,8 +36,10 @@ Ao iniciar, a tela de boas-vindas recebe você:
 ## A interface
 
 - **Barra lateral esquerda** — três visualizações: **Arquivos** (a árvore de arquivos), **Tags** (todas as `#tags` do vault) e **Bancos de dados** (cada `.base` do vault, agrupado por pasta — clique para abrir); **Abertos recentemente** e **Favoritos** são seções acima do seletor de visualizações, então permanecem visíveis nas três visualizações. Bem no topo fica o campo de busca, com um **+** ao lado para Nova nota, Nova pasta, Nova base e Nota diária. O texto de exemplo do campo de busca indica o que está sendo buscado, e as abas mostram seus nomes enquanto o painel for largo o suficiente — à medida que ele se estreita, primeiro só a aba ativa mantém o nome, e depois só os ícones permanecem. Embaixo: o seletor de vault, **Abrir nota diária** e **Configurações**. O botão de seta dupla ao lado das três visualizações recolhe ou expande todas as pastas de uma vez, e **Mostrar na árvore de arquivos** no menu ⋮ do editor mostra a nota aberta diretamente na árvore. Na visualização **Arquivos**, um cabeçalho mostra o nome e o ícone do vault atual.
+- **Ordenar** — o botão ao lado do campo de busca ordena a árvore de arquivos por **Título**, **Última alteração** ou **Criação**; escolher a mesma opção de novo inverte a direção. Subpastas e o `index.md` de uma pasta ficam sempre na frente; a escolha é lembrada neste dispositivo.
 - **Barra de título** — suas abas abertas. As abas podem ser reordenadas arrastando e movidas entre painéis do editor.
 - **Área do editor** — onde você lê e escreve. Pelo menu da aba (**Dividir à direita** / **Dividir abaixo**) ou pelos atalhos `Ctrl+Alt+V` / `Ctrl+Alt+S` você divide o editor em dois painéis, por exemplo uma nota ao lado de um banco de dados.
+- **Outras janelas** — uma nota em sua própria janela mostra à direita a mesma barra lateral de contexto (estrutura, grafo, bancos de dados, backlinks, propriedades; o calendário fica na janela principal), recolhível pela barra de título.
 - **Barra lateral direita** — quatro seções, reordenáveis por arrastar: **Calendário** (notas diárias), **Estrutura** (títulos da nota ativa), **Backlinks** (quem faz link para cá) e **Propriedades** (o frontmatter da nota).
 - **Barra de status** — contagem de palavras/caracteres, status de sincronização (Local/Online/Offline) e status de salvamento (**Salvando...** / **Salvo**).
 
@@ -60,6 +62,7 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 - **Criar:** clique com o botão direito em uma pasta → **Nova nota aqui**, **Nova pasta** ou **Novo banco de dados (.base)**. O grande botão **Novo** cria dentro da pasta selecionada no momento (ou na pasta pai de um arquivo selecionado).
 - **Selecionar:** clicar seleciona, `Ctrl`+clique adiciona/remove individualmente, `Shift`+clique seleciona um intervalo, clique com o botão do meio abre em uma nova aba.
 - **Menu de contexto:** inclui **Renomear** (atualiza os links em todo o vault), **Duplicar**, **Abrir na divisão (direita)** / **Abrir na divisão (abaixo)**, **Adicionar aos favoritos**, **Copiar caminho**, **Mostrar no gerenciador de arquivos**, **Excluir**.
+- **Mover para…** no menu de contexto move uma nota, uma pasta ou toda a seleção múltipla para a pasta que você escolher — o mesmo caminho do arrastar e soltar, só que sem arrastar: abas abertas, referências do quadro e o índice acompanham.
 - **As mesmas ações nas seções acima da árvore:** clicar com o botão direito em uma entrada de **Abertos recentemente** ou **Favoritos** abre o mesmo menu — sem as entradas de pasta, e com **Remover da lista** adicionado (isso remove apenas o item da lista, nunca o arquivo). Ali, renomear passa por um diálogo em vez de um campo na linha. As visualizações de calendário e tarefas também podem estar em **Abertos recentemente**; podem ser abertas e removidas da lista, mas não renomeadas nem excluídas — são visualizações, não arquivos.
 - **Seleção múltipla:** excluir pergunta uma vez para todos os itens, duplicar e mover por arrastar funcionam para toda a seleção. Os itens excluídos vão para a lixeira do sistema operacional.
 - Novas notas começam automaticamente com um `# Título` derivado do nome do arquivo.
@@ -137,6 +140,7 @@ A organização pertence ao vault e viaja para seus outros dispositivos (veja [C
 - **Paleta de comandos**: `Ctrl+P` abre **Comandos** — digite e pressione `Enter` para executar (nova nota, nota diária, dividir, barras laterais, **Fazer backup agora** e muito mais).
 - **Densidade**: em **Configurações → App → Aparência**, escolha entre **Confortável** e **Compacto** — Compacto aperta listas, menus e linhas de tabela; o conteúdo das notas não é afetado.
 - **Fonte do conteúdo**: em **Configurações → App → Editor e notas**, defina o **Tamanho da fonte do conteúdo** (12–24 px) e a **Fonte do conteúdo** (**Padrão do tema**, **Serifada**, **Sem serifa**, **Monoespaçada** ou **Personalizada…** com o nome de qualquer fonte instalada) — isso escala apenas o editor e o modo de leitura; a interface não muda.
+- **Lista de fontes**: em **Personalizada…** aparece uma lista com as fontes do seu sistema, cada linha na própria fonte; a que não está instalada avisa e não pode ser escolhida. O campo de nome abaixo aceita qualquer outra fonte instalada.
 - **Zoom da interface**: redimensiona TODA a interface entre 80 % e 150 % — em **Configurações → App → Aparência** ou por `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` redefine).
 - **Diálogos e avisos sem janelas nativas**: as confirmações aparecem como diálogos do Plainva no estilo do seu tema (ações destrutivas ganham um botão vermelho), avisos curtos como notificações discretas no canto inferior direito — chega de pop-ups do sistema.
 

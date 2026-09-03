@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-08-26
+Última revisão: 2026-09-03
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -47,6 +47,8 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 - **Alças de bloco** — uma alça aparece à esquerda de cada parágrafo ao passar o mouse: arraste-a para mover o bloco, clique nela para abrir **Ações do bloco** (**Transformar em** Texto/Título/Lista/Tarefa/Citação/Bloco de código, **Duplicar**, **Mover para cima**/**Mover para baixo**, **Excluir bloco**). Se você arrastar uma lista para o lado de outra lista do mesmo tipo, o Plainva insere uma linha separadora invisível `<!-- -->` para que as duas listas continuem separadas — em Markdown, listas do mesmo estilo normalmente se fundiriam apesar da linha em branco (também no Obsidian).
 - **Tabelas** — renderizadas como um widget com edição por clique em cada célula. A exibição da célula renderiza formatação (**negrito**, *itálico*, `código`, destaque), links clicáveis (`[[Link Interno]]`, endereços da web) e `<br>` como quebra de linha; ao editar, você vê o texto bruto. O menu da tabela oferece inserir/excluir linhas e colunas, além do alinhamento (**Alinhar à esquerda**/**Centralizar**/**Alinhar à direita**).
 - **Listas continuam sozinhas** (Enter insere o próximo marcador de lista), blocos de código recebem destaque de sintaxe conforme a linguagem (também no modo de leitura), o conteúdo colado é convertido para Markdown (colagem inteligente), e os títulos podem ser recolhidos.
+- **Dobrar listas** — um clique no marcador de um item com subitens os dobra; o marcador fica na cor de destaque e um “…” marca o lugar, um segundo clique desdobra. O arquivo nunca muda. Os marcadores alternam por nível (• ◦ ▪) e as linhas de continuação ficam exatamente sob o texto do item — também no celular, onde o marcador é o único controle de dobra.
+- **Posição de rolagem** — cada nota abre onde você a deixou; lembrada por dispositivo, não sincronizada.
 - **Localizar e substituir** dentro da nota atual: `Ctrl+F` (veja [Busca](Search.md)).
 
 ## Links e backlinks

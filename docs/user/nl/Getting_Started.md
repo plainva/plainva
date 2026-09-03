@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-08-24
+Laatst bijgewerkt: 2026-09-03
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -36,8 +36,10 @@ Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit 
 ## De interface
 
 - **Linkerzijbalk** — drie weergaven: **Bestanden** (de bestandsboom), **Tags** (alle `#tags` in de vault) en **Databases** (elke `.base` in de vault, gegroepeerd per map — klik om te openen); **Onlangs geopend** en **Bladwijzers** zijn secties boven de weergavewisselaar, dus blijven ze zichtbaar in alle drie de weergaven. Helemaal bovenaan staat het zoekveld, met ernaast een **+** voor Nieuwe notitie, Nieuwe map, Nieuwe base en Dagnotitie. De placeholdertekst van het zoekveld laat zien waarnaar wordt gezocht, en de tabbladen tonen hun naam zolang het paneel breed genoeg is — naarmate het smaller wordt, behoudt eerst alleen het actieve tabblad zijn naam, en blijven daarna alleen de iconen over. Onderaan: vault-wisselaar, **Dagnotitie openen** en **Instellingen**. De dubbele-pijl-knop naast de drie weergaven vouwt alle mappen in één keer in of uit, en **Tonen in bestandsboom** in het ⋮-menu van de editor toont de geopende notitie direct in de boom. In de weergave **Bestanden** toont een header de naam en het icoon van de huidige vault.
+- **Sorteren** — de knop naast het zoekveld ordent de bestandsboom op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; dezelfde keuze nog eens keert de richting om. Submappen en de `index.md` van een map blijven altijd vooraan; de keuze wordt op dit apparaat onthouden.
 - **Titelbalk** — je geopende tabbladen. Tabbladen kun je verslepen om te herordenen en tussen editorpanelen te verplaatsen.
 - **Editorgebied** — hier lees en schrijf je. Via het tabbladmenu (**Rechts splitsen** / **Onder splitsen**) of de sneltoetsen `Ctrl+Alt+V` / `Ctrl+Alt+S` splits je de editor in twee panelen, bijv. een notitie naast een database.
+- **Extra vensters** — een notitie in een eigen venster toont rechts dezelfde contextzijbalk (overzicht, graaf, databases, backlinks, eigenschappen; de kalender blijft bij het hoofdvenster), in- en uitklapbaar via de titelbalk.
 - **Rechterzijbalk** — vier secties, herordenbaar door slepen: **Kalender** (dagelijkse notities), **Structuur** (koppen van de actieve notitie), **Backlinks** (wie hierheen linkt) en **Eigenschappen** (de frontmatter van de notitie).
 - **Statusbalk** — woord-/tekenaantal, sync-status (Lokaal/Online/Offline) en opslagstatus (**Opslaan...** / **Opgeslagen**).
 
@@ -60,6 +62,7 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 - **Aanmaken:** rechtsklik op een map → **Nieuwe notitie hier**, **Nieuwe map** of **Nieuwe database (.base)**. De grote **Nieuw**-knop maakt aan in de op dat moment geselecteerde map (of de bovenliggende map van een geselecteerd bestand).
 - **Selecteren:** klik selecteert, `Ctrl`+klik voegt individueel toe/verwijdert, `Shift`+klik selecteert een bereik, middelklik opent in een nieuw tabblad.
 - **Contextmenu:** bevat onder meer **Hernoemen** (werkt links vault-breed bij), **Dupliceren**, **In split openen (rechts)** / **In split openen (onder)**, **Bladwijzer toevoegen**, **Pad kopiëren**, **Tonen in bestandsbeheer**, **Verwijderen**.
+- **Verplaatsen naar…** in het contextmenu verplaatst een notitie, een map of de hele meervoudige selectie naar een map naar keuze — dezelfde weg als slepen, alleen zonder slepen: open tabbladen, prikbordverwijzingen en de index gaan mee.
 - **Dezelfde acties in de secties boven de boom:** rechtsklikken op een item in **Onlangs geopend** of **Bladwijzers** opent hetzelfde menu — zonder de mapvermeldingen, met wel **Uit de lijst verwijderen** erbij (dat haalt alleen het item uit de lijst, nooit het bestand). Hernoemen verloopt daar via een dialoogvenster in plaats van een invoerveld in de rij. Ook de agenda- en takenweergave kunnen in **Onlangs geopend** staan; ze kunnen worden geopend en uit de lijst verwijderd, maar niet hernoemd of verwijderd — het zijn weergaven, geen bestanden.
 - **Meervoudige selectie:** verwijderen vraagt één keer bevestiging voor alle items, dupliceren en verplaatsen door slepen werken op de hele selectie. Verwijderde items belanden in de prullenbak van het besturingssysteem.
 - Nieuwe notities beginnen automatisch met een `# Kop` afgeleid van de bestandsnaam.
@@ -137,6 +140,7 @@ Deze indeling hoort bij de vault en reist mee naar je andere apparaten via [Sync
 - **Opdrachtenpalet**: `Ctrl+P` opent **Opdrachten** — typ en druk op `Enter` om uit te voeren (nieuwe notitie, dagnotitie, splitsen, zijbalken, **Nu back-uppen**, en meer).
 - **Dichtheid**: onder **Instellingen → App → Weergave** kies je tussen **Comfortabel** en **Compact** — Compact maakt lijsten, menu's en tabelrijen krapper; notitie-inhoud blijft ongewijzigd.
 - **Lettertype van inhoud**: onder **Instellingen → App → Editor en notities** stel je de **Lettergrootte van inhoud** in (12–24 px) en het **Lettertype van inhoud** (**Themastandaard**, **Serif**, **Sans-serif**, **Monospace** of **Aangepast…** met de naam van een geïnstalleerd lettertype) — dit schaalt alleen editor en leesweergave; de interface blijft ongewijzigd.
+- **Lettertypelijst**: onder **Aangepast…** staat een lijst met de lettertypen van je systeem, elke regel in zijn eigen lettertype; wat niet is geïnstalleerd zegt dat en is niet te kiezen. Het naamveld eronder accepteert elk ander geïnstalleerd lettertype.
 - **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → App → Weergave** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).
 - **Native-vrije dialoogvensters**: bevestigingen verschijnen als Plainva-dialoogvensters in de stijl van je thema (destructieve acties krijgen een rode knop), korte meldingen als subtiele toasts rechtsonder — geen systeempopups meer.
 

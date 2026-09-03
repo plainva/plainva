@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-02
+Laatst bijgewerkt: 2026-09-03
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -27,6 +27,8 @@ Het is een vroege build: houd een back-up van je vault en laat me weten wat er m
 ## Notities lezen en bewerken
 
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
+
+Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de laatst geopende notitie opnieuw, en elke notitie opent waar je haar verliet. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
 
 De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
 
@@ -75,6 +77,8 @@ De taglijst staat onder **Notities**. Tikken opent de notities van een tag; de p
 ## Zoeken en vervangen in de hele vault
 
 De weg erheen is het vergrootglas in de kopregel, daarna `>` en **Zoeken en vervangen in de vault**. Het scherm doorzoekt alle notities tegelijk. Voer een term in, tik **Zoeken** en de treffers verschijnen per notitie gegroepeerd met hun aantal; een tik opent de regels van één notitie, en er blijft er steeds maar één open. Vink notities uit die je wilt overslaan — per notitie, nooit per regel, want een notitie wordt in zijn geheel vervangen of helemaal niet. **Vervangen in N notities** schrijft de rest om, met een voortgangsbalk en een **Annuleren** dat bij de volgende notitie stopt. Elke notitie wordt vlak voor het schrijven opnieuw gelezen, zodat een verouderd voorbeeld nooit nieuwere inhoud overschrijft; een notitie die intussen is gewijzigd wordt overgeslagen en dat wordt gemeld. Hoofdlettergevoelig, heel woord en regex werken hier ook.
+
+Elke treffer toont twee regels — **voor** met de vindplaats, **na** met het resultaat, `$1`-verwijzingen opgelost bij een reguliere expressie — zodat je de wijziging kunt controleren voordat er iets wordt geschreven.
 ## Overzichten (index.md)
 
 In een OKF-kluis is de `index.md` de inhoudsopgave van een map. De telefoon biedt twee ingangen, bedoeld voor twee verschillende momenten.
@@ -115,6 +119,8 @@ De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont da
 ## Kalender en afspraken
 
 Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Elke dagkolom toont bovenaan zijn **weekdag en datum**, en daaronder een balk voor de **hele-dag-afspraken** van die dag; beide scrollen mee met het rooster in plaats van blijvend ruimte in te nemen. Een tik op een afspraak opent het **afspraakvoorbeeld** als blad — hetzelfde vlak als het zwevende venster op de desktop: tijdvak, locatie, beschrijving, deelnemers met hun antwoorden en, bij een reeks, het ritme met de volgende afspraak. Bij een uitnodiging staan daar **Accepteren**, **Voorlopig** en **Weigeren**, daaronder **Afspraak bewerken**, **Vergadernotitie** en **Afspraak verwijderen**. Naar beneden vegen sluit het blad. Dagnotities staan hier niet — die vind je in **Vandaag**.
+
+Tik op een afspraakherinnering en de afspraak zelf opent — de dagweergave op die dag, de afspraak geopend. De weergave die je het laatst had (dag, 3 dagen, agenda) wordt op het apparaat onthouden, zoals op de desktop.
 
 **Wanneer de telefoon kijkt.** Op de achtergrond loopt op een telefoon geen klok: de regelmatige synchronisatie staat dus stil zolang de app weg is. Daarom kijkt Plainva uit zichzelf zodra je **terugkeert in de app** en zodra je **Agenda's**, **Taken** of de **Agenda-accounts** opent — hoogstens één keer per minuut, zodat veel heen en weer schakelen geen reeks synchronisaties in gang zet. Bij terugkeer worden meteen ook de **herinneringen opnieuw ingepland**, ook als er niets nieuws bij is gekomen: de klok is immers toch doorgelopen. Wil je niet wachten, dan zijn **Nu verversen** en het naar beneden trekken van de lijst er nog steeds.
 
@@ -189,6 +195,8 @@ Snapshots (versiegeschiedenis), een conceptlogboek (na een crash biedt de notiti
 
 **Wijzigt iemand dezelfde notitie elders** terwijl jij hier typt, dan bewaart Plainva jouw versie als kopie ernaast en neemt de binnengekomen versie over. Dat staat nu **bij de notitie** en blijft daar tot je het oplost: een melding boven de tekst noemt het pad van de kopie, opent die en toont desgewenst de **verschillen**. Voorheen was het een melding die na seconden verdween — en het opslaan bleef het proberen, zodat elke ronde nog een kopie schreef. Nu ontstaat er precies één.
 
+**Verschillen** opent hetzelfde vergelijkingsscherm als op de desktop: links de notitie, rechts jouw kopie, gelijke regels ingeklapt, en dezelfde uitgangen — **overnemen**, **beide bewaren** (de kopie heet dan `Notitie (Version …).md`), **kopie verwerpen**, elk met een vraag vooraf.
+
 **Als je een map verwijdert**, noemt het dialoogvenster hoeveel bestanden erin zitten — het aantal staat ook op de knop. Plainva maakt eerst van elk bestand daarin een snapshot, die je terughaalt onder **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. Het noemt daarbij ook één grens openlijk: **alleen wat deze telefoon al minstens één keer heeft geschreven, kan worden bewaard.** Een notitie die alleen via synchronisatie is binnengekomen en hier nooit is bewerkt, staat in geen enkele snapshot. Anders dan op de desktop heeft een telefoon geen prullenbak van het besturingssysteem die dat opvangt. Raakt de verwijdering meer dan tien bestanden, of meer dan een vijfde van de vault, dan vraagt Plainva een tweede keer — precies zoals op de desktop.
 
 ## Delen en snelkoppelingen
@@ -241,5 +249,7 @@ Andersom kan de agendaweergave van een database het **aantal echte afspraken** v
 ## Meldingen over opmerkingen
 
 Heeft iemand bij een notitie iets geschreven, dan kan Plainva je dat melden — dezelfde drie niveaus en dezelfde voorbeeldschakelaar als op de desktop, onder **Instellingen → Inhoud en structuur**. Een tik op de melding opent de notitie en licht de bedoelde kaart op. Eén losse notitie zet je stil met de bel in het opmerkingenblad.
+
+Zijn er meerdere opmerkingen tegelijk nieuw, dan opent de melding **Open opmerkingen** op het tabblad **Nieuw** — precies de draden die ze bedoelde; **Alle** en **Voor mij** staan ernaast.
 
 **De melding komt hier later dan op de desktop, en dat is een eigenschap, geen fout.** Plainva heeft geen server die je telefoon kan porren — er een bouwen zou betekenen dat een vreemde server verneemt wanneer wie welke notitie becommentarieerde. Een opmerking valt daarom op waar de telefoon toch al kijkt: na een synchronisatieronde en bij terugkeer naar de voorgrond. Er loopt daarvoor geen timer op de achtergrond; geen enkel telefoonplatform staat dat toe.

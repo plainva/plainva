@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-08-22
+Dernière mise à jour : 2026-09-03
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -60,6 +60,8 @@ L'icône de note sur n'importe quel événement crée (ou rouvre) sa **note de r
 Les listes de rappels (Rappels Apple via CalDAV iCloud, listes de tâches Nextcloud) sont des collections distinctes sur le serveur : elles apparaissent donc sous **Listes de tâches**, jamais sous **Calendriers**. Si un compte connecté n'affiche aucune liste de tâches, la section le dit et propose **Chercher à nouveau** ; si la recherche elle-même a échoué, la raison s'affiche et votre sélection précédente est conservée.
 
 Cochez une **liste de tâches** sur un compte connecté, et ses tâches apparaissent comme des notes dans votre [base de tâches par défaut](Tasks.md) : le titre devient la note (H1), la date d'échéance atterrit dans la colonne de date de la base de données, et l'état terminé se reflète dans la **propriété de case à cocher terminé** de la base de données (la colonne de statut la suit ; une base de données sans colonne de case à cocher utilise la convention de statut — première option = ouvert, dernière = terminé). La synchronisation est bidirectionnelle, champ par champ :
+
+Les nouvelles listes de tâches sont **cochées d’emblée** — contrairement aux calendriers, que vous choisissez d’abord. Décocher tient : après un redémarrage, après un rafraîchissement des listes et à travers la synchronisation des réglages.
 
 - Modifiez la note (titre, échéance, statut) → la modification est poussée vers le fournisseur.
 - Modifiez la tâche à distance → la note suit.

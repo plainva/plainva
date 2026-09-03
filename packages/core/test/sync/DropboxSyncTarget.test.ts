@@ -405,7 +405,7 @@ describe("DropboxSyncTarget.listFolders (settings picker, 2026-07-06)", () => {
 
 describe("DropboxSyncTarget announcing a freshly created root folder", () => {
   function targetWithRoot(exists: boolean) {
-    const fetchFn = vi.fn(async (url: string, init: any) => {
+    const fetchFn = vi.fn(async (url: string, _init: any) => {
       const u = String(url);
       if (u.includes("files/list_folder")) {
         return exists

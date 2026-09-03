@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-02
+Stand: 2026-09-03
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -27,6 +27,8 @@ Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Be
 ## Notizen lesen und bearbeiten
 
 Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechselt ins Bearbeiten (mit Werkzeugleiste über der Tastatur: Formatierung, Listen, Wiki-Link, Slash-Befehle, Foto einfügen). `![[Notiz]]`-Einbettungen erscheinen als antippbare Vorschau-Karten.
+
+Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die zuletzt offene Notiz wieder, und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
 
 Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü.
 
@@ -76,6 +78,8 @@ Die Tag-Liste liegt unter **Notizen**. Ein Tipp öffnet die Notizen eines Tags, 
 
 Der Weg dorthin ist die Lupe in der Kopfzeile, dann `>` und **Im Vault suchen & ersetzen**. Die Fläche durchsucht alle Notizen auf einmal. Suchtext eingeben, **Suchen** tippen — die Treffer erscheinen nach Notiz gruppiert mit ihrer Trefferzahl; ein Tipp öffnet die Zeilen einer Notiz, und es bleibt immer nur eine offen. Notizen, die Du auslassen willst, wählst Du ab — pro Notiz, nie pro Zeile, denn eine Notiz wird ganz oder gar nicht ersetzt. **In N Notizen ersetzen** schreibt den Rest um, mit Fortschrittsbalken und einem **Abbrechen**, das bei der nächsten Notiz hält. Jede Notiz wird unmittelbar vor dem Schreiben neu gelesen, sodass eine veraltete Vorschau nie neueren Inhalt überschreibt; eine Notiz, die sich zwischenzeitlich geändert hat, wird übersprungen und das wird Dir gesagt. Groß/klein, ganzes Wort und Regex gelten auch hier.
 
+Jeder Treffer zeigt zwei Zeilen — **vorher** mit der Fundstelle, **nachher** mit dem Ergebnis, bei Regex mit aufgelösten `$1`-Rückverweisen —, damit Du die Änderung prüfen kannst, bevor etwas geschrieben wird.
+
 ## Übersichten (index.md)
 
 In einem OKF-Vault ist die `index.md` das Inhaltsverzeichnis eines Ordners. Am Telefon gibt es zwei Wege dorthin, und sie sind für zwei verschiedene Momente gedacht.
@@ -115,6 +119,8 @@ Der **Fokus** setzt sich auch über das Knotenmenü: die Karte zeigt dann nur no
 ## Kalender und Termine
 
 Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Jede Tagesspalte trägt oben ihren **Wochentag und das Datum**, darunter einen Streifen für die **ganztägigen Termine** des Tages; beides scrollt mit dem Raster, statt Platz dauerhaft zu belegen. Ein Tipp auf einen Termin öffnet die **Termin-Vorschau** als Blatt — dieselbe Fläche wie das freischwebende Fenster am Desktop: Zeitraum, Ort, Beschreibung, Teilnehmende mit ihren Antworten, und bei einer Serie ihr Rhythmus samt nächstem Termin. Bei einer Einladung stehen dort **Zusagen**, **Vorläufig** und **Absagen**, darunter **Termin bearbeiten**, **Meeting-Notiz** und **Termin löschen**. Wischen nach unten schließt das Blatt. Tagesnotizen liegen nicht hier, sondern in **Heute**.
+
+Ein Tipp auf eine Termin-Erinnerung öffnet den Termin selbst — die Tagesansicht an seinem Tag, den Termin geöffnet. Welche Ansicht Du zuletzt hattest (Tag, 3 Tage, Agenda), merkt sich das Gerät, wie am Desktop.
 
 **Wann das Telefon nachsieht.** Im Hintergrund läuft auf einem Telefon keine Uhr — der regelmäßige Abgleich steht also still, solange die App weg ist. Deshalb fragt Plainva von sich aus nach, sobald Du **in die App zurückkehrst** und sobald Du **Kalender**, **Aufgaben** oder die **Kalenderkonten** öffnest; höchstens einmal pro Minute, damit häufiges Hin- und Herwechseln keine Kette von Abgleichen auslöst. Beim Zurückkehren werden zugleich die **Erinnerungen neu geplant**, auch wenn nichts Neues dazugekommen ist — die Uhr ist ja trotzdem weitergelaufen. Willst Du nicht warten, gibt es weiterhin **Jetzt aktualisieren** und das Herunterziehen der Liste.
 
@@ -189,6 +195,8 @@ Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die
 
 **Ändert jemand dieselbe Notiz woanders**, während Du hier tippst, sichert Plainva Deine Fassung als Kopie daneben und übernimmt die eingetroffene. Das steht jetzt **an der Notiz** und bleibt dort, bis Du es auflöst: ein Hinweis über dem Text nennt den Pfad der Kopie, öffnet sie und zeigt auf Wunsch die **Unterschiede**. Vorher war das ein Hinweis, der nach Sekunden verschwand — und der Speicherversuch lief weiter, sodass bei jedem Anlauf eine weitere Kopie entstand. Es entsteht jetzt genau eine.
 
+Die **Unterschiede** öffnen dieselbe Vergleichsfläche wie am Desktop: links die Notiz, rechts Deine Kopie, gleiche Zeilen eingeklappt, und dieselben Ausgänge — **übernehmen**, **beide behalten** (die Kopie heißt dann `Notiz (Version …).md`), **Kopie verwerfen**, jeder mit Rückfrage.
+
 **Beim Löschen eines Ordners** nennt die Rückfrage, wie viele Dateien darin liegen — die Zahl steht auch auf dem Knopf. Plainva legt vorher von jeder Datei darin einen Snapshot an, den Du unter **Einstellungen** → **Wartung** → **Gelöschte Dateien wiederherstellen** zurückholen kannst. Eine Grenze nennt der Dialog offen: **gesichert werden kann nur, was dieses Telefon schon einmal geschrieben hat.** Eine Notiz, die nur per Synchronisation angekommen und hier nie bearbeitet wurde, liegt in keinem Snapshot. Anders als am Desktop gibt es auf dem Telefon keinen Papierkorb des Systems, der das auffangen würde. Betrifft die Löschung mehr als zehn Dateien oder mehr als ein Fünftel des Vaults, fragt Plainva ein zweites Mal — genau wie am Desktop.
 
 ## Teilen und Verknüpfungen
@@ -241,5 +249,7 @@ Umgekehrt zeigt die Kalenderansicht einer Datenbank auf Wunsch die **Zahl der ec
 ## Benachrichtigungen zu Anmerkungen
 
 Hat jemand etwas an eine Notiz geschrieben, kann Plainva Dich benachrichtigen — dieselben drei Stufen und derselbe Vorschau-Schalter wie am Desktop, unter **Einstellungen → Inhalt & Struktur**. Ein Tipp auf die Meldung öffnet die Notiz und hebt die gemeinte Karte hervor. Eine einzelne Notiz schaltest Du im Kommentar-Blatt über die Glocke stumm.
+
+Sind mehrere Anmerkungen auf einmal neu, öffnet die Meldung **Offene Kommentare** auf dem Reiter **Neu** — genau die Fäden, die sie gemeint hat; **Alle** und **An mich** stehen daneben.
 
 **Die Meldung kommt hier später als am Desktop, und das ist eine Eigenschaft, kein Fehler.** Plainva hat keinen Server, der Dein Telefon anstupsen könnte — den zu bauen hieße, dass ein fremder Server erfährt, wann wer welche Notiz kommentiert hat. Eine Anmerkung fällt deshalb dort auf, wo das Telefon ohnehin nachsieht: nach einem Sync-Zyklus und beim Zurückkehren in den Vordergrund. Im Hintergrund läuft dafür kein Zeitgeber; das erlaubt keine Telefon-Plattform.
