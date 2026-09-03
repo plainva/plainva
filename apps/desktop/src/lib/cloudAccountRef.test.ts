@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findCloudAccountByRef, type CloudAccountRecord } from "./cloudAccounts";
+import { findCloudAccountByRef, type CloudAccountRecord } from "@plainva/ui";
 
 /**
- * Finding 2026-09-01 (D2): "Sign in again" used to land on the provider
+ * Lives beside the other tests of @plainva/ui code: the package itself has no
+ * test runner. Finding 2026-09-01 (D2): "Sign in again" used to land on the provider
  * chooser because the deep link carried no account. The offers know a mail or
  * calendar account, not the cloud record — the lookup accepts either.
  */
