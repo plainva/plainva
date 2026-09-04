@@ -151,7 +151,7 @@ export async function listBackups(name: string, lastRun = 0): Promise<BackupList
     await Filesystem.stat({ path: folder, directory: DIR });
     folderExists = true;
   } catch {
-    folderExists = false;
+    /* no folder: this vault has never been archived on this device */
   }
   if (folderExists) {
     try {
