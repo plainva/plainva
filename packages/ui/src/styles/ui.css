@@ -1951,6 +1951,12 @@ button.pv-chip:hover { background: var(--state-hover); }
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  /* The content width must not depend on whether the page rolls (finding
+     2026-09-04): the theme gallery sits just above its four-column threshold,
+     and the scrollbar a taller page brought took exactly the width that turned
+     four columns into three - the cards "jumped" the moment a theme with an
+     editor below it was picked. A stable gutter reserves the space always. */
+  scrollbar-gutter: stable;
   padding: var(--space-6);
 }
 /* Inactive pages keep their size (they define the shared height) but are
