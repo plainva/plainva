@@ -5,6 +5,7 @@
  * with an English fallback.
  */
 
+import { encodeMarkdownLinkPath } from "@plainva/core";
 import type { FolderTemplateRule } from "../lib/folderTemplates";
 
 /** OKF type of scaffolded daily notes (previously the desktop VaultContext constant). */
@@ -132,13 +133,13 @@ export function welcomeBody(
   sections: WelcomeSection[] = []
 ): string {
   const bullets = folders
-    .map((f) => `* [${f.name}](${encodeURI(`${f.name}/index.md`)}) - ${f.description}`)
+    .map((f) => `* [${f.name}](${encodeMarkdownLinkPath(`${f.name}/index.md`)}) - ${f.description}`)
     .join("\n");
   const blocks = sections
     .filter((s) => s.links.length > 0)
     .map((s) => {
       const links = s.links
-        .map((l) => `* [${l.name}](${encodeURI(l.path)})${l.description ? ` - ${l.description}` : ""}`)
+        .map((l) => `* [${l.name}](${encodeMarkdownLinkPath(l.path)})${l.description ? ` - ${l.description}` : ""}`)
         .join("\n");
       return `## ${s.heading}\n\n${links}`;
     });

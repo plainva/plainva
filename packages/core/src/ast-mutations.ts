@@ -1,3 +1,4 @@
+import { decodeMarkdownLinkTarget, encodeMarkdownLinkAnchor, encodeMarkdownLinkPath } from "./linkEncoding.js";
 import { visit } from "unist-util-visit";
 import { MarkdownAst, MarkdownListItemNode, MarkdownHtmlNode, MarkdownLinkNode } from "./markdown-ast.js";
 
@@ -72,10 +73,11 @@ export function renameVaultLink(ast: MarkdownAst, oldTarget: string, newTarget: 
     } else if (node.type === "link") {
       const linkNode = node as MarkdownLinkNode;
       try {
-        const decoded = splitAnchor(decodeURIComponent(linkNode.url));
+        // Raw split first, decode second — see ast-scanner for why.
         const rawSplit = splitAnchor(linkNode.url);
+        const decoded = { base: decodeMarkdownLinkTarget(rawSplit.base), anchor: decodeMarkdownLinkTarget(rawSplit.anchor) };
         if (decoded.base === oldTarget || rawSplit.base === oldTarget) {
-           linkNode.url = encodeURI(newTarget) + decoded.anchor;
+           linkNode.url = encodeMarkdownLinkPath(newTarget) + encodeMarkdownLinkAnchor(decoded.anchor);
            renamedCount++;
         }
       } catch {

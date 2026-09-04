@@ -1,3 +1,4 @@
+import { encodeMarkdownLinkAnchor, encodeMarkdownLinkPath } from "./linkEncoding.js";
 import { visit } from "unist-util-visit";
 import { MarkdownAst, MarkdownHtmlNode } from "./markdown-ast.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./vault/LinkResolver.js";
@@ -18,7 +19,7 @@ export function relativeMarkdownUrl(fromFolder: string, toPath: string): string 
   while (common < from.length && common < to.length - 1 && from[common] === to[common]) common++;
   const ups = from.length - common;
   const rel = [...Array<string>(ups).fill(".."), ...to.slice(common)].join("/");
-  return encodeURI(rel);
+  return encodeMarkdownLinkPath(rel);
 }
 
 export interface IndexFileEntry {
@@ -112,7 +113,7 @@ export function generateIndexContent(options: GenerateIndexOptions): string {
         // AND Obsidian open. A trailing-slash folder link (`Name/`) only
         // navigates inside Plainva; Obsidian has no target for it, so clicking
         // one fabricates a stray empty note named after the folder (Issue #9).
-        lines.push(`* [${sub.name}](${encodeURI(sub.name)}/index.md)${suffix}`);
+        lines.push(`* [${sub.name}](${encodeMarkdownLinkPath(sub.name)}/index.md)${suffix}`);
       } else {
         // No index.md to point at — a plain (non-link) entry so a click can
         // never create a junk note in either app.
@@ -230,7 +231,7 @@ export function convertWikilinksToMarkdownLinks(
       return;
     }
 
-    const url = relativeMarkdownUrl(sourceFolder, resolved) + encodeURI(anchor);
+    const url = relativeMarkdownUrl(sourceFolder, resolved) + encodeMarkdownLinkAnchor(anchor);
     const text = alias ?? (hashIdx >= 0 ? pipe[0] : target.split("/").pop()!);
     parent.children[index] = {
       type: "link",

@@ -1,3 +1,4 @@
+import { decodeMarkdownLinkTarget } from "@plainva/core";
 import { resolveOpenAction } from "./openTarget";
 
 /**
@@ -41,12 +42,9 @@ export interface RelativeTarget {
 export function resolveRelativeTarget(sourcePath: string, href: string): RelativeTarget | null {
   if (!href || href.startsWith("#")) return null;
   if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return null;
-  let raw: string;
-  try {
-    raw = decodeURI(href.split("#")[0]);
-  } catch {
-    return null;
-  }
+  // Both forms: `decodeURI` for what older writers produced, the component
+  // decode for `%23`/`%3F`/`%28`/`%29` (link-encoding, 2026-09-04).
+  const raw = decodeMarkdownLinkTarget(href.split("#")[0]);
   if (!raw) return null;
   const isFolder = raw.endsWith("/");
   const rootRelative = raw.startsWith("/");
