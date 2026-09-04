@@ -23,6 +23,8 @@ import {
   Strikethrough,
   Trash2,
   Undo2,
+  MessageSquarePlus,
+  PenLine,
 } from "lucide-react";
 import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
@@ -60,6 +62,9 @@ import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
  * (contentEditable off — live preview stays fully rendered) and editing
  * adds a fixed keyboard toolbar with the shared touch commands.
  */
+/** The scroll position is remembered once the finger has settled — a debounce, not a hold (the gesture lint reads a literal 300–800 ms beside onPointerDown as a hold timer). */
+const SCROLL_SETTLE_MS = 400;
+
 export function EditorHost({
   vault,
   path,
@@ -68,6 +73,7 @@ export function EditorHost({
   editable,
   canComment,
   onCommentAnchorRequest,
+  onPassageSuggest,
   anchorHighlights,
   onAnchorActivate,
   onSuggestionApply,
@@ -81,7 +87,10 @@ export function EditorHost({
   /** Stufe E (E1): this note accepts comments, so widgets offer the affordance. */
   canComment?: boolean;
   /** A widget was asked to be commented on. The screen owns the comment sheet. */
-  onCommentAnchorRequest?: (req: { from: number; to: number; display: AnchorFrameHint }) => void;
+  /** A widget — or, since C26, a selected passage (no `display`) — was asked to be commented on. The screen owns the comment sheet. */
+  onCommentAnchorRequest?: (req: { from: number; to: number; display?: AnchorFrameHint }) => void;
+  /** The reader chose "Suggest" over a selection (C26): the screen switches into the suggestion mode. */
+  onPassageSuggest?: () => void;
   /**
    * Stufe E (E4): resolved comment ranges to tint and frame.
    *
@@ -145,6 +154,8 @@ export function EditorHost({
   // Where the selection sits, so the formatting toolbar can stand over it
   // (S18). The same component the desktop uses — six actions, one definition.
   const [selectionAt, setSelectionAt] = useState<{ x: number; y: number; above: boolean } | null>(null);
+  /** The main selection as document offsets — what a passage comment is anchored to (C26). */
+  const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   // The .base picker of the insert menu (S19): the slash entry existed and
   // did nothing, because it fires an event only the desktop listened to.
   const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
@@ -318,6 +329,7 @@ export function EditorHost({
         window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { path, count } }));
       },
       onSelectionToolbar: (at) => setSelectionAt(at),
+      onSelectionRange: (range) => setSelectionRange(range),
       onSelectionStats: (stats) => setSelectionStats(stats),
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),
@@ -459,7 +471,7 @@ export function EditorHost({
       scrollTimer = window.setTimeout(() => {
         scrollTimer = null;
         rememberScrollTop(vault.vaultId, path, session.view.scrollDOM.scrollTop);
-      }, 400);
+      }, SCROLL_SETTLE_MS);
     };
     session.view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     // A fresh session starts blank, so the frames have to be re-applied here -
@@ -1172,6 +1184,55 @@ export function EditorHost({
       {/* The formatting toolbar over a selection (S18). It was desktop-only,
           so on a phone the six most common formats needed the docked toolbar
           and a second look away from the text. */}
+      {/* Read mode (C26, catalog gap `comment-anchor-create` until 2026-09-04):
+          the note opens read-first, the session is `editable: false`, but its
+          selection still tracks what the finger marked. Over a non-empty
+          selection the two things a reader can do with a passage sit here —
+          the same two verbs the desktop offers from its selection. The bar
+          takes the toolbar's surface and position; formatting stays out, a
+          reader cannot format. preventDefault on pointer/mouse down keeps the
+          selection alive through the tap, exactly as the format toolbar does. */}
+      {!editable && canComment && selectionAt && selectionRange && (onCommentAnchorRequest || onPassageSuggest) && (
+        <div
+          role="toolbar"
+          aria-label={t("workspaceSecurity.comments")}
+          className={`pv-popover--fixed pv-seltoolbar${selectionAt.above ? " is-above" : ""}`}
+          data-testid="read-selection-bar"
+          onMouseDown={(e) => e.preventDefault()}
+          onPointerDown={(e) => e.preventDefault()}
+          style={{ left: selectionAt.x, top: selectionAt.y }}
+        >
+          {onCommentAnchorRequest && (
+            <button
+              type="button"
+              className="pv-iconbtn m-selverb"
+              data-testid="read-selection-comment"
+              onClick={() => {
+                const range = selectionRange;
+                setSelectionAt(null);
+                onCommentAnchorRequest({ from: range.from, to: range.to });
+              }}
+            >
+              <MessageSquarePlus size={ICON.ui} />
+              <span>{t("workspaceSecurity.comment")}</span>
+            </button>
+          )}
+          {onPassageSuggest && (
+            <button
+              type="button"
+              className="pv-iconbtn m-selverb"
+              data-testid="read-selection-suggest"
+              onClick={() => {
+                setSelectionAt(null);
+                onPassageSuggest();
+              }}
+            >
+              <PenLine size={ICON.ui} />
+              <span>{t("workspaceSecurity.suggestMode")}</span>
+            </button>
+          )}
+        </div>
+      )}
       {editable && selectionAt && (
         <SelectionToolbar
           above={selectionAt.above}

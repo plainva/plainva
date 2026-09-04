@@ -4398,3 +4398,16 @@ textarea {
   max-height: 60vh;
   overflow-y: auto;
 }
+
+/* Read-mode selection bar (C26): the format toolbar's surface, two verbs with a
+   label — a reader cannot format, so the six icons stay out. Touch floor kept
+   by the toolbar's own button height; the label widens the target. */
+.m-selverb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: auto;
+  padding: 0 var(--space-3);
+  font-size: var(--text-ui);
+  font-weight: 500;
+}

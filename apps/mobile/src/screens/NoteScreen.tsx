@@ -238,7 +238,7 @@ export function NoteScreen({
    * while a text anchor has to be built against the text as it stands at SUBMIT
    * time — the quote it carries is what makes it survive an edit.
    */
-  const [pendingRange, setPendingRange] = useState<{ from: number; to: number; display: AnchorFrameHint } | null>(null);
+  const [pendingRange, setPendingRange] = useState<{ from: number; to: number; display?: AnchorFrameHint } | null>(null);
   const [propertyAliasColumns, setPropertyAliasColumns] = useState<Record<string, unknown> | null>(null);
   const propertyAnchorKeys = useMemo(
     () => comments.map((c) => (c.anchor ? propertyAnchorKey(c.anchor) : null)),
@@ -803,6 +803,14 @@ export function NoteScreen({
           canComment={canComment}
           anchorHighlights={anchorHighlights}
           onCommentAnchorRequest={(req) => { setPendingRange(req); setPendingPropertyAnchor(null); setCommentsOpen(true); }}
+          onPassageSuggest={canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
+            // The same entry as the note menu's "Suggest" (V5) — from the
+            // selection instead of the menu; the copy keeps the marked range.
+            setEditing(true);
+            setSuggesting(true);
+            setSuggestCount(0);
+            window.setTimeout(() => editorEvent("m-editor-suggest-start"), 0);
+          } : undefined}
           onAnchorActivate={(commentId) => { setActiveCommentId(commentId); setCommentsOpen(true); }}
           onSuggestionApply={workspaceCanWrite ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "applied"); } : undefined}
           onSuggestionDecline={canComment ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "declined"); } : undefined}
