@@ -128,6 +128,15 @@ export function detectFontPlatform(nav: { platform?: string; userAgent?: string 
 }
 
 /** Measures the width of a probe string in a font stack — injectable for tests. */
+/**
+ * The first family of a CSS font stack, unquoted — what a field shows as the
+ * name of "the theme's font" ("Inter" from `Inter, Avenir, Helvetica, …`).
+ */
+export function firstFontFamily(stack: string): string {
+  const first = stack.split(",")[0] ?? "";
+  return first.trim().replace(/^["']|["']$/g, "").trim();
+}
+
 export type FontMeasure = (fontFamily: string) => number;
 
 const PROBE = "mmmmmmmmmmlliWWQ@あ";

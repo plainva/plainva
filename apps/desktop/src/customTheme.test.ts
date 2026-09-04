@@ -10,6 +10,8 @@ import {
   customBackgroundPresets,
   customThemeColors,
   customThemeContrast,
+  customThemeFromSwatch,
+  firstFontFamily,
   CUSTOM_ACCENT_MIN_CONTRAST,
   CUSTOM_BACKGROUND_LIGHTNESS,
   CUSTOM_TEXT_MAIN_MIN_CONTRAST,
@@ -123,6 +125,27 @@ describe("custom theme guardrails", () => {
         }
       }
     }
+  });
+
+  it("starts a spec from a bundled theme's swatch, clamped (A4: the old button read the live tokens)", () => {
+    const base = defaultCustomTheme("light");
+    const nord = AVAILABLE_THEMES.find((t) => t.id === "nord")!;
+    const spec = customThemeFromSwatch(nord.swatch.light!, "light", { ...base, radius: "soft", fontUi: "Georgia" });
+    expect(spec.background).toBe(nord.swatch.light!.bg.toLowerCase());
+    expect(contrastRatio(spec.accent, spec.background)).toBeGreaterThanOrEqual(CUSTOM_ACCENT_MIN_CONTRAST);
+    // Font and corners are the user's, not the bundled theme's.
+    expect(spec).toMatchObject({ radius: "soft", fontUi: "Georgia", mode: "light" });
+    // A dark swatch into the light mood is clamped into the light band.
+    const midnight = AVAILABLE_THEMES.find((t) => t.id === "midnight")!;
+    const forced = customThemeFromSwatch(midnight.swatch.dark!, "light", base);
+    expect(hexToHsl(forced.background).l).toBeGreaterThanOrEqual(CUSTOM_BACKGROUND_LIGHTNESS.light[0] - 0.004);
+  });
+
+  it("names the theme's font by its first family, unquoted", () => {
+    expect(firstFontFamily("Inter, Avenir, Helvetica, Arial, sans-serif")).toBe("Inter");
+    expect(firstFontFamily('"Segoe UI", system-ui')).toBe("Segoe UI");
+    expect(firstFontFamily("  'Fira Sans' ")).toBe("Fira Sans");
+    expect(firstFontFamily("")).toBe("");
   });
 
   it("reports the three ratios the editor shows", () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Moon, Palette } from "lucide-react";
+import { Check, Moon, Palette, Pencil } from "lucide-react";
 import {
   AVAILABLE_THEMES,
   DEFAULT_THEME_NAME,
@@ -12,11 +12,13 @@ import {
   setStoredThemeVariant,
   visibleThemes,
 } from "../services/theme";
-import { ICON, CUSTOM_THEME_ID, type CustomThemeSpec } from "@plainva/ui";
+import { ICON, CUSTOM_THEME_ID, type CustomThemeSpec, IconButton } from "@plainva/ui";
 
 interface ThemePickerCardsProps {
   /** The user's own theme, for the custom card's preview (plan 2026-09-04, P2). */
   customTheme?: CustomThemeSpec | null;
+  /** The pencil on the custom card (A2): opens the theme's own page. */
+  onEdit?: () => void;
   value: string;
   onChange: (id: string) => void;
 }
@@ -34,7 +36,7 @@ function previewMode(def: ThemeDef, currentMode: ThemeMode): ThemeMode {
  * activating it. Easter-egg themes stay hidden until unlocked; the LCARS card
  * lists collected variants as clickable dots.
  */
-export function ThemePickerCards({ value, onChange, customTheme }: ThemePickerCardsProps) {
+export function ThemePickerCards({ value, onChange, customTheme, onEdit }: ThemePickerCardsProps) {
   const { t } = useTranslation();
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [collectedVariants, setCollectedVariants] = useState<Record<string, string[]>>({});
@@ -77,7 +79,22 @@ export function ThemePickerCards({ value, onChange, customTheme }: ThemePickerCa
           <div
             key={def.id}
             className={active ? "pv-themecard is-active" : "pv-themecard"}
+            style={def.id === CUSTOM_THEME_ID ? { position: "relative" } : undefined}
           >
+            {/* The pencil is a sibling of the radio, never inside it (a
+                control in a control is invalid) — absolutely placed over the
+                preview's corner. It also selects the theme if it is not active. */}
+            {def.id === CUSTOM_THEME_ID && onEdit && (
+              <IconButton
+                size="sm"
+                label={t("settings.customThemeEdit")}
+                data-testid="theme-card-custom-edit"
+                onClick={onEdit}
+                style={{ position: "absolute", top: "var(--space-3)", right: "var(--space-3)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)" }}
+              >
+                <Pencil size={ICON.meta} aria-hidden="true" />
+              </IconButton>
+            )}
             {/* The card itself is the radio; variant dots live OUTSIDE the button
                 (interactive controls must not nest). */}
             <button

@@ -4340,3 +4340,25 @@ textarea {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* The theme card and its pencil (A2, 2026-09-04): the pencil is a sibling of
+   the card button — a control inside a control is invalid — placed over the
+   preview's corner. Only the user's own theme carries one. */
+.m-themecard-wrap {
+  position: relative;
+  min-width: 0;
+}
+.m-themecard-edit {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+/* A sheet whose body may outgrow the screen (font list): the body scrolls,
+   the grip and title stay. */
+.m-sheet-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+}

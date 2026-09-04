@@ -34,5 +34,6 @@ export {
 } from "./SettingsSurface";
 export { TooltipHost } from "./Tooltip";
 export { FontCatalogPicker, type FontCatalogPickerProps } from "./FontCatalogPicker";
+export { FontField, type FontFieldProps } from "./FontField";
 export { GroupCard, Row, RowList, SectionLabel, SettingField } from "./GroupedRows";
 export { cx } from "./cx";

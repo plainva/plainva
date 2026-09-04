@@ -8,12 +8,10 @@ import {
   SettingRow,
   SettingsPageHead,
   settingsArea,
-  FontCatalogPicker,
-  TextInput,
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
-import { CUSTOM_THEME_ID, type CustomThemeSpec } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FontField, type CustomThemeSpec } from "@plainva/ui";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -43,7 +41,8 @@ export interface AppearancePageProps {
   themeName: string;
   onThemeName: (name: string) => void;
   customTheme: CustomThemeSpec;
-  onCustomTheme: (spec: CustomThemeSpec) => void;
+  /** The pencil on the "Mein Design" card: opens its own settings page (A2). */
+  onEditCustomTheme: () => void;
   themePref: ThemePref;
   onThemePref: (pref: ThemePref) => void;
   appLanguage: string;
@@ -63,13 +62,13 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
       <AreaHead areaId="appearance" />
       <SettingCard label={t("settings.groupDesign", { defaultValue: "Design" })}>
         <SettingRow label={t("settings.themeName", { defaultValue: "Theme" })} wide>
-          <ThemePickerCards value={p.themeName} onChange={p.onThemeName} customTheme={p.customTheme} />
+          <ThemePickerCards
+            value={p.themeName}
+            onChange={p.onThemeName}
+            customTheme={p.customTheme}
+            onEdit={() => { if (p.themeName !== CUSTOM_THEME_ID) p.onThemeName(CUSTOM_THEME_ID); p.onEditCustomTheme(); }}
+          />
         </SettingRow>
-        {p.themeName === CUSTOM_THEME_ID && (
-          <SettingRow label={t("settings.customTheme")} wide>
-            <CustomThemeEditor spec={p.customTheme} onChange={p.onCustomTheme} />
-          </SettingRow>
-        )}
         <SettingRow
           label={t("settings.themeMode", { defaultValue: "Modus" })}
           desc={isModePinned(p.themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : undefined}
@@ -242,23 +241,16 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               ]}
             />
             {p.contentFont.family === "custom" && (
-              /* The curated list first (T7): a preview per row and a verdict on
-                 whether the device has the font. The name field stays for a
-                 family the list does not know. */
-              <>
-                <FontCatalogPicker
-                  value={p.contentFont.customName}
-                  onPick={(font) => p.onContentFont({ ...p.contentFont, family: "custom", customName: font.css })}
-                />
-                <TextInput
-                  autoComplete="off"
-                  value={p.contentFont.customName}
-                  placeholder={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
-                  aria-label={t("settings.fontCustomPlaceholder", { defaultValue: "Name einer installierten Schriftart" })}
-                  onChange={(e) => p.onContentFont({ ...p.contentFont, customName: e.target.value })}
-                  data-testid="content-font-custom"
-                />
-              </>
+              /* One field that shows the chosen family; the curated list (a
+                 preview per row, a verdict on whether the device has the font)
+                 and the free name open on click (second look 2026-09-04, A3). */
+              <FontField
+                value={p.contentFont.customName}
+                onChange={(css) => p.onContentFont({ ...p.contentFont, family: "custom", customName: css })}
+                defaultLabel={t("settings.fontFieldEmpty")}
+                ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
+                data-testid="content-font-custom"
+              />
             )}
           </div>
         </SettingRow>
@@ -442,6 +434,32 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
           </Button>
         </SettingRow>
       </SettingCard>
+    </div>
+  );
+};
+
+/**
+ * "Mein Design" as its own page (second look 2026-09-04, A2): reached from
+ * the pencil on the theme card, with a way back to Appearance. The editor
+ * had no room under the gallery — and its height reflowed the gallery.
+ */
+export interface CustomThemePageProps {
+  spec: CustomThemeSpec;
+  onChange: (spec: CustomThemeSpec) => void;
+  onBack: () => void;
+}
+
+export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack }) => {
+  const { t } = useTranslation();
+  return (
+    <div data-testid="custom-theme-page">
+      <div style={{ marginBottom: "var(--space-2)" }}>
+        <Button variant="ghost" size="sm" onClick={onBack} data-testid="custom-theme-back">
+          ‹ {t("settings.sectionAppearance")}
+        </Button>
+      </div>
+      <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
+      <CustomThemeEditor spec={spec} onChange={onChange} />
     </div>
   );
 };

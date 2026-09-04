@@ -205,6 +205,16 @@ export function customThemeColors(input: CustomThemeSpec): CustomThemeColors {
   };
 }
 
+/**
+ * A spec that starts from a bundled theme's swatch — "take from…" (second
+ * look, A4). The earlier button read the LIVE tokens, which are this theme's
+ * own once its editor is open, so it could only ever confirm the current
+ * state. The swatch is the bundled theme's ground and accent for the mood.
+ */
+export function customThemeFromSwatch(swatch: { bg: string; accent: string }, mode: CustomThemeMode, base: CustomThemeSpec): CustomThemeSpec {
+  return clampCustomTheme({ ...base, mode, background: swatch.bg, accent: swatch.accent }).spec;
+}
+
 /** What the picker card and the preview show. */
 export function customThemeSwatch(spec: CustomThemeSpec): { bg: string; surface: string; text: string; accent: string } {
   const c = customThemeColors(spec);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker, CUSTOM_THEME_ID, themesWithCustom } from "@plainva/ui";
+import { ChevronRight, Pencil } from "lucide-react";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -13,7 +13,6 @@ import {
   type ThemeMode,
 } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
-import { CustomThemeRows } from "../components/CustomThemeRows";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
@@ -22,7 +21,7 @@ import { CustomThemeRows } from "../components/CustomThemeRows";
  * logo keeps the desktop's 5-tap hailing gesture, followed by the mockup's
  * deliberately cryptic hint.
  */
-export function AppearanceScreen({ onBack }: { onBack: () => void }) {
+export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => void; onEditCustomTheme: () => void }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
   const [hailing, setHailing] = useState(false);
@@ -118,9 +117,9 @@ const MOTIONS: Array<[MotionPref, string]> = [
             const sw = th.swatch[mode]!;
             const active = (settings.themeName || "petrol") === th.id;
             return (
+              <div className="m-themecard-wrap" key={th.id}>
               <button
                 className={active ? "pv-card pv-card--flush m-themecard is-on" : "pv-card pv-card--flush m-themecard"}
-                key={th.id}
                 onClick={() => update({ themeName: th.id })}
               >
                 <span aria-hidden className="m-themeprev">
@@ -133,14 +132,23 @@ const MOTIONS: Array<[MotionPref, string]> = [
                   {th.unlock ? " ✦" : ""}
                 </span>
               </button>
+              {/* The pencil (A2): a sibling of the card, opens "Mein Design";
+                  selects the theme first when another one is active. */}
+              {th.id === CUSTOM_THEME_ID && (
+                <IconButton
+                  size="sm"
+                  className="m-themecard-edit"
+                  label={t("settings.customThemeEdit")}
+                  data-testid="theme-card-custom-edit"
+                  onClick={() => { if (!active) update({ themeName: CUSTOM_THEME_ID }); onEditCustomTheme(); }}
+                >
+                  <Pencil size={ICON.meta} aria-hidden="true" />
+                </IconButton>
+              )}
+              </div>
             );
           })}
         </div>
-
-        {/* The user's own theme (P2): the same few choices as the desktop editor. */}
-        {settings.themeName === CUSTOM_THEME_ID && (
-          <CustomThemeRows spec={settings.customTheme} onChange={(spec) => update({ customTheme: spec })} />
-        )}
 
         {settings.unlockedThemeVariants.length > 0 && (
           <>

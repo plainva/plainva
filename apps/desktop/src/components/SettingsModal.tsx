@@ -52,7 +52,7 @@ import { formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
-import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage } from "./settings/AppPages";
+import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
@@ -762,7 +762,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           ) : (
             <SettingsNav
               world={section === GENERAL ? "app" : "vault"}
-              page={section === GENERAL ? appPage : vaultPage}
+              page={section === GENERAL ? (appPage === "customTheme" ? "appearance" : appPage) : vaultPage}
               onOpenArea={openArea}
               vaultName={selectedVault ? basename(selectedVault) : null}
               vaultPath={selectedVault || null}
@@ -786,7 +786,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       themeName={themeName}
                       onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
                       customTheme={customTheme}
-                      onCustomTheme={(spec) => { setCustomThemeSpec(spec); void setStoredCustomTheme(spec); }}
+                      onEditCustomTheme={() => setAppPage("customTheme")}
                       themePref={themePref}
                       onThemePref={handleThemeChange}
                       appLanguage={appLanguage}
@@ -797,6 +797,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
+                    />
+                  </SettingsPage>
+                  {/* "Mein Design" (A2): a second level under Appearance, not a rail entry. */}
+                  <SettingsPage active={inAppWorld && appPage === "customTheme"}>
+                    <CustomThemePage
+                      spec={customTheme}
+                      onChange={(spec) => { setCustomThemeSpec(spec); void setStoredCustomTheme(spec); }}
+                      onBack={() => setAppPage("appearance")}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "editor"}>

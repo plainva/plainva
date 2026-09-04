@@ -8,6 +8,7 @@ import { BrowseScreen } from "./screens/BrowseScreen";
 import { NavigatorScreen } from "./screens/NavigatorScreen";
 import { AddVaultScreen } from "./AddVaultScreen";
 import { AppearanceScreen } from "./screens/AppearanceScreen";
+import { CustomThemeScreen } from "./screens/CustomThemeScreen";
 import { CleanupScreen } from "./screens/CleanupScreen";
 import { SyncChainScreen } from "./screens/SyncChainScreen";
 import { SyncDiagnosticsScreen } from "./screens/SyncDiagnosticsScreen";
@@ -293,7 +294,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
     />
   ),
-  appearance: (_e, c) => <AppearanceScreen onBack={c.pop} />,
+  appearance: (_e, c) => <AppearanceScreen onBack={c.pop} onEditCustomTheme={() => c.push({ kind: "customtheme", path: "" })} />,
+  customtheme: (_e, c) => <CustomThemeScreen onBack={c.pop} />,
   search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   findreplace: (_e, c) => <FindReplaceScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   overviews: (_e, c) => <OverviewsScreen onBack={c.pop} vault={c.vault} />,
