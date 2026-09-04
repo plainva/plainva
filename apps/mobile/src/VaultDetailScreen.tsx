@@ -22,7 +22,8 @@ import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type Vault
 import { currentVaultFolderPlatform, getVaultFolderPlugin, type VaultFolderAccess } from "./platform/vaultFolder";
 import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
-import { backupState, listBackups, runVaultBackup } from "./services/vaultBackup";
+import { backupFolderFor, backupState, dismissUnreadableBackups, listBackups, runVaultBackup } from "./services/vaultBackup";
+import type { BackupListing } from "./services/backupListing";
 import { readSyncRootFolder } from "./services/syncRootFolder";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { getMobileSettings, applyVaultSettings } from "./services/mobileSettings";
@@ -71,7 +72,7 @@ export function VaultDetailScreen({
   /** Waiting operations — part of the one state line (S36), null until read. */
   const [pending, setPending] = useState<number | null>(null);
   /** Scheduled archive (S36): how many exist, and its two settings. */
-  const [archives, setArchives] = useState<string[] | null>(null);
+  const [archives, setArchives] = useState<BackupListing | null>(null);
   const [zipOn, setZipOn] = useState(() => backupState(vaultId).enabled);
   const [zipKeep, setZipKeep] = useState(() => backupState(vaultId).keep);
   const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
@@ -134,13 +135,13 @@ export function VaultDetailScreen({
 
   useEffect(() => {
     let alive = true;
-    void listBackups(entry?.name || "").then((list) => {
+    void listBackups(entry?.name || "", zipLast).then((list) => {
       if (alive) setArchives(list);
     });
     return () => {
       alive = false;
     };
-  }, [entry?.name, busy]);
+  }, [entry?.name, busy, zipLast]);
 
   // External folder (P7): what the platform says about the grant right now.
   // Asked on every open of this page — a grant can go away between two looks.
@@ -559,7 +560,7 @@ export function VaultDetailScreen({
                       ? t("mobile.backupZipOff")
                       : zipLast
                         ? t("mobile.backupZipOn", {
-                            count: archives?.length ?? 0,
+                            count: archives?.archives.length ?? 0,
                             when: new Date(zipLast).toLocaleDateString(),
                           })
                         : t("mobile.backupZipNever")
@@ -613,6 +614,33 @@ export function VaultDetailScreen({
                   />
                 )}
               </RowList>
+              {/* C25: after a reinstall on Android the folder still holds the
+                  old archives, but this installation cannot see them — the
+                  count above would read "0" and the pruning would never touch
+                  them. Say so, next to the number it corrects. */}
+              {archives?.unreadable && (
+                <Banner
+                  kind="warning"
+                  rounded
+                  actions={
+                    <Button
+                      variant="text"
+                      data-testid="vault-backups-unreadable-dismiss"
+                      onClick={() => {
+                        dismissUnreadableBackups(entry.name);
+                        setArchives((current) => (current ? { ...current, unreadable: false } : current));
+                      }}
+                    >
+                      {t("common.dismiss")}
+                    </Button>
+                  }
+                >
+                  <strong>{t("mobile.backupUnreadableTitle")}</strong>
+                  <p className="m-hint" data-testid="vault-backups-unreadable">
+                    {t("mobile.backupUnreadableBody", { folder: backupFolderFor(entry.name) })}
+                  </p>
+                </Banner>
+              )}
             </GroupCard>
           </>
         )}

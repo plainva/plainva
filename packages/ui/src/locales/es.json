@@ -2500,6 +2500,8 @@
     "backupZipOff": "Sin copia automática",
     "backupZipNever": "Aún sin copia de seguridad",
     "backupZipDone": "Copia creada: {{name}}",
+    "backupUnreadableTitle": "Las copias de seguridad antiguas no se pueden leer",
+    "backupUnreadableBody": "La carpeta {{folder}} contiene archivos a los que esta instalación no tiene acceso; ocurre tras una reinstalación. Aquí no se cuentan ni se limpian; la app Archivos sigue pudiendo abrirlos.",
     "openAttachmentFailed": "No se pudo abrir el archivo.",
     "todayEvents": "Citas",
     "todayDue": "Vence",

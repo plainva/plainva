@@ -2518,6 +2518,8 @@
     "backupZipOff": "Brak automatycznej kopii",
     "backupZipNever": "Jeszcze bez kopii zapasowej",
     "backupZipDone": "Utworzono kopię: {{name}}",
+    "backupUnreadableTitle": "Starszych kopii zapasowych nie można odczytać",
+    "backupUnreadableBody": "Folder {{folder}} zawiera pliki, do których ta instalacja nie ma dostępu — tak dzieje się po ponownej instalacji. Nie są tu liczone ani porządkowane; aplikacja Pliki nadal może je otworzyć.",
     "openAttachmentFailed": "Nie udało się otworzyć pliku.",
     "todayEvents": "Spotkania",
     "todayDue": "Termin",

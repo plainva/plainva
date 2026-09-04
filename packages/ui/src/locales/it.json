@@ -2500,6 +2500,8 @@
     "backupZipOff": "Nessun backup automatico",
     "backupZipNever": "Nessun backup finora",
     "backupZipDone": "Backup creato: {{name}}",
+    "backupUnreadableTitle": "I backup precedenti non sono leggibili",
+    "backupUnreadableBody": "La cartella {{folder}} contiene file a cui questa installazione non ha accesso: succede dopo una reinstallazione. Qui non vengono contati né ripuliti; l'app File può ancora aprirli.",
     "openAttachmentFailed": "Impossibile aprire il file.",
     "todayEvents": "Appuntamenti",
     "todayDue": "In scadenza",

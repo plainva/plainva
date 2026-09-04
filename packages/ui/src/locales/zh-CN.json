@@ -2464,6 +2464,8 @@
     "backupZipOff": "无自动备份",
     "backupZipNever": "尚无备份",
     "backupZipDone": "已创建备份：{{name}}",
+    "backupUnreadableTitle": "较早的备份无法读取",
+    "backupUnreadableBody": "文件夹 {{folder}} 中有此次安装无法访问的文件——重新安装后会出现这种情况。这里不会统计或清理它们；“文件”应用仍能打开它们。",
     "openAttachmentFailed": "无法打开该文件。",
     "todayEvents": "日程",
     "todayDue": "到期",

@@ -2500,6 +2500,8 @@
     "backupZipOff": "Sem backup automático",
     "backupZipNever": "Ainda sem backup",
     "backupZipDone": "Backup criado: {{name}}",
+    "backupUnreadableTitle": "Backups mais antigos não podem ser lidos",
+    "backupUnreadableBody": "A pasta {{folder}} contém arquivos aos quais esta instalação não tem acesso — isso acontece após uma reinstalação. Eles não são contados nem limpos aqui; o app Arquivos ainda consegue abri-los.",
     "openAttachmentFailed": "Não foi possível abrir o arquivo.",
     "todayEvents": "Compromissos",
     "todayDue": "Vence",

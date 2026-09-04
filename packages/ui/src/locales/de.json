@@ -2482,6 +2482,8 @@
     "backupZipOff": "Keine automatische Sicherung",
     "backupZipNever": "Noch keine Sicherung",
     "backupZipDone": "Sicherung erstellt: {{name}}",
+    "backupUnreadableTitle": "Ältere Sicherungen sind nicht lesbar",
+    "backupUnreadableBody": "Im Ordner {{folder}} liegen Dateien, auf die diese Installation keinen Zugriff hat — das passiert nach einer Neuinstallation. Sie werden hier weder gezählt noch aufgeräumt; in der Dateien-App bleiben sie erreichbar.",
     "openAttachmentFailed": "Die Datei konnte nicht geöffnet werden.",
     "todayEvents": "Termine",
     "todayDue": "Fällig",

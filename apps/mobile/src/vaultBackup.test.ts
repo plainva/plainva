@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildZipFileName, selectZipsToDelete, shouldRunZip, zipNamePattern } from "@plainva/ui";
+import { classifyBackupListing } from "./services/backupListing";
 
 /**
  * The archive rules, now shared with the desktop (S36).
@@ -52,5 +53,38 @@ describe("the shared archive rules", () => {
   it("runs on a vault that has never been archived", () => {
     // lastRun 0 must read as "never", not as "just now at the epoch".
     expect(shouldRunZip({ enabled: true, lastRun: 0, now: Date.parse("2026-08-04"), running: false })).toBe(true);
+  });
+});
+
+/**
+ * C25 (finding 2026-08-25): after a reinstall on Android the archive folder is
+ * there, but `readdir` returns an empty list — "0 backups" was a lie the vault
+ * page told while the files kept growing.
+ */
+describe("what the vault page may claim about the archive folder", () => {
+  const zips = ["V_2026-01-01_00-00-00.zip", "V_2026-01-02_00-00-00.zip"];
+
+  it("counts what it can read, newest first", () => {
+    const out = classifyBackupListing({ folderExists: true, names: [...zips, "notes.txt"], lastRun: 1, remembered: "none" });
+    expect(out).toEqual({ archives: [zips[1], zips[0]], unreadable: false });
+  });
+
+  it("calls an existing folder that shows nothing to an installation that never wrote 'unreadable', not empty", () => {
+    expect(classifyBackupListing({ folderExists: true, names: [], lastRun: 0, remembered: "none" }).unreadable).toBe(true);
+  });
+
+  it("does not mistake a missing folder or a folder this installation emptied for the reinstall case", () => {
+    // No folder: a fresh vault that has simply never been archived.
+    expect(classifyBackupListing({ folderExists: false, names: [], lastRun: 0, remembered: "none" }).unreadable).toBe(false);
+    // Folder present but this installation has written before: emptied by
+    // hand, the next scheduled run refills it.
+    expect(classifyBackupListing({ folderExists: true, names: [], lastRun: 123, remembered: "none" }).unreadable).toBe(false);
+  });
+
+  it("keeps saying so after the first new archive, until the user dismisses it", () => {
+    // The first archive written by the new installation would otherwise make
+    // the count look right while the old files stay invisible and unpruned.
+    expect(classifyBackupListing({ folderExists: true, names: [zips[0]], lastRun: 5, remembered: "detected" }).unreadable).toBe(true);
+    expect(classifyBackupListing({ folderExists: true, names: [], lastRun: 0, remembered: "dismissed" }).unreadable).toBe(false);
   });
 });

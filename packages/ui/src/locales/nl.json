@@ -2482,6 +2482,8 @@
     "backupZipOff": "Geen automatische back-up",
     "backupZipNever": "Nog geen back-up",
     "backupZipDone": "Back-up gemaakt: {{name}}",
+    "backupUnreadableTitle": "Oudere back-ups zijn niet leesbaar",
+    "backupUnreadableBody": "De map {{folder}} bevat bestanden waar deze installatie geen toegang toe heeft — dat gebeurt na een herinstallatie. Ze worden hier niet meegeteld en niet opgeruimd; de app Bestanden kan ze nog openen.",
     "openAttachmentFailed": "Het bestand kon niet worden geopend.",
     "todayEvents": "Afspraken",
     "todayDue": "Te doen",

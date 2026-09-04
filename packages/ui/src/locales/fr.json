@@ -2500,6 +2500,8 @@
     "backupZipOff": "Aucune sauvegarde automatique",
     "backupZipNever": "Aucune sauvegarde pour l'instant",
     "backupZipDone": "Sauvegarde créée : {{name}}",
+    "backupUnreadableTitle": "Les sauvegardes plus anciennes ne peuvent pas être lues",
+    "backupUnreadableBody": "Le dossier {{folder}} contient des fichiers auxquels cette installation n'a pas accès — cela arrive après une réinstallation. Ils ne sont ni comptés ni nettoyés ici ; l'app Fichiers peut toujours les ouvrir.",
     "openAttachmentFailed": "Impossible d’ouvrir le fichier.",
     "todayEvents": "Rendez-vous",
     "todayDue": "À échéance",
