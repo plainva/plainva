@@ -18,11 +18,25 @@ export interface LaidOutEvent<T extends TimeGridEvent> {
   lane: number;
   /** Total lanes in that cluster — divide the column width by this. */
   lanes: number;
+  /**
+   * How many lanes the event may occupy, starting at `lane` and growing to the
+   * right — every lane it can take is one no clustered neighbour uses while
+   * this event runs. 1 means "its own lane only". Width = span / lanes.
+   * Without it an event that overlapped nothing at its own time still got a
+   * third of the column because the cluster had three lanes (finding
+   * 2026-09-04: it read as a collision with the event above it).
+   */
+  span: number;
 }
 
 /** Point events get a 1 ms sliver so simultaneous starts still overlap. */
 function effectiveEnd(e: TimeGridEvent): number {
   return Math.max(e.endMs, e.startMs + 1);
+}
+
+/** Half-open intervals: touching (end == start) is not overlapping. */
+function overlaps(a: TimeGridEvent, b: TimeGridEvent): boolean {
+  return a.startMs < effectiveEnd(b) && b.startMs < effectiveEnd(a);
 }
 
 /**
@@ -44,7 +58,12 @@ export function layoutDayEvents<T extends TimeGridEvent>(events: T[], keyOf?: (e
 
   const flush = () => {
     const lanes = laneEnds.length || 1;
-    for (const c of cluster) out.push({ event: c.event, lane: c.lane, lanes });
+    for (const c of cluster) {
+      // Grow to the right while the next lane is free for the whole run.
+      let span = 1;
+      while (c.lane + span < lanes && !cluster.some((o) => o.lane === c.lane + span && overlaps(o.event, c.event))) span += 1;
+      out.push({ event: c.event, lane: c.lane, lanes, span });
+    }
     cluster = [];
     laneEnds = [];
     clusterMaxEnd = -Infinity;

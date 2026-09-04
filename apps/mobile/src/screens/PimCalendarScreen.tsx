@@ -739,7 +739,8 @@ export function PimCalendarScreen({
                     const endMin = Math.max(startMin + 1, minutesInDay(l.event.endMs, dayStartMs));
                     const top = minutesToPx(startMin, PX_PER_HOUR);
                     const height = Math.max(15, minutesToPx(endMin - startMin, PX_PER_HOUR));
-                    const widthPct = 100 / l.lanes;
+                    const laneWidthPct = 100 / l.lanes;
+                    const widthPct = laneWidthPct * l.span;
                     const e = l.event.ev;
                     return (
                       <button
@@ -749,7 +750,7 @@ export function PimCalendarScreen({
                         data-state={eventVisualState(e)}
                         className={eventStateClass("m-evt", eventVisualState(e))}
                         onClick={() => void editor.openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * widthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
                       >
                         <span className="m-evt-title">{e.title}</span>
                       </button>

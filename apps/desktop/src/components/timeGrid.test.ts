@@ -51,6 +51,41 @@ describe("layoutDayEvents", () => {
     expect(out.map((o) => o.lanes)).toEqual([2, 2]);
   });
 
+  it("keeps two touching events at full width — an end at 11:00 is not an overlap with a start at 11:00", () => {
+    // Reported 2026-09-04 as "shown as overlapping"; the lanes were right all
+    // along (this pins it), the missing piece was the span below.
+    const out = layoutDayEvents([ev(9, 0, 11, 0, "a"), ev(11, 0, 12, 0, "b")]);
+    expect(out.map((o) => [o.lane, o.lanes, o.span])).toEqual([[0, 1, 1], [0, 1, 1]]);
+  });
+
+  it("lets an event grow into the lanes to its right that are free while it runs", () => {
+    // The Wednesday evening from the report: A 18:30–20:00, B 19:15–20:00,
+    // C 19:30–20:30, D 20:00–21:00. D only collides with C (lane 2), so it
+    // takes lanes 0 and 1 instead of a third of the column.
+    const out = layoutDayEvents([
+      ev(18, 30, 20, 0, "a"), ev(19, 15, 20, 0, "b"), ev(19, 30, 20, 30, "c"), ev(20, 0, 21, 0, "d"),
+    ], (e) => (e as { id: string }).id);
+    const byId = Object.fromEntries(out.map((o) => [(o.event as { id: string }).id, o]));
+    expect(byId.a).toMatchObject({ lane: 0, lanes: 3, span: 1 });
+    expect(byId.b).toMatchObject({ lane: 1, lanes: 3, span: 1 });
+    expect(byId.c).toMatchObject({ lane: 2, lanes: 3, span: 1 });
+    expect(byId.d).toMatchObject({ lane: 0, lanes: 3, span: 2 });
+  });
+
+  it("never grows across a lane another event holds, even if a lane beyond it is free", () => {
+    // A 9–12 in lane 0, B 9–10 in lane 1, C 9–10:30 in lane 2. After B ends,
+    // lane 1 is free but A cannot jump over C's lane 2 — and it starts at
+    // lane 0, so its span stays 1 while B runs; the grid does not re-flow.
+    const out = layoutDayEvents([ev(9, 0, 12, 0, "a"), ev(9, 0, 10, 0, "b"), ev(9, 0, 10, 30, "c")], (e) => (e as { id: string }).id);
+    const byId = Object.fromEntries(out.map((o) => [(o.event as { id: string }).id, o]));
+    expect(byId.a.span).toBe(1);
+    expect(byId.b.span).toBe(1);
+    expect(byId.c.span).toBe(1);
+    // Point events keep their sliver semantics: simultaneous starts overlap.
+    const points = layoutDayEvents([ev(16, 0, 16, 0, "p1"), ev(16, 0, 16, 0, "p2")]);
+    expect(points.map((o) => o.span)).toEqual([1, 1]);
+  });
+
   it("is deterministic via the key tiebreaker", () => {
     const a = layoutDayEvents([ev(9, 0, 11, 0, "b"), ev(9, 0, 11, 0, "a")], (e) => (e as { id: string }).id);
     expect(a.map((o) => (o.event as { id: string }).id)).toEqual(["a", "b"]);

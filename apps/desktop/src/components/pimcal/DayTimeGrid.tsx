@@ -183,7 +183,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
       const blocks = laid.map((l) => {
         const startMin = minutesInDay(l.event.startMs, dayStartMs);
         const endMin = Math.max(startMin + 1, minutesInDay(l.event.endMs, dayStartMs));
-        return { ev: l.event.ev, startMin, endMin, lane: l.lane, lanes: l.lanes };
+        return { ev: l.event.ev, startMin, endMin, lane: l.lane, lanes: l.lanes, span: l.span };
       });
       // A task with a time belongs IN the day, not above it (S6). Without one
       // nothing changes: it stays in the all-day strip, where a day-granular
@@ -595,8 +595,9 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 {d.blocks.map((b) => {
                   const top = minutesToPx(b.startMin, pxPerHour);
                   const height = Math.max(MIN_BLOCK_PX, minutesToPx(b.endMin - b.startMin, pxPerHour));
-                  const widthPct = 100 / b.lanes;
-                  const leftPct = b.lane * widthPct;
+                  const laneWidthPct = 100 / b.lanes;
+                  const widthPct = laneWidthPct * b.span;
+                  const leftPct = b.lane * laneWidthPct;
                   const editable = canEditEvent(b.ev);
                   const dragging = blockDrag?.moved && eventKey(blockDrag.ev) === eventKey(b.ev);
                   return (
