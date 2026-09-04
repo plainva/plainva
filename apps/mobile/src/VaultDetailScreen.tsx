@@ -624,7 +624,7 @@ export function VaultDetailScreen({
                   rounded
                   actions={
                     <Button
-                      variant="text"
+                      variant="ghost"
                       data-testid="vault-backups-unreadable-dismiss"
                       onClick={() => {
                         dismissUnreadableBackups(entry.name);
