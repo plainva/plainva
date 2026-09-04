@@ -2838,7 +2838,7 @@ test('Live preview: a bullet with nested lines folds its list on click (T8c)', a
   expect(written).toBe('# Fold\n\n- Parent\n  - child one\n  - child two\n- Flat\n');
 });
 
-test('Editor settings: the content font offers a catalog with preview, the name field stays (T7)', async ({ page }) => {
+test('Editor settings: the content font is a field that opens the catalog with preview (T7, A3)', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.keyboard.press('Control+,');
@@ -2847,25 +2847,31 @@ test('Editor settings: the content font offers a catalog with preview, the name 
   // The content font lives on the Editor page (Appearance holds theme and chrome).
   await dialog.getByRole('button', { name: /^Editor & (notes|Notizen)$/ }).click();
 
-  // "Custom…" opens the catalog above the name field.
+  // "Custom…" shows ONE field; the catalog only opens on click (second look
+  // 2026-09-04, A3 — before, twenty rows stood open on the page).
   await dialog.getByTestId('content-font-family').click();
   await page.getByRole('option', { name: /Benutzerdefiniert|Custom/ }).click();
-  const catalog = dialog.getByTestId('font-catalog');
-  await expect(catalog).toBeVisible();
-  const rows = catalog.locator('.pv-grouprow');
+  const field = dialog.getByTestId('content-font-custom');
+  await expect(field).toBeVisible();
+  await expect(dialog.getByTestId('font-catalog')).toHaveCount(0);
+  await field.getByRole('button').click();
+  const list = page.getByRole('listbox');
+  await expect(list).toBeVisible();
+  const rows = list.locator('[data-testid^="font-field-"]');
   expect(await rows.count()).toBeGreaterThan(4);
 
-  // A row previews itself in its own font and, picked, fills the name field.
+  // A row previews itself in its own font and, picked, names the field.
   // Which fonts exist depends on the machine (the CI runner has no Georgia):
-  // the catalog says which rows are usable, the first of them is the one.
-  const usable = catalog.locator('[data-testid^="font-catalog-"]:not([disabled])').first();
+  // the list says which rows are usable, the first of them is the one.
+  const usable = list.locator('[data-testid^="font-field-"]:not([disabled])').first();
   await expect(usable).toBeVisible();
-  const css = (await usable.getAttribute('data-testid'))!.replace('font-catalog-', '');
+  const css = (await usable.getAttribute('data-testid'))!.replace('font-field-', '');
   const escaped = css.replace(/[.*+?^${}()|[\]\\]/g, (m) => '\\' + m);
-  await expect(usable.locator('.pv-grouprow-title span')).toHaveCSS('font-family', new RegExp(escaped, 'i'));
+  await expect(usable).toHaveCSS('font-family', new RegExp(escaped, 'i'));
+  const name = (await usable.locator('span > span').first().innerText()).trim();
   await usable.click();
-  await expect(dialog.getByTestId('content-font-custom')).toHaveValue(css);
-  await expect(usable).toHaveAttribute('aria-pressed', 'true');
+  await expect(list).toHaveCount(0);
+  await expect(field.getByRole('button')).toContainText(name);
   // …and the note content follows.
   await expect
     .poll(async () => await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-content')))

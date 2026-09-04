@@ -464,8 +464,14 @@ function googleReminders(r: GoogleEventItem["reminders"]): number[] | undefined 
  * field in the editor clears it remotely; untouched fields (attendees,
  * reminders …) are preserved by the PATCH semantics. */
 function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
+  // A recurring event needs a time zone on its start and end — Google answers
+  // "400 required: Missing time zone definition for start time" without one,
+  // and a blocked copy of a recurring event carries the rule (finding
+  // 2026-09-04). Sent for every timed event: harmless with a plain one, and
+  // the zone is what the rule's local-time instances are anchored to.
+  const timeZone = localTimeZone();
   const time = (t: PimEventDraft["start"]) =>
-    draft.allDay && t.date ? { date: t.date, dateTime: null } : { dateTime: new Date(t.ts).toISOString(), date: null };
+    draft.allDay && t.date ? { date: t.date, dateTime: null } : { dateTime: new Date(t.ts).toISOString(), date: null, timeZone };
   return {
     summary: draft.title,
     start: time(draft.start),
@@ -482,6 +488,15 @@ function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
     ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? [`RRULE:${recurrenceToRRule(draft.recurrence)}`] : [] } : {}),
     ...(draft.blockOf ? { extendedProperties: { private: { "plainva-block-of": draft.blockOf } } } : {}),
   };
+}
+
+/** The device's IANA zone; UTC where the runtime cannot say (headless tests). */
+function localTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
 }
 
 /** Task body. Google due is date-only (midnight UTC transport); un-completing

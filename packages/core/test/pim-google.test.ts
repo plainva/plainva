@@ -221,6 +221,53 @@ describe("GooglePimTarget", () => {
   });
 });
 
+describe("GooglePimTarget: writing events", () => {
+  it("sends a time zone with a timed event, so a recurring copy is accepted (finding 2026-09-04)", async () => {
+    // Blocking a recurring event in a Google calendar failed with
+    // "400 required: Missing time zone definition for start time": the body
+    // carried the RRULE but no zone for the local-time instances to anchor to.
+    let body: Record<string, unknown> | null = null;
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return jsonRes({ id: "new", etag: "e1" });
+    });
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await t.createEvent("cal", {
+      title: "Busy",
+      allDay: false,
+      start: { ts: Date.UTC(2026, 8, 7, 7, 0) },
+      end: { ts: Date.UTC(2026, 8, 7, 8, 0) },
+      recurrence: { freq: "weekly", interval: 1, byDay: ["MO"] },
+      blockOf: "source-1",
+    } as never);
+    const start = (body as Record<string, unknown> | null)?.start as { dateTime: string; timeZone?: string };
+    const end = (body as Record<string, unknown> | null)?.end as { dateTime: string; timeZone?: string };
+    expect(start.dateTime).toBe("2026-09-07T07:00:00.000Z");
+    expect(typeof start.timeZone).toBe("string");
+    expect(start.timeZone!.length).toBeGreaterThan(0);
+    expect(end.timeZone).toBe(start.timeZone);
+    const rules = (body as Record<string, unknown> | null)?.recurrence as string[];
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).toMatch(/^RRULE:FREQ=WEEKLY/);
+  });
+
+  it("keeps all-day events on civil dates without a zone", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetchFn: FetchFn = vi.fn(async (_input, init) => {
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return jsonRes({ id: "new" });
+    });
+    const t = new GooglePimTarget(auth(), fetchFn);
+    await t.createEvent("cal", {
+      title: "Off",
+      allDay: true,
+      start: { ts: Date.UTC(2026, 8, 7), date: "2026-09-07" },
+      end: { ts: Date.UTC(2026, 8, 8), date: "2026-09-08" },
+    } as never);
+    expect((body as Record<string, unknown> | null)?.start).toEqual({ date: "2026-09-07", dateTime: null });
+  });
+});
+
 describe("GooglePimTarget: what an error says (finding 2026-07-30)", () => {
   it("carries Google's own reason into the message, not just the status", async () => {
     // The maintainer's account failed with a bare `google api 401 for

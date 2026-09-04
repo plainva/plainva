@@ -212,7 +212,8 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
       </SettingCard>
 
       <SettingCard label={t("settings.customThemeContrast")}>
-        <div style={{ display: "grid", gap: "var(--space-1)", padding: "var(--space-2) 0" }}>
+        {/* Same inset as a settings row (finding 2026-09-04: the lines sat on the card's edge). */}
+        <div style={{ display: "grid", gap: "var(--space-1)", padding: "var(--space-3) var(--space-4)" }}>
           {ratioLine(t("settings.contrastTextOnBg"), ratios.textOnBackground, CUSTOM_TEXT_SECONDARY_MIN_CONTRAST)}
           {ratioLine(t("settings.contrastAccentOnBg"), ratios.accentOnBackground, CUSTOM_ACCENT_MIN_CONTRAST)}
           {ratioLine(t("settings.contrastOnAccent"), ratios.onAccent, CUSTOM_ACCENT_MIN_CONTRAST, t("settings.contrastAuto"))}
@@ -228,6 +229,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
           value=""
           onChange={adoptFrom}
           size="sm"
+          minWidth="16rem"
           data-testid="custom-theme-adopt-from"
           options={[
             { value: "", label: t("settings.customThemeAdoptFrom"), disabled: true },

@@ -51,7 +51,8 @@ describe("GooglePimTarget writes", () => {
     const res = await t.createEvent("cal1", timedDraft);
     expect(res).toEqual({ uid: "new1", etag: '"e1"' });
     expect(sent.summary).toBe("Planning");
-    expect(sent.start).toEqual({ dateTime: "2026-08-01T10:00:00.000Z", date: null });
+    // The zone rides along since 2026-09-04 (a recurring copy needs it).
+    expect(sent.start).toEqual({ dateTime: "2026-08-01T10:00:00.000Z", date: null, timeZone: expect.any(String) });
     expect(sent.location).toBe("Room 5");
   });
 
