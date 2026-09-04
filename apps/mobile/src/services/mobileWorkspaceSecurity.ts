@@ -77,8 +77,16 @@ export interface MobileWorkspaceStatus {
   workspaceId: string;
   fingerprint: string;
   deviceName: string;
-  phase: "pairing" | "active" | "locked" | "error";
+  /**
+   * `setup-incomplete` is its own answer, not a flavour of `error` (desktop
+   * finding 2026-08-25, B7; phone since C32, 2026-09-04): the key bundle is on
+   * this device and the conversion can simply be picked up again. `error`
+   * stays reserved for a workspace nobody here can open.
+   */
+  phase: "pairing" | "active" | "locked" | "setup-incomplete" | "error";
   lastError: string | null;
+  /** When the recovery code was confirmed at setup - a resume needs it for the migration record. */
+  recoveryConfirmedAt?: string;
 }
 
 interface StoredPendingPairing {
@@ -291,14 +299,54 @@ export async function activatePreparedMobileWorkspace(input: {
     drafts.delete(input.draftId);
     return { runtime: draft.runtime, queued: migration.queued, total: migration.total };
   } catch (error) {
+    // Resumable, not orphaned (C32): the runtime was persisted above, so the
+    // Security area can offer to pick the conversion up. Until 2026-09-04 this
+    // wrote `error`, whose only offer is to decommission - the opposite of
+    // what a device holding a perfectly good key bundle needs.
     await saveStatus(input.vaultId, {
       version: 1,
       workspaceId: draft.runtime.workspaceId,
       fingerprint: draft.fingerprint,
       deviceName: draft.runtime.device.publicIdentity.displayName,
-      phase: "error",
+      phase: "setup-incomplete",
       lastError: error instanceof Error ? error.message : String(error),
+      recoveryConfirmedAt: draft.recoveryConfirmedAt,
     });
+    throw error;
+  }
+}
+
+/**
+ * Picks a `setup-incomplete` conversion back up with the key bundle already
+ * on this device (C32). The sweep skips what it has already encrypted, so
+ * resuming is the same call as starting; success returns the status to
+ * `active`, a second failure keeps it resumable.
+ */
+export async function resumeMobileWorkspaceSetup(input: {
+  vaultId: string;
+  store: WorkspaceObjectStore;
+  vault: IVaultAdapter;
+  state: WorkspaceStateStore;
+  onProgress?: (done: number, total: number) => void;
+}): Promise<{ queued: number; total: number }> {
+  const status = await getMobileWorkspaceStatus(input.vaultId);
+  if (!status || status.phase !== "setup-incomplete") throw new Error("workspace-setup-not-resumable");
+  const runtime = await loadMobileWorkspaceRuntime(input.vaultId);
+  if (!runtime) throw new Error("workspace-key-bundle-missing");
+  const recoveryConfirmedAt = status.recoveryConfirmedAt ?? new Date(0).toISOString();
+  try {
+    const migration = await initializePersonalWorkspaceMigration({
+      store: input.store,
+      state: input.state,
+      vault: input.vault,
+      runtime,
+      recoveryConfirmedAt,
+      onProgress: input.onProgress,
+    });
+    await saveStatus(input.vaultId, { ...status, phase: "active", lastError: null });
+    return { queued: migration.queued, total: migration.total };
+  } catch (error) {
+    await saveStatus(input.vaultId, { ...status, phase: "setup-incomplete", lastError: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }

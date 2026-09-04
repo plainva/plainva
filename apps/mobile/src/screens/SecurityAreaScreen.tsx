@@ -14,8 +14,9 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -84,6 +85,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [quarantine, setQuarantine] = useState<WorkspaceQuarantineRecord[]>([]);
   const [localForks, setLocalForks] = useState<WorkspaceLocalForkRecord[]>([]);
   const [rekey, setRekey] = useState<{ phase: string; completed: number; total: number; lastError: string | null } | null>(null);
+  const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
 
   // The recovery code is the single highest-stakes text the app ever asks for:
@@ -604,6 +606,33 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
    * the row: it is the part that surprises people afterwards, and after the tap
    * it is too late to read it.
    */
+  /**
+   * Picks the conversion back up where it stopped (C32; desktop B7). The key
+   * bundle is on this device - this is the one state that must NOT lead to
+   * decommissioning, which is where the old `error` phase led people.
+   */
+  const resumeSetup = async () => {
+    if (!vault.db) { toast.error(t("workspaceSecurity.setupFailed")); return; }
+    setBusyAction("resume");
+    try {
+      await stopSyncAndDrain();
+      const result = await resumeMobileWorkspaceSetup({
+        vaultId: vault.vaultId,
+        store: await getMobileWorkspaceObjectStore(vault.vaultId),
+        vault: vault.backup ?? vault.adapter,
+        state: vault.workspaceState ?? new SqlWorkspaceStateStore(vault.db),
+        onProgress: (done, total) => setResumeProgress({ done, total }),
+      });
+      toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
+      await reloadActiveMobileVault();
+      await refresh();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] resuming setup failed", error);
+      toast.error(`${t("workspaceSecurity.setupFailed")} ${errorText(error)}`);
+      await refresh();
+    } finally { setBusyAction(null); setResumeProgress(null); }
+  };
+
   const decommission = async () => {
     const entry = await getActiveVaultEntry().catch(() => null);
     const name = entry?.name?.trim() || vault.vaultId;
@@ -665,6 +694,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               icon={busyAction === "unlock" ? <span className="m-actionspin" aria-hidden /> : <ShieldCheck className="m-accent" size={ICON.ui} />}
               onClick={() => void unlock()}
               title={t("workspaceSecurity.unlock")}
+            />}
+            {/* C32: an interrupted conversion is picked up here, with the
+                key bundle this device already holds — never decommissioned. */}
+            {status?.phase === "setup-incomplete" && <Row
+              data-testid="workspace-resume-setup"
+              disabled={busy}
+              icon={busyAction === "resume" ? <span className="m-actionspin" aria-hidden /> : <RefreshCw className="m-accent" size={ICON.ui} />}
+              onClick={() => void resumeSetup()}
+              subtitle={resumeProgress ? `${resumeProgress.done}/${resumeProgress.total}` : (status.lastError ?? t("workspaceSecurity.resumeSetupDesc"))}
+              title={t("workspaceSecurity.resumeSetup")}
             />}
             {/* A running rewrite belongs to the status, not to an area: it keeps
                 going while you are elsewhere, and it survives leaving the app.
