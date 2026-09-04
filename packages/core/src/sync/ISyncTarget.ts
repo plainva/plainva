@@ -113,6 +113,21 @@ export interface PullResult {
   mtimeMap?: Map<string, number>;
 }
 
+/**
+ * Metadata of ONE remote path, answered without downloading it (C31).
+ * `etag` uses exactly the change-marker semantics of `pull()` for the same
+ * adapter (S3 ETag, WebDAV getetag, Drive md5, Graph cTag, Dropbox content
+ * hash) so a value from `stat` compares against one from a listing; an empty
+ * string means "the store has no marker" and callers hash the bytes instead.
+ */
+export interface RemoteStat {
+  etag: string;
+  /** Size in bytes of the remote object as stored. */
+  size: number;
+  /** Remote modification time (epoch ms) where the provider reports one. */
+  modifiedAt?: number;
+}
+
 export interface ISyncTarget {
   push(op: SyncOperation): Promise<PushResult | void>;
   /**
@@ -139,6 +154,16 @@ export interface ISyncTarget {
    * undefined; the worker's reconcile-before-push (3a) is the fallback guarantee.
    */
   remoteEtag?(filePath: string): Promise<string | null>;
+  /**
+   * Optional: metadata of a single path without its bytes — S3 HEAD, WebDAV
+   * PROPFIND Depth 0, a Drive/Graph/Dropbox metadata call. Null when the path
+   * does not exist remotely. The workspace object store answers `head()`
+   * through this; without it, "does this key exist and what does it carry"
+   * costs a full listing plus a download — per immutable object, twice per
+   * comment (C31, 2026-09-04). The verification itself is unchanged: the
+   * store still re-reads what it wrote; only the existence probe got cheaper.
+   */
+  stat?(filePath: string): Promise<RemoteStat | null>;
   /**
    * Optional: a fresh change token representing "now", for change-token providers (Drive
    * `changes.getStartPageToken`). The worker fetches one right before a full listing and

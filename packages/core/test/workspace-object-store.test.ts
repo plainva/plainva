@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ISyncTarget, PullResult, PushResult, SyncOperation } from "../src/sync/ISyncTarget.js";
+import type { ISyncTarget, PullResult, PushResult, RemoteStat, SyncOperation } from "../src/sync/ISyncTarget.js";
 import {
   createProviderWorkspaceObjectStore,
   DropboxWorkspaceObjectStore,
@@ -57,6 +57,32 @@ class MemorySyncTarget implements ISyncTarget {
   async download(filePath: string): Promise<Uint8Array | null> {
     const entry = this.entries.get(filePath);
     return entry ? new Uint8Array(entry.bytes) : null;
+  }
+}
+
+/**
+ * A target that can answer one key without listing (C31). It counts what the
+ * store asks of it so a test can prove that `head()` costs one probe.
+ */
+class StatMemorySyncTarget extends MemorySyncTarget {
+  pulls = 0;
+  downloads = 0;
+  stats = 0;
+
+  override async pull(): Promise<PullResult> {
+    this.pulls++;
+    return super.pull();
+  }
+
+  override async download(filePath: string): Promise<Uint8Array | null> {
+    this.downloads++;
+    return super.download(filePath);
+  }
+
+  async stat(filePath: string): Promise<RemoteStat | null> {
+    this.stats++;
+    const entry = this.entries.get(filePath);
+    return entry ? { etag: this.etag(entry), size: entry.bytes.length, modifiedAt: entry.revision } : null;
   }
 }
 
@@ -146,6 +172,51 @@ function workspaceStoreContract(name: string, create: () => WorkspaceObjectStore
 }
 
 workspaceStoreContract("FakeWorkspaceObjectStore contract", () => new FakeWorkspaceObjectStore());
+for (const [name, factory] of adapters) {
+  workspaceStoreContract(`${name} workspace adapter contract (stat-capable target)`, () => factory(new StatMemorySyncTarget()));
+}
+
+describe("head() on a stat-capable target (C31)", () => {
+  it("answers with one metadata probe: no listing, no download", async () => {
+    const target = new StatMemorySyncTarget();
+    target.seed(objectKey(7), objectBytes("seven-byte"));
+    const store = new S3WorkspaceObjectStore(target);
+    const before = { pulls: target.pulls, downloads: target.downloads };
+    await expect(store.head(objectKey(7))).resolves.toMatchObject({ key: objectKey(7), size: 10, modifiedAt: 1 });
+    await expect(store.head(objectKey(8))).resolves.toBeNull();
+    expect(target.stats).toBe(2);
+    expect(target.pulls).toBe(before.pulls);
+    expect(target.downloads).toBe(before.downloads);
+  });
+
+  it("still hashes the bytes when the store has no change marker", async () => {
+    class MarkerlessTarget extends StatMemorySyncTarget {
+      override async stat(filePath: string): Promise<RemoteStat | null> {
+        const info = await super.stat(filePath);
+        return info ? { ...info, etag: "" } : null;
+      }
+    }
+    const target = new MarkerlessTarget();
+    target.seed(objectKey(9), objectBytes("nine"));
+    const store = new WebDavWorkspaceObjectStore(target);
+    const info = await store.head(objectKey(9));
+    expect(info?.etag).toBe(`sha256:${workspaceSha256Hex(objectBytes("nine"))}`);
+    expect(target.downloads).toBe(1);
+  });
+
+  it("agrees with the listing about the marker, so a CAS started from list() succeeds", async () => {
+    const target = new StatMemorySyncTarget();
+    const key = ".pvws/pointers/head";
+    target.seed(key, objectBytes("v1"));
+    const store = new S3WorkspaceObjectStore(target);
+    const listed = await store.list(".pvws/pointers/");
+    const fromList = listed.items.find((i) => i.key === key)!;
+    const fromHead = await store.head(key);
+    expect(fromHead?.etag).toBe(fromList.etag);
+    expect(fromHead?.size).toBe(fromList.size);
+    await expect(store.compareAndSwapPointer(key, objectBytes("v2"), fromList.etag ?? null)).resolves.toMatchObject({ swapped: true });
+  });
+});
 for (const [name, factory] of adapters) {
   workspaceStoreContract(`${name} workspace adapter contract`, () => factory(new MemorySyncTarget()));
 }

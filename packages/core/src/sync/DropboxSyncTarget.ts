@@ -1,4 +1,4 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
@@ -32,6 +32,8 @@ interface DropboxEntry {
   content_hash?: string;
   rev?: string;
   id?: string;
+  size?: number;
+  server_modified?: string;
 }
 
 /**
@@ -408,6 +410,26 @@ export class DropboxSyncTarget implements ISyncTarget {
 
     console.log(`[Dropbox] list ${this.rootPath} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
     return { etagMap, folders };
+  }
+
+  /** One `files/get_metadata` (C31); marker as in `pull` (`fileEtag`). */
+  public async stat(filePath: string): Promise<RemoteStat | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const res = await this.rpc("files/get_metadata", { path: this.dropboxPath(filePath) });
+    if (res.status === 409) {
+      const summary = await this.errorSummary(res);
+      if (summary.includes("not_found")) return null;
+      throw new Error(`Dropbox metadata lookup failed: ${summary || "409"}`);
+    }
+    if (!res.ok) throw new Error(`Dropbox metadata lookup failed: ${res.status} ${res.statusText}`);
+    const entry = (await res.json()) as DropboxEntry;
+    if (entry[".tag"] !== "file") return null;
+    const modifiedAt = entry.server_modified ? Date.parse(entry.server_modified) : Number.NaN;
+    return {
+      etag: this.fileEtag(entry),
+      size: typeof entry.size === "number" && entry.size >= 0 ? entry.size : 0,
+      ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
+    };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

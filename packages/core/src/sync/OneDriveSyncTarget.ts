@@ -1,4 +1,4 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -33,6 +33,7 @@ interface GraphItem {
   lastModifiedDateTime?: string;
   folder?: object;
   file?: object;
+  size?: number;
   /** Present on delta results; used to reconstruct the vault-relative path. */
   parentReference?: { path?: string };
   /** Present on delta results for removed items. */
@@ -524,6 +525,22 @@ export class OneDriveSyncTarget implements ISyncTarget {
       url = json["@odata.nextLink"];
     }
     return true;
+  }
+
+  /** One item GET without `:/content` (C31); marker as in `pull` (`itemEtag`). */
+  public async stat(filePath: string): Promise<RemoteStat | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id,name,cTag,eTag,lastModifiedDateTime,size,folder,file`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`);
+    const item = (await res.json()) as GraphItem;
+    if (item.folder) return null;
+    const modifiedAt = item.lastModifiedDateTime ? Date.parse(item.lastModifiedDateTime) : Number.NaN;
+    return {
+      etag: this.itemEtag(item),
+      size: typeof item.size === "number" && item.size >= 0 ? item.size : 0,
+      ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
+    };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

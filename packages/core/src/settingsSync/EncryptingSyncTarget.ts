@@ -21,7 +21,7 @@
  * worker's capability checks keep reflecting real abilities; token-refresh hooks
  * are forwarded.
  */
-import type { ISyncTarget, PullResult, PushResult, SyncOperation } from "../sync/ISyncTarget.js";
+import type { ISyncTarget, RemoteStat, PullResult, PushResult, SyncOperation } from "../sync/ISyncTarget.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { isSealedBlob, openBlob, readBlobKeyId, sealBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "./errors.js";
@@ -64,6 +64,9 @@ export class EncryptingSyncTarget implements ISyncTarget {
     }
     // Conditionally expose optional methods so worker capability checks match.
     if (inner.remoteEtag) this.remoteEtag = (p) => inner.remoteEtag!(p);
+    // The sealed object is what is stored, so its size and marker are the
+    // honest answer; workspace objects are sideband paths and never sealed.
+    if (inner.stat) this.stat = (p) => inner.stat!(p);
     if (inner.getStartCursor) this.getStartCursor = () => inner.getStartCursor!();
     if (inner.listFolders) this.listFolders = (p) => inner.listFolders!(p);
     if (inner.createFolder) this.createFolder = (p) => inner.createFolder!(p);
@@ -115,6 +118,7 @@ export class EncryptingSyncTarget implements ISyncTarget {
 
   // Optional methods assigned in the constructor when the inner target has them.
   remoteEtag?: (filePath: string) => Promise<string | null>;
+  stat?: (filePath: string) => Promise<RemoteStat | null>;
   getStartCursor?: () => Promise<string>;
   listFolders?: (path: string) => Promise<string[]>;
   createFolder?: (path: string) => Promise<void>;

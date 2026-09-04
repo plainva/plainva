@@ -1,5 +1,5 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
-import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { timeoutForBody } from "./transferTimeout.js";
 import { streamUpload } from "./streamUpload.js";
@@ -16,6 +16,10 @@ export interface WebDavResponse {
   /** getetag of the (first) propstat that carries one; undefined for entries without an etag. */
   etag: string | undefined;
   isCollection: boolean;
+  /** getcontentlength, when the server reports one (C31: stat without a download). */
+  size?: number;
+  /** getlastmodified as epoch ms, when the server reports one. */
+  modifiedAt?: number;
 }
 
 /**
@@ -48,17 +52,26 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
     const href = typeof resp?.href === "string" ? resp.href : undefined;
     let etag: string | undefined;
     let isCollection = false;
+    let size: number | undefined;
+    let modifiedAt: number | undefined;
     const propstats: any[] = Array.isArray(resp?.propstat) ? resp.propstat : [];
     for (const ps of propstats) {
       const prop = ps?.prop;
       if (!prop) continue;
       if (etag === undefined && typeof prop.getetag === "string") etag = prop.getetag;
+      if (size === undefined && typeof prop.getcontentlength === "string" && /^\d+$/.test(prop.getcontentlength)) {
+        size = Number(prop.getcontentlength);
+      }
+      if (modifiedAt === undefined && typeof prop.getlastmodified === "string") {
+        const t = Date.parse(prop.getlastmodified);
+        if (!Number.isNaN(t)) modifiedAt = t;
+      }
       // <collection/> parses to an empty string; presence of the key is the signal.
       if (prop.resourcetype && typeof prop.resourcetype === "object" && "collection" in prop.resourcetype) {
         isCollection = true;
       }
     }
-    entries.push({ href, etag, isCollection });
+    entries.push({ href, etag, isCollection, ...(size === undefined ? {} : { size }), ...(modifiedAt === undefined ? {} : { modifiedAt }) });
   }
   return entries;
 }
@@ -480,6 +493,27 @@ export class WebDavSyncTarget implements ISyncTarget {
       }
     }
     return out;
+  }
+
+  /**
+   * One PROPFIND with Depth: 0 on the file itself (C31). Same marker as the
+   * listing (getetag without quotes); a server that reports no etag yields ""
+   * and the caller hashes the bytes, exactly as the listing path does.
+   */
+  public async stat(filePath: string): Promise<RemoteStat | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const res = await this.request("PROPFIND", this.urlForPath(filePath), {
+      headers: { ...this.headers, "Depth": "0" }
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`);
+    const entry = this.parseListing(await res.text()).find((r) => r.href && !r.isCollection);
+    if (!entry) return null;
+    return {
+      etag: (entry.etag ?? "").replace(/"/g, ""),
+      size: entry.size ?? 0,
+      ...(entry.modifiedAt === undefined ? {} : { modifiedAt: entry.modifiedAt }),
+    };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

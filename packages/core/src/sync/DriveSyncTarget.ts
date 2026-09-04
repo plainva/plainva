@@ -1,4 +1,4 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
@@ -56,6 +56,8 @@ interface DriveFile {
   mimeType?: string;
   parents?: string[];
   trashed?: boolean;
+  /** Bytes, as a decimal string — only when asked for in `fields`. */
+  size?: string;
 }
 
 /** Google-native types (Docs/Sheets/Slides/Forms/...) have no binary content. */
@@ -904,6 +906,28 @@ export class DriveSyncTarget implements ISyncTarget {
     if (!res.ok) throw await driveResponseError("metadata lookup", res);
     const f = (await res.json()) as DriveFile;
     return f.md5Checksum || f.modifiedTime || null;
+  }
+
+  /**
+   * Metadata of one path without its bytes (C31): the same lookup as
+   * `remoteEtag`, plus `size`. The marker keeps the listing's semantics
+   * (md5Checksum || modifiedTime || id).
+   */
+  public async stat(filePath: string): Promise<RemoteStat | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const id = await this.findFileId(filePath);
+    if (!id) return null;
+    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime,size`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw await driveResponseError("metadata lookup", res);
+    const f = (await res.json()) as DriveFile;
+    const size = Number(f.size ?? "");
+    const modifiedAt = f.modifiedTime ? Date.parse(f.modifiedTime) : Number.NaN;
+    return {
+      etag: f.md5Checksum || f.modifiedTime || f.id,
+      size: Number.isFinite(size) && size >= 0 ? size : 0,
+      ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
+    };
   }
 
   /** Initial cursor for incremental change detection (Drive `changes.getStartPageToken`). */

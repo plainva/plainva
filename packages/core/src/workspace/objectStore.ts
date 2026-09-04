@@ -121,6 +121,13 @@ export class SyncTargetWorkspaceObjectStore implements WorkspaceObjectStore {
     const items: WorkspaceObjectInfo[] = [];
     for (const [key, etag] of pageEntries) {
       throwIfAborted(options?.signal);
+      // The listing already carries the marker; the size comes from one
+      // metadata call where the adapter offers it (C31), else from the bytes.
+      const stat = this.target.stat && etag ? await abortable(this.target.stat(key), options?.signal) : null;
+      if (stat) {
+        items.push({ key, etag, size: stat.size, ...(pulled.mtimeMap?.has(key) ? { modifiedAt: pulled.mtimeMap.get(key) } : stat.modifiedAt !== undefined ? { modifiedAt: stat.modifiedAt } : {}) });
+        continue;
+      }
       const bytes = await abortable(this.target.download(key), options?.signal);
       protocolAssert(bytes !== null, "conflict", "workspace object disappeared during listing");
       items.push({ key, etag: etag || `sha256:${sha256Hex(bytes)}`, size: bytes.length, ...(pulled.mtimeMap?.has(key) ? { modifiedAt: pulled.mtimeMap.get(key) } : {}) });
@@ -149,6 +156,21 @@ export class SyncTargetWorkspaceObjectStore implements WorkspaceObjectStore {
 
   async head(key: string, options?: WorkspaceRequestOptions): Promise<WorkspaceObjectInfo | null> {
     assertWorkspaceObjectKey(key);
+    if (this.target.stat) {
+      // One metadata request (C31). Before, "does this key exist" pulled the
+      // whole listing and then downloaded the object — per immutable put,
+      // twice per comment, every sync cycle. A store without a change marker
+      // still hashes the bytes, exactly as the listing path does.
+      const info = await abortable(this.target.stat(key), options?.signal);
+      throwIfAborted(options?.signal);
+      if (!info) return null;
+      if (info.etag) {
+        return { key, etag: info.etag, size: info.size, ...(info.modifiedAt !== undefined ? { modifiedAt: info.modifiedAt } : {}) };
+      }
+      const hashed = await abortable(this.target.download(key), options?.signal);
+      if (!hashed) return null;
+      return { key, etag: `sha256:${sha256Hex(hashed)}`, size: hashed.length, ...(info.modifiedAt !== undefined ? { modifiedAt: info.modifiedAt } : {}) };
+    }
     const pulled = await abortable(this.target.pull(), options?.signal);
     const etag = pulled.etagMap.get(key);
     if (etag === undefined) return null;

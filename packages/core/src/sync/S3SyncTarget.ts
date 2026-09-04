@@ -1,4 +1,4 @@
-import { ISyncTarget, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -335,6 +335,30 @@ export class S3SyncTarget implements ISyncTarget {
     if (!res.ok) throw new Error(`S3 GET failed: ${res.status} ${res.statusText}`);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);
+  }
+
+  /**
+   * One HEAD (C31). The marker mirrors the listing: the ETag, or — for the
+   * rare store that omits it — the last-modified time in the ISO form the
+   * listing's `<LastModified>` uses, so both paths name the same version.
+   */
+  public async stat(filePath: string): Promise<RemoteStat | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    const res = await this.signedFetch("HEAD", encodeS3Key(this.keyFor(filePath)));
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`S3 HEAD failed: ${res.status} ${res.statusText}`);
+    const lastModified = res.headers.get("Last-Modified");
+    const modifiedAt = lastModified ? Date.parse(lastModified) : Number.NaN;
+    const rawEtag = res.headers.get("ETag");
+    const etag = rawEtag
+      ? rawEtag.replace(/"/g, "")
+      : Number.isNaN(modifiedAt) ? "" : new Date(modifiedAt).toISOString();
+    const size = Number(res.headers.get("Content-Length") ?? "");
+    return {
+      etag,
+      size: Number.isFinite(size) && size >= 0 ? size : 0,
+      ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
+    };
   }
 
   private async headExists(encodedKey: string): Promise<boolean> {
