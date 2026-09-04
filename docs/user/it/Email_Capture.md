@@ -70,7 +70,7 @@ Una finestra di composizione **non** viene ripristinata al prossimo avvio — qu
 
 Non devi inviare dall'interno di Plainva. Questo funziona con qualsiasi nota e non richiede SMTP:
 
-- **Rispondi come nota** (su un messaggio): crea una nota indirizzata al mittente (`to:` nel frontmatter) con l'originale citato — scrivi la tua risposta in Plainva.
+- **Rispondi come nota** (su un messaggio): crea una nota indirizzata al mittente (`to:` nel frontmatter) con l'originale citato — scrivi la tua risposta in Plainva. Se in seguito invii questa nota (o la salvi come bozza), l'indirizzo `to:` viene ripreso automaticamente nel campo **A**.
 - **Salva la nota come bozza nella casella** (palette dei comandi, su qualsiasi nota aperta): salva la nota come **bozza nella tua casella** tramite IMAP — scegli account, destinatario e cartella bozze, poi apri il tuo programma di posta abituale, controlla e invia da lì. La formattazione viene mantenuta.
 - **Invia la nota via e-mail (mailto)** (palette dei comandi): apre il tuo programma di posta predefinito con la nota come testo semplice (le note lunghe vengono accorciate).
 - **Copia la nota come testo e-mail** (palette dei comandi): mette la nota negli appunti con la formattazione — incollala in qualsiasi finestra di composizione e-mail.

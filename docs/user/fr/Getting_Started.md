@@ -95,7 +95,7 @@ Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ou
 Plainva n'est pas obligé de rester dans une seule fenêtre. Ce dont vous avez besoin à l'instant peut s'installer à côté de votre travail :
 
 - **Clic droit sur un onglet → Ouvrir dans une nouvelle fenêtre.** L'onglet quitte cette fenêtre et continue de vivre dans la nouvelle ; aucune copie ne reste derrière.
-- **Clic droit sur Graphe, Tâches, Calendrier ou E-mail dans la barre d'actions** pour le même choix. Cliquez de nouveau sur l'entrée ensuite et Plainva ramène cette fenêtre au premier plan au lieu d'ouvrir la vue une seconde fois.
+- **Clic droit dans la barre d'actions** sur **Graphe**, **Tâches**, **Calendrier** ou **E-mail** pour le même choix. Cliquez de nouveau sur l'entrée ensuite et Plainva ramène cette fenêtre au premier plan au lieu d'ouvrir la vue une seconde fois.
 - **Palette de commandes → Ouvrir la fenêtre de communication** démarre une fenêtre déjà scindée : les e-mails à gauche, le calendrier à droite.
 - **Palette de commandes → Ouvrir une deuxième fenêtre** ouvre à nouveau toute l'interface — barres latérales, barre d'actions, onglets, barre d'état. C'est la solution pour un second écran.
 - Pendant que vous **rédigez un message**, l'icône de détachement en fait une fenêtre indépendante — avec tout ce que vous avez déjà tapé.

@@ -131,7 +131,7 @@ Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferec
 
 ## Notas diárias
 
-**Abrir nota diária** (barra lateral) ou um clique no **Calendário** cria a nota de hoje usando seu formato de data na pasta de notas diárias configurada, opcionalmente a partir de um modelo.
+**Abrir nota diária** (barra lateral) ou um clique no **Calendário** cria a nota de hoje usando seu **formato de data** na **pasta base de notas diárias** configurada, opcionalmente a partir de um modelo.
 
 ## Tarefas, fórmulas, diagramas e notas de rodapé
 

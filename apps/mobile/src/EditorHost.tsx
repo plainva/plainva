@@ -29,7 +29,7 @@ import {
 import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core";
+import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -156,6 +156,29 @@ export function EditorHost({
   const [selectionAt, setSelectionAt] = useState<{ x: number; y: number; above: boolean } | null>(null);
   /** The main selection as document offsets — what a passage comment is anchored to (C26). */
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
+  /**
+   * The unsent copy outlives the app (C34): written to the vault database,
+   * debounced, while the mode is on; cleared on send and discard. The note's
+   * sentence arrives from the screen as an event, so one record carries both.
+   */
+  const suggestNoteRef = useRef("");
+  const parkTimerRef = useRef<number | null>(null);
+  const schedulePark = () => {
+    if (parkTimerRef.current !== null) window.clearTimeout(parkTimerRef.current);
+    parkTimerRef.current = window.setTimeout(() => {
+      parkTimerRef.current = null;
+      const session = sessionRef.current;
+      const db = vault.db;
+      if (!session || !db || !suggestingRef.current) return;
+      const { base } = session.suggestion();
+      if (base === null) return;
+      void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(() => {});
+    }, 500);
+  };
+  const forgetPark = () => {
+    if (parkTimerRef.current !== null) { window.clearTimeout(parkTimerRef.current); parkTimerRef.current = null; }
+    if (vault.db) void clearParkedSuggestion(vault.db, path).catch(() => {});
+  };
   // The .base picker of the insert menu (S19): the slash entry existed and
   // did nothing, because it fires an event only the desktop listened to.
   const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
@@ -327,6 +350,7 @@ export function EditorHost({
       },
       onSuggestionChunks: (count) => {
         window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { path, count } }));
+        schedulePark();
       },
       onSelectionToolbar: (at) => setSelectionAt(at),
       onSelectionRange: (range) => setSelectionRange(range),
@@ -771,6 +795,21 @@ export function EditorHost({
 
   // Context-sheet requests (C1/C4): outline jump, mode toggle, in-note search.
   useEffect(() => {
+    const onSuggestNote = (e: Event) => {
+      const hit = forThisNote(e);
+      if (!hit) return;
+      suggestNoteRef.current = typeof hit.detail.note === "string" ? hit.detail.note : "";
+      schedulePark();
+    };
+    // A parked copy comes back into the mode (C34): the mode has started on
+    // the note as it stands (that is the base), and the copy - rebased by the
+    // screen - replaces the text.
+    const onSuggestRestore = (e: Event) => {
+      const hit = forThisNote(e);
+      if (!hit || typeof hit.detail.copy !== "string") return;
+      const view = hit.view;
+      if (view.state.doc.toString() !== hit.detail.copy) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: hit.detail.copy } });
+    };
     const forThisNote = (e: Event) => {
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       const view = sessionRef.current?.view;
@@ -820,6 +859,7 @@ export function EditorHost({
       if (!hit) return;
       suggestingRef.current = false;
       sessionRef.current?.setSuggesting(false);
+      forgetPark();
     };
     const onSuggestSend = (e: Event) => {
       const hit = forThisNote(e);
@@ -841,6 +881,7 @@ export function EditorHost({
           }
           suggestingRef.current = false;
           session.setSuggesting(false);
+          forgetPark();
           window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { path, sent: index } }));
           toast.info(t("workspaceSecurity.suggestSent", { n: index }));
         } catch (error) {
@@ -865,6 +906,8 @@ export function EditorHost({
     window.addEventListener("m-editor-suggest-start", onSuggestStart);
     window.addEventListener("m-editor-suggest-discard", onSuggestDiscard);
     window.addEventListener("m-editor-suggest-send", onSuggestSend);
+    window.addEventListener("m-editor-suggest-note", onSuggestNote);
+    window.addEventListener("m-editor-suggest-restore", onSuggestRestore);
     window.addEventListener("m-editor-find", onFind);
     window.addEventListener("m-editor-pick-icon", onPickIcon);
     window.addEventListener("m-editor-pick-color", onPickColor);
@@ -875,6 +918,8 @@ export function EditorHost({
       window.removeEventListener("m-editor-suggest-start", onSuggestStart);
       window.removeEventListener("m-editor-suggest-discard", onSuggestDiscard);
       window.removeEventListener("m-editor-suggest-send", onSuggestSend);
+      window.removeEventListener("m-editor-suggest-note", onSuggestNote);
+      window.removeEventListener("m-editor-suggest-restore", onSuggestRestore);
       window.removeEventListener("m-editor-find", onFind);
       window.removeEventListener("m-editor-pick-icon", onPickIcon);
       window.removeEventListener("m-editor-pick-color", onPickColor);

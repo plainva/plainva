@@ -131,7 +131,7 @@ Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`
 
 ## Notas diarias
 
-**Abrir nota diaria** (barra lateral) o un clic en el **Calendario** crea la nota de hoy usando tu formato de fecha en la carpeta de notas diarias configurada, opcionalmente a partir de una plantilla.
+**Abrir nota diaria** (barra lateral) o un clic en el **Calendario** crea la nota de hoy usando tu **formato de fecha** en la **carpeta base de notas diarias** configurada, opcionalmente a partir de una plantilla.
 
 ## Tareas, fórmulas, diagramas y notas al pie
 

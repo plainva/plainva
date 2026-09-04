@@ -95,7 +95,7 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 Plainva non deve restare in una sola finestra. Quello che ti serve adesso può stare accanto al tuo lavoro:
 
 - **Clic destro su una scheda → Apri in una nuova finestra.** La scheda lascia questa finestra e prosegue nella nuova; non ne resta una copia.
-- **Clic destro su Grafo, Attività, Calendario o E-mail nella barra delle azioni** per la stessa scelta. Se poi tocchi di nuovo la voce, Plainva porta in primo piano quella finestra invece di aprire la vista una seconda volta.
+- **Clic destro nella barra delle azioni** su **Grafo**, **Attività**, **Calendario** o **E-mail** per la stessa scelta. Se poi tocchi di nuovo la voce, Plainva porta in primo piano quella finestra invece di aprire la vista una seconda volta.
 - **Palette dei comandi → Apri finestra comunicazioni** avvia una finestra già divisa: la posta a sinistra, il calendario a destra.
 - **Palette dei comandi → Apri una seconda finestra** apre di nuovo l'intera interfaccia — barre laterali, barra delle azioni, schede, barra di stato. È la scelta giusta per un secondo monitor.
 - Mentre **scrivi un messaggio**, l'icona a comparsa solleva la finestra di composizione in una finestra propria — con tutto ciò che hai già digitato.

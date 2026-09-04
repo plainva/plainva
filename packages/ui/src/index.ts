@@ -141,6 +141,7 @@ export * from "./components/CommentBody";
 export * from "./lib/wordDiff";
 export * from "./components/SuggestionDiff";
 export { suggestionBase, suggestionChunks, type SuggestionChunk } from "./components/suggestMode";
+export { reconcileParkedSuggestion, parkedSuggestionBlocks, type ReconciledSuggestion } from "./components/suggestionPark";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
 export * from "./lib/peekHistory";

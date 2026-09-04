@@ -131,7 +131,7 @@ Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw 
 
 ## Dagelijkse notities
 
-**Dagnotitie openen** (zijbalk) of een klik in de **Kalender** maakt de notitie van vandaag aan volgens je datumformaat in de ingestelde map voor dagelijkse notities, optioneel vanuit een sjabloon.
+**Dagnotitie openen** (zijbalk) of een klik in de **Kalender** maakt de notitie van vandaag aan volgens je **datumformaat** in de ingestelde **basismap voor dagelijkse notities**, optioneel vanuit een sjabloon.
 
 ## Taken, formules, diagrammen en voetnoten
 

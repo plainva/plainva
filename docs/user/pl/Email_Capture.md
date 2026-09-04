@@ -70,7 +70,7 @@ Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu
 
 Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wymaga SMTP:
 
-- **Odpowiedz jako notatka** (przy wiadomości): tworzy notatkę zaadresowaną do nadawcy (`to:` we frontmatter) z zacytowanym oryginałem — napisz swoją odpowiedź w Plainva.
+- **Odpowiedz jako notatka** (przy wiadomości): tworzy notatkę zaadresowaną do nadawcy (`to:` we frontmatter) z zacytowanym oryginałem — napisz swoją odpowiedź w Plainva. Jeśli później wyślesz tę notatkę (lub zapiszesz ją jako szkic), adres `to:` trafia automatycznie do pola **Do**.
 - **Zapisz notatkę jako szkic w skrzynce** (paleta poleceń, przy dowolnej otwartej notatce): zapisuje notatkę jako **szkic we własnej skrzynce** przez IMAP — wybierz konto, odbiorcę i folder szkiców, a potem otwórz swój zwykły program pocztowy, sprawdź i wyślij stamtąd. Formatowanie jest zachowane.
 - **Wyślij notatkę e-mailem (mailto)** (paleta poleceń): otwiera Twój domyślny program pocztowy z notatką jako zwykłym tekstem (długie notatki są skracane).
 - **Kopiuj notatkę jako tekst e-maila** (paleta poleceń): umieszcza notatkę w schowku z formatowaniem — wklej ją w dowolnym edytorze wiadomości.

@@ -11,7 +11,7 @@ import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  type AnchorFrameHint, type AnchorHighlight } from "@plainva/ui";
+  type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -148,7 +148,30 @@ export const Editor: React.FC<{
   const suggestingRef = useRef(false);
   const [suggestCount, setSuggestCount] = useState(0);
   const [suggestNote, setSuggestNote] = useState("");
-  const suggestParkRef = useRef(new Map<string, { copy: string; note: string }>());
+  /** A copy found in the vault database on opening the note (C34) - offered, not restored by itself. */
+  const [storedPark, setStoredPark] = useState<ParkedSuggestion | null>(null);
+  const parkWriteTimer = useRef<number | null>(null);
+  /**
+   * Writes the copy to the vault database, debounced (C34). Persisting is what
+   * lets the copy outlive the app; the in-memory park stays the fast path.
+   */
+  const schedulePark = (path: string, base: string | null, copy: string, note: string) => {
+    if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
+    parkWriteTimer.current = window.setTimeout(() => {
+      parkWriteTimer.current = null;
+      const db = vaultContext.queryService?.db;
+      if (!db || base === null) return;
+      void writeParkedSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }).catch((error) => {
+        console.warn("[Editor] parking the suggestion copy failed", error);
+      });
+    }, 500);
+  };
+  const forgetPark = (path: string) => {
+    if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
+    const db = vaultContext.queryService?.db;
+    if (db) void clearParkedSuggestion(db, path).catch(() => {});
+  };
+  const suggestParkRef = useRef(new Map<string, { copy: string; note: string; base?: string }>());
   /** Open suggestions drawn in the text (K5, decision E4: on by default), remembered per vault. */
   const [suggestionsInline, setSuggestionsInline] = useState(true);
   // Stufe F: whether this note is silenced. Null - and therefore no bell in the
@@ -780,7 +803,12 @@ export const Editor: React.FC<{
     // In the suggestion mode the view holds a COPY (V2): nothing is dirty,
     // nothing is saved, nothing is journaled - the copy is parked instead.
     if (suggestingRef.current) {
-      if (activePath) suggestParkRef.current.set(activePath, { copy: view.state.doc.toString(), note: suggestNote });
+      if (activePath) {
+        const copy = view.state.doc.toString();
+        const base = suggestionBase(view.state);
+        suggestParkRef.current.set(activePath, { copy, note: suggestNote, base: base ?? undefined });
+        schedulePark(activePath, base, copy, suggestNote);
+      }
       return;
     }
     isDirtyRef.current = true;
@@ -2522,7 +2550,9 @@ export const Editor: React.FC<{
       if (!ok) return;
     }
     suggestParkRef.current.delete(activePath);
+    forgetPark(activePath);
     stopSuggesting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, suggestCount, stopSuggesting, t]);
 
   /**
@@ -2554,8 +2584,10 @@ export const Editor: React.FC<{
       return;
     }
     suggestParkRef.current.delete(activePath);
+    forgetPark(activePath);
     stopSuggesting();
     toast.info(t("workspaceSecurity.suggestSent", { n: index }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, suggestNote, postWorkspaceComment, stopSuggesting, t]);
 
   // A note left in the mode keeps its copy parked (F5); a note opened with a
@@ -2563,9 +2595,47 @@ export const Editor: React.FC<{
   // the restore runs after that effect, with the same triggers.
   useEffect(() => {
     if (isLoading || isReadMode || !activePath) return;
-    if (suggestParkRef.current.has(activePath) && !suggestingRef.current) startSuggesting();
+    if (suggestParkRef.current.has(activePath) && !suggestingRef.current) { startSuggesting(); return; }
+    // No copy in memory: the vault database may hold one from before the app
+    // was closed (C34). It is OFFERED, never restored on its own - the note may
+    // have changed since, and the reader decides whether the round still holds.
+    const db = vaultContext.queryService?.db;
+    if (!db || suggestingRef.current) return;
+    let alive = true;
+    void readParkedSuggestion(db, activePath).then((record) => { if (alive) setStoredPark(record); }).catch(() => {});
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isReadMode, activePath]);
+  useEffect(() => { setStoredPark(null); }, [activePath]);
+  useEffect(() => {
+    if (!suggestingRef.current || !activePath) return;
+    // The in-memory park already holds the copy and its base; no need to ask
+    // the session (an effect must not read what a later effect assigns).
+    const parked = suggestParkRef.current.get(activePath);
+    if (!parked) return;
+    schedulePark(activePath, parked.base ?? null, parked.copy, suggestNote);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestNote]);
+
+  /** Picks the parked copy up, rebased onto the note as it stands now (C34). */
+  const resumeParked = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || !activePath || !storedPark) return;
+    const reconciled = reconcileParkedSuggestion(storedPark, session.view.state.doc.toString());
+    const note = reconciled.orphaned.length > 0
+      ? [storedPark.note, ...reconciled.orphaned].filter((part) => part.trim()).join("\n")
+      : storedPark.note;
+    suggestParkRef.current.set(activePath, { copy: reconciled.copy, note, base: session.view.state.doc.toString() });
+    setStoredPark(null);
+    startSuggesting();
+    if (reconciled.orphaned.length > 0) toast.info(t("workspaceSecurity.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+  }, [activePath, storedPark, startSuggesting, t]);
+  const discardParked = useCallback(() => {
+    if (!activePath) return;
+    forgetPark(activePath);
+    setStoredPark(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePath]);
   useEffect(() => () => {
     // The session goes with the note; the flag must not outlive it.
     suggestingRef.current = false;
@@ -2885,6 +2955,17 @@ export const Editor: React.FC<{
         </div>
       )}
 
+      {storedPark && !suggesting && !isReadMode && (
+        <div className="pv-suggest-band" role="status" data-testid="suggest-parked">
+          <PenLine size={ICON.ui} />
+          <span className="pv-suggest-band__text">
+            <strong>{t("workspaceSecurity.suggestParkedTitle")}</strong>{" "}
+            {t("workspaceSecurity.suggestParkedBody", { n: parkedSuggestionBlocks(storedPark), when: storedPark.savedAt ? new Date(storedPark.savedAt).toLocaleString() : "" })}
+          </span>
+          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("workspaceSecurity.suggestDiscard")}</Button>
+          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("workspaceSecurity.suggestParkedResume")}</Button>
+        </div>
+      )}
       {suggesting && (
         <div className="pv-suggest-band" role="status" data-testid="suggest-band">
           <PenLine size={ICON.ui} />

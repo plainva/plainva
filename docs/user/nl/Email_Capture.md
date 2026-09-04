@@ -70,7 +70,7 @@ Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin sta
 
 Je hoeft niet vanuit Plainva te verzenden. Dit werkt bij elke notitie en heeft geen SMTP nodig:
 
-- **Beantwoorden als notitie** (bij een bericht): maakt een notitie aan die aan de afzender is geadresseerd (`to:` in de frontmatter) met het origineel geciteerd — schrijf je antwoord in Plainva.
+- **Beantwoorden als notitie** (bij een bericht): maakt een notitie aan die aan de afzender is geadresseerd (`to:` in de frontmatter) met het origineel geciteerd — schrijf je antwoord in Plainva. Verstuur je deze notitie later (of sla je haar op als concept), dan wordt het `to:`-adres automatisch in het veld **Aan** overgenomen.
 - **Notitie als e-mailconcept in de mailbox opslaan** (opdrachtenpalet, bij elke geopende notitie): bewaart de notitie via IMAP als **concept in je eigen mailbox** — kies het account, de ontvanger en de conceptenmap, open dan je gewone mailprogramma, controleer en verstuur van daaruit. De opmaak blijft behouden.
 - **Notitie per e-mail versturen (mailto)** (opdrachtenpalet): opent je standaard mailprogramma met de notitie als platte tekst (lange notities worden ingekort).
 - **Notitie als e-mailtekst kopiëren** (opdrachtenpalet): zet de notitie met opmaak op het klembord — plak hem in elk venster waarin je een e-mail opstelt.

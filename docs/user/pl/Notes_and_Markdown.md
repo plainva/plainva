@@ -131,7 +131,7 @@ Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) ofe
 
 ## Notatki dzienne
 
-**Otwórz notatkę dzienną** (pasek boczny) lub kliknięcie w **Kalendarzu** tworzy dzisiejszą notatkę zgodnie z Twoim formatem daty, w skonfigurowanym folderze notatek dziennych, opcjonalnie z szablonu.
+**Otwórz notatkę dzienną** (pasek boczny) lub kliknięcie w **Kalendarzu** tworzy dzisiejszą notatkę zgodnie z Twoim **formatem daty**, w skonfigurowanym **folderze bazowym notatek dziennych**, opcjonalnie z szablonu.
 
 ## Zadania, formuły, diagramy i przypisy
 

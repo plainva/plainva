@@ -95,7 +95,7 @@ O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data 
 O Plainva não precisa ficar em uma única janela. O que você precisa agora pode ficar ao lado do seu trabalho:
 
 - **Clique com o botão direito em uma aba → Abrir em nova janela.** A aba deixa esta janela e passa a viver na nova; nenhuma cópia fica para trás.
-- **Clique com o botão direito em Grafo, Tarefas, Calendário ou E-mail na barra de ações** para a mesma opção. Clique no item de novo depois e o Plainva traz aquela janela para a frente, em vez de abrir a visualização uma segunda vez.
+- **Clique com o botão direito na barra de ações** em **Grafo**, **Tarefas**, **Calendário** ou **E-mail** para a mesma opção. Clique no item de novo depois e o Plainva traz aquela janela para a frente, em vez de abrir a visualização uma segunda vez.
 - **Paleta de comandos → Abrir janela de comunicação** inicia uma janela que já vem dividida: e-mail à esquerda, calendário à direita.
 - **Paleta de comandos → Abrir uma segunda janela** abre a interface inteira novamente — barras laterais, barra de ações, abas, barra de status. Essa é a opção para um segundo monitor.
 - Ao **redigir uma mensagem**, o ícone de destacar leva a janela de redação para uma janela própria — com tudo o que você já digitou.

@@ -27,12 +27,12 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock } from "@plainva/ui";
+import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
+import { readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -153,6 +153,8 @@ export function NoteScreen({
   const [pendingPropertyJump, setPendingPropertyJump] = useState<string | null>(null);
   /** The suggestion mode (V5): the editor holds the copy, this screen the band. */
   const [suggesting, setSuggesting] = useState(false);
+  /** A copy in the vault database from before the app closed (C34) - offered on open, never restored by itself. */
+  const [parked, setParked] = useState<ParkedSuggestion | null>(null);
   const [suggestCount, setSuggestCount] = useState(0);
   const [suggestNote, setSuggestNote] = useState("");
   // Stufe F: silenced or not. Null - and so no bell - while notifications are
@@ -443,6 +445,41 @@ export function NoteScreen({
   };
 
   const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { path } }));
+
+  useEffect(() => {
+    setParked(null);
+    const db = vault.db;
+    if (!db || doc === null || suggesting) return;
+    let alive = true;
+    void readParkedSuggestion(db, path).then((record) => { if (alive) setParked(record); }).catch(() => {});
+    return () => { alive = false; };
+    // The offer belongs to the note, not to every keystroke: re-read on path change only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, vault.db, doc === null]);
+
+  /** Picks the parked copy up, rebased onto the note as it stands now (C34). */
+  const resumeParked = () => {
+    if (!parked || doc === null) return;
+    const reconciled = reconcileParkedSuggestion(parked, doc);
+    const note = reconciled.orphaned.length > 0
+      ? [parked.note, ...reconciled.orphaned].filter((part) => part.trim()).join("\n")
+      : parked.note;
+    setParked(null);
+    setSuggestNote(note);
+    setEditing(true);
+    setSuggesting(true);
+    setSuggestCount(0);
+    window.setTimeout(() => {
+      editorEvent("m-editor-suggest-start");
+      window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note } }));
+      window.dispatchEvent(new CustomEvent("m-editor-suggest-restore", { detail: { path, copy: reconciled.copy } }));
+    }, 0);
+    if (reconciled.orphaned.length > 0) toast.info(t("workspaceSecurity.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+  };
+  const discardParked = () => {
+    setParked(null);
+    if (vault.db) void clearParkedSuggestion(vault.db, path).catch(() => {});
+  };
 
   const rename = () => {
     void (async () => {
@@ -784,13 +821,22 @@ export function NoteScreen({
           </Banner>
         </div>
       )}
+      {parked && !suggesting && doc !== null && (
+        <Banner kind="info" rounded actions={<>
+          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("workspaceSecurity.suggestDiscard")}</Button>
+          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("workspaceSecurity.suggestParkedResume")}</Button>
+        </>}>
+          <strong>{t("workspaceSecurity.suggestParkedTitle")}</strong>
+          <p className="m-hint" data-testid="suggest-parked">{t("workspaceSecurity.suggestParkedBody", { n: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
+        </Banner>
+      )}
       {suggesting && (
           <div className="pv-suggest-band" role="status">
             <PenLine size={ICON.head} />
             <span className="pv-suggest-band__text">
               <strong>{t("workspaceSecurity.suggestBandTitle")}</strong> {t("workspaceSecurity.suggestCount", { n: suggestCount })}
             </span>
-            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
+            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note: event.target.value } })); }} />
             <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("workspaceSecurity.suggestDiscard")}</Button>
             <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { path, note: suggestNote } })); }}>{t("workspaceSecurity.suggestSend", { n: suggestCount })}</Button>
           </div>

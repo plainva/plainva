@@ -14,10 +14,11 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
+import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 
@@ -84,6 +85,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const busy = busyAction !== null;
   const [quarantine, setQuarantine] = useState<WorkspaceQuarantineRecord[]>([]);
   const [localForks, setLocalForks] = useState<WorkspaceLocalForkRecord[]>([]);
+  /** The fork under comparison (C36) - the conflict sheet with the fork as the copy. */
+  const [compareFork, setCompareFork] = useState<WorkspaceLocalForkRecord | null>(null);
   const [rekey, setRekey] = useState<{ phase: string; completed: number; total: number; lastError: string | null } | null>(null);
   const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
@@ -1151,7 +1154,22 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         onIgnore={async (ids) => { await runQuarantine("quarantineIgnore", () => updateMobileQuarantine(vault, quarantineSync(), ids, "ignore")); }}
         onRepaired={async (ids) => { await runQuarantine("quarantineRepaired", () => updateMobileQuarantine(vault, quarantineSync(), ids, "repaired")); }}
         onExportDiagnostics={(ids) => exportMobileQuarantineDiagnostics(vault, quarantineSync(), ids)}
+        onCompareFork={(fork) => setCompareFork(fork)}
       />
+      {compareFork && (
+        <ConflictCompareSheet
+          vault={vault}
+          conflictPath={compareFork.forkPath}
+          originalPath={compareFork.originalPath}
+          onClose={() => setCompareFork(null)}
+          onResolved={(touched) => {
+            const fork = compareFork;
+            setCompareFork(null);
+            void vault.reindexPaths(touched).catch(() => {});
+            void discardMobileLocalFork(vault, fork.forkId).then(() => refresh()).catch((error) => toast.error(errorText(error)));
+          }}
+        />
+      )}
       {publishFor && <PublishSliceSheet
                        sliceName={publishFor.name}
                        onClose={() => setPublishFor(null)}

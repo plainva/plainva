@@ -95,7 +95,7 @@ El **Calendario** de la derecha es una vista general por días: **hacer clic** e
 Plainva no tiene por qué quedarse en una sola ventana. Lo que necesites ahora mismo puede colocarse junto a tu trabajo:
 
 - **Clic derecho en una pestaña → Abrir en una ventana nueva.** La pestaña deja esta ventana y sigue viva en la nueva; no queda ninguna copia atrás.
-- **Clic derecho en Grafo, Tareas, Calendario o Correo dentro de la barra de acciones** ofrece la misma opción. Si después vuelves a hacer clic en la entrada, Plainva trae esa ventana al frente en lugar de abrir la vista por segunda vez.
+- **Clic derecho en la barra de acciones** sobre **Grafo**, **Tareas**, **Calendario** o **Correo** ofrece la misma opción. Si después vuelves a hacer clic en la entrada, Plainva trae esa ventana al frente en lugar de abrir la vista por segunda vez.
 - **Paleta de comandos → Abrir ventana de comunicación** inicia una ventana ya dividida: correo a la izquierda, calendario a la derecha.
 - **Paleta de comandos → Abrir una segunda ventana** abre de nuevo toda la interfaz — barras laterales, barra de acciones, pestañas, barra de estado. Esa es la opción para un segundo monitor.
 - Mientras **redactas un mensaje**, el icono de Abrir en su propia ventana saca la redacción a una ventana propia — con todo lo que ya has escrito.

@@ -70,7 +70,7 @@ Una ventana de redacción **no** se restaura al iniciar de nuevo — lo que cont
 
 No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y no necesita SMTP:
 
-- **Responder como nota** (en un mensaje): crea una nota dirigida al remitente (`to:` en el frontmatter) con el original citado — escribe tu respuesta en Plainva.
+- **Responder como nota** (en un mensaje): crea una nota dirigida al remitente (`to:` en el frontmatter) con el original citado — escribe tu respuesta en Plainva. Si más tarde envías esta nota (o la guardas como borrador), la dirección `to:` pasa automáticamente al campo **Para**.
 - **Guardar la nota como borrador en el buzón** (paleta de comandos, en cualquier nota abierta): guarda la nota como un **borrador en tu propio buzón** por IMAP — elige la cuenta, el destinatario y la carpeta de borradores, luego abre tu programa de correo habitual, revisa y envía desde ahí. El formato se conserva.
 - **Enviar la nota por correo (mailto)** (paleta de comandos): abre tu programa de correo predeterminado con la nota como texto sin formato (las notas largas se acortan).
 - **Copiar la nota como texto de correo** (paleta de comandos): pone la nota en el portapapeles con formato — pégala en cualquier editor de correo.

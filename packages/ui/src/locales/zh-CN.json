@@ -3625,6 +3625,10 @@
     "suggestSend": "发送建议（{{n}}）",
     "suggestSent": "已发送 {{n}} 条建议。",
     "suggestNothing": "尚无更改。",
+    "suggestParkedTitle": "发现未发送的建议",
+    "suggestParkedResume": "继续编辑",
+    "suggestParkedBody_other": "来自 {{when}} 的 {{n}} 个更改块——保存在此设备上，尚未发送。",
+    "suggestParkedOrphaned_other": "{{n}} 个更改块在已修改的笔记中找不到位置，已作为备注附加。",
     "suggestTooLarge": "有一个更改块过大，请分成更小的步骤提出。",
     "suggestRound": "{{name}} 的一轮建议",
     "suggestRoundCount": "{{n}} 处更改",
@@ -3698,6 +3702,7 @@
     "quarantineForks": "本地分叉",
     "forkCompare": "比较",
     "forkOpen": "打开分叉",
+    "forkCompare": "比较",
     "forkReason": {
       "permission-denied": "当时不允许写入——变更作为副本放在旁边。",
       "parallel-write": "同时写入——两个版本并列存放。",

@@ -732,6 +732,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           }}
           onExportCiphertext={exportQuarantine}
           onOpenPath={(path) => window.dispatchEvent(new CustomEvent("plainva-open-in-new-window", { detail: { path } }))}
+          onCompareFork={(fork) => window.dispatchEvent(new CustomEvent("plainva-compare-fork", { detail: { forkId: fork.forkId, originalPath: fork.originalPath, forkPath: fork.forkPath } }))}
         />
       )}
 

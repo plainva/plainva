@@ -3625,6 +3625,10 @@
     "suggestSend": "提案を送信（{{n}}）",
     "suggestSent": "{{n}} 件の提案を送信しました。",
     "suggestNothing": "まだ変更はありません。",
+    "suggestParkedTitle": "未送信の提案が見つかりました",
+    "suggestParkedResume": "編集を続ける",
+    "suggestParkedBody_other": "{{when}} の {{n}} 件のブロック — この端末に保存され、送信されていません。",
+    "suggestParkedOrphaned_other": "{{n}} 件のブロックは変更されたノート内に位置が見つからず、注記として追加されました。",
     "suggestTooLarge": "ブロックが大きすぎます。小さな単位で提案してください。",
     "suggestRound": "{{name}} の提案",
     "suggestRoundCount": "{{n}} 件の変更",
@@ -3698,6 +3702,7 @@
     "quarantineForks": "ローカルフォーク",
     "forkCompare": "比較",
     "forkOpen": "フォークを開く",
+    "forkCompare": "比較",
     "forkReason": {
       "permission-denied": "書き込みが許可されていなかったため、変更はコピーとして隣に置かれています。",
       "parallel-write": "同時に書き込まれたため、両方の版が並んでいます。",

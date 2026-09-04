@@ -131,7 +131,7 @@ La création de modèles se fait depuis n'importe où : la palette de commandes 
 
 ## Notes quotidiennes
 
-**Ouvrir la note quotidienne** (barre latérale) ou un clic dans le **Calendrier** crée la note du jour selon votre format de date dans le dossier de notes quotidiennes configuré, éventuellement à partir d'un modèle.
+**Ouvrir la note quotidienne** (barre latérale) ou un clic dans le **Calendrier** crée la note du jour selon votre **format de date** dans le **dossier de base des notes quotidiennes** configuré, éventuellement à partir d'un modèle.
 
 ## Tâches, formules, diagrammes et notes de bas de page
 

@@ -16,6 +16,8 @@ import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarant
  * phone would be theatre (parity catalog: workspace-quarantine-export).
  */
 export interface QuarantineListProps {
+  /** Opens the fork beside its note with the conflict exits (C36). */
+  onCompareFork?: (fork: WorkspaceLocalForkRecord) => void;
   quarantine: readonly WorkspaceQuarantineRecord[];
   localForks: readonly WorkspaceLocalForkRecord[];
   busy: boolean;
@@ -25,7 +27,7 @@ export interface QuarantineListProps {
   onExportDiagnostics(ids: string[]): Promise<string>;
 }
 
-export function QuarantineList({ quarantine, localForks, busy, onRetry, onIgnore, onRepaired, onExportDiagnostics }: QuarantineListProps) {
+export function QuarantineList({ quarantine, localForks, busy, onRetry, onIgnore, onRepaired, onExportDiagnostics, onCompareFork }: QuarantineListProps) {
   const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState<"open" | "all">("open");
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -119,6 +121,13 @@ export function QuarantineList({ quarantine, localForks, busy, onRetry, onIgnore
               <section className="pv-quarantine-group is-fork" data-testid="quarantine-fork">
                 <h4 className="pv-quarantine-title"><span>{fork.originalPath}</span></h4>
                 <p className="pv-quarantine-explain"><code>{fork.forkPath}</code> · {t(`workspaceSecurity.forkReason.${fork.reason}`)} · {when(fork.createdAt)}</p>
+                {/* The desktop card offered "open" and, since C36, "compare"; the
+                    phone had neither - a list of paths nobody could act on. */}
+                {onCompareFork && (
+                  <div className="pv-quarantine-actions">
+                    <Button variant="primary" size="sm" disabled={busy} onClick={() => onCompareFork(fork)} data-testid="fork-compare">{t("workspaceSecurity.forkCompare")}</Button>
+                  </div>
+                )}
               </section>
             </GroupCard>
           ))}

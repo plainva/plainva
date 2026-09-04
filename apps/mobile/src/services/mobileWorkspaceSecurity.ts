@@ -1196,6 +1196,13 @@ export async function clearMobileEncryptionLift(vaultId: string): Promise<void> 
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }
 
+/** Forgets a local fork once it was compared and resolved (C36). */
+export async function discardMobileLocalFork(vault: MobileVault, forkId: string): Promise<void> {
+  if (!vault.workspaceState) throw new Error("workspace-unavailable-or-locked");
+  await vault.workspaceState.deleteLocalFork(forkId);
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+}
+
 /**
  * The quarantine's actions on the phone (finding 2026-09-03): the same
  * service the desktop uses, over this vault's state and this shell's sync.

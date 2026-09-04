@@ -95,7 +95,7 @@ De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het 
 Plainva hoeft niet in één venster te blijven. Wat je nu nodig hebt, kan naast je werk staan:
 
 - **Rechtsklik op een tabblad → In nieuw venster openen.** Het tabblad verlaat dit venster en leeft verder in het nieuwe; er blijft geen kopie achter.
-- **Rechtsklik op Graaf, Taken, Agenda of E-mail in de actiebalk** voor dezelfde keuze. Klik je de vermelding daarna nog eens aan, dan haalt Plainva dat venster naar voren in plaats van de weergave een tweede keer te openen.
+- **Rechtsklik in de actiebalk** op **Graaf**, **Taken**, **Agenda** of **E-mail** voor dezelfde keuze. Klik je de vermelding daarna nog eens aan, dan haalt Plainva dat venster naar voren in plaats van de weergave een tweede keer te openen.
 - **Opdrachtenpalet → Communicatievenster openen** start een venster dat al gesplitst is: e-mail links, agenda rechts.
 - **Opdrachtenpalet → Tweede venster openen** opent de hele interface opnieuw — zijbalken, actiebalk, tabbladen, statusbalk. Dat is de juiste keuze voor een tweede monitor.
 - Tijdens het **opstellen van een bericht** zet het uitklapicoon het opstelvenster om in een eigen venster — met alles wat je al hebt getypt.

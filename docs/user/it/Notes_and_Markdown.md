@@ -131,7 +131,7 @@ Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) of
 
 ## Note giornaliere
 
-**Apri nota giornaliera** (barra laterale) o un clic nel **Calendario** crea la nota di oggi usando il tuo formato data nella cartella delle note giornaliere configurata, facoltativamente da un modello.
+**Apri nota giornaliera** (barra laterale) o un clic nel **Calendario** crea la nota di oggi usando il tuo **formato data** nella **cartella base delle note giornaliere** configurata, facoltativamente da un modello.
 
 ## Attività, formule, diagrammi e note a piè di pagina
 

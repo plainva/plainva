@@ -70,7 +70,7 @@ Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce
 
 Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe quelle note et ne nécessite aucun SMTP :
 
-- **Répondre comme note** (sur un message) : crée une note adressée à l'expéditeur (`to:` dans le frontmatter) avec l'original cité — rédigez votre réponse dans Plainva.
+- **Répondre comme note** (sur un message) : crée une note adressée à l'expéditeur (`to:` dans le frontmatter) avec l'original cité — rédigez votre réponse dans Plainva. Si vous envoyez cette note plus tard (ou l'enregistrez comme brouillon), l'adresse `to:` est reprise automatiquement dans le champ **À**.
 - **Enregistrer la note comme brouillon dans la boîte** (palette de commandes, sur n'importe quelle note ouverte) : stocke la note comme **brouillon dans votre propre boîte aux lettres** via IMAP — choisissez le compte, le destinataire et le dossier des brouillons, puis ouvrez votre programme de messagerie habituel, relisez et envoyez depuis là-bas. La mise en forme est préservée.
 - **Envoyer la note par e-mail (mailto)** (palette de commandes) : ouvre votre programme de messagerie par défaut avec la note en texte brut (les notes longues sont raccourcies).
 - **Copier la note comme texte d'e-mail** (palette de commandes) : place la note dans le presse-papiers avec sa mise en forme — collez-la dans n'importe quel éditeur de message.

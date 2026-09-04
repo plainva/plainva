@@ -87,7 +87,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, discardLocalFork } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -157,6 +157,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       const detail = (e as CustomEvent).detail as { path?: string } | undefined;
       if (detail?.path) setCompareTarget({ kind: "conflict", conflictPath: detail.path });
     };
+    // A local fork from the Security page (C36): the same window, the same exits.
+    const onCompareFork = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { forkId?: string; originalPath?: string; forkPath?: string } | undefined;
+      if (detail?.forkId && detail.originalPath && detail.forkPath) setCompareTarget({ kind: "fork", forkId: detail.forkId, originalPath: detail.originalPath, forkPath: detail.forkPath });
+    };
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
     const onComposeMail = (e: Event) => {
       const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
@@ -165,11 +170,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
+    window.addEventListener("plainva-compare-fork", onCompareFork);
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
+      window.removeEventListener("plainva-compare-fork", onCompareFork);
       window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
@@ -1666,6 +1673,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onResolved={(outcome) => {
               setCompareTarget(null);
               closeTabsByPrefix(outcome.conflictPath);
+              // The fork record follows its file (C36); the governance card re-reads.
+              if (outcome.forkId) void discardLocalFork(outcome.forkId).catch(console.error);
               if (outcome.mergedContent !== null) {
                 // Same adoption path as a version restore: the open editor
                 // takes the merged text without re-dirtying or racing a save.

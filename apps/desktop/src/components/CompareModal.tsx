@@ -45,12 +45,16 @@ export const formatBytes = (bytes: number): string => {
 /** What the modal compares: the note's version history, or a sync-conflict copy next to it. */
 export type CompareSubject =
   | { kind: "version"; path: string; orphan?: boolean }
-  | { kind: "conflict"; conflictPath: string };
+  | { kind: "conflict"; conflictPath: string }
+  /** A local fork (C36): the copy this device kept when a write was refused. Same three exits as a conflict. */
+  | { kind: "fork"; forkId: string; originalPath: string; forkPath: string };
 
 /** What became of a conflict — the host re-indexes `touched` and adopts `mergedContent`. */
 export interface ConflictOutcome {
   originalPath: string;
   conflictPath: string;
+  /** Set when the subject was a local fork - the host forgets the record. */
+  forkId?: string;
   kind: "adopted" | "merged" | "keptBoth" | "discarded";
   /** The text the note holds now, when it changed. */
   mergedContent: string | null;
@@ -86,12 +90,15 @@ export const CompareModal: React.FC<{
   const { vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, listWorkspaceRevisions, readWorkspaceRevision } = useVault();
   const workspaceHistory = workspaceSecurityStatus !== null;
 
-  const isConflict = subject.kind === "conflict";
-  const conflictPath = isConflict ? subject.conflictPath : null;
-  const originalOfConflict = conflictPath ? conflictOriginalPath(conflictPath) : null;
+  // A fork is a conflict copy whose original is named outright rather than
+  // derived from a `.CONFLICT` file name (C36).
+  const isConflict = subject.kind === "conflict" || subject.kind === "fork";
+  const forkId = subject.kind === "fork" ? subject.forkId : undefined;
+  const conflictPath = subject.kind === "conflict" ? subject.conflictPath : subject.kind === "fork" ? subject.forkPath : null;
+  const originalOfConflict = subject.kind === "conflict" ? conflictOriginalPath(subject.conflictPath) : subject.kind === "fork" ? subject.originalPath : null;
   // The note both cases talk about.
-  const path = isConflict ? originalOfConflict ?? subject.conflictPath : subject.path;
-  const orphan = !isConflict && subject.orphan === true;
+  const path = subject.kind === "version" ? subject.path : originalOfConflict ?? conflictPath ?? "";
+  const orphan = subject.kind === "version" && subject.orphan === true;
 
   const basename = path.split(/[/\\]/).pop() || path;
   const isText = isTextLikePath(path);
@@ -371,7 +378,7 @@ export const CompareModal: React.FC<{
       await vaultAdapter.writeTextFile(originalOfConflict, merged);
       await vaultAdapter.deleteItem(conflictPath);
       toast.success(rightEdited ? t("compare.resolvedMerged") : t("compare.resolvedAdopted"));
-      return { originalPath: originalOfConflict, conflictPath, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
     });
   };
 
@@ -389,7 +396,7 @@ export const CompareModal: React.FC<{
     await resolve(async () => {
       await vaultAdapter.renameItem(conflictPath, candidate);
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
-      return { originalPath: originalOfConflict, conflictPath, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
   };
 
@@ -406,7 +413,7 @@ export const CompareModal: React.FC<{
     await resolve(async () => {
       await vaultAdapter.deleteItem(conflictPath);
       toast.success(t("compare.resolvedDiscarded"));
-      return { originalPath: originalOfConflict, conflictPath, kind: "discarded", mergedContent: null, touched: [conflictPath] };
+      return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });
   };
 

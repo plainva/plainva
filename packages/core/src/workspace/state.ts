@@ -379,6 +379,8 @@ export interface WorkspaceStateStore {
   resolveQuarantine(artifactKind: WorkspaceQuarantineRecord["artifactKind"], remoteKey: string, at: string): Promise<string[]>;
   listLocalForks(): Promise<WorkspaceLocalForkRecord[]>;
   saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void>;
+  /** The fork was compared and resolved (adopted, kept as a sibling or discarded) - the record goes (C36). */
+  deleteLocalFork(forkId: string): Promise<void>;
   listPublications(): Promise<WorkspacePublicationRecord[]>;
   getPublication(publicationId: string): Promise<WorkspacePublicationRecord | null>;
   savePublication(record: WorkspacePublicationRecord): Promise<void>;
@@ -527,6 +529,7 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listLocalForks(): Promise<WorkspaceLocalForkRecord[]> { return [...this.forks.values()].map(clone).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> { this.forks.set(record.forkId, clone(record)); }
+  async deleteLocalFork(forkId: string): Promise<void> { this.forks.delete(forkId); }
   async listPublications(): Promise<WorkspacePublicationRecord[]> { return [...this.publications.values()].map(clone).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
   async getPublication(publicationId: string): Promise<WorkspacePublicationRecord | null> { return clone(this.publications.get(publicationId) ?? null); }
   async savePublication(record: WorkspacePublicationRecord): Promise<void> {
@@ -885,6 +888,9 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async saveLocalFork(record: WorkspaceLocalForkRecord): Promise<void> {
     await this.db.execute(`INSERT OR REPLACE INTO workspace_local_fork (fork_id,original_path,fork_path,reason,created_at) VALUES (?,?,?,?,?)`, [record.forkId, record.originalPath, record.forkPath, record.reason, record.createdAt]);
+  }
+  async deleteLocalFork(forkId: string): Promise<void> {
+    await this.db.execute(`DELETE FROM workspace_local_fork WHERE fork_id = ?`, [forkId]);
   }
   async listPublications(): Promise<WorkspacePublicationRecord[]> {
     const rows = await this.db.query<PublicationRow>(`SELECT * FROM workspace_publication ORDER BY created_at, publication_id`);

@@ -21,6 +21,8 @@ import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarant
 export interface QuarantineCardProps {
   quarantine: readonly WorkspaceQuarantineRecord[];
   localForks: readonly WorkspaceLocalForkRecord[];
+  /** Opens the fork beside the note it forked from, with the conflict exits (C36). */
+  onCompareFork?: (fork: WorkspaceLocalForkRecord) => void;
   busy: boolean;
   onRetry(ids: string[]): Promise<QuarantineRetryOutcome | null>;
   onIgnore(ids: string[]): Promise<void>;
@@ -32,7 +34,7 @@ export interface QuarantineCardProps {
 
 type Filter = "open" | "all";
 
-export function QuarantineCard({ quarantine, localForks, busy, onRetry, onIgnore, onRepaired, onExportDiagnostics, onExportCiphertext, onOpenPath }: QuarantineCardProps) {
+export function QuarantineCard({ quarantine, localForks, busy, onRetry, onIgnore, onRepaired, onExportDiagnostics, onExportCiphertext, onOpenPath, onCompareFork }: QuarantineCardProps) {
   const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState<Filter>("open");
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -163,9 +165,14 @@ export function QuarantineCard({ quarantine, localForks, busy, onRetry, onIgnore
             <section key={fork.forkId} className="pv-quarantine-group is-fork" data-testid="quarantine-fork">
               <h4 className="pv-quarantine-title"><span>{fork.originalPath}</span></h4>
               <p className="pv-quarantine-explain"><code>{fork.forkPath}</code> · {t(`workspaceSecurity.forkReason.${fork.reason}`)} · {when(fork.createdAt)}</p>
-              {onOpenPath && (
+              {(onOpenPath || onCompareFork) && (
                 <div className="pv-quarantine-actions">
-                  <Button variant="secondary" size="sm" onClick={() => onOpenPath(fork.forkPath)}>{t("workspaceSecurity.forkOpen")}</Button>
+                  {onCompareFork && (
+                    <Button variant="primary" size="sm" onClick={() => onCompareFork(fork)} data-testid="fork-compare">{t("workspaceSecurity.forkCompare")}</Button>
+                  )}
+                  {onOpenPath && (
+                    <Button variant="secondary" size="sm" onClick={() => onOpenPath(fork.forkPath)}>{t("workspaceSecurity.forkOpen")}</Button>
+                  )}
                 </div>
               )}
             </section>
