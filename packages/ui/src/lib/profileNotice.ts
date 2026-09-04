@@ -15,20 +15,33 @@
  * arriving again is not news, a different one is. Without storage (tests,
  * headless) the session set stands in.
  */
+import { stableStringify } from "@plainva/core";
 import { PROFILE_FIELDS } from "./profileFields";
 
-interface StorageLike {
+/** Where the notice memory lives: localStorage on the desktop, the settings
+ * store on the phone (a WebView's localStorage is not the store the rest of
+ * the app trusts with anything durable - finding 2026-09-04). */
+export interface ProfileNoticeStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+type StorageLike = ProfileNoticeStorage;
 
 const defaultStorage = (): StorageLike | null => (typeof localStorage === "undefined" ? null : localStorage);
 const storageKey = (vaultKey: string) => `plainva-profile-announced-${vaultKey}`;
 const announced = new Map<string, string>();
 
-function signature(changedNames: readonly string[]): string {
-  return JSON.stringify([...changedNames].sort());
+/**
+ * What was announced: the sorted field names AND, when the caller has them,
+ * the adopted values. Names alone let the same state count as news whenever
+ * the cycle cut the change differently - the values say whether anything the
+ * user would recognise actually moved (finding 2026-09-04).
+ */
+function signature(changedNames: readonly string[], changedValues?: Readonly<Record<string, unknown>>): string {
+  const names = [...changedNames].sort();
+  if (!changedValues) return JSON.stringify(names);
+  return JSON.stringify(names.map((name) => [name, stableStringify(changedValues[name])]));
 }
 
 /**
@@ -38,9 +51,14 @@ function signature(changedNames: readonly string[]): string {
  * @param changedNames the fields that actually differed; an empty list means the
  *        cycle only re-stamped values, which is not something to interrupt over.
  */
-export function shouldAnnounceProfileImport(vaultKey: string, changedNames: readonly string[], storage: StorageLike | null = defaultStorage()): boolean {
+export function shouldAnnounceProfileImport(
+  vaultKey: string,
+  changedNames: readonly string[],
+  storage: StorageLike | null = defaultStorage(),
+  changedValues?: Readonly<Record<string, unknown>>,
+): boolean {
   if (changedNames.length === 0) return false;
-  const sig = signature(changedNames);
+  const sig = signature(changedNames, changedValues);
   let last: string | null = announced.get(vaultKey) ?? null;
   try {
     last = storage?.getItem(storageKey(vaultKey)) ?? last;

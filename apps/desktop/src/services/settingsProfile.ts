@@ -40,6 +40,8 @@ import {
   shouldAnnounceProfileImport,
   profileChangeAreaKeys,
   pimAccountsForProfile,
+  defaultCalendarForProfile,
+  defaultCalendarFromProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
   normalizeAccountMap,
@@ -431,6 +433,9 @@ export async function exportProfileValues(
   }
 
   const map = normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
+  // The store holds the device-local account id; the document carries the
+  // logical one, or the choice never resolves on any other device.
+  if (typeof values.defaultCalendar === "string") values.defaultCalendar = defaultCalendarForProfile(values.defaultCalendar, map);
   // The shared helpers decide the SHAPE (deterministic order, no parked device
   // state) so both shells publish the same document for the same accounts —
   // that is what makes the export round-trip.
@@ -809,11 +814,8 @@ async function importAccountMetadata(
   const scoped = pimRuntime ? values : { ...values, pimAccounts: undefined, pimSelections: undefined };
   const idMap = await sharedImportAccountMetadata(scoped, desktopAccountPorts(store, vaultPath, pimRuntime));
 
-  const defaultCalendar = values.defaultCalendar;
-  if (typeof defaultCalendar === "string" && defaultCalendar.includes(" ")) {
-    const [logical, ...rest] = defaultCalendar.split(" ");
-    await store.set(defaultCalendarKey(vaultPath), `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`);
-  }
+  const defaultCalendar = defaultCalendarFromProfile(values.defaultCalendar, idMap.pim);
+  if (defaultCalendar !== undefined) await store.set(defaultCalendarKey(vaultPath), defaultCalendar);
   return idMap;
 }
 
@@ -1133,8 +1135,8 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         // Once per session and only for a real change (E1): the arrival is a
         // moment, not a state — from then on the diagnostics record names the
         // fields. Before the roundtrip fix this fired on nearly every cycle.
-        onAdopted: (_from, changedNames) => {
-          if (!shouldAnnounceProfileImport(vaultPath, changedNames)) return;
+        onAdopted: (_from, changedNames, changedValues) => {
+          if (!shouldAnnounceProfileImport(vaultPath, changedNames, undefined, changedValues)) return;
           // Says WHAT arrived (M5): the areas the changed fields belong to.
           const areas = profileChangeAreaKeys(changedNames).map((k) => i18n.t(k));
           toast.info(areas.length ? i18n.t("settingsSync.adoptedAreas", { areas: areas.join(", ") }) : i18n.t("settingsSync.adopted"));

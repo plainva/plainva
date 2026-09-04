@@ -33,6 +33,8 @@ import {
   shouldAnnounceProfileImport,
   profileChangeAreaKeys,
   pimAccountsForProfile,
+  defaultCalendarForProfile,
+  defaultCalendarFromProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
   normalizeAccountMap,
@@ -76,6 +78,7 @@ import {
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
+import { profileNoticeStorage } from "./profileNoticeStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import {
@@ -597,6 +600,9 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
       // lists — one here, one in applyValues — were the reason a field could
       // exist on one shell and quietly never arrive on the other.
       for (const [logical, prop] of Object.entries(mobileBinding())) values[logical] = s[prop];
+      // The store holds the device-local account id; the document carries the
+      // logical one, or the choice never resolves on any other device.
+      if (typeof values.defaultCalendar === "string") values.defaultCalendar = defaultCalendarForProfile(values.defaultCalendar, map);
 
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
@@ -682,10 +688,8 @@ export function createMobileProfilePort(vault: MobileVault): ProfileSettingsPort
         // and the local account id is a different one on every device. The phone
         // threw the mapping away, so the setting pointed at an account that does
         // not exist here — silently falling back to "first writable".
-        if (typeof patch.defaultCalendar === "string" && patch.defaultCalendar.includes(" ")) {
-          const [logical, ...rest] = patch.defaultCalendar.split(" ");
-          patch.defaultCalendar = `${idMap.pim.get(logical) ?? logical} ${rest.join(" ")}`;
-        }
+        const localDefaultCalendar = defaultCalendarFromProfile(patch.defaultCalendar, idMap.pim);
+        if (localDefaultCalendar !== undefined) patch.defaultCalendar = localDefaultCalendar;
 
         // Everything the phone does NOT understand is kept verbatim and written
         // back on the next export, so a newer Plainva on another device does not
@@ -959,16 +963,22 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
         }
         return null;
       }
+      // The "already announced" memory lives in the settings store, not in the
+      // WebView's localStorage: that is where the phone keeps everything else
+      // it must not forget (device id, secret slots), and it is primed here so
+      // the synchronous policy check below can read it.
+      const noticeStorage = await profileNoticeStorage(vaultId);
       return new SettingsSyncStep({
         port: createMobileProfilePort(vault),
         deviceId: device,
         memberId: memberId ?? undefined,
         isMemberField: isMemberProfileField,
-        // Once per session and only for a real change (E1): the arrival is a
+        // Once per change and only for a real one (E1): the arrival is a
         // moment, not a state — from then on the diagnostics record names the
-        // fields. Before the roundtrip fix this fired on nearly every cycle.
-        onAdopted: (_from, changedNames) => {
-          if (!shouldAnnounceProfileImport(vault.vaultId, changedNames)) return;
+        // fields. The memory holds names AND values (2026-09-04), so a state
+        // that merely arrives again is never news.
+        onAdopted: (_from, changedNames, changedValues) => {
+          if (!shouldAnnounceProfileImport(vault.vaultId, changedNames, noticeStorage, changedValues)) return;
           // Says WHAT arrived (M5): the areas the changed fields belong to.
           const areas = profileChangeAreaKeys(changedNames).map((k) => i18n.t(k));
           toast.info(areas.length ? i18n.t("settingsSync.adoptedAreas", { areas: areas.join(", ") }) : i18n.t("settingsSync.adopted"));

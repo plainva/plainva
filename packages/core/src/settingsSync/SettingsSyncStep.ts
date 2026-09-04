@@ -71,7 +71,13 @@ export interface SettingsSyncStepOptions {
    * names come along so a shell can decide whether the arrival is worth an
    * interruption — see `shouldAnnounceProfileImport`.
    */
-  onAdopted?: (fromDeviceId: string, changedNames: readonly string[]) => void;
+  /**
+   * Fired when a partition adopted another device's document. `changedValues`
+   * holds the adopted value of every changed field, so a shell can tell "the
+   * same state arrived again" from "something new arrived" — names alone could
+   * not (finding 2026-09-04).
+   */
+  onAdopted?: (fromDeviceId: string, changedNames: readonly string[], changedValues: Readonly<Record<string, unknown>>) => void;
   /**
    * When present, the profile is sealed as `settings.enc` (K_settings) instead
    * of plaintext `settings.json`. A one-time upload-verify-delete of the stale
@@ -227,7 +233,10 @@ export class SettingsSyncStep {
     if (changed) await this.options.port.applyValues(desired);
 
     const adopted = results.find((r) => r.adoptedFrom);
-    if (adopted?.adoptedFrom) this.options.onAdopted?.(adopted.adoptedFrom, changedNames);
+    if (adopted?.adoptedFrom) {
+      const changedValues = Object.fromEntries(changedNames.map((k) => [k, desired[k]]));
+      this.options.onAdopted?.(adopted.adoptedFrom, changedNames, changedValues);
+    }
     const downloaded = this.combinePartitionEvents(results.map((result) => result.downloaded));
     const uploaded = this.combinePartitionEvents(results.map((result) => result.uploaded));
     await this.options.onExchange?.({

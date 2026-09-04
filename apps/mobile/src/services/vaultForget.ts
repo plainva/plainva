@@ -1,4 +1,5 @@
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { forgetProfileNotice } from "./profileNoticeStore";
 import { barLayoutKey, getPlatformServices } from "@plainva/ui";
 import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 
@@ -102,6 +103,9 @@ export async function forgetVaultSecrets(secretKeys: string[]): Promise<void> {
  * life left them.
  */
 export function forgetVaultMemories(vaultId: string): void {
+  // The profile-notice memory moved into the settings store (2026-09-04); the
+  // localStorage key below is cleared for installations that still carry it.
+  void forgetProfileNotice(vaultId);
   if (typeof localStorage === "undefined") return;
   for (const key of [`plainva-scroll-${vaultId}`, `plainva-last-open-${vaultId}`, `plainva-profile-announced-${vaultId}`]) {
     try {

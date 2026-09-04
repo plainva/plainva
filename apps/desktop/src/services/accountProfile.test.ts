@@ -23,6 +23,8 @@ import {
   shouldReportWaitingAccounts,
   remapCloudRegistry,
   shouldAnnounceProfileImport,
+  defaultCalendarForProfile,
+  defaultCalendarFromProfile,
   profileChangeAreaKeys,
   clearProfileAnnouncement,
   type AccountImportPorts,
@@ -518,6 +520,20 @@ describe("adoption notice policy", () => {
     expect(shouldAnnounceProfileImport("/vault", ["mailAccounts"], storage)).toBe(true); // forgotten with the vault
   });
 
+  it("tells the same state arriving again from a new value of the same field (2026-09-04)", () => {
+    const m = new Map<string, string>();
+    const storage = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
+    clearProfileAnnouncement("/vault", storage);
+    expect(shouldAnnounceProfileImport("/vault", ["defaultCalendar"], storage, { defaultCalendar: "p1 work" })).toBe(true);
+    // The cycle cut the change differently but nothing the user set moved.
+    expect(shouldAnnounceProfileImport("/vault", ["defaultCalendar"], storage, { defaultCalendar: "p1 work" })).toBe(false);
+    // The same field with another value is news.
+    expect(shouldAnnounceProfileImport("/vault", ["defaultCalendar"], storage, { defaultCalendar: "p1 private" })).toBe(true);
+    // Key order inside a value does not count as a change.
+    expect(shouldAnnounceProfileImport("/vault", ["barLayoutRibbon"], storage, { barLayoutRibbon: { a: 1, b: 2 } })).toBe(true);
+    expect(shouldAnnounceProfileImport("/vault", ["barLayoutRibbon"], storage, { barLayoutRibbon: { b: 2, a: 1 } })).toBe(false);
+  });
+
   it("names the areas a change touched, in catalog order, without repeats", () => {
     expect(profileChangeAreaKeys(["mailFolder", "dailyNotesFolder", "templateFolder", "bogus"])).toEqual([
       "settingsSync.area_content",
@@ -869,5 +885,38 @@ describe("both shells adopt through the SHARED sequence", () => {
     expect(src).toContain("adoptAccountInto(");
     // Exactly once: a second call site would be a second sequence.
     expect(src.match(/adoptAccountInto\(/g)).toHaveLength(1);
+  });
+});
+
+describe("default calendar across devices (2026-09-04)", () => {
+  it("publishes the logical account id and stores the local one", () => {
+    const map = { ...emptyAccountMap(), pimLocalToLogical: { "p-local-a": "p1" } };
+    expect(defaultCalendarForProfile("p-local-a work", map)).toBe("p1 work");
+    // A calendar id may itself contain spaces; only the first token is the account.
+    expect(defaultCalendarForProfile("p-local-a Team Kalender", map)).toBe("p1 Team Kalender");
+    // No mapping means the local id already IS the logical id (created here).
+    expect(defaultCalendarForProfile("p1 work", map)).toBe("p1 work");
+    expect(defaultCalendarForProfile("", map)).toBe("");
+    expect(defaultCalendarForProfile(undefined, map)).toBeUndefined();
+
+    const minted = new Map([["p1", "p-local-b"]]);
+    expect(defaultCalendarFromProfile("p1 work", minted)).toBe("p-local-b work");
+    // Unknown account: kept as is, resolved once the account arrives.
+    expect(defaultCalendarFromProfile("p9 work", minted)).toBe("p9 work");
+    expect(defaultCalendarFromProfile("", minted)).toBe("");
+  });
+
+  it("survives a merged account whose local ids differ on the two devices", async () => {
+    // Device A created the account ("p1"); device B already had the same
+    // account under its own id ("b-77") and merged it by identity on import.
+    const { state, api } = ports({ pim: [pim({ id: "b-77" })] });
+    const idMap = await importAccountMetadata({ pimAccounts: [pim({ id: "p1" })] }, api);
+    expect(idMap.pim.get("p1")).toBe("b-77");
+
+    const arrivedOnB = defaultCalendarFromProfile("p1 work", idMap.pim);
+    expect(arrivedOnB).toBe("b-77 work");
+    // B's export names the logical id again — byte-for-byte what A published,
+    // so neither device sees a change on the next cycle.
+    expect(defaultCalendarForProfile(arrivedOnB, state.map)).toBe("p1 work");
   });
 });

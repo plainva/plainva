@@ -530,6 +530,32 @@ export function pimSelectionsForProfile(
   return { calendars: shared(calendars), taskLists: shared(taskLists) };
 }
 
+/**
+ * The default calendar travels as `"<account id> <calendar id>"`. The account
+ * id in the STORE is device-local (keychain slots hang off it), so the profile
+ * has to carry the logical id — otherwise the value only ever resolves on the
+ * device that wrote it and every other device silently falls back to "first
+ * writable" (finding 2026-09-04: both shells mapped logical → local on import
+ * and exported the local id raw, so a merged account never crossed over).
+ * A value that does not name an account (empty, or no separator) passes through.
+ */
+export function defaultCalendarForProfile(value: unknown, map: ProfileAccountMap): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const sep = value.indexOf(" ");
+  if (sep <= 0) return value;
+  const local = value.slice(0, sep);
+  return `${map.pimLocalToLogical[local] ?? local}${value.slice(sep)}`;
+}
+
+/** Inverse of `defaultCalendarForProfile`, with the logical → local map an import minted. */
+export function defaultCalendarFromProfile(value: unknown, pimIdMap: ReadonlyMap<string, string>): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const sep = value.indexOf(" ");
+  if (sep <= 0) return value;
+  const logical = value.slice(0, sep);
+  return `${pimIdMap.get(logical) ?? logical}${value.slice(sep)}`;
+}
+
 function nextLocalId(preferred: string, used: Set<string>, newId: () => string): string {
   if (preferred && !used.has(preferred)) return preferred;
   let id: string;

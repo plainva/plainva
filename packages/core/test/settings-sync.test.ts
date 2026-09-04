@@ -322,18 +322,20 @@ describe("SettingsSyncStep.run", () => {
     const target = new FakeTarget();
     target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(doc(9, "phone", "2026-07-20", { dailyFolder: "Journal" }))));
     const store = { values: { dailyFolder: "Daily" }, applied: [] as Record<string, unknown>[] };
-    const adopted: Array<{ from: string; changed: readonly string[] }> = [];
+    const adopted: Array<{ from: string; changed: readonly string[]; values: Readonly<Record<string, unknown>> }> = [];
     const step = new SettingsSyncStep({
       port: makePort(store),
       ...dev,
-      onAdopted: (from, changed) => adopted.push({ from, changed }),
+      onAdopted: (from, changed, values) => adopted.push({ from, changed, values }),
     });
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
 
     expect(store.values).toEqual({ dailyFolder: "Journal" });
     // The notice carries WHAT changed, so a shell can decide whether an arrival
     // is worth an interruption instead of announcing every cycle.
-    expect(adopted).toEqual([{ from: "phone", changed: ["dailyFolder"] }]);
+    // ...and the adopted VALUES, so "the same state again" is tellable from
+    // "something new" (2026-09-04).
+    expect(adopted).toEqual([{ from: "phone", changed: ["dailyFolder"], values: { dailyFolder: "Journal" } }]);
     // Local file adopts the remote doc; a second run is a converged no-op.
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.applied).toHaveLength(1);
