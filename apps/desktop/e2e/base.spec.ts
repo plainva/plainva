@@ -2174,7 +2174,10 @@ test('Base empty view: the sentence carries the create action (S18)', async ({ p
   await page.getByRole('button', { name: /Filteroperator|Filter operator/ }).click();
   await page.getByRole('option', { name: /^(ist leer|is empty)$/ }).click();
 
-  const empty = page.locator('.pv-empty');
+  // Scoped by its action: since the Design-Runde (E3) every empty list in the
+  // window says so through the same primitive, so the bare class matches the
+  // sidebar's empty bookmarks as well.
+  const empty = page.locator('.pv-empty', { has: page.getByTestId('base-empty-new') });
   await expect(empty).toBeVisible({ timeout: 10000 });
   await expect(empty.getByTestId('base-empty-new')).toBeVisible();
 });

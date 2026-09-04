@@ -518,7 +518,7 @@ test('File tree: selected folder receives the + Neu note, which starts with an H
 
   await aside.getByText('Ordner', { exact: true }).click(); // select (and expand) the folder
   await page.getByTestId('sidebar-new').click();
-  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  await page.getByRole('menuitem', { name: /^(Neue Notiz|New note)$/i }).click();
   const input = page.getByPlaceholder(/Dateiname|File name/i);
   await expect(input).toBeVisible();
   await input.fill('Idee');
@@ -988,7 +988,7 @@ test('index.md auto-update: creating a note refreshes the managed listing only',
   // Create in P: its managed index.md picks up the new entry (debounced).
   await aside.getByText('P', { exact: true }).click();
   await page.getByTestId('sidebar-new').click();
-  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  await page.getByRole('menuitem', { name: /^(Neue Notiz|New note)$/i }).click();
   const input = page.getByPlaceholder(/Dateiname|File name/i);
   await input.fill('Frisch');
   await input.press('Enter');
@@ -999,7 +999,7 @@ test('index.md auto-update: creating a note refreshes the managed listing only',
   // Create in Q: no index.md there — none may appear.
   await aside.getByText('Q', { exact: true }).click();
   await page.getByTestId('sidebar-new').click();
-  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  await page.getByRole('menuitem', { name: /^(Neue Notiz|New note)$/i }).click();
   const input2 = page.getByPlaceholder(/Dateiname|File name/i);
   await input2.fill('Anders');
   await input2.press('Enter');
@@ -1619,7 +1619,7 @@ test('Creating from another tab switches to Files instead of vanishing', async (
   await expect(page.getByTestId('file-tree')).toHaveCount(0);
 
   await page.getByTestId('sidebar-new').click();
-  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  await page.getByRole('menuitem', { name: /^(Neue Notiz|New note)$/i }).click();
 
   // The tab switched back and the name field is there, ready.
   await expect(page.getByTestId('file-tree')).toBeVisible();
@@ -2375,7 +2375,7 @@ test('A template with a clipboard token asks about it instead of pasting silentl
 
   // A root rule covers the whole vault, so a plain new note picks it up.
   await page.getByTestId('sidebar-new').click();
-  await page.getByRole('menuitem', { name: /Neue Notiz|New note/i }).click();
+  await page.getByRole('menuitem', { name: /^(Neue Notiz|New note)$/i }).click();
   const name = page.getByPlaceholder(/Dateiname|File name/i);
   await expect(name).toBeVisible();
   await name.fill('Fundstelle');
