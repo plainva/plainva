@@ -15,6 +15,7 @@ Work through this completely and check off every item before EVERY public releas
 - [x] Updater key pair generated (`pnpm tauri signer generate`, offline) and the PUBLIC key entered in `apps/desktop/src-tauri/tauri.conf.json` under `plugins.updater.pubkey` (replaces `UPDATE_ME`). *(Done for v0.1.0, 2026-07-08.)*
 - [x] GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` (+ `_PASSWORD`) set; the private key is kept OFFLINE only. *(Done for v0.1.0.)*
 - [x] `release.yml` builds signed artifacts including `latest.json`. *(Verified live: updater endpoint returns HTTP 200 since v0.1.0.)*
+- [x] The updater reads the manifest from the fixed address `https://github.com/plainva/plainva/releases/download/updater/latest.json` first (permanent pre-release `updater`, rewritten by `updater-manifest.yml` on every published desktop release); the `latest` label path is only the fallback. *(C35, 2026-09-04. Guard: `apps/desktop/src/updaterEndpoint.test.ts`.)*
 - [x] macOS OS code-signing (Developer ID) and notarization wired. *(Done for v0.4.1.)*
 - [x] Windows OS code-signing via Azure Artifact Signing wired: certificate profile `plainva` (account `plainva-signing`, North Europe), secrets `AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET`/`AZURE_TENANT_ID`, `tauri.signing.conf.json` loaded on the Windows leg. *(Set up 2026-08-11; first signed build still unproven — see section 1.)*
 - [ ] **Two expiry dates that fail this pipeline silently and late:** the Entra client secret (**2028-08-11**) and the identity validation behind the certificate profile (**2028-10-23**). Renew before, not after.
@@ -72,6 +73,7 @@ is "update Android System WebView".
 
 ## 2. Update round trip
 
+- [ ] **After publishing the release**, the **Updater manifest** workflow ran green and the fixed endpoint serves the new version: `curl -fsSL https://github.com/plainva/plainva/releases/download/updater/latest.json | jq .version`. Nothing else moves the manifest — a release that is published but never copied there updates nobody on ≥ 0.8.1. (Repair: `gh workflow run updater-manifest.yml -f tag=vX.Y.Z`.)
 - [ ] Install version N, publish version N+1 as a release, wait/trigger it in the app: the update toast appears, Settings → Updates installs it, the app relaunches as N+1.
 - [ ] Signature counter-check: a tampered artifact (or wrong pubkey) is REJECTED.
 

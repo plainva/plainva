@@ -36,6 +36,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMyMzdDODIyNzA5MzQ2NzYKUldSMlJwTndJc2czTWpuQkxvclZrb0JHZXJLT3k1bUMrazVZRVJlOExISkg3WXloc1pDSVJld1IK",
       "endpoints": [
+        "https://github.com/plainva/plainva/releases/download/updater/latest.json",
         "https://github.com/plainva/plainva/releases/latest/download/latest.json"
       ]
     }

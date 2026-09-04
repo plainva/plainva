@@ -1,0 +1,142 @@
+name: Updater manifest
+
+# Copies `latest.json` of a published desktop release to a FIXED location that
+# no release label can move:
+#
+#   https://github.com/plainva/plainva/releases/download/updater/latest.json
+#
+# Why this exists: the in-app updater used to fetch the manifest from
+# `releases/latest/download/latest.json`, i.e. from whichever release GitHub
+# labels "Latest". That label is a UI property — a mobile release published
+# without the `prerelease` flag, a hotfix re-marked by hand, or a single commit
+# that drops the flag in release-mobile.yml would have pointed `latest` at a
+# release that carries no `latest.json`, and every desktop install would have
+# stopped updating without any error anyone sees. The fixed path is served
+# from a permanent pre-release named `updater` whose only asset is this file;
+# the app reads it first and keeps the label path only as a fallback for
+# repairs (see apps/desktop/src-tauri/tauri.conf.json and
+# apps/desktop/src/updaterEndpoint.test.ts).
+#
+# When it runs: on every *published* release (the desktop release is created
+# as a draft by release.yml and published by the maintainer, so publish time is
+# the first moment the asset URLs inside the manifest resolve). Mobile tags
+# (`mobile-v…`) and pre-releases are skipped. A manual run with a tag repairs
+# or bootstraps the fixed manifest without cutting anything.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Desktop release tag to copy the manifest from (e.g. v0.8.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  copy-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FIXED_TAG: updater
+    steps:
+      - name: Resolve the source release
+        id: src
+        env:
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          EVENT_PRERELEASE: ${{ github.event.release.prerelease }}
+          EVENT_DRAFT: ${{ github.event.release.draft }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-$EVENT_TAG}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # Only coordinated desktop releases carry a manifest: vX.Y.Z, nothing
+          # else. `mobile-v…` and the `updater` release itself must never feed
+          # this step (the latter would copy the file onto itself).
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$tag is not a desktop release tag — nothing to copy."
+            exit 0
+          fi
+          if [ "${EVENT_PRERELEASE:-false}" = "true" ] || [ "${EVENT_DRAFT:-false}" = "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$tag is a draft or pre-release — the fixed manifest stays on the last stable release."
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Download the manifest of that release
+        if: steps.src.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          rm -f latest.json
+          gh release download "${{ steps.src.outputs.tag }}" --pattern latest.json --dir .
+          test -s latest.json
+          # Sanity: the manifest must name the release it came from, and every
+          # platform URL must point at that release's assets — never at `latest`.
+          version=$(jq -r .version latest.json)
+          expected="${{ steps.src.outputs.tag }}"
+          expected="${expected#v}"
+          if [ "$version" != "$expected" ]; then
+            echo "::error::latest.json says version $version but the release is $expected"
+            exit 1
+          fi
+          if jq -r '.platforms[].url' latest.json | grep -q '/releases/latest/'; then
+            echo "::error::a platform URL inside latest.json depends on the 'latest' label"
+            exit 1
+          fi
+          echo "Manifest for $version with $(jq '.platforms | length' latest.json) platforms."
+
+      - name: Ensure the fixed release exists
+        if: steps.src.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          if gh release view "$FIXED_TAG" >/dev/null 2>&1; then
+            echo "Release '$FIXED_TAG' exists."
+          else
+            # A pre-release so that it can never become "Latest" itself, and
+            # never a draft: draft assets are not publicly downloadable.
+            gh release create "$FIXED_TAG" \
+              --target "${{ github.sha }}" \
+              --prerelease \
+              --title "Desktop update manifest" \
+              --notes "$(cat <<'EOF'
+This release holds exactly one file, `latest.json`, at a fixed address that the desktop app's built-in updater reads:
+
+`https://github.com/plainva/plainva/releases/download/updater/latest.json`
+
+It is rewritten automatically by the **Updater manifest** workflow every time a desktop release (`vX.Y.Z`) is published. It is not a release of Plainva — install the app from the newest `Plainva vX.Y.Z` release or from https://plainva.com.
+EOF
+)"
+          fi
+
+      - name: Upload the manifest to the fixed location
+        if: steps.src.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          gh release upload "$FIXED_TAG" latest.json --clobber
+
+      - name: Verify the fixed endpoint serves the new version
+        if: steps.src.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          url="https://github.com/${GH_REPO}/releases/download/${FIXED_TAG}/latest.json"
+          expected="${{ steps.src.outputs.tag }}"
+          expected="${expected#v}"
+          # The CDN behind release assets can lag a few seconds after an upload.
+          for attempt in 1 2 3 4 5 6; do
+            served=$(curl -fsSL "$url" | jq -r .version || true)
+            if [ "$served" = "$expected" ]; then
+              echo "$url serves version $served."
+              exit 0
+            fi
+            echo "attempt $attempt: endpoint serves '${served:-nothing}', waiting for $expected"
+            sleep 10
+          done
+          echo "::error::$url does not serve $expected after the upload"
+          exit 1

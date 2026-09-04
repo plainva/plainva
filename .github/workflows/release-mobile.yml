@@ -184,10 +184,14 @@ jobs:
 
       # A coordinated release (X.Y.Z) is published, because the APK is how someone
       # installs the Android build without Play, and a draft is invisible to
-      # everyone but the maintainer. It stays a PRE-release: `latest` must keep
-      # pointing at the desktop release, which is where the updater fetches
-      # `latest.json` — a mobile release without the flag breaks auto-update for
-      # everyone.
+      # everyone but the maintainer. It stays a PRE-release so that `latest`
+      # keeps pointing at the desktop release. Since C35 the desktop updater
+      # reads its manifest from the fixed `updater` release first
+      # (updater-manifest.yml), so this flag no longer decides whether NEW
+      # installs update — but installs up to 0.8.0 know only the label path
+      # (`releases/latest/download/latest.json`), and a mobile release that
+      # became "Latest" would still strand them until they have updated once.
+      # updaterEndpoint.test.ts pins this line for that reason.
       #
       # An interim build (X.Y.Z.N) is drafted instead. It exists for the
       # maintainer's two devices, reaches Play's internal track either way, and
