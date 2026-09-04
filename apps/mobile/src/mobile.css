@@ -3105,6 +3105,15 @@ textarea {
   to { opacity: 1; transform: none; }
 }
 [data-motion="off"] .m-fabmenu-item { animation: none; }
+/* The hairline between two groups of the "New …" catalog (Design-Runde E4):
+   content that lands in the vault above, a term or a task below. Right-aligned
+   like the entries, and only as wide as a label. */
+.m-fabmenu-sep {
+  align-self: flex-end;
+  width: 40%;
+  border-top: 1px solid var(--border-color);
+  margin: var(--space-1) 0;
+}
 
 .m-fab-float {
   position: fixed;

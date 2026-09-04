@@ -35,6 +35,7 @@ Text files are UTF-8 without BOM with LF line endings. On Windows PowerShell, ne
 - Tooltips are `data-tip` (plus `aria-label` on icon-only buttons), never `title=`. Popover panels use `pv-popover pv-popover--fixed`; drag ghosts `.pv-fixed-ghost`.
 - Every referenced `pv-`/`m-`/`base-cfg-` class must exist, no selector is defined twice per bundle, and every new `pv-` surface needs LCARS + Win95 selectors or a justified exemption (`designGuards.test.ts`).
 - New visual patterns: extend `docs/engineering/Design_Language.md` + `design-styleguide.html` (and the docking matrix) FIRST, then build. Budget maps only ever shrink; new entries need a justification comment.
+- One definition per interaction (Design-Runde 2026-09-04): what a row can do comes from `packages/ui/src/lib/rowActions.ts` (context menu, selection bar, sheet and swipe read it), what "New …" can make from `packages/ui/src/lib/newCatalog.ts` (sidebar menu, ribbon, both palettes, the FAB). Every desktop list that can be empty renders `EmptyState`; modals are `Modal`, menus are `MenuSurface`. `apps/desktop/src/interactionGrammar.test.ts` fails a surface that invents its own.
 
 Run `pnpm lint`, `pnpm typecheck` and `pnpm test` before committing (Husky hooks enforce this; pre-push mirrors the CI's JavaScript job). The CI has a second job, "Rust checks" (cargo check/clippy/test/audit), that the hook does not run — `cargo audit` resolves a network advisory database, so CI can turn red without any code change. Check the run after pushing.
 

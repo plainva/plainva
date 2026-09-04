@@ -124,7 +124,7 @@ Zwei Vaults nebeneinander — Arbeit und Privat, Projekt und Archiv — brauchen
 
 Die Aktionsleiste ganz links, die Reiter der linken Seitenleiste, die Abschnitte über dem Dateibaum und die Abschnitte der rechten Seitenleiste folgen alle derselben Mechanik.
 
-Die Aktionsleiste bietet **Neue Notiz**, **Neuer Ordner** und **Neue Base** an. Alle drei legen im **ausgewählten Ordner** des Dateibaums an; ist eine Datei ausgewählt, in deren Ordner; ist nichts ausgewählt, auf der obersten Ebene. Der **Tageseintrag** hält sich nicht daran — er gehört immer in den Ordner, den Du in den Einstellungen dafür festgelegt hast. Brauchst Du eine der drei nicht, blende sie aus.
+Die Aktionsleiste bietet **Neue Notiz**, **Neuer Ordner** und **Neue Datenbank (.base)** an. Alle drei legen im **ausgewählten Ordner** des Dateibaums an; ist eine Datei ausgewählt, in deren Ordner; ist nichts ausgewählt, auf der obersten Ebene. Der **Tageseintrag** hält sich nicht daran — er gehört immer in den Ordner, den Du in den Einstellungen dafür festgelegt hast. Brauchst Du eine der drei nicht, blende sie aus.
 
 **Direkt an Ort und Stelle:** **Halte** einen Knopf oder eine Abschnitts-Überschrift gedrückt und ziehe ihn an seine neue Stelle — ein normaler Klick löst weiterhin nur aus, und wer beim Halten scrollt, scrollt (das Ziehen bricht dann ab). Mit `Esc` brichst Du ein laufendes Ziehen ab. Ein **Rechtsklick** bietet dieselben Aktionen ohne Halten: **Nach oben**, **Ausblenden** und **Leisten anpassen…**.
 

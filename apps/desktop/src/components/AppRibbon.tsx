@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Sun, CalendarRange, Command, Database, FilePlus, FolderPlus, HelpCircle, ListChecks, Mail, MessageSquare, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
+import { CalendarRange, Command, HelpCircle, ListChecks, Mail, MessageSquare, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -13,6 +13,7 @@ import {
   setAreaVisible,
   sanitizeAreaOrder,
   type AreaOrder,
+  NEW_ITEMS,
 } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
@@ -128,15 +129,18 @@ export function AppRibbon(props: AppRibbonProps) {
   /** Every action the rail COULD carry, keyed by id. Gated services are absent
    *  entirely — they cannot be arranged into a rail that has no such account. */
   const catalog: Partial<Record<RibbonId, RibbonAction>> = {
-    new: { key: "new", label: t("common.newNote", { defaultValue: "Neue Notiz" }), icon: <FilePlus size={ICON.head} />, run: props.onNewNote },
+    // The four creation entries wear the "New …" catalog's words and icons
+    // (Design-Runde E4) — the same the sidebar menu, the palette and the phone's
+    // FAB show for the same thing.
+    new: { key: "new", label: t(NEW_ITEMS.note.titleKey, { defaultValue: NEW_ITEMS.note.titleDefault }), icon: <NEW_ITEMS.note.icon size={ICON.head} />, run: props.onNewNote },
     // Same creation family as the "+" menu beside the search field, and the
     // same target rule: the selected folder, the selected file's parent, or the
     // vault root. The daily note ignores all that — it belongs in the folder
     // the settings name for it.
-    newFolder: { key: "newFolder", label: t("sidebar.newFolder", { defaultValue: "Neuer Ordner" }), icon: <FolderPlus size={ICON.head} />, run: props.onNewFolder, testId: "ribbon-new-folder" },
-    newBase: { key: "newBase", label: t("sidebar.newBase", { defaultValue: "Neue Base" }), icon: <Database size={ICON.head} />, run: props.onNewBase, testId: "ribbon-new-base" },
+    newFolder: { key: "newFolder", label: t(NEW_ITEMS.folder.titleKey, { defaultValue: NEW_ITEMS.folder.titleDefault }), icon: <NEW_ITEMS.folder.icon size={ICON.head} />, run: props.onNewFolder, testId: "ribbon-new-folder" },
+    newBase: { key: "newBase", label: t(NEW_ITEMS.base.titleKey, { defaultValue: NEW_ITEMS.base.titleDefault }), icon: <NEW_ITEMS.base.icon size={ICON.head} />, run: props.onNewBase, testId: "ribbon-new-base" },
     open: { key: "open", label: t("editor.openFile", { defaultValue: "Datei öffnen" }), icon: <Search size={ICON.head} />, run: props.onQuickSwitcher },
-    daily: { key: "daily", label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }), icon: <Sun size={ICON.head} />, run: props.onDailyNote },
+    daily: { key: "daily", label: t(NEW_ITEMS.daily.titleKey, { defaultValue: NEW_ITEMS.daily.titleDefault }), icon: <NEW_ITEMS.daily.icon size={ICON.head} />, run: props.onDailyNote },
     graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph", windowPath: GRAPH_TAB_PATH },
     tasks: { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks", windowPath: TASKS_TAB_PATH },
     ...(props.onOpenCalendar

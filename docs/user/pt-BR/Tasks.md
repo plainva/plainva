@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-08-07
+Última revisão: 2026-09-04
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -70,7 +70,7 @@ Toda linha de tarefa traz um ícone de banco de dados: **Mover para o banco de t
 
 No Plainva, as tarefas têm granularidade **diária**: uma tarefa tem data de vencimento, não horário. Quando você quiser reservar uma janela para uma delas, o Plainva cria um **evento** — esse é o objeto que possui um intervalo de tempo, aparece com sobreposições na grade e sincroniza com sua conta de calendário.
 
-O ícone de calendário em uma linha de tarefa abre **Bloquear tempo**: a data (preenchida com o vencimento), o início e a **Duração** (15 min, 30 min, 1 h, 2 h ou **Personalizada**), além de um seletor de calendário quando mais de um aceita gravação. O evento leva o título da tarefa e cria um link de volta para a nota.
+O ícone de calendário em uma linha de tarefa abre **Bloquear tempo**: a data (preenchida com o vencimento), o início e a **Duração** (15 min, 30 min, 1 h, 2 h ou **Personalizada**), além de um seletor de calendário quando mais de um aceita gravação. O evento leva o título da tarefa e cria um link de volta para a nota. Um **clique com o botão direito** na linha mostra as mesmas ações da folha no celular: concluída/aberta, mover para o banco, repetição, bloquear tempo.
 
 Em uma tarefa do banco de dados, a nota também guarda o bloqueio no frontmatter (`plainva.blocks`), de modo que o vínculo fica visível dos dois lados. Uma linha com caixa de seleção não tem nota própria — ali apenas o evento é criado, apontando para a nota em que a linha está. O ícone só aparece quando há uma conta de calendário conectada.
 

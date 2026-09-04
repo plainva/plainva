@@ -1373,8 +1373,45 @@ describe("a managed overview cannot be edited by accident", () => {
 describe("the folder sheet leaves a hand-written overview alone", () => {
   it("hides the row for a manual index.md and names its effect otherwise", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/BrowseScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/sheetIndex !== null && sheetIndex !== "manual"/);
-    expect(screen).toMatch(/sheetIndex === "managed" \? "indexMd.refreshOverview" : "indexMd.createOverview"/);
+    // The entry itself lives in the shared row list since the Design-Runde
+    // (E2); the screen decides WHEN it exists and whether it refreshes.
+    expect(screen).toMatch(/overview: index !== null && index !== "manual"/);
+    expect(screen).toMatch(/overviewExists: index === "managed"/);
+    const shared = stripComments(readFileSync(join(SRC, "../../../packages/ui/src/lib/rowActions.ts"), "utf8"));
+    expect(shared).toMatch(/c\.overviewExists\s*\? t\("indexMd\.refreshOverview"/);
+  });
+});
+
+/**
+ * Holding means ONE thing on the phone (Design-Runde E1, 2026-09-04): show
+ * what this row can do. The mail list was the last surface where a hold
+ * selected instead; now its sheet names "select several" first, like the
+ * database and the file list, and its actions come from the shared list.
+ */
+describe("a hold on a mail row opens its sheet, and the sheet names selecting", () => {
+  const screen = () => stripComments(readFileSync(join(SRC, "screens/MailListScreen.tsx"), "utf8"));
+
+  it("the hold opens the row sheet, not a selection", () => {
+    expect(screen()).toMatch(/useLongPress<string>\(\(id\) => setRowSheet\(id\)\)/);
+    expect(screen()).not.toMatch(/useLongPress<string>\(\(id\) => \{\s*if \(!unified\) setSelection/);
+  });
+
+  it("select-several is the sheet's first entry, before the row's own actions", () => {
+    const t = screen();
+    const sheetAt = t.indexOf("<RowActionSheet");
+    expect(sheetAt).toBeGreaterThan(-1);
+    const selectAt = t.indexOf('t("mobile.selectMany"');
+    const actionsAt = t.indexOf("rowActionsFor(m).map(");
+    expect(selectAt).toBeGreaterThan(-1);
+    expect(selectAt).toBeLessThan(actionsAt);
+  });
+
+  it("sheet and swipe read the ONE list — the swipe is its marked subset", () => {
+    const t = screen();
+    expect(t).toMatch(/mailRowActions\(t, \{/);
+    expect(t).toMatch(/rowActionsFor\(m\)\s*\.filter\(\(a\) => a\.swipe\)/);
+    // No swipe row defines its own actions any more.
+    expect(t).not.toMatch(/<SwipeRow\s+actions=\{\[/);
   });
 });
 

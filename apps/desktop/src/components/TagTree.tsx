@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
-import { Hash, ChevronRight, ChevronDown, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Hash } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
 import { renameTagInText, isValidTagName } from "@plainva/core";
-import { renameTagAcrossVault, normalizeRenameTarget } from "@plainva/ui";
+import { EmptyState, ICON, normalizeRenameTarget, renameTagAcrossVault } from "@plainva/ui";
 import { appPrompt, appMessage } from "../services/appDialogs";
-import { ICON } from "@plainva/ui";
 
 interface TagTreeProps {
   onSelectPath: (path: string, newTab?: boolean) => void;
@@ -199,13 +198,9 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflowY: 'auto', borderBottom: selectedTag ? '1px solid var(--border-color)' : 'none' }}>
         {Object.keys(tagTree).length === 0 ? (
-          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center' }}>
-            {t("sidebar.noTags", "No tags found.")}
-          </div>
+          <EmptyState icon={<Hash size={ICON.empty} />}>{t("sidebar.noTags", "No tags found.")}</EmptyState>
         ) : Object.keys(visibleTree).length === 0 ? (
-          <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center' }}>
-            {t("sidebar.noResults")}
-          </div>
+          <EmptyState icon={<Hash size={ICON.empty} />}>{t("sidebar.noResults")}</EmptyState>
         ) : (
           <div style={{ padding: '0.5rem 0' }}>
             {Object.values(visibleTree).map(node => renderNode(node, 0))}
@@ -220,7 +215,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
           </div>
           <div style={{ padding: '0.5rem' }}>
             {filesForTag.length === 0 ? (
-              <div style={{ fontSize: 'var(--text-ui)', color: 'var(--text-muted)' }}>{t("sidebar.noFiles", "No files.")}</div>
+              <EmptyState>{t("sidebar.noFiles", "No files.")}</EmptyState>
             ) : (
               filesForTag.map(file => (
                 <div

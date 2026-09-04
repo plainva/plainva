@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { newEntries, requestNew, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
-import {
-  Calendar,
-  Cloud,
-  Database as DatabaseIcon,
-  FileText,
-  FolderPlus,
-  Plus,
-  StickyNote,
-} from "lucide-react";
+import { Cloud, FileText, Plus } from "lucide-react";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
@@ -647,12 +640,29 @@ export default function App() {
   // What this shell can do, from the shared registry (S15). The list is built
   // per render because availability is a question, not a constant — a
   // note-scoped command must not linger after the note closes.
+  /**
+   * "New …" in the catalog's vocabulary (Design-Runde E4) — the FAB and the
+   * palette read the same handlers, so both offer the same things in the same
+   * groups and order as the desktop. A term and a task are made where they
+   * live: the tab opens and takes the request.
+   */
+  const newHandlers: NewHandlers = {
+    note: capture,
+    noteFromTemplate: () => setFromTemplate(true),
+    daily: () => openDaily(isoOf(new Date())),
+    folder: quickNewFolder,
+    base: quickNewDatabase,
+    event: () => { requestNew("event"); void tabTapped("today", setNav); },
+    task: () => { requestNew("task"); void tabTapped("tasks", setNav); },
+  };
   const commands = buildMobileCommands({
     newNote: capture,
     newFromTemplate: () => setFromTemplate(true),
     newFolder: quickNewFolder,
     newDatabase: quickNewDatabase,
     openDaily: () => openDaily(isoOf(new Date())),
+    newEvent: newHandlers.event,
+    newTask: newHandlers.task,
     openSearch: () => push({ kind: "search", path: "" }),
     openFindReplace: () => push({ kind: "findreplace", path: "" }),
     openGraph: () => setNav((st) => tapTab(st, "graph")),
@@ -701,21 +711,9 @@ export default function App() {
       {hasFab && (
         <FabMenu
           icon={<Plus size={ICON.touch} />}
-          items={[
-            { icon: <StickyNote size={ICON.head} />, label: t("mobile.newNote"), onClick: capture },
-            {
-              icon: <StickyNote size={ICON.head} />,
-              label: t("mobile.newFromTemplate"),
-              onClick: () => setFromTemplate(true),
-            },
-            {
-              icon: <Calendar size={ICON.head} />,
-              label: t("mobile.newDaily"),
-              onClick: () => openDaily(isoOf(new Date())),
-            },
-            { icon: <FolderPlus size={ICON.head} />, label: t("mobile.newFolder"), onClick: quickNewFolder },
-            { icon: <DatabaseIcon size={ICON.head} />, label: t("mobile.newDatabase"), onClick: quickNewDatabase },
-          ]}
+          items={newEntries(t, newHandlers).flatMap((g) =>
+            g.items.map((it) => ({ icon: <it.icon size={ICON.head} />, label: it.label, group: g.id, onClick: it.run })),
+          )}
           label={t("mobile.quickCreate")}
           onOpenChange={setQuickCreate}
           open={quickCreate}

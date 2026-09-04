@@ -4,25 +4,20 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
-  Bookmark,
   MoreVertical,
   CheckSquare,
   ChevronRight,
-  CopyPlus,
   Database,
   FileText,
   Folder,
-  FolderInput,
   Image as ImageIcon,
-  ListTree,
   Paperclip,
-  Pencil,
   Trash2,
   X,
   ArrowUpDown,
   Check,
 } from "lucide-react";
-import { Button, conflictOriginalPath, DocIcon, EmptyState, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
+import { Button, conflictOriginalPath, DocIcon, EmptyState, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
@@ -228,22 +223,7 @@ export function BrowseScreen({
     // act on one row inside a set the user is still building.
     if (selected) return <div key={n.path}>{row}</div>;
     return (
-      <SwipeRow
-        actions={[
-          {
-            icon: <Bookmark size={ICON.head} />,
-            label: t("mobile.toggleBookmark"),
-            onClick: () => bookmarkNote(n),
-          },
-          {
-            icon: <Trash2 size={ICON.head} />,
-            label: t("common.delete"),
-            danger: true,
-            onClick: () => deleteNote({ path: n.path, title: n.title }),
-          },
-        ]}
-        key={n.path}
-      >
+      <SwipeRow actions={asSheet(rowActionsFor(n, "note").filter((a) => a.swipe))} key={n.path}>
         {row}
       </SwipeRow>
     );
@@ -363,6 +343,43 @@ export function BrowseScreen({
     void vaultOps.duplicateNote(vault, target.path).then((copy) => onOpenNote(copy));
   };
 
+  /**
+   * What a row can do — the one list both shells read (Design-Runde E2). The
+   * sheet shows all of it, the swipe its `swipe` subset, the desktop's context
+   * menu the same entries in the same order. A base is a file with fewer
+   * verbs; a folder has its overview note instead of a bookmark.
+   */
+  const rowActionsFor = (target: { path: string; title: string }, kind: "note" | "folder" | "base", index: FolderIndexState | null = null): RowActionSpec[] => {
+    const closeThen = (fn: () => void) => () => {
+      setSheet(null);
+      fn();
+    };
+    if (kind === "folder") {
+      // `index` is the sheet's own reading of the overview state (loaded when
+      // it opens); the swipe passes none and offers no overview.
+      return fileRowActions(t, {
+        isFolder: true,
+        rename: () => renameFolder(target),
+        overview: index !== null && index !== "manual" ? closeThen(() => void generateOverviewForFolder(vault, target.path)) : undefined,
+        overviewExists: index === "managed",
+        delete: () => deleteFolder(target),
+      });
+    }
+    if (kind === "base") {
+      return fileRowActions(t, { delete: closeThen(() => void confirmDeleteFile(vault, target.path, target.title, t)) });
+    }
+    return fileRowActions(t, {
+      rename: () => renameNote(target),
+      duplicate: () => duplicateNote(target),
+      move: () => startMove(target),
+      bookmark: () => bookmarkNote(target),
+      delete: () => deleteNote(target),
+    });
+  };
+  /** The swipe primitive wants elements, the list carries icon components. */
+  const asSheet = (list: RowActionSpec[]) =>
+    list.map((a) => ({ icon: <a.icon size={ICON.head} />, label: a.label, danger: a.danger, onClick: a.run }));
+
   const bookmarkNote = (target: { path: string; title: string }) => {
     setSheet(null);
     void vaultOps.toggleBookmark(vault, target.path);
@@ -449,13 +466,7 @@ export function BrowseScreen({
         return (
           /* The same two actions its sheet offers, in the same order — one
              definition, two ways to reach it (round 3, E3). */
-          <SwipeRow
-            key={name}
-            actions={[
-              { icon: <Pencil size={ICON.head} />, label: t("mobile.vaultRename"), onClick: () => renameFolder(target) },
-              { icon: <Trash2 size={ICON.head} />, label: t("mobile.deleteFolder"), danger: true, onClick: () => deleteFolder(target) },
-            ]}
-          >
+          <SwipeRow key={name} actions={asSheet(pickRowActions(rowActionsFor(target, "folder"), ["rename", "delete"]))}>
             <Row
               onClick={() => {
                 if (folderPress.clicked()) onOpenFolder(full);
@@ -501,17 +512,7 @@ export function BrowseScreen({
         // is still building.
         if (selected) return <div key={b.path}>{row}</div>;
         return (
-          <SwipeRow
-            key={b.path}
-            actions={[
-              {
-                icon: <Trash2 size={ICON.head} />,
-                label: t("common.delete"),
-                danger: true,
-                onClick: () => void confirmDeleteFile(vault, b.path, b.title, t),
-              },
-            ]}
-          >
+          <SwipeRow key={b.path} actions={asSheet(rowActionsFor(b, "base").filter((a) => a.swipe))}>
             {row}
           </SwipeRow>
         );
@@ -615,62 +616,22 @@ export function BrowseScreen({
               {sheet.isBase ? <Database size={ICON.head} /> : sheet.isFolder ? <Folder size={ICON.head} /> : <FileText size={ICON.head} />}
               <span>{t("mobile.sheetOpen")}</span>
             </button>
-            {!sheet.isFolder && !sheet.isBase && (
-              <>
-                <button className="m-row" onClick={() => startMove(sheet)}>
-                  <FolderInput size={ICON.head} />
-                  <span>{t("mobile.moveNote")}</span>
-                </button>
-                <button className="m-row" onClick={() => duplicateNote(sheet)}>
-                  <CopyPlus size={ICON.head} />
-                  <span>{t("mobile.duplicateNote")}</span>
-                </button>
-                <button className="m-row" onClick={() => bookmarkNote(sheet)}>
-                  <Bookmark size={ICON.head} />
-                  <span>{t("mobile.toggleBookmark")}</span>
-                </button>
-              </>
-            )}
-            {sheet.isFolder && sheetIndex !== null && sheetIndex !== "manual" && (
+            {/* The row's actions, from the ONE list both shells read (Design-
+                Runde E2): the same entries, words and order as the desktop's
+                context menu and the swipe on this row. The delete sits last,
+                behind its hairline, because the list says so. */}
+            {rowActionsFor(sheet, sheet.isFolder ? "folder" : sheet.isBase ? "base" : "note", sheetIndex).map((a, i, all) => (
               <button
-                className="m-row"
-                data-testid="sheet-overview"
-                onClick={() => {
-                  const folder = sheet.path;
-                  setSheet(null);
-                  void generateOverviewForFolder(vault, folder);
-                }}
+                key={a.id}
+                className={a.danger ? "m-row m-danger" : "m-row"}
+                data-sheet-sep={a.danger && !all[i - 1]?.danger ? "" : undefined}
+                data-testid={a.id === "overview" ? "sheet-overview" : `sheet-${a.id}`}
+                onClick={a.run}
               >
-                <ListTree size={ICON.head} />
-                <span>{t(sheetIndex === "managed" ? "indexMd.refreshOverview" : "indexMd.createOverview")}</span>
+                <a.icon size={ICON.head} />
+                <span>{a.label}</span>
               </button>
-            )}
-            {!sheet.isBase && (
-              <button
-                className="m-row"
-                onClick={() => (sheet.isFolder ? renameFolder(sheet) : renameNote(sheet))}
-              >
-                <Pencil size={ICON.head} />
-                <span>{t("mobile.vaultRename")}</span>
-              </button>
-            )}
-            <button
-              className="m-row m-danger"
-              onClick={() => {
-                if (sheet.isBase) {
-                  const s = sheet;
-                  setSheet(null);
-                  void confirmDeleteFile(vault, s.path, s.title, t);
-                } else if (sheet.isFolder) {
-                  deleteFolder(sheet);
-                } else {
-                  deleteNote(sheet);
-                }
-              }}
-            >
-              <Trash2 size={ICON.head} />
-              <span>{sheet.isFolder ? t("mobile.deleteFolder") : sheet.isBase ? t("common.delete") : t("mobile.deleteNote")}</span>
-            </button>
+            ))}
           </div>
         </div>
       )}

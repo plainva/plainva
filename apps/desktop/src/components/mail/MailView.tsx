@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SelectionBar, plainvaProducer, toast } from "@plainva/ui";
+import { Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -1591,6 +1591,42 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     );
   }
 
+  /**
+   * What these rows can do — the ONE list the context menu, the selection bar
+   * and the phone's sheet and swipe all read (Design-Runde E2, 2026-09-04).
+   *
+   * Moving, junk and deleting need a TARGET folder, and every account has its
+   * own — a selection spanning accounts ("all inboxes") has no single answer,
+   * and guessing one deletes a message in the wrong mailbox. Read/unread and
+   * flagged are properties of the message itself, so they work across accounts
+   * (P9.3b). Opening is for one row; the menu that opened at a point passes it
+   * on to the folder and snooze pickers. Only the CAPABILITIES are built here;
+   * the list itself is built inside `RowActionList` (see there for why).
+   */
+  const capsFor = (ids: string[], opts: { at?: { x: number; y: number }; bar?: boolean }): MailRowCaps => {
+    const at = opts.at ?? { x: 0, y: 0 };
+    return {
+      open: ids.length === 1 && !opts.bar ? () => void openMessage(ids[0]) : undefined,
+      markRead: () => setSeenManually(ids, true),
+      markUnread: () => setSeenManually(ids, false),
+      flag: () => void bulkSetFlagged(ids, true),
+      move: unified ? undefined : (ev?: unknown) => {
+        const e = ev as { clientX?: number; clientY?: number } | undefined;
+        setMoveMenu({ x: e?.clientX ?? at.x, y: e?.clientY ?? at.y, ids });
+      },
+      snoozed: showSnoozed,
+      snooze: (ev?: unknown) => {
+        const e = ev as { clientX?: number; clientY?: number } | undefined;
+        setSnoozeMenu({ x: e?.clientX ?? at.x, y: e?.clientY ?? at.y, ids });
+      },
+      unsnooze: () => void unsnoozeMessages(ids),
+      junkDirection: junkPlan.direction === "report" ? "report" : "restore",
+      junk: unified ? undefined : () => void bulkJunk(ids),
+      inTrash: isTrash,
+      delete: unified ? undefined : () => void (isTrash ? bulkDeleteForever(ids) : bulkDeleteToTrash(ids)),
+    };
+  };
+
   return (
     <>
     <div
@@ -1700,21 +1736,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             testId="mail-bulkbar"
             clearTestId="mail-bulk-clear"
           >
-            <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], true)} data-testid="mail-bulk-read" icon={<MailOpen size={ICON.ui} />}>{t("mail.markRead", { defaultValue: "Als gelesen markieren" })}</Button>
-            <Button size="sm" variant="ghost" onClick={() => setSeenManually([...selectedIds], false)} data-testid="mail-bulk-unread" icon={<Mail size={ICON.ui} />}>{t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}</Button>
-            <Button size="sm" variant="ghost" onClick={() => void bulkSetFlagged([...selectedIds], true)} data-testid="mail-bulk-flag" icon={<Star size={ICON.ui} />}>{t("mail.flag", { defaultValue: "Markieren" })}</Button>
-            {/* Moving and deleting need a TARGET folder, and every account has
-                its own — a selection spanning accounts has no single answer, and
-                guessing one deletes a message in the wrong mailbox. Read/unread
-                and flagged are properties of the message itself, so they work
-                across accounts (P9.3b). Open a message to act on it in full. */}
-            {!unified && (
-              <>
-                <Button size="sm" variant="ghost" onClick={(ev) => setMoveMenu({ x: ev.clientX, y: ev.clientY, ids: [...selectedIds] })} data-testid="mail-bulk-move" icon={<FolderInput size={ICON.ui} />}>{t("mail.moveTo", { defaultValue: "Verschieben nach…" })}</Button>
-                <Button size="sm" variant="ghost" onClick={() => void bulkJunk([...selectedIds])} data-testid="mail-bulk-junk" icon={<Ban size={ICON.ui} />}>{junkPlan.direction === "report" ? t("mail.reportJunk", { defaultValue: "Spam" }) : t("mail.notJunk", { defaultValue: "Kein Spam" })}</Button>
-                <Button size="sm" variant="ghost" onClick={() => void (isTrash ? bulkDeleteForever([...selectedIds]) : bulkDeleteToTrash([...selectedIds]))} data-testid="mail-bulk-delete" icon={<Trash2 size={ICON.ui} />}>{isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}</Button>
-              </>
-            )}
+            {/* The bar is the row list's bulk subset (Design-Runde E2): the
+                same entries the context menu shows, minus the ones that only
+                make sense on one row. `rowActionsFor` says which entries a
+                cross-account selection loses, and why. */}
+            <RowActionList build={(tt) => mailRowActions(tt, capsFor([...selectedIds], { bar: true }))}>
+              {(a) => a.bulk ? (
+                <Button key={a.id} size="sm" variant="ghost" onClick={a.run} data-testid={`mail-bulk-${a.id}`} icon={<a.icon size={ICON.ui} />}>{a.label}</Button>
+              ) : null}
+            </RowActionList>
           </SelectionBar>
         ) : (
           <div style={{ display: "flex", gap: 6, padding: "0 var(--space-2) var(--space-2)", alignItems: "center", flexWrap: "wrap" }} data-testid="mail-filters">
@@ -2225,36 +2255,19 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     {ctxMenu && (
       <MenuSurface open at={{ x: ctxMenu.x, y: ctxMenu.y }} onClose={() => setCtxMenu(null)} ariaLabel={t("mail.listActions", { defaultValue: "Nachrichtenaktionen" })}>
         {ctxIds.length > 1 && <MenuLabel>{t("mail.selectedCount", { n: ctxIds.length, defaultValue: "{{n}} ausgewählt" })}</MenuLabel>}
-        {ctxIds.length === 1 && (
-          <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-open" onSelect={() => void openMessage(ctxIds[0])}>
-            {t("mail.open", { defaultValue: "Öffnen" })}
-          </MenuItem>
-        )}
-        <MenuItem icon={<MailOpen size={ICON.ui} />} data-testid="mail-ctx-read" onSelect={() => setSeenManually(ctxIds, true)}>
-          {t("mail.markRead", { defaultValue: "Als gelesen markieren" })}
-        </MenuItem>
-        <MenuItem icon={<Mail size={ICON.ui} />} data-testid="mail-ctx-unread" onSelect={() => setSeenManually(ctxIds, false)}>
-          {t("mail.markUnread", { defaultValue: "Als ungelesen markieren" })}
-        </MenuItem>
-        <MenuItem icon={<Star size={ICON.ui} />} data-testid="mail-ctx-flag" onSelect={() => void bulkSetFlagged(ctxIds, true)}>
-          {t("mail.flag", { defaultValue: "Markieren" })}
-        </MenuItem>
-        <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="mail-ctx-move" onSelect={() => setMoveMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
-          {t("mail.moveTo", { defaultValue: "Verschieben nach…" })}
-        </MenuItem>
-        {showSnoozed ? (
-          <MenuItem icon={<Clock size={ICON.ui} />} data-testid="mail-ctx-unsnooze" onSelect={() => void unsnoozeMessages(ctxIds)}>
-            {t("mail.unsnooze")}
-          </MenuItem>
-        ) : (
-          <MenuItem icon={<Clock size={ICON.ui} />} data-testid="mail-ctx-snooze" onSelect={() => setSnoozeMenu({ x: ctxMenu.x, y: ctxMenu.y, ids: ctxIds })}>
-            {t("mail.snooze")}
-          </MenuItem>
-        )}
-        <MenuSeparator />
-        <MenuItem icon={<Trash2 size={ICON.ui} />} danger data-testid="mail-ctx-delete" onSelect={() => void (isTrash ? bulkDeleteForever(ctxIds) : bulkDeleteToTrash(ctxIds))}>
-          {isTrash ? t("mail.deleteForever", { defaultValue: "Endgültig löschen" }) : t("mail.delete", { defaultValue: "Löschen" })}
-        </MenuItem>
+        {/* One list for the menu, the bar and the phone's sheet (Design-Runde
+            E2); the separator before the destructive tail is the list's own
+            `danger` flag, not a second opinion about the order. */}
+        <RowActionList build={(tt) => mailRowActions(tt, capsFor(ctxIds, { at: { x: ctxMenu.x, y: ctxMenu.y } }))}>
+          {(a, i, all) => (
+            <Fragment key={a.id}>
+              {a.danger && !all[i - 1]?.danger && <MenuSeparator />}
+              <MenuItem icon={<a.icon size={ICON.ui} />} danger={a.danger} data-testid={`mail-ctx-${a.id}`} onSelect={a.run}>
+                {a.label}
+              </MenuItem>
+            </Fragment>
+          )}
+        </RowActionList>
       </MenuSurface>
     )}
     </>

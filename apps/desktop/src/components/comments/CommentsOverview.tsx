@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, MessageSquare, RefreshCw, Replace } from "lucide-react";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { Button, ICON, Segmented, buildCommentOverview, groupSuggestionRounds, noteDisplayName, parseCommentMentions, requestCommentJump, COMMENT_OVERVIEW_FOCUS_EVENT, takeCommentOverviewFocus } from "@plainva/ui";
+import { buildCommentOverview, Button, COMMENT_OVERVIEW_FOCUS_EVENT, EmptyState, groupSuggestionRounds, ICON, noteDisplayName, parseCommentMentions, requestCommentJump, Segmented, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
 /**
@@ -96,9 +96,9 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
       </div>
       <div className="pv-comment-overview__body">
         {notes.length === 0 && (
-          <p className="pv-comment-overview__empty">
+          <EmptyState icon={<MessageSquare size={ICON.empty} />}>
             {filter === "new" ? t("workspaceSecurity.commentOverviewNoneNew") : onlyAddressed ? t("workspaceSecurity.commentOverviewNoneMine") : t("workspaceSecurity.commentOverviewNone")}
-          </p>
+          </EmptyState>
         )}
         {notes.map((note) => (
           <section className="pv-comment-overview__note" key={note.path} data-testid="comments-overview-note">

@@ -20,7 +20,7 @@ Het bestandsformaat is compatibel met Obsidians Bases-formaat (details onderaan 
 
 ## Een database aanmaken
 
-- **Bestandsboom**: rechtsklik → **Nieuwe database (.base)** — of via de **Nieuw**-knop van de zijbalk (**Nieuwe base**).
+- **Bestandsboom**: rechtsklik → **Nieuwe database (.base)** — of via de **Nieuw**-knop van de zijbalk (**Nieuwe database (.base)**).
 - De wizard **Nieuwe database** vraagt twee dingen: de **Gegevensbron** (minstens één **Map** of één **Tag**; combineren perkt het resultaat verder in — een teller toont live hoeveel notities overeenkomen) en de kolommen (eigenschappen die in de overeenkomende notities zijn gevonden, klaar om over te nemen). Dan **Database aanmaken**.
 - **Binnen een notitie**: slash-commando **Database insluiten** (bestaande `.base` inline tonen) of **Inline-database aanmaken** (nieuwe `.base` in de map aanmaken en insluiten).
 

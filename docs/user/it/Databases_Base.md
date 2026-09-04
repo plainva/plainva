@@ -20,7 +20,7 @@ Il formato del file è compatibile con il formato Bases di Obsidian (dettagli al
 
 ## Creare un database
 
-- **Albero dei file**: clic destro → **Nuovo database (.base)** — oppure tramite il pulsante **Nuovo** della barra laterale (**Nuovo database**).
+- **Albero dei file**: clic destro → **Nuovo database (.base)** — oppure tramite il pulsante **Nuovo** della barra laterale (**Nuovo database (.base)**).
 - La procedura guidata **Nuovo database** chiede due cose: l'**Origine dati** (almeno una **Cartella** o un **Tag**; combinarli restringe il risultato — un contatore dal vivo mostra quante note corrispondono) e le colonne (proprietà trovate nelle note corrispondenti, pronte per essere adottate). Poi **Crea database**.
 - **Dentro una nota**: comando slash **Incorpora database** (mostra un `.base` esistente in linea) o **Crea database in linea** (crea un nuovo `.base` nella cartella e lo incorpora).
 

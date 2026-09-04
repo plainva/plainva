@@ -124,7 +124,7 @@ Deux vaults côte à côte — travail et personnel, projet et archive — ont b
 
 La barre d'actions tout à gauche, les onglets de la barre latérale gauche, les sections au-dessus de l'arborescence et les sections de la barre latérale droite fonctionnent tous de la même façon.
 
-La barre d'actions propose **Nouvelle note**, **Nouveau dossier** et **Nouvelle base**. Les trois créent l'élément dans le **dossier sélectionné** de l'arborescence de fichiers ; si un fichier est sélectionné, dans le dossier de ce fichier ; si rien n'est sélectionné, à la racine. La **Note quotidienne** ne suit pas cette règle — elle va toujours dans le dossier que vous avez défini pour elle dans les paramètres. Si vous n'avez pas besoin de l'un des trois, masquez-le.
+La barre d'actions propose **Nouvelle note**, **Nouveau dossier** et **Nouvelle base de données (.base)**. Les trois créent l'élément dans le **dossier sélectionné** de l'arborescence de fichiers ; si un fichier est sélectionné, dans le dossier de ce fichier ; si rien n'est sélectionné, à la racine. La **Note quotidienne** ne suit pas cette règle — elle va toujours dans le dossier que vous avez défini pour elle dans les paramètres. Si vous n'avez pas besoin de l'un des trois, masquez-le.
 
 **Directement à leur emplacement :** **maintenez appuyé** sur un bouton ou un titre de section et faites-le glisser à son nouvel emplacement — un simple clic continue de simplement le déclencher, et si vous faites défiler pendant que vous maintenez, vous faites défiler (le glissement est annulé). `Esc` annule un glissement en cours. Un **clic droit** propose les mêmes actions sans maintien : **Monter**, **Masquer** et **Personnaliser les barres…**.
 

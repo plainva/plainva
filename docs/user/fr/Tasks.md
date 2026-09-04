@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-08-07
+Dernière mise à jour : 2026-09-04
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -70,7 +70,7 @@ Chaque ligne de case à cocher porte une icône de base de données : **Déplace
 
 Dans Plainva, les tâches ont une granularité **journalière** : une tâche a une date d'échéance, pas une heure. Lorsque vous voulez réserver un créneau pour l'une d'elles, Plainva crée un **événement** — c'est l'objet qui possède une plage horaire, s'affiche avec ses chevauchements dans la grille et se synchronise avec votre compte d'agenda.
 
-L'icône d'agenda sur une ligne de tâche ouvre **Bloquer du temps** : la date (préremplie avec l'échéance), le début et la **Durée** (15 min, 30 min, 1 h, 2 h ou **Personnalisée**), plus un sélecteur d'agenda si plusieurs agendas acceptent l'écriture. L'événement reprend le titre de la tâche et renvoie vers la note.
+L'icône d'agenda sur une ligne de tâche ouvre **Bloquer du temps** : la date (préremplie avec l'échéance), le début et la **Durée** (15 min, 30 min, 1 h, 2 h ou **Personnalisée**), plus un sélecteur d'agenda si plusieurs agendas acceptent l'écriture. L'événement reprend le titre de la tâche et renvoie vers la note. Un **clic droit** sur la ligne affiche les mêmes actions que la feuille sur le téléphone : terminée/ouverte, déplacer vers la base, répétition, bloquer du temps.
 
 Pour une tâche issue de la base de données, la note mémorise aussi le blocage dans son frontmatter (`plainva.blocks`), de sorte que le lien est visible des deux côtés. Une ligne à cocher n'a pas de note propre — seul l'événement est créé, pointant vers la note qui contient la ligne. L'icône n'apparaît que si un compte d'agenda est connecté.
 

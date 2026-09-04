@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, Square, Trash2 } from "lucide-react";
 import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dayWindow, DocIcon, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
@@ -75,6 +76,9 @@ export function TodayScreen({
    * today, "now" would land the event on the wrong date entirely.
    */
   const newEventStart = () => dayWindow(selectedIso).start + 9 * 60 * 60_000;
+  // "New term" from the FAB or the palette (Design-Runde E4): the shell opened
+  // this tab and parked the request; the editor opens for the selected day.
+  useEffect(() => consumePendingNew("event", () => editor.openCreate(dayWindow(selectedIso).start + 9 * 60 * 60_000)), [editor, selectedIso]);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 

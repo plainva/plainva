@@ -64,7 +64,7 @@ Desde o OKF 0.2, uma nota pode dizer de onde veio, quem a revisou e se ela ainda
 
 Um `index.md` é o sumário de uma pasta: uma lista das notas e subpastas que ela contém, com descrições e links relativos.
 
-- **Gerando** — sempre por sua ação, nunca do nada: clique com o botão direito em uma pasta → **Gerar/atualizar index.md**, ou em lote pelo **gerenciador de index.md** (**Configurações → Vault → Conteúdo e estrutura**).
+- **Gerando** — sempre por sua ação, nunca do nada: clique com o botão direito em uma pasta → **Criar visão geral** / **Atualizar visão geral**, ou em lote pelo **gerenciador de index.md** (**Configurações → Vault → Conteúdo e estrutura**).
 - **Adotando em vez de gerar** — se você já tem notas de visão geral (MOC, Visão geral, nota de pasta, README …), o gerenciador as sugere como candidatas. **Adotar** renomeia o arquivo para `index.md` (os links são atualizados em todo o vault) e pode opcionalmente prepará-lo para o OKF.
 - **Manutenção automática** — listagens *geradas* pelo Plainva carregam um marcador invisível no final do arquivo (um comentário HTML). Somente esses arquivos marcados são mantidos atualizados automaticamente sempre que a pasta muda — e apenas em vaults OKF (reconhecíveis pelo `okf_version` no `index.md` raiz).
 - **Somente leitura com uma saída** — arquivos index.md gerenciados abrem no modo de leitura com o aviso "Este index.md é gerenciado pelo Plainva e atualizado automaticamente." Ali você pode **Atualizar** — ou escolher **Editar mesmo assim**: isso remove o marcador e o arquivo volta a ser totalmente seu (sem mais atualizações automáticas).

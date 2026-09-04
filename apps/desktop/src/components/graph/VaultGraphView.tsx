@@ -5,7 +5,7 @@ import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile as fsWriteFile, writeTextFile as fsWriteTextFile } from "@tauri-apps/plugin-fs";
 import type { FolderOverview, GraphEdgeKind, VaultGraph } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
+import { EmptyState, ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { BasePeekModal } from "../BasePeekModal";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
@@ -794,6 +794,14 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
             style={{ width: "100%", height: "100%", display: "block", outline: "none" }}
           />
           <PinModeToggle active={pinMode} onToggle={togglePinMode} />
+          {/* A vault without notes drew an empty canvas and nothing else — the
+              one list in the app that could be empty without a word (P3). The
+              scan itself is not "empty": until data arrives the canvas stays. */}
+          {data && data.graph.nodes.size === 0 && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <EmptyState icon={<Waypoints size={ICON.empty} />}>{t("fileTree.noNotes", { defaultValue: "Keine Notizen gefunden." })}</EmptyState>
+            </div>
+          )}
           {edgeTip && (
             <div
               role="tooltip"

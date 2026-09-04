@@ -124,7 +124,7 @@ Two vaults side by side — work and private, project and archive — need two w
 
 The action rail on the far left, the tabs of the left sidebar, the sections above the file tree and the sections of the right sidebar all work the same way.
 
-The action rail offers **New Note**, **New Folder** and **New Base**. All three create inside the **selected folder** in the file tree; with a file selected, in that file's folder; with nothing selected, at the top level. The **Daily Note** does not follow that — it always belongs in the folder you named for it in the settings. If you do not need one of the three, hide it.
+The action rail offers **New Note**, **New Folder** and **New database (.base)**. All three create inside the **selected folder** in the file tree; with a file selected, in that file's folder; with nothing selected, at the top level. The **Daily Note** does not follow that — it always belongs in the folder you named for it in the settings. If you do not need one of the three, hide it.
 
 **Right where they are:** **press and hold** a button or a section heading and drag it to its new place — a plain click still just triggers it, and if you scroll while holding, you scroll (the drag is cancelled). `Esc` cancels a drag in progress. A **right-click** offers the same actions without holding: **Move up**, **Hide** and **Customize bars…**.
 

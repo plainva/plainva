@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Fab, ICON, useStableHandler } from "@plainva/ui";
 import { haptics } from "../services/haptics";
@@ -8,6 +8,8 @@ export interface FabItem {
   icon: ReactNode;
   label: string;
   onClick: () => void;
+  /** Entries of one group unfold together; a hairline sits where the group changes (Design-Runde E4). */
+  group?: string;
 }
 
 /**
@@ -53,20 +55,22 @@ export function FabMenu({
         {open && (
           <div className="m-fabmenu-items">
             {items.map((it, i) => (
-              <button
-                className="m-fabmenu-item"
-                key={i}
-                onClick={() => {
-                  onOpenChange(false);
-                  it.onClick();
-                }}
-                // Unfolding upwards: the entry nearest the thumb appears first.
-                style={{ ["--m-fab-i" as string]: `${items.length - 1 - i}` }}
-                type="button"
-              >
-                <span className="m-fabmenu-label">{it.label}</span>
-                <span className="m-fabmenu-icon">{it.icon}</span>
-              </button>
+              <Fragment key={i}>
+                {i > 0 && it.group !== items[i - 1].group && <span aria-hidden className="m-fabmenu-sep" />}
+                <button
+                  className="m-fabmenu-item"
+                  onClick={() => {
+                    onOpenChange(false);
+                    it.onClick();
+                  }}
+                  // Unfolding upwards: the entry nearest the thumb appears first.
+                  style={{ ["--m-fab-i" as string]: `${items.length - 1 - i}` }}
+                  type="button"
+                >
+                  <span className="m-fabmenu-label">{it.label}</span>
+                  <span className="m-fabmenu-icon">{it.icon}</span>
+                </button>
+              </Fragment>
             ))}
           </div>
         )}

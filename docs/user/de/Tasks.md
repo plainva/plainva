@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-08-07
+Stand: 2026-09-04
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -70,7 +70,7 @@ Mit einem **Rechtsklick** auf das Symbol wählst Du stattdessen eine andere Date
 
 Aufgaben sind in Plainva **taggenau**: Eine Aufgabe hat ein Fälligkeitsdatum, keine Uhrzeit. Wenn Du Dir für eine Aufgabe ein Zeitfenster reservieren willst, legt Plainva dafür einen **Termin** an — das ist das Objekt, das einen Zeitraum kennt, im Raster mit Überschneidungen dargestellt wird und mit Deinem Kalender-Konto synchronisiert.
 
-Das Kalender-Symbol an einer Aufgabenzeile öffnet **Zeit blocken**: Datum (mit der Fälligkeit vorbelegt), Beginn und **Dauer** (15 min, 30 min, 1 h, 2 h oder **Eigene**), bei mehreren beschreibbaren Kalendern zusätzlich die Kalenderauswahl. Der Termin trägt den Titel der Aufgabe und verlinkt zurück auf die Notiz.
+Das Kalender-Symbol an einer Aufgabenzeile öffnet **Zeit blocken**: Datum (mit der Fälligkeit vorbelegt), Beginn und **Dauer** (15 min, 30 min, 1 h, 2 h oder **Eigene**), bei mehreren beschreibbaren Kalendern zusätzlich die Kalenderauswahl. Der Termin trägt den Titel der Aufgabe und verlinkt zurück auf die Notiz. Ein **Rechtsklick** auf die Zeile zeigt dieselben Aktionen wie das Blatt am Telefon: Erledigt/Offen, In Datenbank verschieben, Wiederholung, Zeit blocken.
 
 Bei einer Aufgabe aus der Datenbank merkt sich die Notiz den Block zusätzlich im Frontmatter (`plainva.blocks`), sodass die Verknüpfung von beiden Seiten sichtbar ist. Eine Checkbox-Zeile hat keine eigene Notiz — dort entsteht nur der Termin, der auf die Notiz zeigt, in der die Zeile steht. Das Symbol erscheint nur, wenn ein Kalender-Konto verbunden ist.
 

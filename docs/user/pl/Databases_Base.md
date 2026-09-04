@@ -20,7 +20,7 @@ Format pliku jest zgodny z formatem Bases Obsidian (szczegóły na końcu strony
 
 ## Tworzenie bazy danych
 
-- **Drzewo plików**: kliknij prawym przyciskiem → **Nowa baza danych (.base)** — lub przez przycisk **Nowy** paska bocznego (**Nowa baza**).
+- **Drzewo plików**: kliknij prawym przyciskiem → **Nowa baza danych (.base)** — lub przez przycisk **Nowy** paska bocznego (**Nowa baza danych (.base)**).
 - Kreator **Nowa baza danych** pyta o dwie rzeczy: **źródło danych** (co najmniej jeden **folder** lub jeden **tag**; łączenie ich zawęża wynik — licznik na żywo pokazuje, ile notatek pasuje) oraz kolumny (właściwości znalezione w pasujących notatkach, gotowe do przejęcia). Następnie **Utwórz bazę danych**.
 - **Wewnątrz notatki**: polecenie slash **Osadź bazę danych** (pokaż istniejącą `.base` inline) lub **Utwórz osadzoną bazę danych** (utwórz nową `.base` w folderze i osadź ją).
 

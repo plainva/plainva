@@ -1,9 +1,23 @@
 import { useTranslation } from "react-i18next";
+import { Fragment } from "react";
 import {
-  ArchiveRestore, Bookmark, ClipboardCopy, Columns2, Copy, Database, Download,
-  ExternalLink, FilePlus, FolderPlus, History, ListTree, Pencil, RefreshCw, Rows2, Trash2,
-  XCircle, FolderTree, X as XIcon, Files, FolderInput } from "lucide-react";
-import { ICON, MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
+  ArchiveRestore, Copy, Database, Download,
+  ExternalLink, FilePlus, FolderPlus, FolderInput, RefreshCw, Trash2,
+  XCircle, X as XIcon, Files } from "lucide-react";
+import { fileRowActions, ICON, MenuSurface, MenuItem, MenuSeparator, MenuLabel, type RowActionSpec } from "@plainva/ui";
+
+/**
+ * Test ids the E2E reach for. They hang on the shared list's ids, so a renamed
+ * label cannot break them and a new entry gets one for free.
+ */
+const TEST_ID: Partial<Record<string, string>> = {
+  move: "tree-move-to",
+  versionHistory: "tree-version-history",
+  resolveConflict: "tree-resolve-conflict",
+  delete: "tree-delete",
+};
+/** The "Öffnen" group of the file menu; everything else is "Datei". */
+const OPEN_IDS = new Set(["openNewTab", "openSplitRight", "openSplitDown"]);
 import { isVirtualPath } from "./graph/virtualPaths";
 
 /**
@@ -60,6 +74,8 @@ export interface FileContextMenuProps {
   onImport?: () => void;
   onRefresh?: (path: string) => void;
   onGenerateIndex?: (path: string) => void;
+  /** True when the folder already carries an overview note — the entry then says "refresh" (shared list). */
+  hasOverview?: (path: string) => boolean;
   onUpdateAllIndexes?: () => void;
   onRestoreDeleted?: () => void;
 
@@ -118,6 +134,30 @@ export function FileContextMenu(props: FileContextMenuProps) {
     );
   }
 
+  // The row's own actions, once. Handlers the caller did not pass leave no
+  // entry; the delete sits at the end of every list, with its own separator.
+  const rowList: RowActionSpec[] = !path
+    ? []
+    : fileRowActions(t, {
+        isFolder,
+        openNewTab: !isFolder && props.onOpenNewTab ? () => props.onOpenNewTab!(path) : undefined,
+        openSplitRight: !isFolder && props.onOpenInSplit ? () => props.onOpenInSplit!(path, "vertical") : undefined,
+        openSplitDown: !isFolder && props.onOpenInSplit ? () => props.onOpenInSplit!(path, "horizontal") : undefined,
+        rename: props.onRename ? () => props.onRename!(path, isFolder) : undefined,
+        duplicate: !isFolder && !conflict && props.onDuplicate ? () => props.onDuplicate!([path]) : undefined,
+        move: props.onMove ? () => props.onMove!([path]) : undefined,
+        overview: isFolder && props.onGenerateIndex ? () => props.onGenerateIndex!(path) : undefined,
+        overviewExists: isFolder ? props.hasOverview?.(path) === true : undefined,
+        bookmarked: !isFolder && props.onToggleBookmark ? props.isBookmarked?.(path) === true : undefined,
+        bookmark: !isFolder && props.onToggleBookmark ? () => props.onToggleBookmark!(path) : undefined,
+        versionHistory: !isFolder && !conflict && props.onVersionHistory ? () => props.onVersionHistory!(path) : undefined,
+        resolveConflict: !isFolder && conflict && props.onResolveConflict ? () => props.onResolveConflict!(path) : undefined,
+        reveal: !isFolder && props.onRevealInTree ? () => props.onRevealInTree!(path) : undefined,
+        copyPath: props.onCopyPath ? () => props.onCopyPath!(path) : undefined,
+        removeFromList: !isFolder && props.onRemoveFromList ? () => props.onRemoveFromList!(path) : undefined,
+        delete: props.onDelete ? () => props.onDelete!(path, isFolder) : undefined,
+      });
+
   return surface(
     <>
       {isFolder ? (
@@ -149,8 +189,8 @@ export function FileContextMenu(props: FileContextMenuProps) {
                 : t("refresh.folderAction", { defaultValue: "Ordner neu einlesen" })}
             </MenuItem>
           )}
-          {props.onGenerateIndex && (
-            <MenuItem icon={<ListTree size={ICON.ui} />} onSelect={() => props.onGenerateIndex!(path)}>{t("indexMd.contextAction")}</MenuItem>
+          {path === "" && props.onGenerateIndex && (
+            <MenuItem icon={<RefreshCw size={ICON.ui} />} onSelect={() => props.onGenerateIndex!(path)}>{t("indexMd.contextAction")}</MenuItem>
           )}
           {path === "" && props.onUpdateAllIndexes && (
             <MenuItem icon={<RefreshCw size={ICON.ui} />} onSelect={props.onUpdateAllIndexes}>{t("indexMd.updateAllAction")}</MenuItem>
@@ -160,80 +200,31 @@ export function FileContextMenu(props: FileContextMenuProps) {
               {t("fileTree.restoreDeleted")}
             </MenuItem>
           )}
-          {path && (
-            <>
-              {props.onRename && (
-                <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => props.onRename!(path, true)}>{t("common.rename")}</MenuItem>
-              )}
-              {props.onMove && (
-                <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="tree-move-to" onSelect={() => props.onMove!([path])}>{t("fileTree.moveTo")}</MenuItem>
-              )}
-              {props.onCopyPath && (
-                <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={() => props.onCopyPath!(path)}>{t("fileTree.copyPath")}</MenuItem>
-              )}
-            </>
-          )}
+          {/* What a FOLDER row can do — from the one list both shells read
+              (Design-Runde E2). The place actions above (new here, refresh,
+              restore) belong to the place, not to the row. */}
+          {path && rowList.map((a) => (
+            <MenuItem key={a.id} icon={<a.icon size={ICON.ui} />} danger={a.danger} data-testid={TEST_ID[a.id]} onSelect={a.run}>{a.label}</MenuItem>
+          ))}
         </>
       ) : (
         <>
-          <MenuLabel>{t("fileTree.groupOpen", "Öffnen")}</MenuLabel>
-          {props.onOpenNewTab && (
-            <MenuItem icon={<ExternalLink size={ICON.ui} />} onSelect={() => props.onOpenNewTab!(path)}>{t("fileTree.openNewTab")}</MenuItem>
-          )}
-          {props.onOpenInSplit && (
-            <>
-              <MenuItem icon={<Columns2 size={ICON.ui} />} onSelect={() => props.onOpenInSplit!(path, "vertical")}>{t("fileTree.openSplitRight")}</MenuItem>
-              <MenuItem icon={<Rows2 size={ICON.ui} />} onSelect={() => props.onOpenInSplit!(path, "horizontal")}>{t("fileTree.openSplitDown")}</MenuItem>
-            </>
-          )}
-          <MenuSeparator />
-          <MenuLabel>{t("fileTree.groupFile", "Datei")}</MenuLabel>
-          {props.onRename && (
-            <MenuItem icon={<Pencil size={ICON.ui} />} onSelect={() => props.onRename!(path, false)}>{t("common.rename")}</MenuItem>
-          )}
-          {!conflict && props.onDuplicate && (
-            <MenuItem icon={<Copy size={ICON.ui} />} onSelect={() => props.onDuplicate!([path])}>{t("fileTree.duplicate")}</MenuItem>
-          )}
-          {props.onMove && (
-            <MenuItem icon={<FolderInput size={ICON.ui} />} data-testid="tree-move-to" onSelect={() => props.onMove!([path])}>{t("fileTree.moveTo")}</MenuItem>
-          )}
-          {props.onToggleBookmark && (
-            <MenuItem
-              icon={<Bookmark size={ICON.ui} fill={props.isBookmarked?.(path) ? "currentColor" : "none"} />}
-              onSelect={() => props.onToggleBookmark!(path)}
-            >
-              {props.isBookmarked?.(path) ? t("editor.removeBookmark") : t("editor.addBookmark")}
-            </MenuItem>
-          )}
-          {!conflict && props.onVersionHistory && (
-            <MenuItem icon={<History size={ICON.ui} />} data-testid="tree-version-history" onSelect={() => props.onVersionHistory!(path)}>
-              {t("fileTree.versionHistory")}
-            </MenuItem>
-          )}
-          {conflict && props.onResolveConflict && (
-            <MenuItem icon={<History size={ICON.ui} />} data-testid="tree-resolve-conflict" onSelect={() => props.onResolveConflict!(path)}>
-              {t("conflict.resolveAction")}
-            </MenuItem>
-          )}
-          {props.onRevealInTree && (
-            <MenuItem icon={<FolderTree size={ICON.ui} />} onSelect={() => props.onRevealInTree!(path)}>
-              {t("editor.revealInTree", { defaultValue: "Im Dateibaum anzeigen" })}
-            </MenuItem>
-          )}
-          {props.onCopyPath && (
-            <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={() => props.onCopyPath!(path)}>{t("fileTree.copyPath")}</MenuItem>
-          )}
-          {props.onRemoveFromList && (
-            <MenuItem icon={<XIcon size={ICON.ui} />} onSelect={() => props.onRemoveFromList!(path)}>
-              {t("fileTree.removeFromList", { defaultValue: "Aus der Liste entfernen" })}
-            </MenuItem>
-          )}
-        </>
-      )}
-      {path && props.onDelete && (
-        <>
-          <MenuSeparator />
-          <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => props.onDelete!(path, isFolder)}>{t("common.delete")}</MenuItem>
+          {/* What a FILE row can do — the same list the phone's sheet and swipe
+              read. The two headings are the desktop's grouping of it: what
+              opens the file elsewhere, then what changes the file. */}
+          {rowList.map((a, i, all) => {
+            const first = i === 0;
+            const startsFileGroup = !OPEN_IDS.has(a.id) && (first || OPEN_IDS.has(all[i - 1].id));
+            return (
+              <Fragment key={a.id}>
+                {first && OPEN_IDS.has(a.id) && <MenuLabel>{t("fileTree.groupOpen", "Öffnen")}</MenuLabel>}
+                {startsFileGroup && !first && <MenuSeparator />}
+                {startsFileGroup && <MenuLabel>{t("fileTree.groupFile", "Datei")}</MenuLabel>}
+                {a.danger && !all[i - 1]?.danger && <MenuSeparator />}
+                <MenuItem icon={<a.icon size={ICON.ui} />} danger={a.danger} data-testid={TEST_ID[a.id]} onSelect={a.run}>{a.label}</MenuItem>
+              </Fragment>
+            );
+          })}
         </>
       )}
     </>,

@@ -20,7 +20,7 @@ Das Dateiformat ist mit Obsidians Bases-Format kompatibel (Details am Seitenende
 
 ## Eine Datenbank anlegen
 
-- **Dateibaum**: Rechtsklick → **Neue Datenbank (.base)** — oder über den **Neu**-Knopf der Seitenleiste (**Neue Base**).
+- **Dateibaum**: Rechtsklick → **Neue Datenbank (.base)** — oder über den **Neu**-Knopf der Seitenleiste (**Neue Datenbank (.base)**).
 - Der Wizard **Neue Datenbank** fragt zwei Dinge: die **Datenquelle** (mindestens ein **Ordner** oder ein **Tag**; Kombinationen grenzen weiter ein — ein Zähler zeigt live, wie viele Notizen passen) und die Spalten (in den gefundenen Notizen vorhandene Eigenschaften zum Übernehmen). Dann **Datenbank erstellen**.
 - **In einer Notiz**: Slash-Befehl **Datenbank einbetten** (bestehende `.base` inline anzeigen) oder **Inline-Datenbank erstellen** (neue `.base` im Ordner anlegen und einbetten).
 

@@ -20,6 +20,9 @@ export interface MobileCommandHost {
   newFolder: () => void;
   newDatabase: () => void;
   openDaily: () => void;
+  /** A term and a task from anywhere (Design-Runde E4): the shell opens the view and parks the request. */
+  newEvent?: () => void;
+  newTask?: () => void;
   openSearch: () => void;
   openFindReplace: () => void;
   openGraph: () => void;
@@ -54,6 +57,8 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
       else h.newNote();
     },
     openDailyNote: h.openDaily,
+    newEvent: h.newEvent,
+    newTask: h.newTask,
     // The phone's file opener IS the search surface (S16 gives it the
     // quick-switcher behaviour); one door, not two.
     openQuickSwitcher: h.openSearch,

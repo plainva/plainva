@@ -1,9 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Calendar, CalendarDays, Columns2, Database, Download, FileText, FilePlus, FolderOpen, FolderPlus,
+  Calendar, Columns2, Download, FileText, FolderOpen,
   Gauge, Keyboard, ListChecks, Mail, MessageSquare, Moon, Palette, Pencil, Printer, RefreshCw, Replace,
   Rows2, Save, Search, Settings, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
+import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../lib/newCatalog";
 
 /**
  * Command registry (plan Designsprache 2026-07-05, P9/L11/E7). One central
@@ -43,6 +44,14 @@ export interface AppCommand {
 export interface CommandDeps {
   newItem?: (kind: "file" | "folder" | "base", opts?: { fromTemplate?: boolean }) => void;
   openDailyNote?: () => void;
+  /**
+   * A new term and a new task from anywhere (Design-Runde E4): the shell opens
+   * the calendar or the task list and asks it to start one. Both shells pass
+   * these, so the "New …" catalog's second group exists on the phone and the
+   * desktop alike.
+   */
+  newEvent?: () => void;
+  newTask?: () => void;
   openQuickSwitcher?: () => void;
   openTemplatePicker?: () => void;
   openGraph?: () => void;
@@ -132,14 +141,11 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
   // `need` is the whole contract: a command exists only where its handler does.
   const cmds: Array<AppCommand | null> = [
     need(d.openImport, (run) => ({ id: "import-pkm", group: "vault", icon: Download, titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run })),
-    need(d.newItem, (run) => ({ id: "new-note", group: "create", icon: FilePlus, titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N", run: () => run("file") })),
-    need(d.newItem, (run) => ({ id: "new-note-from-template", group: "create", icon: FileText, titleKey: "fileTree.newFromTemplate", titleDefault: "Neue Notiz aus Vorlage …", run: () => run("file", { fromTemplate: true }) })),
-    need(d.newItem, (run) => ({ id: "new-folder", group: "create", icon: FolderPlus, titleKey: "common.newFolder", titleDefault: "Neuer Ordner", run: () => run("folder") })),
-    need(d.newItem, (run) => ({ id: "new-base", group: "create", icon: Database, titleKey: "fileTree.newBaseHere", titleDefault: "Neue Datenbank (.base)", run: () => run("base") })),
-    need(d.openDailyNote, (run) => ({ id: "daily-note", group: "create", icon: CalendarDays, titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D", run })),
+    // The create group IS the "New …" catalog (Design-Runde E4): same entries,
+    // same order as the sidebar menu, the ribbon and the phone's FAB.
+    ...NEW_ITEM_ORDER.map((id) => newCommand(id, newHandlersOf(d))),
     need(d.openQuickSwitcher, (run) => ({ id: "open-file", group: "open", icon: Search, titleKey: "editor.openFile", titleDefault: "Datei öffnen", hint: "Mod+O", run })),
     need(d.openTemplatePicker, (run) => ({ id: "insert-template", group: "note", icon: FileText, titleKey: "shortcuts.insertTemplate", titleDefault: "Vorlage einfügen", hint: "Mod+Alt+T", run })),
-    need(d.createTemplate, (run) => ({ id: "template-new", group: "create", icon: FileText, titleKey: "database.createTemplate", titleDefault: "Neue Vorlage erstellen", run })),
     need(d.saveActiveAsTemplate, (run) => ({ id: "template-from-note", group: "note", icon: Save, titleKey: "editor.saveAsTemplate", titleDefault: "Aktuelle Notiz als Vorlage speichern", run, isAvailable: note })),
     need(d.openGraph, (run) => ({ id: "open-graph", group: "open", icon: Waypoints, titleKey: "graph.open", titleDefault: "Graph öffnen", hint: "Mod+Shift+G", run })),
     need(d.openTasks, (run) => ({ id: "open-tasks", group: "open", icon: ListChecks, titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run })),
@@ -181,6 +187,32 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
 /** Builds an entry only when the handler it needs exists. */
 function need<F>(dep: F | undefined, make: (run: F) => AppCommand): AppCommand | null {
   return dep === undefined ? null : make(dep);
+}
+
+/**
+ * The "New …" handlers a shell has, in the catalog's vocabulary. The three
+ * file kinds come from one `newItem`, the rest from their own dep — and a
+ * missing dep means a missing entry, on every surface that reads the catalog.
+ */
+export function newHandlersOf(d: CommandDeps): NewHandlers {
+  const ni = d.newItem;
+  return {
+    note: ni ? () => ni("file") : undefined,
+    noteFromTemplate: ni ? () => ni("file", { fromTemplate: true }) : undefined,
+    daily: d.openDailyNote,
+    folder: ni ? () => ni("folder") : undefined,
+    base: ni ? () => ni("base") : undefined,
+    template: d.createTemplate,
+    event: d.newEvent,
+    task: d.newTask,
+  };
+}
+
+function newCommand(id: NewItemId, handlers: NewHandlers): AppCommand | null {
+  const run = handlers[id];
+  if (!run) return null;
+  const meta = NEW_ITEMS[id];
+  return { id: meta.commandId, group: "create", icon: meta.icon, titleKey: meta.titleKey, titleDefault: meta.titleDefault, hint: meta.hint, run };
 }
 
 /** Case-insensitive contains-filter over the localized titles. */

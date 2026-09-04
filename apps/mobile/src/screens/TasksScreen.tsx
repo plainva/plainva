@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMutationGate, taskRowActions, type TaskStatusFilter, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   scanTasks,
   setFrontmatterPath,
@@ -464,15 +465,15 @@ export function TasksScreen({
     done: boolean;
     toggle: () => void;
     promote?: () => void;
+    repeat?: () => void;
     block?: () => void;
-  }) => [
-    { icon: a.done ? <Square size={ICON.head} /> : <CheckSquare size={ICON.head} />, label: t(a.done ? "tasks.open" : "tasks.done"), onClick: a.toggle },
-    ...(a.promote ? [{ icon: <Database size={ICON.head} />, label: t("tasks.promoteTo"), onClick: a.promote }] : []),
-    ...(a.block ? [{ icon: <CalendarPlus size={ICON.head} />, label: t("pim.blockTime"), onClick: a.block }] : []),
-  ];
+  }) =>
+    // The list itself lives in @plainva/ui since the Design-Runde (E2): the
+    // desktop's context menu reads the same one.
+    taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
 
   const [taskSheet, setTaskSheet] = useState<
-    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; block?: () => void }
+    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void }
     | null
   >(null);
   const rowPress = useLongPress<() => void>((show) => show());
@@ -613,6 +614,11 @@ export function TasksScreen({
     })();
   }, [taskDb, promotionAdapter, onOpenNote, t]);
 
+  // "New task" from the FAB or the palette (Design-Runde E4): the shell opened
+  // this tab and parked the request. Without a task database nothing can be
+  // created — the section above says so, and the request is simply taken.
+  useEffect(() => consumePendingNew("task", createDbTask), [createDbTask]);
+
   const open = (task: TaskRecord) => {
     // Opens the note AND jumps to the line — the same parking store the search
     // results use, because the editor is not mounted yet at this point.
@@ -709,6 +715,15 @@ export function TasksScreen({
                   const acts = {
                     done: row.done,
                     toggle: () => void toggleDbRow(row),
+                    repeat: dbMeta[row.path]?.mirrored
+                      ? undefined
+                      : () =>
+                          setRepeatTarget({
+                            path: row.path,
+                            title: noteDisplayName(row.title),
+                            rule: dbMeta[row.path]?.repeat ?? null,
+                            due: row.due,
+                          }),
                     block:
                       calendarOptions.length > 0
                         ? () => setBlockTarget({ title: row.title, due: row.due ?? null, linkPath: row.path })

@@ -64,7 +64,7 @@ Since OKF 0.2 a note can say where it came from, who reviewed it and whether it 
 
 An `index.md` is a folder's table of contents: a list of the notes and subfolders it contains, with descriptions and relative links.
 
-- **Generating** — always on your action, never out of nowhere: right-click a folder → **Generate/refresh index.md**, or in bulk via the **index.md manager** (**Settings → Vault → Content & structure**).
+- **Generating** — always on your action, never out of nowhere: right-click a folder → **Create overview** / **Refresh overview**, or in bulk via the **index.md manager** (**Settings → Vault → Content & structure**).
 - **Adopting instead of generating** — if you already have overview notes (MOC, Overview, folder note, README …), the manager suggests them as candidates. **Adopt** renames the file to `index.md` (links are updated vault-wide) and can optionally prepare it for OKF.
 - **Automatic upkeep** — listings *generated* by Plainva carry an invisible marker at the end of the file (an HTML comment). Only such marked files are kept up to date automatically whenever the folder changes — and only in OKF vaults (recognizable by `okf_version` in the root `index.md`).
 - **Read-only with an exit** — managed index.md files open in read mode with the banner "This index.md is managed by Plainva and updated automatically." There you can **Refresh** — or choose **Edit anyway**: that removes the marker and the file is fully yours again (no more automatic updates).

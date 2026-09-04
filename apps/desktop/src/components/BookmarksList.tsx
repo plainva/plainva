@@ -1,7 +1,7 @@
 import type React from "react";
-import { FileText, Paperclip } from "lucide-react";
+import { Bookmark, FileText, Paperclip } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DocIcon, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
+import { DocIcon, EmptyState, ICON, isRenderableDocIcon, stripNoteExtension } from "@plainva/ui";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useDocumentTitles } from "../hooks/useDocumentTitles";
 
@@ -32,11 +32,7 @@ export function BookmarksList({ bookmarks, query, activePath, onOpen, onRowConte
   const filtered = bookmarks.filter((b) => b.toLowerCase().includes(q));
 
   if (filtered.length === 0) {
-    return (
-      <div style={{ color: "var(--text-muted)", padding: "1rem", textAlign: "center", fontSize: "var(--text-md)" }}>
-        {t("sidebar.noBookmarks", { defaultValue: "Keine Lesezeichen" })}
-      </div>
-    );
+    return <EmptyState icon={<Bookmark size={ICON.empty} />}>{t("sidebar.noBookmarks", { defaultValue: "Keine Lesezeichen" })}</EmptyState>;
   }
 
   return (

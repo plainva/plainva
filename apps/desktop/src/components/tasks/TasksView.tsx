@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
 import { scanTasks, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
-import { errorText, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
+import { errorText, TaskMutationGate, filterTaskDbRows, filterTasks, groupTasksByNote, Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -10,7 +10,7 @@ import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption,
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
-import { canRepeat, describeRule, isMirroredNamespace, repeatFromNamespace, writeRepeatRule, type RepeatRule } from "@plainva/ui";
+import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, repeatFromNamespace, RowActionList, taskRowActions, writeRepeatRule, type RepeatRule, type TaskRowCaps } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -130,6 +130,17 @@ export function TasksView({ onOpenPath }: Props) {
    * next due date there. */
   const [dbDueKey, setDbDueKey] = useState<string | null>(null);
   /** Task whose repetition is being edited, with its current rule. */
+  /**
+   * The row's context menu — from the ONE list the phone's sheet and swipe read
+   * (Design-Runde E2, 2026-09-04). The inline buttons on a row are this list's
+   * quick subset; the menu is the whole of it. Only the capabilities are built
+   * here, the list inside `RowActionList` (see there for why).
+   */
+  const [rowMenu, setRowMenu] = useState<{ at: { x: number; y: number }; caps: TaskRowCaps } | null>(null);
+  const openRowMenu = (e: ReactMouseEvent, caps: TaskRowCaps) => {
+    e.preventDefault();
+    setRowMenu({ at: { x: e.clientX, y: e.clientY }, caps });
+  };
   const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
   const [dbStatusMenu, setDbStatusMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
   const dbStatusOptions = useMemo(() => {
@@ -453,6 +464,11 @@ export function TasksView({ onOpenPath }: Props) {
     }
   }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, pimRuntime, t]);
 
+  // "New task" from anywhere (Design-Runde E4): the shell opens this view and
+  // parks the request; without a task database there is nothing to create in,
+  // and the section above says so.
+  useEffect(() => consumePendingNew("task", () => { void createDbTask(); }), [createDbTask]);
+
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
       try {
@@ -672,6 +688,22 @@ export function TasksView({ onOpenPath }: Props) {
     [onOpenPath]
   );
 
+  const dbRowCaps = (r: (typeof filteredDbRows)[number]): TaskRowCaps => ({
+    done: r.done,
+    toggle: dbCompletion ? () => toggleDbRowDone(r.path, !r.done) : undefined,
+    repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
+    block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
+  });
+  const noteRowCaps = (task: TaskRecord): TaskRowCaps => ({
+    done: task.done,
+    toggle: () => toggle(task),
+    promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, rowMenu?.at ?? { x: 0, y: 0 })),
+    block:
+      calendarOptions.length > 0
+        ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
+        : undefined,
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
@@ -770,7 +802,7 @@ export function TasksView({ onOpenPath }: Props) {
                 </div>
               ) : (
                 filteredDbRows.map((r) => (
-                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} onContextMenu={(e) => openRowMenu(e, dbRowCaps(r))} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
                     <button
                       type="button"
                       disabled={!dbCompletion}
@@ -865,9 +897,7 @@ export function TasksView({ onOpenPath }: Props) {
           </>
         )}
         {loading ? null : groups.length === 0 ? (
-          <div style={{ color: "var(--text-muted)", padding: "2rem", textAlign: "center", fontSize: "var(--text-md)" }}>
-            {t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
-          </div>
+          <EmptyState icon={<CheckSquare size={ICON.empty} />}>{t("tasks.empty", { defaultValue: "Keine Aufgaben" })}</EmptyState>
         ) : (
           groups.map(([path, group]) => (
             <div
@@ -925,7 +955,7 @@ export function TasksView({ onOpenPath }: Props) {
               </div>
               <div style={{ padding: "0.25rem 0 0.35rem" }}>
                 {group.items.map((task) => (
-                  <div key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                  <div onContextMenu={(e) => openRowMenu(e, noteRowCaps(task))} key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
                     <button
                       type="button"
                       onClick={() => toggle(task)}
@@ -1001,6 +1031,18 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+
+      {rowMenu && (
+        <MenuSurface open onClose={() => setRowMenu(null)} at={rowMenu.at} ariaLabel={t("tasks.rowActions", { defaultValue: "Aufgabenaktionen" })}>
+          <RowActionList build={(tt) => taskRowActions(tt, rowMenu.caps)}>
+            {(a) => (
+              <MenuItem key={a.id} icon={<a.icon size={ICON.ui} />} danger={a.danger} data-testid={`task-ctx-${a.id}`} onSelect={a.run}>
+                {a.label}
+              </MenuItem>
+            )}
+          </RowActionList>
+        </MenuSurface>
+      )}
 
       {repeatTarget && (
         <RepeatTaskModal

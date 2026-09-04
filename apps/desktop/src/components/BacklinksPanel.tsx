@@ -3,7 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Link as LinkIcon, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { groupBacklinks } from "./backlinksModel";
-import { errorText, ICON } from "@plainva/ui";
+import { EmptyState, errorText, ICON } from "@plainva/ui";
 
 interface BacklinksPanelProps {
   activePath: string | null;
@@ -125,9 +125,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
             {t("common.loadFailed", { message: loadError })}
           </div>
         ) : backlinks.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-ui)', textAlign: 'center', padding: '2rem 1rem' }}>
-            {t("backlinks.noBacklinks")}
-          </div>
+          <EmptyState icon={<LinkIcon size={ICON.empty} />}>{t("backlinks.noBacklinks")}</EmptyState>
         ) : listItems}
       </div>
     </div>

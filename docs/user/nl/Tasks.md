@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-08-07
+Laatst bijgewerkt: 2026-09-04
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -70,7 +70,7 @@ Elke taakregel draagt een database-icoon: **Naar de takendatabase verplaatsen**.
 
 Taken zijn in Plainva **dagnauwkeurig**: een taak heeft een vervaldatum, geen tijdstip. Wil je er tijd voor vrijmaken, dan maakt Plainva daarvoor een **afspraak** aan — dat is het object met een tijdsbereik, dat overlappingen in het raster toont en met je agenda-account synchroniseert.
 
-Het agendapictogram op een taakregel opent **Tijd blokkeren**: de datum (vooringevuld met de vervaldatum), de starttijd en de **Duur** (15 min, 30 min, 1 u, 2 u of **Aangepast**), plus een agendakeuze als meerdere agenda's schrijfbaar zijn. De afspraak krijgt de titel van de taak en verwijst terug naar de notitie.
+Het agendapictogram op een taakregel opent **Tijd blokkeren**: de datum (vooringevuld met de vervaldatum), de starttijd en de **Duur** (15 min, 30 min, 1 u, 2 u of **Aangepast**), plus een agendakeuze als meerdere agenda's schrijfbaar zijn. De afspraak krijgt de titel van de taak en verwijst terug naar de notitie. Een **rechtsklik** op de regel toont dezelfde acties als het blad op de telefoon: afgerond/open, naar database verplaatsen, herhaling, tijd blokkeren.
 
 Bij een taak uit de database onthoudt de notitie het blok ook in haar frontmatter (`plainva.blocks`), zodat de koppeling van beide kanten zichtbaar is. Een regel met selectievakje heeft geen eigen notitie — daar ontstaat alleen de afspraak, die verwijst naar de notitie waarin de regel staat. Het pictogram verschijnt alleen als er een agenda-account is verbonden.
 

@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-08-07
+Última actualización: 2026-09-04
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -70,7 +70,7 @@ Haz **clic derecho** en el icono para elegir en su lugar otra base de datos como
 
 En Plainva las tareas tienen granularidad **diaria**: una tarea tiene fecha de vencimiento, no una hora. Cuando quieras reservar un hueco para una de ellas, Plainva crea un **evento** — ese es el objeto que posee un intervalo de tiempo, se dibuja con sus solapamientos en la cuadrícula y se sincroniza con tu cuenta de calendario.
 
-El icono de calendario en una fila de tarea abre **Bloquear tiempo**: la fecha (prerrellenada con el vencimiento), el inicio y la **Duración** (15 min, 30 min, 1 h, 2 h o **Personalizada**), además de un selector de calendario cuando hay más de uno con permiso de escritura. El evento lleva el título de la tarea y enlaza de vuelta a la nota.
+El icono de calendario en una fila de tarea abre **Bloquear tiempo**: la fecha (prerrellenada con el vencimiento), el inicio y la **Duración** (15 min, 30 min, 1 h, 2 h o **Personalizada**), además de un selector de calendario cuando hay más de uno con permiso de escritura. El evento lleva el título de la tarea y enlaza de vuelta a la nota. Un **clic derecho** en la fila muestra las mismas acciones que la hoja en el teléfono: hecha/abierta, mover a la base de datos, repetición, bloquear tiempo.
 
 En una tarea de la base de datos, la nota además recuerda el bloque en su frontmatter (`plainva.blocks`), de modo que el enlace es visible desde ambos lados. Una fila con casilla no tiene nota propia — allí solo se crea el evento, que apunta a la nota en la que está la fila. El icono solo aparece si hay una cuenta de calendario conectada.
 

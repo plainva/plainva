@@ -64,7 +64,7 @@ Sinds OKF 0.2 kan een notitie zeggen waar ze vandaan komt, wie haar heeft gecont
 
 Een `index.md` is de inhoudsopgave van een map: een lijst van de bevatte notities en submappen, met beschrijvingen en relatieve links.
 
-- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **index.md genereren/vernieuwen**, of gebundeld via het **index.md-beheer** (**Instellingen → Vault → Inhoud en structuur**).
+- **Genereren** — altijd op jouw actie, nooit zomaar uit het niets: rechtsklik op een map → **Overzicht maken** / **Overzicht bijwerken**, of gebundeld via het **index.md-beheer** (**Instellingen → Vault → Inhoud en structuur**).
 - **Overnemen in plaats van genereren** — heb je al overzichtsnotities (MOC, Overzicht, mapnotitie, README …), dan stelt het beheer ze voor als kandidaten. **Overnemen** hernoemt het bestand naar `index.md` (links worden vault-breed bijgewerkt) en kan het optioneel voorbereiden voor OKF.
 - **Automatisch bijhouden** — listings die door Plainva *gegenereerd* zijn, dragen aan het einde van het bestand een onzichtbare markering (een HTML-commentaar). Alleen zulke gemarkeerde bestanden houdt Plainva automatisch actueel zodra er iets in de map verandert — en alleen in OKF-vaults (herkenbaar aan `okf_version` in de root-`index.md`).
 - **Alleen-lezen met een uitweg** — beheerde index.md-bestanden openen in leesmodus met de banner "Deze index.md wordt beheerd door Plainva en automatisch bijgewerkt." Daar kun je **Vernieuwen** — of kiezen voor **Toch bewerken**: dat verwijdert de markering en het bestand is weer helemaal van jou (geen automatische updates meer).

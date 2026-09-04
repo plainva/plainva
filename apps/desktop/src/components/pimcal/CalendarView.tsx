@@ -16,7 +16,7 @@ import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
-import { localIsoKey } from "@plainva/ui";
+import { consumePendingNew, localIsoKey } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -615,6 +615,23 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   >(null);
   // Quick-create popover after a click/drag on an empty slot.
   const [quickCreate, setQuickCreate] = useState<{ dayKey: string; startMin: number; endMin: number; anchor: { x: number; y: number } } | null>(null);
+  // "New term" from anywhere (Design-Runde E4): the shell opens this view and
+  // parks the request; the quick-create opens for the next half hour of
+  // today, anchored mid-screen because no click placed it.
+  useEffect(
+    () =>
+      consumePendingNew("event", () => {
+        const now = new Date();
+        const startMin = Math.min(23 * 60, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
+        setQuickCreate({
+          dayKey: localIsoKey(now),
+          startMin,
+          endMin: Math.min(24 * 60, startMin + 60),
+          anchor: { x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 3) },
+        });
+      }),
+    [],
+  );
   const enabledAccounts = useMemo(() => new Set(accounts.filter((a) => a.enabled).map((a) => a.id)), [accounts]);
   const writableCalendars = useMemo(
     () =>
@@ -1895,9 +1912,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         {viewMode === "agenda" && (
           <div data-testid="calendar-agenda" style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
             {agendaDays.length === 0 ? (
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", padding: "var(--space-4)", textAlign: "center" }}>
-                {t("pim.agendaEmpty", { defaultValue: "Keine anstehenden Termine." })}
-              </div>
+              <EmptyState>{t("pim.agendaEmpty", { defaultValue: "Keine anstehenden Termine." })}</EmptyState>
             ) : (
               agendaDays.map(({ key, events: evs, tasks: tks }, gi) => {
                 const [yy, mm, dd] = key.split("-").map(Number);

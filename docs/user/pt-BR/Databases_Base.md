@@ -20,7 +20,7 @@ O formato do arquivo é compatível com o formato Bases do Obsidian (detalhes ao
 
 ## Criando um banco de dados
 
-- **Árvore de arquivos**: clique com o botão direito → **Novo banco de dados (.base)** — ou pelo botão **Novo** da barra lateral (**Nova base**).
+- **Árvore de arquivos**: clique com o botão direito → **Novo banco de dados (.base)** — ou pelo botão **Novo** da barra lateral (**Novo banco de dados (.base)**).
 - O assistente **Novo banco de dados** pergunta duas coisas: a **Fonte de dados** (pelo menos uma **Pasta** ou uma **Tag**; combiná-las restringe ainda mais o resultado — um contador ao vivo mostra quantas notas correspondem) e as colunas (propriedades encontradas nas notas correspondentes, prontas para adotar). Depois **Criar banco de dados**.
 - **Dentro de uma nota**: comando de barra **Incorporar banco de dados** (mostrar um `.base` existente embutido) ou **Criar banco de dados embutido** (criar um novo `.base` na pasta e incorporá-lo).
 

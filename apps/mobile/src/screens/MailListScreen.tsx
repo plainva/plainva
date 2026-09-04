@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, ChevronDown, Clock, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
+import { Ban, CheckSquare, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { mailStatus } from "./mail/mailStatus";
 import { undoMoveToTrash } from "./mail/undoMove";
 import { SwipeRow } from "../components/SwipeRow";
+import { RowActionSheet, type RowAction } from "../components/RowActionSheet";
 import { runJunkAction } from "./mail/junkAction";
 import { SwipeHint } from "../components/SwipeHint";
 import type { MailAccountConfig, MailEnvelope, MailboxInfo } from "@plainva/ui/mail";
@@ -465,14 +466,15 @@ export function MailListScreen({
   /** The account's Sent folder — only consulted while grouping is on. */
   const sentBox = useMemo(() => pickSentFolder(folders), [folders]);
 
-  // Not in "all inboxes": the same rule the context menu below already states.
-  // A selection there carries unified ids, which `selectable` cannot resolve —
-  // so the bar appeared with every action enabled and every action did nothing,
-  // Move worst of all: it asked for a destination folder and then dropped it
-  // (S45).
-  const press = useLongPress<string>((id) => {
-    if (!unified) setSelection(new Set([id]));
-  });
+  /**
+   * Holding a row opens its sheet (Design-Runde E1, 2026-09-04). It used to
+   * SELECT — the one place on the phone where a hold meant something other
+   * than "show me what this row can do". Now the sheet's first entry is
+   * "select several", named, like everywhere else; selecting is the one action
+   * that changes what the LIST does, so it comes first.
+   */
+  const [rowSheet, setRowSheet] = useState<string | null>(null);
+  const press = useLongPress<string>((id) => setRowSheet(id));
 
   /**
    * The selection id of a row. In the conversation view a thread mixes folders,
@@ -757,6 +759,86 @@ export function MailListScreen({
 
   const swipeJunk = (m: MailEnvelope) =>
     reportJunk([m], (ids) => setRows((prev) => prev.filter((r) => !ids.includes(r.id))));
+
+  /** Where a row's message lives: its own folder in the conversation view, the screen's otherwise. */
+  const originOf = (m: MailEnvelope) => ({
+    box: (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "",
+    uid: parseUnifiedId(m.id)?.uid ?? m.id,
+  });
+
+  /** Read/unread for ONE row — the sheet's entry; the bar's version works on the selection. */
+  const setOneSeen = async (m: MailEnvelope, seen: boolean) => {
+    const account = accountById(accountId);
+    const { box, uid } = originOf(m);
+    if (!vault || !account || !box) return;
+    try {
+      await setMessageSeen(vault, account, box, uid, seen);
+      setRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
+      setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
+      if (m.seen !== seen) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
+    } catch (e) {
+      toast.error(describeError(e));
+    }
+  };
+
+  const setOneFlagged = async (m: MailEnvelope, flagged: boolean) => {
+    const account = accountById(accountId);
+    const { box, uid } = originOf(m);
+    if (!vault || !account || !box) return;
+    try {
+      await setMessageFlagged(vault, account, box, uid, flagged);
+      setRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
+      setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
+    } catch (e) {
+      toast.error(describeError(e));
+    }
+  };
+
+  const moveOne = async (m: MailEnvelope) => {
+    const account = accountById(accountId);
+    const { box, uid } = originOf(m);
+    if (!vault || !account || !box) return;
+    const target = await mSelect({
+      title: t("mail.moveTo"),
+      options: folderNames.filter((n) => n !== box).map((n) => ({ value: n, label: mailFolderLabel(n, folders[0]?.delimiter) })),
+    });
+    if (!target) return;
+    try {
+      await moveMessage(vault, account, box, uid, target);
+      setRows((prev) => prev.filter((r) => r.id !== m.id));
+      setSentRows((prev) => prev.filter((r) => r.id !== m.id));
+    } catch (e) {
+      toast.error(describeError(e));
+    }
+  };
+
+  /**
+   * What a mail row can do, from the ONE list both shells read (Design-Runde
+   * E2). The sheet shows all of it; the swipe keeps the entries the list marks
+   * as swipe-worthy, in the same order. The trash folder and the junk folder
+   * change the words, not the entries.
+   */
+  const rowActionsFor = (m: MailEnvelope) => {
+    const { box } = originOf(m);
+    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    return mailRowActions(t, {
+      markRead: m.seen ? undefined : () => void setOneSeen(m, true),
+      markUnread: m.seen ? () => void setOneSeen(m, false) : undefined,
+      flagged: m.flagged,
+      flag: () => void setOneFlagged(m, true),
+      unflag: () => void setOneFlagged(m, false),
+      move: () => void moveOne(m),
+      snooze: () => void swipeSnooze(m),
+      junkDirection: box && isJunkFolder(box, folders) ? "restore" : "report",
+      junk: () => void swipeJunk(m),
+      inTrash: trash !== null && trash === box,
+      delete: () => void swipeDelete(m),
+    });
+  };
+  const swipeFor = (m: MailEnvelope) =>
+    rowActionsFor(m)
+      .filter((a) => a.swipe)
+      .map((a) => ({ icon: <a.icon size={ICON.ui} />, label: a.label, danger: a.danger, onClick: a.run }));
 
   /**
    * Putting a message aside (S22). The marker lives in the per-vault settings,
@@ -1121,26 +1203,7 @@ export function MailListScreen({
                       {/* A one-message conversation is a message, so it swipes
                           like one — the branch that had no SwipeRow at all
                           until round 3. */}
-                      <SwipeRow
-                        actions={[
-                          {
-                            icon: <Ban size={ICON.ui} />,
-                            label: junkLabel,
-                            onClick: () => void swipeJunk(latest),
-                          },
-                          {
-                            icon: <Clock size={ICON.ui} />,
-                            label: t("mail.snooze"),
-                            onClick: () => void swipeSnooze(latest),
-                          },
-                          {
-                            icon: <Trash2 size={ICON.ui} />,
-                            label: t("mail.delete"),
-                            danger: true,
-                            onClick: () => void swipeDelete(latest),
-                          },
-                        ]}
-                      >
+                      <SwipeRow actions={swipeFor(latest)}>
                         <button
                           type="button"
                           className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
@@ -1180,14 +1243,12 @@ export function MailListScreen({
                     {/* A swipe here means the WHOLE conversation (E3b) — the
                         same thing a tap means while picking. */}
                     <SwipeRow
-                      actions={[
-                        {
-                          icon: <Trash2 size={ICON.ui} />,
-                          label: t("mail.delete"),
-                          danger: true,
-                          onClick: () => void swipeDeleteThread(row.thread.messages),
-                        },
-                      ]}
+                      actions={mailRowActions(t, { delete: () => void swipeDeleteThread(row.thread.messages) }).map((a) => ({
+                        icon: <a.icon size={ICON.ui} />,
+                        label: a.label,
+                        danger: a.danger,
+                        onClick: a.run,
+                      }))}
                     >
                       <button
                         type="button"
@@ -1231,17 +1292,7 @@ export function MailListScreen({
                       row.thread.messages.map((m) => {
                         const mid = selId(m, m.mailbox ?? mailbox);
                         return (
-                        <SwipeRow
-                          key={`${m.mailbox}|${m.id}`}
-                          actions={[
-                            {
-                              icon: <Trash2 size={ICON.ui} />,
-                              label: t("mail.delete"),
-                              danger: true,
-                              onClick: () => void swipeDelete(m),
-                            },
-                          ]}
-                        >
+                        <SwipeRow key={`${m.mailbox}|${m.id}`} actions={swipeFor(m)}>
                           <button
                             type="button"
                             className={`m-mailrow m-mailrow--in-thread${m.seen ? "" : " is-unread"}`}
@@ -1282,21 +1333,7 @@ export function MailListScreen({
             <li key={m.id}>
               {/* Same gesture contract as the note rows (S30): swipe acts on
                   the row, hold selects, tap opens. */}
-              <SwipeRow
-                actions={[
-                  {
-                    icon: <Clock size={ICON.ui} />,
-                    label: t("mail.snooze"),
-                    onClick: () => void swipeSnooze(m),
-                  },
-                  {
-                    icon: <Trash2 size={ICON.ui} />,
-                    label: t("mail.delete"),
-                    danger: true,
-                    onClick: () => void swipeDelete(m),
-                  },
-                ]}
-              >
+              <SwipeRow actions={swipeFor(m)}>
                 <button
                   type="button"
                   className={m.seen ? "m-mailrow" : "m-mailrow is-unread"}
@@ -1402,6 +1439,40 @@ export function MailListScreen({
           </span>
         </div>
       )}
+
+      {rowSheet && (() => {
+        const m = selectable.get(rowSheet);
+        if (!m) return null;
+        const actions: RowAction[] = [
+          // Not in "all inboxes": a selection there carries unified ids the
+          // bar cannot resolve, so it appeared with every action enabled and
+          // every action doing nothing (S45). The row's own actions still work
+          // — they read the message's origin, not the screen's.
+          ...(unified
+            ? []
+            : [{
+                icon: <CheckSquare size={ICON.head} />,
+                label: t("mobile.selectMany", { defaultValue: "Mehrere auswählen" }),
+                testId: "mail-sheet-select-many",
+                onClick: () => {
+                  const id = rowSheet;
+                  setRowSheet(null);
+                  setSelection(new Set([id]));
+                },
+              }]),
+          ...rowActionsFor(m).map((a) => ({
+            icon: <a.icon size={ICON.head} />,
+            label: a.label,
+            danger: a.danger,
+            testId: `mail-sheet-${a.id}`,
+            onClick: () => {
+              setRowSheet(null);
+              a.run();
+            },
+          })),
+        ];
+        return <RowActionSheet actions={actions} onClose={() => setRowSheet(null)} title={m.subject || t("mail.noSubject")} />;
+      })()}
 
       {sheet && (
         <div className="m-sheet-backdrop" onClick={() => setSheet(false)}>

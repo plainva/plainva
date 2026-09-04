@@ -124,7 +124,7 @@ Dois vaults lado a lado — trabalho e pessoal, projeto e arquivo — precisam d
 
 A barra de ações na extrema esquerda, as abas da barra lateral esquerda, as seções acima da árvore de arquivos e as seções da barra lateral direita funcionam todas da mesma forma.
 
-A barra de ações oferece **Nova nota**, **Nova pasta** e **Nova base**. As três criam o item dentro da **pasta selecionada** na árvore de arquivos; com um arquivo selecionado, na pasta desse arquivo; sem nada selecionado, na raiz. A **Nota diária** não segue essa regra — ela sempre vai para a pasta que você definiu para isso nas configurações. Se você não precisar de uma das três, oculte-a.
+A barra de ações oferece **Nova nota**, **Nova pasta** e **Novo banco de dados (.base)**. As três criam o item dentro da **pasta selecionada** na árvore de arquivos; com um arquivo selecionado, na pasta desse arquivo; sem nada selecionado, na raiz. A **Nota diária** não segue essa regra — ela sempre vai para a pasta que você definiu para isso nas configurações. Se você não precisar de uma das três, oculte-a.
 
 **Bem onde estão:** **pressione e segure** um botão ou o título de uma seção e arraste-o até o novo lugar — um clique simples continua apenas acionando-o, e se você rolar a tela enquanto segura, a rolagem acontece normalmente (o arraste é cancelado). `Esc` cancela um arraste em andamento. Um **clique com o botão direito** oferece as mesmas ações sem precisar segurar: **Mover para cima**, **Ocultar** e **Personalizar barras…**.
 

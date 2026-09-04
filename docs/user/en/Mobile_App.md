@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -18,7 +18,7 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 - **Every area** (Notes, Today, Tasks, Calendar, Email, Graph, Open comments) stays one tap away through the **areas sheet**: **Areas** in the bar or a **long press on the bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom. Tags, bookmarks and recently opened are no longer areas of their own — they live under **Notes**.
 - **Configuring the bar:** **Settings** → **Navigation bar**. Use **−**/**+** to set how many work surfaces the bar shows (2–4, with a live preview) and the **drag handle** to arrange the list: the top entries form the bar (marked by a frame), dragging one up promotes it. Dragging to the top or bottom edge scrolls the list along, so one movement covers the whole list. Nothing is ever hidden — whatever is not in the bar remains reachable through **Areas**. If the area you are on leaves the bar, the app moves to the first visible one. You can arrange the same bar **on the desktop** as well (Settings → Vault → Bars & areas); with settings sync on, the arrangement travels between your devices.
 - **A folder row counts everything below it**, not just the notes lying directly in it — a folder holding nothing but subfolders no longer reads “0 notes” beside a chevron that leads to hundreds.
-- **＋** floats as a round button above the bar and opens quick create: note, daily note, folder, database, "From template…".
+- **＋** floats as a round button above the bar and opens quick create in two groups: note, "From template…", daily note, folder, database — and below them event and task, which are created in the calendar and the task list. The desktop's **New** menu offers the same entries in the same order.
 - **Holding a row opens what that row can do** — a note, a folder, a database, a task all answer the same way, and *Select several* is the first entry in that sheet. Swiping a row left performs its two most frequent actions directly; the sheet and the swipe offer the same things in the same order.
 - **The header:** the same everywhere — back on the left (a work surface has none), title and one line of context in the middle, search and ⋮ on the right. It lifts off the content as you scroll, and the navigation bar draws back to its icons; scrolling up opens it again.
 - **A ⋮ always means the same thing:** actions on the object that is open. App settings do not live behind it.
@@ -140,7 +140,7 @@ From an event, **Meeting note** creates the note that belongs to it — the same
 
 Under **Settings → Email** you connect a **Microsoft mailbox** (Outlook.com, Microsoft 365) directly through the browser sign-in — no app password needed. As with the calendar, signing in happens per device.
 
-After that you can open **Email** as its own area from the **areas sheet** and place it in the navigation bar. The line under the title shows folder, unread count and account, and opens the folder picker. Tap a message to read it; **Save as note** files it in the **Mail** folder of your vault (capturing twice opens the same note). Remote images stay blocked until you allow them for that message — a loaded image tells the sender when and where you read. The four actions — **Reply**, **Reply all**, **Forward** and **Save as note** — sit in a docked row along the bottom edge; while a message is open the navigation bar steps back and gives it the room.
+After that you can open **Email** as its own area from the **areas sheet** and place it in the navigation bar. The line under the title shows folder, unread count and account, and opens the folder picker. Tap a message to read it; **Save as note** files it in the **Mail** folder of your vault (capturing twice opens the same note). Remote images stay blocked until you allow them for that message — a loaded image tells the sender when and where you read. The four actions — **Reply**, **Reply all**, **Forward** and **Save as note** — sit in a docked row along the bottom edge; while a message is open the navigation bar steps back and gives it the room. Hold a row to open its sheet: **Select several** comes first, then the same actions as the desktop's right-click menu — read/unread, flag, move, snooze, spam and delete.
 
 **IMAP mailboxes work on the phone too.** Add one under **Settings → Email**: pick the provider, enter the address and the app password, and Plainva fills in the servers. If your provider is not in the list, **Advanced** lets you type the IMAP and SMTP host, port and a different user name yourself, and an existing account can be edited later. Selecting several messages works by pressing and holding one of them; after that a tap adds more. In the conversation view, holding or tapping the conversation row picks the whole exchange — and every message in it keeps its own folder, so a reply from **Sent** is marked there.
 
@@ -221,7 +221,7 @@ A note's ⋮ menu carries **Export as Markdown…**: it hands the file itself to
 
 ## Swiping
 
-**Swipe a row left** to reveal its actions: **Bookmark** and **Delete** on a note, **Rename** and **Delete folder** on a folder, **Delete** on a database and in the mailbox. They are the same actions the row offers in its menu (long press) — the swipe is the shorter way there, never the only one. The first time, a line above the list says so; you tap it away, and it appears exactly once per vault.
+**Swipe a row left** to reveal its actions: **Bookmark** and **Delete** on a note, **Rename** and **Delete** on a folder, **Delete** on a database and in the mailbox. They are the same actions the row offers in its menu (long press) — the swipe is the shorter way there, never the only one. The first time, a line above the list says so; you tap it away, and it appears exactly once per vault.
 
 Deleting asks through the same dialog as everywhere else. While you are selecting several rows, swiping is off — a gesture that means exactly one row has no clear meaning next to a selection you are still assembling. With **conversations** on in the mailbox, a swipe on a conversation means the WHOLE conversation (instead of an undo it then tells you how many messages it was); an expanded single message still swipes on its own. Task rows have no swipe actions — they carry their controls visibly on the row.
 

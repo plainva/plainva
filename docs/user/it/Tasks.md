@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-08-07
+Ultimo aggiornamento: 2026-09-04
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -70,7 +70,7 @@ Ogni riga di attività porta un'icona di database: **Sposta nel database delle a
 
 In Plainva le attività hanno granularità **giornaliera**: un'attività ha una data di scadenza, non un orario. Quando vuoi riservarle una finestra, Plainva crea un **evento** — è l'oggetto che possiede un intervallo di tempo, viene disegnato con le sovrapposizioni nella griglia e si sincronizza con il tuo account calendario.
 
-L'icona del calendario su una riga attività apre **Blocca tempo**: la data (precompilata con la scadenza), l'inizio e la **Durata** (15 min, 30 min, 1 h, 2 h o **Personalizzata**), più un selettore di calendario quando più di uno accetta scritture. L'evento porta il titolo dell'attività e rimanda alla nota.
+L'icona del calendario su una riga attività apre **Blocca tempo**: la data (precompilata con la scadenza), l'inizio e la **Durata** (15 min, 30 min, 1 h, 2 h o **Personalizzata**), più un selettore di calendario quando più di uno accetta scritture. L'evento porta il titolo dell'attività e rimanda alla nota. Un **clic destro** sulla riga mostra le stesse azioni del foglio sul telefono: completata/aperta, sposta nel database, ripetizione, blocca tempo.
 
 Per un'attività del database, la nota ricorda anche il blocco nel frontmatter (`plainva.blocks`), così il collegamento è visibile da entrambi i lati. Una riga con casella non ha una nota propria — lì viene creato solo l'evento, che punta alla nota in cui si trova la riga. L'icona compare solo se è collegato un account calendario.
 

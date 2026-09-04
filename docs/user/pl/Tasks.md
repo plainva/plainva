@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-08-07
+Stan na: 2026-09-04
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -70,7 +70,7 @@ Każdy wiersz zadania niesie ikonę bazy danych: **Przenieś do bazy zadań**. J
 
 Zadania w Plainvie mają dokładność **dzienną**: zadanie ma termin, a nie godzinę. Gdy chcesz zarezerwować na nie okno czasowe, Plainva tworzy **wydarzenie** — to obiekt, który ma zakres czasu, pokazuje nakładanie się w siatce i synchronizuje się z Twoim kontem kalendarza.
 
-Ikona kalendarza w wierszu zadania otwiera **Zablokuj czas**: datę (wypełnioną terminem), początek i **Czas trwania** (15 min, 30 min, 1 godz., 2 godz. lub **Własny**), a przy kilku zapisywalnych kalendarzach także wybór kalendarza. Wydarzenie nosi tytuł zadania i odsyła z powrotem do notatki.
+Ikona kalendarza w wierszu zadania otwiera **Zablokuj czas**: datę (wypełnioną terminem), początek i **Czas trwania** (15 min, 30 min, 1 godz., 2 godz. lub **Własny**), a przy kilku zapisywalnych kalendarzach także wybór kalendarza. Wydarzenie nosi tytuł zadania i odsyła z powrotem do notatki. **Kliknięcie prawym przyciskiem** wiersza pokazuje te same akcje co arkusz na telefonie: wykonane/otwarte, przenieś do bazy, powtarzanie, zablokuj czas.
 
 Przy zadaniu z bazy danych notatka zapamiętuje blokadę również w swoim frontmatterze (`plainva.blocks`), więc powiązanie widać z obu stron. Wiersz z polem wyboru nie ma własnej notatki — powstaje tam tylko wydarzenie wskazujące notatkę, w której znajduje się ten wiersz. Ikona pojawia się tylko wtedy, gdy podłączone jest konto kalendarza.
 

@@ -64,7 +64,7 @@ Desde OKF 0.2 una nota puede decir de dónde viene, quién la ha revisado y si s
 
 Un `index.md` es el índice de contenidos de una carpeta: una lista de las notas y subcarpetas que contiene, con descripciones y enlaces relativos.
 
-- **Generarlo** — siempre por tu acción, nunca de la nada: clic derecho en una carpeta → **Generar/actualizar index.md**, o en bloque mediante el **gestor de index.md** (**Configuración → Vault → Contenido y estructura**).
+- **Generarlo** — siempre por tu acción, nunca de la nada: clic derecho en una carpeta → **Crear resumen** / **Actualizar resumen**, o en bloque mediante el **gestor de index.md** (**Configuración → Vault → Contenido y estructura**).
 - **Adoptar en lugar de generar** — si ya tienes notas de resumen (MOC, Overview, folder note, README …), el gestor las sugiere como candidatas. **Adoptar** renombra el archivo a `index.md` (los enlaces se actualizan en todo el vault) y opcionalmente puede prepararlo para OKF.
 - **Mantenimiento automático** — los listados *generados* por Plainva llevan una marca invisible al final del archivo (un comentario HTML). Solo esos archivos marcados se mantienen actualizados automáticamente cada vez que cambia la carpeta — y solo en vaults OKF (reconocibles por `okf_version` en el `index.md` de la raíz).
 - **Solo lectura con salida** — los archivos index.md gestionados se abren en modo lectura con el banner "Este index.md lo gestiona Plainva y se actualiza automáticamente." Ahí puedes **Actualizar** — o elegir **Editar de todos modos**: eso quita la marca y el archivo vuelve a ser completamente tuyo (ya no hay actualizaciones automáticas).

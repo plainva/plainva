@@ -64,7 +64,7 @@ Seit OKF 0.2 kann eine Notiz sagen, woher sie stammt, wer sie geprüft hat und o
 
 Eine `index.md` ist das Inhaltsverzeichnis eines Ordners: eine Liste der enthaltenen Notizen und Unterordner mit Beschreibungen und relativen Links.
 
-- **Erzeugen** — immer auf Deine Aktion hin, nie automatisch aus dem Nichts: Rechtsklick auf einen Ordner → **index.md erzeugen/aktualisieren**, oder gesammelt über die **index.md-Verwaltung** (**Einstellungen → Vault → Inhalt & Struktur**).
+- **Erzeugen** — immer auf Deine Aktion hin, nie automatisch aus dem Nichts: Rechtsklick auf einen Ordner → **Übersicht erzeugen** / **Übersicht aktualisieren**, oder gesammelt über die **index.md-Verwaltung** (**Einstellungen → Vault → Inhalt & Struktur**).
 - **Übernehmen statt erzeugen** — hast Du bereits Überblicksnotizen (MOC, Übersicht, Folder-Note, README …), schlägt die Verwaltung sie als Kandidaten vor. **Übernehmen** benennt die Datei zu `index.md` um (Links werden vault-weit aktualisiert) und kann sie optional OKF-konform aufbereiten.
 - **Automatische Pflege** — von Plainva *erzeugte* Listings tragen am Dateiende eine unsichtbare Markierung (ein HTML-Kommentar). Nur solche markierten Dateien hält Plainva automatisch aktuell, sobald sich im Ordner etwas ändert — und nur in OKF-Vaults (erkennbar an `okf_version` in der Wurzel-`index.md`).
 - **Schreibgeschützt mit Ausweg** — verwaltete index.md-Dateien öffnen im Lesemodus mit dem Banner „Diese index.md wird von Plainva verwaltet und automatisch aktualisiert." Dort kannst Du **Aktualisieren** — oder **Trotzdem bearbeiten**: Das entfernt die Markierung, und die Datei gehört wieder ganz Dir (keine automatischen Updates mehr).

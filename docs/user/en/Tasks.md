@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-08-07
+Last updated: 2026-09-04
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -70,7 +70,7 @@ Every checkbox row carries a database icon: **Move to the task database**. One c
 
 Tasks in Plainva are **day-granular**: a task has a due date, not a time of day. When you want to reserve a window for one, Plainva creates a **calendar event** — that is the object which owns a time range, renders with overlaps in the grid and syncs with your calendar account.
 
-The calendar icon on a task row opens **Block time**: the date (prefilled with the due date), the start, and the duration (15 min, 30 min, 1 h, 2 h or **Custom**), plus a calendar picker when more than one calendar accepts writes. The event carries the task's title and links back to the note.
+The calendar icon on a task row opens **Block time**: the date (prefilled with the due date), the start, and the duration (15 min, 30 min, 1 h, 2 h or **Custom**), plus a calendar picker when more than one calendar accepts writes. The event carries the task's title and links back to the note. A **right-click** on the row shows the same actions as the sheet on the phone: done/open, move to database, repeat, block time.
 
 For a task from the database, the note also remembers the block in its frontmatter (`plainva.blocks`), so the link is visible from both ends. A checkbox row has no note of its own — there only the event is created, pointing at the note the row lives in. The icon appears only when a calendar account is connected.
 

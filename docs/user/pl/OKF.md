@@ -64,7 +64,7 @@ Od OKF 0.2 notatka może mówić, skąd pochodzi, kto ją sprawdził i czy nadal
 
 `index.md` to spis treści folderu: lista zawartych w nim notatek i podfolderów, z opisami i linkami względnymi.
 
-- **Generowanie** — zawsze na Twoje działanie, nigdy znikąd: kliknij prawym przyciskiem na folder → **Wygeneruj/odśwież index.md**, lub zbiorczo przez **zarządzanie index.md** (**Ustawienia → Vault → Treść i struktura**).
+- **Generowanie** — zawsze na Twoje działanie, nigdy znikąd: kliknij prawym przyciskiem na folder → **Utwórz przegląd** / **Odśwież przegląd**, lub zbiorczo przez **zarządzanie index.md** (**Ustawienia → Vault → Treść i struktura**).
 - **Przejęcie zamiast generowania** — jeśli masz już notatki przeglądowe (MOC, przegląd, folder note, README…), zarządzanie proponuje je jako kandydatów. **Przejmij** zmienia nazwę pliku na `index.md` (linki są aktualizowane w całym vaulcie) i może opcjonalnie przygotować go pod OKF.
 - **Automatyczna aktualizacja** — listingi *wygenerowane* przez Plainva mają na końcu pliku niewidoczny znacznik (komentarz HTML). Tylko takie oznaczone pliki są automatycznie aktualizowane, ilekroć coś się zmieni w folderze — i tylko w vaultach OKF (rozpoznawanych po `okf_version` w głównej `index.md`).
 - **Tylko do odczytu z wyjściem awaryjnym** — zarządzane pliki index.md otwierają się w trybie czytania z banerem „Ten plik index.md jest zarządzany przez Plainva i aktualizowany automatycznie.” Tam możesz kliknąć **Odśwież** — lub wybrać **Edytuj mimo to**: usuwa to znacznik, a plik znów w pełni należy do Ciebie (już bez automatycznych aktualizacji).

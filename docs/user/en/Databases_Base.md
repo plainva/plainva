@@ -20,7 +20,7 @@ The file format is compatible with Obsidian's Bases format (details at the end o
 
 ## Creating a database
 
-- **File tree**: right-click → **New database (.base)** — or via the sidebar's **New** button (**New Base**).
+- **File tree**: right-click → **New database (.base)** — or via the sidebar's **New** button (**New database (.base)**).
 - The **New database** wizard asks two things: the **Data source** (at least one **Folder** or one **Tag**; combining them narrows the result — a live counter shows how many notes match) and the columns (properties found in the matching notes, ready to adopt). Then **Create database**.
 - **Inside a note**: slash command **Embed database** (show an existing `.base` inline) or **Create inline database** (create a new `.base` in the folder and embed it).
 

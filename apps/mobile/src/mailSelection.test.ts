@@ -22,9 +22,13 @@ const src = readFileSync(
 );
 
 describe("mail selection in the unified inbox", () => {
-  it("cannot be started by a long press", () => {
-    const press = src.slice(src.indexOf("const press = useLongPress"), src.indexOf("const press = useLongPress") + 400);
-    expect(press).toContain("if (!unified)");
+  it("cannot be started by a long press: the hold opens the row sheet, whose select entry is gated", () => {
+    // Since the Design-Runde (E1) a hold opens the sheet everywhere; selecting
+    // is the sheet's named first entry — and that entry stays away in the
+    // unified inbox, for the same reason the context menu keeps it away.
+    expect(src).toContain("useLongPress<string>((id) => setRowSheet(id))");
+    const sheet = src.slice(src.indexOf("{rowSheet && (() => {"));
+    expect(sheet).toMatch(/\.\.\.\(unified\s*\?\s*\[\]\s*:/);
   });
 
   it("cannot be started by the context menu either", () => {

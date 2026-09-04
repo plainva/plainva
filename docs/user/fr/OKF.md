@@ -64,7 +64,7 @@ Depuis l'OKF 0.2, une note peut dire d'où elle vient, qui l'a relue et si elle 
 
 Une `index.md` est la table des matières d'un dossier : une liste des notes et sous-dossiers qu'il contient, avec des descriptions et des liens relatifs.
 
-- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Générer/actualiser index.md**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → Vault → Contenu et structure → Ouvrir…**).
+- **Générer** — toujours sur votre action, jamais spontanément : clic droit sur un dossier → **Créer un aperçu** / **Actualiser l’aperçu**, ou en bloc via le **gestionnaire d'index.md** (**Paramètres → Vault → Contenu et structure → Ouvrir…**).
 - **Adopter plutôt que générer** — si vous avez déjà des notes de synthèse (MOC, Overview, note de dossier, README…), le gestionnaire les suggère comme candidates. **Adopter** renomme le fichier en `index.md` (les liens sont mis à jour dans tout le vault) et peut éventuellement le préparer pour l'OKF.
 - **Entretien automatique** — les listings *générés* par Plainva portent un marqueur invisible à la fin du fichier (un commentaire HTML). Seuls ces fichiers marqués sont maintenus à jour automatiquement à chaque changement dans le dossier — et uniquement dans les vaults OKF (reconnaissables par `okf_version` dans l'`index.md` racine).
 - **Lecture seule avec une échappatoire** — les fichiers index.md gérés s'ouvrent en mode lecture avec la bannière « Cet index.md est géré par Plainva et mis à jour automatiquement. » Vous pouvez y **Actualiser** — ou choisir **Modifier quand même** : cela retire le marqueur et le fichier redevient entièrement le vôtre (plus de mises à jour automatiques).

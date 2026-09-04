@@ -126,7 +126,6 @@ const BUDGET: Record<string, Counts> = {
   "components/BasePeekModal.tsx": {nakedButton:8},
   "components/BasePicker.tsx": {nakedInput:1,nakedButton:2,rawSpacing:5},
   "components/BaseViewer.tsx": {nakedButton:7,rawSpacing:7},
-  "components/BlockMenu.tsx": {nakedButton:1,rawSpacing:5},
   "components/BookmarksList.tsx": {nakedButton:1,rawSpacing:2},
   "components/CalendarWidget.tsx": {nakedInput:1,nakedButton:9,rawSpacing:20},
   "components/CascadeDeleteModal.tsx": {nakedButton:1},

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
@@ -520,6 +520,9 @@ export const FileTree: React.FC<{
   }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders]);
 
   const folderPaths = useMemo(() => collectFolderPaths(files), [files]);
+  // Which folders already carry an overview note: the context menu says "refresh" there (shared row list).
+  const filePathSet = useMemo(() => new Set(files.map((f) => f.path.replace(/\\/g, "/"))), [files]);
+  const hasOverview = useCallback((p: string) => filePathSet.has(p ? `${p}/index.md` : "index.md"), [filePathSet]);
   const tree = useMemo(() => buildTree(files), [files]);
   const isSearching = effectiveQuery.trim() !== "";
   // Search hits split into "file name" vs "content" groups (plan Suche O2):
@@ -1414,6 +1417,7 @@ export const FileTree: React.FC<{
           onImport={() => window.dispatchEvent(new CustomEvent("plainva-open-import-wizard"))}
           onRefresh={(path: string) => { if (path === "") void refreshVault(); else void refreshFolder(path); }}
           onGenerateIndex={handleGenerateIndex}
+          hasOverview={hasOverview}
           onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
           onRestoreDeleted={() => window.dispatchEvent(new CustomEvent("plainva-show-deleted-files"))}
           onBulkDuplicate={() => handleDuplicate([...selection])}

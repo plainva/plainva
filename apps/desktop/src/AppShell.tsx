@@ -57,9 +57,9 @@ import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { toast } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
-import { buildAppCommands } from "@plainva/ui";
+import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Plus, ChevronsDownUp, ChevronsUpDown, FilePlus, FolderPlus, Database, Sun, FolderTree, RefreshCw, ArrowUpDown } from "lucide-react";
+import { Plus, ChevronsDownUp, ChevronsUpDown, FolderTree, RefreshCw, ArrowUpDown } from "lucide-react";
 import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
@@ -1138,6 +1138,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     if (leftSidebarTab !== "files") setLeftSidebarTab("files");
     setPendingNewItem(kind);
   };
+
   useEffect(() => {
     if (!pendingNewItem || leftCollapsed || leftSidebarTab !== "files") return;
     window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: pendingNewItem } }));
@@ -1194,6 +1195,21 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
 
   /** "+ → Tageseintrag" and the palette: today's note, same path as the calendar. */
   const openTodayDailyNote = () => handleOpenDailyNote(new Date());
+
+  /**
+   * What "New …" can make from this shell, in the catalog's vocabulary — read
+   * by the sidebar's ＋ menu and the palette's create group alike. A term and a
+   * task are made where they live: the view opens and takes the request.
+   */
+  const newHandlers = newHandlersOf({
+    newItem: (kind, opts) =>
+      opts?.fromTemplate
+        ? window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } }))
+        : requestNewItem(kind),
+    openDailyNote: openTodayDailyNote,
+    newEvent: cloudServices.calendar ? () => { openView(CALENDAR_TAB_PATH); requestNew("event"); } : undefined,
+    newTask: () => { openView(TASKS_TAB_PATH); requestNew("task"); },
+  });
 
   // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
   // the non-memoized daily helper); this stable wrapper opens today's note.
@@ -1360,13 +1376,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               anchorRef={newBtnRef}
               onClose={() => setShowNewMenu(false)}
               ariaLabel={t('sidebar.new', { defaultValue: 'Neu' })}
-              items={[
-                { id: 'note', label: t('sidebar.newNote', { defaultValue: 'Neue Notiz' }), icon: <FilePlus size={ICON.ui} />, onSelect: () => requestNewItem('file') },
-                { id: 'folder', label: t('sidebar.newFolder', { defaultValue: 'Neuer Ordner' }), icon: <FolderPlus size={ICON.ui} />, onSelect: () => requestNewItem('folder') },
-                { id: 'base', label: t('sidebar.newBase', { defaultValue: 'Neue Base' }), icon: <Database size={ICON.ui} />, onSelect: () => requestNewItem('base') },
-                'separator',
-                { id: 'daily', label: t('sidebar.newDaily', { defaultValue: 'Tageseintrag' }), icon: <Sun size={ICON.ui} />, hint: t('sidebar.today', { defaultValue: 'heute' }), onSelect: openTodayDailyNote },
-              ]}
+              // The one "New …" catalog (Design-Runde E4): the same entries, in
+              // the same groups and order, as the palette's create group, the
+              // ribbon and the phone's FAB. A hairline between the groups.
+              items={newEntries(t, newHandlers).flatMap((g, gi) => [
+                ...(gi > 0 ? (['separator'] as const) : []),
+                ...g.items.map((it) => ({
+                  id: it.id,
+                  label: it.label,
+                  icon: <it.icon size={ICON.ui} />,
+                  hint: it.id === 'daily' ? t('sidebar.today', { defaultValue: 'heute' }) : undefined,
+                  onSelect: it.run,
+                })),
+              ])}
             />
           </div>
         </div>
@@ -1697,6 +1719,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           commands={buildAppCommands({
             newItem: (kind, opts) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } })),
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
+            newEvent: newHandlers.event,
+            newTask: newHandlers.task,
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
             openGraph: () => openView(GRAPH_TAB_PATH),

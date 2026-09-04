@@ -20,7 +20,7 @@ Le format de fichier est compatible avec le format Bases d'Obsidian (détails à
 
 ## Créer une base de données
 
-- **Arborescence de fichiers** : clic droit → **Nouvelle base de données (.base)** — ou via le bouton **Nouveau** de la barre latérale (**Nouvelle base**).
+- **Arborescence de fichiers** : clic droit → **Nouvelle base de données (.base)** — ou via le bouton **Nouveau** de la barre latérale (**Nouvelle base de données (.base)**).
 - L'assistant **Nouvelle base de données** demande deux choses : la **Source de données** (au moins un **Dossier** ou un **Tag** ; les combiner restreint le résultat — un compteur en direct affiche le nombre de notes correspondantes) et les colonnes (propriétés trouvées dans les notes correspondantes, prêtes à adopter). Puis **Créer la base de données**.
 - **Dans une note** : commande slash **Intégrer une base de données** (afficher une `.base` existante en ligne) ou **Créer une base de données intégrée** (créer une nouvelle `.base` dans le dossier et l'intégrer).
 

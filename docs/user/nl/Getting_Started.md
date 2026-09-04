@@ -124,7 +124,7 @@ Twee vaults naast elkaar — werk en privé, project en archief — hebben twee 
 
 De actiebalk helemaal links, de tabbladen van de linkerzijbalk, de secties boven de bestandsboom en de secties van de rechterzijbalk werken allemaal op dezelfde manier.
 
-De actiebalk biedt **Nieuwe notitie**, **Nieuwe map** en **Nieuwe base** aan. Alle drie maken het item aan in de **geselecteerde map** van de bestandsboom; bij een geselecteerd bestand in de map van dat bestand; bij niets geselecteerd op het hoogste niveau. De **Dagnotitie** houdt zich daar niet aan — die hoort altijd in de map die je daarvoor in de instellingen hebt ingesteld. Heb je een van de drie niet nodig, verberg hem dan.
+De actiebalk biedt **Nieuwe notitie**, **Nieuwe map** en **Nieuwe database (.base)** aan. Alle drie maken het item aan in de **geselecteerde map** van de bestandsboom; bij een geselecteerd bestand in de map van dat bestand; bij niets geselecteerd op het hoogste niveau. De **Dagnotitie** houdt zich daar niet aan — die hoort altijd in de map die je daarvoor in de instellingen hebt ingesteld. Heb je een van de drie niet nodig, verberg hem dan.
 
 **Precies waar ze staan:** **houd** een knop of een sectiekop **ingedrukt** en sleep hem naar zijn nieuwe plek — een gewone klik activeert hem nog gewoon, en als je scrolt terwijl je vasthoudt, scrol je (het slepen wordt geannuleerd). `Esc` breekt een lopende sleepbeweging af. Een **rechtsklik** biedt dezelfde acties zonder vasthouden: **Omhoog**, **Verbergen** en **Balken aanpassen…**.
 
