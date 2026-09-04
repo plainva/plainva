@@ -201,6 +201,14 @@ export class EncryptedWorkspaceWorker {
    */
   private pendingQuarantine = new Set<string>();
 
+  /**
+   * Every policy version on the accepted chain, by document hash.
+   *
+   * Filled in `verifyBootstrap`. An operation is judged in the version it
+   * references, which is the only version its author could have known.
+   */
+  private acceptedPolicies = new Map<string, WorkspacePolicyPayload>();
+
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -467,6 +475,13 @@ export class EncryptedWorkspaceWorker {
     }
     for (const [hash, artifact] of candidateBytes) if (!ignoredPolicyHashes.has(hash)) await this.acceptArtifact("policy", artifact.key);
     this.activePolicy = resolved.current;
+    // The WHOLE accepted chain, not only its last link (finding 2026-09-04).
+    // An operation names the policy it was written under, and the protocol
+    // asks for its capability "in the referenced accepted policy" - so every
+    // accepted version has to stay reachable. Comparing against the newest one
+    // rejected every operation older than the last policy change, which is
+    // every operation as soon as somebody adds a device, a member or a slice.
+    this.acceptedPolicies = new Map(resolved.ordered.map((document) => [workspaceDocumentHash(document), document.payload]));
     this.runtime.policy = resolved.current;
     const meta = await this.state.loadMeta();
     if (meta && meta.policyHash !== workspaceDocumentHash(resolved.current)) {
@@ -518,7 +533,7 @@ export class EncryptedWorkspaceWorker {
       const [kind, remoteKey] = pendingKey.split("\0");
       if (kind === "operation" && remoteKey && !listedOperationKeys.has(remoteKey)) await this.acceptArtifact("operation", remoteKey);
     }
-    const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }> = [];
+    const operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array; policy: WorkspacePolicyPayload }> = [];
     for (const info of operationInfos) {
       const bytes = await this.objectStore.get(info.key, { signal });
       if (!bytes) continue;
@@ -534,12 +549,25 @@ export class EncryptedWorkspaceWorker {
         details.sequence = document.payload.sequence;
         const hash = workspaceDocumentHash(document);
         protocolAssert(info.key.endsWith(`-${hash}.pvop`), "integrity", "operation path hash mismatch");
-        const acceptedPolicyHash = workspaceDocumentHash(this.activePolicy);
-        const operationPolicy = document.payload.policyHash === acceptedPolicyHash ? policy : null;
-        if (!operationPolicy) { details.policyHash = document.payload.policyHash.slice(0, 12); details.acceptedPolicyHash = acceptedPolicyHash.slice(0, 12); }
+        // The version the author referenced, if it is on the accepted chain.
+        // Anything else - a diverged branch, another workspace - stays out.
+        const operationPolicy = this.acceptedPolicies.get(document.payload.policyHash) ?? null;
+        if (!operationPolicy) { details.policyHash = document.payload.policyHash.slice(0, 12); details.acceptedPolicyHash = workspaceDocumentHash(this.activePolicy).slice(0, 12); }
         protocolAssert(!!operationPolicy, "authorization", "operation uses an unaccepted policy");
         const device = operationPolicy.devices.find((entry) => entry.deviceId === document.payload.deviceId && entry.memberId === document.payload.memberId && entry.state === "active");
         protocolAssert(!!device, "authorization", "operation author is not an active policy device");
+        // A revoked device may only be heard as far as an ACTIVE device once
+        // vouched for it (finding 2026-09-04). Judging an operation in the
+        // policy it references is what the protocol asks for - and it would
+        // otherwise let a revoked device keep writing by pointing at a version
+        // in which it was still active. Everything above the witnessed line is
+        // refused; the already applied past is never re-judged (see the pull).
+        const currentDevice = policy.devices.find((entry) => entry.deviceId === document.payload.deviceId);
+        if (currentDevice && currentDevice.state === "revoked") {
+          const witnessed = meta.checkpointHeads?.[document.payload.deviceId] ?? 0;
+          if (document.payload.sequence > witnessed) { details.revokedAt = currentDevice.revokedAt; details.witnessedSequence = witnessed; }
+          protocolAssert(document.payload.sequence <= witnessed, "authorization", "operation was written after the device was revoked");
+        }
         const object = await this.state.getObjectById(document.payload.objectId);
         // Existing objects can be authorized before object download. For a new
         // object the canonical path (and therefore dynamic slice membership)
@@ -550,7 +578,7 @@ export class EncryptedWorkspaceWorker {
           protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: device.memberId, deviceId: device.deviceId, capability: document.payload.capability, objectId: document.payload.objectId, sliceIds }).allowed, "authorization", "operation capability is not granted");
         }
         protocolAssert(verifyWorkspaceDocumentSignatures(document, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "device signing key") : null), "crypto", "operation signature verification failed");
-        operations.push({ document, hash, key: info.key, bytes });
+        operations.push({ document, hash, key: info.key, bytes, policy: operationPolicy });
       } catch (error) {
         await this.quarantineArtifact("operation", info.key, bytes, error, details);
       }
@@ -595,7 +623,7 @@ export class EncryptedWorkspaceWorker {
         const parentsKnown = await Promise.all(entry.document.payload.parentRevisionIds.map((parent) => this.state.getRevision(parent)));
         if (parentsKnown.some((parent) => !parent)) { index += 1; continue; }
         try {
-          const appliedPaths = await this.applyIncoming(entry.document, entry.hash, meta, signal);
+          const appliedPaths = await this.applyIncoming(entry.document, entry.hash, meta, entry.policy, signal);
           changed.push(...appliedPaths);
           await this.acceptArtifact("operation", entry.key);
         } catch (error) {
@@ -658,6 +686,15 @@ export class EncryptedWorkspaceWorker {
     document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>,
     operationHash: string,
     meta: WorkspaceRuntimeMeta,
+    /**
+     * The policy version the operation references (finding 2026-09-04).
+     *
+     * Every authorization below asked the NEWEST policy instead - so a delete
+     * written last month was re-judged against slices and roles that did not
+     * exist when it was written, and a member who has since left invalidated
+     * their own legitimate history. The author could only know this version.
+     */
+    operationPolicy: WorkspacePolicyPayload,
     signal?: AbortSignal
   ): Promise<string[]> {
     const operation = document.payload;
@@ -667,9 +704,9 @@ export class EncryptedWorkspaceWorker {
     meta.needsPublication = true;
     if (operation.operation === "delete") {
       const deleteSlices = current
-        ? workspaceSliceIdsForObject(this.activePolicy.payload, { objectId: current.objectId, path: current.path, contentKind: current.contentKind })
+        ? workspaceSliceIdsForObject(operationPolicy, { objectId: current.objectId, path: current.path, contentKind: current.contentKind })
         : [];
-      protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "content.delete", objectId: operation.objectId, sliceIds: deleteSlices }).allowed, "authorization", "delete capability is not granted for the encrypted object");
+      protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "content.delete", objectId: operation.objectId, sliceIds: deleteSlices }).allowed, "authorization", "delete capability is not granted for the encrypted object");
       const setCurrent = !!current && !!current.currentRevisionId && operation.parentRevisionIds.includes(current.currentRevisionId);
       if (setCurrent && current) await this.materializeDelete(current, operationHash);
       const object: WorkspaceObjectRecord = current
@@ -711,8 +748,8 @@ export class EncryptedWorkspaceWorker {
     if (operation.operation === "comment") {
       const commentTarget = current ?? await this.state.getRevision(operation.parentRevisionIds[0] ?? "").then((revision) => revision ? this.state.getObjectById(revision.objectId) : null);
       protocolAssert(!!commentTarget, "authorization", "comment target is not known");
-      const commentSlices = workspaceSliceIdsForObject(this.activePolicy.payload, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
-      protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
+      const commentSlices = workspaceSliceIdsForObject(operationPolicy, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
+      protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
       const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
       const record = workspaceCommentRecord(body, document, operationHash);
       // A retraction (K7) is honoured from its author, or from a member who
@@ -721,7 +758,7 @@ export class EncryptedWorkspaceWorker {
       // quarantine, not in the ledger.
       if (record.retractsCommentId) {
         const retracted = (await this.state.listComments(commentTarget.objectId)).find((entry) => entry.commentId === record.retractsCommentId);
-        const governs = evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "workspace.manage" }).allowed;
+        const governs = evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "workspace.manage" }).allowed;
         protocolAssert(governs || !retracted || retracted.authorMemberId === record.authorMemberId, "authorization", "only the author or a workspace manager may delete a comment");
         await this.state.saveComment(record);
         if (governs && retracted && retracted.authorMemberId !== record.authorMemberId) await this.state.retractComment(retracted.commentId, record.createdAt);
@@ -736,8 +773,8 @@ export class EncryptedWorkspaceWorker {
     const targetPath = assertCanonicalVaultPath(opened.metadata.path);
     const isDirectory = opened.metadata.mime === "inode/directory";
     const incomingSliceObject = sliceObjectWithContent(operation.objectId, targetPath, isDirectory ? "directory" : opened.metadata.contentKind, plaintext);
-    const targetSlices = workspaceSliceIdsForObject(this.activePolicy.payload, incomingSliceObject);
-    protocolAssert(evaluateWorkspaceAccess(this.activePolicy.payload, { memberId: operation.memberId, deviceId: operation.deviceId, capability: operation.capability, objectId: operation.objectId, sliceIds: targetSlices, object: incomingSliceObject, objectAuthorMemberId: current?.authorMemberId ?? null }).allowed, "authorization", "operation capability is not granted for the encrypted object path");
+    const targetSlices = workspaceSliceIdsForObject(operationPolicy, incomingSliceObject);
+    protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: operation.capability, objectId: operation.objectId, sliceIds: targetSlices, object: incomingSliceObject, objectAuthorMemberId: current?.authorMemberId ?? null }).allowed, "authorization", "operation capability is not granted for the encrypted object path");
     const fastForward = !current || (current.currentRevisionId !== null && operation.parentRevisionIds.includes(current.currentRevisionId));
     const pathOwner = await this.state.getObjectByPath(targetPath);
     const pathCollision = !!pathOwner && pathOwner.objectId !== operation.objectId && !pathOwner.deleted;
@@ -1171,8 +1208,21 @@ export class EncryptedWorkspaceWorker {
         const payload = parsed.payload as { deviceId: string; sequence: number; operationHash: string; checkpointHash: string | null };
         const device = policy.devices.find((entry) => entry.deviceId === payload.deviceId);
         protocolAssert(!!device && verifyWorkspaceDocumentSignatures(parsed, (entry) => entry.signerId === device.deviceId ? decodeBase64Exact(device.signingPublicKey, 32, "head signing key") : null), "crypto", "workspace head signature verification failed");
+        // A revoked device's pointer is not evidence of anything any more
+        // (finding 2026-09-04). Heads are hints; taking this one would let a
+        // revoked device raise the very boundary that holds it back.
+        if (device.state === "revoked") continue;
         const observed = meta.operationHeads[payload.deviceId];
-        protocolAssert(!observed || payload.sequence >= observed.sequence, "rollback", "remote workspace head rolled back below the locally observed sequence");
+        // Our OWN pointer is not evidence about us (finding 2026-09-04). The
+        // local head advances when an operation is PREPARED, the remote file is
+        // written at the end of the cycle - so between the two this device
+        // accused itself of rolling back the cloud, on every cycle that carried
+        // local work. A lagging own pointer means one thing: write it again.
+        // The checkpoint it names is still read below; ours is the one that
+        // witnesses the other devices.
+        const own = payload.deviceId === meta.deviceId;
+        if (own) { if (observed && payload.sequence < observed.sequence) meta.needsPublication = true; }
+        else protocolAssert(!observed || payload.sequence >= observed.sequence, "rollback", "remote workspace head rolled back below the locally observed sequence");
         if (payload.checkpointHash) {
           const checkpointKey = `.pvws/checkpoints/${payload.checkpointHash}.pvcheck`;
           const checkpointBytes = await this.objectStore.get(checkpointKey, { signal });
@@ -1186,13 +1236,25 @@ export class EncryptedWorkspaceWorker {
               }
               return null;
             }), "crypto", "workspace checkpoint signature verification failed");
+            // What an ACTIVE device vouched for: the boundary a revocation
+            // gets (finding 2026-09-04). Only an active signer counts - a
+            // revoked one would otherwise witness its own future.
+            const signerId = checkpoint.signatures[0]?.signerId ?? null;
+            const signerActive = policy.devices.some((candidate) => candidate.deviceId === signerId && candidate.state === "active");
+            if (signerActive) {
+              const heads = (checkpoint.payload as { operationHeads: Array<{ deviceId: string; sequence: number }> }).operationHeads;
+              meta.checkpointHeads ??= {};
+              for (const head of heads) {
+                if ((meta.checkpointHeads[head.deviceId] ?? 0) < head.sequence) meta.checkpointHeads[head.deviceId] = head.sequence;
+              }
+            }
             await this.acceptArtifact("checkpoint", checkpointKey);
           } catch (error) {
             await this.quarantineArtifact("checkpoint", checkpointKey, checkpointBytes, error);
             throw error;
           }
         }
-        meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
+        if (!own) meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
         await this.acceptArtifact("head", info.key);
       } catch (error) {
         await this.quarantineArtifact("head", info.key, bytes, error);

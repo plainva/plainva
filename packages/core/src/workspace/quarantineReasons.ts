@@ -22,6 +22,7 @@ export type QuarantineReasonFamily =
   | "policyChain"
   | "policyUnaccepted"
   | "authorNotActive"
+  | "postRevocation"
   | "capability"
   | "missingParents"
   | "chainGap"
@@ -34,13 +35,13 @@ export type QuarantineReasonFamily =
   | "unknown";
 
 export const QUARANTINE_REASON_FAMILIES: readonly QuarantineReasonFamily[] = [
-  "binding", "pathHash", "signature", "policyChain", "policyUnaccepted", "authorNotActive", "capability", "missingParents",
+  "binding", "pathHash", "signature", "policyChain", "policyUnaccepted", "authorNotActive", "postRevocation", "capability", "missingParents",
   "chainGap", "chainBlocked", "payloadMissing", "envelope", "rollback", "checkpointMissing", "unreadable", "unknown",
 ];
 
 /** Families whose entry offers advice beyond the explanation. */
 export const QUARANTINE_HINTED_FAMILIES: readonly QuarantineReasonFamily[] = [
-  "chainGap", "policyUnaccepted", "authorNotActive", "capability", "payloadMissing", "missingParents", "unreadable", "unknown",
+  "chainGap", "policyUnaccepted", "authorNotActive", "postRevocation", "capability", "payloadMissing", "missingParents", "unreadable", "unknown",
 ];
 
 const MESSAGE_FAMILIES: ReadonlyArray<readonly [RegExp, QuarantineReasonFamily]> = [
@@ -53,6 +54,7 @@ const MESSAGE_FAMILIES: ReadonlyArray<readonly [RegExp, QuarantineReasonFamily]>
   [/not on the accepted successor chain/i, "policyChain"],
   [/unaccepted policy/i, "policyUnaccepted"],
   [/not an active policy device/i, "authorNotActive"],
+  [/after the device was revoked/i, "postRevocation"],
   [/capability is not granted/i, "capability"],
   [/missing revision parents/i, "missingParents"],
   [/checkpoint is missing or changed/i, "checkpointMissing"],

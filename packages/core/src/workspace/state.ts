@@ -286,6 +286,21 @@ export interface WorkspaceRuntimeMeta {
   pendingPublication: WorkspacePendingPublication | null;
   /** Durable full-rekey cursor. Optional so pre-P8 local state remains readable. */
   rekeyJob?: WorkspaceRekeyJob | null;
+  /**
+   * How far each device had written when an ACTIVE device last vouched for it
+   * (finding 2026-09-04): the highest sequence per device seen in a checkpoint
+   * signed by a device that is active in the current policy.
+   *
+   * This is the boundary a revocation gets. An operation may reference the
+   * policy version it was written under - that is what the protocol asks for -
+   * so a revoked device could otherwise keep writing forever by pointing at a
+   * version in which it was still active. Everything up to this line was
+   * witnessed before; anything above it is refused.
+   *
+   * Local state, never a protocol document: optional, so older local state
+   * stays readable, and grows only.
+   */
+  checkpointHeads?: Record<string, number>;
 }
 
 export type WorkspaceRekeyMode = "future" | "full";
