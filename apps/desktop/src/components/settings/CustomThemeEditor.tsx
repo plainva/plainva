@@ -1,12 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check } from "lucide-react";
 import {
   AVAILABLE_THEMES,
   Banner,
   Button,
   FontField,
-  ICON,
   Segmented,
   SettingCard,
   SettingRow,
@@ -82,36 +80,30 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
     onChange(customThemeFromSwatch(sw, spec.mode, spec));
   };
 
+  // Every colour row is the same eight-slot grid (finding 2026-09-04: a
+  // wrapping flex row put eight discs on one line, three on the next and a
+  // rectangle among them). The ring marks the pick; a check icon in the
+  // accent's own "on" colour vanished on a white ground.
   const swatch = (hex: string, active: boolean, label: string, onPick: () => void) => (
     <button
       key={hex}
       type="button"
-      className="pv-btn pv-btn--ghost pv-btn--sm"
+      className={active ? "pv-swatch is-on" : "pv-swatch"}
       aria-label={label}
       aria-pressed={active}
       data-tip={hex}
       onClick={onPick}
-      style={{
-        width: "var(--control-md)", height: "var(--control-md)", minWidth: 0, padding: 0, borderRadius: "50%",
-        background: hex, border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color)", flexShrink: 0,
-      }}
-    >
-      {active ? <Check size={ICON.meta} style={{ color: colors.accentOn }} aria-hidden="true" /> : null}
-    </button>
-  );
-  const colorInput = (value: string, label: string, onPick: (hex: string) => void) => (
-    <input
-      type="color"
-      className="pv-field pv-field--compact"
-      aria-label={label}
-      value={value}
-      onChange={(e) => onPick(e.target.value)}
-      style={{ width: "var(--control-lg)", padding: 0, cursor: "pointer" }}
+      style={{ background: hex }}
     />
   );
-  const swatchRow = (children: React.ReactNode) => (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", minWidth: 0 }}>{children}</div>
+  // The free colour is a disc like the others, wearing a hue ring; the native
+  // input sits invisible on top so the OS picker opens from the disc.
+  const colorInput = (value: string, label: string, onPick: (hex: string) => void) => (
+    <label className="pv-swatch pv-swatch--free" data-tip={label} style={{ "--swatch": value } as React.CSSProperties}>
+      <input type="color" aria-label={label} value={value} onChange={(e) => onPick(e.target.value)} />
+    </label>
   );
+  const swatchRow = (children: React.ReactNode) => <div className="pv-swatches">{children}</div>;
   const ratioLine = (label: string, ratio: number, min: number, note?: string) => (
     <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "var(--space-2)", alignItems: "center", fontSize: "var(--text-sm)" }}>
       <span>{label}</span>
@@ -169,7 +161,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
           {swatchRow(
             <>
               {[colors.textMain, colors.textMuted, colors.textFaint].map((hex) => (
-                <span key={hex} aria-hidden="true" data-tip={hex} style={{ width: "var(--control-md)", height: "var(--control-md)", borderRadius: "50%", background: hex, border: "1px solid var(--border-color)", display: "inline-block" }} />
+                <span key={hex} aria-hidden="true" data-tip={hex} className="pv-swatch pv-swatch--static" style={{ background: hex }} />
               ))}
             </>,
           )}

@@ -398,6 +398,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-winbtn--close": "titlebar chrome follows the --titlebar-* tokens",
   "pv-window-chrome-strip": "positioning strip, no visual surface",
   "pv-themecard": "theme preview cards paint their own swatches by design",
+  "pv-swatches": "eight-slot colour grid of the custom theme, layout only",
+  "pv-swatch": "colour discs are DATA (the hex each one offers); the pick ring and the hairline are --text-main/--border-color, which both themes already set",
   "pv-tab-close": "tab affordance — tab strips are themed via .tabstrip rules",
   "pv-tab-dirty": "accent dot on token colors",
   "pv-splitbtn": "composed of .pv-btn halves — the button rules carry the theme",

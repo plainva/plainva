@@ -1857,6 +1857,72 @@ button.pv-chip:hover { background: var(--state-hover); }
   min-width: 0;
 }
 
+/* Colour slots of "Mein Design" (finding 2026-09-04: the swatches were a
+   wrapping flex row — eight discs on one line, three on the next, the free
+   colour a rectangle among them). A grid of eight fixed slots: every row is
+   the same width, so ground, accent and text line up in columns; a row with
+   fewer colours leaves its slots empty. Fits the 300px control column. */
+.pv-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, var(--control-md));
+  gap: var(--space-2);
+  justify-content: start;
+}
+.pv-swatch {
+  position: relative;
+  display: inline-block;
+  width: var(--control-md);
+  height: var(--control-md);
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.pv-swatch:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+.pv-swatch.is-on {
+  outline: 2px solid var(--text-main);
+  outline-offset: 2px;
+}
+.pv-swatch--static {
+  cursor: default;
+}
+/* The free colour: a hue ring around the current pick (--swatch); the native
+   colour input covers the disc invisibly so the OS picker opens from it. */
+/* Always the last slot, so the hue disc sits in one column across rows. */
+.pv-swatch--free {
+  grid-column: 8;
+  background: conic-gradient(
+    from 0deg,
+    hsl(0 80% 55%),
+    hsl(60 80% 50%),
+    hsl(120 70% 45%),
+    hsl(180 70% 45%),
+    hsl(240 70% 55%),
+    hsl(300 70% 55%),
+    hsl(0 80% 55%)
+  );
+}
+.pv-swatch--free::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--swatch);
+}
+.pv-swatch--free input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 /* Vault identity card in the settings rail (redesign P2): name on the full
    row width (never covered by the switch control), the switch link on its own
    line below — deliberately no dropdown/select look. */
