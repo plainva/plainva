@@ -2135,6 +2135,11 @@ test('A narrow left sidebar keeps its head inside the panel', async ({ page }) =
 });
 
 test('Sidebar tabs carry labels while they fit, then fall back to the active one', async ({ page }) => {
+  // Seven full page loads, because the sidebar width is read at boot. Against
+  // the dev server with twelve workers that is 28–30 s (measured 2026-09-04,
+  // two runs) — right at the 30 s default, which is why this test was the one
+  // to time out. The budget says what the test does, not what it hopes.
+  test.setTimeout(90_000);
   // Measured in the real font rather than keyed to a pixel guess: "Databases"
   // is more than twice the width of "Tags", so a fixed threshold would either
   // cut the long label or hide the short one long before it had to.

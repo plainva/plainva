@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { forceFullParse } from "../test-parse";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// The live session pulls KaTeX (and the mermaid stub) through a dynamic
+// import. Under a full parallel `turbo run test --force` that import alone
+// has crossed the 5 s default once (2026-08-13, Sammelplan § 2.27: green in
+// isolation, green on the second full run — the classic shape of a load
+// stall, not a defect). The budget names the import, not the assertions.
+vi.setConfig({ testTimeout: 20_000 });
 import type { i18n as I18nInstance } from "i18next";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
