@@ -127,7 +127,7 @@ export function TagsScreen({
   const body = (
     <>
       {onBack && (
-        <AppBar onBack={onBack} title={tag ? `#${tag}` : t("mobile.tags")} />
+        <AppBar onBack={onBack} title={tag ? `#${tag}` : t("mobile.tags")} testId="appbar-tags" />
       )}
       {ptrIndicator}
       {tag ? (
@@ -151,6 +151,7 @@ export function TagsScreen({
         <GroupCard><RowList>{groups.map(([root, g]) => (
           <Fragment key={root}>
             <Row
+              data-testid="tag-row"
               end={<>
                 <span className="m-badge-muted">{g.total}</span>
               {g.children.length > 0 && (

@@ -127,22 +127,22 @@ export function MailRuleScreen({ ruleId, onBack }: { ruleId: string; onBack: () 
 
   if (!rule) {
     return (
-      <>
+      <div className="m-page">
         <AppBar title={t("rules.section")} onBack={onBack} />
-        <div className="m-page">
-          <p className="m-hint" data-testid="rule-missing">
-            {t("rules.gone", { defaultValue: "Diese Regel gibt es nicht mehr." })}
-          </p>
-        </div>
-      </>
+        <p className="m-hint" data-testid="rule-missing">
+          {t("rules.gone", { defaultValue: "Diese Regel gibt es nicht mehr." })}
+        </p>
+      </div>
     );
   }
 
   return (
-    <>
+    // The bar sits INSIDE the page: it bleeds `--m-edge` to both sides and
+    // relies on the page's padding to take that back. Outside, the document was
+    // wider than the window and the screen scrolled sideways (5.7).
+    <div className="m-page">
       <AppBar title={rule.name} onBack={onBack} />
-      <div className="m-page">
-        <div className="m-settings">
+      <div className="m-settings">
         <GroupCard>
           <RowList>
             <Row
@@ -262,7 +262,6 @@ export function MailRuleScreen({ ruleId, onBack }: { ruleId: string; onBack: () 
           {t("common.delete")}
         </Button>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

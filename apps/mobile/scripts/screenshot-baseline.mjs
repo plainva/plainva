@@ -131,9 +131,8 @@ const BASE_SETTINGS = {
   // model on first open, so seeding them still decides what the bar shows.
   barTabCount: 4,
   tabSlots: ["notes", "today", "tasks", "calendar", "mail", "graph"],
-  // The task database the second section renders (N9.4). Without it the tasks
-  // surface could only ever be photographed with its database section absent.
-  taskDatabase: "Aufgaben.base",
+  // The task database the tasks surface renders (N9.4) used to be seeded here;
+  // it is vault-scoped now and lives in `fixtureStorage()` (5.7).
 };
 
 // The bar's fixed last entry opens the areas sheet (S10 — it replaced the ▾
@@ -171,8 +170,11 @@ const TO_CLOUD_VAULT = [
   // Optional, because the switch OUTLIVES the surface: contexts are per theme
   // and every page in one shares the registry, so from the second cloud
   // surface onwards this vault is already active and its row is no longer a
-  // switchable one.
-  { click: ".m-row--split .m-row-main", nth: 2, optional: true },
+  // switchable one. The row is addressed by its test id since 5.7: the class
+  // it was addressed by went away with the vault list's rebuild, and because
+  // the step is optional the missing element PASSED - every connected surface
+  // then photographed the local vault while claiming the connected one.
+  { click: '[data-testid="vault-row"]', nth: 2, optional: true },
   { wait: 2500 },
   // Back to a known place. The two branches end differently — a switch reboots
   // the shell to the notes root, a skipped one leaves us standing on the vault
@@ -186,23 +188,30 @@ const TO_CLOUD_VAULT = [
  * a failing step marks that one surface as failed and the run continues, so a
  * single broken path never costs the whole baseline.
  */
+/*
+ * Every surface carries a `requires` proof since 2026-09-04 (Sammelplan § 2.28,
+ * Fahrplan 5.7): a selector that only its subject renders. The one exception
+ * stays `security-area-active`, which is runtime-gated and says so. The proof
+ * exists because a surface once counted as covered for weeks while showing a
+ * banner and a status line; a capture that cannot fail is not a capture.
+ */
 const SURFACES = [
-  { id: "onboarding", seed: { onboarded: false }, steps: [] },
-  { id: "home", steps: [] },
-  { id: "home-folder", steps: [{ click: ".m-page .pv-grouprow", nth: 0 }] },
-  { id: "note-read", steps: [{ click: ".m-caro-card", nth: 0 }] },
-  { id: "note-edit", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-edit"]' }] },
-  { id: "note-context", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-context"]' }] },
-  { id: "note-menu", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-menu"]' }] },
-  { id: "search", steps: [{ click: '[data-testid="appbar-search"]' }] },
-  { id: "areas-sheet", steps: [{ click: AREAS_SWITCH }] },
-  { id: "quick-create", steps: [{ click: '[data-testid="capture-fab"]' }] },
-  { id: "today", steps: area("today") },
+  { id: "onboarding", requires: ".m-onboarding", seed: { onboarded: false }, steps: [] },
+  { id: "home", requires: ".m-caro-card", steps: [] },
+  { id: "home-folder", requires: "[data-testid=\"browse-filter\"]", steps: [{ click: ".m-page .pv-grouprow", nth: 0 }] },
+  { id: "note-read", requires: "[data-testid=\"note-edit\"]", steps: [{ click: ".m-caro-card", nth: 0 }] },
+  { id: "note-edit", requires: ".m-editor.is-docked", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-edit"]' }] },
+  { id: "note-context", requires: "[data-testid=\"okf-trust-section\"]", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-context"]' }] },
+  { id: "note-menu", requires: ".m-sheet-title", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-menu"]' }] },
+  { id: "search", requires: "[data-testid=\"appbar-searchpage\"]", steps: [{ click: '[data-testid="appbar-search"]' }] },
+  { id: "areas-sheet", requires: "[data-testid=\"areas-sheet\"]", steps: [{ click: AREAS_SWITCH }] },
+  { id: "quick-create", requires: ".m-fabmenu-items", steps: [{ click: '[data-testid="capture-fab"]' }] },
+  { id: "today", requires: "[data-testid=\"pim-event\"]", steps: area("today") },
   // Tags and databases are navigator TABS since S9, not areas of their own —
   // captured where they now live. Bookmarks are a pinned section on the same
   // root and therefore already in `home`.
-  { id: "navigator-tags", steps: [{ click: '[data-testid="navigator-tags"]' }] },
-  { id: "navigator-databases", steps: [{ click: '[data-testid="navigator-databases"]' }] },
+  { id: "navigator-tags", requires: "[data-testid=\"tag-row\"]", steps: [{ click: '[data-testid="navigator-tags"]' }] },
+  { id: "navigator-databases", requires: "[data-testid=\"databases-new\"]", steps: [{ click: '[data-testid="navigator-databases"]' }] },
   /**
    * The pinboard is the first view of the Projekte database, so opening THAT
    * database lands on the surface without a view switch.
@@ -216,6 +225,7 @@ const SURFACES = [
    */
   {
     id: "base-pinboard",
+    requires: ".m-pin-body",
     steps: [
       { click: '[data-testid="navigator-databases"]' },
       { click: '.m-page .pv-grouprow:has-text("Projekte")' },
@@ -255,6 +265,7 @@ const SURFACES = [
   /** The same calendar one period on — the arrows are the surface's only state. */
   {
     id: "base-calendar-next",
+    requires: ".m-cal-head",
     steps: [
       { click: '[data-testid="navigator-databases"]' },
       // By NAME, not by position: the navigator lists two databases and their
@@ -269,6 +280,7 @@ const SURFACES = [
   },
   {
     id: "base-timeline",
+    requires: ".m-tl-bar",
     steps: [
       { click: '[data-testid="navigator-databases"]' },
       { click: '.m-page .pv-grouprow:has-text("Projekte")' },
@@ -281,18 +293,30 @@ const SURFACES = [
       { wait: 400 },
     ],
   },
-  { id: "calendar", steps: area("calendar") },
+  { id: "calendar", requires: "[data-testid=\"pim-daycol-head\"]", steps: area("calendar") },
   // The "show" row with a database view switched on (S18b). The grid itself
   // stays unreachable (no PIM credential slot, see the fixture's note), so this
   // photographs the row, not the entries in a day.
-  { id: "calendar-overlay-row", steps: [...area("calendar"), { wait: 500 }] },
+  { id: "calendar-overlay-row", requires: "[data-testid=\"pim-daycol-head\"]", steps: [...area("calendar"), { wait: 500 }] },
   /**
    * The event PREVIEW (S4). A tap on an event opens it — until then that tap
    * produced a bare list of verbs, and everything the preview shows (where,
    * who, whether it repeats) was invisible outside the edit form.
    */
-  { id: "calendar-event-peek", steps: [...area("today"), { click: '[data-testid="pim-event"]', nth: 2 }] },
-  { id: "mail", steps: area("mail") },
+  { id: "calendar-event-peek", requires: "[data-testid=\"event-peek-sheet\"]", steps: [...area("today"), { click: '[data-testid="pim-event"]', nth: 2 }] },
+  /**
+   * The mail area. What a browser can show of it is the toolbar and the app's
+   * own notice that a preview has no IMAP bridge - the message list itself
+   * needs the phone. So the proof is the toolbar, and the surface is captured
+   * and NOT counted (5.7): before `requires` asked, this counted as "mail"
+   * while it had photographed the device sign-in card for weeks.
+   */
+  {
+    id: "mail",
+    requires: "[data-testid=\"mail-threads-toggle\"]",
+    steps: area("mail"),
+    unverified: "no IMAP in a browser: the toolbar and the notice are the whole picture, the message list needs a device",
+  },
   /**
    * The same surface with conversations ON. It exists because the mode was
    * reported as a switch that "cannot be activated at all": measured, it flips
@@ -312,6 +336,8 @@ const SURFACES = [
    */
   {
     id: "mail-threads",
+    requires: "[data-testid=\"mail-threads-toggle\"]",
+    unverified: "no IMAP in a browser: the toggle flips, the conversations it would group need a device",
     steps: [...area("mail"), { click: '[data-testid="mail-threads-toggle"]' }, { wait: 500 }],
   },
   /**
@@ -321,6 +347,7 @@ const SURFACES = [
    */
   {
     id: "mail-rule",
+    requires: "[data-testid=\"rule-match\"]",
     steps: [
       ...settingsArea("cloudAccounts"),
       // nth 1: the list sorts the calendar account first, and the mail one is
@@ -332,22 +359,23 @@ const SURFACES = [
       { wait: 300 },
     ],
   },
-  { id: "tasks", steps: area("tasks") },
+  { id: "tasks", requires: "[data-testid=\"task-db-row\"]", steps: area("tasks") },
   /* The SECOND section — every checkbox in the vault, grouped by note. It sits
      below the fold behind the database section, so no capture had ever shown
      it; the round that rebuilt both had to be able to look at both. */
-  { id: "tasks-notes", steps: [...area("tasks"), { scrollTo: '[data-testid="task-row"]', nth: -1 }] },
-  { id: "graph", steps: area("graph") },
+  { id: "tasks-notes", requires: "[data-testid=\"task-row\"]", steps: [...area("tasks"), { scrollTo: '[data-testid="task-row"]', nth: -1 }] },
+  { id: "graph", requires: "[data-testid=\"graph-tools\"]", steps: area("graph") },
   /**
    * The graph's tools sheet (N9.6). It was never photographed, which is how a
    * row that sat permanently disabled — focus, the map's most useful function
    * on a small screen — survived from birth: it is two taps deep and no
    * capture ever went there.
    */
-  { id: "graph-tools", steps: [...area("graph"), { click: '[data-testid="graph-tools"]' }] },
+  { id: "graph-tools", requires: "[data-testid=\"graph-tool-focus\"]", steps: [...area("graph"), { click: '[data-testid="graph-tools"]' }] },
   /** And what the focus row asks now, instead of doing nothing. */
   {
     id: "graph-focus-pick",
+    requires: ".m-sheet .m-slotmark",
     steps: [
       ...area("graph"),
       { click: '[data-testid="graph-tools"]' },
@@ -361,37 +389,39 @@ const SURFACES = [
    * missing `tasks` branch became visible in the first place.
    */
   // Notes leads in both: the bar model pins it, so the seeded area is second.
-  { id: "tab-tasks", seed: { tabSlots: ["tasks", "graph", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
-  { id: "tab-graph", seed: { tabSlots: ["graph", "tasks", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
-  { id: "settings", steps: [{ click: SETTINGS_BTN }] },
-  { id: "settings-appearance", steps: settingsArea("appearance") },
-  { id: "settings-editor", steps: settingsArea("editor") },
-  { id: "settings-about", steps: settingsArea("about") },
-  { id: "settings-cloud-accounts", steps: settingsArea("cloudAccounts") },
-  { id: "settings-sync", steps: settingsArea("sync") },
-  { id: "settings-security", steps: settingsArea("security") },
-  { id: "settings-pim", steps: settingsArea("pim") },
-  { id: "settings-mail", steps: settingsArea("mail") },
-  { id: "settings-content", steps: settingsArea("content") },
-  { id: "settings-backup", steps: settingsArea("backup") },
+  { id: "tab-tasks", requires: "[data-testid=\"task-db-row\"]", seed: { tabSlots: ["tasks", "graph", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
+  { id: "tab-graph", requires: "[data-testid=\"graph-tools\"]", seed: { tabSlots: ["graph", "tasks", "mail"], barTabCount: 3 }, steps: [{ click: ".m-tabbar .m-tab", nth: 1 }] },
+  { id: "settings", requires: "[data-testid=\"settings-vault-block\"]", steps: [{ click: SETTINGS_BTN }] },
+  { id: "settings-appearance", requires: "[data-testid=\"theme-card-custom-edit\"]", steps: settingsArea("appearance") },
+  { id: "settings-editor", requires: "[data-testid=\"appbar-area-editor\"]", steps: settingsArea("editor") },
+  { id: "settings-about", requires: "[data-testid=\"appbar-area-about\"]", steps: settingsArea("about") },
+  { id: "settings-cloud-accounts", requires: "[data-testid=\"cloudacct-connect\"]", steps: settingsArea("cloudAccounts") },
+  { id: "settings-sync", requires: ".m-statcard-meta", steps: settingsArea("sync") },
+  { id: "settings-security", requires: "[data-testid=\"appbar-area-security\"]", steps: settingsArea("security") },
+  { id: "settings-pim", requires: "[data-testid=\"pim-account-add\"]", steps: settingsArea("pim") },
+  { id: "settings-mail", requires: "[data-testid=\"mail-account-add\"]", steps: settingsArea("mail") },
+  { id: "settings-content", requires: "[data-testid=\"appbar-area-content\"]", steps: settingsArea("content") },
+  { id: "settings-backup", requires: "[data-testid=\"appbar-area-backup\"]", steps: settingsArea("backup") },
   // "Bars & areas" is the navigation bar on a phone; since S39 it is the shared
   // catalog's area rather than a mobile-only settings row.
-  { id: "settings-navbar", steps: settingsArea("bars") },
+  { id: "settings-navbar", requires: "[data-testid=\"navbar-count\"]", steps: settingsArea("bars") },
   // The two areas the phone gained in S39 — the matrix has to see them, or the
   // step that adds them compares as "nothing changed".
-  { id: "settings-behavior", steps: settingsArea("behavior") },
-  { id: "settings-maintenance", steps: settingsArea("maintenance") },
+  { id: "settings-behavior", requires: "[data-testid=\"appbar-area-behavior\"]", steps: settingsArea("behavior") },
+  { id: "settings-maintenance", requires: "[data-testid=\"open-import\"]", steps: settingsArea("maintenance") },
   // The import wizard's first step (S41). It opens from maintenance; the later
   // steps need a picked file, which a headless run cannot supply.
   {
     id: "import-wizard",
+    requires: "[data-testid=\"import-subfolder\"]",
     steps: [...settingsArea("maintenance"), { click: '[data-testid="open-import"]' }],
   },
-  { id: "vaults", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-vault-block"]' }] },
+  { id: "vaults", requires: "[data-testid=\"vault-details\"]", steps: [{ click: SETTINGS_BTN }, { click: '[data-testid="settings-vault-block"]' }] },
   // The vault DETAIL page — the matrix carried only the list, so S36's rebuild
   // of the most overloaded surface in the app would have been invisible to it.
   {
     id: "vault-detail",
+    requires: ".m-statcard-meta",
     steps: [
       { click: SETTINGS_BTN },
       { click: '[data-testid="settings-vault-block"]' },
@@ -410,11 +440,12 @@ const SURFACES = [
    */
   // The graph WITH a graph. `settings-cloud-accounts` above shows the settings
   // catalog entry; this is the accounts surface itself, now carrying accounts.
-  { id: "cloud-accounts", steps: settingsArea("cloudAccounts") },
+  { id: "cloud-accounts", requires: "[data-testid=\"cloudacct-connect\"]", steps: settingsArea("cloudAccounts") },
   // What the chevron promises since N4.2: THIS account, not the list of every
   // calendar account there is.
   {
     id: "cloud-account-detail",
+    requires: "[data-testid=\"cloudacct-detail\"]",
     steps: [...settingsArea("cloudAccounts"), { click: '[data-testid="cloudacct-row"]', nth: 0 }],
   },
   // An attachments folder: non-Markdown files in the browse list. Addressed by
@@ -423,6 +454,7 @@ const SURFACES = [
   // notes the day the sort changes.
   {
     id: "attachments",
+    requires: "[data-testid=\"browse-filter\"]",
     steps: [{ click: '[data-testid="navigator-files"]' }, { click: '.pv-grouprow:has-text("Anhaenge")' }],
   },
   /**
@@ -434,6 +466,7 @@ const SURFACES = [
    */
   {
     id: "vault-detail-cloud",
+    requires: ".m-statcard-meta",
     steps: [
       { click: SETTINGS_BTN },
       { click: '[data-testid="settings-vault-block"]' },
@@ -448,10 +481,11 @@ const SURFACES = [
    */
   {
     id: "empty-vault",
+    requires: ".pv-empty",
     steps: [
       { click: SETTINGS_BTN },
       { click: '[data-testid="settings-vault-block"]' },
-      { click: ".m-row--split .m-row-main", nth: 1 },
+      { click: '[data-testid="vault-row"]', nth: 1 },
       { wait: 2500 },
     ],
   },
@@ -465,6 +499,7 @@ const SURFACES = [
    */
   {
     id: "vault-detail-connected",
+    requires: "[data-testid=\"vault-sync-chain\"]",
     steps: [
       ...TO_CLOUD_VAULT,
       { click: SETTINGS_BTN },
@@ -474,6 +509,7 @@ const SURFACES = [
   },
   {
     id: "sync-chain",
+    requires: "[data-testid=\"sync-chain\"]",
     steps: [
       ...TO_CLOUD_VAULT,
       { click: SETTINGS_BTN },
@@ -485,6 +521,7 @@ const SURFACES = [
   },
   {
     id: "sync-diagnostics",
+    requires: "[data-testid=\"sync-diagnostics\"]",
     steps: [
       ...TO_CLOUD_VAULT,
       { click: SETTINGS_BTN },
@@ -525,6 +562,7 @@ const SURFACES = [
   /** One account carrying THREE services — the card the local vault cannot show. */
   {
     id: "cloud-account-services",
+    requires: "[data-testid=\"cloudacct-detail\"]",
     steps: [
       ...TO_CLOUD_VAULT,
       ...settingsArea("cloudAccounts"),
@@ -772,6 +810,13 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
     reducedMotion: "reduce",
   });
   context.setDefaultTimeout(8000);
+  // Nothing leaves localhost. The fixture carries credentials that open
+  // nothing, and a capture must not knock on a live provider with them: the
+  // first run with a seeded calendar credential sent it to Microsoft's token
+  // endpoint and photographed the 400 it got back (5.7). A blocked request
+  // fails like a network outage, which is a state the app has a face for.
+  const origin = new URL(baseUrl).origin;
+  await context.route((url) => url.origin !== origin, (route) => route.abort("blockedbyclient"));
   // Relative timestamps ("in dieser Minute") and today's date would make two
   // runs differ for no reason, and a comparison that always reports noise is
   // worth nothing. Only the clock READING is fixed — timers keep running, so
@@ -804,6 +849,12 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
         // exercise. Dropping the migrated key lets each surface migrate afresh.
         for (const key of Object.keys(globalThis.localStorage)) {
           if (key.includes("barLayout_")) globalThis.localStorage.removeItem(key);
+          // Since e6fee8cc (2026-09-03) the app reopens the note you left it
+          // in. The memory is per vault and outlives the page, so every surface
+          // after `note-read` would start INSIDE that note instead of on the
+          // home screen its steps expect - fifty surfaces failed in one cascade
+          // (5.7). Each surface starts where a fresh install starts.
+          if (key.startsWith("plainva-last-open-")) globalThis.localStorage.removeItem(key);
         }
       },
       [[SETTINGS_KEY, JSON.stringify(settings)]],
@@ -879,6 +930,10 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
     } catch (err) {
       results.push({ surface: surface.id, ok: false, error: String(err).split("\n")[0], problems });
       process.stdout.write(`  FAIL ${themeId}/${surface.id} — ${String(err).split("\n")[0]}\n`);
+      // What the page showed when it failed is the diagnosis; without it a
+      // "waitFor timed out" says only that SOMETHING was not there (5.7 found
+      // a fifty-surface cascade this way that the message alone could not name).
+      await page.screenshot({ path: join(dir, `${surface.id}.FAIL.png`) }).catch(() => {});
     } finally {
       await page.close();
     }

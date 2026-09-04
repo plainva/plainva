@@ -54,6 +54,7 @@ export function VaultsScreen({
               return (
                 <Row
                   controls
+                  data-testid="vault-row"
                   end={
                     <IconButton
                       data-testid="vault-details"

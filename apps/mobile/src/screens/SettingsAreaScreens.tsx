@@ -47,9 +47,9 @@ export function MobileSettingRow({
   );
 }
 
-function AreaHeader({ title, onBack }: { title: string; onBack: () => void }) {
+function AreaHeader({ id, title, onBack }: { id: string; title: string; onBack: () => void }) {
   return (
-    <AppBar onBack={onBack} title={title} />
+    <AppBar onBack={onBack} title={title} testId={`appbar-area-${id}`} />
   );
 }
 
@@ -78,7 +78,7 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   };
   return (
     <div className="m-page">
-      <AreaHeader onBack={onBack} title={t("settings.sectionEditor")} />
+      <AreaHeader id="editor" onBack={onBack} title={t("settings.sectionEditor")} />
       <div className="m-settings">
         <GroupCard><RowList><MobileSettingRow
           label={t("mobile.settingDefaultView")}
@@ -198,7 +198,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
 
   return (
     <div className="m-page">
-      <AreaHeader onBack={onBack} title={t("settings.sectionContent")} />
+      <AreaHeader id="content" onBack={onBack} title={t("settings.sectionContent")} />
       <div className="m-settings">
         <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
         <GroupCard>
@@ -391,7 +391,7 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
   };
   return (
     <div className="m-page">
-      <AreaHeader onBack={onBack} title={t("settings.backupSection")} />
+      <AreaHeader id="backup" onBack={onBack} title={t("settings.backupSection")} />
       <div className="m-settings">
         <SectionLabel>{t("versions.title")}</SectionLabel>
         <GroupCard>
@@ -477,7 +477,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="m-page">
-      <AreaHeader onBack={onBack} title={t("settings.about")} />
+      <AreaHeader id="about" onBack={onBack} title={t("settings.about")} />
       <div className="m-settings">
         <GroupCard>
           <RowList>

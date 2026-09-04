@@ -714,7 +714,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const ConnectionIcon = connection.kind === "local" ? Smartphone : connection.kind === "plain" ? ShieldOff : ShieldCheck;
 
   return <div className="m-page">
-    <AppBar onBack={onBack} title={t("settings.sectionSecurity")} />
+    <AppBar onBack={onBack} title={t("settings.sectionSecurity")} testId="appbar-area-security" />
     <div className="m-settings">
       {/* Honesty gate (H6): the "experimental, not independently reviewed" caveat
           used to live only in the desktop What's-New text and the handbook — not

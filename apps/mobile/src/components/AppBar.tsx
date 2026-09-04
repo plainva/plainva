@@ -49,6 +49,7 @@ export function AppBar({
   actions,
   titleAs,
   className,
+  testId,
 }: {
   /** Absent on a tab root — there is nothing to go back to. */
   onBack?: () => void;
@@ -75,6 +76,8 @@ export function AppBar({
   /** Replaces the plain heading (a surface whose title is itself a control). */
   titleAs?: ReactNode;
   className?: string;
+  /** Names the surface for the screenshot baseline's `requires` proof (5.7): a surface that renders this bar shows its subject. */
+  testId?: string;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLElement>(null);
@@ -119,6 +122,7 @@ export function AppBar({
   return (
     <header
       className={`m-appbar${large ? " m-appbar--lg" : ""}${scrolled ? " is-scrolled" : ""}${className ? ` ${className}` : ""}`}
+      data-testid={testId}
       ref={ref}
     >
       <div className="m-appbar-row">

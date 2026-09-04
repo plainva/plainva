@@ -162,6 +162,7 @@ export function SearchScreen({
       {/* The search field IS this surface's title — the one place where the
           title slot carries a control instead of a heading. */}
       <AppBar
+        testId="appbar-searchpage"
         onBack={onBack}
         title={t("mobile.tabSearch")}
         titleAs={

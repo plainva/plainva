@@ -463,7 +463,27 @@ export function fixtureStorage() {
     // The calendar's database selection (S18b). Pre-set so the "show" row is
     // photographed with a view ACTIVE — an unticked row proves the chips render
     // but says nothing about what they do.
-    [`mobile-vault-${LOCAL_VAULT}`]: { calendarOverlays: ["Projekte.base#Termine"] },
+    // The task database too: it is a vault-scoped setting since the settings
+    // scopes (P1), so the copy that used to sit in the app-wide seed decided
+    // nothing - the tasks surface photographed its database section ABSENT
+    // for as long as that copy was the only one (5.7).
+    [`mobile-vault-${LOCAL_VAULT}`]: {
+      calendarOverlays: ["Projekte.base#Termine"],
+      taskDatabase: "Aufgaben.base",
+    },
+    // A credential per account on THIS device. Since the device sign-in card
+    // (P2) an account without one shows "not signed in on this device" instead
+    // of its calendar or its inbox - which is what `calendar` and `mail`
+    // photographed until `requires` asked (5.7). The keys mirror the app's own
+    // builders (`services/deviceSignIn.ts`: `pim_<vault>_<account>`; the mail
+    // module's legacy slot `mail_<account>_<base64 vault>`; the web store
+    // prefixes `secret_`). The values open nothing: a fixture string is not a
+    // secret. The SHAPES are the app's own (`pim/pimCredentials.ts`,
+    // `mail/mailAccounts.ts`): a calendar credential without its `kind` took
+    // the Microsoft refresh path for a Google account, and a mail secret under
+    // the wrong field name read as "no password on this device".
+    [`secret_pim_${LOCAL_VAULT}_pim-fixture-1`]: { kind: "google", clientId: "fixture-client", refreshToken: "fixture" },
+    [`secret_mail_mail-fixture-1_${b64(LOCAL_VAULT)}`]: { pass: "fixture" },
     [`mailRules_${b64(LOCAL_VAULT)}`]: [
       {
         id: "rule-fixture-1",

@@ -17,7 +17,7 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={t("settings.sectionBehavior")} />
+      <AppBar onBack={onBack} title={t("settings.sectionBehavior")} testId="appbar-area-behavior" />
       <div className="m-settings">
         <SectionLabel>{t("settings.groupHints")}</SectionLabel>
         {/* Two cards, each a bold line and a "Show" button, are two rows. The
