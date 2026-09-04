@@ -14,10 +14,12 @@ import {
   Switch,
   TextArea,
   TextInput,
+  EVENT_COLOR_PALETTE,
 } from "@plainva/ui";
 import type { PimEventDraft, PimEventRow, PimRecurrenceFreq } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
+import { MobileSwatchGrid } from "./MobileSwatchGrid";
 
 /**
  * Creating and editing a calendar event on the phone (S24).
@@ -160,6 +162,23 @@ export function EventEditSheet({
           <span className="m-peeklabel">{t("pim.eventCalendar")}</span>
           <span className="m-peekvalue">{calendarLabel}</span>
         </button>
+
+        {/* The event colour (C48, catalog gap `event-color` until 2026-09-04):
+            the form already carried the field and the draft wrote it — only
+            the row was missing. Same grid and same first tile as the desktop
+            dialog: the struck slot means "the calendar's colour", and there
+            is no free tile because event colours map onto provider ids. */}
+        <div className="m-row m-row--split">
+          <span className="m-peeklabel">{t("pim.eventColor", { defaultValue: "Farbe" })}</span>
+          <span className="m-peekvalue">{t("pim.eventColorDesc", { defaultValue: "Überschreibt für diesen Termin die Kalenderfarbe" })}</span>
+        </div>
+        <MobileSwatchGrid
+          ariaLabel={t("pim.eventColor", { defaultValue: "Farbe" })}
+          presets={EVENT_COLOR_PALETTE}
+          value={form.color}
+          onPick={(hex) => set({ color: hex })}
+          none={{ label: t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" }), active: !form.color, onPick: () => set({ color: "" }), glyph: "slash" }}
+        />
 
         <TextInput
           aria-label={t("pim.eventLocation")}
