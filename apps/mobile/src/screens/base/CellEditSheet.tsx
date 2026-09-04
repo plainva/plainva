@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, ExternalLink, MessageSquare } from "lucide-react";
 import { type CuratedOption, getPlatformServices, ICON, IconButton, inlineOptionsFrom, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
@@ -37,12 +37,21 @@ export function CellEditSheet({
   rows,
   onCommit,
   onClose,
+  onCommentProperty,
 }: {
   vault: MobileVault;
   target: CellEditTarget;
   rows: any[];
   onCommit: (value: unknown) => void;
   onClose: () => void;
+  /**
+   * Remark on this property instead of changing it (finding 2026-09-04). The
+   * phone has no right-click, and this sheet is where a cell already leads -
+   * so the second thing one wants to do with a cell lives at its foot, below
+   * the editor, where it cannot be hit by accident while typing a value.
+   * Absent when this device may not comment on the entry.
+   */
+  onCommentProperty?: () => void;
 }) {
   const { t } = useTranslation();
   const { input, col, value } = target;
@@ -275,6 +284,13 @@ export function CellEditSheet({
               </button>
             )}
           </>
+        )}
+
+        {onCommentProperty && (
+          <button className="m-row" onClick={onCommentProperty} data-testid="base-comment-property">
+            <MessageSquare size={ICON.head} />
+            <span>{t("workspaceSecurity.commentOnProperty")}</span>
+          </button>
         )}
       </div>
     </div>

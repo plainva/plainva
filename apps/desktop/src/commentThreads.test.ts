@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceCommentRecord } from "@plainva/core";
-import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, groupSuggestionRounds, isCommentThreadOpen } from "@plainva/ui";
+import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, findPropertyCommentThread, groupSuggestionRounds, isCommentThreadOpen } from "@plainva/ui";
 
 /**
  * The thread rules used to live twice - once in the desktop column, once in the
@@ -166,5 +166,52 @@ describe("groupSuggestionRounds (V3)", () => {
     expect(rounds[0].blocks.map((b) => b.root.commentId)).toEqual(["b1", "b2", "done"]);
     expect(rounds[0].open).toBe(2);
     expect(rest.map((thread) => thread.root.commentId)).toEqual(["plain"]);
+  });
+});
+
+/**
+ * The way back from a cell to its thread (finding 2026-09-04): the dot used to
+ * say a remark exists and nothing more, so reading one meant opening the entry
+ * and hunting for the property by hand.
+ */
+describe("findPropertyCommentThread", () => {
+  const propAnchor = (key: string) =>
+    ({
+      markerId: "ab12",
+      quote: "",
+      before: "",
+      after: "",
+      approximateOffset: 0,
+      display: { kind: "property", key },
+    }) as WorkspaceCommentRecord["anchor"];
+
+  it("names the oldest open thread on that column and ignores other columns", () => {
+    const id = findPropertyCommentThread(
+      [
+        comment({ commentId: "due-1", anchor: propAnchor("due") }),
+        comment({ commentId: "status-2", anchor: propAnchor("status"), createdAt: "2026-09-01T10:00:00.000Z" }),
+        comment({ commentId: "status-1", anchor: propAnchor("status"), createdAt: "2026-08-30T10:00:00.000Z" }),
+      ],
+      "status",
+    );
+    expect(id).toBe("status-1");
+  });
+
+  it("follows a rename exactly as the dot does", () => {
+    const comments = [comment({ commentId: "1", anchor: propAnchor("state") })];
+    expect(findPropertyCommentThread(comments, "status", (former) => (former === "state" ? "status" : null))).toBe("1");
+    expect(findPropertyCommentThread(comments, "status")).toBeNull();
+  });
+
+  it("prefers an open thread but still lands on a settled one when nothing is open", () => {
+    const settled = comment({ commentId: "old", anchor: propAnchor("status"), resolvedAt: "2026-09-02T10:00:00.000Z" });
+    expect(findPropertyCommentThread([settled], "status")).toBe("old");
+    expect(findPropertyCommentThread([settled, comment({ commentId: "live", anchor: propAnchor("status") })], "status")).toBe("live");
+  });
+
+  it("answers nothing for a column without a remark, and never picks a reply", () => {
+    expect(findPropertyCommentThread([comment({ commentId: "1", anchor: propAnchor("status") })], "due")).toBeNull();
+    // A reply inherits its thread's anchor and carries none: it has no key.
+    expect(findPropertyCommentThread([comment({ commentId: "r", parentCommentId: "1", anchor: null })], "status")).toBeNull();
   });
 });

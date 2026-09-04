@@ -13,10 +13,12 @@
 import {
   appendLocalComment,
   createWorkspaceObjectId,
+  effectiveWorkspaceCapabilities,
   localCommentAuthorNames,
   localCommentsByPath,
   localCommentsForPath,
   readLocalComments,
+  workspaceSliceIdsForObject,
   type CommentsCrypto,
   type LocalCommentRecord,
   type WorkspaceCapability,
@@ -41,6 +43,31 @@ export const MOBILE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = [
   "comment.read",
   "comment.create",
 ];
+
+/**
+ * What this device may do with ONE note, asked once for every screen that
+ * needs it (finding 2026-09-04).
+ *
+ * The note screen worked this out for itself; the database now needs the same
+ * answer before it offers to remark on a property, and two copies of a
+ * permission computation is exactly the kind of drift that ends in one surface
+ * offering what the other refuses. `null` means "no workspace" - the caller
+ * falls back to `MOBILE_COMMENT_CAPABILITIES`, the plain-vault set.
+ */
+export async function noteWorkspaceCapabilities(vault: MobileVault, path: string): Promise<WorkspaceCapability[] | null> {
+  const runtime = vault.workspaceRuntime;
+  if (!runtime || !vault.workspaceState) return null;
+  const object = await vault.workspaceState.getObjectByPath(path);
+  const objectId = object?.objectId ?? createWorkspaceObjectId();
+  const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId, path, contentKind: object?.contentKind });
+  return effectiveWorkspaceCapabilities(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, objectId, sliceIds });
+}
+
+/** Whether this device may write a comment on `path`, workspace or not. */
+export async function canCommentOnNote(vault: MobileVault, path: string): Promise<boolean> {
+  const capabilities = (await noteWorkspaceCapabilities(vault, path)) ?? MOBILE_COMMENT_CAPABILITIES;
+  return capabilities.includes("comment.create");
+}
 
 function cryptoOf(mode: MobileCommentsMode): CommentsCrypto | undefined {
   return mode.kind === "sealed" ? mode.crypto : undefined;

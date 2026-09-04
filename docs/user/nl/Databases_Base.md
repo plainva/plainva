@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-04
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -175,6 +175,8 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 ## Meerdere items tegelijk
 
 Soms gaat een wijziging niet over één item, maar over twaalf.
+
+**Opmerkingen bij een eigenschap**: draagt een cel een kleine tekstballon met een getal, dan hangt er een opmerking aan die eigenschap — een klik erop opent het item bij de bijbehorende kaart. Een nieuwe begin je met een rechtsklik op de cel, **Eigenschap becommentariëren**; op de telefoon staat hetzelfde item onderaan het blad dat een tik op de cel opent. Ze wordt bij de notitie geschreven, niet bij de database: dezelfde opmerking verschijnt in elke weergave die deze eigenschap toont, en in het eigenschappenpaneel van de notitie.
 
 **Selecteren (desktop)**: In de **tabel** en de **lijst** staat vóór elke rij een selectievakje. Het blijft onopvallend tot je het nodig hebt: het verschijnt zodra de muisaanwijzer boven de rij zweeft, zodra het toetsenbord het bereikt, en voor elke rij zodra er iets geselecteerd is. `Shift`+klik selecteert een bereik, het selectievakje in de kop selecteert alles. Een klik in een **cel** bewerkt hem nog steeds — selecteren neemt die klik niet weg. Een klik op een aangevinkt vakje maakt de selectie van de rij weer ongedaan; met **Shift** span je een bereik tot de aangeklikte rij.
 

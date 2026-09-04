@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-03
+Última revisão: 2026-09-04
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -175,6 +175,8 @@ Observação para vaults sincronizados: se dois dispositivos organizarem o mural
 ## Vários itens de uma vez
 
 Às vezes uma mudança não afeta um item, mas doze.
+
+**Comentários em uma propriedade**: quando uma célula traz um pequeno balão com um número, há uma anotação nessa propriedade — clicar nele abre a entrada no cartão correspondente. Você começa uma nova com um clique direito na célula, **Comentar propriedade**; no telefone o mesmo item fica no rodapé da folha que um toque na célula abre. Ela é escrita na nota, não no banco de dados: a mesma anotação aparece em toda visão que mostra esta propriedade e no painel de propriedades da nota.
 
 **Selecionando (desktop)**: Na **tabela** e na **lista**, cada linha tem uma caixa de seleção à frente. Ela fica discreta até você precisar dela: aparece quando o ponteiro está sobre a linha, quando o teclado a alcança, e em todas as linhas assim que algo é selecionado. `Shift`+clique seleciona um intervalo, a caixa de seleção do cabeçalho seleciona tudo. Um clique em uma **célula** continua editando-a — a seleção não tira esse clique dela. Um clique em uma caixa marcada desmarca a linha de novo; com **Shift** você estende a seleção até a linha clicada.
 

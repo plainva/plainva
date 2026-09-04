@@ -199,7 +199,14 @@ const BUDGET: Record<string, Counts> = {
   "components/base/NewItemButton.tsx": {nakedInput:2,nakedButton:9,rawSpacing:10},
   "components/base/SourceConditionEditor.tsx": {nakedButton:2,rawSpacing:6},
   "components/base/baseViewerShared.tsx": {rawSpacing:1},
-  "components/base/useBaseCells.tsx": {nakedInput:1},
+  // nakedButton: the comment dot of a cell (finding 2026-09-04). It is a chip
+  // BY ROLE - an inline pill carrying an icon and a count, sitting inside a
+  // clickable cell - and the same exception the rule already names for rows,
+  // tabs and tree items. Neither Button nor IconButton fits: both bring their
+  // own control height and skin, which is exactly what a value cell must not
+  // grow. The pill's look stays in `base.css`, and it stops the cell's own
+  // click rather than living outside it.
+  "components/base/useBaseCells.tsx": {nakedInput:1,nakedButton:1},
   "components/callouts.ts": {hex:8},
   "components/comments/CommentsOverview.tsx": {nakedButton:1},
   "components/graph/CleanupPanel.tsx": {nakedButton:11},

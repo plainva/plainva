@@ -4,10 +4,10 @@ import { applyTemplateInteractive, parkTemplateCaret } from "../services/templat
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { buildPropertyCommentCells, errorText, parseBaseConfig, propertyAliasResolver, serializeBaseConfig, useStableHandler } from "@plainva/ui";
+import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
@@ -118,7 +118,7 @@ export function BaseViewer({
   hostPath?: string;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities } = useVault();
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -284,7 +284,11 @@ export function BaseViewer({
   // renaming or deleting an entry meant hunting it down in the file tree, and
   // the peek deliberately hides the editor's ⋮. The menu travels with the cells
   // so every view offers it through one plumbing point.
-  const [rowMenu, setRowMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
+  // `col` is set when the right-click landed on a CELL: the menu then offers a
+  // remark on that property (finding 2026-09-04). `canComment` arrives a tick
+  // later - the right depends on the entry, and probing it is a lookup plus a
+  // pure evaluation, so the item appears rather than lying about being there.
+  const [rowMenu, setRowMenu] = useState<{ path: string; at: { x: number; y: number }; col?: string; canComment?: boolean } | null>(null);
 
   /** Rename an entry from the row menu or the peek. Carries a mirrored H1 (the
    *  state a fresh `{Base}_{n}` entry is in) so the note is not called Task_1 in
@@ -371,19 +375,46 @@ export function BaseViewer({
     return buildPropertyCommentCells(entries, (key) => rendered.has(key), aliasOf);
   }, [noteComments, dbData, visibleColumns, dbConfig]);
 
+  /**
+   * The two ways from a database into a remark (finding 2026-09-04).
+   *
+   * Both end in the same place: the note is opened and the request is parked
+   * for the editor that gets it - the shared jump the overview and the
+   * notifications already use. The database knows the entry and the column;
+   * what a comment column looks like is none of its business.
+   */
+  const openPropertyComments = (path: string, col: string) => {
+    const commentId = findPropertyCommentThread(noteComments.get(path) ?? [], col, propertyAliasResolver(dbConfig?.columns ? [{ columns: dbConfig.columns }] : []));
+    requestCommentJump(commentId ? { path, commentId } : { path, property: col });
+    requestOpen(path);
+  };
+
+  const composePropertyComment = (path: string, col: string) => {
+    // The COLUMN is what the person pointed at; the anchor is written on the
+    // note's own key, which the editor resolves from it.
+    requestCommentJump({ path, property: col });
+    requestOpen(path);
+  };
+
   // Shared cell layer (typed display + inline editing), used by every view.
   const cells = useBaseCells({
     dbConfig,
     dbData,
     setDbData,
     onOpenNote: requestOpen,
-    onRowContextMenu: (path, ev) => {
+    onRowContextMenu: (path, ev, col) => {
       ev.preventDefault();
       ev.stopPropagation();
-      setRowMenu({ path, at: { x: ev.clientX, y: ev.clientY } });
+      const commentable = col && !col.startsWith("file.") && col !== "okf_version" ? col : undefined;
+      setRowMenu({ path, at: { x: ev.clientX, y: ev.clientY }, col: commentable });
+      if (!commentable) return;
+      void getWorkspaceCapabilities(path)
+        .then((caps) => setRowMenu((menu) => (menu && menu.path === path && menu.col === commentable ? { ...menu, canComment: caps?.includes("comment.create") === true } : menu)))
+        .catch(() => setRowMenu((menu) => (menu && menu.path === path ? { ...menu, canComment: false } : menu)));
     },
     dateFormat: dbConfig?.views?.[activeViewIndex]?.dateFormat ?? "default",
     commentedProperties,
+    onOpenPropertyComments: openPropertyComments,
   });
 
   // Register this base's row count so a markdown page that embeds it can show the
@@ -2494,6 +2525,15 @@ export function BaseViewer({
       )}
       {rowMenu && (
         <MenuSurface open at={rowMenu.at} onClose={() => setRowMenu(null)} ariaLabel={t("database.entryActions")}>
+          {rowMenu.col && rowMenu.canComment && (
+            <>
+              <MenuLabel>{cells.columnLabel(rowMenu.col)}</MenuLabel>
+              <MenuItem onSelect={() => { const m = rowMenu; setRowMenu(null); composePropertyComment(m.path, m.col!); }} data-testid="base-comment-property">
+                <MessageSquare size={ICON.meta} /> {t("workspaceSecurity.commentOnProperty")}
+              </MenuItem>
+              <MenuSeparator />
+            </>
+          )}
           <MenuLabel>{t("database.entry")}</MenuLabel>
           <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); requestOpen(p); }}>
             {t("database.entryOpen")}

@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-04
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -175,6 +175,8 @@ Remarque pour les vaults synchronisés : si deux appareils organisent le tableau
 ## Plusieurs éléments à la fois
 
 Parfois, un changement ne concerne pas un élément, mais douze.
+
+**Commentaires sur une propriété** : quand une cellule porte une petite bulle avec un chiffre, une remarque est attachée à cette propriété — un clic dessus ouvre l’entrée sur la carte correspondante. Vous en commencez une nouvelle par un clic droit sur la cellule, **Commenter la propriété** ; sur le téléphone, la même entrée se trouve au bas de la feuille qu’ouvre un appui sur la cellule. Elle est écrite sur la note, pas sur la base de données : la même remarque apparaît dans chaque vue qui montre cette propriété, et dans le panneau des propriétés de la note.
 
 **Sélectionner (bureau)** : Dans le **tableau** et la **liste**, chaque ligne a une case à cocher devant elle. Elle reste discrète jusqu'à ce que vous en ayez besoin : elle apparaît quand le pointeur survole la ligne, quand le clavier l'atteint, et pour toutes les lignes dès qu'une sélection existe. `Shift`+clic sélectionne une plage, la case à cocher de l'en-tête sélectionne tout. Un clic dans une **cellule** continue de la modifier — la sélection ne lui retire pas ce clic. Un clic sur une case cochée désélectionne la ligne ; avec **Maj**, vous étendez la sélection jusqu’à la ligne cliquée.
 

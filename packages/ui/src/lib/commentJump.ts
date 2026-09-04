@@ -17,7 +17,18 @@
 
 export interface CommentJumpRequest {
   path: string;
-  commentId: string;
+  /** The card to land on. */
+  commentId?: string;
+  /**
+   * ...or the property to START a comment on (finding 2026-09-04).
+   *
+   * A database shows the properties of its entries, so it is the place where
+   * somebody wants to remark on one - but the surface that composes a comment
+   * is the note's, and the note is not open yet. Same request, same parking,
+   * one more thing it may name: the shell opens the note, the editor either
+   * selects the named card or opens the composer on the named property.
+   */
+  property?: string;
 }
 
 /** The event both shells agree on. Named once so nobody spells it twice. */

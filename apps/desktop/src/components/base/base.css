@@ -33,6 +33,10 @@ th:hover .base-col-resize { opacity: 1; background: linear-gradient(to right, tr
 /* Open property comments on a cell (Stufe E, E2). A span, never a button: the
    cell around it already takes the click to start editing. */
 .base-cell-comments { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; vertical-align: middle; flex-shrink: 0; font-size: var(--text-xs); color: var(--text-muted); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 0 6px; line-height: 1.5; }
+/* The dot ACTS since the finding 2026-09-04: it opens the entry on its thread. */
+button.base-cell-comments { font-family: inherit; cursor: pointer; }
+button.base-cell-comments:hover { background: var(--state-hover); color: var(--text-main); }
+button.base-cell-comments:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
 .base-period-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
 .base-nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-main); cursor: pointer; }
 .base-nav-btn:hover { background: var(--state-hover); }

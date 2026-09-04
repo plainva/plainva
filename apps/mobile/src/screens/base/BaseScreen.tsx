@@ -41,7 +41,7 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
-import { listAllMobileComments } from "../../services/mobileComments";
+import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
@@ -51,7 +51,7 @@ import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
@@ -131,6 +131,7 @@ export function BaseScreen({
   const [viewIndex, setViewIndex] = useState(0);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
+  const [cellEditCanComment, setCellEditCanComment] = useState(false);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
   const [propEdit, setPropEdit] = useState<string | null>(null);
   /** Long-press target (S20): the entry menu, shared by every view. */
@@ -354,18 +355,37 @@ export function BaseScreen({
    * <button> of a card property as often as inside a table cell, and a button
    * in a button is invalid HTML that kills the inner control (issue #34).
    */
+  /**
+   * The two ways from a database into a remark (finding 2026-09-04), the
+   * desktop's twin: the dot opens the entry ON its thread, the cell sheet
+   * starts one on that property. Both park the shared jump and let the note
+   * screen do the rest - it owns the sheet, this screen owns the table.
+   */
+  const openPropertyComments = (path: string, col: string) => {
+    const commentId = findPropertyCommentThread(noteComments.get(path) ?? [], col, propertyAliasResolver(config?.columns ? [{ columns: config.columns }] : []));
+    requestCommentJump(commentId ? { path, commentId } : { path, property: col });
+    onOpenNote(path);
+  };
+
+  const composePropertyComment = (path: string, col: string) => {
+    requestCommentJump({ path, property: col });
+    onOpenNote(path);
+  };
+
   const commentDot = (path: string, col: string) => {
     const count = commentedProperties.get(path)?.get(col) ?? 0;
     if (count === 0) return null;
     return (
-      <span
+      <button
+        type="button"
         className="m-prop-comments"
         data-testid={`cell-comments-${col}`}
         aria-label={t("workspaceSecurity.commentThreadCount", { count })}
+        onClick={(e) => { e.stopPropagation(); openPropertyComments(path, col); }}
       >
         <MessageSquare size={ICON.meta} />
         {count}
-      </span>
+      </button>
     );
   };
 
@@ -443,6 +463,11 @@ export function BaseScreen({
       void commitCellValue(vault, rowPath(r), col, next).then(() => requery(config, viewIndex));
       return;
     }
+    // May this device remark on the entry? Asked when the sheet opens, not per
+    // render: it is a lookup plus a policy evaluation, and the answer decides
+    // whether the sheet offers the action at all (finding 2026-09-04).
+    setCellEditCanComment(false);
+    void canCommentOnNote(vault, rowPath(r)).then(setCellEditCanComment).catch(() => setCellEditCanComment(false));
     setCellEdit({
       notePath: rowPath(r),
       col,
@@ -1913,6 +1938,7 @@ export function BaseScreen({
       {cellEdit && (
         <CellEditSheet
           onClose={() => setCellEdit(null)}
+          onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
           onCommit={commitCell}
           rows={rows ?? []}
           target={cellEdit}

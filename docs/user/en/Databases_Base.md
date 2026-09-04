@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-03
+Last reviewed: 2026-09-04
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -175,6 +175,8 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 ## Several entries at once
 
 Sometimes a change is not about one entry but about twelve.
+
+**Comments on a property**: when a cell carries a small speech bubble with a number, a remark hangs on that property — clicking it opens the entry at the matching card. You start a new one with a right-click on the cell, **Comment on property**; on the phone the same entry sits at the foot of the sheet a tap on the cell opens. It is written on the note, not on the database: the same remark appears in every view that shows this property, and in the note's properties panel.
 
 **Selecting (desktop)**: In the **table** and the **list** every row has a checkbox in front of it. It stays out of the way until you need it: it appears when the pointer is over the row, when the keyboard reaches it, and for every row once something is selected. `Shift`+click picks a range, the header checkbox picks everything. A click in a **cell** still edits it — selecting does not take that click away. Clicking a ticked box unticks the row again; with **Shift** you span a range up to the clicked row.
 

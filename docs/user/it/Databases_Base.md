@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-04
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -175,6 +175,8 @@ Nota per i vault sincronizzati: se due dispositivi dispongono la bacheca nello s
 ## Più voci alla volta
 
 A volte un cambiamento non riguarda una voce, ma dodici.
+
+**Commenti su una proprietà**: se una cella porta un piccolo fumetto con un numero, a quella proprietà è appesa un’annotazione — un clic lo apre sulla scheda corrispondente. Una nuova si avvia con un clic destro sulla cella, **Commenta la proprietà**; sul telefono la stessa voce sta in fondo al foglio che apre un tocco sulla cella. Viene scritta sulla nota, non sul database: la stessa annotazione compare in ogni vista che mostra questa proprietà e nel pannello delle proprietà della nota.
 
 **Selezionare (desktop)**: Nella **tabella** e nell'**elenco**, ogni riga ha una casella di controllo davanti. Resta discreta finché non ne hai bisogno: appare quando il puntatore è sopra la riga, quando la tastiera la raggiunge, e per tutte le righe non appena qualcosa è selezionato. `Shift`+clic seleziona un intervallo, la casella di controllo dell'intestazione seleziona tutto. Un clic in una **cella** continua a modificarla — la selezione non gli toglie quel clic. Un clic su una casella già selezionata deseleziona la riga; con **Maiusc** estendi la selezione fino alla riga cliccata.
 

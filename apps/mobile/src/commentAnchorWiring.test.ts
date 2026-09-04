@@ -144,3 +144,40 @@ describe("a tap names its card on the phone", () => {
     expect(sheet).toMatch(/activeCommentId === root\.commentId \? " is-active" : ""/);
   });
 });
+
+/**
+ * The two ways from a database into a remark (finding 2026-09-04), the phone's
+ * half: the dot opens the entry on its thread, the cell sheet starts one on
+ * that property. Same shared jump as the desktop; the note screen answers it.
+ */
+describe("a database opens and starts property comments on the phone", () => {
+  const base = strip(read("screens", "base", "BaseScreen.tsx"));
+  const sheet = strip(read("screens", "base", "CellEditSheet.tsx"));
+  const screen = strip(read("screens", "NoteScreen.tsx"));
+
+  it("makes the dot a button that parks the thread it stands for", () => {
+    expect(base).toMatch(/const commentId = findPropertyCommentThread\(noteComments\.get\(path\) \?\? \[\], col,/);
+    expect(base).toMatch(/requestCommentJump\(commentId \? \{ path, commentId \} : \{ path, property: col \}\)/);
+    expect(base).toMatch(/onClick=\{\(e\) => \{ e\.stopPropagation\(\); openPropertyComments\(path, col\); \}\}/);
+  });
+
+  it("offers the remark in the cell sheet, and only where this device may write one", () => {
+    expect(base).toMatch(/void canCommentOnNote\(vault, rowPath\(r\)\)\.then\(setCellEditCanComment\)/);
+    expect(base).toMatch(/onCommentProperty=\{cellEditCanComment \?/);
+    expect(base).toMatch(/composePropertyComment\(c\.notePath, c\.col\)/);
+    expect(sheet).toContain('data-testid="base-comment-property"');
+    expect(sheet).toContain('t("workspaceSecurity.commentOnProperty")');
+  });
+
+  it("lands the note screen on the named card, or on the composer for the named property", () => {
+    expect(screen).toMatch(/if \(jump\.commentId\) setActiveCommentId\(jump\.commentId\);/);
+    expect(screen).toMatch(/else if \(jump\.property\) setPendingPropertyJump\(jump\.property\)/);
+    expect(screen).toMatch(/if \(!pendingPropertyJump \|\| doc === null\) return;/);
+    expect(screen).toMatch(/startPropertyComment\(pendingPropertyJump\)/);
+  });
+
+  it("asks the shared helper what this device may do, instead of a second copy", () => {
+    expect(screen).toMatch(/void noteWorkspaceCapabilities\(vault, path\)/);
+    expect(screen).not.toMatch(/effectiveWorkspaceCapabilities\(/);
+  });
+});

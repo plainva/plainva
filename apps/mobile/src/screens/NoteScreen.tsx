@@ -32,7 +32,7 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { buildCommentAnchor, buildPropertyCommentAnchor, createWorkspaceObjectId, effectiveWorkspaceCapabilities, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, workspaceSliceIdsForObject, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -44,7 +44,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
-import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
+import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 
@@ -126,11 +126,10 @@ export function NoteScreen({
   useEffect(() => {
     let stale = false;
     if (!vault.workspaceRuntime || !vault.workspaceState) { setWorkspaceCapabilities(null); return; }
-    void vault.workspaceState.getObjectByPath(path).then((object) => {
-      if (stale || !vault.workspaceRuntime) return;
-      const objectId = object?.objectId ?? createWorkspaceObjectId();
-      const sliceIds = workspaceSliceIdsForObject(vault.workspaceRuntime.policy.payload, { objectId, path, contentKind: object?.contentKind });
-      const capabilities = effectiveWorkspaceCapabilities(vault.workspaceRuntime.policy.payload, { memberId: vault.workspaceRuntime.memberId, deviceId: vault.workspaceRuntime.device.publicIdentity.deviceId, objectId, sliceIds });
+    // Shared with the database, which asks the same before it offers a remark
+    // on a property (finding 2026-09-04) - one computation, one answer.
+    void noteWorkspaceCapabilities(vault, path).then((capabilities) => {
+      if (stale || !capabilities) return;
       setWorkspaceCapabilities(capabilities);
       if (!capabilities.includes("content.write")) setEditing(false);
     }).catch(() => { if (!stale) { setWorkspaceCapabilities([]); setEditing(false); } });
@@ -150,6 +149,8 @@ export function NoteScreen({
   const [commentsOpen, setCommentsOpen] = useState(false);
   /** The card a tap in the text named (finding 2026-09-03); the sheet opens on it. */
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  /** A property a database asked us to compose on, until the note's text is here. */
+  const [pendingPropertyJump, setPendingPropertyJump] = useState<string | null>(null);
   /** The suggestion mode (V5): the editor holds the copy, this screen the band. */
   const [suggesting, setSuggesting] = useState(false);
   const [suggestCount, setSuggestCount] = useState(0);
@@ -172,7 +173,14 @@ export function NoteScreen({
   useEffect(() => {
     if (!path) return;
     const apply = () => {
-      if (takeCommentJump(path)) setCommentsOpen(true);
+      const jump = takeCommentJump(path);
+      if (!jump) return;
+      setCommentsOpen(true);
+      // Landing on the named card, and on the property a database sent us to
+      // (finding 2026-09-04). Until now the sheet only opened - the jump
+      // carried a card the phone never selected.
+      if (jump.commentId) setActiveCommentId(jump.commentId);
+      else if (jump.property) setPendingPropertyJump(jump.property);
     };
     apply();
     window.addEventListener(COMMENT_JUMP_EVENT, apply);
@@ -361,6 +369,17 @@ export function NoteScreen({
     setInfo(null);
     setCommentsOpen(true);
   };
+
+  // The parked property request, once the note's text is here: the anchor
+  // quotes the value, which is read from the document (finding 2026-09-04).
+  useEffect(() => {
+    if (!pendingPropertyJump || doc === null) return;
+    startPropertyComment(pendingPropertyJump);
+    setPendingPropertyJump(null);
+    // `startPropertyComment` is re-created every render and reads only `doc`,
+    // which this effect already depends on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPropertyJump, doc]);
   /**
    * A Plainva-managed overview is read-only until the reader says otherwise
    * (desktop parity). Without the guard the next auto-update run silently

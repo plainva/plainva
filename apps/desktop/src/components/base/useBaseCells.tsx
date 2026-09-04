@@ -29,6 +29,7 @@ export function useBaseCells({
   onRowContextMenu,
   dateFormat = "default",
   commentedProperties,
+  onOpenPropertyComments,
 }: {
   dbConfig: any;
   dbData: any[];
@@ -45,7 +46,7 @@ export function useBaseCells({
    * props — until issue #34 there was no way to rename or delete an entry from
    * a database at all; you had to find the note in the file tree.
    */
-  onRowContextMenu?: (path: string, ev: React.MouseEvent) => void;
+  onRowContextMenu?: (path: string, ev: React.MouseEvent, col?: string) => void;
   /** Per-view display format of date values (plan W4/P12). */
   dateFormat?: DateDisplayFormat;
   /**
@@ -54,6 +55,12 @@ export function useBaseCells({
    * the cell layer only reads a number. Undefined = no workspace, no dots.
    */
   commentedProperties?: Map<string, Map<string, number>>;
+  /**
+   * A click on a cell's comment dot: open the entry ON that thread (finding
+   * 2026-09-04). The host owns both halves - it knows which comment the dot
+   * stands for and how this database opens an entry.
+   */
+  onOpenPropertyComments?: (path: string, col: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
@@ -616,24 +623,41 @@ export function useBaseCells({
       );
     };
 
-    // Open property comments on THIS cell (Stufe E, E2). The dot is a SPAN, not
-    // a button: the cell itself already takes the click to start editing, and a
-    // button inside a clickable cell would swallow it. It counts, it does not act.
+    // Open property comments on THIS cell (Stufe E, E2). The dot was a SPAN
+    // that only counted - and a person who sees a remark exists wants to read
+    // it, which took opening the entry and finding the property by hand
+    // (finding 2026-09-04). It is a button now; it stops the click so the cell
+    // does not start editing underneath it. Without a handler (an embedded
+    // base with nowhere to open) it stays the span it was.
     const commentCount = commentedProperties?.get(path)?.get(col) ?? 0;
-    const commentDot = commentCount > 0 ? (
-      <span
+    const commentLabel = t("workspaceSecurity.commentThreadCount", { count: commentCount });
+    const commentDot = commentCount === 0 ? null : onOpenPropertyComments ? (
+      <button
+        type="button"
         className="base-cell-comments"
         data-testid={`cell-comments-${col}`}
-        data-tip={t("workspaceSecurity.commentThreadCount", { count: commentCount })}
-        aria-label={t("workspaceSecurity.commentThreadCount", { count: commentCount })}
+        data-tip={commentLabel}
+        aria-label={commentLabel}
+        onClick={(e) => { e.stopPropagation(); onOpenPropertyComments(path, col); }}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.stopPropagation()}
       >
         <MessageSquare size={ICON.meta} />
         {commentCount}
+      </button>
+    ) : (
+      <span className="base-cell-comments" data-testid={`cell-comments-${col}`} data-tip={commentLabel} aria-label={commentLabel}>
+        <MessageSquare size={ICON.meta} />
+        {commentCount}
       </span>
-    ) : null;
+    );
 
     return (
       <div
+        // The row menu, told WHICH column was clicked (finding 2026-09-04): a
+        // property is remarked on from the cell that shows it, not from a menu
+        // that only knows the entry.
+        onContextMenu={(e) => { e.stopPropagation(); onRowContextMenu?.(path, e, col); }}
         onDoubleClick={(e) => { e.stopPropagation(); if (!isEditing && !isReadOnly && !isCheckbox) startEditing(path, col, val); }}
         // A single click edits (P3, Notion model): checkboxes toggle, file.*
         // stays read-only, links/chips inside stop propagation themselves.

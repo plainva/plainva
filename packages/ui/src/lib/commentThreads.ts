@@ -163,6 +163,41 @@ export function buildPropertyCommentCells(
 }
 
 /**
+ * The thread a database CELL stands for (finding 2026-09-04).
+ *
+ * The reverse of `buildPropertyCommentCells`: that one asks "which cells carry
+ * a dot", this one "which thread does this cell's dot mean" - so a click on the
+ * dot can land on the card instead of only saying that one exists. Same
+ * resolution, so a renamed property is followed here exactly as there.
+ *
+ * An OPEN thread wins over a settled one (the dot counts only open ones, but a
+ * click that arrives a moment after somebody resolved the last one should still
+ * land somewhere), and among equals the oldest - that is the one the count has
+ * been about the longest.
+ */
+export function findPropertyCommentThread(
+  comments: readonly WorkspaceCommentRecord[],
+  column: string,
+  aliasOf?: (former: string) => string | null,
+): string | null {
+  let settled: WorkspaceCommentRecord | null = null;
+  let open: WorkspaceCommentRecord | null = null;
+  for (const comment of comments) {
+    if (!comment.anchor) continue;
+    const key = propertyAnchorKey(comment.anchor);
+    if (!key) continue;
+    const resolution = resolvePropertyAnchor(key, (candidate) => candidate === column, aliasOf);
+    if (resolution.status === "orphan" || resolution.key !== column) continue;
+    const target = isCommentThreadOpen(comment) ? "open" : "settled";
+    const current = target === "open" ? open : settled;
+    if (current && current.createdAt <= comment.createdAt) continue;
+    if (target === "open") open = comment;
+    else settled = comment;
+  }
+  return (open ?? settled)?.commentId ?? null;
+}
+
+/**
  * A proposal round (Vorschlagsmodus, V3): the blocks one "send" produced,
  * in the order they sit in the note, with the sentence written for the round.
  * A thread is a block when its root carries a round id; everything else stays

@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-03
+Última actualización: 2026-09-04
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -175,6 +175,8 @@ Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mism
 ## Varias entradas a la vez
 
 A veces un cambio no afecta a un elemento, sino a doce.
+
+**Comentarios en una propiedad**: si una celda lleva un pequeño globo con un número, hay una anotación en esa propiedad; al pulsarlo se abre la entrada en la tarjeta correspondiente. Una nueva se inicia con un clic derecho en la celda, **Comentar propiedad**; en el teléfono la misma entrada está al final de la hoja que abre un toque en la celda. Se escribe en la nota, no en la base de datos: la misma anotación aparece en cada vista que muestra esta propiedad y en el panel de propiedades de la nota.
 
 **Seleccionar (escritorio)**: En la **tabla** y en la **lista**, cada fila tiene una casilla delante. Se mantiene discreta hasta que la necesitas: aparece cuando el puntero está sobre la fila, cuando el teclado la alcanza, y en todas las filas en cuanto algo está seleccionado. `Shift`+clic selecciona un rango, la casilla del encabezado selecciona todo. Un clic en una **celda** sigue editándola — seleccionar no le quita ese clic. Un clic en una casilla marcada vuelve a desmarcar la fila; con **Mayús** abarcas un rango hasta la fila en la que hagas clic.
 

@@ -1558,14 +1558,22 @@ textarea {
 }
 /* E2: threads on this property. A count, not a control - it rides inside a
    <button> row as often as inside a <div> one, so it must never be one. */
+/* The dot ACTS since the finding 2026-09-04: it opens the entry on its thread.
+   A bare button so the cell around it keeps its own look; the touch target
+   grows through the padding rather than through a bigger dot. */
 .m-prop-comments {
   align-items: center;
+  background: none;
+  border: none;
   color: var(--text-muted);
+  cursor: pointer;
   display: inline-flex;
   flex: 0 0 auto;
+  font: inherit;
   font-size: var(--text-xs);
   gap: var(--space-1);
   margin-left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 /* P5: sync conflict surfaces */
 .m-warn {

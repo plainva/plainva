@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-09-03
+Stan na: 2026-09-04
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -175,6 +175,8 @@ Uwaga dotycząca synchronizowanych vaultów: jeśli dwa urządzenia jednocześni
 ## Kilka wpisów naraz
 
 Czasem zmiana nie dotyczy jednego wpisu, tylko dwunastu.
+
+**Komentarze przy właściwości**: jeśli komórka nosi mały dymek z liczbą, przy tej właściwości wisi uwaga — kliknięcie otwiera wpis przy odpowiedniej karcie. Nową zaczynasz kliknięciem prawym przyciskiem na komórce, **Skomentuj właściwość**; na telefonie ta sama pozycja jest na dole arkusza, który otwiera stuknięcie w komórkę. Uwaga zapisywana jest przy notatce, nie przy bazie danych: ta sama uwaga pojawia się w każdym widoku pokazującym tę właściwość oraz w panelu właściwości notatki.
 
 **Zaznaczanie (komputer)**: W **tabeli** i na **liście** przed każdym wierszem znajduje się pole wyboru. Pozostaje niewidoczne, dopóki nie jest potrzebne: pojawia się, gdy kursor znajdzie się nad wierszem, gdy dotrze do niego klawiatura, oraz przy każdym wierszu, gdy tylko coś zostanie zaznaczone. `Shift`+kliknięcie zaznacza zakres, pole wyboru w nagłówku zaznacza wszystko. Kliknięcie w **komórkę** nadal ją edytuje — zaznaczanie nie odbiera mu tego kliknięcia. Kliknięcie zaznaczonego pola odznacza wiersz; z **Shift** zaznaczasz zakres aż do klikniętego wiersza.
 

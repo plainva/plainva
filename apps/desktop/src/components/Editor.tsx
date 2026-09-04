@@ -123,6 +123,8 @@ export const Editor: React.FC<{
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspacePolicyMember[]>([]);
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  /** A property a database asked us to compose on, until the note's text is here. */
+  const [pendingPropertyJump, setPendingPropertyJump] = useState<string | null>(null);
   /**
    * Whether the comment column is on screen (K3, decision E2).
    *
@@ -221,7 +223,13 @@ export const Editor: React.FC<{
     if (!activePath) return;
     const apply = () => {
       const jump = takeCommentJump(activePath);
-      if (jump) { setActiveCommentId(jump.commentId); setCommentColumnSession("open"); }
+      if (!jump) return;
+      setCommentColumnSession("open");
+      if (jump.commentId) { setActiveCommentId(jump.commentId); return; }
+      // A request from a database names a PROPERTY, not a card: there is no
+      // thread yet, the composer is the destination (finding 2026-09-04). The
+      // quote it shows is read from the note, so it waits for the content.
+      if (jump.property) setPendingPropertyJump(jump.property);
     };
     apply();
     window.addEventListener(COMMENT_JUMP_EVENT, apply);
@@ -1543,6 +1551,15 @@ export const Editor: React.FC<{
     propertyCommentStore.registerRequest(requestPropertyComment);
     return () => propertyCommentStore.registerRequest(null);
   }, [requestPropertyComment]);
+
+  // The parked property request (finding 2026-09-04), once the note's text is
+  // here: the composer quotes the value, and quoting the key because the file
+  // had not loaded yet would be a worse first impression than one frame later.
+  useEffect(() => {
+    if (!pendingPropertyJump || content.length === 0) return;
+    requestPropertyComment(pendingPropertyJump);
+    setPendingPropertyJump(null);
+  }, [pendingPropertyJump, content, requestPropertyComment]);
 
   // A closed editor leaves no counts behind: the panel outlives it (the sidebar
   // keeps rendering), and a stale number would point at a note nobody has open.
