@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockHeightPx,
+  nextLaneStartMin,
   layoutDayEvents,
   minutesInDay,
   snapMinutes,
@@ -89,6 +91,46 @@ describe("layoutDayEvents", () => {
   it("is deterministic via the key tiebreaker", () => {
     const a = layoutDayEvents([ev(9, 0, 11, 0, "b"), ev(9, 0, 11, 0, "a")], (e) => (e as { id: string }).id);
     expect(a.map((o) => (o.event as { id: string }).id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("block height (finding 2026-09-04: the minimum height overpainted a touching successor)", () => {
+  const px = 44; // the default hour height: 15 min = 11 px, below the 16 px minimum
+
+  it("keeps the true height when the next block in the lane starts where this one ends", () => {
+    const out = blockHeightPx({ startMin: 645, endMin: 660, nextStartMin: 660, pxPerHour: px, minPx: 16 });
+    expect(out.height).toBeCloseTo(11, 5);
+    expect(out.compact).toBe(true);
+  });
+
+  it("pads a short block to the minimum when there is room below it", () => {
+    expect(blockHeightPx({ startMin: 645, endMin: 660, nextStartMin: null, pxPerHour: px, minPx: 16 })).toEqual({ height: 16, compact: false });
+    // Enough room: 15 min block, next one 30 min later.
+    expect(blockHeightPx({ startMin: 645, endMin: 660, nextStartMin: 690, pxPerHour: px, minPx: 16 })).toEqual({ height: 16, compact: false });
+  });
+
+  it("pads only as far as the room allows", () => {
+    // 5-minute block (≈3.7 px), the next one 10 minutes later (≈7.3 px of room).
+    const out = blockHeightPx({ startMin: 600, endMin: 605, nextStartMin: 610, pxPerHour: px, minPx: 16 });
+    expect(out.height).toBeCloseTo(minutesToPx(10, px), 5);
+    expect(out.compact).toBe(true);
+  });
+
+  it("leaves a long block alone", () => {
+    expect(blockHeightPx({ startMin: 600, endMin: 660, nextStartMin: 660, pxPerHour: px, minPx: 16 })).toEqual({ height: 44, compact: false });
+  });
+
+  it("finds the next block in the same lane only — across clusters, never across lanes", () => {
+    const blocks = [
+      { lane: 0, startMin: 645, endMin: 660 }, // IT JF
+      { lane: 0, startMin: 660, endMin: 675 }, // JF Gesamtteam (next cluster, same lane index)
+      { lane: 1, startMin: 665, endMin: 700 }, // a neighbour in another lane
+      { lane: 0, startMin: 675, endMin: 720 }, // MK/KR
+    ];
+    expect(nextLaneStartMin(blocks, 0)).toBe(660);
+    expect(nextLaneStartMin(blocks, 1)).toBe(675);
+    expect(nextLaneStartMin(blocks, 2)).toBeNull();
+    expect(nextLaneStartMin(blocks, 3)).toBeNull();
   });
 });
 

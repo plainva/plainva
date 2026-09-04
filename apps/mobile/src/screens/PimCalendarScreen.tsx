@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, layoutDayEvents, minutesInDay, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -734,11 +734,17 @@ export function PimCalendarScreen({
                   {hours.map((h) => (
                     <div key={h} style={{ position: "absolute", left: 0, right: 0, top: h * PX_PER_HOUR, borderTop: "1px solid var(--border-color-light)", opacity: 0.5 }} />
                   ))}
-                  {laid.map((l) => {
+                  {laid.map((l, li) => {
                     const startMin = minutesInDay(l.event.startMs, dayStartMs);
                     const endMin = Math.max(startMin + 1, minutesInDay(l.event.endMs, dayStartMs));
                     const top = minutesToPx(startMin, PX_PER_HOUR);
-                    const height = Math.max(15, minutesToPx(endMin - startMin, PX_PER_HOUR));
+                    // Same rule as the desktop: the minimum height grows only
+                    // into free room; a touching successor keeps the true height.
+                    const nextStartMin = nextLaneStartMin(
+                      laid.map((o) => ({ lane: o.lane, startMin: minutesInDay(o.event.startMs, dayStartMs), endMin: Math.max(minutesInDay(o.event.startMs, dayStartMs) + 1, minutesInDay(o.event.endMs, dayStartMs)) })),
+                      li,
+                    );
+                    const { height, compact } = blockHeightPx({ startMin, endMin, nextStartMin, pxPerHour: PX_PER_HOUR, minPx: 15 });
                     const laneWidthPct = 100 / l.lanes;
                     const widthPct = laneWidthPct * l.span;
                     const e = l.event.ev;
@@ -748,9 +754,10 @@ export function PimCalendarScreen({
                         type="button"
                         data-testid="pim-event"
                         data-state={eventVisualState(e)}
+                        data-compact={compact ? "true" : undefined}
                         className={eventStateClass("m-evt", eventVisualState(e))}
                         onClick={() => void editor.openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: compact ? "0 4px" : "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: compact ? 1 : 1.15 }}
                       >
                         <span className="m-evt-title">{e.title}</span>
                       </button>

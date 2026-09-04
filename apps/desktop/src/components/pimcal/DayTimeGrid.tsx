@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { ICON, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
@@ -592,9 +592,11 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 })()}
 
                 {/* Timed event blocks */}
-                {d.blocks.map((b) => {
+                {d.blocks.map((b, bi) => {
                   const top = minutesToPx(b.startMin, pxPerHour);
-                  const height = Math.max(MIN_BLOCK_PX, minutesToPx(b.endMin - b.startMin, pxPerHour));
+                  // The minimum height grows only into free room; a touching
+                  // successor keeps this block at its true height, on one line.
+                  const { height, compact } = blockHeightPx({ startMin: b.startMin, endMin: b.endMin, nextStartMin: nextLaneStartMin(d.blocks, bi), pxPerHour, minPx: MIN_BLOCK_PX });
                   const laneWidthPct = 100 / b.lanes;
                   const widthPct = laneWidthPct * b.span;
                   const leftPct = b.lane * laneWidthPct;
@@ -606,6 +608,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       type="button"
                       data-testid="calendar-timed-event"
                       data-state={eventVisualState(b.ev)}
+                      data-compact={compact ? "true" : undefined}
                       className={eventStateClass("pv-evt", eventVisualState(b.ev))}
                       onPointerDown={(e) => {
                         // Clear a stale suppression left by a prior drag that
@@ -636,7 +639,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         // whether it fills, hatches or only outlines (F7/F8).
                         ["--evt-color" as string]: colorOf(b.ev),
                         textAlign: "left",
-                        padding: "2px 5px",
+                        padding: compact ? "0 5px" : "2px 5px",
+                        justifyContent: compact ? "center" : undefined,
                         overflow: "hidden",
                         cursor: editable ? "grab" : "pointer",
                         opacity: dragging ? 0.4 : b.ev.end.ts <= nowTs ? 0.5 : 1,
@@ -646,7 +650,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         gap: 1,
                       }}
                     >
-                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: compact ? 1 : undefined }}>
                         {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
                         {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                         <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>

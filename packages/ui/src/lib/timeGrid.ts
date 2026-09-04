@@ -86,6 +86,41 @@ export function layoutDayEvents<T extends TimeGridEvent>(events: T[], keyOf?: (e
   return out;
 }
 
+/**
+ * When the next block in the same lane starts, in minutes — or null when
+ * nothing follows. "Same lane" is the lane INDEX: two touching events in
+ * consecutive clusters both sit in lane 0, and that is exactly the pair the
+ * minimum height used to overpaint.
+ */
+export function nextLaneStartMin<T extends { lane: number; startMin: number; endMin: number }>(blocks: readonly T[], index: number): number | null {
+  const me = blocks[index];
+  let next: number | null = null;
+  for (let i = 0; i < blocks.length; i += 1) {
+    if (i === index) continue;
+    const b = blocks[i];
+    if (b.lane !== me.lane || b.startMin < me.endMin) continue;
+    if (next === null || b.startMin < next) next = b.startMin;
+  }
+  return next;
+}
+
+/**
+ * The pixel height a block is drawn with (finding 2026-09-04): never below
+ * `minPx` so a short event stays clickable — but the padding may only grow
+ * into FREE room. When the next block in the lane begins where this one ends,
+ * the block keeps its true height and reports `compact`, so the caller sets
+ * its label on one tight line instead of letting 5 px of border and corner
+ * lie on the head of the following event (that read as an overlap).
+ */
+export function blockHeightPx(opts: { startMin: number; endMin: number; nextStartMin: number | null; pxPerHour: number; minPx: number }): { height: number; compact: boolean } {
+  const natural = minutesToPx(Math.max(1, opts.endMin - opts.startMin), opts.pxPerHour);
+  const padded = Math.max(natural, opts.minPx);
+  if (opts.nextStartMin === null) return { height: padded, compact: false };
+  const room = minutesToPx(opts.nextStartMin - opts.startMin, opts.pxPerHour);
+  const height = Math.max(natural, Math.min(padded, room));
+  return { height, compact: height < opts.minPx };
+}
+
 const DAY_MINUTES = 24 * 60;
 
 /** Local-midnight ms of the civil day containing `ms`. */
