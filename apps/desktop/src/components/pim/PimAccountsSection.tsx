@@ -224,7 +224,9 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
   }
 
   const providerLabel = (p: string) =>
-    p === "caldav" ? "CalDAV" : p === "google" ? "Google" : "Microsoft";
+    // "device" never reaches a desktop (EventKit plan E3) — named anyway, so a row that
+    // did would say what it is instead of "Microsoft".
+    p === "caldav" ? "CalDAV" : p === "google" ? "Google" : p === "microsoft" ? "Microsoft" : p === "device" ? t("cloudAccounts.familyDevice") : p;
 
   return (
     <div data-testid="pim-accounts">

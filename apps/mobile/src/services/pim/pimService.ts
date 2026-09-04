@@ -4,6 +4,7 @@ import {
   PimCacheRepository,
   PimWorker,
   CalDavPimTarget,
+  DevicePimTarget,
   GooglePimTarget,
   GraphPimTarget,
   type IPimTarget,
@@ -18,6 +19,8 @@ import { getMobileVault, type MobileVault } from "../vaultService";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
+import { devicePimPort, isDevicePimSupported, onDevicePimChanged, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
+import { Capacitor } from "@capacitor/core";
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
@@ -64,6 +67,7 @@ interface Runtime {
 }
 
 let runtime: Runtime | null = null;
+let stopDeviceTrigger: (() => void) | null = null;
 let state: PimState = { status: "off", message: null, lastSyncAt: null };
 const listeners = new Set<() => void>();
 
@@ -83,6 +87,9 @@ export function getPimStatus(): PimState {
 }
 
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
+  // The device account has no credential — the permission is the sign-in
+  // (EventKit plan E5/E6), so it is answered before the secret store is asked.
+  if (account.provider === "device") return isDevicePimSupported() ? new DevicePimTarget(devicePimPort()) : null;
   const creds = await getPimCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
@@ -127,6 +134,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
   if (accounts.some((a) => a.enabled)) {
     setState({ status: "idle", message: null });
     worker.start();
+    // "Something changed" from the device's store is the trigger the plan
+    // names instead of a change feed: the next cycle runs now, not in N minutes.
+    if (isDevicePimSupported()) stopDeviceTrigger = onDevicePimChanged(() => void worker.triggerImmediate());
   } else {
     setState({ status: "off", message: null });
   }
@@ -155,6 +165,8 @@ export async function startPim(vault: MobileVault): Promise<void> {
 
 export function stopPim(): void {
   runtime?.worker.stop();
+  stopDeviceTrigger?.();
+  stopDeviceTrigger = null;
   stopTaskSyncRuntime();
   runtime = null;
   setState({ status: "off", message: null });
@@ -201,6 +213,40 @@ export function pimForegroundSync(now: number = Date.now()): void {
 /** Test seam: lets a suite start from a known throttle state. */
 export function resetPimForegroundThrottle(): void {
   lastForegroundPimAt = 0;
+}
+
+/** True while this vault carries the device account (at most one, plan E7). */
+export async function hasDevicePimAccount(): Promise<boolean> {
+  const rows = await listPimAccounts().catch(() => []);
+  return rows.some((a) => a.provider === "device");
+}
+
+/**
+ * The device's calendars as an account (plan E5): one tap asks the system for
+ * full access; granted, the account row is written without a secret (there is
+ * none) and the worker pulls the calendars. Denied, the caller gets the state
+ * and says so — the card offers the way into the system settings, never a
+ * second dialog.
+ */
+export async function connectDevicePimAccount(label: string): Promise<{ ok: true } | { ok: false; status: DevicePimStatus }> {
+  if (!runtime) throw new Error("pim runtime not started");
+  if (await hasDevicePimAccount()) return { ok: true };
+  const status = await requestDevicePimAccess();
+  if (status.events !== "fullAccess") return { ok: false, status };
+  const id = newAccountId();
+  await runtime.cache.upsertAccount({
+    id,
+    provider: "device",
+    label,
+    // `device: true` marks the row the profile export skips (E8); the platform
+    // is what the card names in "Erinnerungen gibt es auf Android nicht".
+    config: { device: true, platform: Capacitor.getPlatform() },
+    enabled: true,
+  });
+  if (state.status === "off") setState({ status: "idle", message: null });
+  runtime.worker.start();
+  runtime.worker.triggerImmediate();
+  return { ok: true };
 }
 
 export async function listPimAccounts(): Promise<PimAccountRow[]> {

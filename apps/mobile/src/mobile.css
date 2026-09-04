@@ -3557,6 +3557,8 @@ textarea {
 .m-acctmark--imap { background: var(--chip-4-bg); color: var(--chip-4-fg); }
 /* Catalog suite families (stage A+, 2026-07-20) — same pairs as desktop. */
 .m-acctmark--apple { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+/* The device account (EventKit / CalendarContract): the phone itself, one per device. */
+.m-acctmark--device { background: var(--chip-1-bg); color: var(--chip-1-fg); }
 .m-acctmark--yahoo { background: var(--chip-3-bg); color: var(--chip-3-fg); }
 .m-acctmark--aol { background: var(--chip-3-bg); color: var(--chip-3-fg); }
 .m-acctmark--yandex { background: var(--chip-0-bg); color: var(--chip-0-fg); }

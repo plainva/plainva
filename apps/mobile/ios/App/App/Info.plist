@@ -47,6 +47,14 @@
 	<string>Plainva accesses your photo library so you can add a picture to a note.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Plainva can save a photo when you add it to a note.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Plainva shows the calendars of this device next to your notes and creates the events you add from a note. Full access is needed to read and write them.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Plainva shows your reminder lists as task lists next to your notes and checks off or creates reminders from there.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Plainva shows the calendars of this device next to your notes and creates the events you add from a note.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Plainva shows your reminder lists as task lists next to your notes and checks off or creates reminders from there.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

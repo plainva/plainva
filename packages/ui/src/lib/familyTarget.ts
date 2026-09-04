@@ -37,7 +37,7 @@ import { suiteProvider } from "./providerCatalog";
 /** The five providers the mobile file-sync form can bind. */
 export type MobileFilesProvider = "webdav" | "s3" | "drive" | "onedrive" | "dropbox";
 /** The three the calendar accounts screen can bind. */
-export type MobileCalendarProvider = "google" | "microsoft" | "caldav";
+export type MobileCalendarProvider = "google" | "microsoft" | "caldav" | "device";
 /** The two mail backends. */
 export type MobileMailBackend = "microsoft" | "imap";
 
@@ -96,6 +96,8 @@ export function calendarTargetForFamily(family: CloudProviderFamily): CalendarTa
   if (!carries(family, "calendar")) return null;
   if (family === "google") return { provider: "google" };
   if (family === "microsoft") return { provider: "microsoft" };
+  // The device's own store: no server, no login — the permission is the sign-in.
+  if (family === "device") return { provider: "device" };
   // Plain WebDAV has no preset URL — the user types their server. Suites do.
   const url = suiteProvider(family)?.endpoints.caldavUrl;
   return url ? { provider: "caldav", caldavUrl: url } : { provider: "caldav" };

@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-03
+Stan na: 2026-09-04
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -12,6 +12,7 @@ Otwórz **Ustawienia → Twój vault → Konta w chmurze → Połącz konto…**
 
 - **Nextcloud / CalDAV**: adres serwera, nazwa użytkownika i **hasło aplikacji** (w Nextcloud: Ustawienia → Bezpieczeństwo → Urządzenia i sesje). Bez rejestracji, bez kluczy — w przypadku Nextcloud Plainva samodzielnie wyprowadza adres CalDAV z adresu serwera (dla innych serwerów CalDAV wybierz kafelek **WebDAV / CalDAV** lub **Zaawansowane: ustaw punkty końcowe osobno**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: dedykowane kafelki z już wypełnionymi adresami kalendarza — wystarczy adres e-mail plus **hasło aplikacji**, bez pola serwera (w przypadku Apple hasło aplikacji jest obowiązkowe; asystent linkuje instrukcję dostawcy). Uwaga: sam Yahoo zaznacza, że jego usługa CalDAV jest niestabilna — jeśli grymasi, nie jest to wina Plainva.
+- **Na tym urządzeniu** (tylko telefon): kalendarze, które Twoje urządzenie już zna — iCloud, Exchange, Google przez konta systemowe, kalendarze lokalne — jako **jedno** konto bez logowania. Dotknięcie prosi o uprawnienie systemowe (pełny dostęp, bo Plainva także tworzy wydarzenia); na iOS dochodzą **listy przypomnień** jako listy zadań, Android nie ma systemowego magazynu zadań. Na telefon przypada najwyżej jedno konto urządzenia, nie podróżuje ono z synchronizacją ustawień, a ten sam kalendarz może być równolegle połączony przez konto w chmurze — Plainva nie łączy obu.
 - **Google**: wymaga własnego identyfikatora klienta OAuth (ten sam model BYO co przy synchronizacji Google Drive — patrz [przewodnik Google Drive](Google_Drive_BYO_Guide.md)). W swoim projekcie Google Cloud dodatkowo włącz *Google Calendar API* i *Google Tasks API* oraz dodaj ich zakresy do ekranu zgody. Przeglądarka otwiera się w celu wyrażenia zgody; łączenie weryfikuje konto, zanim cokolwiek zostanie zapisane.
 - **Microsoft**: wystarczy kliknąć **Zaloguj się przez Microsoft…** i potwierdzić w przeglądarce — konfiguracja nie jest potrzebna. Jedno konto Microsoft może w tym samym przebiegu obsługiwać też **Pliki** (OneDrive) i **E-mail**.
 
@@ -92,6 +93,8 @@ Przypomnienie mówi teraz, **co** zapowiada: „Termin · 09:30” albo „Zadan
 **Różnica wobec telefonu stoi w ustawieniu, nie drobnym drukiem.** Na telefonie przypomnienie przejmuje system operacyjny i budzi je nawet przy zamkniętej aplikacji. Na komputerze takiego przekazania nie ma: **Plainva budzi je sama i dlatego musi działać.** Przy zamkniętej aplikacji przypomnienie przepada i nie jest nadrabiane. W zamian nie ma tu żadnego limitu.
 
 Samo powiadomienie nie ma przycisku — komputer tego nie udostępnia. Działanie znajduje się w komunikacie w aplikacji: **Pokaż w kalendarzu** przy spotkaniu, **Otwórz zadanie** przy zadaniu. Okno nigdy nie wysuwa się przy tym na wierzch.
+
+Na telefonie należą do nich **listy przypomnień** urządzenia (iOS), gdy tylko konto urządzenia **Na tym urządzeniu** jest połączone: każda lista jest listą zadań jak lista Nextcloud, z tymi samymi zasadami — import do bazy zadań, odhaczanie w obie strony, usuwanie przez dziennik usunięć.
 
 ### Działanie w tle
 

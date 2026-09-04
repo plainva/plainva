@@ -63,7 +63,8 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     loadCloudAccounts(entry.id),
   ]);
   const [pimStates, mailStates] = await Promise.all([
-    deviceSignInStates("pim", entry.id, pim.map((a) => a.id)),
+    // The device account has no credential slot: its state is the permission, read where the card is shown.
+    deviceSignInStates("pim", entry.id, pim.filter((a) => a.provider !== "device").map((a) => a.id)),
     deviceSignInStates("mail", entry.id, mail.map((a) => a.id)),
   ]);
 
@@ -147,14 +148,14 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     // server URL names the family — same detection as the desktop registry.
     const catalogFamily =
       a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
-    const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft");
+    const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft" | "device");
     const verified = verifiedProviderIdentityOf(a) ?? undefined;
     add({
       key: keyOf(family, a.label, a.id, verified),
       family,
       label: a.label,
       services: ["calendar"],
-      signIn: accountRowState(pimStates.get(a.id) ?? "signin"),
+      signIn: a.provider === "device" ? "active" : accountRowState(pimStates.get(a.id) ?? "signin"),
       record: recordFor(family, a.label, verified),
     });
   }

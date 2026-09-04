@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-04
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -12,6 +12,7 @@ Apri **Impostazioni → Vault → Account cloud → Collega account…**, scegli
 
 - **Nextcloud / CalDAV**: indirizzo del server, nome utente e una **Password per app** (in Nextcloud: Impostazioni → Sicurezza → Dispositivi e sessioni). Nessuna registrazione, nessuna chiave — per Nextcloud, Plainva deduce l'indirizzo CalDAV direttamente dall'indirizzo del server (per altri server CalDAV usa la scheda **WebDAV / CalDAV** oppure **Avanzate: imposta gli endpoint singolarmente**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: schede dedicate con gli indirizzi calendario già precompilati — bastano l'indirizzo e-mail più una **Password per app**, senza campo server (per Apple la password per app è obbligatoria; l'assistente collega la guida del provider). Nota: lo stesso Yahoo segnala che il suo servizio CalDAV non è affidabile — se dà problemi, non dipende da Plainva.
+- **Su questo dispositivo** (solo telefono): i calendari che il tuo dispositivo conosce già — iCloud, Exchange, Google tramite gli account di sistema, calendari locali — come **un** account senza accesso. Un tocco chiede il permesso di sistema (accesso completo, perché Plainva crea anche eventi); su iOS si aggiungono gli **elenchi di promemoria** come elenchi attività, Android non ha un archivio attività di sistema. C'è al massimo un account del dispositivo per telefono, non viaggia con la sincronizzazione delle impostazioni, e lo stesso calendario può essere collegato anche tramite un account cloud — Plainva non unisce i due.
 - **Google**: necessita di un proprio ID client OAuth (lo stesso modello BYO della sincronizzazione con Google Drive — vedi la [guida a Drive](Google_Drive_BYO_Guide.md)). Nel tuo progetto Google Cloud, abilita inoltre le *Google Calendar API* e *Google Tasks API* e aggiungi i loro ambiti alla schermata di consenso. Il browser si apre per il consenso; il collegamento verifica l'account prima che venga salvato qualcosa.
 - **Microsoft**: basta cliccare su **Accedi con Microsoft…** e confermare nel browser — non serve alcuna configurazione. Un account Microsoft può portare anche **File** (OneDrive) ed **E-mail** nello stesso passaggio.
 
@@ -92,6 +93,8 @@ Un promemoria ora dice **cosa** sta annunciando: "Appuntamento · 09:30" oppure 
 **La differenza rispetto al telefono sta nell'impostazione, non in fondo alla pagina.** Sul telefono è il sistema operativo a prendersi carico del promemoria e a svegliarlo anche ad app chiusa. Sul computer questo passaggio non esiste: **Plainva sveglia da sé e deve quindi essere in esecuzione.** Ad app chiusa il promemoria salta e non viene recuperato. In cambio, qui non c'è alcun limite.
 
 La notifica in sé non porta pulsanti: il computer non lo consente. L'azione si trova nell'avviso dentro l'app: **Mostra nel calendario** per un appuntamento, **Apri attività** per un'attività. La finestra non si porta mai in primo piano da sola.
+
+Sul telefono rientrano anche gli **elenchi di promemoria** del dispositivo (iOS) non appena l'account del dispositivo **Su questo dispositivo** è collegato: ogni elenco è un elenco attività come un elenco Nextcloud, con le stesse regole — importazione nel database attività, spunta in entrambe le direzioni, eliminazione tramite il registro delle eliminazioni.
 
 ### Restare in esecuzione sullo sfondo
 

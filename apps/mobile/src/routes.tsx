@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import { toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { connectDevicePimAccount } from "./services/pim/pimService";
+import { devicePermissionKey } from "./services/pim/devicePermission";
 import type { MobileVault } from "./services/vaultService";
 import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
 import type { AppCommand, AreaOrder } from "@plainva/ui";
@@ -242,6 +246,19 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         void startConnectQueue(family, services).then((first) => {
           if (!first) return;
           c.replace({ kind: screenForService(first), path: "", family });
+        });
+      }}
+      // The device's calendars (EventKit plan E5): the system asks for access,
+      // the account is written, and the calendar list is where it lands —
+      // there is no form to hand over to.
+      onConnectDevice={() => {
+        void connectDevicePimAccount(i18n.t("cloudAccounts.familyDevice")).then((out) => {
+          if (out.ok) {
+            toast.success(i18n.t("pim.deviceConnected"));
+            c.replace({ kind: "pimaccounts", path: "", family: "device" });
+          } else {
+            toast.error(`${i18n.t(devicePermissionKey(out.status.events))} — ${i18n.t("pim.deviceAccessNeeded")}`);
+          }
         });
       }}
     />

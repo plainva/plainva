@@ -7,7 +7,14 @@
  * (injectable fetch, provider-agnostic shapes), but is object- not path-based.
  */
 
-export type PimProviderId = "caldav" | "google" | "microsoft";
+/**
+ * Every provider there is, as a value: `providerCoverage.test.ts` reads it
+ * and checks that each place that branches on the provider knows each one.
+ * `device` is the phone's own calendar store (EventKit / CalendarContract,
+ * 2026-09-04) — an account without a credential, held by the device.
+ */
+export const PIM_PROVIDER_IDS = ["caldav", "google", "microsoft", "device"] as const;
+export type PimProviderId = (typeof PIM_PROVIDER_IDS)[number];
 
 export interface PimCalendar {
   /** Provider-side calendar id (Google id, Graph id, CalDAV collection href). */

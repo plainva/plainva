@@ -29,6 +29,16 @@ function newAccountId(): string {
  * password update (stage B / B1), which must validate EVERY service before it
  * writes the first one.
  */
+/**
+ * The desktop has no "device" account by decision (EventKit plan E3): macOS
+ * would have EventKit, Windows and Linux have nothing comparable, and a
+ * provider that exists on one desktop platform is the kind of asymmetry nobody
+ * can explain. The desktop reaches the same calendars through CalDAV, Google
+ * and Graph; a row with provider "device" cannot arrive here (the profile
+ * never carries one, E8) and would build no target.
+ */
+export const DESKTOP_PIM_PROVIDERS = ["caldav", "google", "microsoft"] as const;
+
 export async function checkCalDavLogin(opts: { url: string; user: string; pass: string }): Promise<void> {
   const calendars = await new CalDavPimTarget(opts, httpFetch).listCalendars();
   if (calendars.length === 0) throw new Error("No calendars found on this server.");

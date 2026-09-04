@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isDevicePimSupported } from "../platform/devicePim";
+import { hasDevicePimAccount } from "../services/pim/pimService";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, Mail } from "lucide-react";
 import { accountMonogram, Button, Checkbox, type CloudProviderFamily, type CloudServiceId, FAMILY_SERVICES, GroupCard, ICON, Row, RowList, suiteProvider } from "@plainva/ui";
@@ -42,8 +44,11 @@ const SERVICE_ICON = { files: Folder, calendar: CalendarDays, mail: Mail } as co
 export function CloudConnectScreen({
   onBack,
   onPickServices,
+  onConnectDevice,
 }: {
   onBack: () => void;
+  /** The device's own calendars (EventKit plan E5): one tap asks the system, no form. */
+  onConnectDevice?: () => void;
   /**
    * Starts the run for the ticked services (S0b1). Opening one sign-in surface
    * per service stays the shape — the caller queues the rest.
@@ -53,6 +58,16 @@ export function CloudConnectScreen({
   const { t } = useTranslation();
   const [family, setFamily] = useState<CloudProviderFamily | null>(null);
   const [picked, setPicked] = useState<CloudServiceId[]>([]);
+  // The device tile exists only on the native shells and only while no device
+  // account exists (E7): the device is the source, not a login — one per phone.
+  const [deviceTile, setDeviceTile] = useState(false);
+  useEffect(() => {
+    if (!isDevicePimSupported() || !onConnectDevice) return;
+    let alive = true;
+    void hasDevicePimAccount().then((has) => { if (alive) setDeviceTile(!has); });
+    return () => { alive = false; };
+  }, [onConnectDevice]);
+  const tiles: CloudProviderFamily[] = deviceTile ? ["device", ...TILES] : TILES;
 
   const familyName = (f: CloudProviderFamily) => t(`cloudAccounts.family${f[0].toUpperCase()}${f.slice(1)}`);
   const serviceName = (s: CloudServiceId) =>
@@ -66,13 +81,17 @@ export function CloudConnectScreen({
           <p className="m-hint">{t("cloudAccounts.pickProvider")}</p>
           <GroupCard>
             <RowList>
-              {TILES.map((f) => (
+              {tiles.map((f) => (
                 <Row
                   data-testid={`connect-family-${f}`}
                   end={<ChevronRight className="m-chevron" size={ICON.head} />}
                   icon={<span aria-hidden className={`m-acctmark m-acctmark--${f}`}>{accountMonogram(f)}</span>}
                   key={f}
-                  onClick={() => { setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []); }}
+                  onClick={() => {
+                    // No services step for the device: it has one service and no form.
+                    if (f === "device") { onConnectDevice?.(); return; }
+                    setFamily(f); setPicked(FAMILY_SERVICES[f].length === 1 ? [...FAMILY_SERVICES[f]] : []);
+                  }}
                   subtitle={FAMILY_SERVICES[f].map(serviceName).join(" · ")}
                   title={familyName(f)}
                 />

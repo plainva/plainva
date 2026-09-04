@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { devicePermissionKey } from "../services/pim/devicePermission";
+import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
 import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
@@ -92,7 +94,8 @@ export function PimAccountsScreen({
   const [taskAt, setTaskAt] = useState(() => getMobileSettings().reminderTaskAtMinutes);
   const [reminderCalendars, setReminderCalendars] = useState<string[]>(() => getMobileSettings().reminderCalendars);
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
-  const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">(calPreset?.provider ?? "google");
+  // The form knows the three network providers; the device account has no form (it is one tap on its tile).
+  const [addProvider, setAddProvider] = useState<"google" | "microsoft" | "caldav">(calPreset && calPreset.provider !== "device" ? calPreset.provider : "google");
   const [label, setLabel] = useState("");
   // A run that just connected files knows the server, the user and the
   // password — asking a second time is the complaint, not a safeguard (P4c/
@@ -196,13 +199,16 @@ export function PimAccountsScreen({
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   /** Which account a CalDAV re-sign-in is for — the form repairs it in place. */
   const [reconnect, setReconnect] = useState<PimAccountRow | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<DevicePimStatus | null>(null);
 
   const reload = useCallback(() => {
     void listPimAccounts()
       .then(async (rows) => {
         setAccounts(rows);
         const vault = await getActiveVaultEntry();
-        setSignIn(await deviceSignInStates("pim", vault.id, rows.map((r) => r.id)));
+        // The "device" account has no credential slot; its permission is read into `deviceStatus`.
+        setSignIn(await deviceSignInStates("pim", vault.id, rows.filter((r) => r.provider !== "device").map((r) => r.id)));
+        setDeviceStatus(rows.some((r) => r.provider === "device") && isDevicePimSupported() ? await devicePimAuthorization().catch(() => null) : null);
         const cache = getPimCache();
         const next = new Map<string, string>();
         if (cache) {
@@ -701,7 +707,7 @@ export function PimAccountsScreen({
                 <div className="m-acct" data-testid={`pim-account-${a.id}`}>
                   <span className="m-acct-name">{a.label}</span>
                   <DeviceSignInBadge state={state} />
-                  <span className="m-acct-provider">{a.provider}</span>
+                  <span className="m-acct-provider">{a.provider === "device" ? t("cloudAccounts.familyDevice") : a.provider}</span>
                   <IconButton
                     label={t("pim.removeAccount", { defaultValue: "Konto entfernen" })}
                     onClick={() => void remove(a)}
@@ -709,7 +715,19 @@ export function PimAccountsScreen({
                     <Trash2 size={ICON.ui} />
                   </IconButton>
                 </div>
-                {state !== "active" && (
+                {a.provider === "device" && deviceStatus && deviceStatus.events !== "fullAccess" && (
+                  /* The device account's "sign-in" is the permission: the hint names
+                     its state and offers the system settings, never a second dialog. */
+                  <>
+                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
+                      {t(devicePermissionKey(deviceStatus.events))} — {t("pim.deviceAccessNeeded")}
+                    </p>
+                    <Button onClick={() => void openDevicePimSettings()} size="sm" variant="tonal">
+                      {t("pim.deviceOpenSettings")}
+                    </Button>
+                  </>
+                )}
+                {a.provider !== "device" && state !== "active" && (
                   /* The row alone would only say something is wrong — this says
                      what, and offers the one action that fixes it. */
                   <>

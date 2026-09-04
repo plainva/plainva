@@ -33,6 +33,8 @@ export function familyLabel(family: CloudProviderFamily, flavor?: "nextcloud"): 
       return i18n.t("cloudAccounts.familyS3");
     case "apple":
       return i18n.t("cloudAccounts.familyApple");
+    case "device":
+      return i18n.t("cloudAccounts.familyDevice");
     case "yahoo":
       return i18n.t("cloudAccounts.familyYahoo");
     case "aol":

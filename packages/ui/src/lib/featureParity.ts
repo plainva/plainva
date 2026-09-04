@@ -326,6 +326,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "device-pim-accounts",
+    title: "The device's own calendars and reminder lists as a calendar account",
+    area: "pim",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "EventKit exists on macOS only; Windows and Linux have no system calendar " +
+      "store, and a provider that exists on one desktop platform is the kind of " +
+      "asymmetry nobody can explain. The desktop reaches the same calendars " +
+      "through CalDAV, Google and Graph; the device account never travels in the " +
+      "settings profile (plan EventKit E3/E8, 2026-09-04).",
+    mobile: "partial",
+    mobileReason:
+      "Calendars on both platforms (EventKit / CalendarContract). Reminder lists " +
+      "only on iOS, because Android has no system task store. Conflict detection " +
+      "on Android rests on a hash of the visible fields instead of a modification " +
+      "date the provider does not expose - a change that leaves every visible " +
+      "field alone is invisible to it. Both named on the account card.",
+    verified: "2026-09-04",
+  },
+  {
     id: "mail-list-keyboard",
     title: "Arrow-key navigation in the message list",
     area: "pim",

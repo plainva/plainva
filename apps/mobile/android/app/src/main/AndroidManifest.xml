@@ -103,4 +103,8 @@
          reviews, and a reminder that is a minute late is still a reminder —
          `allowWhileIdle` is enough to survive Doze. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The device's calendars as a calendar account (EventKit / CalendarContract plan,
+         2026-09-04): runtime permission, asked only when the account is created. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 </manifest>

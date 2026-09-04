@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-04
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -12,6 +12,7 @@ Open **Instellingen → Vault → Cloudaccounts → Account verbinden…**, kies
 
 - **Nextcloud / CalDAV**: serveradres, gebruikersnaam en een **app-wachtwoord** (in Nextcloud: Instellingen → Beveiliging → Apparaten & sessies). Geen registratie, geen keys — voor Nextcloud leidt Plainva het CalDAV-adres zelf af uit het serveradres (voor andere CalDAV-servers gebruik je de tegel **WebDAV / CalDAV** of **Geavanceerd: endpoints afzonderlijk instellen**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: eigen tegels met de agenda-adressen al ingevuld — een e-mailadres plus een **app-wachtwoord** volstaat, zonder serverveld (bij Apple is het app-wachtwoord verplicht; de assistent linkt naar de handleiding van de provider). Let op: Yahoo geeft zelf aan dat zijn CalDAV-dienst onbetrouwbaar is — als die vreemd doet, ligt het niet aan Plainva.
+- **Op dit apparaat** (alleen telefoon): de agenda's die je apparaat al kent — iCloud, Exchange, Google via de systeemaccounts, lokale agenda's — als **één** account zonder aanmelding. Een tik vraagt de systeemtoestemming (volledige toegang, omdat Plainva ook afspraken aanmaakt); op iOS komen de **herinneringslijsten** als takenlijsten erbij, Android heeft geen systeemopslag voor taken. Er is hoogstens één apparaataccount per telefoon, het reist niet mee met de instellingensynchronisatie, en dezelfde agenda kan daarnaast via een cloudaccount verbonden zijn — Plainva voegt de twee niet samen.
 - **Google**: heeft je eigen OAuth-client-ID nodig (hetzelfde BYO-model als bij de Google Drive-sync — zie de [Drive-handleiding](Google_Drive_BYO_Guide.md)). Schakel in je Google Cloud-project bovendien de *Google Calendar API* en *Google Tasks API* in en voeg hun scopes toe aan het toestemmingsscherm. De browser opent voor toestemming; bij het verbinden wordt het account gevalideerd voordat er iets wordt opgeslagen.
 - **Microsoft**: klik gewoon op **Aanmelden met Microsoft…** en bevestig in de browser — geen instelling nodig. Eén Microsoft-account kan in dezelfde stap ook **Bestanden** (OneDrive) en **E-mail** dragen.
 
@@ -92,6 +93,8 @@ Een herinnering zegt nu **wat** ze aankondigt: "Afspraak · 09:30" of "Taak · v
 **Het verschil met de telefoon staat in de instelling, niet in de kleine lettertjes.** Op de telefoon neemt het besturingssysteem de herinnering over en wekt haar ook met de app dicht. Op de computer bestaat die overdracht niet: **Plainva wekt zelf en moet daarvoor draaien.** Is de app dicht, dan vervalt de herinnering en wordt ze niet ingehaald. Daar staat tegenover dat er hier geen bovengrens is.
 
 De melding zelf draagt geen knop — dat biedt de computer niet. De actie zit in het bericht in de app: **In de agenda tonen** bij een afspraak, **Taak openen** bij een taak. Het venster dringt zich daarbij nooit naar voren.
+
+Op de telefoon horen daar de **herinneringslijsten** van het apparaat (iOS) bij zodra het apparaataccount **Op dit apparaat** verbonden is: elke lijst is een takenlijst zoals een Nextcloud-lijst, met dezelfde regels — import in de takendatabase, afvinken in beide richtingen, verwijderen via het verwijderjournaal.
 
 ### Op de achtergrond doorlopen
 

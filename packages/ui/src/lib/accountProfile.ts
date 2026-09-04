@@ -420,7 +420,9 @@ export function validPimAccount(value: unknown): value is PimAccountRow {
   return (
     !!a &&
     typeof a.id === "string" &&
-    ["caldav", "google", "microsoft"].includes(a.provider) &&
+    // "device" is deliberately NOT accepted from a profile (E8): it is this
+    // device's account or nobody's.
+    ["caldav", "google", "microsoft"].includes(a.provider) && a.provider !== "device" &&
     typeof a.label === "string" &&
     !!a.config &&
     typeof a.config === "object" &&
@@ -507,6 +509,9 @@ function sharedCloudAccount(account: CloudAccountRecord): SharedCloudAccount {
  */
 export function pimAccountsForProfile(rows: readonly PimAccountRow[], map: ProfileAccountMap): SharedPimAccount[] {
   return rows
+    // A device account belongs to the device like a sign-in token (EventKit
+    // E8): it never travels. A second phone makes its own when it wants one.
+    .filter((a) => a.provider !== "device")
     .map((a) => ({ ...a, id: map.pimLocalToLogical[a.id] ?? a.id, config: sharedPimConfig(a.config) }))
     .sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)) || a.id.localeCompare(b.id));
 }

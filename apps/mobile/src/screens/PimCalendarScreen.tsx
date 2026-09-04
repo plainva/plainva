@@ -198,7 +198,8 @@ export function PimCalendarScreen({
         return;
       }
       const vault = await getActiveVaultEntry();
-      const states = await deviceSignInStates("pim", vault.id, a.map((r) => r.id));
+      // A "device" account signs in through the system permission, not a slot (its rows default to active below).
+      const states = await deviceSignInStates("pim", vault.id, a.filter((r) => r.provider !== "device").map((r) => r.id));
       const cache = getPimCache();
       const rows = await Promise.all(
         a.map(async (r) => {

@@ -23,6 +23,7 @@
 		7A0002000000000000000005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7A0001000000000000000005 /* PrivacyInfo.xcprivacy */; };
 		7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0001000000000000000001 /* ShareTargetPlugin.swift */; };
 		7C0002000000000000000001 /* VaultFolderPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000001 /* VaultFolderPlugin.swift */; };
+		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -70,6 +71,7 @@
 		7A0001000000000000000005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7B0001000000000000000001 /* ShareTargetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTargetPlugin.swift; sourceTree = "<group>"; };
 		7C0001000000000000000001 /* VaultFolderPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderPlugin.swift; sourceTree = "<group>"; };
+		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7B1009010000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7B1009020000000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 				7A0001000000000000000005 /* PrivacyInfo.xcprivacy */,
 				7B0001000000000000000001 /* ShareTargetPlugin.swift */,
 				7C0001000000000000000001 /* VaultFolderPlugin.swift */,
+				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -268,6 +271,7 @@
 				7A0002000000000000000003 /* MainViewController.swift in Sources */,
 				7B0002000000000000000001 /* ShareTargetPlugin.swift in Sources */,
 				7C0002000000000000000001 /* VaultFolderPlugin.swift in Sources */,
+				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

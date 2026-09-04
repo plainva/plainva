@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-09-03
+Última actualización: 2026-09-04
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -12,6 +12,7 @@ Abre **Ajustes → tu vault → Cuentas en la nube → Conectar cuenta…**, eli
 
 - **Nextcloud / CalDAV**: dirección del servidor, nombre de usuario y una **contraseña de aplicación** (en Nextcloud: Ajustes → Seguridad → Dispositivos y sesiones). Sin registro, sin claves — para Nextcloud, Plainva deriva la dirección CalDAV de la propia dirección del servidor (para otros servidores CalDAV usa la ficha **WebDAV / CalDAV** o **Avanzado: definir los endpoints individualmente**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru**: fichas dedicadas con las direcciones de calendario ya rellenadas — basta con la dirección de correo más una **contraseña de aplicación**, sin campo de servidor (en Apple la contraseña de aplicación es obligatoria; el asistente enlaza la guía del proveedor). Nota: el propio Yahoo señala que su servicio CalDAV no es fiable — si se comporta de forma extraña, no es culpa de Plainva.
+- **En este dispositivo** (solo teléfono): los calendarios que tu dispositivo ya conoce — iCloud, Exchange, Google a través de las cuentas del sistema, calendarios locales — como **una** cuenta sin inicio de sesión. Un toque pide el permiso del sistema (acceso completo, porque Plainva también crea eventos); en iOS se suman las **listas de recordatorios** como listas de tareas, Android no tiene almacén de tareas del sistema. Hay como máximo una cuenta del dispositivo por teléfono, no viaja con la sincronización de ajustes, y el mismo calendario puede estar conectado además mediante una cuenta en la nube — Plainva no fusiona ambos.
 - **Google**: necesita tu propio ID de cliente OAuth (el mismo modelo BYO que la sincronización con Google Drive — ver la [guía de Drive](Google_Drive_BYO_Guide.md)). En tu proyecto de Google Cloud, activa además la *Google Calendar API* y la *Google Tasks API* y añade sus ámbitos a la pantalla de consentimiento. El navegador se abre para pedir consentimiento; al conectar se valida la cuenta antes de guardar nada.
 - **Microsoft**: solo haz clic en **Iniciar sesión con Microsoft…** y confirma en el navegador — no hace falta ninguna configuración. Una cuenta de Microsoft también puede llevar **Archivos** (OneDrive) y **Correo** en el mismo proceso.
 
@@ -92,6 +93,8 @@ Un recordatorio ahora dice **qué** está anunciando: «Cita · 09:30» o «Tare
 **La diferencia con el teléfono está en el ajuste, no en la letra pequeña.** En el teléfono el sistema operativo se hace cargo del recordatorio y lo despierta incluso con la aplicación cerrada. En el ordenador no existe ese relevo: **Plainva despierta él mismo y por eso tiene que estar en marcha.** Con la aplicación cerrada el recordatorio se pierde y no se recupera. A cambio, aquí no hay ningún límite.
 
 La notificación en sí no lleva botón: el ordenador no lo permite. La acción está en el aviso dentro de la aplicación: **Mostrar en el calendario** para una cita, **Abrir tarea** para una tarea. La ventana nunca se pone en primer plano por sí sola.
+
+En el teléfono se incluyen las **listas de recordatorios** del dispositivo (iOS) en cuanto la cuenta del dispositivo **En este dispositivo** está conectada: cada lista es una lista de tareas como una lista de Nextcloud, con las mismas reglas — importación a la base de datos de tareas, marcar en ambas direcciones, eliminación mediante el diario de eliminaciones.
 
 ### Seguir en segundo plano
 

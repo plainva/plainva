@@ -31,6 +31,8 @@ export type CloudServiceId = "files" | "calendar" | "mail";
 export type CloudProviderFamily =
   | "microsoft"
   | "google"
+  /** The phone's own calendar store (EventKit / CalendarContract) — one per device, no login. */
+  | "device"
   | "webdav"
   | "dropbox"
   | "s3"
@@ -82,6 +84,8 @@ export const FAMILY_SERVICES: Record<CloudProviderFamily, readonly CloudServiceI
   imap: ["mail"],
   // iCloud Drive has no third-party API — Apple is calendar+mail only.
   apple: ["calendar", "mail"],
+  // The device's calendars (and, on iOS, reminder lists): no files, no mail.
+  device: ["calendar"],
   yahoo: ["calendar", "mail"],
   aol: ["calendar", "mail"],
   yandex: ["files", "calendar", "mail"],
@@ -125,7 +129,7 @@ export function familyOfSyncProvider(provider: SyncProviderId): CloudProviderFam
   }
 }
 
-export function familyOfPimProvider(provider: "caldav" | "google" | "microsoft"): CloudProviderFamily {
+export function familyOfPimProvider(provider: "caldav" | "google" | "microsoft" | "device"): CloudProviderFamily {
   return provider === "caldav" ? "webdav" : provider;
 }
 
@@ -150,6 +154,7 @@ const MONOGRAM: Record<CloudProviderFamily, string> = {
   s3: "S3",
   imap: "@",
   apple: "A",
+  device: "📱",
   yahoo: "Y!",
   aol: "AOL",
   yandex: "Я",
@@ -214,7 +219,7 @@ export function identityKey(label: string | undefined): string | null {
  * helpers) — the observation stays the single place that knows URLs. */
 export interface ObservedCloudState {
   sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
-  pim: { id: string; provider: "caldav" | "google" | "microsoft"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
+  pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
   mail: { id: string; kind: "imap" | "microsoft"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 

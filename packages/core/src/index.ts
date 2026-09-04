@@ -78,6 +78,7 @@ export * from "./pim/PimCacheRepository.js";
 export * from "./pim/CalDavPimTarget.js";
 export * from "./pim/GooglePimTarget.js";
 export * from "./pim/GraphPimTarget.js";
+export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
 export * from "./import/index.js";
 export { foldPathNormalization } from "./sync/pathIdentity.js";

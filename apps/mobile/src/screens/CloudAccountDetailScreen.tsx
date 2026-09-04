@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { devicePermissionKey } from "../services/pim/devicePermission";
+import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronRight, Folder, Mail, RotateCw, Unlink } from "lucide-react";
+import { CalendarDays, ChevronRight, Folder, ListChecks, Mail, RotateCw, Unlink } from "lucide-react";
 import {
   accountMonogram,
   type CloudProviderFamily,
@@ -111,6 +113,15 @@ export function CloudAccountDetailScreen({
    */
   const [needClient, setNeedClient] = useState<"google" | "microsoft" | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+
+  // The device account's state is the system permission; read when the card shows.
+  const [deviceStatus, setDeviceStatus] = useState<DevicePimStatus | null>(null);
+  useEffect(() => {
+    if (card?.family !== "device" || !isDevicePimSupported()) return;
+    let alive = true;
+    void devicePimAuthorization().then((st) => { if (alive) setDeviceStatus(st); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [card?.family]);
 
   const signIn = (fallback?: { clientId: string; clientSecret?: string }) => {
     if (!card?.record) return;
@@ -224,6 +235,38 @@ export function CloudAccountDetailScreen({
               })}
             </RowList>
           </GroupCard>
+
+          {card.family === "device" && (
+            <>
+              <SectionLabel>{t("pim.devicePermissionRow")}</SectionLabel>
+              <GroupCard>
+                <RowList>
+                  <Row
+                    data-testid="cloudacct-device-events"
+                    icon={<CalendarDays size={ICON.ui} />}
+                    title={t("pim.devicePermissionRow")}
+                    subtitle={deviceStatus ? t(devicePermissionKey(deviceStatus.events)) : undefined}
+                    end={deviceStatus && deviceStatus.events !== "fullAccess" ? <ChevronRight className="m-chevron" size={ICON.ui} /> : undefined}
+                    onClick={deviceStatus && deviceStatus.events !== "fullAccess" ? () => void openDevicePimSettings() : undefined}
+                  />
+                  {devicePimHasReminders() ? (
+                    <Row
+                      data-testid="cloudacct-device-reminders"
+                      icon={<ListChecks size={ICON.ui} />}
+                      title={t("pim.deviceRemindersRow")}
+                      subtitle={deviceStatus ? t(devicePermissionKey(deviceStatus.reminders)) : undefined}
+                      end={deviceStatus && deviceStatus.reminders !== "fullAccess" ? <ChevronRight className="m-chevron" size={ICON.ui} /> : undefined}
+                      onClick={deviceStatus && deviceStatus.reminders !== "fullAccess" ? () => void openDevicePimSettings() : undefined}
+                    />
+                  ) : (
+                    <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} />
+                  )}
+                </RowList>
+              </GroupCard>
+              <p className="m-hint">{t("pim.deviceDualHint")}</p>
+              <p className="m-hint">{t("pim.deviceRemoveNote")}</p>
+            </>
+          )}
 
           {unifiable && card.record && (
             <>

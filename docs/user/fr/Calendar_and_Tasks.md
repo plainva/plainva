@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-04
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -12,6 +12,7 @@ Ouvrez **Paramètres → Vault → Comptes cloud → Connecter un compte…**, c
 
 - **Nextcloud / CalDAV** : adresse du serveur, nom d'utilisateur et un **mot de passe d'application** (dans Nextcloud : Paramètres → Sécurité → Appareils et sessions). Aucune inscription, aucune clé — pour Nextcloud, Plainva déduit l'adresse CalDAV directement de l'adresse du serveur (pour les autres serveurs CalDAV, utilisez la tuile **WebDAV / CalDAV** ou **Avancé : définir les endpoints individuellement**).
 - **Apple iCloud, Yahoo, AOL, Zoho, Fastmail, mailbox.org, Yandex, Mail.ru** : des tuiles dédiées avec les adresses de calendrier déjà renseignées — une adresse e-mail plus un **mot de passe d'application** suffisent, sans champ serveur (pour Apple, le mot de passe d'application est obligatoire ; l'assistant renvoie vers le guide du fournisseur). Remarque : Yahoo lui-même signale que son service CalDAV n'est pas fiable — s'il fait des siennes, ce n'est pas la faute de Plainva.
+- **Sur cet appareil** (téléphone uniquement) : les agendas que votre appareil connaît déjà — iCloud, Exchange, Google via les comptes système, agendas locaux — en **un seul** compte sans connexion. Une pression demande l'autorisation système (accès complet, car Plainva crée aussi des événements) ; sur iOS les **listes de rappels** s'ajoutent comme listes de tâches, Android n'a pas de magasin de tâches système. Il y a au plus un compte de l'appareil par téléphone, il ne voyage pas avec la synchronisation des réglages, et le même agenda peut aussi être connecté via un compte cloud — Plainva ne fusionne pas les deux.
 - **Google** : nécessite votre propre ID client OAuth (le même modèle BYO que pour la synchronisation Google Drive — voir le [guide Drive](Google_Drive_BYO_Guide.md)). Dans votre projet Google Cloud, activez en plus les API *Google Calendar* et *Google Tasks* et ajoutez leurs portées à l'écran de consentement. Le navigateur s'ouvre pour le consentement ; connecter le compte le valide avant que quoi que ce soit ne soit enregistré.
 - **Microsoft** : cliquez simplement sur **Se connecter avec Microsoft…** et confirmez dans le navigateur — aucune configuration nécessaire. Un compte Microsoft peut aussi porter **Fichiers** (OneDrive) et **E-mail** dans le même passage.
 
@@ -92,6 +93,8 @@ Un rappel indique désormais **ce qu'**il annonce : « Rendez-vous · 09:30 » o
 **La différence avec le téléphone figure dans le réglage, pas en petits caractères.** Sur le téléphone, le système d'exploitation prend le rappel en charge et le réveille même application fermée. Sur l'ordinateur, ce relais n'existe pas : **Plainva réveille lui-même et doit donc fonctionner.** Application fermée, le rappel est manqué et n'est pas rattrapé. En contrepartie, il n'y a ici aucune limite.
 
 La notification elle-même ne porte aucun bouton — l'ordinateur ne le permet pas. L'action se trouve dans le message affiché dans l'application : **Afficher dans l'agenda** pour un rendez-vous, **Ouvrir la tâche** pour une tâche. La fenêtre ne s'impose jamais au premier plan.
+
+Sur le téléphone, cela inclut les **listes de rappels** de l'appareil (iOS) dès que le compte de l'appareil **Sur cet appareil** est connecté : chaque liste est une liste de tâches comme une liste Nextcloud, avec les mêmes règles — import dans la base de tâches, cochage dans les deux sens, suppression via le journal des suppressions.
 
 ### Continuer en arrière-plan
 
