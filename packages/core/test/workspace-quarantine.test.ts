@@ -166,3 +166,53 @@ describe("check again answers with what is still open", () => {
     expect(json.entries.find((e) => e.quarantineId === "a")?.details).toMatchObject({ expectedSequence: 14, foundSequence: 16 });
   });
 });
+
+/**
+ * The chain is anchored where this workspace stands (finding 2026-09-04).
+ *
+ * The old rule demanded that the listing start at sequence 1 with an empty
+ * predecessor. On the maintainer's vault the operations before 177 had been
+ * dropped one step earlier in the same pull, so the survivors looked like a
+ * gap - and no retry could ever close it, because the condition was permanent.
+ */
+describe("the device chain continues from what is already held", () => {
+  const item = (deviceId: string, sequence: number, previous: string | null, hash: string) => ({ document: { payload: { deviceId, sequence, previousDeviceOperationHash: previous } }, hash, key: `op-${deviceId}-${sequence}` });
+  const naming = (heads: Record<string, { sequence: number; operationHash: string }> = {}) => ({
+    deviceName: () => "ASUS-Windows",
+    quarantineId: (it: { key: string }) => `q:${it.key}`,
+    knownHead: (deviceId: string) => heads[deviceId] ?? null,
+  });
+
+  it("accepts a listing that starts above one with nothing known - it used to be a permanent gap", () => {
+    const heads = { "dev-a": { sequence: 176, operationHash: "h176" } };
+    const { valid, broken } = splitDeviceChains([item("dev-a", 177, "h176", "h177"), item("dev-a", 178, "h177", "h178")], naming(heads));
+    expect(valid.map((v) => v.key)).toEqual(["op-dev-a-177", "op-dev-a-178"]);
+    expect(broken).toEqual([]);
+  });
+
+  it("treats everything at or below the anchor as known, never as missing", () => {
+    const heads = { "dev-a": { sequence: 3, operationHash: "h3" } };
+    const { valid, broken } = splitDeviceChains([item("dev-a", 1, null, "h1"), item("dev-a", 3, "h2", "h3"), item("dev-a", 4, "h3", "h4")], naming(heads));
+    expect(valid.map((v) => v.key)).toEqual(["op-dev-a-4"]);
+    expect(broken).toEqual([]);
+  });
+
+  it("still reports a real gap above the anchor, and blocks what waits behind it", () => {
+    const heads = { "dev-a": { sequence: 10, operationHash: "h10" } };
+    const { valid, broken } = splitDeviceChains([item("dev-a", 12, "h11", "h12"), item("dev-a", 13, "h12", "h13")], naming(heads));
+    expect(valid).toEqual([]);
+    expect(broken.map((b) => b.reason)).toEqual([CHAIN_GAP_MESSAGE, CHAIN_BLOCKED_MESSAGE]);
+    expect(broken[0].details).toMatchObject({ expectedSequence: 11, foundSequence: 12 });
+  });
+
+  it("catches a predecessor that does not match the anchor", () => {
+    const heads = { "dev-a": { sequence: 10, operationHash: "h10" } };
+    const { broken } = splitDeviceChains([item("dev-a", 11, "somethingElse", "h11")], naming(heads));
+    expect(broken[0].details).toMatchObject({ expectedSequence: 11, foundSequence: 11, predecessorMatches: false });
+  });
+
+  it("keeps demanding sequence one from a device it has never seen", () => {
+    const { broken } = splitDeviceChains([item("dev-b", 5, "x", "h5")], naming());
+    expect(broken[0].details).toMatchObject({ expectedSequence: 1, foundSequence: 5 });
+  });
+});

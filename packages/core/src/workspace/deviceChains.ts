@@ -20,6 +20,12 @@ export interface DeviceChainItem {
   key: string;
 }
 
+/** What this device already holds of one device's chain, or null when nothing. */
+export interface DeviceChainAnchor {
+  sequence: number;
+  operationHash: string;
+}
+
 export const CHAIN_GAP_MESSAGE = "device operation chain has a gap or predecessor mismatch";
 export const CHAIN_BLOCKED_MESSAGE = "device operation chain is blocked behind an earlier gap";
 
@@ -31,7 +37,23 @@ export interface BrokenChainItem<T> {
 
 export function splitDeviceChains<T extends DeviceChainItem>(
   operations: T[],
-  naming: { deviceName(deviceId: string): string | null; quarantineId(item: T): string },
+  naming: {
+    deviceName(deviceId: string): string | null;
+    quarantineId(item: T): string;
+    /**
+     * The last operation of that device this workspace already holds (finding
+     * 2026-09-04).
+     *
+     * The rule used to be "the listing starts at sequence 1 with an empty
+     * predecessor" - which is only true for a device that never synced and for
+     * a listing that still holds every operation ever written. Neither is
+     * general: anything dropped earlier in the same pull, pruned, or simply not
+     * uploaded yet turned into a PERMANENT gap that no retry could close. The
+     * chain is now anchored where this device actually stands, and what lies at
+     * or below that anchor is known, not missing.
+     */
+    knownHead?(deviceId: string): DeviceChainAnchor | null;
+  },
 ): { valid: T[]; broken: BrokenChainItem<T>[] } {
   const byDevice = new Map<string, T[]>();
   for (const operation of operations) {
@@ -44,15 +66,21 @@ export function splitDeviceChains<T extends DeviceChainItem>(
   for (const [deviceId, items] of byDevice) {
     items.sort((left, right) => left.document.payload.sequence - right.document.payload.sequence);
     const deviceName = naming.deviceName(deviceId);
-    let expectedHash: string | null = null;
+    const anchor = naming.knownHead?.(deviceId) ?? null;
+    // Where the chain continues: behind what we hold, or at one with no
+    // predecessor when we hold nothing of this device.
+    let expectedSequence = anchor ? anchor.sequence + 1 : 1;
+    let expectedHash: string | null = anchor ? anchor.operationHash : null;
     let gapId: string | null = null;
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
+      // At or below the anchor: this workspace has been here. Re-judging it
+      // would quarantine its own history on every pull.
+      if (anchor && item.document.payload.sequence <= anchor.sequence) continue;
       if (gapId !== null) {
         broken.push({ item, reason: CHAIN_BLOCKED_MESSAGE, details: { deviceId, deviceName, sequence: item.document.payload.sequence, blockedBy: gapId } });
         continue;
       }
-      const expectedSequence = index + 1;
       if (item.document.payload.sequence !== expectedSequence || item.document.payload.previousDeviceOperationHash !== expectedHash) {
         gapId = naming.quarantineId(item);
         broken.push({
@@ -64,6 +92,7 @@ export function splitDeviceChains<T extends DeviceChainItem>(
       }
       valid.push(item);
       expectedHash = item.hash;
+      expectedSequence += 1;
     }
   }
   return { valid, broken };

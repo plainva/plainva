@@ -555,7 +555,16 @@ export class EncryptedWorkspaceWorker {
         await this.quarantineArtifact("operation", info.key, bytes, error, details);
       }
     }
-    const chained = await this.validateDeviceChains(operations);
+    // What this workspace already applied is not re-judged (finding
+    // 2026-09-04): it passed every check once, and holding it against the
+    // chain again is how a device quarantined its own history. Their
+    // quarantine entries - written by the older rule - resolve right here.
+    const fresh: typeof operations = [];
+    for (const operation of operations) {
+      if (await this.state.hasOperation(operation.hash)) await this.acceptArtifact("operation", operation.key);
+      else fresh.push(operation);
+    }
+    const chained = await this.validateDeviceChains(fresh, meta.operationHeads);
 
     const pending = chained.sort((left, right) => left.hash.localeCompare(right.hash));
     const changed: string[] = [];
@@ -601,12 +610,14 @@ export class EncryptedWorkspaceWorker {
     return changed;
   }
 
-  private async validateDeviceChains<T extends { document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }>(operations: T[]): Promise<T[]> {
+  private async validateDeviceChains<T extends { document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }>(operations: T[], knownHeads: WorkspaceRuntimeMeta["operationHeads"]): Promise<T[]> {
     // The rule lives in `deviceChains.ts`; this only records what it found:
-    // the first break as the gap, everything behind it as blocked by it.
+    // the first break as the gap, everything behind it as blocked by it. The
+    // anchor is what this workspace already holds (finding 2026-09-04).
     const { valid, broken } = splitDeviceChains(operations, {
       deviceName: (deviceId) => this.activePolicy.payload.devices.find((device) => device.deviceId === deviceId)?.displayName ?? null,
       quarantineId: (item) => quarantineIdFor("operation", item.key, sha256Hex(item.bytes)),
+      knownHead: (deviceId) => knownHeads[deviceId] ?? null,
     });
     for (const entry of broken) await this.quarantineArtifact("operation", entry.item.key, entry.item.bytes, new WorkspaceProtocolError("integrity", entry.reason), entry.details);
     return valid;
