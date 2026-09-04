@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-08-22
+Última revisão: 2026-09-04
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -30,6 +30,7 @@ Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pel
 - **Conversas** — o botão acima da lista (ícone de balão) junta mensagens relacionadas em uma única linha: participantes, quantidade e o assunto com que a troca começou. Um toque a expande; cada mensagem mantém sua pasta e a informa quando não é a aberta. Para isso o Plainva também lê **Enviados**, de modo que suas próprias respostas façam parte da conversa. Desligado, tudo fica como antes — uma lista plana — e a escolha é lembrada por vault, nos dois dispositivos. O agrupamento segue a cadeia de respostas das mensagens (na Microsoft, a conversa que o próprio provedor mantém); só quando uma resposta não carrega essa cadeia é que o assunto ajuda, e então apenas para uma resposta reconhecível (“Re:”, “Enc:”) dentro de 30 dias, para que duas mensagens que apenas compartilham o assunto não se juntem.
 - **Todas as caixas de entrada** — a primeira entrada acima da lista de pastas mostra as caixas de entrada de **todas** as contas em uma única lista, as mais recentes primeiro, e cada linha diz a qual conta pertence. Lido/não lido e sinalizar também funcionam aqui; mover e excluir continuam pertencendo a cada caixa, porque cada conta tem sua própria pasta de destino — abra a mensagem e você age na caixa dela. Uma conta cujo login está faltando é nomeada e não esvazia a lista das demais.
 - **Selecionar vários** — Ctrl+clique (macOS: ⌘+clique) escolhe mensagens isoladas, Shift+clique um intervalo; na visão de conversas, um Ctrl+clique na conversa escolhe a troca inteira, e cada mensagem mantém a própria pasta.
+- **Pelo teclado na lista** — Seta para cima/baixo seleciona a mensagem anterior/seguinte e a mostra no leitor, Shift+seta estende a seleção, Home/End saltam para a primeira/última mensagem, seta esquerda/direita recolhe/expande uma conversa, Enter abre a mensagem no leitor, Delete a move para a lixeira (com a mesma confirmação do botão). Todos estão na janela de atalhos (F1) em **E-mail**.
 
 Os anexos são listados com nome e tamanho; o `.eml` original (abaixo) os contém por completo.
 

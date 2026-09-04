@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-08-22
+Laatst bijgewerkt: 2026-09-04
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -30,6 +30,7 @@ Open het e-mailtabblad via de actiebalk uiterst links (brief-icoon) of het opdra
 - **Gesprekken** — de schakelaar boven de lijst (tekstballon-pictogram) vouwt bij elkaar horende berichten samen tot één regel: deelnemers, aantal en het onderwerp waarmee de uitwisseling begon. Een tik vouwt hem open; elk bericht houdt zijn map en noemt die wanneer het niet de geopende is. Plainva leest daarvoor ook **Verzonden** mee, zodat je eigen antwoorden deel van het gesprek zijn. Uitgeschakeld blijft alles zoals het was — een platte lijst — en de keuze wordt per vault onthouden, op beide apparaten. Het groeperen volgt de antwoordketen van de berichten (bij Microsoft het gesprek dat de provider zelf bijhoudt); alleen wanneer een antwoord die keten niet meestuurt, helpt het onderwerp uit — en dan alleen bij een herkenbaar antwoord (“Re:”, “Antw:”) en binnen 30 dagen, zodat twee berichten die alleen een onderwerp delen niet samenvallen.
 - **Alle postvakken IN** — de eerste regel boven de mappenlijst toont de postvakken IN van **alle** accounts in één lijst, nieuwste eerst, en elke regel noemt het account waarbij hij hoort. Gelezen/ongelezen en markeren werken hier ook; verplaatsen en verwijderen blijven bij het afzonderlijke postvak, want elk account heeft zijn eigen doelmap — open het bericht en je handelt in zijn postvak. Een account zonder geldige aanmelding wordt bij naam genoemd en maakt de lijst van de andere niet leeg.
 - **Meerdere selecteren** — Ctrl+klik (macOS: ⌘+klik) kiest losse berichten, Shift+klik een reeks; in de gespreksweergave kiest een Ctrl+klik op het gesprek de hele uitwisseling, en elk bericht behoudt daarbij zijn eigen map.
+- **Met het toetsenbord door de lijst** — Pijl omhoog/omlaag kiest het vorige/volgende bericht en toont het in de lezer, Shift+pijl breidt de selectie uit, Home/End springen naar het eerste/laatste bericht, pijl links/rechts klapt een gesprek in/uit, Enter opent het bericht in de lezer, Delete verplaatst het naar de prullenbak (met dezelfde bevestiging als de knop). Alles staat ook in het sneltoetsenvenster (F1) onder **E-mail**.
 
 Bijlagen worden vermeld met naam en grootte; de originele `.eml` (hieronder) bevat ze volledig.
 

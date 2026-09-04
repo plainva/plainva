@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Button, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SelectionBar, plainvaProducer, toast } from "@plainva/ui";
@@ -18,6 +18,7 @@ import {
   snoozeUntil,
   type SnoozeEntry,
   type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { flatMailRows, mailListKeyAction, stepMailRow, threadNavId, threadedMailRows } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
@@ -192,6 +193,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   /** Which conversations are unfolded. Session state: a thread is opened to read
    *  it, not as a setting worth carrying to the next launch. */
   const [openThreads, setOpenThreads] = useState<Set<string>>(() => new Set());
+  // Keyboard navigation (2026-09-04): the row that holds the keyboard — a
+  // message id or a conversation header's `threadNavId`. Follows the open
+  // message; the arrow keys move it and open what it lands on.
+  const [navId, setNavId] = useState<string | null>(null);
+  const navFocusRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
   /**
    * The Sent folder, read along in conversation mode. Your own replies live
    * there, so without it a thread shows only the other side of the exchange —
@@ -839,6 +847,27 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   /** Conversations are only shown where they exist: a flat list stays flat. */
   const showThreads = threadMode && !searchResults && !flaggedResults && rows.length > 0;
+  /** The rows the arrow keys walk, in screen order (pure, see listNavigation). */
+  const navRows = useMemo(
+    () => (showThreads ? threadedMailRows(rows, openThreads) : flatMailRows(visibleEnvelopes)),
+    [showThreads, rows, openThreads, visibleEnvelopes],
+  );
+  const firstNavId = navRows[0]?.id ?? null;
+  /** Roving tabindex: exactly one row is in the Tab order — the current one, else the first. */
+  const tabFor = (id: string) => ((navId ?? firstNavId) === id ? 0 : -1);
+  useEffect(() => {
+    if (selectedId) setNavId(selectedId);
+  }, [selectedId]);
+  useEffect(() => {
+    if (!navFocusRef.current || !navId || !listRef.current) return;
+    navFocusRef.current = false;
+    for (const el of listRef.current.querySelectorAll<HTMLElement>("[data-nav-id]")) {
+      if (el.dataset.navId !== navId) continue;
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: "nearest" });
+      break;
+    }
+  }, [navId, navRows]);
 
   /** What the open message declares as a way out, if anything (S23). */
   const unsubRoute = useMemo(
@@ -1280,6 +1309,85 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   const deleteMessage = useCallback(() => { if (selectedId != null) void bulkDeleteToTrash([selectedId]); }, [selectedId, bulkDeleteToTrash]);
 
+  /**
+   * The keyboard on the list (2026-09-04): arrows walk the rows and open what
+   * they land on, Shift extends the selection the way Shift-click does, Home
+   * and End jump, Left/Right fold a conversation, Enter hands the focus to the
+   * reader, Delete takes the same path as the toolbar button (with its
+   * confirmation). Text fields inside the pane keep their keys.
+   */
+  const onListKeyDown = useCallback(
+    (ev: ReactKeyboardEvent<HTMLDivElement>) => {
+      const target = ev.target as HTMLElement;
+      if (target.closest("input, textarea, [contenteditable=\"true\"]")) return;
+      const action = mailListKeyAction(ev.key, ev.shiftKey);
+      if (!action) return;
+      const currentId = navId ?? selectedId;
+      const current = navRows.find((r) => r.id === currentId) ?? null;
+      if (action.type === "move") {
+        const next = stepMailRow(navRows, currentId, action.move);
+        if (!next) return;
+        ev.preventDefault();
+        navFocusRef.current = true;
+        setNavId(next.id);
+        if (action.extend) {
+          // Same anchor semantics as Shift-click; a keyboard-only session
+          // anchors at the row it started from.
+          if (showThreads) {
+            if (!threadAnchorRef.current && current?.threadKey) threadAnchorRef.current = current.threadKey;
+            if (next.threadKey) selectThreadRange(next.threadKey);
+          } else {
+            if (!anchorRef.current && currentId) anchorRef.current = currentId;
+            selectRange(next.id, visibleEnvelopes);
+          }
+          return;
+        }
+        clearSel();
+        if (next.kind === "message") {
+          if (showThreads && next.threadKey) threadAnchorRef.current = next.threadKey;
+          else anchorRef.current = next.id;
+          void openMessage(next.id, next.mailbox);
+        }
+        return;
+      }
+      if (action.type === "thread") {
+        if (!current || !showThreads || !current.threadKey) return;
+        const key = current.threadKey;
+        ev.preventDefault();
+        setOpenThreads((prev) => {
+          const n = new Set(prev);
+          if (action.open) n.add(key); else n.delete(key);
+          return n;
+        });
+        // Folding from inside a conversation lands on its header.
+        if (!action.open && current.kind === "message") {
+          navFocusRef.current = true;
+          setNavId(threadNavId(key));
+        }
+        return;
+      }
+      if (action.type === "open") {
+        if (!current) return;
+        ev.preventDefault();
+        if (current.kind === "thread") {
+          setOpenThreads((prev) => {
+            const n = new Set(prev);
+            if (n.has(current.threadKey)) n.delete(current.threadKey); else n.add(current.threadKey);
+            return n;
+          });
+          return;
+        }
+        void openMessage(current.id, current.mailbox);
+        readerRef.current?.focus();
+        return;
+      }
+      ev.preventDefault();
+      if (selectedIds.size > 0) void bulkDeleteToTrash([...selectedIds]);
+      else deleteMessage();
+    },
+    [navId, selectedId, navRows, showThreads, selectThreadRange, selectRange, visibleEnvelopes, clearSel, openMessage, selectedIds, bulkDeleteToTrash, deleteMessage],
+  );
+
   const bulkDeleteForever = useCallback(
     async (ids: string[]) => {
       if (!isTrash || !vaultPath || !account || ids.length === 0 || actionBusy) return;
@@ -1673,7 +1781,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             </Button>
           </div>
         )}
-        <div className="pv-mail-scroll" data-testid="mail-list">
+        <div className="pv-mail-scroll" data-testid="mail-list" ref={listRef} role="listbox" aria-multiselectable onKeyDown={onListKeyDown}>
           {searchBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {unifiedBusy && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {/* One unreachable account must not empty the list of the others — it
@@ -1751,7 +1859,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   <button
                     key={row.thread.key}
                     type="button"
+                    role="option"
                     data-testid="mail-envelope"
+                    data-nav-id={latest.id}
+                    tabIndex={tabFor(latest.id)}
                     aria-selected={sel}
                     className={`pv-mail-env${on ? " on" : ""}${latest.seen ? " read" : ""}`}
                     style={sel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
@@ -1781,7 +1892,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 <div key={row.thread.key} data-testid="mail-thread">
                   <button
                     type="button"
+                    role="option"
                     data-testid="mail-thread-row"
+                    data-nav-id={threadNavId(row.thread.key)}
+                    tabIndex={tabFor(threadNavId(row.thread.key))}
                     aria-expanded={open}
                     aria-selected={threadSel}
                     className={`pv-mail-env${row.unseen ? "" : " read"}`}
@@ -1794,6 +1908,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                       // A plain click is navigation, and navigation clears the
                       // selection everywhere else in this list.
                       clearSel();
+                      setNavId(threadNavId(row.thread.key));
                       setOpenThreads((prev) => {
                         const next = new Set(prev);
                         if (next.has(row.thread.key)) next.delete(row.thread.key);
@@ -1827,7 +1942,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                       <button
                         key={`${m.mailbox}|${m.id}`}
                         type="button"
+                        role="option"
                         data-testid="mail-thread-message"
+                        data-nav-id={m.id}
+                        tabIndex={tabFor(m.id)}
                         aria-selected={msel}
                         className={`pv-mail-env pv-mail-env--in-thread${m.id === selectedId ? " on" : ""}${m.seen ? " read" : ""}`}
                         style={msel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
@@ -1866,7 +1984,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                 <button
                   key={e.id}
                   type="button"
+                  role="option"
                   data-testid="mail-envelope"
+                  data-nav-id={e.id}
+                  tabIndex={tabFor(e.id)}
                   className={`pv-mail-env${on ? " on" : ""}${e.seen ? " read" : ""}`}
                   aria-selected={sel}
                   style={sel ? { background: "var(--accent-container)", color: "var(--on-accent-container)" } : undefined}
@@ -1914,7 +2035,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       />
 
       {/* Column 3 — reader */}
-      <div className="pv-mail-read">
+      <div className="pv-mail-read" ref={readerRef} tabIndex={-1}>
         {!message ? (
           <div className="pv-mail-empty">
             {loadingMessage ? t("pim.syncing", { defaultValue: "Aktualisiere…" }) : t("mail.pickMessage", { defaultValue: "Nachricht auswählen." })}

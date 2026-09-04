@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-08-22
+Dernière mise à jour : 2026-09-04
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -30,6 +30,7 @@ Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou
 - **Conversations** — l'interrupteur au-dessus de la liste (icône bulle) regroupe les messages liés en une seule ligne : participants, nombre et le sujet par lequel l'échange a commencé. Un appui la déplie ; chaque message garde son dossier et l'indique quand ce n'est pas celui ouvert. Plainva lit aussi **Envoyés** pour cela, afin que tes propres réponses fassent partie de la conversation. Désactivé, tout reste comme avant — une liste plate — et le choix est retenu par coffre, sur les deux appareils. Le regroupement suit la chaîne de réponses des messages (chez Microsoft, la conversation que le fournisseur tient lui-même) ; ce n'est que si une réponse ne transporte pas cette chaîne que le sujet prend le relais, et seulement pour une réponse reconnaissable (« Re: », « Tr: ») dans les 30 jours, pour que deux messages qui partagent seulement un sujet ne fusionnent pas.
 - **Toutes les boîtes de réception** — la première entrée au-dessus de la liste des dossiers affiche les boîtes de réception de **tous** les comptes en une seule liste, les plus récents d'abord, et chaque ligne nomme le compte auquel elle appartient. Lu/non lu et le marquage fonctionnent aussi ici ; le déplacement et la suppression restent propres à chaque boîte, car chaque compte a son propre dossier cible — ouvre le message et tu agis dans sa boîte. Un compte dont la connexion manque est nommé et ne vide pas la liste des autres.
 - **Sélectionner plusieurs messages** — Ctrl+clic (macOS : ⌘+clic) sélectionne des messages isolés, Maj+clic une plage ; dans la vue conversations, un Ctrl+clic sur la conversation sélectionne tout l'échange, et chaque message y conserve son propre dossier.
+- **Au clavier dans la liste** — Flèche haut/bas sélectionne le message précédent/suivant et l'affiche dans le lecteur, Maj+flèche étend la sélection, Début/Fin sautent au premier/dernier message, flèche gauche/droite replie/déplie une conversation, Entrée ouvre le message dans le lecteur, Suppr le met à la corbeille (avec la même confirmation que le bouton). Tous figurent dans la fenêtre des raccourcis (F1) sous **E-mail**.
 
 Les pièces jointes sont listées avec leur nom et leur taille ; l'original `.eml` (voir plus bas) les contient en entier.
 

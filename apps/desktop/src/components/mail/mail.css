@@ -281,6 +281,13 @@
 .pv-mail-env:hover {
   background: var(--state-hover);
 }
+/* The keyboard's row (2026-09-04): the ring sits inside the row so it reads on
+   the selected (accent-container) row too. Mouse clicks never show it. */
+.pv-mail-env:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+.pv-mail-read:focus { outline: none; }
 .pv-mail-env.on {
   background: var(--accent-container);
   color: var(--on-accent-container);

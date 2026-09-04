@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-08-22
+Stand: 2026-09-04
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -30,6 +30,7 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 - **Konversationen** — der Schalter über der Liste (Sprechblasen-Symbol) fasst zusammengehörende Nachrichten zu einer Zeile zusammen: Beteiligte, Anzahl und der Betreff, mit dem das Gespräch begann. Ein Tipp klappt sie auf; jede Nachricht behält ihren Ordner und nennt ihn, wenn er nicht der geöffnete ist. Plainva liest dafür auch **Gesendet** mit, damit Deine eigenen Antworten im Gespräch stehen. Ausgeschaltet bleibt alles wie bisher — eine flache Liste —, und der Schalter wird pro Vault gemerkt, auf beiden Geräten. Zusammengefasst wird nach der Antwort-Kette der Nachrichten (bei Microsoft nach der Konversation, die der Anbieter selbst führt); nur wenn eine Antwort diese Kette nicht mitschickt, hilft der Betreff aus — und dann nur bei einer erkennbaren Antwort („Re:“, „AW:“) und innerhalb von 30 Tagen, damit zwei gleichnamige Mails nicht zusammenrutschen.
 - **Alle Posteingänge** — die erste Zeile über der Ordnerliste zeigt die Posteingänge **aller** Konten in einer Liste, neueste zuerst, und jede Zeile nennt das Konto, zu dem sie gehört. Gelesen/ungelesen und Markieren wirken auch hier; Verschieben und Löschen bleiben dem einzelnen Postfach vorbehalten, weil jedes Konto seinen eigenen Zielordner hat — öffne die Nachricht, dann handelst Du in ihrem Postfach. Ein Konto, dessen Anmeldung fehlt, wird beim Namen genannt und leert die Liste der anderen nicht.
 - **Mehrere auswählen** — Strg-Klick (macOS: ⌘-Klick) wählt einzelne Nachrichten, Umschalt-Klick einen Bereich; in der Konversations-Ansicht wählt ein Strg-Klick auf die Konversation gleich das ganze Gespräch, und jede Nachricht darin behält dabei ihren eigenen Ordner.
+- **Mit der Tastatur durch die Liste** — Pfeil hoch/runter wählt die vorherige/nächste Nachricht und zeigt sie im Leser, Umschalt+Pfeil erweitert die Auswahl, Pos1/Ende springen an den Anfang/das Ende, Pfeil links/rechts klappt eine Konversation zu/auf, Enter öffnet die Nachricht im Leser, Entf verschiebt sie in den Papierkorb (mit derselben Nachfrage wie der Knopf). Alle Kürzel stehen auch im Tastenkürzel-Fenster (F1) unter **E-Mail**.
 
 Anhänge werden mit Name und Größe gelistet; die Original-`.eml` (siehe unten) enthält sie vollständig.
 

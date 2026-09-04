@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-08-22
+Stan na: 2026-09-04
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -30,6 +30,7 @@ Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę polece�
 - **Konwersacje** — przełącznik nad listą (ikona dymku) zwija powiązane wiadomości w jeden wiersz: uczestnicy, liczba i temat, od którego wymiana się zaczęła. Dotknięcie go rozwija; każda wiadomość zachowuje swój folder i podaje go, gdy nie jest tym otwartym. Plainva czyta przy tym także **Wysłane**, aby Twoje własne odpowiedzi były częścią rozmowy. Wyłączone — wszystko zostaje jak dotąd, płaska lista — a wybór jest pamiętany dla każdego vaultu, na obu urządzeniach. Grupowanie idzie za łańcuchem odpowiedzi wiadomości (u Microsoftu za konwersacją, którą prowadzi sam dostawca); tylko gdy odpowiedź nie niesie tego łańcucha, pomaga temat — i wtedy jedynie przy rozpoznawalnej odpowiedzi („Re:”, „Odp:”) i w ciągu 30 dni, żeby dwie wiadomości o tym samym temacie się nie zlały.
 - **Wszystkie skrzynki odbiorcze** — pierwsza pozycja nad listą folderów pokazuje skrzynki odbiorcze **wszystkich** kont na jednej liście, od najnowszych, a każdy wiersz podaje konto, do którego należy. Przeczytane/nieprzeczytane i oznaczanie działają również tutaj; przenoszenie i usuwanie pozostają przy pojedynczej skrzynce, bo każde konto ma własny folder docelowy — otwórz wiadomość, a działasz w jej skrzynce. Konto bez zapisanego logowania zostaje wymienione z nazwy i nie opróżnia listy pozostałych.
 - **Zaznaczanie wielu** — Ctrl+kliknięcie (macOS: ⌘+kliknięcie) wybiera pojedyncze wiadomości, Shift+kliknięcie zakres; w widoku konwersacji Ctrl+kliknięcie na konwersacji wybiera całą wymianę, a każda wiadomość zachowuje przy tym własny folder.
+- **Klawiaturą po liście** — Strzałka w górę/w dół wybiera poprzednią/następną wiadomość i pokazuje ją w czytniku, Shift+strzałka rozszerza zaznaczenie, Home/End skaczą do pierwszej/ostatniej wiadomości, strzałka w lewo/w prawo zwija/rozwija konwersację, Enter otwiera wiadomość w czytniku, Delete przenosi ją do kosza (z takim samym potwierdzeniem jak przycisk). Wszystkie skróty są w oknie skrótów (F1) w sekcji **E-mail**.
 
 Załączniki są wyświetlane z nazwą i rozmiarem; oryginalny plik `.eml` (poniżej) zawiera je w całości.
 

@@ -342,6 +342,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
+    id: "mail-list-keyboard",
+    title: "Arrow-key navigation in the message list",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The phone's message list is one screen and the reader another " +
+      "(MailListScreen / MailMessageScreen): there is no split pane with a " +
+      "persistent selection for the arrow keys to move, and no hardware " +
+      "keyboard in the common case. Swipe gestures are the phone's way through " +
+      "the list. An iPad with a keyboard would reach it through the same list " +
+      "later — not part of this cut (2026-09-04).",
+    verified: "2026-09-04",
+  },
+  {
     id: "camera-capture",
     title: "Insert a photo from camera or gallery",
     area: "platform",

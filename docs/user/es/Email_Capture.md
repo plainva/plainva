@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-08-22
+Última actualización: 2026-09-04
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -30,6 +30,7 @@ Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de 
 - **Conversaciones** — el interruptor sobre la lista (icono de bocadillo) agrupa los mensajes relacionados en una sola fila: participantes, cantidad y el asunto con el que empezó el intercambio. Al tocarla se despliega; cada mensaje conserva su carpeta y la indica cuando no es la abierta. Para ello Plainva lee también **Enviados**, de modo que tus propias respuestas formen parte de la conversación. Desactivado, todo queda como antes —una lista plana— y la elección se recuerda por bóveda, en ambos dispositivos. La agrupación sigue la cadena de respuestas de los mensajes (en Microsoft, la conversación que mantiene el propio proveedor); solo si una respuesta no lleva esa cadena entra en juego el asunto, y entonces solo con una respuesta reconocible («Re:», «RV:») y dentro de 30 días, para que dos mensajes que solo comparten el asunto no se fundan.
 - **Todas las bandejas de entrada** — la primera entrada encima de la lista de carpetas muestra las bandejas de entrada de **todas** las cuentas en una sola lista, las más recientes primero, y cada fila indica la cuenta a la que pertenece. Leído/no leído y el marcado también funcionan aquí; mover y eliminar siguen siendo propios de cada buzón, porque cada cuenta tiene su propia carpeta de destino: abre el mensaje y actuarás en su buzón. Una cuenta cuyo inicio de sesión falta se nombra y no vacía la lista de las demás.
 - **Seleccionar varios** — Ctrl+clic (macOS: ⌘+clic) selecciona mensajes sueltos, Mayús+clic un rango; en la vista de conversaciones, un Ctrl+clic sobre la conversación selecciona todo el intercambio, y cada mensaje conserva su propia carpeta.
+- **Con el teclado por la lista** — Flecha arriba/abajo selecciona el mensaje anterior/siguiente y lo muestra en el lector, Mayús+flecha amplía la selección, Inicio/Fin saltan al primer/último mensaje, flecha izquierda/derecha pliega/despliega una conversación, Intro abre el mensaje en el lector, Supr lo mueve a la papelera (con la misma confirmación que el botón). Todos aparecen en la ventana de atajos (F1) bajo **Correo**.
 
 Los adjuntos se listan con nombre y tamaño; el `.eml` original (más abajo) los incluye completos.
 

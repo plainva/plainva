@@ -188,6 +188,20 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     ],
   },
   {
+    // The message list (2026-09-04): only what the list already does by mouse.
+    id: "mail",
+    labelKey: "shortcuts.catMail",
+    keyboard: [
+      { descKey: "shortcuts.mailNextPrev", keys: [["↑"], ["↓"]] },
+      { descKey: "shortcuts.mailExtend", keys: [["Shift", "↑"], ["Shift", "↓"]] },
+      { descKey: "shortcuts.mailFirstLast", keys: [["Home"], ["End"]] },
+      { descKey: "shortcuts.mailThread", keys: [["←"], ["→"]] },
+      { descKey: "shortcuts.mailOpen", keys: [["Enter"]] },
+      { descKey: "shortcuts.mailTrash", keys: [["Del"]] },
+    ],
+    mouse: [],
+  },
+  {
     id: "windows",
     labelKey: "shortcuts.catWindows",
     keyboard: [
