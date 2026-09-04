@@ -97,9 +97,15 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
     />
   );
   // The free colour is a disc like the others, wearing a hue ring; the native
-  // input sits invisible on top so the OS picker opens from the disc.
-  const colorInput = (value: string, label: string, onPick: (hex: string) => void) => (
-    <label className="pv-swatch pv-swatch--free" data-tip={label} style={{ "--swatch": value } as React.CSSProperties}>
+  // input sits invisible on top so the OS picker opens from the disc. It
+  // carries the pick ring whenever the value is not one of the presets — the
+  // dark default ground is not, and the row showed no pick at all.
+  const colorInput = (value: string, label: string, presets: readonly string[], onPick: (hex: string) => void) => (
+    <label
+      className={presets.includes(value) ? "pv-swatch pv-swatch--free" : "pv-swatch pv-swatch--free is-on"}
+      data-tip={label}
+      style={{ "--swatch": value } as React.CSSProperties}
+    >
       <input type="color" aria-label={label} value={value} onChange={(e) => onPick(e.target.value)} />
     </label>
   );
@@ -145,7 +151,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
           {swatchRow(
             <>
               {customBackgroundPresets(spec.mode).map((hex) => swatch(hex, hex === spec.background, hex, () => set({ background: hex })))}
-              {colorInput(spec.background, t("settings.customThemeBackground"), (hex) => set({ background: hex }))}
+              {colorInput(spec.background, t("settings.customThemeBackground"), customBackgroundPresets(spec.mode), (hex) => set({ background: hex }))}
             </>,
           )}
         </SettingRow>
@@ -153,7 +159,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
           {swatchRow(
             <>
               {customAccentPresets().map((hex) => swatch(hex, hex === spec.accent, hex, () => set({ accent: hex })))}
-              {colorInput(spec.accent, t("settings.customThemeAccent"), (hex) => set({ accent: hex }))}
+              {colorInput(spec.accent, t("settings.customThemeAccent"), customAccentPresets(), (hex) => set({ accent: hex }))}
             </>,
           )}
         </SettingRow>
