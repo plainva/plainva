@@ -13,7 +13,7 @@ There is **no new limit on app storage** in Android 17. The headlines about
 | Requirement | Applies | Deadline | Plainva today | Guard |
 |---|---|---|---|---|
 | **Target API level.** New builds must target the previous year's Android. | Play, all apps | API 36 since **2026-08-31**; API 37 expected from **2027-08-31** | `targetSdkVersion = 36` (`apps/mobile/android/variables.gradle`) | `androidPlatformGuards.test.ts` (floor 36) |
-| **16 KB page size.** Every native library must be LOAD-aligned to 16 KB. | Play, apps targeting API 35+ on 64-bit devices | Updates since 2026-05; **hard block on upload from 2027-02-01** | Only native library: `net.zetetic:sqlcipher-android` 4.17.0 via `@capacitor-community/sqlite` (16 KB-aware since 4.6.1) | Workflow step **Check 16 KB page alignment of native libraries** in `.github/workflows/release-mobile.yml`, before the Play upload |
+| **16 KB page size.** Every native library must be LOAD-aligned to 16 KB. | Play, apps targeting API 35+ on 64-bit devices | Updates since 2026-05; **hard block on upload from 2027-02-01** | Two native libraries in the bundle, both 16 KB-aligned (first run of the guard, 2026-09-04): `libsqlcipher.so` (`net.zetetic:sqlcipher-android` 4.17.0 via `@capacitor-community/sqlite`, 16 KB-aware since 4.6.1) and `libimage_processing_util_jni.so` (AndroidX camera, via the Capacitor camera plugin) | Workflow step **Check 16 KB page alignment of native libraries** in `.github/workflows/release-mobile.yml`, before the Play upload |
 | **Per-app memory limit** ("Memory Limiter"). An app over its RAM budget is squeezed into zRAM, then killed. | Android 17 devices (Pixel first, other OEMs over the year); Play vitals from **2026-11**, stricter Play requirements from **2027-02** | rolling | Not measured yet (see below) | `ProcessExitPlugin` records a limiter kill in the sync diagnostics |
 
 ## Per-app memory limit
@@ -53,9 +53,11 @@ Android Developers Blog "Preparing your app for broader memory limits" (2026-08)
 
 Native libraries compiled for 4 KB pages fail to load on 16 KB devices; Play
 refuses uploads without 16 KB support from 2027-02-01. The bundle currently
-carries exactly one native library (SQLCipher for Android, through
-`@capacitor-community/sqlite`), and that library has shipped 16 KB-aligned
-builds since 4.6.1. The workflow step unpacks the AAB, runs `readelf -lW` on
+carries two native libraries — SQLCipher for Android (through
+`@capacitor-community/sqlite`, 16 KB-aligned since 4.6.1) and AndroidX's
+image-processing JNI (through the Capacitor camera plugin) — and the guard's
+first run (2026-09-04, `mobile-v0.8.0.2`) found every LOAD segment of both at
+`0x4000`. The workflow step unpacks the AAB, runs `readelf -lW` on
 every `.so` and fails the job when any `LOAD` segment is aligned below
 `0x4000` (16384). It runs before the Play upload, so a dependency bump that
 regresses this never reaches the internal track.
