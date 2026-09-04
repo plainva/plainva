@@ -1803,7 +1803,6 @@
   "colorPicker": {
     "title": "选择页眉颜色",
     "custom": "自定义颜色",
-    "apply": "确定",
     "remove": "移除页眉颜色"
   },
   "okf": {

@@ -107,8 +107,6 @@ const BUDGET: Record<string, Counts> = {
   // files down to the value-rule entries below — every remaining one is a
   // JUSTIFIED exception documented at the finding site, not debt:
   // - propertyModel/callouts: option-swatch DATA + var() fallback literals.
-  // - EmojiPicker/HeaderColorPicker: native <input type=color> needs a
-  //   resolved hex string.
   // - ImageViewer: pen default + JPEG flatten fill are baked PIXEL data.
   // - mail.css: avatar fg over the theme-independent --palette-N swatches.
   // - DayTimeGrid: local stacking order inside one day column (no overlay).
@@ -142,15 +140,13 @@ const BUDGET: Record<string, Counts> = {
   "components/DeletedFilesModal.tsx": {rawSpacing:1},
   "components/DocumentHeaderRead.tsx": {rawSpacing:1},
   "components/Editor.tsx": {nakedButton:15,rawSpacing:13},
-  "components/EmojiPicker.tsx": {hex:1,nakedButton:9,rawSpacing:12},
+  "components/EmojiPicker.tsx": {nakedButton:6,rawSpacing:11},
   "components/ErrorBoundary.tsx": {nakedButton:1,rawSpacing:1},
   "components/FileTree.tsx": {nakedInput:5,rawSpacing:19},
   "components/HailingFrequenciesModal.tsx": {nakedInput:2,nakedButton:1,rawSpacing:10},
-  "components/HeaderColorPicker.tsx": {hex:1,nakedButton:3,rawSpacing:5},
   // Colour swatches are buttons by role (plan 2026-09-04, P2): a Button
   // primitive paints its own background over the very colour a swatch stands
   // for. One <button> in the swatch renderer; every other control is a primitive.
-  "components/settings/CustomThemeEditor.tsx": {nakedButton:1},
   "components/ImageViewer.tsx": {hex:2,nakedInput:5,nakedButton:22,rawSpacing:7},
   "components/IndexMdModal.tsx": {rawSpacing:5},
   "components/LeftPinnedSections.tsx": {nakedButton:1},
@@ -231,8 +227,8 @@ const BUDGET: Record<string, Counts> = {
   "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
   "components/pimcal/CalendarView.tsx": {nakedButton:6,rawSpacing:28},
   "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3,nakedButton:3,rawSpacing:18},
-  "components/pimcal/EventContextMenu.tsx": {nakedButton:2,rawSpacing:3},
-  "components/pimcal/EventEditModal.tsx": {nakedInput:7,nakedButton:3,rawSpacing:13},
+  "components/pimcal/EventContextMenu.tsx": {rawSpacing:1},
+  "components/pimcal/EventEditModal.tsx": {nakedInput:7,nakedButton:1,rawSpacing:12},
   "components/pimcal/EventPeek.tsx": {rawSpacing:10},
   "components/pimcal/QuickCreatePopover.tsx": {nakedInput:2,rawSpacing:7},
   "components/pimcal/TimeBlockModal.tsx": {nakedInput:3,rawSpacing:3},

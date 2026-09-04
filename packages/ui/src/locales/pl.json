@@ -1824,7 +1824,6 @@
   "colorPicker": {
     "title": "Wybierz kolor nagłówka",
     "custom": "Kolor niestandardowy",
-    "apply": "OK",
     "remove": "Usuń kolor nagłówka"
   },
   "okf": {

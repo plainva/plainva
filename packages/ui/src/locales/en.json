@@ -1810,7 +1810,6 @@
   "colorPicker": {
     "title": "Choose header color",
     "custom": "Custom color",
-    "apply": "OK",
     "remove": "Remove header color"
   },
   "okf": {

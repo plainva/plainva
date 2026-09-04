@@ -1817,7 +1817,6 @@
   "colorPicker": {
     "title": "Escolher cor do cabeçalho",
     "custom": "Cor personalizada",
-    "apply": "OK",
     "remove": "Remover cor do cabeçalho"
   },
   "okf": {

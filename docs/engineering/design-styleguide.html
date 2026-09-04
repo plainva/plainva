@@ -247,6 +247,14 @@
   .seg button { display: inline-flex; align-items: center; gap: 6px; height: calc(var(--control-md) - 6px); padding: 0 var(--space-3); border: none; border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font: var(--text-ui) var(--font-ui); cursor: pointer; }
   .seg button:hover:not(.on) { background: var(--state-hover); color: var(--text-main); }
   .seg button.on { background: var(--surface); color: var(--accent-color); font-weight: 600; box-shadow: var(--shadow-1); }
+  /* Farbwahl (SwatchGrid): Scheiben in festen Slots, Ring = Wahl, freie Farbe = letzte Scheibe mit Farbring. */
+  .sw { display: grid; grid-template-columns: repeat(var(--swatch-cols, 8), var(--control-md)); gap: var(--space-2); justify-content: start; }
+  .sw i { position: relative; display: inline-grid; place-items: center; width: var(--control-md); height: var(--control-md); border-radius: 50%; border: 1px solid var(--border-color); font: 600 var(--text-sm)/1 var(--font-ui); color: var(--text-main); }
+  .sw i.on { outline: 2px solid var(--text-main); outline-offset: 2px; }
+  .sw i.none { background: var(--bg-secondary); }
+  .sw i.slash::after { content: ""; position: absolute; left: 50%; top: 5px; bottom: 5px; width: 0; border-left: 2px solid var(--error-text); transform: translateX(-50%) rotate(45deg); }
+  .sw i.free { grid-column: -2 / -1; background: conic-gradient(from 0deg, hsl(0 80% 55%), hsl(60 80% 50%), hsl(120 70% 45%), hsl(180 70% 45%), hsl(240 70% 55%), hsl(300 70% 55%), hsl(0 80% 55%)); }
+  .sw i.free::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--swatch, var(--bg-primary)); }
 
   .menu { min-width: 210px; padding: var(--space-1); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-2); display: flex; flex-direction: column; gap: 2px; }
   .menu .label { padding: 6px 10px 3px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--text-faint); }
@@ -573,6 +581,15 @@
         </div>
       </div>
       <p><b>Wird zusätzlich migriert:</b> Editor-Modus-Umschalter (heute handgerollt mit eckigem Radius), <code>.base</code>-Ansichts-Wechsler + Konfig-Reiter (heute zwei pixelgleiche Nachbauten in <code>BASE_VIEWER_STYLES</code>), EmojiPicker-Modus-Schalter. <b>Bewusst KEINE Segmente bleiben:</b> Dokument-Tab-Leiste, Einstellungs-Nav, Mail-Ordner-Schiene (eigene Muster laut Runde 2026-07-19).</p>
+    </div>
+    <div class="card spec">
+      <p><b>Farbwahl — <code>SwatchGrid</code></b> (Plan „Farbwahl überall", 2026-09-04). Jede Stelle, an der eine Farbe gewählt wird, ist dieses Raster: Scheiben in festen Slots (<code>--swatch-cols</code>: 8 auf Einstellungsseiten, 6 in Popovern), die Wahl ein Ring auf <code>--text-main</code>, optional ein Standard-Slot zuerst („A" für die Standard-Tönung, Schrägstrich für „Kalenderfarbe"), die freie Farbe zuletzt als Scheibe mit Farbring, auf der der Systemfarbwähler unsichtbar liegt.</p>
+      <div class="demo on-surface" style="display:grid;gap:14px">
+        <div class="sw" style="--swatch-cols:6"><i class="none on">A</i><i style="background:#c94f4f"></i><i style="background:#d97a2b"></i><i style="background:#c9a227"></i><i style="background:#4f9d4f"></i><i style="background:#2f6f6f"></i><i style="background:#2f6f8f"></i><i style="background:#5a5fd0"></i><i style="background:#8a4fd0"></i><i style="background:#c04f8a"></i><i style="background:#7a7f85"></i><i class="free"></i></div>
+        <div class="sw"><i class="none slash on"></i><i style="background:#c94f4f"></i><i style="background:#d97a2b"></i><i style="background:#c9a227"></i><i style="background:#4f9d4f"></i><i style="background:#2f6f8f"></i><i style="background:#5a5fd0"></i><i style="background:#8a4fd0"></i><i style="background:#c04f8a"></i></div>
+        <div class="sw"><i style="background:#0f766e"></i><i class="on" style="background:#2563eb"></i><i style="background:#8a3b8f"></i><i style="background:#b45309"></i><i style="background:#be123c"></i><i style="background:#4d7c0f"></i><i style="background:#333"></i><i class="free" style="--swatch:#2563eb"></i></div>
+      </div>
+      <p>Oben die Icon-Tönung (Standard „A" + zehn Töne + frei, sechs Spalten), in der Mitte die Terminfarbe (Kalenderfarbe + acht Töne, <b>ohne</b> freie Scheibe — Anbieter-Farb-Ids), unten der Akzent von „Mein Design" (acht Spalten). <b>Ein Ton wendet an und schließt</b> das Popover, die freie Scheibe wendet an und bleibt offen; der Ring sitzt auf der freien Scheibe, sobald der Wert kein Ton ist. Desktop: <code>ColorPopover</code> (Kopf-Farbe, Datenbank-Icon, Pinnwand-Karte, Stift), Telefon: <code>MobileSwatchGrid</code> in Touch-Größe.</p>
     </div>
   </section>
 

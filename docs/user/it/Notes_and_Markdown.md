@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-04
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -91,7 +91,7 @@ Ogni nota può avere un'icona (in stile Notion sopra il titolo, visibile anche n
 - In Anteprima dal vivo, passa il mouse sopra il titolo: **Aggiungi icona** / **Aggiungi colore intestazione** (in seguito: **Cambia icona** / **Cambia colore intestazione**) — oppure usa i comandi slash **Icona del documento** e **Colore dell'intestazione**.
 - Il selettore di icone ha due modalità — **Emoji** e **Icone** — che si usano nello stesso modo: una sola zona in alto, una sola ricerca, **categorie** (schede) in entrambe le modalità e una sezione **Usati di recente** che sopravvive a un riavvio.
 - Il set comprende circa **400 icone selezionate** in dieci categorie (Sapere e file, Lavoro e attività, Tecnologia, Persone e contatti, Creatività e media, Quotidiano e casa, Natura e meteo, Viaggi e luoghi, Denaro e numeri, Simboli e stati). La ricerca considera nomi e parole chiave.
-- In modalità icone scegli un **colore** in alto: la stessa tavolozza della fascia dell'intestazione, **A** per il colore predefinito e **Colore personalizzato …** per un valore libero. Vale per l'icona che toccherai subito dopo.
+- In modalità icone scegli un **colore** in alto: la stessa tavolozza della fascia dell'intestazione, **A** per il colore predefinito e il disco con l'anello di tonalità (**Colore personalizzato …**) per un valore libero; vale per l'icona che toccherai subito dopo. La stessa griglia compare ovunque Plainva chieda un colore, anche sul telefono.
 - Entrambe sono memorizzate nel frontmatter sotto `plainva:` (`icon`, `icon_color`, `header_color`) — pura presentazione che non influisce sugli altri programmi.
 
 ## Modelli

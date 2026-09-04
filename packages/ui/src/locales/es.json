@@ -1817,7 +1817,6 @@
   "colorPicker": {
     "title": "Elegir color de cabecera",
     "custom": "Color personalizado",
-    "apply": "OK",
     "remove": "Quitar color de cabecera"
   },
   "okf": {

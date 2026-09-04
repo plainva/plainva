@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ACCENT_PALETTE, DocIcon, docIconValue, EMOJI_CATEGORIES, ICON, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
 import type { EmojiCategoryId, LucideIconCategory } from "@plainva/ui";
 import { Trash2 } from "lucide-react";
+import { MobileSwatchGrid } from "./MobileSwatchGrid";
 
 /** Representative tab glyph per emoji category (same set as the desktop). */
 const EMOJI_TAB_GLYPH: Record<EmojiCategoryId, string> = {
@@ -122,30 +123,20 @@ export function EmojiPickSheet({
         />
 
         {/* The colour of an icon pick — the same palette the desktop offers, so
-            the same choice gives the same file on both devices. */}
+            the same choice gives the same file on both devices; since the
+            shared grid (plan "Farbwahl überall", 2026-09-04) also the free
+            colour, which only the desktop had. */}
         {iconMode && (
           <>
             <p className="m-sectionlabel">{t("emojiPicker.tint")}</p>
-            <div className="m-swatches">
-              <button
-                aria-label={t("emojiPicker.tintDefault")}
-                aria-pressed={tint === null}
-                className={tint === null ? "m-swatch m-swatch--default is-on" : "m-swatch m-swatch--default"}
-                onClick={() => setTint(null)}
-              >
-                A
-              </button>
-              {ACCENT_PALETTE.map((color) => (
-                <button
-                  aria-label={color}
-                  aria-pressed={tint === color}
-                  className={tint === color ? "m-swatch is-on" : "m-swatch"}
-                  key={color}
-                  onClick={() => setTint(color)}
-                  style={{ background: color }}
-                />
-              ))}
-            </div>
+            <MobileSwatchGrid
+              ariaLabel={t("emojiPicker.tint")}
+              presets={ACCENT_PALETTE}
+              value={tint}
+              onPick={setTint}
+              none={{ label: t("emojiPicker.tintDefault"), active: tint === null, onPick: () => setTint(null), glyph: "letter" }}
+              free={{ label: t("emojiPicker.tintCustom"), onChange: setTint }}
+            />
           </>
         )}
 

@@ -4,7 +4,7 @@ import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } fro
 import type { NoteCardData } from "@plainva/core";
 import { applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parseNoteCard, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
-import { HeaderColorPicker } from "../HeaderColorPicker";
+import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -889,11 +889,11 @@ export function BasePinboardView({
       </MenuSurface>
 
       {colorPicker && (
-        <HeaderColorPicker
+        <ColorPopover
           x={colorPicker.x}
           y={colorPicker.y}
           value={colorPicker.value}
-          onSelect={(c) => { setColorPicker(null); void handleSetColor(colorPicker.path, c); }}
+          onSelect={(c, { close }) => { if (close) setColorPicker(null); void handleSetColor(colorPicker.path, c); }}
           onRemove={() => { setColorPicker(null); void handleSetColor(colorPicker.path, null); }}
           onClose={() => setColorPicker(null)}
         />

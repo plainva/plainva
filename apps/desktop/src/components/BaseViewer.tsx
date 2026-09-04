@@ -45,7 +45,7 @@ import { getSettingsStore } from "../services/settingsStore";
 import { SHOW_COMPATIBILITY_WARNING_KEY, extendedDatabasesKey } from "../contexts/VaultContext";
 import { CompatibilityWarningDialog } from "./CompatibilityWarningDialog";
 import { MissingRequirementDialog } from "./MissingRequirementDialog";
-import { HeaderColorPicker } from "./HeaderColorPicker";
+import { ColorPopover } from "./ColorPopover";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
@@ -2565,11 +2565,11 @@ export function BaseViewer({
         </MenuSurface>
       )}
       {iconColorPicker && (
-        <HeaderColorPicker
+        <ColorPopover
           x={iconColorPicker.x}
           y={iconColorPicker.y}
           value={baseIconColor}
-          onSelect={(c) => { void setBaseIconColor(c); }}
+          onSelect={(c, { close }) => { void setBaseIconColor(c); if (close) setIconColorPicker(null); }}
           onRemove={() => { void setBaseIconColor(null); }}
           onClose={() => setIconColorPicker(null)}
         />

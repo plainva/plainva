@@ -2581,29 +2581,6 @@ textarea {
   opacity: 1;
   filter: none;
 }
-.m-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3) var(--space-2);
-}
-.m-swatch {
-  width: var(--touch-sm);
-  height: var(--touch-sm);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  padding: 0;
-}
-.m-swatch--default {
-  background: var(--bg-secondary);
-  color: var(--text-main);
-  border-color: var(--border-color);
-  font-size: var(--text-sm);
-}
-.m-swatch.is-on {
-  border-color: var(--accent-color);
-}
 
 .m-colorgrid {
   display: grid;
@@ -2618,6 +2595,65 @@ textarea {
 }
 .m-colorgrid button.is-on {
   border-color: var(--text-main);
+}
+/* The same vocabulary as the desktop SwatchGrid in touch size (plan "Farbwahl
+   überall", 2026-09-04): the free colour is a tile like the others, wearing a
+   hue ring with the native input invisible on top, always in the last column;
+   the "none" tile carries the letter A (default tint) or a slash (calendar
+   colour). Replaces the separate "custom colour" row under the grid. */
+.m-colorgrid-free {
+  position: relative;
+  grid-column: -2 / -1;
+  height: var(--touch-sm);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  background: conic-gradient(
+    from 0deg,
+    hsl(0 80% 55%),
+    hsl(60 80% 50%),
+    hsl(120 70% 45%),
+    hsl(180 70% 45%),
+    hsl(240 70% 55%),
+    hsl(300 70% 55%),
+    hsl(0 80% 55%)
+  );
+}
+.m-colorgrid-free::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--swatch);
+}
+.m-colorgrid-free.is-on {
+  border-color: var(--text-main);
+}
+.m-colorgrid-free input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+}
+.m-colorgrid .m-colorgrid-none {
+  position: relative;
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.m-colorgrid .m-colorgrid-none--slash::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  bottom: 8px;
+  width: 0;
+  border-left: 2px solid var(--error-text);
+  transform: translateX(-50%) rotate(45deg);
 }
 
 /* Screen enter (B5): a light shared-axis slide on every mounted page. The

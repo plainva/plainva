@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { ICON, Modal, toast } from "@plainva/ui";
+import { ICON, Modal, Swatch, toast } from "@plainva/ui";
 import {
   ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { SplitButton } from "./SplitButton";
+import { ColorPopover } from "./ColorPopover";
 import { imageMimeType, isEditableImage, loadImageBlob, saveCanvasToVault } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { copyCandidate } from "./fileTreeModel";
@@ -50,6 +51,8 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   // via renderOps(), not app chrome — so it is exempt from the token rule.
   const [color, setColor] = useState("#e5484d");
   const [strokeWidth, setStrokeWidth] = useState(4);
+  const [colorPopover, setColorPopover] = useState<{ x: number; y: number } | null>(null);
+  const penColorRef = useRef<HTMLSpanElement>(null);
   const [busy, setBusy] = useState(false);
   const [saveAsName, setSaveAsName] = useState<string | null>(null);
   const [resizeDraft, setResizeDraft] = useState<{ width: string; height: string; keepRatio: boolean } | null>(null);
@@ -370,14 +373,30 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
             <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "h" })} data-tip={t("imageViewer.flipH")} aria-label={t("imageViewer.flipH")}><FlipHorizontal2 size={ICON.ui} /></button>
             <button type="button" className="pv-iconbtn" onClick={() => addOp({ kind: "flip", axis: "v" })} data-tip={t("imageViewer.flipV")} aria-label={t("imageViewer.flipV")}><FlipVertical2 size={ICON.ui} /></button>
             <button type="button" className="pv-iconbtn" onClick={startResize} data-tip={t("imageViewer.resize")} aria-label={t("imageViewer.resize")}><Scaling size={ICON.ui} /></button>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              data-tip={t("imageViewer.color")}
-              aria-label={t("imageViewer.color")}
-              style={{ width: 26, height: 26, padding: 0, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer" }}
-            />
+            {/* The pen colour is a disc (plan "Farbwahl überall", 2026-09-04):
+                a click opens the shared grid — palette plus free colour —
+                where a naked system field used to sit between the tools. */}
+            <span ref={penColorRef} style={{ display: "inline-flex" }}>
+              <Swatch
+                color={color}
+                active
+                label={t("imageViewer.color")}
+                testId="image-pen-color"
+                onClick={() => {
+                  const r = penColorRef.current?.getBoundingClientRect();
+                  setColorPopover((open) => (open ? null : { x: r?.left ?? 0, y: (r?.bottom ?? 0) + 4 }));
+                }}
+              />
+            </span>
+            {colorPopover && (
+              <ColorPopover
+                x={colorPopover.x}
+                y={colorPopover.y}
+                value={color}
+                onSelect={(c, { close }) => { setColor(c); if (close) setColorPopover(null); }}
+                onClose={() => setColorPopover(null)}
+              />
+            )}
             <select
               value={strokeWidth}
               onChange={(e) => setStrokeWidth(Number(e.target.value))}

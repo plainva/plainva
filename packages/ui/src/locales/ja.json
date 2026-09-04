@@ -1803,7 +1803,6 @@
   "colorPicker": {
     "title": "ヘッダーカラーを選択",
     "custom": "カスタムカラー",
-    "apply": "OK",
     "remove": "ヘッダーカラーを削除"
   },
   "okf": {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2 } from "lucide-react";
-import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, TextInput, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
+import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, SwatchGrid, TextInput, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
 import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
@@ -223,33 +223,15 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 <span className="pv-setrow-label">{t("pim.eventColor", { defaultValue: "Farbe" })}</span>
                 <div className="pv-setrow-desc">{t("pim.eventColorDesc", { defaultValue: "Überschreibt für diesen Termin die Kalenderfarbe" })}</div>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} data-testid="event-color-picker">
-                <button
-                  type="button"
-                  onClick={() => set("color", "")}
-                  data-testid="event-color-default"
-                  aria-pressed={!values.color}
-                  aria-label={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-                  data-tip={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-                  style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: "var(--bg-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)", border: values.color ? "1px solid var(--border-color)" : "2px solid var(--accent-color)" }}
-                >
-                  ✕
-                </button>
-                {EVENT_COLOR_PALETTE.map((hex) => {
-                  const active = values.color.toLowerCase() === hex;
-                  return (
-                    <button
-                      key={hex}
-                      type="button"
-                      onClick={() => set("color", hex)}
-                      aria-pressed={active}
-                      data-testid={`event-color-${hex}`}
-                      aria-label={hex} data-tip={hex}
-                      style={{ width: 22, height: 22, borderRadius: "var(--radius-pill)", background: hex, cursor: "pointer", border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)", boxShadow: active ? "0 0 0 2px var(--bg-primary) inset" : "none" }}
-                    />
-                  );
-                })}
-              </div>
+              <SwatchGrid
+                data-testid="event-color-picker"
+                ariaLabel={t("pim.eventColor", { defaultValue: "Farbe" })}
+                presets={EVENT_COLOR_PALETTE}
+                value={values.color}
+                onPick={(hex) => set("color", hex)}
+                none={{ label: t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" }), active: !values.color, onPick: () => set("color", ""), glyph: "slash", testId: "event-color-default" }}
+                testIdPrefix="event-color-"
+              />
             </div>
           </div>
         </div>

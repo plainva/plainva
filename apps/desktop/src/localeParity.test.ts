@@ -303,7 +303,6 @@ const VERBATIM_ALLOWED = new Set<string>([
   "cloudAccounts.familyYahoo",
   "cloudAccounts.familyYandex",
   "cloudAccounts.familyZoho",
-  "colorPicker.apply",
   "common.ok",
   "database.dateFormatIso",
   "database.tag",

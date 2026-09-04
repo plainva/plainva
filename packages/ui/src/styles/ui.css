@@ -1857,14 +1857,16 @@ button.pv-chip:hover { background: var(--state-hover); }
   min-width: 0;
 }
 
-/* Colour slots of "Mein Design" (finding 2026-09-04: the swatches were a
-   wrapping flex row — eight discs on one line, three on the next, the free
-   colour a rectangle among them). A grid of eight fixed slots: every row is
-   the same width, so ground, accent and text line up in columns; a row with
-   fewer colours leaves its slots empty. Fits the 300px control column. */
+/* THE colour choice (SwatchGrid; plan "Farbwahl überall", 2026-09-04 — grew
+   out of "Mein Design", where the swatches had been a wrapping flex row: eight
+   discs on one line, three on the next, the free colour a rectangle among
+   them). A grid of fixed slots — `--swatch-cols`, 8 on settings pages (the
+   300px control column holds them), 6 in popovers — so every row is the same
+   width and rows line up in columns; a row with fewer colours leaves its
+   slots empty. */
 .pv-swatches {
   display: grid;
-  grid-template-columns: repeat(8, var(--control-md));
+  grid-template-columns: repeat(var(--swatch-cols, 8), var(--control-md));
   gap: var(--space-2);
   justify-content: start;
 }
@@ -1891,9 +1893,30 @@ button.pv-chip:hover { background: var(--state-hover); }
 }
 /* The free colour: a hue ring around the current pick (--swatch); the native
    colour input covers the disc invisibly so the OS picker opens from it. */
-/* Always the last slot, so the hue disc sits in one column across rows. */
+/* The "none" slot — first in the row: the letter A for "default tint", a
+   struck disc for "no own colour" (calendar colour). */
+.pv-swatch--none {
+  display: inline-grid;
+  place-items: center;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+.pv-swatch--none-slash::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  bottom: 5px;
+  width: 0;
+  border-left: 2px solid var(--error-text);
+  transform: translateX(-50%) rotate(45deg);
+}
+/* Always the last column, so the hue disc sits in one place across rows. */
 .pv-swatch--free {
-  grid-column: 8;
+  grid-column: -2 / -1;
   background: conic-gradient(
     from 0deg,
     hsl(0 80% 55%),

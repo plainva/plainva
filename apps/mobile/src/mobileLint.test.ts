@@ -1924,7 +1924,7 @@ describe("touch targets", () => {
    *  tidy at 30. */
   const FLOOR = [
     ".m-cattab",
-    ".m-swatch",
+    ".m-colorgrid-free",
     ".m-cal-today",
     ".m-cal-day",
     ".m-mboxline",

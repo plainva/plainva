@@ -1817,7 +1817,6 @@
   "colorPicker": {
     "title": "Choisir la couleur d'en-tête",
     "custom": "Couleur personnalisée",
-    "apply": "OK",
     "remove": "Retirer la couleur d'en-tête"
   },
   "okf": {

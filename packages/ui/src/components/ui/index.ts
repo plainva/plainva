@@ -35,5 +35,6 @@ export {
 export { TooltipHost } from "./Tooltip";
 export { FontCatalogPicker, type FontCatalogPickerProps } from "./FontCatalogPicker";
 export { FontField, type FontFieldProps } from "./FontField";
+export { Swatch, SwatchGrid, type SwatchProps, type SwatchGridProps, type SwatchGridNone, type SwatchGridFree } from "./SwatchGrid";
 export { GroupCard, Row, RowList, SectionLabel, SettingField } from "./GroupedRows";
 export { cx } from "./cx";

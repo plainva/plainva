@@ -10,7 +10,7 @@ import {
   loadRecentPicks,
   saveRecentPick,
 } from "@plainva/ui";
-import { DocIcon, SearchField, Segmented } from "@plainva/ui";
+import { DocIcon, SearchField, Segmented, SwatchGrid } from "@plainva/ui";
 import { ACCENT_PALETTE } from "./palette";
 
 export interface EmojiPickerLabels {
@@ -139,7 +139,6 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
     loadRecentPicks(RECENT_ICON_KEY).length > 0 ? "recent" : LUCIDE_CATEGORY_TABS[0].id,
   );
   const [tint, setTint] = useState<string | null>(null);
-  const [customOpen, setCustomOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -307,72 +306,22 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
           }}
         />
 
-        {/* The colour row (icon mode): the swatch grammar of the shared
-            header-colour picker — rectangles, "A" for the default, and a
-            "custom colour" action instead of a naked system field. */}
+        {/* The colour row (icon mode): the shared SwatchGrid — "A" first for
+            the default, the ten tints, the free colour last as a disc with a
+            hue ring (plan "Farbwahl überall", 2026-09-04; before: flat
+            rectangles and a chip that revealed a naked system field). */}
         {mode === "icons" && (
           <>
             <div style={sectionLabelStyle}>{labels.tint}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                data-tip={labels.tintDefault}
-                aria-label={labels.tintDefault}
-                aria-pressed={tint === null}
-                onClick={() => setTint(null)}
-                style={{
-                  width: "26px",
-                  height: "20px",
-                  borderRadius: "var(--radius-sm)",
-                  border: tint === null ? "2px solid var(--accent-color)" : "1px solid var(--border-color)",
-                  background: "var(--bg-secondary)",
-                  color: "var(--text-main)",
-                  cursor: "pointer",
-                  fontSize: "var(--text-xs)",
-                  lineHeight: 1,
-                  padding: 0,
-                }}
-              >
-                A
-              </button>
-              {ICON_TINTS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  data-tip={color}
-                  aria-label={color}
-                  aria-pressed={tint === color}
-                  onClick={() => setTint(color)}
-                  style={{
-                    width: "26px",
-                    height: "20px",
-                    borderRadius: "var(--radius-sm)",
-                    border: tint === color ? "2px solid var(--accent-color)" : "1px solid var(--border-color)",
-                    background: color,
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
-                />
-              ))}
-              {customOpen ? (
-                <input
-                  type="color"
-                  value={tint && /^#[0-9a-fA-F]{6}$/.test(tint) ? tint : "#2f6f6f"}
-                  onChange={(e) => setTint(e.target.value)}
-                  aria-label={labels.tintCustom}
-                  style={{ width: "34px", height: "20px", padding: 0, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "transparent", cursor: "pointer" }}
-                />
-              ) : (
-                <button
-                  type="button"
-                  className="pv-chip"
-                  onClick={() => setCustomOpen(true)}
-                  data-testid="picker-tint-custom"
-                >
-                  {labels.tintCustom}
-                </button>
-              )}
-            </div>
+            <SwatchGrid
+              ariaLabel={labels.tint}
+              presets={ICON_TINTS}
+              value={tint}
+              onPick={setTint}
+              columns={6}
+              none={{ label: labels.tintDefault, active: tint === null, onPick: () => setTint(null), glyph: "letter" }}
+              free={{ label: labels.tintCustom, onChange: setTint, testId: "picker-tint-custom" }}
+            />
           </>
         )}
 

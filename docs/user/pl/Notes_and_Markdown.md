@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-03
+Stan na: 2026-09-04
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -91,7 +91,7 @@ Każda notatka może mieć ikonę (w stylu Notion, nad tytułem, widoczną też 
 - W Podglądzie na żywo najedź nad tytuł: **Dodaj ikonę** / **Dodaj kolor nagłówka** (później: **Zmień ikonę** / **Zmień kolor nagłówka**) — lub użyj poleceń slash **Ikona dokumentu** i **Kolor nagłówka**.
 - Wybór ikony ma dwa tryby — **Emoji** i **Ikony** — obsługiwane tak samo: jedna strefa nagłówka, jedno wyszukiwanie, **kategorie** (zakładki) w obu trybach i sekcja **Ostatnio używane**, która przetrwa ponowne uruchomienie.
 - Zestaw obejmuje około **400 wyselekcjonowanych ikon** w dziesięciu kategoriach (Wiedza i pliki, Praca i zadania, Technika, Ludzie i kontakt, Kreatywność i media, Codzienność i dom, Natura i pogoda, Podróże i miejsca, Pieniądze i liczby, Symbole i stany). Wyszukiwanie działa po nazwach i słowach kluczowych.
-- W trybie ikon wybierasz u góry **kolor** — ta sama paleta co przy pasku nagłówka, **A** dla koloru domyślnego i **Własny kolor …** dla dowolnej wartości. Obowiązuje dla ikony, którą klikniesz zaraz potem.
+- W trybie ikon wybierasz u góry **kolor** — ta sama paleta co przy pasku nagłówka, **A** dla koloru domyślnego i krążek z pierścieniem barw (**Własny kolor …**) dla dowolnej wartości; obowiązuje dla ikony, którą klikniesz zaraz potem. Ta sama siatka pojawia się wszędzie, gdzie Plainva pyta o kolor — także na telefonie.
 - Oba są zapisywane we frontmatter pod `plainva:` (`icon`, `icon_color`, `header_color`) — czysta prezentacja, która nie przeszkadza innym programom.
 
 ## Szablony

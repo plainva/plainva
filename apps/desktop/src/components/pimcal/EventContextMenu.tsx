@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check, CopyPlus, FilePlus2, Mail, Palette, Pencil, Trash2 } from "lucide-react";
-import { EVENT_COLOR_PALETTE, ICON, MenuItem, MenuLabel, MenuSeparator, MenuSurface } from "@plainva/ui";
+import { EVENT_COLOR_PALETTE, ICON, MenuItem, MenuLabel, MenuSeparator, MenuSurface, SwatchGrid } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 
 /**
@@ -58,50 +58,19 @@ export function EventContextMenu({
               {t("pim.eventColor", { defaultValue: "Farbe" })}
             </span>
           </MenuLabel>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 10px 6px" }} data-testid="ctx-colors">
-            <button
-              type="button"
-              onClick={() => { onSetColor(""); onClose(); }}
-              data-testid="ctx-color-default"
-              aria-label={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-              data-tip={t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" })}
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "var(--radius-pill)",
-                background: "var(--bg-secondary)",
-                cursor: "pointer",
-                border: !activeColor ? "2px solid var(--accent-color)" : "1px solid var(--border-color)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "var(--text-xs)",
-                color: "var(--text-muted)",
-              }}
-            >
-              ✕
-            </button>
-            {EVENT_COLOR_PALETTE.map((hex) => {
-              const active = activeColor === hex;
-              return (
-                <button
-                  key={hex}
-                  type="button"
-                  onClick={() => { onSetColor(hex); onClose(); }}
-                  data-testid={`ctx-color-${hex}`}
-                  aria-label={hex}
-                  data-tip={hex}
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "var(--radius-pill)",
-                    background: hex,
-                    cursor: "pointer",
-                    border: active ? "2px solid var(--text-main)" : "1px solid var(--border-color-light)",
-                  }}
-                />
-              );
-            })}
+          {/* The shared SwatchGrid (plan "Farbwahl überall", 2026-09-04): the
+              calendar colour is the struck first slot, then the eight tones —
+              no free disc, event colours map onto provider colour ids. */}
+          <div style={{ padding: "0 var(--space-3) var(--space-2)" }}>
+            <SwatchGrid
+              data-testid="ctx-colors"
+              ariaLabel={t("pim.eventColor", { defaultValue: "Farbe" })}
+              presets={EVENT_COLOR_PALETTE}
+              value={activeColor}
+              onPick={(hex) => { onSetColor(hex); onClose(); }}
+              none={{ label: t("pim.eventColorDefault", { defaultValue: "Kalenderfarbe" }), active: !activeColor, onPick: () => { onSetColor(""); onClose(); }, glyph: "slash", testId: "ctx-color-default" }}
+              testIdPrefix="ctx-color-"
+            />
           </div>
         </>
       )}

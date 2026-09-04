@@ -342,6 +342,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
+    id: "event-color",
+    title: "Giving a single event its own colour",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop offers the eight-tone event palette in the event's context " +
+      "menu and edit dialog; the phone's event sheet has no colour row at all. " +
+      "Surfaced while the desktop rows moved onto the shared SwatchGrid (plan " +
+      "Farbwahl überall, 2026-09-04). Listed in the Sammelplan as a rest point; " +
+      "the shared MobileSwatchGrid is the building block once the sheet gets " +
+      "the row.",
+    verified: "2026-09-04",
+  },
+  {
     id: "mail-list-keyboard",
     title: "Arrow-key navigation in the message list",
     area: "pim",

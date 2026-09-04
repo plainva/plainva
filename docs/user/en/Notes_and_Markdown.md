@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -91,7 +91,7 @@ Every note can carry an icon (Notion-style above the title, also visible in tabs
 - In Live Preview, hover above the title: **Add icon** / **Add header color** (later: **Change icon** / **Change header color**) — or use the slash commands **Document icon** and **Header color**.
 - The icon picker has two modes — **Emoji** and **Icons** — that work the same way: one head zone, one search, **categories** (tabs) in both modes, and a **Recently used** section that survives a restart.
 - The icon set is about **400 curated icons** in ten categories (Knowledge & files, Work & tasks, Tech, People & contact, Creative & media, Everyday & home, Nature & weather, Travel & places, Money & numbers, Symbols & states). Search matches names and keywords.
-- In icon mode you pick a **colour** at the top — the same palette as the header stripe, **A** for the default, **Custom colour …** for a free value. It applies to the icon you tap next.
+- In icon mode you pick a **colour** at the top — the same palette as the header stripe, **A** for the default, the disc with the hue ring (**Custom colour …**) for a free value; it applies to the icon you tap next. The same grid appears wherever Plainva asks for a colour — on the phone too.
 - Both are stored in the frontmatter under `plainva:` (`icon`, `icon_color`, `header_color`) — pure presentation that does not affect other programs.
 
 ## Templates

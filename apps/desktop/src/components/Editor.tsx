@@ -21,7 +21,7 @@ import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, rea
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
-import { HeaderColorPicker } from "./HeaderColorPicker";
+import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
 import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
@@ -3086,11 +3086,11 @@ export const Editor: React.FC<{
       )}
 
       {colorPicker && (
-        <HeaderColorPicker
+        <ColorPopover
           x={colorPicker.x}
           y={colorPicker.y}
           value={docMeta.headerColor}
-          onSelect={(color) => { applyPlainvaValue("header_color", color); setColorPicker(null); }}
+          onSelect={(color, { close }) => { applyPlainvaValue("header_color", color); if (close) setColorPicker(null); }}
           onRemove={() => { applyPlainvaValue("header_color", null); setColorPicker(null); }}
           onClose={() => setColorPicker(null)}
         />

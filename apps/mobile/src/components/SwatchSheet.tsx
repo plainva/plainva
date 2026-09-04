@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { SheetGrip } from "./SheetGrip";
+import { MobileSwatchGrid } from "./MobileSwatchGrid";
 
 /**
  * A colour sheet for the user theme (plan 2026-09-04, A2): the presets the
@@ -28,22 +29,7 @@ export function SwatchSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{title}</p>
-        <div className="m-colorgrid" role="group" aria-label={title}>
-          {presets.map((hex) => (
-            <button
-              aria-label={hex}
-              aria-pressed={value === hex}
-              className={value === hex ? "is-on" : undefined}
-              key={hex}
-              onClick={() => onPick(hex)}
-              style={{ background: hex }}
-            />
-          ))}
-        </div>
-        <label className="m-row">
-          <span>{t("colorPicker.custom")}</span>
-          <input onChange={(e) => onPick(e.target.value)} style={{ marginLeft: "auto" }} type="color" value={value} />
-        </label>
+        <MobileSwatchGrid ariaLabel={title} presets={presets} value={value} onPick={onPick} free={{ label: t("colorPicker.custom"), onChange: onPick }} />
         {hint ? <p className="m-hint">{hint}</p> : null}
       </div>
     </div>

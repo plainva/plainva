@@ -8,6 +8,7 @@ import {
   Segmented,
   SettingCard,
   SettingRow,
+  SwatchGrid,
   clampCustomTheme,
   customAccentPresets,
   customBackgroundPresets,
@@ -80,36 +81,8 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
     onChange(customThemeFromSwatch(sw, spec.mode, spec));
   };
 
-  // Every colour row is the same eight-slot grid (finding 2026-09-04: a
-  // wrapping flex row put eight discs on one line, three on the next and a
-  // rectangle among them). The ring marks the pick; a check icon in the
-  // accent's own "on" colour vanished on a white ground.
-  const swatch = (hex: string, active: boolean, label: string, onPick: () => void) => (
-    <button
-      key={hex}
-      type="button"
-      className={active ? "pv-swatch is-on" : "pv-swatch"}
-      aria-label={label}
-      aria-pressed={active}
-      data-tip={hex}
-      onClick={onPick}
-      style={{ background: hex }}
-    />
-  );
-  // The free colour is a disc like the others, wearing a hue ring; the native
-  // input sits invisible on top so the OS picker opens from the disc. It
-  // carries the pick ring whenever the value is not one of the presets — the
-  // dark default ground is not, and the row showed no pick at all.
-  const colorInput = (value: string, label: string, presets: readonly string[], onPick: (hex: string) => void) => (
-    <label
-      className={presets.includes(value) ? "pv-swatch pv-swatch--free" : "pv-swatch pv-swatch--free is-on"}
-      data-tip={label}
-      style={{ "--swatch": value } as React.CSSProperties}
-    >
-      <input type="color" aria-label={label} value={value} onChange={(e) => onPick(e.target.value)} />
-    </label>
-  );
-  const swatchRow = (children: React.ReactNode) => <div className="pv-swatches">{children}</div>;
+  // The colour rows are the shared SwatchGrid (plan "Farbwahl überall",
+  // 2026-09-04) — this page is where the grid was born.
   const ratioLine = (label: string, ratio: number, min: number, note?: string) => (
     <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "var(--space-2)", alignItems: "center", fontSize: "var(--text-sm)" }}>
       <span>{label}</span>
@@ -148,29 +121,25 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
           />
         </SettingRow>
         <SettingRow label={t("settings.customThemeBackground")} desc={t("settings.customThemeBackgroundHint", { lo: Math.round(lo * 100), hi: Math.round(hi * 100) })}>
-          {swatchRow(
-            <>
-              {customBackgroundPresets(spec.mode).map((hex) => swatch(hex, hex === spec.background, hex, () => set({ background: hex })))}
-              {colorInput(spec.background, t("settings.customThemeBackground"), customBackgroundPresets(spec.mode), (hex) => set({ background: hex }))}
-            </>,
-          )}
+          <SwatchGrid
+            ariaLabel={t("settings.customThemeBackground")}
+            presets={customBackgroundPresets(spec.mode)}
+            value={spec.background}
+            onPick={(hex) => set({ background: hex })}
+            free={{ label: t("settings.customThemeBackground"), onChange: (hex) => set({ background: hex }) }}
+          />
         </SettingRow>
         <SettingRow label={t("settings.customThemeAccent")} desc={t("settings.customThemeAccentHint", { min: CUSTOM_ACCENT_MIN_CONTRAST })}>
-          {swatchRow(
-            <>
-              {customAccentPresets().map((hex) => swatch(hex, hex === spec.accent, hex, () => set({ accent: hex })))}
-              {colorInput(spec.accent, t("settings.customThemeAccent"), customAccentPresets(), (hex) => set({ accent: hex }))}
-            </>,
-          )}
+          <SwatchGrid
+            ariaLabel={t("settings.customThemeAccent")}
+            presets={customAccentPresets()}
+            value={spec.accent}
+            onPick={(hex) => set({ accent: hex })}
+            free={{ label: t("settings.customThemeAccent"), onChange: (hex) => set({ accent: hex }) }}
+          />
         </SettingRow>
         <SettingRow label={t("settings.customThemeText")} desc={t("settings.customThemeTextHint")}>
-          {swatchRow(
-            <>
-              {[colors.textMain, colors.textMuted, colors.textFaint].map((hex) => (
-                <span key={hex} aria-hidden="true" data-tip={hex} className="pv-swatch pv-swatch--static" style={{ background: hex }} />
-              ))}
-            </>,
-          )}
+          <SwatchGrid presets={[colors.textMain, colors.textMuted, colors.textFaint]} readOnly />
         </SettingRow>
         {lastCorrection && (
           <Banner kind="warning" rounded>

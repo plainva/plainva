@@ -1817,7 +1817,6 @@
   "colorPicker": {
     "title": "Scegli il colore dell'intestazione",
     "custom": "Colore personalizzato",
-    "apply": "OK",
     "remove": "Rimuovi colore intestazione"
   },
   "okf": {

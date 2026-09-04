@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-03
+Última revisão: 2026-09-04
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -91,7 +91,7 @@ Toda nota pode ter um ícone (ao estilo do Notion, acima do título, visível ta
 - Na Visualização ao vivo, passe o mouse acima do título: **Adicionar ícone** / **Adicionar cor de cabeçalho** (depois: **Alterar ícone** / **Alterar cor do cabeçalho**) — ou use os comandos de barra **Ícone do documento** e **Cor do cabeçalho**.
 - O seletor de ícones tem dois modos — **Emoji** e **Ícones** — que funcionam do mesmo jeito: uma única área superior, uma única busca, **categorias** (abas) nos dois modos e uma seção **Usados recentemente** que sobrevive a um reinício.
 - O conjunto tem cerca de **400 ícones selecionados** em dez categorias (Conhecimento e arquivos, Trabalho e tarefas, Tecnologia, Pessoas e contato, Criação e mídia, Dia a dia e casa, Natureza e clima, Viagens e lugares, Dinheiro e números, Símbolos e estados). A busca considera nomes e palavras-chave.
-- No modo de ícones você escolhe uma **cor** no topo — a mesma paleta da faixa do cabeçalho, **A** para a cor padrão e **Cor personalizada …** para um valor livre. Ela vale para o ícone que você tocar em seguida.
+- No modo de ícones você escolhe uma **cor** no topo — a mesma paleta da faixa do cabeçalho, **A** para a cor padrão e o disco com o anel de tons (**Cor personalizada …**) para um valor livre; ela vale para o ícone que você tocar em seguida. A mesma grade aparece em todo lugar em que o Plainva pede uma cor, também no telefone.
 - Ambos são armazenados no frontmatter sob `plainva:` (`icon`, `icon_color`, `header_color`) — pura apresentação, que não afeta outros programas.
 
 ## Modelos
