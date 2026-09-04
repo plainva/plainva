@@ -12,6 +12,8 @@ import {
   TextInput,
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
+import { CustomThemeEditor } from "./CustomThemeEditor";
+import { CUSTOM_THEME_ID, type CustomThemeSpec } from "@plainva/ui";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -40,6 +42,8 @@ export const AreaHead: React.FC<{ areaId: string; children?: React.ReactNode }> 
 export interface AppearancePageProps {
   themeName: string;
   onThemeName: (name: string) => void;
+  customTheme: CustomThemeSpec;
+  onCustomTheme: (spec: CustomThemeSpec) => void;
   themePref: ThemePref;
   onThemePref: (pref: ThemePref) => void;
   appLanguage: string;
@@ -59,8 +63,13 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
       <AreaHead areaId="appearance" />
       <SettingCard label={t("settings.groupDesign", { defaultValue: "Design" })}>
         <SettingRow label={t("settings.themeName", { defaultValue: "Theme" })} wide>
-          <ThemePickerCards value={p.themeName} onChange={p.onThemeName} />
+          <ThemePickerCards value={p.themeName} onChange={p.onThemeName} customTheme={p.customTheme} />
         </SettingRow>
+        {p.themeName === CUSTOM_THEME_ID && (
+          <SettingRow label={t("settings.customTheme")} wide>
+            <CustomThemeEditor spec={p.customTheme} onChange={p.onCustomTheme} />
+          </SettingRow>
+        )}
         <SettingRow
           label={t("settings.themeMode", { defaultValue: "Modus" })}
           desc={isModePinned(p.themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : undefined}

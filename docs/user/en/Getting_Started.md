@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -139,6 +139,7 @@ The arrangement belongs to the vault and travels to your other devices through [
 - **Toggle the sidebars** via the two title-bar buttons or `Ctrl+Alt+B` (left) / `Ctrl+Alt+R` (right) — great for focused writing. Plainva remembers the state.
 - **Command palette**: `Ctrl+P` opens **Commands** — type and hit `Enter` to run (new note, daily note, split, sidebars, **Back up now**, and more).
 - **Density**: under **Settings → App → Appearance**, choose between **Comfortable** and **Compact** — compact tightens lists, menus and table rows; note content is unaffected.
+- **Custom theme**: the **Custom** card under **Settings → App → Appearance** opens a small editor: mood (light/dark), a background from a bounded lightness range, any accent, the interface font, corner radius. Plainva derives the text colours so text never vanishes into the ground; an accent too pale is corrected to at least 3:1, and the editor says so. On the phone the same controls live in the **Appearance** screen.
 - **Content font**: under **Settings → App → Editor & notes**, set the **Content font size** (12–24 px) and the **Content font** (theme default, serif, sans-serif, monospace or the name of any installed font) — this scales the editor and reading view only; the interface stays as it is.
 - **Font list**: under **Custom…** a list shows your system's fonts, each row set in its own face; a font that is not installed says so and cannot be picked. The name field below takes any other installed family.
 - **Interface zoom**: scales the WHOLE interface between 80 % and 150 % — under **Settings → App → Appearance** or via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` resets).

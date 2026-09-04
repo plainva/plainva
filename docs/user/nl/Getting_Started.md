@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-04
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -139,6 +139,7 @@ Deze indeling hoort bij de vault en reist mee naar je andere apparaten via [Sync
 - **Zijbalken tonen/verbergen** via de twee knoppen in de titelbalk of `Ctrl+Alt+B` (links) / `Ctrl+Alt+R` (rechts) — ideaal om geconcentreerd te schrijven. Plainva onthoudt de status.
 - **Opdrachtenpalet**: `Ctrl+P` opent **Opdrachten** — typ en druk op `Enter` om uit te voeren (nieuwe notitie, dagnotitie, splitsen, zijbalken, **Nu back-uppen**, en meer).
 - **Dichtheid**: onder **Instellingen → App → Weergave** kies je tussen **Comfortabel** en **Compact** — Compact maakt lijsten, menu's en tabelrijen krapper; notitie-inhoud blijft ongewijzigd.
+- **Eigen thema**: de kaart **Eigen** onder **Instellingen → App → Weergave** opent een kleine editor: grondtoon (licht/donker), een achtergrond uit een begrensd helderheidsbereik, een vrij accent, het lettertype van de interface, de hoeken. Plainva leidt de tekstkleuren af zodat tekst nooit in de achtergrond verdwijnt; een te bleek accent wordt tot minstens 3:1 gecorrigeerd, en de editor zegt dat. Op de telefoon staan dezelfde knoppen in het scherm **Weergave**.
 - **Lettertype van inhoud**: onder **Instellingen → App → Editor en notities** stel je de **Lettergrootte van inhoud** in (12–24 px) en het **Lettertype van inhoud** (**Themastandaard**, **Serif**, **Sans-serif**, **Monospace** of **Aangepast…** met de naam van een geïnstalleerd lettertype) — dit schaalt alleen editor en leesweergave; de interface blijft ongewijzigd.
 - **Lettertypelijst**: onder **Aangepast…** staat een lijst met de lettertypen van je systeem, elke regel in zijn eigen lettertype; wat niet is geïnstalleerd zegt dat en is niet te kiezen. Het naamveld eronder accepteert elk ander geïnstalleerd lettertype.
 - **Interfacezoom**: schaalt de HELE interface tussen 80 % en 150 % — onder **Instellingen → App → Weergave** of via `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` herstelt).

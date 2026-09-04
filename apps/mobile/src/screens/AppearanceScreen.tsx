@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker, CUSTOM_THEME_ID, themesWithCustom } from "@plainva/ui";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -13,6 +13,7 @@ import {
   type ThemeMode,
 } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
+import { CustomThemeRows } from "../components/CustomThemeRows";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
@@ -106,7 +107,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
 
         <SectionLabel>{t("settings.theme")}</SectionLabel>
         <div className="m-themegrid">
-          {AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)).map((th) => {
+          {themesWithCustom(AVAILABLE_THEMES.filter((th) => !th.unlock || settings.unlockedThemes.includes(th.id)), settings.customTheme).map((th) => {
             const mode = th.modes.includes(
               document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
             )
@@ -135,6 +136,11 @@ const MOTIONS: Array<[MotionPref, string]> = [
             );
           })}
         </div>
+
+        {/* The user's own theme (P2): the same few choices as the desktop editor. */}
+        {settings.themeName === CUSTOM_THEME_ID && (
+          <CustomThemeRows spec={settings.customTheme} onChange={(spec) => update({ customTheme: spec })} />
+        )}
 
         {settings.unlockedThemeVariants.length > 0 && (
           <>

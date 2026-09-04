@@ -1,6 +1,6 @@
 import { getSettingsStore } from "./settingsStore";
 import { notifyAppearanceChanged } from "./appearanceSync";
-import { applyResolved } from "@plainva/ui";
+import { applyResolved, defaultCustomTheme, parseCustomTheme, setCustomTheme, themesWithCustom, type CustomThemeSpec } from "@plainva/ui";
 
 // The theme registry and resolvers live in @plainva/ui (mobile M3E package D2)
 // so both shells share ONE catalog. This module keeps the desktop persistence
@@ -40,12 +40,33 @@ import {
 /** Re-reads the stored preferences and applies everything (mode pinning and
  * the theme's active variant included). */
 export async function applyStoredTheme(): Promise<void> {
-  const [pref, name, variants] = await Promise.all([
+  const [pref, name, variants, custom] = await Promise.all([
     getStoredThemePref(),
     getStoredThemeName(),
     getStoredThemeVariants(),
+    getStoredCustomTheme(),
   ]);
+  setCustomTheme(custom);
   applyResolved(pref, name, variants[name]);
+}
+
+/** The user's own theme (plan 2026-09-04, P2) — device-local like every
+ * other appearance setting (decision E3). */
+export async function getStoredCustomTheme(): Promise<CustomThemeSpec> {
+  try {
+    const store = await getSettingsStore();
+    return parseCustomTheme(await store.get<unknown>("customTheme")) ?? defaultCustomTheme();
+  } catch {
+    return defaultCustomTheme();
+  }
+}
+
+export async function setStoredCustomTheme(spec: CustomThemeSpec): Promise<void> {
+  const store = await getSettingsStore();
+  await store.set("customTheme", spec);
+  await store.save();
+  await applyStoredTheme();
+  notifyAppearanceChanged();
 }
 
 export async function getStoredThemePref(): Promise<ThemePref> {
@@ -147,7 +168,7 @@ export async function addUnlockedVariant(themeId: string, variantId: string): Pr
 }
 
 /** Filters the registry to what the theme picker may show. */
-export function visibleThemes(unlocked: string[]): ThemeDef[] {
+function visibleBundledThemes(unlocked: string[]): ThemeDef[] {
   return AVAILABLE_THEMES.filter((t) => !t.unlock || unlocked.includes(t.id));
 }
 
@@ -236,4 +257,11 @@ export function initTheme(): void {
       }
     })
     .catch(() => {});
+}
+
+/** The picker's list: the bundled themes this installation may show, plus the
+ * custom card (always last). `custom` overrides the registry's current spec
+ * so an editor can preview a spec that is not applied yet. */
+export function visibleThemes(unlocked: string[], custom?: CustomThemeSpec | null): ThemeDef[] {
+  return themesWithCustom(visibleBundledThemes(unlocked), custom);
 }

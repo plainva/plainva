@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Moon } from "lucide-react";
+import { Check, Moon, Palette } from "lucide-react";
 import {
   AVAILABLE_THEMES,
   DEFAULT_THEME_NAME,
@@ -12,9 +12,11 @@ import {
   setStoredThemeVariant,
   visibleThemes,
 } from "../services/theme";
-import { ICON } from "@plainva/ui";
+import { ICON, CUSTOM_THEME_ID, type CustomThemeSpec } from "@plainva/ui";
 
 interface ThemePickerCardsProps {
+  /** The user's own theme, for the custom card's preview (plan 2026-09-04, P2). */
+  customTheme?: CustomThemeSpec | null;
   value: string;
   onChange: (id: string) => void;
 }
@@ -32,7 +34,7 @@ function previewMode(def: ThemeDef, currentMode: ThemeMode): ThemeMode {
  * activating it. Easter-egg themes stay hidden until unlocked; the LCARS card
  * lists collected variants as clickable dots.
  */
-export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
+export function ThemePickerCards({ value, onChange, customTheme }: ThemePickerCardsProps) {
   const { t } = useTranslation();
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [collectedVariants, setCollectedVariants] = useState<Record<string, string[]>>({});
@@ -57,7 +59,7 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
     return () => obs.disconnect();
   }, []);
 
-  const themes = visibleThemes(unlocked);
+  const themes = visibleThemes(unlocked, customTheme);
 
   return (
     <div
@@ -102,6 +104,9 @@ export function ThemePickerCards({ value, onChange }: ThemePickerCardsProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, width: "100%" }}>
                 {active && <Check size={ICON.ui} style={{ color: "var(--accent-color)", flexShrink: 0 }} />}
                 <span style={{ fontSize: "var(--text-ui)", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
+                {def.id === CUSTOM_THEME_ID && (
+                  <Palette size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />
+                )}
                 {def.modes.length === 1 && def.modes[0] === "dark" && (
                   <Moon size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-label={t("settings.themeDark")} />
                 )}

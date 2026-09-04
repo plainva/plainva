@@ -94,3 +94,35 @@ Reading: the automatic derivation holds for the twelve regular themes; only the 
 ## Docking matrix (design sweep 2026-07-19)
 
 `apps/desktop/src/designGuards.test.ts` enforces that every top-level `pv-*` surface defined in `packages/ui/src/styles/ui.css` is restyled by BOTH easter-egg themes (LCARS + Win95) or carries a justified `THEME_EXEMPT` entry. Newer surfaces gained their selectors in this sweep: segmented controls, settings cards (`.pv-setcard`), chip fields, floating-window heads (`.pv-peek-head`) and the FAB. Beyond class selectors, a theme's token duties now include the shared chip slots (`--chip-0..7` — LCARS maps them onto the Okuda palette; NOT `--palette-*`, whose hex values are user data written into frontmatter), the graph engine knobs (`--graph-glow-intensity`, `--graph-edge-curvature`), `--edge-scrim` and the callout palette (Win95 uses the classic VGA colors). The hailing-frequencies dialog runs on the Modal primitive, so under Win95 it wears the navy title bar of the theme it unlocks.
+
+## User theme ("custom", 2026-09-04)
+
+A thirteenth registry entry whose tokens come from a **spec** the shell
+persists (`customTheme` in the desktop store / mobile settings), not from a
+CSS file. `packages/ui/src/lib/customTheme.ts` holds the whole model:
+
+- **What the user chooses:** `mode` (light | dark — the entry is single-mode
+  and pins `data-theme`), `background` (lightness clamped to 88–100 % on light,
+  0–18 % on dark), `accent` (free, corrected to ≥ 3:1 against the background
+  along its own hue), `fontUi` (a family name for the chrome; the content font
+  keeps its own setting), `radius` (sharp | normal | soft).
+- **What is derived, never chosen:** the three text colours (main ≥ 7:1,
+  muted and faint ≥ 4.5:1 — checked on a hue × saturation × lightness grid in
+  `customTheme.test.ts`), surfaces, hover, borders, code/quote grounds,
+  `--accent-on` (white or black by contrast), selection tints. Containers,
+  state layers and the focus ring fall out of the existing `color-mix()`
+  rules.
+- **How it applies:** `setCustomTheme(spec)` registers the entry;
+  `applyResolved()` writes the derived tokens inline on `<html>` while the
+  custom theme is active and removes them (`clearCustomTheme`) for every other
+  theme — inline custom properties beat every `[data-theme-name]` rule, which
+  is the same mechanism the content font uses.
+- **Guards:** `designGuards`' docking matrix does not apply — there is no CSS
+  surface to dock onto; the guarantee is the contrast grid instead. The lint
+  that keeps colour literals out of components is satisfied because the
+  editors only paint colours from the spec and its derivation.
+
+Both shells share the model and the editor's vocabulary (`settings.customTheme*`);
+the desktop editor is `components/settings/CustomThemeEditor.tsx`, the phone's
+rows `components/CustomThemeRows.tsx`. The setting is device-local like every
+other appearance setting (decision E3, plan 2026-09-04).

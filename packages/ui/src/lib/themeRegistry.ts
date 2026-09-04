@@ -5,6 +5,8 @@
  * stays per shell on its own ISettingsStore.
  */
 
+import { applyCustomTheme, clearCustomTheme, customThemeSwatch, defaultCustomTheme, CUSTOM_THEME_ID, type CustomThemeSpec } from "./customTheme";
+
 export type ThemeMode = "light" | "dark";
 export type ThemePref = "light" | "dark" | "system";
 export type ThemeName = string;
@@ -175,7 +177,44 @@ export const AVAILABLE_THEMES: ThemeDef[] = [
 
 export const DEFAULT_THEME_NAME = "petrol";
 
+/**
+ * The user's own theme (plan 2026-09-04, P2): a registry slot whose tokens
+ * come from a spec the shell persists, not from a CSS file. The shell sets it
+ * before applying; the registry treats it like any other entry — with the
+ * one difference that its tokens are written inline (see customTheme.ts).
+ */
+let customSpec: CustomThemeSpec | null = null;
+
+export function setCustomTheme(spec: CustomThemeSpec | null): void {
+  customSpec = spec;
+}
+
+export function getCustomTheme(): CustomThemeSpec | null {
+  return customSpec;
+}
+
+/** The custom entry for a spec: single-mode (the spec's mood), swatch derived. */
+export function customThemeDef(spec: CustomThemeSpec): ThemeDef {
+  return {
+    id: CUSTOM_THEME_ID,
+    label: "Custom",
+    modes: [spec.mode],
+    swatch: { [spec.mode]: customThemeSwatch(spec) },
+  };
+}
+
+/** A picker list: the given bundled themes plus the custom card — after the
+ * last regular theme and before the easter eggs, which keep their place at the
+ * end (Win95 is deliberately the last card once unlocked). */
+export function themesWithCustom(list: readonly ThemeDef[], spec?: CustomThemeSpec | null): ThemeDef[] {
+  const custom = customThemeDef(spec ?? customSpec ?? defaultCustomTheme());
+  const firstEgg = list.findIndex((t) => t.unlock);
+  if (firstEgg < 0) return [...list, custom];
+  return [...list.slice(0, firstEgg), custom, ...list.slice(firstEgg)];
+}
+
 export function getThemeDef(id: ThemeName): ThemeDef | undefined {
+  if (id === CUSTOM_THEME_ID) return customSpec ? customThemeDef(customSpec) : undefined;
   return AVAILABLE_THEMES.find((t) => t.id === id);
 }
 
@@ -215,6 +254,10 @@ export function applyResolved(pref: ThemePref, name: ThemeName, variant?: string
   const v = variant ?? def?.defaultVariant;
   if (def?.variants?.length && v) root.setAttribute("data-theme-variant", v);
   else root.removeAttribute("data-theme-variant");
+  // The custom theme's tokens live inline on <html>; any other theme must
+  // find them gone, or a bundled theme would wear the custom colours.
+  if (themeName === CUSTOM_THEME_ID && customSpec) applyCustomTheme(customSpec);
+  else clearCustomTheme();
 }
 
 /** Sets `data-theme` on the document root so the CSS variables switch. Pinned

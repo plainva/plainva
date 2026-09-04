@@ -8,6 +8,10 @@ import {
   getPlatformServices,
   getThemeDef,
   type VaultTemplateDefinition,
+  defaultCustomTheme,
+  parseCustomTheme,
+  setCustomTheme,
+  type CustomThemeSpec,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
@@ -53,6 +57,8 @@ export interface MobileSettings extends VaultScopedSettings {
   /** Bundled theme id from the shared registry (package D3); single-mode
    * themes pin `data-theme` regardless of `themeMode`. */
   themeName: string;
+  /** The user's own theme (plan 2026-09-04, P2), applied while themeName is "custom". */
+  customTheme: CustomThemeSpec;
   defaultView: DefaultView;
   /** Empty = follow the system language. */
   language: string;
@@ -130,6 +136,7 @@ function defaults(): MobileSettings {
   return (cachedDefaults ??= {
     themeMode: "system",
     themeName: DEFAULT_THEME_NAME,
+    customTheme: defaultCustomTheme(),
     defaultView: "read",
     language: "",
     onboarded: false,
@@ -212,6 +219,8 @@ function applyTheme(): void {
   // Shared applier (D3): writes data-theme-name AND the resolved data-theme —
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
+  // The custom entry only exists once its spec is registered (P2).
+  setCustomTheme(parseCustomTheme(live().customTheme) ?? defaultCustomTheme());
   const name = getThemeDef(live().themeName) ? live().themeName : DEFAULT_THEME_NAME;
   applyResolved(live().themeMode, name, live().themeVariants[name]);
   const root = document.documentElement;

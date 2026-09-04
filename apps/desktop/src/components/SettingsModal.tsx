@@ -35,7 +35,8 @@ import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfMigrationModal } from "./OkfMigrationModal";
 import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
-import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName } from "../services/theme";
+import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomTheme, setStoredCustomTheme } from "../services/theme";
+import { defaultCustomTheme, type CustomThemeSpec } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
@@ -128,6 +129,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
   const [themeName, setThemeName] = useState<string>(() => document.documentElement.getAttribute("data-theme-name") || "petrol");
+  const [customTheme, setCustomThemeSpec] = useState<CustomThemeSpec>(() => defaultCustomTheme());
+  useEffect(() => {
+    void getStoredCustomTheme().then(setCustomThemeSpec);
+  }, []);
   const [intervalSec, setIntervalSec] = useState(String(defaultSyncIntervalSeconds()));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
@@ -780,6 +785,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <AppearancePage
                       themeName={themeName}
                       onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
+                      customTheme={customTheme}
+                      onCustomTheme={(spec) => { setCustomThemeSpec(spec); void setStoredCustomTheme(spec); }}
                       themePref={themePref}
                       onThemePref={handleThemeChange}
                       appLanguage={appLanguage}

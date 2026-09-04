@@ -100,6 +100,8 @@ export * from "./lib/recentsFile";
 export * from "./lib/renameNote";
 export * from "./lib/startrekQuotes";
 export * from "./lib/themeRegistry";
+export * from "./lib/contrast";
+export * from "./lib/customTheme";
 export * from "./lib/concurrencyLimiter";
 export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";

@@ -147,6 +147,10 @@ const BUDGET: Record<string, Counts> = {
   "components/FileTree.tsx": {nakedInput:5,rawSpacing:19},
   "components/HailingFrequenciesModal.tsx": {nakedInput:2,nakedButton:1,rawSpacing:10},
   "components/HeaderColorPicker.tsx": {hex:1,nakedButton:3,rawSpacing:5},
+  // Colour swatches are buttons by role (plan 2026-09-04, P2): a Button
+  // primitive paints its own background over the very colour a swatch stands
+  // for. One <button> in the swatch renderer; every other control is a primitive.
+  "components/settings/CustomThemeEditor.tsx": {nakedButton:1},
   "components/ImageViewer.tsx": {hex:2,nakedInput:5,nakedButton:22,rawSpacing:7},
   "components/IndexMdModal.tsx": {rawSpacing:5},
   "components/LeftPinnedSections.tsx": {nakedButton:1},

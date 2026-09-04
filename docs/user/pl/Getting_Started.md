@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-03
+Stan na: 2026-09-04
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -139,6 +139,7 @@ Układ należy do vaultu i przenosi się na inne urządzenia (patrz [Konfiguracj
 - **Przełączanie pasków bocznych** za pomocą dwóch przycisków na pasku tytułu lub `Ctrl+Alt+B` (lewy) / `Ctrl+Alt+R` (prawy) — świetne do skupionego pisania. Plainva zapamiętuje ten stan.
 - **Paleta poleceń**: `Ctrl+P` otwiera **Polecenia** — wpisz i naciśnij `Enter`, aby uruchomić (nowa notatka, notatka dzienna, podział, paski boczne, **Utwórz kopię zapasową teraz** i wiele więcej).
 - **Gęstość**: w **Ustawienia → Aplikacja → Wygląd** wybierz między **Komfortowy** a **Kompaktowy** — Kompaktowy zagęszcza listy, menu i wiersze tabel; treść notatek pozostaje bez zmian.
+- **Własny motyw**: karta **Własny** w **Ustawienia → Aplikacja → Wygląd** otwiera mały edytor: nastrój (jasny/ciemny), tło z ograniczonego zakresu jasności, dowolny akcent, czcionka interfejsu, zaokrąglenie. Kolory tekstu Plainva wyprowadza sama, więc tekst nigdy nie znika w tle; zbyt blady akcent jest poprawiany do co najmniej 3:1, a edytor o tym informuje. W telefonie te same ustawienia są na ekranie **Wygląd**.
 - **Czcionka treści**: w **Ustawienia → Aplikacja → Edytor i notatki** ustaw **Rozmiar czcionki treści** (12–24 px) oraz krój czcionki (**Domyślna motywu**, **Szeryfowa**, **Bezszeryfowa**, **O stałej szerokości** lub **Niestandardowa…** z nazwą dowolnej zainstalowanej czcionki) — skaluje to tylko edytor i widok czytania; interfejs pozostaje bez zmian.
 - **Lista czcionek**: pod **Niestandardowa…** znajduje się lista czcionek Twojego systemu, każdy wiersz w swojej czcionce; niezainstalowana czcionka informuje o tym i nie da się jej wybrać. Pole nazwy poniżej przyjmuje każdą inną zainstalowaną czcionkę.
 - **Powiększenie interfejsu**: skaluje CAŁY interfejs między 80 % a 150 % — w **Ustawienia → Aplikacja → Wygląd** lub przez `Ctrl+Plus`/`Ctrl+Minus` (`Ctrl+0` przywraca wartość domyślną).
