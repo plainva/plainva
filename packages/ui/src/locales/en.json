@@ -2484,6 +2484,8 @@
     "backupZipDone": "Backup created: {{name}}",
     "backupUnreadableTitle": "Older backups cannot be read",
     "backupUnreadableBody": "The folder {{folder}} holds files this installation cannot access — that happens after a reinstall. They are neither counted nor pruned here; the Files app can still reach them.",
+    "liftEncryptionRunning_one": "Lifting encryption · {{count}} file still waits for its plain-text upload. The upload continues through the sync queue, even after you switch apps.",
+    "liftEncryptionRunning_other": "Lifting encryption · {{count}} files still wait for their plain-text upload. The upload continues through the sync queue, even after you switch apps.",
     "openAttachmentFailed": "The file could not be opened.",
     "todayEvents": "Appointments",
     "todayDue": "Due",

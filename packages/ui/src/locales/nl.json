@@ -2484,6 +2484,8 @@
     "backupZipDone": "Back-up gemaakt: {{name}}",
     "backupUnreadableTitle": "Oudere back-ups zijn niet leesbaar",
     "backupUnreadableBody": "De map {{folder}} bevat bestanden waar deze installatie geen toegang toe heeft — dat gebeurt na een herinstallatie. Ze worden hier niet meegeteld en niet opgeruimd; de app Bestanden kan ze nog openen.",
+    "liftEncryptionRunning_one": "Versleuteling wordt opgeheven · nog {{count}} bestand wacht op de upload als platte tekst. De upload gaat via de synchronisatiewachtrij door, ook na het wisselen van app.",
+    "liftEncryptionRunning_other": "Versleuteling wordt opgeheven · nog {{count}} bestanden wachten op de upload als platte tekst. De upload gaat via de synchronisatiewachtrij door, ook na het wisselen van app.",
     "openAttachmentFailed": "Het bestand kon niet worden geopend.",
     "todayEvents": "Afspraken",
     "todayDue": "Te doen",

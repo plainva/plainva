@@ -2466,6 +2466,7 @@
     "backupZipDone": "已创建备份：{{name}}",
     "backupUnreadableTitle": "较早的备份无法读取",
     "backupUnreadableBody": "文件夹 {{folder}} 中有此次安装无法访问的文件——重新安装后会出现这种情况。这里不会统计或清理它们；“文件”应用仍能打开它们。",
+    "liftEncryptionRunning_other": "正在取消加密 · 还有 {{count}} 个文件等待以明文上传。上传会通过同步队列继续进行，切换应用后也不会中断。",
     "openAttachmentFailed": "无法打开该文件。",
     "todayEvents": "日程",
     "todayDue": "到期",

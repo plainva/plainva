@@ -2484,6 +2484,8 @@
     "backupZipDone": "Sicherung erstellt: {{name}}",
     "backupUnreadableTitle": "Ältere Sicherungen sind nicht lesbar",
     "backupUnreadableBody": "Im Ordner {{folder}} liegen Dateien, auf die diese Installation keinen Zugriff hat — das passiert nach einer Neuinstallation. Sie werden hier weder gezählt noch aufgeräumt; in der Dateien-App bleiben sie erreichbar.",
+    "liftEncryptionRunning_one": "Verschlüsselung wird aufgehoben · noch {{count}} Datei wartet auf den Klartext-Upload. Der Upload läuft über die Sync-Warteschlange weiter, auch nach einem App-Wechsel.",
+    "liftEncryptionRunning_other": "Verschlüsselung wird aufgehoben · noch {{count}} Dateien warten auf den Klartext-Upload. Der Upload läuft über die Sync-Warteschlange weiter, auch nach einem App-Wechsel.",
     "openAttachmentFailed": "Die Datei konnte nicht geöffnet werden.",
     "todayEvents": "Termine",
     "todayDue": "Fällig",

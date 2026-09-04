@@ -548,23 +548,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-02",
   },
   {
-    id: "lift-encryption",
-    title: "Turn encryption off and go back to plain files",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "Both shells can decommission a workspace — that is local, works offline and " +
-      "leaves the encrypted objects in the cloud untouched. Lifting encryption is the " +
-      "other half: it re-uploads every file of the vault as plaintext into the same " +
-      "folder, which is the heaviest network operation this app has and the one the " +
-      "phone deliberately meters (see connect-metering). It needs a surface that can " +
-      "show a long, resumable whole-vault upload; until then the phone offers the " +
-      "decommission it can finish rather than a start it cannot.",
-    verified: "2026-08-25",
-  },
-  {
     id: "suggest-mode-entry",
     title: "Where the suggestion mode is switched on",
     area: "security",

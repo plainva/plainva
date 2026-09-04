@@ -2466,6 +2466,7 @@
     "backupZipDone": "バックアップを作成しました: {{name}}",
     "backupUnreadableTitle": "以前のバックアップは読み取れません",
     "backupUnreadableBody": "フォルダー {{folder}} には、このインストールからアクセスできないファイルがあります。再インストール後に起こります。ここでは数えられず、整理もされませんが、ファイルアプリからは引き続き開けます。",
+    "liftEncryptionRunning_other": "暗号化を解除しています · まだ {{count}} 件のファイルが平文アップロードを待っています。アップロードは同期キューを通じて続行され、アプリを切り替えても止まりません。",
     "openAttachmentFailed": "ファイルを開けませんでした。",
     "todayEvents": "予定",
     "todayDue": "期限",

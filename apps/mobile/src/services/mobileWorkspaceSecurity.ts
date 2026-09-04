@@ -1167,6 +1167,36 @@ export async function decommissionMobileWorkspace(input: {
 }
 
 /**
+ * Lifting the encryption on the phone (catalog gap `lift-encryption` until
+ * 2026-09-04). The desktop's twin is `VaultContext.liftWorkspaceEncryption`:
+ * decommission, then reopen as a NEW plaintext connection so every local file
+ * is queued and uploaded as plain text into the same cloud folder. On the
+ * phone the upload is the one thing the shell deliberately meters (consent
+ * before mobile data, foreground only, the rest queued), so "lifting" is not
+ * one call here but a state: the queue holds every file, the worker drains it
+ * across app switches, and this flag lets the Security area say so — with the
+ * pending count as the honest progress — until the queue is empty. Nothing is
+ * deleted; the `.pvws/` objects stay until the user removes the folder.
+ */
+const liftKey = (vaultId: string) => `plainva-mobile-lift-${vaultId}`;
+
+export async function markMobileEncryptionLift(vaultId: string): Promise<void> {
+  await Preferences.set({ key: liftKey(vaultId), value: new Date().toISOString() });
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+}
+
+/** ISO time the lift started, or null when none is under way. */
+export async function readMobileEncryptionLift(vaultId: string): Promise<string | null> {
+  const value = await Preferences.get({ key: liftKey(vaultId) });
+  return value.value || null;
+}
+
+export async function clearMobileEncryptionLift(vaultId: string): Promise<void> {
+  await Preferences.remove({ key: liftKey(vaultId) });
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
+}
+
+/**
  * The quarantine's actions on the phone (finding 2026-09-03): the same
  * service the desktop uses, over this vault's state and this shell's sync.
  * A retry answers with what is still open; the diagnosis is a JSON string

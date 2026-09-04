@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
@@ -86,6 +86,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [localForks, setLocalForks] = useState<WorkspaceLocalForkRecord[]>([]);
   const [rekey, setRekey] = useState<{ phase: string; completed: number; total: number; lastError: string | null } | null>(null);
   const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
+  /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
+  const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
   const [area, setArea] = useState<"overview" | "devices" | "team" | "slices" | "recovery">("overview");
 
   // The recovery code is the single highest-stakes text the app ever asks for:
@@ -142,6 +144,15 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setLocalForks(vault.workspaceState ? await vault.workspaceState.listLocalForks() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
+    // The lift's progress IS the queue: once it is empty the flag has served.
+    const liftSince = await readMobileEncryptionLift(vault.vaultId);
+    if (liftSince) {
+      const pending = (await vault.syncQueue?.getPendingOperations().catch(() => []))?.length ?? 0;
+      if (pending === 0) { await clearMobileEncryptionLift(vault.vaultId); setLift(null); }
+      else setLift({ since: liftSince, pending });
+    } else {
+      setLift(null);
+    }
     const records = vault.workspaceState ? await listMobilePublications(vault.workspaceState) : [];
     setPublications(records);
     // Bring the object counts in line before anyone reads them (finding 2026-08-25).
@@ -633,6 +644,35 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     } finally { setBusyAction(null); setResumeProgress(null); }
   };
 
+  /**
+   * Lift the encryption (4.6): decommission, queue EVERY local file for the
+   * plaintext worker, reopen. The queue survives app switches and the worker
+   * drains it under the phone's own metering, so the action returns at once
+   * and the status row below counts down what is still to upload.
+   */
+  const liftEncryption = async () => {
+    const ok = await mConfirm({
+      title: t("workspaceSecurity.liftEncryption"),
+      message: t("workspaceSecurity.liftEncryptionConfirm"),
+      confirmLabel: t("workspaceSecurity.liftEncryptionAction"),
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyAction("lift");
+    try {
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain });
+      // The queue table lives in the vault's own database, which is still open
+      // here — the reload below boots a plain vault whose worker drains it.
+      await vault.syncQueue?.enqueueAllLocalFiles();
+      await markMobileEncryptionLift(vault.vaultId);
+      toast.info(t("workspaceSecurity.liftEncryptionDone"));
+      await reloadActiveMobileVault();
+    } catch (error) {
+      console.error("[SecurityAreaScreen] lift encryption failed", error);
+      toast.error(`${t("workspaceSecurity.liftEncryptionFailed")} ${errorText(error)}`);
+    } finally { setBusyAction(null); }
+  };
+
   const decommission = async () => {
     const entry = await getActiveVaultEntry().catch(() => null);
     const name = entry?.name?.trim() || vault.vaultId;
@@ -677,6 +717,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           used to live only in the desktop What's-New text and the handbook — not
           on the screen where a device actually joins a workspace. */}
       <Banner kind="warning" rounded>{t("workspaceSecurity.experimentalNotice")}</Banner>
+      {lift && (
+        <Banner kind="info" rounded>
+          <strong>{t("workspaceSecurity.liftEncryption")}</strong>
+          <p className="m-hint" data-testid="workspace-lift-running">{t("mobile.liftEncryptionRunning", { count: lift.pending })}</p>
+        </Banner>
+      )}
       {/* The state card below IS the status for a device that has not joined a
           plain/local vault — only the joined and joinable cases add this row.
           Unlocking belongs to the status, not to an area, so it sits with it and
@@ -952,6 +998,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
               onClick={() => void decommission()}
               title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
+            />
+            <Row
+              data-testid="workspace-lift-encryption"
+              disabled={busy}
+              icon={busyAction === "lift" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
+              onClick={() => void liftEncryption()}
+              subtitle={t("workspaceSecurity.liftEncryptionDesc")}
+              title={<span className="m-danger">{t("workspaceSecurity.liftEncryption")}</span>}
             />
           </RowList>
         </GroupCard>
