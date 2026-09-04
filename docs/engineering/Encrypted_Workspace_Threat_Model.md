@@ -1,6 +1,6 @@
 # Encrypted Workspace Threat Model
 
-Last reviewed: 2026-07-22
+Last reviewed: 2026-09-04
 
 ## Assets and trust boundaries
 
@@ -9,7 +9,7 @@ Protected assets are content, path/catalog metadata, identities, group keys, rec
 ## Adversaries and controls
 
 - A malicious provider can omit, replay, reorder, truncate, duplicate, or mutate objects. Immutable hashes, Ed25519 chains, monotonic policy/checkpoint versions, CAS heads, authenticated PVO1 frames, quarantine, and fail-closed authorization detect these cases. Remote absence alone never means deletion.
-- A revoked device can replay old operations. Active policy evaluation binds accepted operations to an active member/device and capability. Epoch rotation blocks future decryption; full rekey rewrites current live content when its cost is accepted.
+- A revoked device can replay old operations, or sign new ones under a policy version in which it was still active. An operation is evaluated in the policy version it references — anything else refuses the whole history after any policy change (2026-09-04) — so the revocation is enforced by a boundary instead: a revoked device is heard only up to the sequence a device that is ACTIVE in the current policy last witnessed for it in a signed checkpoint, and its own pointer file is ignored so it cannot raise that line. Everything above it is quarantined as post-revocation. The boundary errs on the conservative side: an upload in flight during the revocation, witnessed by nobody, stays out. Epoch rotation blocks future decryption; full rekey rewrites current live content when its cost is accepted.
 - A compromised share ACL exposes ciphertext, not plaintext or capabilities. Published slices use an independent encrypted namespace. Sanitization prevents excluded property/link/embed metadata from entering the projection.
 - A crash can happen after every rotation, queue, checkpoint, publication, or recovery phase. Durable cursors and immutable operations make retry idempotent. Owner transfer saves replacement recovery before activation.
 - A compromised unlocked endpoint can exfiltrate everything granted to it. Native key storage, explicit locking, revocation, and least-privilege slices reduce persistence but cannot defeat malware controlling the unlocked process.

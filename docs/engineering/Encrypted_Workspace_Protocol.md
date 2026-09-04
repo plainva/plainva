@@ -458,7 +458,8 @@ Readers MUST validate in this order:
 4. canonical encoding, IDs, paths, ordering and duplicates;
 5. document hashes and references;
 6. signatures against an already accepted genesis/policy key;
-7. current policy capability and revocation state;
+7. capability in the REFERENCED accepted policy, plus the revocation boundary
+   of section 17.1;
 8. HPKE envelope binding;
 9. AEAD and plaintext/content hashes.
 
@@ -662,6 +663,55 @@ but would remove the actor's own read access, Desktop and Mobile require an
 explicit confirmation before touching disk. Denied out-of-process changes are
 preserved as local-only forks below `.plainva/workspace/forks/` and never signed
 or uploaded.
+
+### 17.1 Which policy version judges an operation
+
+An operation carries the hash of the policy it was written under. It is
+accepted when that hash is **on the accepted successor chain** — not only when
+it equals the newest version — and its capability is evaluated in that
+referenced version, together with the slice membership and the delete, comment
+and management checks that follow from it. This is what "the required
+capability in the referenced accepted policy" (section 2.2) means: an author
+can only know the version in force when it wrote.
+
+Comparing against the newest version instead is not a stricter reading, it is a
+broken one: a policy advances whenever a device, member, group or slice is
+added, so every operation older than the last change would be refused. Because
+objects are materialised only while an operation is applied, a device joining
+after a policy change would then rebuild the vault **empty**. Plainva shipped
+that defect until 2026-09-04.
+
+**Revocation boundary.** Accepting an operation under the version it references
+would otherwise let a revoked device keep writing by pointing at a version in
+which it was still active. A device that is `revoked` in the current policy is
+therefore heard only up to the highest sequence recorded for it in a checkpoint
+signed by a device that is **active** in the current policy; anything above
+that line is refused as post-revocation and quarantined. Pointer files of
+revoked devices are ignored (they are hints, section 2.2), so a revoked device
+cannot raise its own boundary. The boundary is deliberately conservative: an
+upload that was in flight when the revocation happened, and that no active
+device had witnessed, does not get in.
+
+A future protocol version SHOULD record the boundary explicitly — the last
+accepted sequence per device at the moment of revocation, in the policy
+successor that performs it — which makes the rule independent of checkpoint
+timing. It is not in this version because the policy payload schema is
+exact-keyed and an added field would make the document unreadable for older
+clients; the checkpoint-derived boundary needs no format change.
+
+**Per-device chains** are continued from what the reader already holds: the
+first unknown operation of a device must follow the last one that reader
+applied (sequence + 1 with that operation's hash as predecessor), or start at
+sequence one with an empty predecessor when the reader holds none of it.
+Operations at or below what a reader already applied are not re-judged.
+Demanding that a listing always begin at sequence one turns any absence — an
+operation dropped earlier in the same pass, a not-yet-uploaded write — into a
+permanent gap.
+
+**Own pointer.** A reader does not apply the rollback check to its own head
+file: its local head advances when an operation is prepared and the remote
+pointer is written at the end of the cycle, so a lagging own pointer means the
+pointer must be written again, not that the store rolled back.
 
 Every policy successor references the complete previous policy hash and is
 signed by an endpoint with current management authority (or by the active
