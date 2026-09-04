@@ -101,18 +101,21 @@ jobs:
           else
             # A pre-release so that it can never become "Latest" itself, and
             # never a draft: draft assets are not publicly downloadable.
+            # The notes are built with printf: a heredoc terminator would have to
+            # sit at column 0, which ends this YAML block scalar (measured: the
+            # first version of this file failed to parse for exactly that).
+            printf '%s\n' \
+              'This release holds exactly one file, `latest.json`, at a fixed address that the desktop app'"'"'s built-in updater reads:' \
+              '' \
+              '`https://github.com/plainva/plainva/releases/download/updater/latest.json`' \
+              '' \
+              'It is rewritten automatically by the **Updater manifest** workflow every time a desktop release (`vX.Y.Z`) is published. It is not a release of Plainva - install the app from the newest `Plainva vX.Y.Z` release or from https://plainva.com.' \
+              > updater-notes.md
             gh release create "$FIXED_TAG" \
               --target "${{ github.sha }}" \
               --prerelease \
               --title "Desktop update manifest" \
-              --notes "$(cat <<'EOF'
-This release holds exactly one file, `latest.json`, at a fixed address that the desktop app's built-in updater reads:
-
-`https://github.com/plainva/plainva/releases/download/updater/latest.json`
-
-It is rewritten automatically by the **Updater manifest** workflow every time a desktop release (`vX.Y.Z`) is published. It is not a release of Plainva — install the app from the newest `Plainva vX.Y.Z` release or from https://plainva.com.
-EOF
-)"
+              --notes-file updater-notes.md
           fi
 
       - name: Upload the manifest to the fixed location
