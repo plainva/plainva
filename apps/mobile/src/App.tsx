@@ -31,6 +31,7 @@ import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
+import { recordProcessExitsOnBoot } from "./services/processExits";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
@@ -329,6 +330,10 @@ export default function App() {
       if (removed) void h.remove();
       else handle = h;
     });
+    // What the system says about the last time this app ended (Android 17's
+    // memory limiter kills without a word) — folded into the diagnostics once
+    // per start, before anything else can be blamed (plan 2026-09-04, P1).
+    void recordProcessExitsOnBoot();
     void CapApp.getLaunchUrl().then((r) => {
       if (r?.url) void routeAppUrl(r.url);
     });

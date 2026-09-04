@@ -446,6 +446,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-23",
   },
   {
+    id: "process-exit-diagnostics",
+    title: "Why the system ended the app, in the sync diagnostics",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "A desktop OS has no per-app memory limiter and keeps no per-package exit " +
+      "record the app could read; the entry exists for Android 17's limiter, " +
+      "which kills without a trace the user could see (plan 2026-09-04, P1). " +
+      "iOS is covered by the same mobile screen showing nothing: it has no " +
+      "comparable list either.",
+    mobile: "yes",
+    verified: "2026-09-04",
+  },
+  {
     id: "share-target",
     title: "Receive text or images shared from other apps",
     area: "platform",

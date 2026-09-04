@@ -130,6 +130,37 @@ jobs:
             ./gradlew bundleRelease assembleRelease -Pandroid.injected.version.code="$VERSION_CODE"
           fi
 
+      # 16 KB page size: Play refuses updates without it from 2027-02-01 (apps
+      # targeting API 35+). Today the bundle's only native library is SQLCipher,
+      # 16 KB-aware since 4.6.1 — this step is the guard against a dependency
+      # bump quietly undoing that, and it runs BEFORE the upload so a regression
+      # never reaches the internal track. Every LOAD segment of every .so must
+      # be aligned to at least 0x4000 (16384). See
+      # docs/engineering/Android_Platform_Requirements.md.
+      - name: Check 16 KB page alignment of native libraries
+        working-directory: apps/mobile/android
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/aab && mkdir -p /tmp/aab
+          unzip -q -o app/build/outputs/bundle/release/app-release.aab -d /tmp/aab
+          libs=$(find /tmp/aab -path '*/lib/*' -name '*.so' | sort)
+          if [ -z "$libs" ]; then
+            echo "No native libraries in the bundle - nothing to align."
+            exit 0
+          fi
+          bad=0
+          for so in $libs; do
+            aligns=$(readelf -lW "$so" | awk '$1 == "LOAD" { print $NF }')
+            echo "$so: LOAD alignment $(echo "$aligns" | tr '\n' ' ')"
+            for a in $aligns; do
+              if [ "$((a))" -lt 16384 ]; then
+                echo "::error::$so has a LOAD segment aligned to $a (< 0x4000): not 16 KB page compatible"
+                bad=1
+              fi
+            done
+          done
+          [ "$bad" -eq 0 ] || exit 1
+
       # Auto-upload to the Play internal test track when the service-account
       # secret exists (secrets are NOT allowed in `if:`, so gate on a step
       # output). The app must have been published once manually first — Play

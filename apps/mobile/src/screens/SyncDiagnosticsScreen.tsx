@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { loadProcessExits, processExitLabelKey, type ProcessExitRecord } from "../services/processExits";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, SETTINGS_SYNC_FAILURES_BEFORE_ERROR, settingsSyncFailureIsWaiting, type SyncDiagnostics } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
@@ -35,6 +36,7 @@ export function SyncDiagnosticsScreen({
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
   const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
+  const [exits, setExits] = useState<ProcessExitRecord[]>([]);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
 
@@ -42,7 +44,10 @@ export function SyncDiagnosticsScreen({
   // which nobody sits watching this screen for.
   useEffect(() => {
     let alive = true;
-    const read = () => void loadSyncDiagnostics(vaultId).then((d) => { if (alive) setDiag(d); });
+    const read = () => {
+      void loadSyncDiagnostics(vaultId).then((d) => { if (alive) setDiag(d); });
+      void loadProcessExits().then((list) => { if (alive) setExits(list); });
+    };
     read();
     window.addEventListener(SYNC_DIAGNOSTICS_EVENT, read);
     return () => {
@@ -202,6 +207,25 @@ export function SyncDiagnosticsScreen({
           ))}
         <p className="m-hint">{t("settingsSync.diagStays")}</p>
       </div>
+      {/* Android's own record of why the app last ended (plan 2026-09-04, P1):
+          the memory limiter kills without a trace the user could see. */}
+      {exits.length > 0 && (
+        <>
+          <SectionLabel>{t("settingsSync.diagProcessExits")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              {exits.map((e) => (
+                <Row
+                  key={e.at}
+                  title={new Date(e.at).toLocaleString()}
+                  subtitle={e.description ? `${t(processExitLabelKey(e.kind))} · ${e.description}` : t(processExitLabelKey(e.kind))}
+                  wrap
+                />
+              ))}
+            </RowList>
+          </GroupCard>
+        </>
+      )}
       {status.errorHistory.length > 0 && (
         <>
           <SectionLabel>{t("settings.syncErrorHistory")}</SectionLabel>
