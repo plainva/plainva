@@ -496,7 +496,7 @@
     "themeLight": "Licht",
     "themeMode": "Modus",
     "themeName": "Thema",
-    "customTheme": "Eigen",
+    "customTheme": "Mijn thema",
     "customThemeMode": "Grondtoon",
     "customThemeBackground": "Achtergrond",
     "customThemeBackgroundHint": "Helderheid {{lo}}–{{hi}} %",
@@ -1603,7 +1603,7 @@
   },
   "themes": {
     "names": {
-      "custom": "Eigen",
+      "custom": "Mijn thema",
       "petrol": "Petrol",
       "nord": "Nord",
       "solarized": "Solarized",

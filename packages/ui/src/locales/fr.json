@@ -498,7 +498,7 @@
     "themeLight": "Clair",
     "themeMode": "Mode",
     "themeName": "Thème",
-    "customTheme": "Personnalisé",
+    "customTheme": "Mon thème",
     "customThemeMode": "Ambiance",
     "customThemeBackground": "Fond",
     "customThemeBackgroundHint": "Luminosité {{lo}}–{{hi}} %",
@@ -1610,7 +1610,7 @@
   },
   "themes": {
     "names": {
-      "custom": "Personnalisé",
+      "custom": "Mon thème",
       "petrol": "Pétrole",
       "nord": "Nord",
       "solarized": "Solarized",

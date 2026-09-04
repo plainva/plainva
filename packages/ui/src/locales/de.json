@@ -496,7 +496,7 @@
     "themeLight": "Hell",
     "themeMode": "Modus",
     "themeName": "Theme",
-    "customTheme": "Eigenes",
+    "customTheme": "Mein Design",
     "customThemeMode": "Grundstimmung",
     "customThemeBackground": "Hintergrund",
     "customThemeBackgroundHint": "Helligkeit {{lo}}–{{hi}} %",
@@ -1603,7 +1603,7 @@
   },
   "themes": {
     "names": {
-      "custom": "Eigenes",
+      "custom": "Mein Design",
       "petrol": "Petrol",
       "nord": "Nord",
       "solarized": "Solarized",

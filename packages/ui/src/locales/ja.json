@@ -494,7 +494,7 @@
     "themeLight": "ライト",
     "themeMode": "モード",
     "themeName": "テーマ",
-    "customTheme": "カスタム",
+    "customTheme": "マイテーマ",
     "customThemeMode": "基調",
     "customThemeBackground": "背景",
     "customThemeBackgroundHint": "明度 {{lo}}–{{hi}} %",
@@ -1596,7 +1596,7 @@
   },
   "themes": {
     "names": {
-      "custom": "カスタム",
+      "custom": "マイテーマ",
       "petrol": "ペトロール",
       "nord": "Nord",
       "solarized": "Solarized",

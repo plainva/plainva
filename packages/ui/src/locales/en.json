@@ -496,7 +496,7 @@
     "themeLight": "Light",
     "themeMode": "Mode",
     "themeName": "Theme",
-    "customTheme": "Custom",
+    "customTheme": "My theme",
     "customThemeMode": "Mood",
     "customThemeBackground": "Background",
     "customThemeBackgroundHint": "Lightness {{lo}}–{{hi}} %",
@@ -1603,7 +1603,7 @@
   },
   "themes": {
     "names": {
-      "custom": "Custom",
+      "custom": "My theme",
       "petrol": "Petrol",
       "nord": "Nord",
       "solarized": "Solarized",

@@ -494,7 +494,7 @@
     "themeLight": "浅色",
     "themeMode": "模式",
     "themeName": "主题",
-    "customTheme": "自定义",
+    "customTheme": "我的主题",
     "customThemeMode": "基调",
     "customThemeBackground": "背景",
     "customThemeBackgroundHint": "亮度 {{lo}}–{{hi}} %",
@@ -1596,7 +1596,7 @@
   },
   "themes": {
     "names": {
-      "custom": "自定义",
+      "custom": "我的主题",
       "petrol": "深青",
       "nord": "Nord",
       "solarized": "Solarized",

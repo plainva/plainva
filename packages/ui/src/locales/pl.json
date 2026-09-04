@@ -500,7 +500,7 @@
     "themeLight": "Jasny",
     "themeMode": "Tryb",
     "themeName": "Motyw",
-    "customTheme": "Własny",
+    "customTheme": "Mój motyw",
     "customThemeMode": "Nastrój",
     "customThemeBackground": "Tło",
     "customThemeBackgroundHint": "Jasność {{lo}}–{{hi}} %",
@@ -1617,7 +1617,7 @@
   },
   "themes": {
     "names": {
-      "custom": "Własny",
+      "custom": "Mój motyw",
       "petrol": "Petrol",
       "nord": "Nord",
       "solarized": "Solarized",
