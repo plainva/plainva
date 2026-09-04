@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, FilePlus2, MapPin, Pencil, Repeat, Trash2, Users } from "lucide-react";
+import { Check, FilePlus2, MapPin, Pencil, Repeat, Trash2, Users, CopyPlus } from "lucide-react";
 import {
   ICON,
   acceptedCount,
@@ -47,6 +47,7 @@ export function EventPeekSheet({
   onDelete,
   onMeetingNote,
   onRespond,
+  onBlock,
 }: {
   event: PimEventRow;
   /** The loaded rows — the next occurrence is read from them. */
@@ -62,6 +63,8 @@ export function EventPeekSheet({
   onMeetingNote: () => void;
   /** Only when the user is an invitee. */
   onRespond?: (response: "accepted" | "declined" | "tentative") => void;
+  /** Mirror this event into other calendars (C33); absent when no other writable calendar exists. */
+  onBlock?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const attendees = useMemo(() => peekAttendees(event), [event]);
@@ -171,6 +174,12 @@ export function EventPeekSheet({
           <Pencil size={ICON.head} />
           <span>{t("pim.editEvent", { defaultValue: "Termin bearbeiten" })}</span>
         </button>
+        {onBlock && (
+          <button className="m-row" onClick={onBlock} data-testid="event-peek-block">
+            <CopyPlus size={ICON.ui} />
+            <span>{t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" })}</span>
+          </button>
+        )}
         <button className="m-row" onClick={onMeetingNote} data-testid="event-peek-note">
           <FilePlus2 size={ICON.head} />
           <span>{t("pim.meetingNote", { defaultValue: "Meeting-Notiz" })}</span>

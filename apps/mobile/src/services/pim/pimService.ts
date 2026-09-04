@@ -432,6 +432,13 @@ export function pimTaskListRuntime(): TaskListRuntime | null {
   };
 }
 
+/** The provider target of one account (C33: the block runner asks per account). */
+export async function pimTargetForAccount(accountId: string): Promise<IPimTarget | null> {
+  if (!runtime) return null;
+  const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+  return account ? runtime.buildTarget(account) : null;
+}
+
 /** The provider target behind a "<accountId> <calendarId>" picker key. */
 export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPimTarget | null> {
   if (!runtime) return null;

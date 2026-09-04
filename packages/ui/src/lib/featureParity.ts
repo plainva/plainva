@@ -326,22 +326,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "calendar-block-in-others",
-    title: "Blocking an event as busy in other calendars",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's event menu mirrors an event into other calendars as a " +
-      "busy block or a copy; the phone's event sheet has no such entry. " +
-      "Recorded while the desktop path got its reasons back (K9, finding " +
-      "2026-09-03): the same core write path exists on the phone, only the " +
-      "sheet action and the calendar picker are missing. Build after the " +
-      "release (decision E7 of the correction round).",
-    verified: "2026-09-03",
-  },
-  {
     id: "mail-list-keyboard",
     title: "Arrow-key navigation in the message list",
     area: "pim",
@@ -506,30 +490,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "origins on two platforms is the kind of asymmetry nobody can explain later). " +
       "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
       "touch target. Both shells run through one pop path; only the trigger differs.",
-    verified: "2026-09-03",
-  },
-  {
-    id: "comment-anchor-create",
-    title: "Attaching a comment or a suggestion to a passage",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The phone reads every thread, replies, resolves, jumps to a passage by " +
-      "tapping its quote, and accepts or declines a proposal. Since Stufe E it also " +
-      "STARTS a comment on everything that is not a passage: a picture (and a " +
-      "region drawn inside it with a finger), a diagram, a table cell, a database " +
-      "property. None of those need selected text, which is why they could be " +
-      "closed first. Since the suggestion mode (Vorschlagsmodus, V5) the phone also " +
-      "PROPOSES changes to a passage: the mode from the note's menu edits a copy " +
-      "and sends the blocks as a round, no selection needed. What is left is " +
-      "starting a COMMENT on a passage: that flow begins with a text selection, " +
-      "and the note opens read-first on the phone, so the selection would have to " +
-      "compete with the system's own copy bubble. That is a gap, not a platform " +
-      "limit — a phone can select text — and it is written up in the " +
-      "collected-remainders plan (Sammelplan, C26). The read half was the urgent " +
-      "one either way: on a phone you mostly answer what somebody else pointed at.",
     verified: "2026-09-03",
   },
   {

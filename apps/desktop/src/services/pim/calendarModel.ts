@@ -1,5 +1,4 @@
-import type { PimEventDraft, PimEventRow, PimRecurrence } from "@plainva/core";
-import { markdownToHtml } from "@plainva/ui";
+import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 
 /**
@@ -82,33 +81,13 @@ export function buildEditCalendarOptions(
   return [{ value: currentKey, label }, ...writableOptions];
 }
 
-/** Builds a draft that mirrors an event into ANOTHER calendar as a blocker
- * (calendar #1, Notion-Calendar style): either an opaque "Busy" placeholder or
- * a full copy with details. A recurrence (from the source series' master) makes
- * the block recur too. Pure. */
-export function buildBlockDraft(
-  e: Pick<PimEventRow, "uid" | "title" | "allDay" | "start" | "end" | "location" | "description">,
-  mode: "busy" | "details",
-  busyLabel: string,
-  recurrence?: PimRecurrence | null
-): PimEventDraft {
-  return {
-    title: mode === "busy" ? busyLabel : e.title,
-    allDay: e.allDay,
-    start: e.allDay && e.start.date ? { ts: e.start.ts, date: e.start.date } : { ts: e.start.ts },
-    end: e.allDay && e.end.date ? { ts: e.end.ts, date: e.end.date } : { ts: e.end.ts },
-    location: mode === "details" ? e.location ?? undefined : undefined,
-    description: mode === "details" ? e.description ?? undefined : undefined,
-    descriptionHtml: mode === "details" && e.description ? markdownToHtml(e.description) : undefined,
-    recurrence: recurrence ?? undefined,
-    blockOf: e.uid,
-  };
-}
 
 // The time-block slice (picker rules, HH:MM helpers, the event draft) moved
-// to @plainva/ui (S24) so the phone blocks time through the same code;
-// re-exported here so every existing import path keeps working.
+// to @plainva/ui (S24) so the phone blocks time through the same code, and the
+// block draft followed it (C33); re-exported here so every existing import
+// path keeps working.
 export {
+  buildBlockDraft,
   writableCalendarsOf,
   calendarPickerOptions,
   resolveDefaultCalendarKey,

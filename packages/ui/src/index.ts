@@ -65,6 +65,7 @@ export { WhatsNewIcon } from "./components/WhatsNewIcon";
 export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";
 export * from "./pim/eventColors";
+export * from "./pim/blockCalendars";
 export * from "./pim/eventWrite";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";

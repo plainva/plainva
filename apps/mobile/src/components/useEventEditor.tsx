@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, resolveDefaultCalendarKey, toast } from "@plainva/ui";
-import type { PimEventRow } from "@plainva/core";
+import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
+import { parseRRule, type PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
   createPimEvent,
   deletePimEvent,
   openMeetingNoteFor,
   pimSeriesMaster,
+  pimSyncNow,
+  pimTargetForAccount,
   respondToPimEvent,
   updatePimEvent,
   writablePimCalendarOptions,
@@ -143,6 +145,72 @@ export function useEventEditor({
     }
   };
 
+  /** The OTHER writable calendars — never the event's own (same rule as the desktop dialog). */
+  const blockTargetsFor = (e: PimEventRow) => calendars.filter((c) => c.value !== `${e.accountId} ${e.calendarId}`);
+
+  /**
+   * "Block in other calendars" from the preview (C33, catalog gap until
+   * 2026-09-04). Two sheets — which calendars, then busy or a copy — and the
+   * shared runner does the writing: a series is mirrored from its master so
+   * the block recurs too, and every failure keeps the provider's reason.
+   */
+  const blockFromPeek = async (e: PimEventRow) => {
+    setPeek(null);
+    const options = blockTargetsFor(e);
+    if (options.length === 0) {
+      toast.info(t("pim.blockNoOther", { defaultValue: "Kein weiterer beschreibbarer Kalender vorhanden." }));
+      return;
+    }
+    const picked = await mMultiSelect({
+      title: t("pim.blockInCalendars", { defaultValue: "In anderen Kalendern blockieren" }),
+      message: t("pim.blockHint", { title: e.title, defaultValue: "„{{title}}“ in weitere Kalender als Blocker übernehmen." }),
+      options,
+      values: [],
+    });
+    if (!picked || picked.length === 0) return;
+    const mode = await mSelect({
+      title: t("pim.blockMode", { defaultValue: "Als" }),
+      message: e.seriesMaster ? t("pim.blockSeriesHint", { defaultValue: "Die Wiederholung wird mitübernommen." }) : undefined,
+      options: [
+        { value: "busy", label: t("pim.blockBusy", { defaultValue: "Beschäftigt" }) },
+        { value: "details", label: t("pim.blockDetails", { defaultValue: "Mit Details" }) },
+      ],
+      value: "busy",
+    });
+    if (mode !== "busy" && mode !== "details") return;
+    const master = e.seriesMaster ? await pimSeriesMaster(e) : null;
+    const source = master ?? e;
+    const recurrence = master ? parseRRule(master.recurrence) : null;
+    const draft = buildBlockDraft(source, mode, t("pim.busyTitle", { defaultValue: "Beschäftigt" }), recurrence);
+    const { ok, failed } = await runCalendarBlocks({
+      keys: picked,
+      labelFor: (key) => options.find((o) => o.value === key)?.label ?? key,
+      targetFor: async (accountId) => {
+        try {
+          const target = await pimTargetForAccount(accountId);
+          return target ? { target } : { target: null, reason: t("pim.blockNoTarget", { defaultValue: "Konto nicht angemeldet" }) };
+        } catch (error) {
+          return { target: null, reason: error instanceof Error ? error.message : String(error) };
+        }
+      },
+      draft,
+    });
+    if (ok > 0) {
+      toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
+      pimSyncNow();
+    }
+    if (failed.length > 0) {
+      const cals = failed.map((f) => `${f.label} (${f.reason})`).join(", ");
+      const message = t("pim.blockFailedFor", { cals, defaultValue: "Konnte in {{cals}} nicht blockieren." });
+      // A 401/403 is a right the token does not carry — the sign-in is the fix,
+      // and the accounts screen is where it lives on the phone.
+      if (failed.some(isAuthorizationFailure)) toast.error(`${message} ${t("pim.blockReauth", { defaultValue: "Neu anmelden" })}`);
+      else toast.error(message);
+    } else if (ok === 0) {
+      toast.error(t("pim.eventWriteFailed"));
+    }
+  };
+
   const respondFromPeek = async (e: PimEventRow, response: "accepted" | "declined" | "tentative") => {
     setPeek(null);
     try {
@@ -244,6 +312,7 @@ export function useEventEditor({
           onDelete={() => void deleteFromPeek(peek)}
           onMeetingNote={() => void meetingNoteFromPeek(peek)}
           onRespond={peek.selfResponse ? (r) => void respondFromPeek(peek, r) : undefined}
+          onBlock={blockTargetsFor(peek).length > 0 ? () => void blockFromPeek(peek) : undefined}
         />
       ) : null}
       {sheet ? (
