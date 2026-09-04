@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stand: 2026-08-21
+Stand: 2026-09-04
 
 OKF (Open Knowledge Format) ist eine offene Konvention für Markdown-Wissenssammlungen: reine Markdown-Dateien mit einem kleinen, einheitlichen Frontmatter-Kopf. Diese Seite erklärt, was OKF ist, was Plainva dafür automatisch tut — und warum Du nichts davon nutzen *musst*.
 
@@ -50,7 +50,7 @@ Seit OKF 0.2 kann eine Notiz sagen, woher sie stammt, wer sie geprüft hat und o
 
 - Eine Notiz mit `status: draft` oder `status: deprecated` trägt im Dokumentkopf ein Abzeichen — **Entwurf** bzw. **Eingestellt**. `stable` bleibt still; eine eigene `status`-Spalte mit anderen Werten (etwa `Offen` in einer Aufgaben-Datenbank) ist kein Lebenszyklus-Zustand und bekommt kein Abzeichen.
 - Ist `stale_after` überschritten, steht über der Notiz der Hinweis **Als veraltet markiert (seit …)** mit einem Sprung zu den Eigenschaften. Der Hinweis ist reine Anzeige — Plainva ändert an der Notiz nichts.
-- Der Abschnitt **Vertrauen & Herkunft** im Eigenschaften-Bereich (am Telefon: im Kontext-Blatt der Notiz) fasst die Felder zusammen und leitet daraus eine Vertrauensstufe ab: **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft** — dazu Erzeugt-von, die Geprüft-Liste, Quellen als anklickbare Links, Status und Veraltet-ab.
+- Der Abschnitt **Vertrauen & Herkunft** im Eigenschaften-Bereich (am Telefon: im Kontext-Blatt der Notiz) fasst die Felder zusammen und leitet daraus eine Vertrauensstufe ab: **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft** — dazu Erzeugt-von, die Geprüft-Liste, Quellen als anklickbare Links, Status und Veraltet-ab. Die Zeilen **Status**, **Veraltet ab** und **OKF-Version** tragen übersetzte Beschriftungen; der Schlüssel, der in der Datei steht (`status`, `stale_after`, `okf_version`), erscheint als Hinweis am Schloss-Symbol und bleibt unverändert.
 
 **Was Plainva schreibt.**
 

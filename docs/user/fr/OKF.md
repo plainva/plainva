@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-09-04
 
 OKF (Open Knowledge Format) est une convention ouverte pour les collections de connaissances en Markdown : des fichiers Markdown purs avec un petit en-tête frontmatter uniforme. Cette page explique ce qu'est l'OKF, ce que Plainva fait automatiquement pour lui — et pourquoi vous n'êtes *obligé* d'utiliser rien de tout cela.
 
@@ -50,7 +50,7 @@ Depuis l'OKF 0.2, une note peut dire d'où elle vient, qui l'a relue et si elle 
 
 - Une note avec `status: draft` ou `status: deprecated` porte un badge dans l'en-tête du document — **Brouillon** ou **Obsolète**. `stable` reste silencieux ; une colonne `status` à vous avec d'autres valeurs (disons `Open` dans une base de tâches) n'est pas un état de cycle de vie et ne reçoit aucun badge.
 - Une fois `stale_after` dépassé, l'avis **Marquée comme périmée (depuis le …)** apparaît au-dessus de la note avec un saut vers les propriétés. L'avis est un simple affichage — Plainva ne change rien dans la note.
-- La section **Confiance et provenance** du panneau des propriétés (sur le téléphone : dans la fiche contextuelle de la note) résume les champs et en déduit un niveau de confiance : **Non vérifiée**, **Confirmée par la machine** ou **Relue par une personne** — plus l'auteur de la génération, la liste verified, les sources en liens cliquables, le statut et la péremption.
+- La section **Confiance et provenance** du panneau des propriétés (sur le téléphone : dans la fiche contextuelle de la note) résume les champs et en déduit un niveau de confiance : **Non vérifiée**, **Confirmée par la machine** ou **Relue par une personne** — plus l'auteur de la génération, la liste verified, les sources en liens cliquables, le statut et la péremption. Les lignes **Statut**, **Périmée après** et **Version OKF** portent des libellés traduits ; la clé écrite dans le fichier (`status`, `stale_after`, `okf_version`) apparaît en infobulle sur l'icône de cadenas et ne change jamais.
 
 **Ce que Plainva écrit.**
 

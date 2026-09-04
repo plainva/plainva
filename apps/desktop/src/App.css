@@ -445,44 +445,47 @@ option {
 
 /* Compact: the property rows stack, exactly as the 220px container query does
    for panels elsewhere — but keyed to the PANEL width, which is what the user
-   is actually dragging. */
-.pv-side-right[data-side-step="compact"] .pv-row,
-.pv-side-right[data-side-step="minimal"] .pv-row {
+   is actually dragging. Keyed to the ATTRIBUTE, not to the sidebar: the peek
+   window's properties column carries the same steps since 2026-09-04 (it was
+   260 px wide with the comfortable layout — below the compact threshold, and
+   the date wrapped into four lines). */
+[data-side-step="compact"] .pv-row,
+[data-side-step="minimal"] .pv-row {
   flex-direction: column;
   align-items: stretch;
   gap: 3px;
 }
-.pv-side-right[data-side-step="compact"] .pv-row-label,
-.pv-side-right[data-side-step="minimal"] .pv-row-label {
+[data-side-step="compact"] .pv-row-label,
+[data-side-step="minimal"] .pv-row-label {
   width: 100%;
   padding-top: 0;
 }
-.pv-side-right[data-side-step="compact"] .pv-del,
-.pv-side-right[data-side-step="minimal"] .pv-del {
+[data-side-step="compact"] .pv-del,
+[data-side-step="minimal"] .pv-del {
   position: absolute;
   top: 2px;
   right: 2px;
 }
-.pv-side-right[data-side-step="compact"] .pv-comment-dot,
-.pv-side-right[data-side-step="minimal"] .pv-comment-dot {
+[data-side-step="compact"] .pv-comment-dot,
+[data-side-step="minimal"] .pv-comment-dot {
   position: absolute;
   top: 2px;
   right: 26px;
 }
 /* Long values wrap instead of pushing the row wider than the panel. */
-.pv-side-right[data-side-step="compact"] .pv-row-value,
-.pv-side-right[data-side-step="minimal"] .pv-row-value {
+[data-side-step="compact"] .pv-row-value,
+[data-side-step="minimal"] .pv-row-value {
   overflow-wrap: anywhere;
 }
 /* Entry inspector: the two-column key/value grid gives up its columns before
    the editors get squeezed — an option chip that cannot show its label is
    worse than a label on its own line (plan P2, 232px). */
-.pv-side-right[data-side-step="compact"] .pv-dbinsp-grid,
-.pv-side-right[data-side-step="minimal"] .pv-dbinsp-grid {
+[data-side-step="compact"] .pv-dbinsp-grid,
+[data-side-step="minimal"] .pv-dbinsp-grid {
   grid-template-columns: minmax(0, 1fr);
   gap: 1px;
 }
-.pv-side-right[data-side-step="minimal"] .pv-dbinsp-val {
+[data-side-step="minimal"] .pv-dbinsp-val {
   overflow-wrap: anywhere;
 }
 
@@ -496,13 +499,9 @@ option {
    context line — at this width it was one word per line. */
 .pv-side-right[data-side-step="minimal"] .pv-graph-stage { height: 200px; }
 .pv-side-right[data-side-step="minimal"] .pv-backlink-context { display: none; }
-/* Chips can never widen the panel; they truncate like everything else. */
-.pv-side-right[data-side-step="minimal"] .pv-chip {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* Chips truncate at EVERY width now (ui.css: nowrap on the chip, ellipsis on
+   .pv-chip-text) — the former minimal-only rule here masked that the label
+   text was never wrapped in .pv-chip-text and broke into lines instead. */
 
 /* ------------------------------------------------------------
  * Truncation hardening — the cheap half of P3, effective at EVERY width.
@@ -580,7 +579,14 @@ option {
 .pv-peek-btn--active { background: var(--bg-hover); color: var(--accent-color); }
 .pv-peek-body { flex: 1; min-height: 0; display: flex; flex-direction: row; }
 .pv-peek-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.pv-peek-side { flex: 0 0 260px; min-width: 0; overflow: auto; border-left: 1px solid var(--border-color); background: var(--bg-primary); padding: 0.5rem 0.7rem; }
+/* The properties column is measured (data-side-step) and draggable at its
+   left edge; the width is inline state (2026-09-04). The grip sits OUTSIDE the
+   scrolling part so it spans the full height instead of scrolling away. */
+.pv-peek-side { flex: 0 0 auto; position: relative; display: flex; min-width: 0; border-left: 1px solid var(--border-color); background: var(--bg-primary); }
+.pv-peek-side-scroll { flex: 1; min-width: 0; overflow: auto; padding: 0.5rem 0.7rem; }
+.pv-peek-side-grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; touch-action: none; }
+.pv-peek-side-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 28px; margin-top: -14px; border-radius: var(--radius-xs); background: var(--border-color); }
+.pv-peek-side-grip:hover::after, .pv-peek-side-grip:active::after { background: var(--accent-color); }
 .pv-peek-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
 .pv-peek-resize::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 7px; height: 7px; border-right: 2px solid var(--border-color); border-bottom: 2px solid var(--border-color); }
 

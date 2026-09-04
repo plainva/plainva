@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Última actualización: 2026-08-21
+Última actualización: 2026-09-04
 
 OKF (Open Knowledge Format) es una convención abierta para colecciones de conocimiento en Markdown: archivos Markdown puros con un pequeño encabezado frontmatter uniforme. Esta página explica qué es OKF, qué hace Plainva automáticamente por él — y por qué no *tienes* que usar nada de esto.
 
@@ -50,7 +50,7 @@ Desde OKF 0.2 una nota puede decir de dónde viene, quién la ha revisado y si s
 
 - Una nota con `status: draft` o `status: deprecated` lleva una insignia en la cabecera del documento — **Borrador** u **Obsoleta**. `stable` se mantiene silenciosa; una columna `status` propia con otros valores (por ejemplo `Abierta` en una base de datos de tareas) no es un estado de ciclo de vida y no recibe insignia.
 - Una vez que `stale_after` ha pasado, el aviso **Marcada como caducada (desde …)** aparece encima de la nota con un enlace a las propiedades. El aviso es solo de visualización — Plainva no cambia nada en la nota.
-- La sección **Confianza y procedencia** del panel de propiedades (en el teléfono: en la hoja de contexto de la nota) resume los campos y deriva de ellos un nivel de confianza: **Sin verificar**, **Confirmada por la máquina** o **Revisada por una persona** — además de quién la generó, la lista de verificaciones, las fuentes como enlaces en los que se puede hacer clic, el estado y la fecha de caducidad.
+- La sección **Confianza y procedencia** del panel de propiedades (en el teléfono: en la hoja de contexto de la nota) resume los campos y deriva de ellos un nivel de confianza: **Sin verificar**, **Confirmada por la máquina** o **Revisada por una persona** — además de quién la generó, la lista de verificaciones, las fuentes como enlaces en los que se puede hacer clic, el estado y la fecha de caducidad. Las filas **Estado**, **Caduca después de** y **Versión OKF** llevan etiquetas traducidas; la clave escrita en el archivo (`status`, `stale_after`, `okf_version`) aparece como indicación en el icono del candado y no cambia.
 
 **Lo que Plainva escribe.**
 

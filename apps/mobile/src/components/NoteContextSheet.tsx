@@ -321,7 +321,7 @@ export function NoteContextSheet({
                 return locked ? (
                   <div className="m-row m-row--static" key={k} {...press}>
                     <Lock className="m-chevron" size={ICON.meta} />
-                    <span className="m-prop-key">{k}</span>
+                    <span className="m-prop-key">{k === "okf_version" ? t("trust.okfVersion") : k}</span>
                     <span className="m-prop-val">{valueText(v)}</span>
                     {badge}
                   </div>

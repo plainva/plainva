@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-09-04
 
 OKF (Open Knowledge Format) è una convenzione aperta per raccolte di conoscenza in Markdown: semplici file Markdown con una piccola intestazione frontmatter uniforme. Questa pagina spiega cos'è OKF, cosa fa automaticamente Plainva per esso — e perché non *devi* usarne nulla per forza.
 
@@ -50,7 +50,7 @@ Da OKF 0.2 una nota può dichiarare da dove viene, chi l'ha rivista e se è anco
 
 - Una nota con `status: draft` o `status: deprecated` porta un badge nell'intestazione del documento — **Bozza** o **Dismessa**. `stable` resta silenzioso; una tua colonna `status` con altri valori (ad esempio `Open` in un database attività) non è uno stato del ciclo di vita e non riceve alcun badge.
 - Una volta superato `stale_after`, l'avviso **Segnata come obsoleta (dal …)** compare sopra la nota con un salto alle proprietà. L'avviso è solo visualizzazione — Plainva non cambia nulla nella nota.
-- La sezione **Fiducia e provenienza** del pannello delle proprietà (sul telefono: nel pannello di contesto della nota) riassume i campi e ne ricava un livello di fiducia: **Non verificata**, **Confermata dalla macchina** o **Rivista da una persona** — più chi l'ha generata, l'elenco delle revisioni, le fonti come link cliccabili, lo stato e l'obsolescenza.
+- La sezione **Fiducia e provenienza** del pannello delle proprietà (sul telefono: nel pannello di contesto della nota) riassume i campi e ne ricava un livello di fiducia: **Non verificata**, **Confermata dalla macchina** o **Rivista da una persona** — più chi l'ha generata, l'elenco delle revisioni, le fonti come link cliccabili, lo stato e l'obsolescenza. Le righe **Stato**, **Obsoleta dopo** e **Versione OKF** hanno etichette tradotte; la chiave scritta nel file (`status`, `stale_after`, `okf_version`) compare come suggerimento sull'icona del lucchetto e non cambia mai.
 
 **Cosa scrive Plainva.**
 

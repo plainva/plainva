@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { SidebarStepContext } from "../lib/sidebarStep";
 import { ICON, useFixedPopover } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
@@ -114,8 +115,12 @@ function CheckboxToggle({ value, onChange, label }: { value: any; onChange: (v: 
   );
 }
 
-function DateValue({ value, onChange, includeTime, t, locale }: { value: any; onChange: (v: any) => void; includeTime: boolean; t: TFn; locale: string }) {
+function DateValue({ value, onChange, includeTime, locale }: { value: any; onChange: (v: any) => void; includeTime: boolean; locale: string }) {
   const [editing, setEditing] = useState(false);
+  // Below the comfortable step the long form ("Fr., 10. Juli 2026") does not
+  // fit beside the label; the numeric form does. Either way the button never
+  // wraps: it has a fixed height, and a wrapped date ran into the next section.
+  const step = useContext(SidebarStepContext);
   const str = String(value ?? "");
   if (editing || !str) {
     return (
@@ -130,12 +135,12 @@ function DateValue({ value, onChange, includeTime, t, locale }: { value: any; on
     <button
       type="button"
       className="pv-field pv-field--compact"
-      style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer" }}
+      style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer", minWidth: 0, overflow: "hidden" }}
       onClick={() => setEditing(true)}
-      data-tip={t("properties.value")}
+      data-tip={formatDateValue(str, includeTime, locale, "long")}
     >
-      {includeTime ? <Clock size={ICON.ui} /> : <Calendar size={ICON.ui} />}
-      <span>{formatDateValue(str, includeTime, locale)}</span>
+      {includeTime ? <Clock size={ICON.ui} style={{ flexShrink: 0 }} /> : <Calendar size={ICON.ui} style={{ flexShrink: 0 }} />}
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatDateValue(str, includeTime, locale, step === "comfortable" ? "long" : "default")}</span>
     </button>
   );
 }
@@ -387,7 +392,7 @@ function SelectChip(props: {
         onClick={() => setOpen((o) => !o)}
       >
         {current
-          ? <span className={chipClass(current, currentOpt?.color)}><span className="pv-dot" />{currentOpt?.label ?? current}</span>
+          ? <span className={chipClass(current, currentOpt?.color)}><span className="pv-dot" /><span className="pv-chip-text">{currentOpt?.label ?? current}</span></span>
           : <span className="pv-placeholder">{t("properties.selectValue")}</span>}
         <ChevronDown size={ICON.ui} className="pv-select-caret" />
       </button>
@@ -450,7 +455,7 @@ function MultiSelectChips(props: {
           const opt = findOption(curated, it);
           return (
             <span key={`${it}-${i}`} className={`${chipClass(it, opt?.color)} pv-chip--removable`}>
-              <span className="pv-dot" />{opt?.label ?? it}
+              <span className="pv-dot" /><span className="pv-chip-text">{opt?.label ?? it}</span>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={ICON.meta} /></button>
             </span>
           );
@@ -504,8 +509,8 @@ export function PropertyValue({ type, value, propKey, onChange, tagSuggestions, 
   switch (type) {
     case "checkbox": return <CheckboxToggle value={value} onChange={onChange} label={propKey} />;
     case "number": return <NumberInput value={value} onChange={onChange} t={t} />;
-    case "date": return <DateValue value={value} onChange={onChange} includeTime={false} t={t} locale={locale} />;
-    case "datetime": return <DateValue value={value} onChange={onChange} includeTime t={t} locale={locale} />;
+    case "date": return <DateValue value={value} onChange={onChange} includeTime={false} locale={locale} />;
+    case "datetime": return <DateValue value={value} onChange={onChange} includeTime locale={locale} />;
     case "list": return <ListChips value={value} onChange={onChange} t={t} />;
     case "tags": return <TagPills value={value} onChange={onChange} suggestions={tagSuggestions} t={t} />;
     case "link": return <RelationPicker value={value} onChange={onChange} getRelationCandidates={getRelationCandidates} onOpenLink={onOpenLink} relationLimit={relationLimit} t={t} />;
@@ -568,6 +573,13 @@ export interface PropertyRowProps {
   relationLimit?: "one";
   /** OKF system fields (type/okf_version): name, field type and delete are fixed (P13). */
   lockMeta?: boolean;
+  /**
+   * What the label SHOWS for a locked row, when it is not the raw key: the
+   * OKF lifecycle fields read "Veraltet ab" instead of `stale_after` — the
+   * phone did this from the start, the desktop did not (2026-09-04). The file
+   * keeps the key; the lock icon's tooltip names it.
+   */
+  displayLabel?: string;
   /** okf_version: the value is display-only as well. */
   lockValue?: boolean;
   /** Comment THREADS anchored to this property (a reply carries no anchor, so this counts threads). */
@@ -579,7 +591,7 @@ export interface PropertyRowProps {
 }
 
 export function PropertyRow(props: PropertyRowProps) {
-  const { propKey, value, type, onChangeValue, onRename, onDelete, onChangeType, tagSuggestions, getValueSuggestions, curatedOptions, getRelationCandidates, onOpenLink, relationLimit, lockMeta, lockValue, commentCount, onComment, t, locale } = props;
+  const { propKey, value, type, onChangeValue, onRename, onDelete, onChangeType, tagSuggestions, getValueSuggestions, curatedOptions, getRelationCandidates, onOpenLink, relationLimit, lockMeta, lockValue, displayLabel, commentCount, onComment, t, locale } = props;
   const [editKey, setEditKey] = useState(propKey);
   const [menuOpen, setMenuOpen] = useState(false);
   const typeBtnRef = useRef<HTMLButtonElement>(null);
@@ -594,14 +606,19 @@ export function PropertyRow(props: PropertyRowProps) {
             <Icon size={ICON.ui} />
           </button>
           <input
-            className="pv-key" value={editKey} aria-label={t("properties.name")}
+            className="pv-key" value={lockMeta && displayLabel ? displayLabel : editKey} aria-label={t("properties.name")}
+            data-key={propKey}
             disabled={lockMeta}
             data-tip={lockMeta ? t("properties.okfLockedHint") : undefined}
             onChange={(e) => setEditKey(e.target.value)}
             onBlur={() => { if (editKey.trim() && editKey !== propKey) onRename(propKey, editKey.trim()); else setEditKey(propKey); }}
             onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
           />
-          {lockMeta && <Lock size={ICON.meta} style={{ color: "var(--text-faint)", flexShrink: 0 }} aria-hidden="true" />}
+          {lockMeta && (
+            <span data-tip={t("properties.okfKeyHint", { key: propKey })} style={{ display: "inline-flex", color: "var(--text-faint)", flexShrink: 0 }}>
+              <Lock size={ICON.meta} aria-hidden="true" />
+            </span>
+          )}
         </div>
         {menuOpen && <TypeMenu current={type} anchorRef={typeBtnRef} onPick={(ty) => { onChangeType(propKey, ty); setMenuOpen(false); }} onClose={() => setMenuOpen(false)} t={t} />}
       </div>

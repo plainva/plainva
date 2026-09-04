@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Columns2, ExternalLink, Maximize2, MoreVertical,
 import { createDocChannel } from "../services/activeDocument";
 import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
+import { SidebarStepContext, clampPeekSideWidth, readPeekSideWidth, useSidebarStep, writePeekSideWidth } from "../lib/sidebarStep";
 import { openAttachmentExternally } from "../services/openAttachment";
 import { useVault } from "../contexts/VaultContext";
 
@@ -99,6 +100,25 @@ export function BasePeekModal({
   // (the peek Editor publishes here instead of the global sidebar channel).
   const peekChannel = useMemo(() => createDocChannel(), []);
   const [showProps, setShowProps] = useState(false);
+  // The properties column: measured for the three steps and draggable at its
+  // left edge, remembered across sessions (2026-09-04).
+  const { step: sideStep, ref: sideRef } = useSidebarStep();
+  const [sideWidth, setSideWidth] = useState<number>(() => readPeekSideWidth());
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { writePeekSideWidth(sideWidth); }, [sideWidth]);
+  const onSideGripDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sideWidth;
+    const bodyWidth = bodyRef.current?.getBoundingClientRect().width ?? window.innerWidth;
+    const move = (ev: PointerEvent) => setSideWidth(clampPeekSideWidth(startWidth + (startX - ev.clientX), bodyWidth));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -235,7 +255,7 @@ export function BasePeekModal({
         </>
       }
     >
-      <div className="pv-peek-body">
+      <div className="pv-peek-body" ref={bodyRef}>
         <div className="pv-peek-main">
           <Suspense fallback={<div style={{ padding: "var(--space-8)", color: "var(--text-muted)" }}>{t("common.loading", "Loading...")}</div>}>
             {isBase ? (
@@ -261,8 +281,21 @@ export function BasePeekModal({
           </Suspense>
         </div>
         {showProps && !isBase && (
-          <div className="pv-peek-side">
-            <PropertiesSection channel={peekChannel} onOpenPath={(p) => navigate(p)} />
+          <div className="pv-peek-side" ref={sideRef} data-side-step={sideStep} style={{ width: sideWidth }}>
+            <div className="pv-peek-side-scroll">
+              <SidebarStepContext.Provider value={sideStep}>
+                <PropertiesSection channel={peekChannel} onOpenPath={(p) => navigate(p)} />
+              </SidebarStepContext.Provider>
+            </div>
+            {/* After the scroll host in DOM order, so it paints above it without a z-index. */}
+            <div
+              className="pv-peek-side-grip"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("properties.resizeColumn")}
+              data-tip={t("properties.resizeColumn")}
+              onPointerDown={onSideGripDown}
+            />
           </div>
         )}
       </div>

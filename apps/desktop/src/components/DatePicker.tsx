@@ -3,7 +3,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, en
 import { de } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON } from "@plainva/ui";
+import { ICON, formatDateValue } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -31,7 +31,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // The popover is fixed-positioned (anchored to the trigger rect) so it is
   // never clipped by a scrolling container — the table used to reserve 100px of
@@ -104,21 +104,17 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
 
   return (
     <div ref={anchorRef} style={{ position: "relative", flex: 1, minWidth: 0 }}>
+      {/* A field like every other: same height, border and 14px type via
+          .pv-field (it used to be an unstyled div at the browser's 16px), the
+          date in the numeric form of the UI language instead of a fixed
+          German pattern, and the placeholder from the properties catalog -
+          `editor.value` read "Value" in the German file (2026-09-04). */}
       <div
+        className="pv-field pv-field--compact"
         onClick={() => { const next = !isOpen; setIsOpen(next); if (!next) onClose?.(); }}
-        style={{ 
-          padding: "0.25rem 0.5rem", 
-          borderRadius: "var(--radius-xs)", 
-          border: "1px solid var(--border-color)", 
-          background: "transparent", 
-          color: "var(--text-main)", 
-          cursor: "pointer",
-          minHeight: "26px",
-          display: "flex",
-          alignItems: "center"
-        }}
+        style={{ cursor: "pointer", display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", color: value ? undefined : "var(--text-faint)" }}
       >
-        {value ? (includeTime ? format(new Date(value), "dd.MM.yyyy, HH:mm") : format(new Date(value), "dd.MM.yyyy")) : t("editor.value", "Wert...")}
+        {value ? formatDateValue(value, !!includeTime, i18n.language || "de", "default") : t("properties.value")}
       </div>
 
       {isOpen && pos && (

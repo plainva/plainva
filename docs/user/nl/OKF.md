@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-09-04
 
 OKF (Open Knowledge Format) is een open conventie voor Markdown-kenniscollecties: pure Markdown-bestanden met een kleine, uniforme frontmatter-kop. Deze pagina legt uit wat OKF is, wat Plainva daarvoor automatisch doet — en waarom je er niets van *hoeft* te gebruiken.
 
@@ -50,7 +50,7 @@ Sinds OKF 0.2 kan een notitie zeggen waar ze vandaan komt, wie haar heeft gecont
 
 - Een notitie met `status: draft` of `status: deprecated` draagt een badge in de header van de notitie — **Concept** of **Afgeschaft**. `stable` blijft stil; een eigen `status`-kolom met andere waarden (zeg `Open` in een takendatabase) is geen levenscyclusstatus en krijgt geen badge.
 - Zodra `stale_after` is verstreken, staat de melding **Gemarkeerd als verouderd (sinds …)** boven de notitie, met een sprong naar de eigenschappen. De melding is alleen ter weergave — Plainva verandert niets in de notitie.
-- De sectie **Vertrouwen en herkomst** van het eigenschappenpaneel (op de telefoon: in de contextkaart van de notitie) vat de velden samen en leidt daaruit een vertrouwensniveau af: **Niet geverifieerd**, **Door de machine bevestigd** of **Door een persoon beoordeeld** — plus wie het genereerde, de verified-lijst, bronnen als klikbare links, status en verouderd-na.
+- De sectie **Vertrouwen en herkomst** van het eigenschappenpaneel (op de telefoon: in de contextkaart van de notitie) vat de velden samen en leidt daaruit een vertrouwensniveau af: **Niet geverifieerd**, **Door de machine bevestigd** of **Door een persoon beoordeeld** — plus wie het genereerde, de verified-lijst, bronnen als klikbare links, status en verouderd-na. De rijen **Status**, **Verouderd na** en **OKF-versie** dragen vertaalde labels; de sleutel die in het bestand staat (`status`, `stale_after`, `okf_version`) verschijnt als hint bij het slotje en verandert nooit.
 
 **Wat Plainva schrijft.**
 

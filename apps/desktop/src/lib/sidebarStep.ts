@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 
 /**
  * How much room the right sidebar actually has (plan P3). Three named steps
@@ -19,6 +19,46 @@ export type SidebarStep = "comfortable" | "compact" | "minimal";
 /** Both thresholds in one place — the table in the plan reads off these. */
 export const SIDEBAR_STEP_COMPACT = 280;
 export const SIDEBAR_STEP_MINIMAL = 232;
+
+/**
+ * The step of the nearest measured panel, for components that must CHANGE what
+ * they render rather than how it is styled — the date editor shortens its
+ * format below "comfortable", which no stylesheet can do. Provided by the right
+ * sidebar and by the peek window's properties column (2026-09-04); anywhere
+ * else the default applies.
+ */
+export const SidebarStepContext = createContext<SidebarStep>("comfortable");
+
+/** The peek window's properties column: draggable since 2026-09-04. It used to
+ * be a fixed 260 px — below the compact threshold, without the compact layout,
+ * because the column was never measured. */
+export const PEEK_SIDE_DEFAULT = 300;
+export const PEEK_SIDE_MIN = SIDEBAR_STEP_MINIMAL;
+const PEEK_SIDE_KEY = "plainva-peek-side-width";
+
+/** Never below the minimal step, never more than half of the window body. */
+export function clampPeekSideWidth(next: number, bodyWidth: number): number {
+  const max = Math.max(PEEK_SIDE_MIN, Math.floor(bodyWidth / 2));
+  return Math.round(Math.min(max, Math.max(PEEK_SIDE_MIN, next)));
+}
+
+export function readPeekSideWidth(storage: Pick<Storage, "getItem"> | null = typeof localStorage === "undefined" ? null : localStorage): number {
+  try {
+    const raw = storage?.getItem(PEEK_SIDE_KEY);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n >= PEEK_SIDE_MIN ? Math.round(n) : PEEK_SIDE_DEFAULT;
+  } catch {
+    return PEEK_SIDE_DEFAULT;
+  }
+}
+
+export function writePeekSideWidth(width: number, storage: Pick<Storage, "setItem"> | null = typeof localStorage === "undefined" ? null : localStorage): void {
+  try {
+    storage?.setItem(PEEK_SIDE_KEY, String(Math.round(width)));
+  } catch {
+    /* not remembered: the default applies next time */
+  }
+}
 
 export function sidebarStepFor(width: number): SidebarStep {
   if (width < SIDEBAR_STEP_MINIMAL) return "minimal";

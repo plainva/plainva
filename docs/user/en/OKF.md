@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-04
 
 OKF (Open Knowledge Format) is an open convention for Markdown knowledge collections: plain Markdown files with a small, uniform frontmatter header. This page explains what OKF is, what Plainva does for it automatically — and why you do not *have* to use any of it.
 
@@ -50,7 +50,7 @@ Since OKF 0.2 a note can say where it came from, who reviewed it and whether it 
 
 - A note with `status: draft` or `status: deprecated` carries a badge in the document header — **Draft** or **Deprecated**. `stable` stays silent; a `status` column of your own with other values (say `Open` in a task database) is not a lifecycle state and gets no badge.
 - Once `stale_after` has passed, the notice **Marked as stale (since …)** sits above the note with a jump to the properties. The notice is display only — Plainva changes nothing in the note.
-- The **Trust & provenance** section of the properties panel (on the phone: in the note's context sheet) summarises the fields and derives a trust level from them: **Not verified**, **Machine-confirmed** or **Reviewed by a person** — plus generated-by, the verified list, sources as clickable links, status and stale-after.
+- The **Trust & provenance** section of the properties panel (on the phone: in the note's context sheet) summarises the fields and derives a trust level from them: **Not verified**, **Machine-confirmed** or **Reviewed by a person** — plus generated-by, the verified list, sources as clickable links, status and stale-after. The **Status**, **Stale after** and **OKF version** rows carry translated labels; the key written to the file (`status`, `stale_after`, `okf_version`) shows as a hint on the lock icon and never changes.
 
 **What Plainva writes.**
 

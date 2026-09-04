@@ -445,10 +445,21 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     );
   }
 
+  // The OKF lifecycle rows show their translated name; the key stays in the
+  // file and in the lock icon's tooltip (2026-09-04, parity with the phone).
+  const lockedLabel = (key: string, lockMeta: boolean): string | undefined => {
+    if (!lockMeta) return undefined;
+    if (key === "status") return t("trust.status");
+    if (key === "stale_after") return t("trust.staleAfter");
+    if (key === "okf_version") return t("trust.okfVersion");
+    return undefined;
+  };
+
   const renderRow = ({ key, value, type, curatedOptions, relationBase, relationLimit, lockMeta, lockValue }: Row) => (
     <PropertyRow
       key={key}
       propKey={key}
+      displayLabel={lockedLabel(key, lockMeta)}
       value={value}
       type={type}
       onChangeValue={onChangeProp}

@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stan na: 2026-08-21
+Stan na: 2026-09-04
 
 OKF (Open Knowledge Format) to otwarta konwencja dla kolekcji wiedzy w Markdown: zwykłe pliki Markdown z małym, jednolitym nagłówkiem frontmatter. Ta strona wyjaśnia, czym jest OKF, co Plainva robi dla niego automatycznie — i dlaczego niczego z tego nie *musisz* używać.
 
@@ -50,7 +50,7 @@ Od OKF 0.2 notatka może mówić, skąd pochodzi, kto ją sprawdził i czy nadal
 
 - Notatka ze `status: draft` lub `status: deprecated` niesie odznakę w nagłówku dokumentu — **Szkic** lub **Wycofana**. `stable` pozostaje ciche; własna kolumna `status` z innymi wartościami (powiedzmy `Open` w bazie zadań) nie jest stanem cyklu życia i nie otrzymuje odznaki.
 - Gdy minie `stale_after`, nad notatką pojawia się komunikat **Oznaczona jako nieaktualna (od …)** ze skrótem do właściwości. Komunikat jest tylko do wyświetlania — Plainva niczego w notatce nie zmienia.
-- Sekcja **Zaufanie i pochodzenie** panelu właściwości (na telefonie: w karcie kontekstowej notatki) podsumowuje pola i wyprowadza z nich poziom zaufania: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę** — plus autora wygenerowania, listę sprawdzeń, źródła jako klikalne linki, status i datę nieaktualności.
+- Sekcja **Zaufanie i pochodzenie** panelu właściwości (na telefonie: w karcie kontekstowej notatki) podsumowuje pola i wyprowadza z nich poziom zaufania: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę** — plus autora wygenerowania, listę sprawdzeń, źródła jako klikalne linki, status i datę nieaktualności. Wiersze **Status**, **Nieaktualna po** i **Wersja OKF** mają przetłumaczone etykiety; klucz zapisany w pliku (`status`, `stale_after`, `okf_version`) pojawia się jako podpowiedź przy ikonie kłódki i nigdy się nie zmienia.
 
 **Co Plainva zapisuje.**
 

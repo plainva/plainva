@@ -1267,6 +1267,11 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   font-size: var(--text-sm);
   line-height: 1;
   overflow: hidden;
+  /* A chip is one line by construction (fixed height). Without nowrap a long
+     label in a narrow column broke into lines and the height clipped all but
+     the first — "done" became "d" (finding 2026-09-04). The ellipsis itself
+     lives on .pv-chip-text. */
+  white-space: nowrap;
 }
 .pv-chip--removable { padding: 0 4px 0 var(--chip-pad-x); gap: 4px; }
 /* Selectable ("filter") chip — the dominant mobile chip and, until now, the

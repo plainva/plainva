@@ -29,7 +29,7 @@ import {
 } from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { useSidebarStep } from "../lib/sidebarStep";
+import { SidebarStepContext, useSidebarStep } from "../lib/sidebarStep";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   openBarSettings,
@@ -281,6 +281,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       data-side-step={step}
       style={{ width: "100%", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}
     >
+      <SidebarStepContext.Provider value={step}>
       {shown.filter(hasContent).map((id) => {
         const m = meta[id];
         const drag = handlers(id);
@@ -361,6 +362,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           </MenuItem>
         </MenuSurface>
       )}
+      </SidebarStepContext.Provider>
     </div>
   );
 }
