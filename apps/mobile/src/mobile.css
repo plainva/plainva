@@ -2473,6 +2473,10 @@ textarea {
 .m-themecard {
   display: flex;
   flex-direction: column;
+  /* The card sits in a wrapper since the pencil (A2) — a button inside a div
+     shrinks to its label unless told to fill (finding 2026-09-04: the cards
+     ran from narrow "Petrol" to wide "Phosphor Amber"). */
+  width: 100%;
   gap: 0;
   font-family: inherit;
   transition: border-color var(--dur-1) var(--ease-effects), box-shadow var(--dur-1) var(--ease-effects);
@@ -2584,29 +2588,37 @@ textarea {
 
 .m-colorgrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(6, var(--touch-sm));
+  gap: var(--space-3);
+  justify-content: space-between;
   padding: 6px 10px 10px;
 }
+/* Discs, as on the desktop (finding 2026-09-04: the pills looked off next to
+   the desktop's discs): touch-sized circles with a hairline, the pick an
+   outline ring on --text-main. */
 .m-colorgrid button {
+  width: var(--touch-sm);
   height: var(--touch-sm);
-  border: 2px solid transparent;
-  border-radius: var(--radius-lg);
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
 }
 .m-colorgrid button.is-on {
-  border-color: var(--text-main);
+  outline: 2px solid var(--text-main);
+  outline-offset: 2px;
 }
 /* The same vocabulary as the desktop SwatchGrid in touch size (plan "Farbwahl
-   überall", 2026-09-04): the free colour is a tile like the others, wearing a
+   überall", 2026-09-04): the free colour is a disc like the others, wearing a
    hue ring with the native input invisible on top, always in the last column;
-   the "none" tile carries the letter A (default tint) or a slash (calendar
+   the "none" disc carries the letter A (default tint) or a slash (calendar
    colour). Replaces the separate "custom colour" row under the grid. */
 .m-colorgrid-free {
   position: relative;
   grid-column: -2 / -1;
+  width: var(--touch-sm);
   height: var(--touch-sm);
-  border: 2px solid transparent;
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
   background: conic-gradient(
     from 0deg,
     hsl(0 80% 55%),
@@ -2621,13 +2633,14 @@ textarea {
 .m-colorgrid-free::after {
   content: "";
   position: absolute;
-  inset: 6px;
-  border-radius: var(--radius-md);
+  inset: 5px;
+  border-radius: 50%;
   border: 1px solid var(--border-color);
   background: var(--swatch);
 }
 .m-colorgrid-free.is-on {
-  border-color: var(--text-main);
+  outline: 2px solid var(--text-main);
+  outline-offset: 2px;
 }
 .m-colorgrid-free input {
   position: absolute;
@@ -2640,7 +2653,6 @@ textarea {
 .m-colorgrid .m-colorgrid-none {
   position: relative;
   background: var(--bg-secondary);
-  border-color: var(--border-color);
   color: var(--text-main);
   font-size: var(--text-sm);
   font-weight: 600;
