@@ -33,6 +33,13 @@ test.beforeEach(async ({ page }) => {
       '',
     ].join('\n');
 
+    // Swimlanes (issue #83, P6): the same board with a second axis — the
+    // `kunde` relation — so Alpha sits in lane ACME, Gamma in Nirgendwo, Beta
+    // in "No value".
+    const laneBoardYaml = boardYaml
+      .replace("    name: Board", "    name: LaneBoard")
+      .replace("      groupBy: status", "      groupBy: status\n      boardLaneBy: kunde");
+
     const multiViewYaml = [
       'filters:',
       '  and:',
@@ -297,6 +304,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Kunden/Globex.md': '---\nbranche: energie\n---\n# Globex',
       '/test-vault/Cockpit.base': cockpitYaml,
       '/test-vault/Board.base': boardYaml,
+      '/test-vault/LaneBoard.base': laneBoardYaml,
       '/test-vault/MultiView.base': multiViewYaml,
       '/test-vault/Cal.base': calYaml,
       '/test-vault/Zeit.base': tlYaml,
@@ -903,6 +911,45 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
     .toContain('status: review');
+});
+
+test('Base board: swimlanes — a row per lane value, a drop on a cell writes column and lane (issue #83)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'LaneBoard');
+
+  // Three lanes: ACME (Alpha), Nirgendwo (Gamma), no value (Beta), each with the
+  // active/paused columns of the board.
+  const acme = page.getByTestId('board-lane-ACME');
+  await expect(acme).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('board-lane-Nirgendwo')).toBeVisible();
+  await expect(page.getByTestId('board-lane-__UNGROUPED__')).toBeVisible();
+  await expect(acme.getByText('Alpha', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('board-lane-__UNGROUPED__').getByText('Beta', { exact: true })).toBeVisible();
+
+  // Fold a lane away: its columns disappear, the header stays.
+  await page.getByTestId('board-lane-toggle-__UNGROUPED__').click();
+  await expect(page.getByTestId('board-lane-__UNGROUPED__').getByText('Beta', { exact: true })).toHaveCount(0);
+  await page.getByTestId('board-lane-toggle-__UNGROUPED__').click();
+  await expect(page.getByTestId('board-lane-__UNGROUPED__').getByText('Beta', { exact: true })).toBeVisible();
+
+  // Drag Alpha (ACME / active) onto the paused column of the Nirgendwo lane.
+  const card = acme.getByText('Alpha', { exact: true });
+  const target = page.getByTestId('board-col-header-paused-Nirgendwo');
+  await expect(target).toBeVisible();
+  const cardBox = (await card.boundingBox())!;
+  const targetBox = (await target.boundingBox())!;
+  await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // Both properties changed — the column's and the lane's, the lane as a link.
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
+    .toContain('status: paused');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
+    .toContain('kunde: "[[Nirgendwo]]"');
 });
 
 test('Board: clicking a card opens the peek window; maximize opens a tab (P5)', async ({ page }) => {

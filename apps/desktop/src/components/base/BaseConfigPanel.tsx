@@ -522,6 +522,8 @@ export function BaseConfigPanel({
   onSetBoardColorMode,
   boardWipLimits,
   onSetBoardWipLimit,
+  boardLaneBy,
+  onSetBoardLaneBy,
   pinboardFilterBy,
   onSetPinboardFilterBy,
   onSetCoverImage,
@@ -578,6 +580,9 @@ export function BaseConfigPanel({
    * boards set them on the column header itself. */
   boardWipLimits?: Record<string, number>;
   onSetBoardWipLimit?: (groupKey: string, limit: number | null) => void;
+  /** Swimlanes (issue #83): the second grouping property, null = none. */
+  boardLaneBy?: string | null;
+  onSetBoardLaneBy?: (col: string | null) => void;
   /** Pinboard label-chip source (plan Pinboard P1): "tags" (default) or a multiselect column key. */
   pinboardFilterBy?: string;
   onSetPinboardFilterBy?: (source: string) => void;
@@ -926,6 +931,24 @@ export function BaseConfigPanel({
             {/* Only curated-option or relation columns make sensible board
                 columns (maintainer 2026-07-18) — the active value stays. */}
             <Select ariaLabel={t("database.groupBy", "Gruppieren nach")} value={boardGroupBy || ""} onChange={(v) => onSetBoardGroupBy(v)} options={columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: boardGroupBy, isReverse: cells.isReverseColumn }).map((c) => ({ value: c, label: cells.columnLabel(c) }))} />
+          </label>
+        )}
+        {/* Swimlanes (issue #83): a second axis from the same kinds of property
+            as the columns, never the column property itself. */}
+        {currentViewType === "board" && boardGroupBy && onSetBoardLaneBy && (
+          <label className="base-cfg-field">{t("database.laneBy")}
+            <Select
+              ariaLabel={t("database.laneBy")}
+              value={boardLaneBy && boardLaneBy !== boardGroupBy ? boardLaneBy : ""}
+              data-testid="cfg-lane-by"
+              onChange={(v) => onSetBoardLaneBy(v || null)}
+              options={[
+                { value: "", label: t("database.laneNone") },
+                ...columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: boardLaneBy ?? null, isReverse: cells.isReverseColumn })
+                  .filter((c) => c !== boardGroupBy)
+                  .map((c) => ({ value: c, label: cells.columnLabel(c) })),
+              ]}
+            />
           </label>
         )}
         {/* Whole-column tint (WP3): only meaningful for a curated option group. */}

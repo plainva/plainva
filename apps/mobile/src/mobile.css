@@ -2216,6 +2216,32 @@ textarea {
   padding: var(--space-1) 0 var(--space-4);
   align-items: flex-start;
 }
+/* Swimlanes (issue #83, P6): stacked lanes, each with its own column strip. */
+.m-board-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.m-board-host {
+  display: contents;
+}
+.m-board-lane {
+  display: flex;
+  flex-direction: column;
+}
+.m-board-lanehead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-sm);
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
 .m-board-col {
   flex: 0 0 240px;
   background: var(--surface-container);

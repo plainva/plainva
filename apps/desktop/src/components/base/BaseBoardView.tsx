@@ -7,7 +7,8 @@ import { BoardCardChecklist } from "./BoardCardChecklist";
 import { hitTest, useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, dueChipStyle, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import { orderBoardGroups, reorderBoardKeys } from "@plainva/ui";
-import { Button, chipPaletteIndex, rowDueTone, TextInput, type TaskCompletionModel } from "@plainva/ui";
+import { Button, chipPaletteIndex, groupRowsByLane, laneWriteValue, rowDueTone, TextInput, UNGROUPED_KEY, type TaskCompletionModel } from "@plainva/ui";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { BaseCells } from "./useBaseCells";
 
 // Board (kanban) view of the BaseViewer (structural split, plan C3). Cards are
@@ -23,6 +24,9 @@ export function BaseBoardView({
   boardColumnOrder,
   boardColorMode = "chip",
   boardWipLimits,
+  boardLaneBy = null,
+  collapsedLanes,
+  onToggleLane,
   cells,
   dueModel = null,
   onOpenNote,
@@ -42,6 +46,12 @@ export function BaseBoardView({
   /** WIP limits per column key (issue #83): the header reads `n/limit` and
    * turns to the warning tone once a column holds more than it should. */
   boardWipLimits?: Record<string, number>;
+  /** Swimlanes (issue #83): a second grouping property — a row per value,
+   * dropping a card on a cell writes column AND lane. Null = no lanes. */
+  boardLaneBy?: string | null;
+  /** Lane keys folded away (per file, app-side) and the toggle. */
+  collapsedLanes?: ReadonlySet<string>;
+  onToggleLane?: (laneKey: string) => void;
   cells: BaseCells;
   /** The database's completion model — a date on a card of an unfinished row
    * that is today or earlier gets the overdue pill (issues #83/#84). */
@@ -68,8 +78,30 @@ export function BaseBoardView({
   const isRelationGroup = isReverseGroup || groupInput === "relation" || groupInput === "link";
   // Whole-column tint (WP3) only applies to curated option groups.
   const isColoredGroup = groupInput === "select" || groupInput === "status" || groupInput === "multiselect";
-  const cardKeyOf = (path: string, groupKey: string) => (isRelationGroup ? `${path}\n${groupKey}` : path);
-  const pathOfCardKey = (key: string | null) => (key ? key.split("\n")[0]! : null);
+  // A card key names the path, the source column (relation boards move the
+  // link away from it) and the source lane (a multi-valued lane shows the same
+  // card twice). JSON, so no separator can collide with a path.
+  const cardKeyOf = (path: string, groupKey: string, laneKey: string | null = null) => JSON.stringify([path, isRelationGroup ? groupKey : "", laneKey ?? ""]);
+  const parseCardKey = (key: string): { path: string; group: string; lane: string } => {
+    try {
+      const [path, group, lane] = JSON.parse(key) as [string, string, string];
+      return { path, group, lane };
+    } catch {
+      return { path: key, group: "", lane: "" };
+    }
+  };
+  const pathOfCardKey = (key: string | null) => (key ? parseCardKey(key).path : null);
+  // A drop target is a column, or — with lanes — a column inside a lane.
+  const targetKeyOf = (groupKey: string, laneKey: string | null) => (laneKey === null ? groupKey : JSON.stringify([laneKey, groupKey]));
+  const parseTargetKey = (key: string): { group: string; lane: string | null } => {
+    if (!boardLaneBy || !key.startsWith("[")) return { group: key, lane: null };
+    try {
+      const [lane, group] = JSON.parse(key) as [string, string];
+      return { group, lane };
+    } catch {
+      return { group: key, lane: null };
+    }
+  };
 
   const regroupRelation = (path: string, sourceGroup: string, targetGroup: string) => {
     if (!boardGroupBy || isReverseGroup) return;
@@ -84,15 +116,24 @@ export function BaseBoardView({
   };
 
   const { cardHandlers, registerTarget, draggingPath, overTarget, ghostProps } = useCardPointerDrag<string>({
-    onDrop: (cardKey, groupKey) => {
-      const path = pathOfCardKey(cardKey)!;
-      if (groupKey === OPEN_SPLIT_TARGET) { onDropToSplit?.(path); return; }
+    onDrop: (cardKey, targetKey) => {
+      const card = parseCardKey(cardKey);
+      const path = card.path;
+      if (targetKey === OPEN_SPLIT_TARGET) { onDropToSplit?.(path); return; }
       if (!boardGroupBy) return;
+      const target = parseTargetKey(targetKey);
+      // The lane write follows the column write — two frontmatter edits of one
+      // note, one after the other, never side by side.
+      const laneWrite = async () => {
+        if (!boardLaneBy || target.lane === null || target.lane === card.lane) return;
+        await handleCellSave(path, boardLaneBy, laneWriteValue(lanes.map((l) => ({ key: l.key ?? "", value: l.value })), target.lane));
+      };
       if (isRelationGroup) {
-        regroupRelation(path, cardKey.split("\n")[1] ?? "", groupKey);
+        regroupRelation(path, card.group, target.group);
+        void laneWrite();
         return;
       }
-      void handleCellSave(path, boardGroupBy, groupKey === "__UNGROUPED__" ? "" : groupKey);
+      void Promise.resolve(handleCellSave(path, boardGroupBy, target.group === "__UNGROUPED__" ? "" : target.group)).then(laneWrite);
     },
   });
   const draggingCardPath = pathOfCardKey(draggingPath);
@@ -129,39 +170,43 @@ export function BaseBoardView({
 
   if (!boardGroupBy) return <div style={{ padding: "1rem", color: "var(--text-muted)" }}>{t("database.boardNoGroupField", "Keine Eigenschaft zum Gruppieren gefunden.")}</div>;
 
-  const groups: Record<string, any[]> = { "__UNGROUPED__": [] };
-
-  if (!isRelationGroup && dbConfig?.columns?.[boardGroupBy]?.options) {
-    const opts = dbConfig.columns[boardGroupBy].options;
-    if (Array.isArray(opts)) {
-      opts.forEach((opt: any) => {
-        groups[opt.label || opt.value || String(opt)] = [];
-      });
-    }
-  }
-
-  dbData.forEach(row => {
-    let val = row[boardGroupBy];
-    if (val === undefined && boardGroupBy.startsWith('note.')) val = row[boardGroupBy.substring(5)];
-
-    if (isRelationGroup) {
-      const links: string[] = Array.isArray(val) ? val.map(String) : val == null || val === "" ? [] : [String(val)];
-      if (links.length === 0) {
-        groups["__UNGROUPED__"].push(row);
-      } else {
-        for (const link of links) {
-          if (!groups[link]) groups[link] = [];
-          groups[link].push(row);
-        }
+  // Cards bucketed by column; called once for the whole board (column order)
+  // and once per lane (issue #83, P6). A card with several values sits in
+  // every matching column, exactly as before.
+  const bucketByColumn = (source: any[]): Record<string, any[]> => {
+    const out: Record<string, any[]> = { "__UNGROUPED__": [] };
+    if (!isRelationGroup && dbConfig?.columns?.[boardGroupBy]?.options) {
+      const opts = dbConfig.columns[boardGroupBy].options;
+      if (Array.isArray(opts)) {
+        opts.forEach((opt: any) => {
+          out[opt.label || opt.value || String(opt)] = [];
+        });
       }
-      return;
     }
+    source.forEach(row => {
+      let val = row[boardGroupBy];
+      if (val === undefined && boardGroupBy.startsWith('note.')) val = row[boardGroupBy.substring(5)];
 
-    const strVal = (val === undefined || val === null || val === "") ? "__UNGROUPED__" : String(val);
-    if (!groups[strVal]) groups[strVal] = [];
-    groups[strVal].push(row);
-  });
+      if (isRelationGroup) {
+        const links: string[] = Array.isArray(val) ? val.map(String) : val == null || val === "" ? [] : [String(val)];
+        if (links.length === 0) {
+          out["__UNGROUPED__"].push(row);
+        } else {
+          for (const link of links) {
+            if (!out[link]) out[link] = [];
+            out[link].push(row);
+          }
+        }
+        return;
+      }
 
+      const strVal = (val === undefined || val === null || val === "") ? "__UNGROUPED__" : String(val);
+      if (!out[strVal]) out[strVal] = [];
+      out[strVal].push(row);
+    });
+    return out;
+  };
+  const groups = bucketByColumn(dbData);
 
   // Column order: option order for select/status boards (a drag reorders those
   // options), else the per-view saved order; never plain alphabetical.
@@ -171,6 +216,16 @@ export function BaseBoardView({
       ? dbConfig.columns[boardGroupBy].options.map((o: any) => o?.label || o?.value || String(o))
       : [];
   const orderedKeys = orderBoardGroups(Object.keys(groups), { optionOrder, savedOrder: boardColumnOrder });
+
+  // Swimlanes: the second axis, in the lane property's option order, "No
+  // value" last. Without a lane property there is exactly one, unnamed lane —
+  // the board as it always was.
+  const laneOptionOrder: string[] = boardLaneBy && Array.isArray(dbConfig?.columns?.[boardLaneBy]?.options)
+    ? dbConfig.columns[boardLaneBy].options.map((o: any) => o?.label || o?.value || String(o))
+    : [];
+  const lanes: Array<{ key: string | null; value: string; rows: any[] }> = boardLaneBy
+    ? groupRowsByLane(dbData, boardLaneBy, laneOptionOrder)
+    : [{ key: null, value: "", rows: dbData }];
 
   // Palette slot for a group's whole-column tint (WP3): only for option groups
   // in "column" mode; null = neutral column (header chip / plain label instead).
@@ -212,29 +267,26 @@ export function BaseBoardView({
     },
   });
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-      <div className="custom-scrollbar" style={{ display: "flex", gap: "1rem", padding: "1rem", overflowX: "auto", flex: 1, alignItems: "flex-start" }}>
-        {orderedKeys.map(groupKey => {
-          const tintIdx = groupTintIndex(groupKey);
-          const tinted = tintIdx != null;
-          return (
+  const renderColumn = (groupKey: string, rows: any[], laneKey: string | null, laneIndex: number) => {
+    const tintIdx = groupTintIndex(groupKey);
+    const tinted = tintIdx != null;
+    return (
           <div
-            key={groupKey}
-            ref={(el) => { registerTarget(groupKey)(el); if (el) colRefs.current.set(groupKey, el); else colRefs.current.delete(groupKey); }}
-            style={{ width: "280px", flexShrink: 0, background: tinted ? `var(--chip-${tintIdx}-bg)` : "var(--bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", maxHeight: "100%", outline: (overTarget === groupKey && draggingPath) || (overCol === groupKey && dragCol && dragCol !== groupKey) ? "2px solid var(--accent-color)" : "none", outlineOffset: -2, opacity: dragCol === groupKey ? 0.5 : 1 }}
+            key={targetKeyOf(groupKey, laneKey)}
+            ref={(el) => { registerTarget(targetKeyOf(groupKey, laneKey))(el); if (laneIndex === 0) { if (el) colRefs.current.set(groupKey, el); else colRefs.current.delete(groupKey); } }}
+            style={{ width: "280px", flexShrink: 0, background: tinted ? `var(--chip-${tintIdx}-bg)` : "var(--bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", flexDirection: "column", maxHeight: "100%", outline: (overTarget === targetKeyOf(groupKey, laneKey) && draggingPath) || (overCol === groupKey && dragCol && dragCol !== groupKey) ? "2px solid var(--accent-color)" : "none", outlineOffset: -2, opacity: dragCol === groupKey ? 0.5 : 1 }}
           >
             <div
-              {...(onReorderColumns ? colHeaderHandlers(groupKey) : {})}
+              {...(onReorderColumns && laneIndex === 0 ? colHeaderHandlers(groupKey) : {})}
               style={{ padding: "0.75rem", borderBottom: tinted ? "1px solid transparent" : "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between", fontWeight: 600, cursor: onReorderColumns ? "grab" : "default", touchAction: "none", userSelect: "none" }}
-              data-testid={`board-col-header-${groupKey}`}
+              data-testid={laneKey === null ? `board-col-header-${groupKey}` : `board-col-header-${groupKey}-${laneKey}`}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 {onReorderColumns && <GripHorizontal size={ICON.ui} style={{ flexShrink: 0, color: tinted ? `var(--chip-${tintIdx}-fg)` : "var(--text-faint)" }} aria-hidden="true" />}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{groupKey === "__UNGROUPED__" ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span> : tinted ? <span style={{ color: `var(--chip-${tintIdx}-fg)`, fontWeight: 600 }}>{groupKey}</span> : (renderTypedDisplay(boardGroupBy, groupKey) ?? groupKey)}</span>
               </span>
               {(() => {
-                const count = groups[groupKey].length;
+                const count = rows.length;
                 const limit = boardWipLimits?.[groupKey];
                 const over = limit != null && count > limit;
                 if (editingLimit?.key === groupKey) {
@@ -257,7 +309,7 @@ export function BaseBoardView({
                 }
                 const badge = (
                   <span
-                    data-testid={`board-col-count-${groupKey}`}
+                    data-testid={laneKey === null ? `board-col-count-${groupKey}` : `board-col-count-${groupKey}-${laneKey}`}
                     data-over={over ? "true" : undefined}
                     style={{ fontSize: "var(--text-sm)", color: over ? "var(--warning-text)" : "var(--text-muted)", background: over ? "var(--warning-bg)" : "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0, fontWeight: over ? 600 : 400, fontVariantNumeric: "tabular-nums" }}
                   >
@@ -281,14 +333,14 @@ export function BaseBoardView({
               })()}
             </div>
             <div className="custom-scrollbar" style={{ padding: "0.5rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-              {groups[groupKey].map((row, idx) => (
+              {rows.map((row, idx) => (
                 <div
                   key={row['file.path'] || idx}
                   data-testid="base-row"
                   onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
-                  {...(isReverseGroup ? {} : cardHandlers(cardKeyOf(row['file.path'], groupKey)))}
+                  {...(isReverseGroup ? {} : cardHandlers(cardKeyOf(row['file.path'], groupKey, laneKey)))}
                   onClick={(e) => onOpenNote?.(row['file.path'], e)}
-                  style={{ background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey) ? 0.45 : 1 }}
+                  style={{ background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey, laneKey) ? 0.45 : 1 }}
                 >
                   <div
                     data-tip={row['file.name']}
@@ -299,7 +351,7 @@ export function BaseBoardView({
                       whenever the note has one. */}
                   <BoardCardChecklist path={row['file.path']} progress={row['file.tasks']} />
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {visibleColumns.filter(c => c !== 'file.name' && c !== 'file.tasks' && c !== boardGroupBy).map(col => {
+                    {visibleColumns.filter(c => c !== 'file.name' && c !== 'file.tasks' && c !== boardGroupBy && c !== boardLaneBy).map(col => {
                       let val = row[col];
                       if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
                       const { displayVal } = formatValueForDisplay(val, col);
@@ -317,8 +369,51 @@ export function BaseBoardView({
               ))}
             </div>
           </div>
-          );
-        })}
+    );
+  };
+
+  const renderColumns = (laneKey: string | null, laneIndex: number, laneRows: any[]) => {
+    const laneGroups = laneKey === null ? groups : bucketByColumn(laneRows);
+    return orderedKeys.map((groupKey) => renderColumn(groupKey, laneGroups[groupKey] ?? [], laneKey, laneIndex));
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+      <div className="custom-scrollbar" style={boardLaneBy
+        ? { display: "flex", flexDirection: "column", gap: "var(--space-4)", padding: "var(--space-4)", overflow: "auto", flex: 1 }
+        : { display: "flex", gap: "var(--space-4)", padding: "var(--space-4)", overflowX: "auto", flex: 1, alignItems: "flex-start" }}
+      >
+        {boardLaneBy
+          ? lanes.map((lane, laneIndex) => {
+              const laneKey = lane.key!;
+              const collapsed = collapsedLanes?.has(laneKey) ?? false;
+              const label = laneKey === UNGROUPED_KEY
+                ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span>
+                : (renderTypedDisplay(boardLaneBy, laneKey) ?? laneKey);
+              return (
+                <section key={laneKey} data-testid={`board-lane-${laneKey}`} data-collapsed={collapsed ? "true" : undefined} style={{ display: "grid", gap: "var(--space-2)" }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? t("database.laneExpand") : t("database.laneCollapse")}
+                    data-testid={`board-lane-toggle-${laneKey}`}
+                    onClick={() => onToggleLane?.(laneKey)}
+                    style={{ justifyContent: "flex-start", gap: "var(--space-2)", fontWeight: 600 }}
+                  >
+                    {collapsed ? <ChevronRight size={ICON.ui} /> : <ChevronDown size={ICON.ui} />}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                    <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", padding: "0 var(--space-2)", borderRadius: "var(--radius-lg)", fontVariantNumeric: "tabular-nums" }}>{lane.rows.length}</span>
+                  </Button>
+                  {!collapsed && (
+                    <div className="custom-scrollbar" style={{ display: "flex", gap: "var(--space-4)", overflowX: "auto", alignItems: "flex-start" }}>
+                      {renderColumns(laneKey, laneIndex, lane.rows)}
+                    </div>
+                  )}
+                </section>
+              );
+            })
+          : renderColumns(null, 0, dbData)}
         {/* Relation groups mirror the linked notes — a "new group" would be a new
             note, which the relation editors already offer; hide the button. */}
         {isRelationGroup ? null : !addingGroup ? (

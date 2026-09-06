@@ -50,7 +50,7 @@ import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
-import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems } from "../services/baseViewState";
+import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems, getCollapsedLanes, setCollapsedLanes } from "../services/baseViewState";
 import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
@@ -2105,6 +2105,21 @@ export function BaseViewer({
     saveConfig(newConfig);
   };
 
+  // Collapsed swimlanes (issue #83, P6): per file, app-side like the active view.
+  const [collapsedLanes, setCollapsedLanesState] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setCollapsedLanesState(new Set(getCollapsedLanes(vaultPath, activePath)));
+  }, [vaultPath, activePath]);
+  const toggleLane = (laneKey: string) => {
+    setCollapsedLanesState((prev) => {
+      const next = new Set(prev);
+      if (next.has(laneKey)) next.delete(laneKey);
+      else next.add(laneKey);
+      setCollapsedLanes(vaultPath, activePath, [...next]);
+      return next;
+    });
+  };
+
   // WIP limits (issue #83): one map per view, a column's entry set or removed;
   // an empty map leaves the file byte-identical (baseFormat elides it).
   const setBoardWipLimit = (groupKey: string, limit: number | null) => {
@@ -2175,7 +2190,7 @@ export function BaseViewer({
     // completion model decides whether a date can be overdue at all.
     const dueModel = dueModelOf(dbConfig);
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
+    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" && dbConfig.views[activeViewIndex].boardLaneBy !== boardGroupBy ? dbConfig.views[activeViewIndex].boardLaneBy : null} collapsedLanes={collapsedLanes} onToggleLane={toggleLane} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
     if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
@@ -2447,6 +2462,8 @@ export function BaseViewer({
             onSetBoardColorMode={(m) => patchActiveView({ boardColorMode: m === "column" ? "column" : undefined })}
             boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits}
             onSetBoardWipLimit={setBoardWipLimit}
+            boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" ? dbConfig.views[activeViewIndex].boardLaneBy : null}
+            onSetBoardLaneBy={(col) => patchActiveView({ boardLaneBy: col || undefined })}
             pinboardFilterBy={typeof dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy === "string" ? dbConfig.views[activeViewIndex].pinboardFilterBy : "tags"}
             onSetPinboardFilterBy={(src) => patchActiveView({ pinboardFilterBy: src === "tags" ? undefined : src })}
             onSetCoverImage={setCoverImagePersisted}

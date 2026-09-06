@@ -3,7 +3,9 @@
 // >= 25 defeats by defining a broken ambient localStorage of its own.
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  getCollapsedLanes,
   getExpandedSubItems,
+  setCollapsedLanes,
   getLastActiveView,
   resolveViewIndex,
   setExpandedSubItems,
@@ -16,6 +18,15 @@ const VAULT = "C:/vaults/demo";
 describe("baseViewState (Base-UX2 P6)", () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  it("stores and restores collapsed swimlanes per vault + file (issue #83)", () => {
+    setCollapsedLanes(VAULT, "DB/Tasks.base", ["Low", "__UNGROUPED__"]);
+    expect(getCollapsedLanes(VAULT, "DB/Tasks.base")).toEqual(["Low", "__UNGROUPED__"]);
+    expect(getCollapsedLanes(VAULT, "DB/Other.base")).toEqual([]);
+    setCollapsedLanes(VAULT, "DB/Tasks.base", []);
+    expect(getCollapsedLanes(VAULT, "DB/Tasks.base")).toEqual([]);
+    expect(getCollapsedLanes(null, "DB/Tasks.base")).toEqual([]);
   });
 
   it("stores and restores the last active view per vault + file", () => {

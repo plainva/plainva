@@ -350,6 +350,8 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Board color mode (namespace-only, WP3): "column" tints the whole column in
   // the group's color; "chip" (default) only colors the header chip.
   if (pv.boardColorMode === "column") out.boardColorMode = "column";
+  // Board swimlanes (namespace-only, issue #83): the second grouping property.
+  if (typeof pv.boardLaneBy === "string" && pv.boardLaneBy) out.boardLaneBy = pv.boardLaneBy;
   // Board WIP limits (namespace-only, issue #83): column key -> most cards the
   // column should hold. Only positive integers survive the read.
   if (isPlainObject(pv.boardWipLimits)) {
@@ -561,6 +563,8 @@ export function serializeBaseConfig(config: any): string {
     // and elided so files without the feature stay byte-identical.
     if (v?.boardColorMode === "column") pv.boardColorMode = "column";
     else delete pv.boardColorMode;
+    if (typeof v?.boardLaneBy === "string" && v.boardLaneBy) pv.boardLaneBy = v.boardLaneBy;
+    else delete pv.boardLaneBy;
     // Board WIP limits (issue #83) — written only when at least one is set.
     const wip = isPlainObject(v?.boardWipLimits)
       ? Object.fromEntries(Object.entries(v.boardWipLimits as Record<string, unknown>).filter(([, n]) => Number.isInteger(Number(n)) && Number(n) > 0).map(([k, n]) => [k, Number(n)]))

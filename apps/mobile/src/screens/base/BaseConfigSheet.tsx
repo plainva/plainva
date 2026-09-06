@@ -679,6 +679,33 @@ export function BaseConfigSheet({
                 </Chip>
               ))}
             </div>
+            {/* Swimlanes (issue #83): the second axis, never the column property. */}
+            <SectionLabel className="m-sectionlabel--inset">{t("database.laneBy")}</SectionLabel>
+            <div className="m-turninto">
+              <Chip
+                selected={!view.boardLaneBy}
+                onClick={() =>
+                  mutateView((v) => {
+                    delete v.boardLaneBy;
+                  })
+                }
+              >
+                {t("database.laneNone")}
+              </Chip>
+              {groupColumns.filter((c) => c !== view.groupBy).map((c) => (
+                <Chip
+                  selected={view.boardLaneBy === c}
+                  key={c}
+                  onClick={() =>
+                    mutateView((v) => {
+                      v.boardLaneBy = c;
+                    })
+                  }
+                >
+                  {columnLabel(c)}
+                </Chip>
+              ))}
+            </div>
             {/* Column color mode (E1, WP3 parity): chip only vs. whole list. */}
             <SectionLabel className="m-sectionlabel--inset">{t("database.boardColor")}</SectionLabel>
             <div className="m-turninto">

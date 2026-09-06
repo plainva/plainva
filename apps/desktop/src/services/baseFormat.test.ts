@@ -148,6 +148,15 @@ describe("baseFormat serialize: Obsidian-native output", () => {
     expect(out2.views[0].plainva?.boardColorMode).toBeUndefined();
   });
 
+  it("round-trips boardLaneBy under views[i].plainva (issue #83)", () => {
+    const out = yaml.parse(serializeBaseConfig({ columns: {}, views: [{ type: "board", boardLaneBy: "priority" }, { type: "board" }], _obsidian: {} }));
+    expect(out.views[0].plainva.boardLaneBy).toBe("priority");
+    expect(out.views[1].plainva?.boardLaneBy).toBeUndefined();
+    const parsed = parseBaseConfig(yaml.stringify(out));
+    expect(parsed.views[0].boardLaneBy).toBe("priority");
+    expect(parsed.views[1].boardLaneBy).toBeUndefined();
+  });
+
   it("round-trips boardWipLimits under views[i].plainva; empty or invalid limits are elided (issue #83)", () => {
     const out = yaml.parse(
       serializeBaseConfig({

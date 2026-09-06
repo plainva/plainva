@@ -191,6 +191,7 @@ export * from "./base/deletionPlan";
 export * from "./base/noteDatabaseContext";
 export * from "./base/relationCleanup";
 export * from "./base/boardOrder";
+export * from "./base/boardLanes";
 export * from "./base/filterExpr";
 export * from "./base/newItemNaming";
 export * from "./base/pinboardModel";

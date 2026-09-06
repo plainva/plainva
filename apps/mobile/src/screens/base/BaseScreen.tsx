@@ -29,7 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
-import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -1049,6 +1049,8 @@ export function BaseScreen({
   // same commit path as the cell editor. One delegated listener set on the
   // board container — cards stay scrollable until the press arms.
   const boardRef = useRef<HTMLDivElement>(null);
+  // Folded swimlanes (issue #83, P6) — a way of looking, kept for the screen.
+  const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(() => new Set());
   const [boardDrag, setBoardDrag] = useState<{
     path: string;
     fromKey: string;
@@ -1150,8 +1152,18 @@ export function BaseScreen({
   const renderBoard = () => {
     const groupBy = boardGroupBy;
     if (!groupBy) return renderTable();
+    // Swimlanes (issue #83, P6): the lanes stack; each holds its own column
+    // strip. A card's lane changes through its lane chip (the cell editor),
+    // the drag inside a strip changes the column as it always did.
+    // A copy, not the state array itself: the compiler lint treats a state
+    // value handed to a function as a possible mutation; the helpers only read.
+    const all: Row[] = [...(rows ?? [])];
+    const laneBy: string | null = typeof view.boardLaneBy === "string" && view.boardLaneBy && view.boardLaneBy !== groupBy ? view.boardLaneBy : null;
+    const laneOptionOrder: string[] = laneBy ? ((config?.columns?.[laneBy]?.options ?? []) as any[]).map((o: any) => String(o?.value ?? o)) : [];
+    const lanes: Array<{ key: string | null; rows: Row[] }> = laneBy ? groupRowsByLane(all, laneBy, laneOptionOrder) : [{ key: null, rows: all }];
+    const bucket = (source: Row[]) => {
     const groups = new Map<string, Row[]>();
-    for (const r of rows!) {
+    for (const r of source) {
       const raw = r[groupBy];
       const keys =
         raw == null || raw === ""
@@ -1166,9 +1178,13 @@ export function BaseScreen({
         groups.set(key, list);
       }
     }
+    const optionMeta0: any[] = config?.columns?.[groupBy]?.options ?? [];
+    for (const o of optionMeta0.map((x: any) => String(x.value))) if (!groups.has(o)) groups.set(o, []);
+    return groups;
+    };
+    const groups = bucket(all);
     const optionMeta: any[] = config?.columns?.[groupBy]?.options ?? [];
     const options = optionMeta.map((o: any) => String(o.value));
-    for (const o of options) if (!groups.has(o)) groups.set(o, []);
     const orderKeys = orderBoardGroups([...groups.keys()], {
       optionOrder: options.length ? options : undefined,
       savedOrder: Array.isArray(view.boardColumnOrder) ? view.boardColumnOrder : undefined,
@@ -1211,10 +1227,13 @@ export function BaseScreen({
         </span>
       );
     };
-    return (
-      <div className="m-board" ref={boardRef}>
+    const renderStrip = (laneKey: string | null, laneRows: Row[]) => {
+      const laneGroups = laneKey === null ? groups : bucket(laneRows);
+      return (
+      <div className="m-board">
         {orderKeys.map((key) => {
           const tint = tintFor(key);
+          const cards = laneGroups.get(key) ?? [];
           return (
             <div
               className={`m-board-col${boardDrag?.overKey === key && boardDrag.fromKey !== key ? " is-over" : ""}`}
@@ -1228,7 +1247,7 @@ export function BaseScreen({
                 {(() => {
                   // WIP limit (issue #83): `n/limit`, warning tone once exceeded —
                   // the same reading as the desktop header; set in the config sheet.
-                  const count = groups.get(key)!.length;
+                  const count = cards.length;
                   const limit = (view.boardWipLimits as Record<string, number> | undefined)?.[key];
                   const over = limit != null && count > limit;
                   return (
@@ -1238,13 +1257,13 @@ export function BaseScreen({
                   );
                 })()}
               </p>
-              {groups.get(key)!.map((r) => (
+              {cards.map((r) => (
                 <div
                   className={`pv-card pv-card--flat m-basecard${boardDrag?.path === rowPath(r) ? " is-dragging" : ""}`}
                   data-group-key={key}
                   data-row-path={rowPath(r)}
                   data-row-title={rowTitle(r)}
-                  key={rowPath(r)}
+                  key={laneKey === null ? rowPath(r) : `${laneKey}\u0000${rowPath(r)}`}
                 >
                   <button className="pv-card pv-card--flat m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>
                     {rowTitle(r)}
@@ -1260,6 +1279,13 @@ export function BaseScreen({
                     {cellText(r[groupBy]) || "—"}
                     {commentDot(rowPath(r), groupBy)}
                   </Chip>
+                  {laneBy && (
+                    /* The lane chip: the card's second axis, and the way to move
+                       it to another lane on a phone (E6) — the cell editor. */
+                    <Chip onClick={() => openCellEditor(r, laneBy)} data-testid="board-lane-chip">
+                      {cellText(r[laneBy]) || t("database.boardUngrouped")}
+                    </Chip>
+                  )}
                   <CardChecklist vault={vault} path={rowPath(r)} progress={r["file.tasks"]} onChanged={() => requery(config, viewIndex)} />
                   {boardMiniChips(r, groupBy)}
                 </div>
@@ -1267,6 +1293,34 @@ export function BaseScreen({
             </div>
           );
         })}
+      </div>
+      );
+    };
+    return (
+      <div className={laneBy ? "m-board-lanes" : "m-board-host"} ref={boardRef}>
+        {laneBy
+          ? lanes.map((lane) => {
+              const laneKey = lane.key!;
+              const collapsed = collapsedLanes.has(laneKey);
+              return (
+                <section className="m-board-lane" data-testid={`board-lane-${laneKey}`} data-collapsed={collapsed ? "true" : undefined} key={laneKey}>
+                  <button
+                    type="button"
+                    className="m-board-lanehead"
+                    aria-expanded={!collapsed}
+                    aria-label={collapsed ? t("database.laneExpand") : t("database.laneCollapse")}
+                    data-testid={`board-lane-toggle-${laneKey}`}
+                    onClick={() => setCollapsedLanes((prev) => { const next = new Set(prev); if (next.has(laneKey)) next.delete(laneKey); else next.add(laneKey); return next; })}
+                  >
+                    {collapsed ? <ChevronRight size={ICON.ui} /> : <ChevronDown size={ICON.ui} />}
+                    <span>{laneKey === UNGROUPED_KEY ? t("database.boardUngrouped") : laneKey}</span>
+                    <span className="m-board-count">· {lane.rows.length}</span>
+                  </button>
+                  {!collapsed && renderStrip(laneKey, lane.rows)}
+                </section>
+              );
+            })
+          : renderStrip(null, all)}
         {boardDrag && (
           <div aria-hidden className="m-board-ghost" style={{ left: boardDrag.x, top: boardDrag.y }}>
             {boardDrag.title}
