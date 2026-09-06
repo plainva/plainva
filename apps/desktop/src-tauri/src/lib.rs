@@ -8,6 +8,7 @@ use tauri::Manager;
 mod atomic_write;
 mod backup;
 mod db_batch;
+mod linux_appimage;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
@@ -350,6 +351,12 @@ fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything loads a graphics library: the AppImage on a Mesa-25 host
+    // needs the host's libwayland-client preloaded, which means a re-exec
+    // (issue #85, see src/linux_appimage.rs). No-op for deb/rpm and dev runs.
+    #[cfg(target_os = "linux")]
+    linux_appimage::apply();
+
     let builder = tauri::Builder::default();
 
     // Single instance, and it has to be registered before every other plugin

@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-04
+Stan na: 2026-09-06
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -15,6 +15,8 @@ Plainva rysuje swoje okno silnikiem internetowym systemu — to silnik, a nie pr
 Granicą silnika jest **Safari 16.4**, a na macOS decyduje o niej wersja systemu: aplikacja rysuje swoje okno za pomocą systemowej WebView, która pojawia się wraz z aktualizacjami macOS, a nie z Safari. Na Macu, którego Apple już nie aktualizuje, Safari może więc być dużo nowsze niż silnik, jaki otrzymuje każda inna aplikacja — Monterey zatrzymuje się na Safari 15.6.1, niezależnie od tego, jak aktualne jest samo Safari. Ventura osiągnęła wersję 16.4 przy 13.3 i tam właśnie leży dolna granica; instalacja nowszego Safari jej nie przesuwa.
 
 W systemie poniżej tej granicy Plainva powie to przy starcie, zamiast otworzyć puste okno.
+
+**Linux: który plik wybrać.** Na Fedorze, openSUSE i innych dystrybucjach opartych na RPM instalujesz `.rpm`, na Debianie i Ubuntu `.deb` — obie wersje korzystają z bibliotek WebKitGTK, Mesa i Wayland Twojego systemu. `.AppImage` to rozwiązanie zapasowe dla dystrybucji bez pakietu: niesie ze sobą własne kopie niektórych bibliotek, a na bardzo nowym systemie (Mesa 25 lub nowszy) mogą one kolidować ze stosem graficznym hosta. AppImage zbudowane po wersji 0.8.0 omijają ten problem przy starcie; jeśli okno mimo to pozostaje puste, uruchom je z terminala i przeczytaj komunikat — `EGL_BAD_PARAMETER` wskazuje dokładnie na to, a `.rpm` lub `.deb` pozwala to obejść. Puste okno na karcie NVIDIA to inna sprawa: spróbuj `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (ustawienie WebKitGTK, zobacz [uwagi Tauri o grafice na Linuksie](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## Czym jest vault?
 

@@ -8,7 +8,19 @@ on:
   # exercises the recursive fs.watch path (FSEvents), which the ubuntu-only CI
   # workflow never runs — this is the on-demand way to confirm that path stays
   # green. The release-cutting steps below are gated off for manual runs.
+  #
+  # `linux_appimage` additionally builds the Linux AppImage on the ubuntu leg and
+  # attaches it as a workflow artifact — no draft release, nothing published.
+  # This exists because the AppImage cannot be verified here: the blank window
+  # on Mesa-25 hosts (issue #85) only shows on a distribution newer than the
+  # runner, so a reporter has to try the build. A tag would create a draft
+  # release named after a branch; an artifact is the honest shape of a test.
   workflow_dispatch:
+    inputs:
+      linux_appimage:
+        description: 'Also build the Linux AppImage and attach it as an artifact (no release)'
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -140,6 +152,38 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
+
+      # Manual AppImage test build (see the workflow_dispatch input above). Uses
+      # the same signing key as a release so `createUpdaterArtifacts` does not
+      # refuse the build; the signature goes nowhere — no manifest is written.
+      - name: Build Linux AppImage (manual test build)
+        if: matrix.platform == 'ubuntu-22.04' && github.event_name == 'workflow_dispatch' && inputs.linux_appimage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --filter desktop tauri build --bundles appimage
+
+      # Measure every AppImage we build (release or test): extract it, assert
+      # the binary and AppRun are there, and list the infrastructure libraries
+      # the bundler swept in. That list is the evidence behind the start-up
+      # workaround in src-tauri/src/linux_appimage.rs (issue #85): while a
+      # bundled libwayland-client is in it, the workaround is live; the day the
+      # list is empty, the workaround can go. Measured, not remembered.
+      - name: Check the Linux AppImage
+        if: matrix.platform == 'ubuntu-22.04' && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage)
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/check-appimage.sh "$appimage"
+
+      - name: Upload the Linux AppImage (manual test build)
+        if: matrix.platform == 'ubuntu-22.04' && github.event_name == 'workflow_dispatch' && inputs.linux_appimage
+        uses: actions/upload-artifact@v4
+        with:
+          name: plainva-appimage-${{ github.sha }}
+          path: apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
 
       # Guard against the one signing failure that passes every check on the day
       # it happens and breaks days later for every user: a signature without a

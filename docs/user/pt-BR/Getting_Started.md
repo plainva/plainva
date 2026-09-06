@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-04
+Última revisão: 2026-09-06
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -15,6 +15,8 @@ O Plainva desenha sua janela com o motor web do sistema — é o motor, não o p
 O limite do motor é o **Safari 16.4**, e no macOS é a versão do sistema que decide isso: um app desenha sua janela com a WebView do sistema, que chega junto com as atualizações do macOS, e não com o Safari. Em um Mac que a Apple não atualiza mais, o Safari pode, portanto, ser muito mais novo do que o motor que qualquer outro app recebe — o Monterey fica travado no Safari 15.6.1, por mais atualizado que esteja o seu Safari. O Ventura alcançou a versão 16.4 na 13.3, e é aí que fica o limite mínimo; instalar um Safari mais recente não o move.
 
 Em um sistema abaixo desse mínimo, o Plainva avisa na inicialização em vez de abrir uma janela em branco.
+
+**Linux: qual arquivo escolher.** No Fedora, no openSUSE e em outras distribuições baseadas em RPM, instale o `.rpm`; no Debian e no Ubuntu, o `.deb` — ambos usam as bibliotecas WebKitGTK, Mesa e Wayland do seu sistema. O `.AppImage` é a alternativa para distribuições sem pacote: ele traz cópias próprias de algumas bibliotecas, e em um sistema muito novo (Mesa 25 ou mais recente) elas podem entrar em conflito com a pilha gráfica do sistema. Os AppImages criados depois da 0.8.0 contornam isso na inicialização; se uma janela ainda assim ficar em branco, inicie-o em um terminal e leia a mensagem — `EGL_BAD_PARAMETER` aponta exatamente para isso, e o `.rpm` ou o `.deb` é a forma de contornar. Uma janela em branco em uma placa NVIDIA é outra questão: tente `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (uma configuração do WebKitGTK; veja as [notas do Tauri sobre gráficos no Linux](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## O que é um vault?
 

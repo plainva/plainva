@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-04
+Ultimo aggiornamento: 2026-09-06
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -15,6 +15,8 @@ Plainva disegna la sua finestra con il motore web del sistema: è il motore, non
 Il limite del motore è **Safari 16.4**, e su macOS a deciderlo è la versione di sistema: un'app disegna la sua finestra con la WebView di sistema, che arriva con gli aggiornamenti di macOS e non con Safari. Su un Mac che Apple non aggiorna più, Safari può quindi essere molto più recente del motore che riceve qualsiasi altra app — Monterey resta fermo a Safari 15.6.1, per quanto aggiornato sia il suo Safari. Ventura ha raggiunto la 16.4 con la 13.3, ed è lì che si trova il limite minimo; installare un Safari più recente non lo sposta.
 
 Su un sistema al di sotto di questa soglia Plainva te lo dice all'avvio invece di aprire una finestra vuota.
+
+**Linux: quale file scegliere.** Su Fedora, openSUSE e altre distribuzioni basate su RPM installa il `.rpm`, su Debian e Ubuntu il `.deb` — entrambi usano le librerie WebKitGTK, Mesa e Wayland del tuo sistema. L'`.AppImage` è la soluzione di ripiego per le distribuzioni senza pacchetto: porta con sé copie proprie di alcune librerie, e su un sistema molto recente (Mesa 25 o successivo) queste possono entrare in conflitto con lo stack grafico dell'host. Le AppImage create dopo la 0.8.0 aggirano il problema all'avvio; se una finestra resta comunque vuota, avviala da un terminale e leggi il messaggio — `EGL_BAD_PARAMETER` indica esattamente questo, e il `.rpm` o il `.deb` è il modo per aggirarlo. Una finestra vuota su una scheda NVIDIA è un caso diverso: prova `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (un'impostazione di WebKitGTK, vedi le [note di Tauri sulla grafica su Linux](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## Cos'è un vault?
 

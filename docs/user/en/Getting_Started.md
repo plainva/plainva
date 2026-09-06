@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-04
+Last updated: 2026-09-06
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -15,6 +15,8 @@ Plainva draws its window with the system's web engine, so the engine — not the
 The engine bar is **Safari 16.4**, and on macOS the system version decides it: an app draws its window with the system WebView, which arrives with macOS updates rather than with Safari. On a Mac that Apple no longer updates, Safari can therefore be far newer than the engine every other app gets — Monterey stops at Safari 15.6.1 however current its Safari is. Ventura reached 16.4 at 13.3, which is where the floor sits; installing a newer Safari does not move it.
 
 On a system below that line Plainva says so at startup instead of opening a blank window.
+
+**Linux: which file to pick.** On Fedora, openSUSE and other RPM-based distributions install the `.rpm`, on Debian and Ubuntu the `.deb` — both use the WebKitGTK, Mesa and Wayland libraries of your system. The `.AppImage` is the fallback for distributions without a package: it carries its own copies of some libraries, and on a very new system (Mesa 25 or newer) those can clash with the host's graphics stack. AppImages built after 0.8.0 work around that at start-up; if a window still stays blank, start it from a terminal and read the message — `EGL_BAD_PARAMETER` points to exactly this, and the `.rpm` or `.deb` is the way past it. A blank window on an NVIDIA card is a different matter: try `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (a WebKitGTK setting, see [Tauri's notes on Linux graphics](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## What is a vault?
 

@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-04
+Dernière mise à jour : 2026-09-06
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -15,6 +15,8 @@ Plainva dessine sa fenêtre avec le moteur web du système : c'est donc le moteu
 Le seuil du moteur est **Safari 16.4**, et sous macOS, c'est la version du système qui le détermine : une application dessine sa fenêtre avec la WebView du système, laquelle arrive avec les mises à jour de macOS et non avec Safari. Sur un Mac qu'Apple ne met plus à jour, Safari peut donc être bien plus récent que le moteur que reçoit toute autre application — Monterey reste bloqué à Safari 15.6.1, aussi à jour que soit son Safari. Ventura a atteint la 16.4 avec la 13.3, c'est là que se situe le seuil minimal ; installer un Safari plus récent ne le déplace pas.
 
 Sur un système en dessous de ce seuil, Plainva vous le dit au démarrage au lieu d'ouvrir une fenêtre vide.
+
+**Linux : quel fichier choisir.** Sur Fedora, openSUSE et les autres distributions basées sur RPM, installez le `.rpm` ; sur Debian et Ubuntu, le `.deb` — tous deux utilisent les bibliothèques WebKitGTK, Mesa et Wayland de votre système. Le `.AppImage` est la solution de repli pour les distributions sans paquet : il embarque ses propres copies de certaines bibliothèques, et sur un système très récent (Mesa 25 ou plus récent), celles-ci peuvent entrer en conflit avec la pile graphique de l'hôte. Les AppImages compilées après la 0.8.0 contournent cela au démarrage ; si une fenêtre reste malgré tout vide, lancez-la depuis un terminal et lisez le message — `EGL_BAD_PARAMETER` pointe exactement vers cela, et le `.rpm` ou le `.deb` permet de contourner le problème. Une fenêtre vide sur une carte NVIDIA est un autre problème : essayez `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (un réglage de WebKitGTK, voir les [notes de Tauri sur les graphismes sous Linux](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## Qu'est-ce qu'un vault ?
 

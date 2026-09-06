@@ -1,6 +1,6 @@
 # 快速上手
 
-更新日期：2026-09-04
+更新日期：2026-09-06
 
 本页带你从安装到第一次真正的工作：打开或新建仓库、认识界面，以及理解三种编辑器模式。
 
@@ -15,6 +15,8 @@ Plainva 用系统自带的网页引擎绘制窗口，所以决定下限的是引
 引擎的下限是 **Safari 16.4**，而在 macOS 上，决定这个下限的是系统版本：应用是用系统自带的 WebView 绘制窗口的，而这个 WebView 会随 macOS 更新而更新，并不会随 Safari 更新。因此，在 Apple 已经不再更新的 Mac 上，Safari 可能比其他任何应用所获得的引擎新得多——无论 Safari 本身多新，Monterey 上的引擎都停留在 Safari 15.6.1。Ventura 在 13.3 版本时达到了 16.4，下限就设在这里；安装更新的 Safari 并不会改变这个下限。
 
 在低于该下限的系统上，Plainva 会在启动时明确告知，而不是打开一个空白窗口。
+
+**Linux：选择哪个文件。** 在 Fedora、openSUSE 等基于 RPM 的发行版上安装 `.rpm`，在 Debian 和 Ubuntu 上安装 `.deb`——两者都使用系统自带的 WebKitGTK、Mesa 和 Wayland 库。`.AppImage` 是没有软件包的发行版的备用方案：它自带部分库的副本，在非常新的系统上（Mesa 25 或更高版本），这些副本可能与主机的图形栈发生冲突。0.8.0 之后构建的 AppImage 在启动时会规避这个问题；如果窗口仍然显示空白，请从终端启动它并查看提示信息——`EGL_BAD_PARAMETER` 正是指向这个问题，`.rpm` 或 `.deb` 就是绕开它的办法。NVIDIA 显卡上出现空白窗口则是另一回事：可以尝试 `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage`（这是 WebKitGTK 的一项设置，参见 [Tauri 关于 Linux 图形的说明](https://v2.tauri.app/develop/debug/linux-graphics/)）。
 
 ## 什么是仓库？
 

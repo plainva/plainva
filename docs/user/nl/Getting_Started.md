@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-04
+Laatst bijgewerkt: 2026-09-06
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -15,6 +15,8 @@ Plainva tekent zijn venster met de webengine van het systeem — de engine, niet
 De ondergrens van de engine is **Safari 16.4**, en op macOS bepaalt de systeemversie die grens: een app tekent zijn venster met de systeem-WebView, en die komt mee met macOS-updates, niet met Safari. Op een Mac die Apple niet meer bijwerkt, kan Safari daardoor veel nieuwer zijn dan de engine die elke andere app krijgt — Monterey blijft steken bij Safari 15.6.1, hoe actueel zijn Safari ook is. Ventura bereikte 16.4 bij 13.3, en daar ligt de ondergrens; een nieuwere Safari installeren verplaatst hem niet.
 
 Op een systeem daaronder zegt Plainva dat bij het starten, in plaats van een leeg venster te openen.
+
+**Linux: welk bestand je moet kiezen.** Op Fedora, openSUSE en andere RPM-gebaseerde distributies installeer je het `.rpm`-bestand, op Debian en Ubuntu het `.deb`-bestand — beide gebruiken de WebKitGTK-, Mesa- en Wayland-bibliotheken van je systeem. Het `.AppImage`-bestand is de terugvaloptie voor distributies zonder pakket: het bevat eigen kopieën van een aantal bibliotheken, en op een heel nieuw systeem (Mesa 25 of nieuwer) kunnen die botsen met de grafische stack van het systeem. AppImages die na 0.8.0 zijn gebouwd, omzeilen dit bij het opstarten; blijft een venster toch leeg, start het dan vanuit een terminal en lees de melding — `EGL_BAD_PARAMETER` wijst precies hierop, en het `.rpm`- of `.deb`-bestand is de weg eromheen. Een leeg venster op een NVIDIA-kaart is een andere zaak: probeer `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Plainva*.AppImage` (een WebKitGTK-instelling, zie [Tauri's notities over Linux-graphics](https://v2.tauri.app/develop/debug/linux-graphics/)).
 
 ## Wat is een vault?
 
