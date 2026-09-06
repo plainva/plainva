@@ -25,7 +25,7 @@ import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
 import { initDefaultViewMode } from "./services/viewModeDefault";
-import { initContentFont } from "./services/contentFont";
+import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
 import { initInputModality } from "./services/inputModality";
 import { initWebviewHardening } from "./services/webviewHardening";
@@ -45,7 +45,7 @@ initDensity();
 // Fill the sync cache for the default editor view mode (read/live/source).
 initDefaultViewMode();
 // Apply the persisted content font size/family (issue #5, a11y).
-initContentFont();
+initAppFonts();
 // Re-apply a persisted non-default UI zoom (issue #5 follow-up).
 initUiZoom();
 // Track keyboard vs. pointer so the editor focus ring shows only on keyboard.

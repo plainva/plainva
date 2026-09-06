@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-09-04
+Dernière mise à jour : 2026-09-06
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -49,7 +49,7 @@ Si une note a changé depuis la construction de la liste, un basculement obsolè
 
 ## Base de tâches par défaut
 
-Les cases à cocher permettent de noter rapidement, mais parfois une ligne devient une « vraie » tâche — avec un statut, une échéance et sa propre note. Pour cela, choisissez une **Base de tâches par défaut** dans les paramètres, sous **Contenu et structure** : une [base de données (`.base`)](Databases_Base.md) où ces tâches vivent comme leurs propres notes. **Créer une base…** en prépare une toute faite (un dossier de stockage plus une `.base` avec une **colonne de case à cocher terminé** (`fait`), une colonne de statut, une colonne d'échéance, une vue tableau et une vue kanban) ; vous pouvez tout aussi bien choisir une base de données existante. La propriété de case à cocher fait foi de l'achèvement d'une tâche (activée/désactivée, comme chez les fournisseurs) ; la colonne de statut reste cohérente lorsque vous la cochez. Une base de données sans colonne de case à cocher revient à la convention de statut : première option = ouvert, dernière = terminé.
+Les cases à cocher permettent de noter rapidement, mais parfois une ligne devient une « vraie » tâche — avec un statut, une échéance et sa propre note. Pour cela, choisissez une **Base de tâches par défaut** dans les paramètres, sous **Contenu et structure** : une [base de données (`.base`)](Databases_Base.md) où ces tâches vivent comme leurs propres notes. **Créer une base…** en prépare une toute faite (un dossier de stockage plus une `.base` avec une **colonne de case à cocher terminé** (`fait`), une colonne de statut, une colonne d'échéance, ainsi qu'une vue tableau, une vue kanban et une vue chronologie — la chronologie place chaque tâche à son jour d'échéance) ; vous pouvez tout aussi bien choisir une base de données existante. La propriété de case à cocher fait foi de l'achèvement d'une tâche (activée/désactivée, comme chez les fournisseurs) ; la colonne de statut reste cohérente lorsque vous la cochez. Une base de données sans colonne de case à cocher revient à la convention de statut : première option = ouvert, dernière = terminé.
 
 Une fois définie, la vue Tâches affiche deux sections : les entrées de la **Base de tâches** en haut, et **Depuis les notes** en dessous — la liste de cases à cocher habituelle. Le statut est modifiable directement dans l'aperçu : la case à cocher est la propriété de case à cocher terminé de la note et la bascule (la colonne de statut suit), et cliquer sur la puce de statut ouvre un menu avec toutes les options (**Changer le statut**). Les filtres **Ouvertes**/**Terminées**/**Toutes** s'appliquent aux deux sections, et **Ouvrir comme base** saute vers la vue complète de la base de données avec son kanban et ses filtres. **Actualiser** déclenche en plus une véritable synchronisation avec le fournisseur quand des comptes sont connectés.
 

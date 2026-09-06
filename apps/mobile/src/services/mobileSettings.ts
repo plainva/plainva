@@ -1,5 +1,7 @@
 import {
-  applyContentFontFamily,
+  applyAppFonts,
+  migrateCustomThemeFont,
+  type AppFonts,
   applyResolved,
   clampContentFontSize,
   type ContentFontFamily,
@@ -89,6 +91,13 @@ export interface MobileSettings extends VaultScopedSettings {
   contentFontFamily: ContentFontFamily;
   /** Free-text family name, only meaningful while contentFontFamily is "custom". */
   contentFontCustom: string;
+  /** Interface font (issue #82, plan 2026-09-06 P2): sidebars, menus, bars.
+   *  Moved here from the custom theme's `fontUi` (E2, migrated on first run). */
+  uiFontFamily: ContentFontFamily;
+  uiFontCustom: string;
+  /** Code font: code blocks, inline code, the code mode (`--font-mono`). */
+  codeFontFamily: ContentFontFamily;
+  codeFontCustom: string;
   /** Chrome motion: follow the OS, force on (OS says reduce), or force off. */
   motion: MotionPref;
   /**
@@ -116,6 +125,15 @@ export interface MobileSettings extends VaultScopedSettings {
 export type VaultSettings = VaultScopedSettings;
 
 const KEY = "mobile-settings";
+
+/** The three font slots of the shared model, read from the settings shape. */
+export function mobileAppFonts(m: Pick<MobileSettings, "uiFontFamily" | "uiFontCustom" | "contentFontFamily" | "contentFontCustom" | "codeFontFamily" | "codeFontCustom">): AppFonts {
+  return {
+    ui: { family: m.uiFontFamily, customName: m.uiFontCustom },
+    content: { family: m.contentFontFamily, customName: m.contentFontCustom },
+    code: { family: m.codeFontFamily, customName: m.codeFontCustom },
+  };
+}
 /** One-time flag: the pre-package-A shared blob has been split per vault. */
 const MIGRATION_KEY = "mobile-settings-per-vault-migrated";
 const vaultKey = (id: string) => `mobile-vault-${id}`;
@@ -152,6 +170,10 @@ function defaults(): MobileSettings {
     askBeforeCreateLink: false,
     contentFontFamily: "theme",
     contentFontCustom: "",
+    uiFontFamily: "theme",
+    uiFontCustom: "",
+    codeFontFamily: "theme",
+    codeFontCustom: "",
     motion: "system",
     contextPanelDocked: false,
     navSidebarCollapsed: false,
@@ -230,9 +252,10 @@ function applyTheme(): void {
   root.setAttribute("data-density", "touch");
   // D6: note content size (chrome text is untouched — desktop contract).
   root.style.setProperty("--content-font-size", `${clampContentFontSize(live().contentFontSize)}px`);
-  // The family override is the shared resolver: "theme" removes the override so
-  // the theme keeps ownership, a custom name is sanitized before it reaches CSS.
-  applyContentFontFamily(live().contentFontFamily, live().contentFontCustom);
+  // The three font slots (issue #82) through the shared resolver: "theme"
+  // removes the override so the theme keeps ownership, a custom name is
+  // sanitized before it reaches CSS. Device-local, like the desktop's.
+  applyAppFonts(mobileAppFonts(live()));
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (live().motion === "system") root.removeAttribute("data-motion");
@@ -255,6 +278,18 @@ export async function initMobileSettings(): Promise<void> {
     await migrateToPerVault(store, saved);
     const vaultRec = await loadVaultRecord(store, activeVaultId);
     cache = { ...defaults(), ...(saved ? stripVaultKeys(saved) : {}), ...vaultRec };
+    // E2 (2026-09-06): the interface font left "My design". A saved spec that
+    // still names one seeds the interface slot — only while that slot was
+    // never saved — and the spec's field is cleared so it cannot seed twice.
+    const moved = migrateCustomThemeFont(mobileAppFonts(cache), cache.customTheme?.fontUi, saved?.uiFontFamily != null);
+    if (moved || cache.customTheme?.fontUi) {
+      cache = {
+        ...cache,
+        ...(moved ? { uiFontFamily: moved.ui.family, uiFontCustom: moved.ui.customName } : {}),
+        customTheme: { ...cache.customTheme, fontUi: "" },
+      };
+      await store.set(KEY, stripVaultKeys(cache));
+    }
   } catch {
     /* fresh install / plain web — defaults apply */
     activeVaultId = LOCAL_VAULT_ID;

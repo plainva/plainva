@@ -177,7 +177,9 @@ describe("custom theme tokens on the document", () => {
     applyCustomTheme(spec);
     const style = document.documentElement.style;
     expect(style.getPropertyValue("--bg-primary")).toBe(spec.background);
-    expect(style.getPropertyValue("--font-ui")).toContain('"Georgia"');
+    // E2 (2026-09-06): the interface font is an app-font slot now; a spec's
+    // fontUi is read for the migration but writes no token of its own.
+    expect(style.getPropertyValue("--font-ui")).toBe("");
     expect(style.getPropertyValue("--radius-md")).toBe("16px");
     // "normal" radius and no font leave those tokens to the base palette.
     applyCustomTheme(defaultCustomTheme("light"));

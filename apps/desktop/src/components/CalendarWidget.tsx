@@ -441,7 +441,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
                 onOpenNote?.(task.path);
               }}
             >
-              {task.title}
+              {/* The overdue rule of the task list: an open task whose day has
+                  come is said in the warning tone (issues #83/#84). */}
+              <span style={!task.done && task.due <= localIsoKey(today) ? { color: "var(--warning-text)", fontWeight: 600 } : undefined}>{task.title}</span>
             </MenuItem>
           ))}
         </MenuSurface>

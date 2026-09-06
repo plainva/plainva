@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, TextInput, type ContentFontFamily, type WeekStartSetting, FontCatalogPicker, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
+import { FontSlotSheet } from "../components/FontSlotSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
@@ -25,6 +26,10 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
   const { t } = useTranslation();
   const [settings, setSettings] = useState(getMobileSettings());
   const [hailing, setHailing] = useState(false);
+  const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
+  /** What the row says: the custom name, or the words for a preset/theme. */
+  const fontChoiceLabel = (c: FontChoice): string =>
+    c.family === "custom" ? c.customName || t("settings.fontFieldEmpty") : t(`settings.font${c.family.charAt(0).toUpperCase()}${c.family.slice(1)}`);
   const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
   useEffect(() => {
     void getWeekStartSetting().then(setWeekStart);
@@ -57,12 +62,11 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
     ["dark", t("mobile.themeDark")],
   ];
   /** The shared family choices; "custom" reveals a free-text name below. */
-const FONT_FAMILIES = [
-  ["theme", "settings.fontTheme"],
-  ["serif", "settings.fontSerif"],
-  ["sans", "settings.fontSans"],
-  ["mono", "settings.fontMono"],
-  ["custom", "settings.fontCustom"],
+/** One row per font slot: label key, and the two settings keys it reads. */
+const FONT_SLOT_ROWS = [
+  ["ui", "settings.fontUi", "uiFontFamily", "uiFontCustom"],
+  ["content", "settings.fontContent", "contentFontFamily", "contentFontCustom"],
+  ["code", "settings.fontCode", "codeFontFamily", "codeFontCustom"],
 ] as const;
 
 const MOTIONS: Array<[MotionPref, string]> = [
@@ -185,37 +189,25 @@ const MOTIONS: Array<[MotionPref, string]> = [
           type="range"
           value={settings.contentFontSize}
         />
-        {/* Content font family (S39): the same choice the desktop has, resolved
-            by the same shared stacks — "theme" leaves --font-content to the theme.
-            The custom name is sanitized before it reaches CSS. */}
-        <SectionLabel>{t("settings.contentFontFamily")}</SectionLabel>
-        <Segmented
-          ariaLabel={t("settings.contentFontFamily")}
-          options={FONT_FAMILIES.map(([id, key]) => ({ value: id, label: t(key) }))}
-          value={settings.contentFontFamily}
-          onChange={(v) => update({ contentFontFamily: v as ContentFontFamily })}
-        />
-        {settings.contentFontFamily === "custom" && (
-          /* The curated list first (T7): preview per row, "not installed"
-             where the phone lacks the font. The name field stays below. */
-          <FontCatalogPicker
-            value={settings.contentFontCustom}
-            onPick={(font) => update({ contentFontFamily: "custom", contentFontCustom: font.css })}
-          />
-        )}
-        {settings.contentFontFamily === "custom" && (
-          <GroupCard>
-            <RowList>
-              <SettingField label={t("settings.fontCustomPlaceholder")}>
-                <TextInput
-                  onChange={(e) => update({ contentFontCustom: e.target.value })}
-                  value={settings.contentFontCustom}
-                />
-              </SettingField>
-            </RowList>
-          </GroupCard>
-        )}
-        <p className="m-hint">{t("settings.contentFontFamilyDesc")}</p>
+        {/* The three font slots (issue #82, plan 2026-09-06 P2): interface,
+            content, code — each a row that opens its sheet with the theme's
+            font, the generic presets, the catalogue and a free name. The same
+            three values the desktop's Appearance card has, saved per device. */}
+        <SectionLabel>{t("settings.groupFonts")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            {FONT_SLOT_ROWS.map(([slot, labelKey, familyKey, customKey]) => (
+              <Row
+                key={slot}
+                title={t(labelKey)}
+                end={<><span className="m-prop-val">{fontChoiceLabel({ family: settings[familyKey], customName: settings[customKey] })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                onClick={() => setFontSheet(slot)}
+                data-testid={`font-slot-${slot}`}
+              />
+            ))}
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("settings.fontsDeviceHint")}</p>
 
         {/* A slider row is a label WITH a value; it was standing in for a heading
             here, which is why this one had no value to show. */}
@@ -281,6 +273,18 @@ const MOTIONS: Array<[MotionPref, string]> = [
       </div>
 
       {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
+      {fontSheet && (
+        <FontSlotSheet
+          title={t(FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![1])}
+          value={{ family: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![2]], customName: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![3]] }}
+          onPick={(choice) => {
+            const row = FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)!;
+            update({ [row[2]]: choice.family, [row[3]]: choice.customName });
+            setFontSheet(null);
+          }}
+          onClose={() => setFontSheet(null)}
+        />
+      )}
     </div>
   );
 }

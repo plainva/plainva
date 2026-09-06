@@ -1,4 +1,5 @@
-import { loadImageBlob, resolveCoverSource } from "@plainva/ui";
+import { loadImageBlob, resolveCoverSource, rowDueTone, type TaskCompletionModel } from "@plainva/ui";
+import { dueChipStyle } from "./baseViewerShared";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -65,6 +66,7 @@ export function BaseGalleryView({
   visibleColumns,
   coverImageProperty,
   cells,
+  dueModel = null,
   onOpenNote,
   onDropToSplit,
 }: {
@@ -72,12 +74,14 @@ export function BaseGalleryView({
   visibleColumns: string[];
   coverImageProperty: string | null;
   cells: BaseCells;
+  /** Overdue pill on date properties of unfinished rows (issues #83/#84). */
+  dueModel?: TaskCompletionModel | null;
   onOpenNote?: (path: string, ev?: React.MouseEvent) => void;
   /** Dropping a card on the split zone opens it in the neighboring pane (P5). */
   onDropToSplit?: (path: string) => void;
 }) {
   const { t } = useTranslation();
-  const { columnLabel, formatValueForDisplay, renderEditableCell } = cells;
+  const { columnLabel, formatValueForDisplay, renderEditableCell, getColumnSchema } = cells;
   const { cardHandlers, registerTarget, draggingPath, overTarget, ghostProps } = useCardPointerDrag<string>({
     onDrop: (path, key) => {
       if (key === OPEN_SPLIT_TARGET) onDropToSplit?.(path);
@@ -108,10 +112,12 @@ export function BaseGalleryView({
                     let val = row[col];
                     if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
                     const { displayVal } = formatValueForDisplay(val, col);
+                    const input = getColumnSchema(col)?.input;
+                    const due = input === "date" || input === "datetime" ? dueChipStyle(rowDueTone(row, dueModel, val)) : undefined;
                     return (
                       <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{columnLabel(col)}</span>
-                        <span style={{ fontSize: "var(--text-md)", color: "var(--text-main)", wordBreak: "break-word" }}>{renderEditableCell(row, col, val, displayVal)}</span>
+                        <span style={{ fontSize: "var(--text-md)", color: "var(--text-main)", wordBreak: "break-word" }}>{due ? <span style={due}>{renderEditableCell(row, col, val, displayVal)}</span> : renderEditableCell(row, col, val, displayVal)}</span>
                       </div>
                     );
                   })}

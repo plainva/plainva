@@ -2843,14 +2843,15 @@ test('Live preview: a bullet with nested lines folds its list on click (T8c)', a
   expect(written).toBe('# Fold\n\n- Parent\n  - child one\n  - child two\n- Flat\n');
 });
 
-test('Editor settings: the content font is a field that opens the catalog with preview (T7, A3)', async ({ page }) => {
+test('Appearance settings: the content font is a field that opens the catalog with preview (T7, A3)', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  // The content font lives on the Editor page (Appearance holds theme and chrome).
-  await dialog.getByRole('button', { name: /^Editor & (notes|Notizen)$/ }).click();
+  // Since issue #82 the three font slots sit on the Appearance page, one card
+  // (interface, content, code); the content field keeps its ids from A3.
+  await dialog.getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
 
   // "Custom…" shows ONE field; the catalog only opens on click (second look
   // 2026-09-04, A3 — before, twenty rows stood open on the page).

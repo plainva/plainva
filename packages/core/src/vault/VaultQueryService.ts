@@ -4,7 +4,14 @@ import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { escapeLikePrefix } from "./VaultIndexer.js";
 import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
-import { scanTasks, type ScannedTask } from "./taskScan.js";
+import { formatTaskProgress, scanTasks, taskProgressOf, type ScannedTask } from "./taskScan.js";
+
+/** Whether any view of the config renders `file.tasks`: a board (its cards
+ * carry the checklist progress) or a view whose column order names it. */
+function needsTaskProgress(config: any): boolean {
+  const views: any[] = Array.isArray(config?.views) ? config.views : [];
+  return views.some((v) => v?.type === "board" || (Array.isArray(v?.order) && v.order.includes("file.tasks")));
+}
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
@@ -347,6 +354,30 @@ export class VaultQueryService {
       }
     }
     return out;
+  }
+
+  /**
+   * Sets `file.tasks` on every row: "done/total" of the note's GFM checkboxes
+   * (`taskProgressOf`), "" when it has none. A board card renders the value as
+   * a progress bar; any view can show it as a column. Rows whose note is not
+   * in the FTS index (a `.base`, a non-note file) get "".
+   */
+  private async attachTaskProgress(rows: Record<string, any>[]): Promise<void> {
+    const paths = rows.map((r) => String(r["file.path"] ?? "")).filter(Boolean);
+    const progress = new Map<string, string>();
+    const chunkSize = 500;
+    for (let i = 0; i < paths.length; i += chunkSize) {
+      const chunk = paths.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => "?").join(",");
+      const contentRows = await this.db.query<{ path: string; content: string | null }>(
+        `SELECT path, content FROM fts_notes WHERE path IN (${placeholders})`,
+        chunk,
+      );
+      for (const r of contentRows) {
+        if (r?.path) progress.set(r.path, formatTaskProgress(taskProgressOf(r.content ?? "")));
+      }
+    }
+    for (const row of rows) row["file.tasks"] = progress.get(String(row["file.path"] ?? "")) ?? "";
   }
 
   /**
@@ -1095,6 +1126,12 @@ export class VaultQueryService {
       }
       result.push(fileData);
     }
+
+    // `file.tasks` (issue #83): the note's checkbox progress, read from the FTS
+    // index like listTasks — no file I/O, one chunked query per result set.
+    // Only when a view can show it (a board card, or a column that asks for
+    // it): a plain table must not pay a content read it never renders.
+    if (needsTaskProgress(config)) await this.attachTaskProgress(result);
 
     // Computed reverse-relation columns (schema `reverseOf`): enriched BEFORE
     // the in-memory filters/sort so filtering and sorting on reverse columns

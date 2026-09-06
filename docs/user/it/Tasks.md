@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-04
+Ultimo aggiornamento: 2026-09-06
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -49,7 +49,7 @@ Se una nota è cambiata da quando l'elenco è stato generato, un clic obsoleto v
 
 ## Database attività predefinito
 
-Le caselle di controllo si scrivono in fretta, ma a volte una riga cresce fino a diventare un'attività "vera" — con uno stato, una scadenza e una nota propria. Per questo, scegli un **Database attività predefinito** nelle Impostazioni sotto **Contenuto e struttura**: un [database (`.base`)](Databases_Base.md) in cui queste attività vivono come note proprie. **Crea database…** ne genera uno già pronto (cartella di archiviazione più un `.base` con una **colonna casella di controllo di completamento** (`fatto`), una colonna di stato, una colonna di scadenza, una vista tabella e una vista bacheca); puoi altrettanto bene scegliere un database già esistente. La proprietà della casella di controllo è la verità sul completamento di un'attività (attiva/disattiva, come per i provider); la colonna di stato resta coerente quando la spunti. Un database senza colonna casella di controllo ricade sulla convenzione di stato: prima opzione = aperta, ultima = completata.
+Le caselle di controllo si scrivono in fretta, ma a volte una riga cresce fino a diventare un'attività "vera" — con uno stato, una scadenza e una nota propria. Per questo, scegli un **Database attività predefinito** nelle Impostazioni sotto **Contenuto e struttura**: un [database (`.base`)](Databases_Base.md) in cui queste attività vivono come note proprie. **Crea database…** ne genera uno già pronto (cartella di archiviazione più un `.base` con una **colonna casella di controllo di completamento** (`fatto`), una colonna di stato, una colonna di scadenza, oltre a una vista tabella, una bacheca e una cronologia — la cronologia colloca ogni attività nel suo giorno di scadenza); puoi altrettanto bene scegliere un database già esistente. La proprietà della casella di controllo è la verità sul completamento di un'attività (attiva/disattiva, come per i provider); la colonna di stato resta coerente quando la spunti. Un database senza colonna casella di controllo ricade sulla convenzione di stato: prima opzione = aperta, ultima = completata.
 
 Una volta impostato, la vista Attività mostra due sezioni: in alto le voci del **Database attività**, e in basso **Dalle note** — il consueto elenco di caselle di controllo. Lo stato è modificabile direttamente nella panoramica: la casella di controllo è la proprietà casella di controllo di completamento della nota e la commuta (la colonna di stato la segue), e un clic sul chip di stato apre un menu con tutte le opzioni (**Cambia stato**). I filtri **Aperte**/**Completate**/**Tutte** si applicano a entrambe le sezioni, e **Apri come database** salta alla vista completa del database con la sua bacheca e i suoi filtri. **Aggiorna** avvia inoltre una vera sincronizzazione con il provider quando sono collegati degli account.
 

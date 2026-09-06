@@ -3,7 +3,7 @@
  *
  * A thirteenth registry entry whose tokens come from a small SPEC instead of
  * a CSS file: a mood (light or dark), a background from a bounded lightness
- * range, a free accent, a UI font and a corner-radius step. Everything else is
+ * range, a free accent and a corner-radius step. Everything else is
  * DERIVED — text colours are never chosen, so text can never vanish into the
  * ground; the accent is measured against the background and corrected below
  * 3:1, and the correction is reported rather than applied in silence. The
@@ -15,7 +15,7 @@
  * font uses, and the one thing that beats every `[data-theme-name]` rule.
  */
 import { contrastRatio, hexToHsl, hslToHex, mixHex, normalizeHex, nudgeToContrast, withAlpha } from "./contrast";
-import { FONT_FAMILY_STACKS, sanitizeFontName } from "./contentFont";
+import { sanitizeFontName } from "./appFonts";
 
 export const CUSTOM_THEME_ID = "custom";
 
@@ -28,7 +28,13 @@ export interface CustomThemeSpec {
   background: string;
   /** `#rrggbb`, free — corrected to `CUSTOM_ACCENT_MIN_CONTRAST` against the background. */
   accent: string;
-  /** A font family name for the chrome; empty = the theme's default stack. */
+  /**
+   * @deprecated The interface font is a slot of the app fonts since the plan
+   * Issue-Durchsicht 2026-09-06 (E2): one place for interface, content and
+   * code, in Settings › Appearance. The field is still READ so a stored spec
+   * keeps its value until the shell has migrated it into that slot
+   * (`migrateCustomThemeFont`), and it no longer writes any token.
+   */
   fontUi: string;
   radius: CustomThemeRadius;
 }
@@ -239,7 +245,6 @@ export const CUSTOM_TOKEN_NAMES: readonly string[] = [
   "--border-color", "--border-color-light",
   "--selection-bg", "--active-line-bg", "--code-bg", "--quote-border",
   "--switch-knob",
-  "--font-ui", "--font-family",
   "--radius-xs", "--radius-sm", "--radius-md", "--radius-lg", "--radius-xl",
 ];
 
@@ -267,11 +272,6 @@ export function deriveCustomTokens(input: CustomThemeSpec): Record<string, strin
     "--quote-border": mixHex(c.background, c.textMain, 0.22),
     "--switch-knob": WHITE,
   };
-  if (spec.fontUi) {
-    const stack = `"${spec.fontUi}", ${FONT_FAMILY_STACKS.sans}`;
-    tokens["--font-ui"] = stack;
-    tokens["--font-family"] = stack;
-  }
   if (spec.radius !== "normal") Object.assign(tokens, RADIUS_SCALE[spec.radius]);
   return tokens;
 }

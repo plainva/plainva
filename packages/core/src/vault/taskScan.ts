@@ -55,3 +55,22 @@ export function scanTasks(content: string): ScannedTask[] {
   }
   return out;
 }
+
+/** Checkbox progress of a note's body (issue #83): the `file.tasks` column. */
+export interface TaskProgress {
+  done: number;
+  total: number;
+}
+
+export function taskProgressOf(content: string): TaskProgress {
+  const scanned = scanTasks(content);
+  let done = 0;
+  for (const t of scanned) if (t.done) done++;
+  return { done, total: scanned.length };
+}
+
+/** The column value: "done/total", or "" for a note without a checklist — an
+ * empty cell, so a card without sub-tasks shows nothing rather than "0/0". */
+export function formatTaskProgress(p: TaskProgress): string {
+  return p.total === 0 ? "" : `${p.done}/${p.total}`;
+}

@@ -7,6 +7,8 @@ import {
   findScheduleConflicts,
   type DependencyNode,
   chipPaletteIndex,
+  rowDueTone,
+  type TaskCompletionModel,
   compareRows,
   dayKey,
   dayPartOf,
@@ -44,12 +46,16 @@ export function BaseTimelineView({
   columns,
   visibleColumns,
   cells,
+  dueModel = null,
   onOpenNote,
   onDropToSplit,
 }: {
   dbData: any[];
   dateProp: string | null;
   endProp: string | null;
+  /** Overdue emphasis: an unfinished bar or diamond whose day has come turns
+   * to the warning tone, whatever the colour column says (issues #83/#84). */
+  dueModel?: TaskCompletionModel | null;
   timelineWindow: TimelineWindow;
   setTimelineWindow: React.Dispatch<React.SetStateAction<TimelineWindow>>;
   /** Column whose value decides the bar colour (S21) — null keeps the accent. */
@@ -169,6 +175,9 @@ export function BaseTimelineView({
     [columns, colorProp]
   );
   const barTone = (row: any): { bg: string; fg: string } => {
+    if (dateProp && rowDueTone(row, dueModel, endProp ? (row[endProp] ?? row[dateProp]) : row[dateProp]) === "due") {
+      return { bg: "var(--warning-bg)", fg: "var(--warning-text)" };
+    }
     if (!colorProp) return { bg: "var(--accent-container)", fg: "var(--on-accent-container)" };
     const raw = row[colorProp] ?? row[colorProp?.replace(/^note\./, "") ?? ""];
     const value = Array.isArray(raw) ? String(raw[0] ?? "") : String(raw ?? "");

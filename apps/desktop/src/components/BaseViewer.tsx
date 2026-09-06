@@ -8,7 +8,7 @@ import { Database, Trash2,
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
-import { Button, calendarPickerOptions, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
+import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -2105,6 +2105,15 @@ export function BaseViewer({
     saveConfig(newConfig);
   };
 
+  // WIP limits (issue #83): one map per view, a column's entry set or removed;
+  // an empty map leaves the file byte-identical (baseFormat elides it).
+  const setBoardWipLimit = (groupKey: string, limit: number | null) => {
+    const current = { ...((dbConfig?.views?.[activeViewIndex]?.boardWipLimits ?? {}) as Record<string, number>) };
+    if (limit == null) delete current[groupKey];
+    else current[groupKey] = limit;
+    patchActiveView({ boardWipLimits: Object.keys(current).length > 0 ? current : undefined });
+  };
+
   const columnKeysByKind = (predicate: (col: any) => boolean): string[] =>
     Object.entries((dbConfig?.columns ?? {}) as Record<string, any>)
       .filter(([, col]) => col && typeof col === "object" && predicate(col))
@@ -2162,10 +2171,13 @@ export function BaseViewer({
           onPatchView={patchActiveView}
         />
       );
-    if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} />;
-    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    // One overdue rule for every view (issues #83/#84): the database's own
+    // completion model decides whether a date can be overdue at all.
+    const dueModel = dueModelOf(dbConfig);
+    if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
+    if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
+    if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
       <BaseTableView
         dbData={scopedData}
@@ -2433,6 +2445,8 @@ export function BaseViewer({
             onSetBoardGroupBy={setBoardGroupByPersisted}
             boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"}
             onSetBoardColorMode={(m) => patchActiveView({ boardColorMode: m === "column" ? "column" : undefined })}
+            boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits}
+            onSetBoardWipLimit={setBoardWipLimit}
             pinboardFilterBy={typeof dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy === "string" ? dbConfig.views[activeViewIndex].pinboardFilterBy : "tags"}
             onSetPinboardFilterBy={(src) => patchActiveView({ pinboardFilterBy: src === "tags" ? undefined : src })}
             onSetCoverImage={setCoverImagePersisted}

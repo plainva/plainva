@@ -469,6 +469,35 @@ describe("VaultQueryService", () => {
     expect(db.queries.length).toBe(2); // files + one properties chunk
   });
 
+  it("adds file.tasks from the FTS text only when a view can show it (issue #83)", async () => {
+    // A board view: its cards carry the checklist progress, so the note text is
+    // read (one chunked fts_notes query after files + properties).
+    db.mockedResults.push([
+      { id: "1", path: "Tasks/A.md", title: "A", mtime_local: 100, size_bytes: 1 },
+      { id: "2", path: "Tasks/B.md", title: "B", mtime_local: 100, size_bytes: 1 },
+    ]);
+    db.mockedResults.push([]); // properties
+    db.mockedResults.push([
+      { path: "Tasks/A.md", content: "# A\n- [x] one\n- [ ] two\n```\n- [ ] fenced\n```" },
+      { path: "Tasks/B.md", content: "no checklist" },
+    ]);
+    const rows = await queryService.queryDatabaseFiles({ views: [{ type: "board", groupBy: "status" }] });
+    expect(db.queries.length).toBe(3);
+    expect(db.queries[2].query).toContain("FROM fts_notes WHERE path IN (?,?)");
+    expect(rows.find((r: any) => r["file.path"] === "Tasks/A.md")["file.tasks"]).toBe("1/2");
+    expect(rows.find((r: any) => r["file.path"] === "Tasks/B.md")["file.tasks"]).toBe("");
+
+    // A table that lists the column asks for it too; a plain table does not.
+    db.queries = [];
+    db.mockedResults = [];
+    db.mockedResults.push([{ id: "1", path: "Tasks/A.md", title: "A", mtime_local: 100, size_bytes: 1 }]);
+    db.mockedResults.push([]);
+    db.mockedResults.push([{ path: "Tasks/A.md", content: "- [ ] x" }]);
+    const withColumn = await queryService.queryDatabaseFiles({ views: [{ type: "table", order: ["file.name", "file.tasks"] }] });
+    expect(db.queries.length).toBe(3);
+    expect(withColumn[0]["file.tasks"]).toBe("0/1");
+  });
+
   it("lists .base file paths", async () => {
     db.mockedResults.push([{ path: "projects.base" }, { path: "" }, { path: "sub/reading.base" }]);
     const paths = await queryService.listBaseFilePaths();

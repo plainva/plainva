@@ -7,7 +7,7 @@ import { getMobileSettings } from "../../services/mobileSettings";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import type { MobileVault } from "../../services/vaultService";
-import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, noteDisplayName, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -697,6 +697,45 @@ export function BaseConfigSheet({
                 </Chip>
               ))}
             </div>
+            {/* WIP limits (issue #83): one row per option of the grouping column;
+                a tap asks for the number, empty clears. The board header shows
+                `n/limit` and turns to the warning tone once exceeded. */}
+            {view.groupBy && Array.isArray(config?.columns?.[view.groupBy]?.options) && config.columns[view.groupBy].options.length > 0 && (
+              <>
+                <SectionLabel className="m-sectionlabel--inset">{t("database.wipLimit")}</SectionLabel>
+                <GroupCard>
+                  <RowList>
+                    {config.columns[view.groupBy].options.map((o: any) => {
+                      const key = String(typeof o === "string" ? o : (o?.value ?? ""));
+                      if (!key) return null;
+                      const limit = (view.boardWipLimits as Record<string, number> | undefined)?.[key];
+                      return (
+                        <Row
+                          key={key}
+                          title={key}
+                          end={<span className="m-prop-val">{limit != null ? String(limit) : t("database.wipLimitNone")}</span>}
+                          data-testid={`cfg-wip-${key}`}
+                          onClick={() => {
+                            void (async () => {
+                              const res = await mPrompt({ title: t("database.wipLimit"), message: t("database.wipLimitHint"), initial: limit != null ? String(limit) : "" });
+                              if (res.cancelled) return;
+                              const n = Number(res.value.trim());
+                              mutateView((v) => {
+                                const next = { ...((v.boardWipLimits as Record<string, number> | undefined) ?? {}) };
+                                if (res.value.trim() === "" || !Number.isInteger(n) || n <= 0) delete next[key];
+                                else next[key] = n;
+                                if (Object.keys(next).length > 0) v.boardWipLimits = next;
+                                else delete v.boardWipLimits;
+                              });
+                            })();
+                          }}
+                        />
+                      );
+                    })}
+                  </RowList>
+                </GroupCard>
+              </>
+            )}
           </>
         )}
         {(view.type === "calendar" || view.type === "timeline") && (

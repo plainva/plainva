@@ -51,7 +51,7 @@ export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lan
         </button>
       </div>
       <pre style={{ margin: 0, padding: "0.8em 1em", overflowX: "auto" }}>
-        <code style={{ fontFamily: "monospace", fontSize: "0.9em", color: "var(--text-main)", background: "transparent" }}>
+        <code style={{ fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", fontSize: "0.9em", color: "var(--text-main)", background: "transparent" }}>
           {tokens
             ? tokens.map((token, i) =>
                 token.cls

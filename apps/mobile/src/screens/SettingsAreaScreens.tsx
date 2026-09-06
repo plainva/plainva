@@ -185,6 +185,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       const path = await createTaskDatabase(vault.adapter, name.value, {
         viewTable: t("database.viewTable"),
         viewBoard: t("database.viewBoard"),
+        viewTimeline: t("database.viewTimeline"),
         doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
         dueKey: t("tasks.dbDueKey"),
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],

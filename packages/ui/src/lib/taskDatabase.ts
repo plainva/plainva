@@ -24,6 +24,9 @@ export interface TaskDbLabels {
   viewTable: string;
   /** Name of the status board view (i18n `database.viewBoard`). */
   viewBoard: string;
+  /** Name of the timeline view (i18n `database.viewTimeline`) — the due date
+   * on a time axis, each task a milestone on its day (issue #84). */
+  viewTimeline: string;
   /** Localized frontmatter key of the done checkbox column (i18n `tasks.dbDoneKey`).
    * This CHECKBOX is the completion truth of a task note (binary, like the
    * providers' completed flag); the status column tracks it for the board. */
@@ -61,6 +64,10 @@ export function buildTaskDbFile(stem: string, labels: TaskDbLabels): { path: str
     views: [
       { name: labels.viewTable, type: "table" },
       { name: labels.viewBoard, type: "board", groupBy: "status" },
+      // Issue #84: the timeline existed as a view type, but nobody found it
+      // because the one-click task database never set it up. Due date as the
+      // axis, no end field — every task is a diamond on its day.
+      { name: labels.viewTimeline, type: "timeline", dateField: labels.dueKey },
     ],
   });
   return { path: spec.path, folder: stem, content: serializeBaseConfig(spec.config) };

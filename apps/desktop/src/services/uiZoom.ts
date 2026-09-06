@@ -5,7 +5,7 @@ import { notifyAppearanceChanged } from "./appearanceSync";
  * Whole-UI zoom (issue #5 follow-up, a11y): scales EVERYTHING — chrome,
  * menus, sidebars — via the webview zoom factor. Desktop-only by design:
  * Tauri's set_zoom does not exist on Android, and mobile follows the OS
- * font scale instead. Content-only sizing lives in services/contentFont.ts.
+ * font scale instead. Content-only sizing lives in services/appFonts.ts.
  *
  * Requires the `core:webview:allow-set-zoom` capability.
  */

@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-09-04
+Última revisão: 2026-09-06
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -49,7 +49,7 @@ Se uma nota mudou desde que a lista foi construída, uma alternância desatualiz
 
 ## Banco de tarefas padrão
 
-Caixas de seleção são rápidas de anotar, mas às vezes uma linha cresce até virar uma tarefa "de verdade" — com um status, uma data de vencimento e uma nota própria. Para isso, escolha um **Banco de tarefas padrão** em **Configurações → Vault → Conteúdo e estrutura**: um [banco de dados (`.base`)](Databases_Base.md) onde essas tarefas vivem como notas próprias. **Criar banco de dados…** já cria um pronto para uso (uma pasta de armazenamento e uma `.base` com uma **coluna de caixa de seleção de concluído** (`feito`), uma coluna de status, uma coluna de vencimento, uma visualização de tabela e uma de quadro); você também pode simplesmente escolher um banco de dados já existente. A propriedade da caixa de seleção é a verdade de conclusão da tarefa (ligada/desligada, assim como nos provedores); a coluna de status é mantida consistente quando você a marca como concluída. Um banco de dados sem uma coluna de caixa de seleção recorre à convenção de status: primeira opção = aberta, última = concluída.
+Caixas de seleção são rápidas de anotar, mas às vezes uma linha cresce até virar uma tarefa "de verdade" — com um status, uma data de vencimento e uma nota própria. Para isso, escolha um **Banco de tarefas padrão** em **Configurações → Vault → Conteúdo e estrutura**: um [banco de dados (`.base`)](Databases_Base.md) onde essas tarefas vivem como notas próprias. **Criar banco de dados…** já cria um pronto para uso (uma pasta de armazenamento e uma `.base` com uma **coluna de caixa de seleção de concluído** (`feito`), uma coluna de status, uma coluna de vencimento, além de uma visualização de tabela, uma de quadro e uma de linha do tempo — a linha do tempo coloca cada tarefa no seu dia de vencimento); você também pode simplesmente escolher um banco de dados já existente. A propriedade da caixa de seleção é a verdade de conclusão da tarefa (ligada/desligada, assim como nos provedores); a coluna de status é mantida consistente quando você a marca como concluída. Um banco de dados sem uma coluna de caixa de seleção recorre à convenção de status: primeira opção = aberta, última = concluída.
 
 Uma vez definido, a visualização de Tarefas mostra duas seções: no topo, as entradas do **Banco de tarefas**, e abaixo, **Das notas** — a familiar lista de caixas de seleção. O status é editável direto na visão geral: a caixa de seleção É a propriedade de caixa de seleção de concluído da nota e a alterna (a coluna de status a acompanha), e clicar no chip de status abre um menu com todas as opções (**Alterar status**). Os filtros **Abertas**/**Concluídas**/**Todas** se aplicam a ambas as seções, e **Abrir como banco de dados** leva à visualização completa do banco de dados, com seu quadro e filtros. **Atualizar** também dispara uma sincronização de verdade com o provedor quando há contas conectadas.
 

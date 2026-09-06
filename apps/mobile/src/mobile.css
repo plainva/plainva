@@ -3337,6 +3337,55 @@ textarea {
   flex-wrap: wrap;
   padding: 0 10px 8px;
 }
+/* The note's checklist on a board card (issue #83, P4): a progress row that
+   unfolds the lines; the count badge of a column past its WIP limit. */
+.m-basecard-checklist {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+  width: 100%;
+}
+.m-basecard-progress {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  min-height: var(--touch-sm);
+}
+.m-basecard-progressbar {
+  flex: 1;
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+.m-basecard-progressbar i {
+  display: block;
+  height: 100%;
+  background: var(--accent-color);
+}
+.m-basecard-progresstext {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.m-basecard-checkline {
+  font-size: var(--text-sm);
+  min-height: var(--touch-sm);
+}
+.m-basecard-checkline .is-done {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.m-basecard-checkadd {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.m-board-count.is-over {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-weight: 600;
+}
 
 .m-basecard.is-dragging {
   opacity: 0.9;

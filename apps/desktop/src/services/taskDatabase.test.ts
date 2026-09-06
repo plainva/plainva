@@ -24,6 +24,7 @@ import {
 const LABELS: TaskDbLabels = {
   viewTable: "Tabelle",
   viewBoard: "Board",
+  viewTimeline: "Zeitleiste",
   doneKey: "erledigt",
   dueKey: "frist",
   statusOptions: ["Offen", "In Arbeit", "Erledigt"],
@@ -65,10 +66,12 @@ describe("taskDatabase (PIM plan 1a)", () => {
     expect(cfg.columns.status).toMatchObject({ input: "status" });
     expect((cfg.columns.status.options ?? []).map((o: { value: string }) => o.value)).toEqual(["Offen", "In Arbeit", "Erledigt"]);
     expect(cfg.columns.frist).toMatchObject({ input: "date" });
-    expect(cfg.views).toHaveLength(2);
+    expect(cfg.views).toHaveLength(3);
     expect(cfg.views[0]).toMatchObject({ type: "table", name: "Tabelle" });
     expect(cfg.views[0].order).toEqual(["file.name", "erledigt", "status", "frist"]);
     expect(cfg.views[1]).toMatchObject({ type: "board", name: "Board", groupBy: "status" });
+    // Issue #84: the timeline is set up by default, due date as its axis.
+    expect(cfg.views[2]).toMatchObject({ type: "timeline", name: "Zeitleiste", dateField: "frist" });
   });
 
   it("creates folder + .base and returns the path", async () => {

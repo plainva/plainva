@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-04
+Last updated: 2026-09-06
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -49,7 +49,7 @@ If a note changed since the list was built, an out-of-date toggle is skipped and
 
 ## Standard task database
 
-Checkboxes are quick to jot down, but sometimes a line grows into a "real" task — with a status, a due date and a note of its own. For that, pick a **Standard task database** in Settings under **Content & structure**: a [database (`.base`)](Databases_Base.md) where such tasks live as their own notes. **Create new database…** scaffolds a ready-made one (storage folder plus a `.base` with a **done checkbox column** (`done`), a status column, a due column, a table and a board view); you can just as well pick an existing database. The checkbox property is a task's completion truth (on/off, like the providers'); the status column is kept consistent when you check it off. A database without a checkbox column falls back to the status convention: first option = open, last = done.
+Checkboxes are quick to jot down, but sometimes a line grows into a "real" task — with a status, a due date and a note of its own. For that, pick a **Standard task database** in Settings under **Content & structure**: a [database (`.base`)](Databases_Base.md) where such tasks live as their own notes. **Create new database…** scaffolds a ready-made one (storage folder plus a `.base` with a **done checkbox column** (`done`), a status column, a due column, and a table, a board and a timeline view — the timeline puts every task on its due day); you can just as well pick an existing database. The checkbox property is a task's completion truth (on/off, like the providers'); the status column is kept consistent when you check it off. A database without a checkbox column falls back to the status convention: first option = open, last = done.
 
 Once set, the Tasks view shows two sections: the entries of the **Task database** on top, and **From notes** below — the familiar checkbox list. The status is editable right in the overview: the checkbox IS the note's done checkbox property and toggles it (the status column follows), and clicking the status chip opens a menu with every option (**Change status**). The **Open**/**Done**/**All** filters apply to both sections, and **Open as database** jumps to the full database view with its board and filters. **Refresh** additionally triggers a real provider sync when accounts are connected.
 

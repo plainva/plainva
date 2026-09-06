@@ -29,7 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
-import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
+import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import {
@@ -46,6 +46,7 @@ import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
+import { CardChecklist } from "./CardChecklist";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
@@ -205,6 +206,11 @@ export function BaseScreen({
     };
   }, [showEvents, calMonth]);
   const config = loaded?.config;
+  // One overdue rule for every view, the desktop's too (issues #83/#84): only a
+  // database with a completion model can have overdue rows, and a done row
+  // never is one. Computed once per config, read by cards, board, calendar
+  // and timeline below.
+  const dueModel = useMemo(() => dueModelOf(config), [config]);
   // Memoized so downstream memo/callback deps stay referentially stable
   // (react-hooks lint since the pinboard's patchActiveView joined, P6).
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
@@ -304,10 +310,11 @@ export function BaseScreen({
 
   const columnLabel = useCallback(
     (col: string): string => {
+      if (col === "file.tasks") return t("database.colChecklist");
       const display = config?._obsidian?.properties?.[toPropId(col)]?.displayName;
       return typeof display === "string" && display.trim() ? display : capitalizeFirst(col);
     },
-    [config],
+    [config, t],
   );
 
   const orderedColumns: string[] = useMemo(
@@ -861,6 +868,13 @@ export function BaseScreen({
 
   /* ---------------- renderers ---------------- */
 
+  /** Whether a date column's value is overdue for this row (the shared rule). */
+  const isDueCell = (col: string, r: Row): boolean => {
+    const input = columnInput(col, r[col]);
+    if (input !== "date" && input !== "datetime") return false;
+    return rowDueTone(r, dueModel, r[col]) === "due";
+  };
+
   const propLine = (r: Row, cols: string[], max: number) =>
     cols.slice(0, max).map((c) =>
       displayCell(c, r[c]) ? (
@@ -872,7 +886,8 @@ export function BaseScreen({
             openCellEditor(r, c);
           }}
         >
-          <span className="m-prop-key">{columnLabel(c)}</span> {displayCell(c, r[c])}
+          <span className="m-prop-key">{columnLabel(c)}</span>{" "}
+          {isDueCell(c, r) ? <span className="m-taskdue m-taskdue--due">{displayCell(c, r[c])}</span> : displayCell(c, r[c])}
           {commentDot(rowPath(r), c)}
         </button>
       ) : null,
@@ -1182,13 +1197,13 @@ export function BaseScreen({
     const boardMiniChips = (r: Record<string, unknown>, group: string) => {
       const cols = orderedColumns.filter((c: string) => c !== group).slice(0, 2);
       const chips = cols
-        .map((c: string) => ({ c, text: cellText(r[c]) }))
-        .filter((x: { c: string; text: string }) => x.text);
+        .map((c: string) => ({ c, text: displayCell(c, r[c]), due: isDueCell(c, r as Row) }))
+        .filter((x: { c: string; text: string; due: boolean }) => x.text);
       if (chips.length === 0) return null;
       return (
         <span className="pv-card pv-card--flat m-basecard-mini">
-          {chips.map((x: { c: string; text: string }) => (
-            <Chip size="sm" tone="muted" key={x.c}>
+          {chips.map((x: { c: string; text: string; due: boolean }) => (
+            <Chip size="sm" tone={x.due ? "warning" : "muted"} key={x.c}>
               {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
               {commentDot(rowPath(r), x.c)}
             </Chip>
@@ -1210,7 +1225,18 @@ export function BaseScreen({
               <p className="m-board-head">
                 {dotFor(key) && <span className="m-board-dot" style={{ background: dotFor(key) }} />}
                 {key === UNGROUPED_KEY ? t("database.noEndDate") : key}
-                <span className="m-board-count">· {groups.get(key)!.length}</span>
+                {(() => {
+                  // WIP limit (issue #83): `n/limit`, warning tone once exceeded —
+                  // the same reading as the desktop header; set in the config sheet.
+                  const count = groups.get(key)!.length;
+                  const limit = (view.boardWipLimits as Record<string, number> | undefined)?.[key];
+                  const over = limit != null && count > limit;
+                  return (
+                    <span className={over ? "m-board-count is-over" : "m-board-count"} data-testid={`board-col-count-${key}`} data-over={over ? "true" : undefined} aria-label={over ? t("database.wipLimitOver", { count, limit }) : undefined}>
+                      · {limit != null ? `${count}/${limit}` : count}
+                    </span>
+                  );
+                })()}
               </p>
               {groups.get(key)!.map((r) => (
                 <div
@@ -1234,6 +1260,7 @@ export function BaseScreen({
                     {cellText(r[groupBy]) || "—"}
                     {commentDot(rowPath(r), groupBy)}
                   </Chip>
+                  <CardChecklist vault={vault} path={rowPath(r)} progress={r["file.tasks"]} onChanged={() => requery(config, viewIndex)} />
                   {boardMiniChips(r, groupBy)}
                 </div>
               ))}
@@ -1382,7 +1409,7 @@ export function BaseScreen({
                       onClick={() => onOpenNote(rowPath(b.event))}
                     >
                       <span className="m-basecal-bar" aria-hidden />
-                      <span>{rowTitle(b.event)}</span>
+                      <span className={rowDueTone(b.event, dueModel, endProp ? (b.event[endProp] ?? b.event[dateProp]) : b.event[dateProp]) === "due" ? "m-taskdue--due" : undefined}>{rowTitle(b.event)}</span>
                     </button>
                   ))}
                   {dayRows.map((r) => {
@@ -1401,7 +1428,7 @@ export function BaseScreen({
                             opposite edges of the display, which is the grammar
                             for "row plus action", not for "when plus what". */}
                         {time ? <span className="m-basecal-time">{time}</span> : null}
-                        <span className="m-basecal-title">{rowTitle(r)}</span>
+                        <span className={rowDueTone(r, dueModel, r[dateProp]) === "due" ? "m-basecal-title m-taskdue--due" : "m-basecal-title"}>{rowTitle(r)}</span>
                       </button>
                     );
                   })}
@@ -1544,6 +1571,10 @@ export function BaseScreen({
     };
 
     const barTone = (r: Row): { bg: string; fg: string } => {
+      // Overdue beats the colour column — the same rule as the desktop bar.
+      if (rowDueTone(r, dueModel, endProp ? (r[endProp] ?? r[dateProp]) : r[dateProp]) === "due") {
+        return { bg: "var(--warning-bg)", fg: "var(--warning-text)" };
+      }
       if (!colorProp) return { bg: "var(--accent-container)", fg: "var(--on-accent-container)" };
       const raw = r[colorProp];
       const value = Array.isArray(raw) ? String(raw[0] ?? "") : String(raw ?? "");

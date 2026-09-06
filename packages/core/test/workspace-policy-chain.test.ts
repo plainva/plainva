@@ -81,7 +81,12 @@ async function pairPhone(runtime: PersonalWorkspaceRuntime, store: FakeWorkspace
 }
 
 describe("operations survive the policy changes that happen around them", () => {
-  it("keeps every operation valid across three policy successors, and quarantines nothing", async () => {
+  // 30 s, not the 5 s default: three policy successors mean three key
+  // derivations and a re-seal per operation, ~2 s alone and past 5 s when the
+  // four packages' suites run at once under `turbo run test` — the pre-commit
+  // failed for the clock, not for a chain (2026-09-06, the localeParity
+  // precedent).
+  it("keeps every operation valid across three policy successors, and quarantines nothing", { timeout: 30_000 }, async () => {
     const { runtime } = await workspace();
     const store = new FakeWorkspaceObjectStore();
     const state = new MemoryWorkspaceStateStore();

@@ -350,6 +350,16 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Board color mode (namespace-only, WP3): "column" tints the whole column in
   // the group's color; "chip" (default) only colors the header chip.
   if (pv.boardColorMode === "column") out.boardColorMode = "column";
+  // Board WIP limits (namespace-only, issue #83): column key -> most cards the
+  // column should hold. Only positive integers survive the read.
+  if (isPlainObject(pv.boardWipLimits)) {
+    const limits: Record<string, number> = {};
+    for (const [k, v] of Object.entries(pv.boardWipLimits as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isInteger(n) && n > 0) limits[k] = n;
+    }
+    if (Object.keys(limits).length > 0) out.boardWipLimits = limits;
+  }
   // Timeline bar colour (namespace-only, S21): the column whose value decides a
   // bar's colour. Obsidian has no timeline, so this can only live here.
   if (typeof pv.colorBy === "string" && pv.colorBy) out.colorBy = pv.colorBy;
@@ -551,6 +561,12 @@ export function serializeBaseConfig(config: any): string {
     // and elided so files without the feature stay byte-identical.
     if (v?.boardColorMode === "column") pv.boardColorMode = "column";
     else delete pv.boardColorMode;
+    // Board WIP limits (issue #83) — written only when at least one is set.
+    const wip = isPlainObject(v?.boardWipLimits)
+      ? Object.fromEntries(Object.entries(v.boardWipLimits as Record<string, unknown>).filter(([, n]) => Number.isInteger(Number(n)) && Number(n) > 0).map(([k, n]) => [k, Number(n)]))
+      : {};
+    if (Object.keys(wip).length > 0) pv.boardWipLimits = wip;
+    else delete pv.boardWipLimits;
     if (typeof v?.colorBy === "string" && v.colorBy) pv.colorBy = v.colorBy;
     else delete pv.colorBy;
     // Pinboard options (plan Pinboard P1) — written only when set so files of

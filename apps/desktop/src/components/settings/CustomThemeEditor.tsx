@@ -4,7 +4,6 @@ import {
   AVAILABLE_THEMES,
   Banner,
   Button,
-  FontField,
   Segmented,
   SettingCard,
   SettingRow,
@@ -16,7 +15,6 @@ import {
   customThemeContrast,
   customThemeFromSwatch,
   defaultCustomTheme,
-  firstFontFamily,
   formatRatio,
   hexToHsl,
   CUSTOM_ACCENT_MIN_CONTRAST,
@@ -42,18 +40,11 @@ export interface CustomThemeEditorProps {
   onChange: (spec: CustomThemeSpec) => void;
 }
 
-/** The chrome font the design ships, by its first family name ("Inter"). */
-function designFontName(): string {
-  if (typeof document === "undefined") return "";
-  return firstFontFamily(getComputedStyle(document.documentElement).getPropertyValue("--font-ui"));
-}
-
 export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onChange }) => {
   const { t } = useTranslation();
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
   const colors = useMemo(() => customThemeColors(spec), [spec]);
   const ratios = useMemo(() => customThemeContrast(spec), [spec]);
-  const designFont = useMemo(() => designFontName(), []);
   const [lo, hi] = CUSTOM_BACKGROUND_LIGHTNESS[spec.mode];
 
   const set = (patch: Partial<CustomThemeSpec>) => {
@@ -95,7 +86,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
     <div data-testid="custom-theme-editor">
       {/* The preview paints from the resolved colours, not from the live tokens:
           it must show the spec while a bundled theme is still active. */}
-      <div aria-hidden="true" style={{ background: colors.background, color: colors.textMain, border: `1px solid ${colors.border}`, borderRadius: "var(--radius-md)", overflow: "hidden", fontSize: "var(--text-xs)", fontFamily: spec.fontUi ? `"${spec.fontUi}", var(--font-ui)` : "var(--font-ui)", marginBottom: "var(--space-4)" }}>
+      <div aria-hidden="true" style={{ background: colors.background, color: colors.textMain, border: `1px solid ${colors.border}`, borderRadius: "var(--radius-md)", overflow: "hidden", fontSize: "var(--text-xs)", fontFamily: "var(--font-ui)", marginBottom: "var(--space-4)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "96px 1fr", minHeight: 110 }}>
           <div style={{ background: colors.surface, padding: "var(--space-3)", display: "grid", gap: "var(--space-2)", alignContent: "start" }}>
             <span style={{ display: "block", height: 6, borderRadius: "var(--radius-xs)", background: colors.accent }} />
@@ -151,18 +142,6 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec, onCh
       </SettingCard>
 
       <SettingCard label={t("settings.groupShape")}>
-        <SettingRow label={t("settings.customThemeFontUi")} desc={t("settings.customThemeFontUiHint")}>
-          <div style={{ width: "100%" }}>
-            <FontField
-              value={spec.fontUi}
-              onChange={(css) => set({ fontUi: css })}
-              defaultLabel={t("settings.fontFieldDefault", { font: designFont })}
-              defaultHint={t("settings.fontFieldDefaultHint")}
-              ariaLabel={t("settings.customThemeFontUi")}
-              data-testid="custom-theme-font"
-            />
-          </div>
-        </SettingRow>
         <SettingRow label={t("settings.customThemeRadius")}>
           <Segmented
             ariaLabel={t("settings.customThemeRadius")}

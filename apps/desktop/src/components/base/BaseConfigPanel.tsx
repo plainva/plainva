@@ -5,7 +5,7 @@ import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, E
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, type BaseConfigAreaId } from "@plainva/ui";
+import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, TextInput, type BaseConfigAreaId } from "@plainva/ui";
 import { SUMMARY_NAMES } from "@plainva/core";
 import {
   addGroupWithRule,
@@ -520,6 +520,8 @@ export function BaseConfigPanel({
   onSetBoardGroupBy,
   boardColorMode,
   onSetBoardColorMode,
+  boardWipLimits,
+  onSetBoardWipLimit,
   pinboardFilterBy,
   onSetPinboardFilterBy,
   onSetCoverImage,
@@ -572,6 +574,10 @@ export function BaseConfigPanel({
   /** Board column tint mode (WP3): "column" tints the whole list, "chip" only the header chip. */
   boardColorMode?: "chip" | "column";
   onSetBoardColorMode: (mode: "chip" | "column") => void;
+  /** WIP limits per column (issue #83) — listed for option-typed groups; other
+   * boards set them on the column header itself. */
+  boardWipLimits?: Record<string, number>;
+  onSetBoardWipLimit?: (groupKey: string, limit: number | null) => void;
   /** Pinboard label-chip source (plan Pinboard P1): "tags" (default) or a multiselect column key. */
   pinboardFilterBy?: string;
   onSetPinboardFilterBy?: (source: string) => void;
@@ -936,6 +942,41 @@ export function BaseConfigPanel({
             />
           </label>
         )}
+        {/* WIP limits (issue #83): one number per option of the grouping column.
+            The header badge edits the same value; this list is where a whole
+            board is set up at once. */}
+        {currentViewType === "board" && boardGroupBy && onSetBoardWipLimit && Array.isArray(dbConfig?.columns?.[boardGroupBy]?.options) && dbConfig.columns[boardGroupBy].options.length > 0 && (
+          <div className="base-cfg-field">
+            <span>{t("database.wipLimit")}</span>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              {dbConfig.columns[boardGroupBy].options.map((o: any) => {
+                const key = String(typeof o === "string" ? o : o?.value ?? "");
+                if (!key) return null;
+                const limit = boardWipLimits?.[key];
+                return (
+                  <label key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cells.renderTypedDisplay(boardGroupBy, key) ?? key}</span>
+                    <TextInput
+                      compact
+                      type="number"
+                      min={1}
+                      value={limit != null ? String(limit) : ""}
+                      placeholder="–"
+                      aria-label={`${t("database.wipLimit")}: ${key}`}
+                      data-testid={`cfg-wip-${key}`}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        onSetBoardWipLimit(key, e.target.value.trim() === "" || !Number.isInteger(n) || n <= 0 ? null : n);
+                      }}
+                      style={{ width: "4.5rem" }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+            <span className="base-cfg-hint">{t("database.wipLimitHint")}</span>
+          </div>
+        )}
         {/* Pinboard label-chip source (plan Pinboard P1): tags (default) or a
             curated multiselect property — mirrors the board grouping pattern. */}
         {currentViewType === "pinboard" && onSetPinboardFilterBy && (
@@ -1010,7 +1051,7 @@ export function BaseConfigPanel({
       <section className="base-cfg-section">
         {(() => {
           const disabled = [
-            ...["file.name", "file.mtime"].filter((c) => !visibleColumns.includes(c)),
+            ...["file.name", "file.mtime", "file.tasks"].filter((c) => !visibleColumns.includes(c)),
             ...availableColumns.filter((c) => !visibleColumns.includes(c)),
           ];
           const typeLabelOf = (col: string): string | null => {

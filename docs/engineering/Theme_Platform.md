@@ -22,7 +22,7 @@ Base tokens (Petrol) live in `apps/desktop/src/App.css` on `:root` (light) + `[d
 - Editor/read: `--selection-bg`, `--active-line-bg`, `--code-bg`, `--quote-border`, `--highlight-bg`
 - Callouts: `--callout-<key>` + `--callout-<key>-tint` (8 types)
 - Structure: `--radius-xs/sm/md/lg/xl/pill` (Plainva UI 2.0 scale 4/8/12/16/20/999 px — widened one notch for the M3-Expressive look; components NEVER use hardcoded radii, migration 2026-07-04, ~230 spots)
-- Font split: `--font-ui` (chrome: title bar, sidebars, buttons, menus) vs. `--font-content` (editor + reading view); `--font-family` remains an alias for `--font-ui`
+- Font split: `--font-ui` (chrome: title bar, sidebars, buttons, menus) vs. `--font-content` (editor + reading view) vs. `--font-mono` (code blocks, inline code, code mode); `--font-family` remains an alias for `--font-ui`. All three are user-settable slots since issue #82 (`packages/ui/src/lib/appFonts.ts`: "theme" keeps the theme's stack, presets and custom names write the token inline on `<html>`, per device — the desktop store binding is `apps/desktop/src/services/appFonts.ts`, the phone's is `mobileSettings`). A theme still owns its fonts until the user overrides a slot.
 
 ## Creating a new theme
 
@@ -104,8 +104,10 @@ CSS file. `packages/ui/src/lib/customTheme.ts` holds the whole model:
 - **What the user chooses:** `mode` (light | dark — the entry is single-mode
   and pins `data-theme`), `background` (lightness clamped to 88–100 % on light,
   0–18 % on dark), `accent` (free, corrected to ≥ 3:1 against the background
-  along its own hue), `fontUi` (a family name for the chrome; the content font
-  keeps its own setting), `radius` (sharp | normal | soft).
+  along its own hue), `radius` (sharp | normal | soft). The interface font is
+  NOT part of the spec any more: since issue #82 it is one of the three font
+  slots under Appearance (`appFonts.ts`); a stored spec's legacy `fontUi` is
+  read once into that slot on start-up and then cleared (`migrateCustomThemeFont`).
 - **What is derived, never chosen:** the three text colours (main ≥ 7:1,
   muted and faint ≥ 4.5:1 — checked on a hue × saturation × lightness grid in
   `customTheme.test.ts`), surfaces, hover, borders, code/quote grounds,

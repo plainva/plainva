@@ -37,7 +37,7 @@ export async function installAppearanceSync(): Promise<void> {
     void Promise.all([
       import("./theme").then(({ applyStoredTheme }) => applyStoredTheme()),
       import("./density").then(({ initDensity }) => initDensity()),
-      import("./contentFont").then(({ initContentFont }) => initContentFont()),
+      import("./appFonts").then(({ initAppFonts }) => initAppFonts()),
       import("./uiZoom").then(({ initUiZoom }) => initUiZoom()),
     ]).catch((e) => console.warn("[appearanceSync] could not re-apply appearance", e));
   });

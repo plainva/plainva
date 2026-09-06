@@ -383,7 +383,7 @@ export const markdownHighlightStyle = HighlightStyle.define([
   { tag: t.link, color: "var(--accent-color)", textDecoration: "underline" },
   { tag: t.url, color: "var(--accent-color)" },
   { tag: t.quote, color: "var(--text-muted)", fontStyle: "italic" },
-  { tag: t.monospace, fontFamily: "monospace", backgroundColor: "var(--code-bg)", padding: "2px 4px", borderRadius: "var(--radius-xs)", fontSize: "0.9em" },
+  { tag: t.monospace, fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", backgroundColor: "var(--code-bg)", padding: "2px 4px", borderRadius: "var(--radius-xs)", fontSize: "0.9em" },
   { tag: t.list, color: "var(--text-main)" },
   { tag: t.comment, fontStyle: "italic", color: "var(--text-muted)" },
   { tag: t.keyword, color: "var(--accent-color)" },

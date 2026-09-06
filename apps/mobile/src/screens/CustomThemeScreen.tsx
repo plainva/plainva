@@ -15,7 +15,6 @@ import {
   customThemeContrast,
   customThemeFromSwatch,
   defaultCustomTheme,
-  firstFontFamily,
   formatRatio,
   hexToHsl,
   CUSTOM_ACCENT_MIN_CONTRAST,
@@ -28,7 +27,6 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SwatchSheet } from "../components/SwatchSheet";
-import { FontPickSheet } from "../components/FontPickSheet";
 import { mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 
@@ -41,14 +39,10 @@ import { getMobileSettings, updateMobileSettings } from "../services/mobileSetti
 export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const [spec, setSpec] = useState<CustomThemeSpec>(() => clampCustomTheme(getMobileSettings().customTheme).spec);
-  const [sheet, setSheet] = useState<"background" | "accent" | "font" | null>(null);
+  const [sheet, setSheet] = useState<"background" | "accent" | null>(null);
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
   const colors = useMemo(() => customThemeColors(spec), [spec]);
   const ratios = useMemo(() => customThemeContrast(spec), [spec]);
-  const designFont = useMemo(
-    () => (typeof document === "undefined" ? "" : firstFontFamily(getComputedStyle(document.documentElement).getPropertyValue("--font-ui"))),
-    [],
-  );
   const [lo, hi] = CUSTOM_BACKGROUND_LIGHTNESS[spec.mode];
 
   const commit = (next: CustomThemeSpec) => {
@@ -108,7 +102,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
       <AppBar onBack={onBack} title={t("themes.names.custom")} />
       <div className="m-settings">
         <p className="m-hint">{t("settings.customThemePageDesc")}</p>
-        <div aria-hidden="true" className="pv-card pv-card--flush" data-testid="custom-theme-preview" style={{ background: colors.background, color: colors.textMain, borderColor: colors.border, overflow: "hidden", fontFamily: spec.fontUi ? `"${spec.fontUi}", var(--font-ui)` : undefined }}>
+        <div aria-hidden="true" className="pv-card pv-card--flush" data-testid="custom-theme-preview" style={{ background: colors.background, color: colors.textMain, borderColor: colors.border, overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "calc(var(--space-8) + var(--space-6)) 1fr", minHeight: "calc(var(--space-8) * 3)" }}>
             <div style={{ background: colors.surface, padding: "var(--space-2)", display: "grid", gap: "var(--space-1)", alignContent: "start" }}>
               <span style={{ display: "block", height: "var(--space-1)", borderRadius: "var(--radius-xs)", background: colors.accent }} />
@@ -142,7 +136,6 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
         <SectionLabel>{t("settings.groupShape")}</SectionLabel>
         <GroupCard>
           <RowList>
-            <Row title={t("settings.customThemeFontUi")} subtitle={t("settings.customThemeFontUiHint")} end={<span className="m-prop-val">{spec.fontUi || t("settings.fontFieldDefault", { font: designFont })}</span>} onClick={() => setSheet("font")} />
             <Row title={t("settings.customThemeRadius")} end={<span className="m-prop-val">{radiusLabel}</span>} onClick={pickRadius} />
           </RowList>
         </GroupCard>
@@ -167,9 +160,6 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
       )}
       {sheet === "accent" && (
         <SwatchSheet title={t("settings.customThemeAccent")} hint={t("settings.customThemeAccentHint", { min: CUSTOM_ACCENT_MIN_CONTRAST })} presets={customAccentPresets()} value={spec.accent} onPick={(hex) => set({ accent: hex })} onClose={() => setSheet(null)} />
-      )}
-      {sheet === "font" && (
-        <FontPickSheet title={t("settings.customThemeFontUi")} value={spec.fontUi} defaultLabel={t("settings.fontFieldDefault", { font: designFont })} defaultHint={t("settings.fontFieldDefaultHint")} onPick={(css) => { set({ fontUi: css }); setSheet(null); }} onClose={() => setSheet(null)} />
       )}
     </div>
   );

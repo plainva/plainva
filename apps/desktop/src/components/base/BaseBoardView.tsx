@@ -3,10 +3,11 @@ import { useRef, useState } from "react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { GripHorizontal, Plus } from "lucide-react";
+import { BoardCardChecklist } from "./BoardCardChecklist";
 import { hitTest, useCardPointerDrag } from "./useCardPointerDrag";
-import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
+import { DragGhost, dueChipStyle, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import { orderBoardGroups, reorderBoardKeys } from "@plainva/ui";
-import { chipPaletteIndex } from "@plainva/ui";
+import { Button, chipPaletteIndex, rowDueTone, TextInput, type TaskCompletionModel } from "@plainva/ui";
 import type { BaseCells } from "./useBaseCells";
 
 // Board (kanban) view of the BaseViewer (structural split, plan C3). Cards are
@@ -21,11 +22,14 @@ export function BaseBoardView({
   boardGroupBy,
   boardColumnOrder,
   boardColorMode = "chip",
+  boardWipLimits,
   cells,
+  dueModel = null,
   onOpenNote,
   onDropToSplit,
   onAddGroup,
   onReorderColumns,
+  onSetWipLimit,
 }: {
   dbData: any[];
   dbConfig: any;
@@ -35,13 +39,21 @@ export function BaseBoardView({
   boardColumnOrder?: string[];
   /** Whole-column tint vs header-chip only (WP3); applies to option-typed groups. */
   boardColorMode?: "chip" | "column";
+  /** WIP limits per column key (issue #83): the header reads `n/limit` and
+   * turns to the warning tone once a column holds more than it should. */
+  boardWipLimits?: Record<string, number>;
   cells: BaseCells;
+  /** The database's completion model — a date on a card of an unfinished row
+   * that is today or earlier gets the overdue pill (issues #83/#84). */
+  dueModel?: TaskCompletionModel | null;
   onOpenNote?: (path: string, ev?: React.MouseEvent) => void;
   /** Dropping a card on the split zone opens it in the neighboring pane (P5). */
   onDropToSplit?: (path: string) => void;
   onAddGroup: (name: string) => void;
   /** Persist a new column order after a header drag (report 2026-07-07). */
   onReorderColumns?: (orderedKeys: string[]) => void;
+  /** Sets or clears (null) a column's WIP limit — the count badge edits it inline. */
+  onSetWipLimit?: (groupKey: string, limit: number | null) => void;
 }) {
   const { t } = useTranslation();
   const { columnLabel, renderTypedDisplay, formatValueForDisplay, renderEditableCell, handleCellSave, commitCellValue, getColumnSchema, getRelationLimit, isReverseColumn } = cells;
@@ -85,6 +97,17 @@ export function BaseBoardView({
   });
   const draggingCardPath = pathOfCardKey(draggingPath);
   const draggedRow = draggingCardPath ? dbData.find((r) => r["file.path"] === draggingCardPath) : null;
+
+  // WIP limit editing (issue #83): clicking a column's count badge turns it
+  // into a number field; Enter/blur commits, empty clears. No prompt, no
+  // menu — the number sits where it is read.
+  const [editingLimit, setEditingLimit] = useState<{ key: string; value: string } | null>(null);
+  const commitLimit = () => {
+    if (!editingLimit) return;
+    const n = Number(editingLimit.value.trim());
+    onSetWipLimit?.(editingLimit.key, Number.isInteger(n) && n > 0 ? n : null);
+    setEditingLimit(null);
+  };
 
   const [addingGroup, setAddingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -210,7 +233,52 @@ export function BaseBoardView({
                 {onReorderColumns && <GripHorizontal size={ICON.ui} style={{ flexShrink: 0, color: tinted ? `var(--chip-${tintIdx}-fg)` : "var(--text-faint)" }} aria-hidden="true" />}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{groupKey === "__UNGROUPED__" ? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>{t("database.boardUngrouped", "Kein Wert")}</span> : tinted ? <span style={{ color: `var(--chip-${tintIdx}-fg)`, fontWeight: 600 }}>{groupKey}</span> : (renderTypedDisplay(boardGroupBy, groupKey) ?? groupKey)}</span>
               </span>
-              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0 }}>{groups[groupKey].length}</span>
+              {(() => {
+                const count = groups[groupKey].length;
+                const limit = boardWipLimits?.[groupKey];
+                const over = limit != null && count > limit;
+                if (editingLimit?.key === groupKey) {
+                  return (
+                    <TextInput
+                      compact
+                      type="number"
+                      min={1}
+                      autoFocus
+                      value={editingLimit.value}
+                      aria-label={t("database.wipLimit")}
+                      data-testid={`board-col-limit-${groupKey}`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onChange={(e) => setEditingLimit({ key: groupKey, value: e.target.value })}
+                      onBlur={commitLimit}
+                      onKeyDown={(e) => { if (e.key === "Enter") commitLimit(); if (e.key === "Escape") setEditingLimit(null); }}
+                      style={{ width: "4.5rem", flexShrink: 0 }}
+                    />
+                  );
+                }
+                const badge = (
+                  <span
+                    data-testid={`board-col-count-${groupKey}`}
+                    data-over={over ? "true" : undefined}
+                    style={{ fontSize: "var(--text-sm)", color: over ? "var(--warning-text)" : "var(--text-muted)", background: over ? "var(--warning-bg)" : "var(--bg-primary)", padding: "2px 6px", borderRadius: "var(--radius-lg)", flexShrink: 0, fontWeight: over ? 600 : 400, fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {limit != null ? `${count}/${limit}` : count}
+                  </span>
+                );
+                if (!onSetWipLimit) return badge;
+                return (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={over ? t("database.wipLimitOver", { count, limit }) : t("database.wipLimit")}
+                    data-tip={over ? t("database.wipLimitOver", { count, limit }) : t("database.wipLimitHint")}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); setEditingLimit({ key: groupKey, value: limit != null ? String(limit) : "" }); }}
+                    style={{ padding: 0, minWidth: 0, height: "auto" }}
+                  >
+                    {badge}
+                  </Button>
+                );
+              })()}
             </div>
             <div className="custom-scrollbar" style={{ padding: "0.5rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
               {groups[groupKey].map((row, idx) => (
@@ -226,15 +294,21 @@ export function BaseBoardView({
                     data-tip={row['file.name']}
                     style={{ fontWeight: 500, fontSize: "var(--text-md)", marginBottom: "0.5rem", cursor: "pointer", color: "var(--text-main)", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                   >{row['file.name']}</div>
+                  {/* The note's own checklist (issue #83, P4): progress from the
+                      index, the lines on demand. Not a column row — a card shows it
+                      whenever the note has one. */}
+                  <BoardCardChecklist path={row['file.path']} progress={row['file.tasks']} />
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {visibleColumns.filter(c => c !== 'file.name' && c !== boardGroupBy).map(col => {
+                    {visibleColumns.filter(c => c !== 'file.name' && c !== 'file.tasks' && c !== boardGroupBy).map(col => {
                       let val = row[col];
                       if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
                       const { displayVal } = formatValueForDisplay(val, col);
+                      const input = getColumnSchema(col)?.input;
+                      const due = input === "date" || input === "datetime" ? dueChipStyle(rowDueTone(row, dueModel, val)) : undefined;
                       return (
                         <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "var(--text-md)" }}>
                           <span style={{ color: "var(--text-muted)" }}>{columnLabel(col)}</span>
-                          <div style={{ color: "var(--text-main)" }}>{renderEditableCell(row, col, val, displayVal)}</div>
+                          <div style={{ color: "var(--text-main)" }}>{due ? <span data-testid="board-due-chip" style={due}>{renderEditableCell(row, col, val, displayVal)}</span> : renderEditableCell(row, col, val, displayVal)}</div>
                         </div>
                       );
                     })}

@@ -18,7 +18,7 @@ import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import type { Density } from "../../services/density";
 import type { WeekStartSetting } from "@plainva/ui";
-import { MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type ContentFontSettings, type ContentFontFamily } from "../../services/contentFont";
+import { MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type AppFontSettings, type ContentFontFamily, type FontChoice, type FontSlot } from "../../services/appFonts";
 import { DEFAULT_UI_ZOOM, MIN_UI_ZOOM, MAX_UI_ZOOM, UI_ZOOM_STEP } from "../../services/uiZoom";
 import type { EditorViewMode } from "../../services/viewModeDefault";
 import type { PerfStat } from "../../services/perfMetrics";
@@ -37,6 +37,44 @@ export const AreaHead: React.FC<{ areaId: string; children?: React.ReactNode }> 
   return <SettingsPageHead title={t(area.labelKey)} desc={t(area.descKey)}>{children}</SettingsPageHead>;
 };
 
+/** One font slot: a family choice, and the catalogue field once it is "custom". */
+const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, desc, choice, onChange }) => {
+  const { t } = useTranslation();
+  // The content slot keeps the test ids the E2E smoke has used since A3.
+  const idBase = slot === "content" ? "content-font" : `${slot}-font`;
+  return (
+    <SettingRow label={label} desc={desc}>
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        <Select
+          ariaLabel={label}
+          value={choice.family}
+          data-testid={`${idBase}-family`}
+          onChange={(v) => onChange({ family: v as ContentFontFamily, customName: choice.customName })}
+          options={[
+            { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
+            { value: "serif", label: t("settings.fontSerif", { defaultValue: "Serif" }) },
+            { value: "sans", label: t("settings.fontSans", { defaultValue: "Sans-Serif" }) },
+            { value: "mono", label: t("settings.fontMono", { defaultValue: "Monospace" }) },
+            { value: "custom", label: t("settings.fontCustom", { defaultValue: "Benutzerdefiniert…" }) },
+          ]}
+        />
+        {choice.family === "custom" && (
+          /* One field that shows the chosen family; the curated list (a
+             preview per row, a verdict on whether the device has the font)
+             and the free name open on click (second look 2026-09-04, A3). */
+          <FontField
+            value={choice.customName}
+            onChange={(css) => onChange({ family: "custom", customName: css })}
+            defaultLabel={t("settings.fontFieldEmpty")}
+            ariaLabel={label}
+            data-testid={`${idBase}-custom`}
+          />
+        )}
+      </div>
+    </SettingRow>
+  );
+};
+
 export interface AppearancePageProps {
   themeName: string;
   onThemeName: (name: string) => void;
@@ -53,6 +91,9 @@ export interface AppearancePageProps {
   onDensity: (d: Density) => void;
   uiZoom: number;
   onUiZoom: (z: number) => void;
+  /** The three font slots + content size (issue #82). */
+  fonts: AppFontSettings;
+  onFonts: (next: AppFontSettings) => void;
 }
 
 export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
@@ -99,6 +140,37 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             )}
           </div>
         </SettingRow>
+      </SettingCard>
+
+      {/* One card for the three font slots (issue #82, plan 2026-09-06 P2/E2):
+          interface, content, code — the content font used to live on the
+          Editor page and the interface font inside "My design"; the code font
+          could not be set at all. Device-local: installed fonts differ per device. */}
+      <SettingCard label={t("settings.groupFonts")}>
+        <FontSlotRow slot="ui" label={t("settings.fontUi")} desc={t("settings.fontUiDesc")} choice={p.fonts.fonts.ui} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, ui: c } })} />
+        <FontSlotRow slot="content" label={t("settings.fontContent")} desc={t("settings.fontContentDesc")} choice={p.fonts.fonts.content} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, content: c } })} />
+        <FontSlotRow slot="code" label={t("settings.fontCode")} desc={t("settings.fontCodeDesc")} choice={p.fonts.fonts.code} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, code: c } })} />
+        <SettingRow
+          label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
+          desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
+        >
+          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <input
+              type="range"
+              min={MIN_CONTENT_FONT_SIZE}
+              max={MAX_CONTENT_FONT_SIZE}
+              step={1}
+              value={p.fonts.size}
+              aria-label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
+              onChange={(e) => p.onFonts({ ...p.fonts, size: Number(e.target.value) })}
+              style={{ flex: 1 }}
+            />
+            <span style={{ minWidth: "44px", textAlign: "right", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+              {p.fonts.size} px
+            </span>
+          </div>
+        </SettingRow>
+        <SettingCardNote>{t("settings.fontsDeviceHint")}</SettingCardNote>
       </SettingCard>
 
       <SettingCard label={t("settings.groupLanguageDisplay", { defaultValue: "Sprache & Darstellung" })}>
@@ -169,8 +241,6 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
 export interface EditorPageProps {
   defaultViewMode: EditorViewMode;
   onDefaultViewMode: (m: EditorViewMode) => void;
-  contentFont: ContentFontSettings;
-  onContentFont: (next: ContentFontSettings) => void;
   /** Ask before creating a note from an unresolved wiki link (default off). */
   askBeforeCreateLink: boolean;
   onAskBeforeCreateLink: (value: boolean) => void;
@@ -197,61 +267,6 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
                 { value: "source", label: t("editor.sourceMode") },
               ]}
             />
-          </div>
-        </SettingRow>
-      </SettingCard>
-
-      <SettingCard label={t("settings.groupContentFont", { defaultValue: "Schrift im Inhalt" })}>
-        <SettingRow
-          label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-          desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
-        >
-          <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px" }}>
-            <input
-              type="range"
-              min={MIN_CONTENT_FONT_SIZE}
-              max={MAX_CONTENT_FONT_SIZE}
-              step={1}
-              value={p.contentFont.size}
-              aria-label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-              onChange={(e) => p.onContentFont({ ...p.contentFont, size: Number(e.target.value) })}
-              style={{ flex: 1 }}
-            />
-            <span style={{ minWidth: "44px", textAlign: "right", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
-              {p.contentFont.size} px
-            </span>
-          </div>
-        </SettingRow>
-        <SettingRow
-          label={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
-          desc={t("settings.contentFontFamilyDesc", { defaultValue: "Schriftart des Notiz-Inhalts. „Theme-Standard“ folgt dem gewählten Theme." })}
-        >
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "8px" }}>
-            <Select
-              ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
-              value={p.contentFont.family}
-              data-testid="content-font-family"
-              onChange={(v) => p.onContentFont({ ...p.contentFont, family: v as ContentFontFamily })}
-              options={[
-                { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
-                { value: "serif", label: t("settings.fontSerif", { defaultValue: "Serif" }) },
-                { value: "sans", label: t("settings.fontSans", { defaultValue: "Sans-Serif" }) },
-                { value: "mono", label: t("settings.fontMono", { defaultValue: "Monospace" }) },
-                { value: "custom", label: t("settings.fontCustom", { defaultValue: "Benutzerdefiniert…" }) },
-              ]}
-            />
-            {p.contentFont.family === "custom" && (
-              /* One field that shows the chosen family; the curated list (a
-                 preview per row, a verdict on whether the device has the font)
-                 and the free name open on click (second look 2026-09-04, A3). */
-              <FontField
-                value={p.contentFont.customName}
-                onChange={(css) => p.onContentFont({ ...p.contentFont, family: "custom", customName: css })}
-                defaultLabel={t("settings.fontFieldEmpty")}
-                ariaLabel={t("settings.contentFontFamily", { defaultValue: "Inhalts-Schriftart" })}
-                data-testid="content-font-custom"
-              />
-            )}
           </div>
         </SettingRow>
       </SettingCard>

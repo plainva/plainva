@@ -148,6 +148,29 @@ describe("baseFormat serialize: Obsidian-native output", () => {
     expect(out2.views[0].plainva?.boardColorMode).toBeUndefined();
   });
 
+  it("round-trips boardWipLimits under views[i].plainva; empty or invalid limits are elided (issue #83)", () => {
+    const out = yaml.parse(
+      serializeBaseConfig({
+        columns: { status: { input: "status", options: [{ value: "open" }, { value: "doing" }] } },
+        views: [
+          { type: "board", boardWipLimits: { doing: 5, open: 0, weird: "x" } },
+          { type: "board", boardWipLimits: {} },
+        ],
+        _obsidian: {},
+      }),
+    );
+    expect(out.views[0].plainva.boardWipLimits).toEqual({ doing: 5 });
+    expect(out.views[1].plainva?.boardWipLimits).toBeUndefined();
+
+    const parsed = parseBaseConfig(yaml.stringify(out));
+    expect(parsed.views[0].boardWipLimits).toEqual({ doing: 5 });
+    expect(parsed.views[1].boardWipLimits).toBeUndefined();
+
+    delete parsed.views[0].boardWipLimits;
+    const out2 = yaml.parse(serializeBaseConfig(parsed));
+    expect(out2.views[0].plainva?.boardWipLimits).toBeUndefined();
+  });
+
   it("round-trips contextFilters (self-reference) under views[0].plainva only, ignored by Obsidian's filters", () => {
     const out = yaml.parse(
       serializeBaseConfig({

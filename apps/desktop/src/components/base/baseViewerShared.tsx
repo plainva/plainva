@@ -1,7 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
-import { capitalizeFirst, ICON } from "@plainva/ui";
+import { capitalizeFirst, ICON, type RowDueTone } from "@plainva/ui";
 // Co-located with the module that owns the base-*/base-cfg-* classes, so every
 // surface using them is styled — including the create wizard, which opens
 // without a BaseViewer (and therefore without the old inline <style>) anywhere.
@@ -69,6 +69,7 @@ export function columnLabel(col: string, t: TFunction, dbConfig?: any): string {
   if (col === "file.mtime") return t("database.colModified", "Geändert");
   if (col === "file.size") return t("database.colSize", "Größe");
   if (col === "file.path") return t("database.colPath", "Pfad");
+  if (col === "file.tasks") return t("database.colChecklist", "Checkliste");
   if (col.startsWith("file.")) return col.slice(5);
   const bare = col.replace(/^note\./, "");
   const displayName = dbConfig?._obsidian?.properties?.[`note.${bare}`]?.displayName
@@ -107,6 +108,20 @@ export const viewIcon = (type: string) => {
  * Never collides with real group keys (boards use "__UNGROUPED__"-style
  * sentinels only for the no-value bucket) or ISO dates.
  */
+/**
+ * How a date value dresses on a card or a bar, by its `rowDueTone` (issues
+ * #83/#84). The tone `due` borrows the pill of the task list (warning tokens),
+ * so "overdue" looks the same in the tasks area and inside a database; `later`
+ * is a quiet chip; `none` returns nothing and the value renders as before.
+ */
+export function dueChipStyle(tone: RowDueTone): React.CSSProperties | undefined {
+  if (tone === "none") return undefined;
+  const base: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: "var(--space-1)", padding: "0 var(--space-2)", borderRadius: "var(--radius-pill)", fontSize: "var(--text-sm)", whiteSpace: "nowrap", verticalAlign: "middle" };
+  return tone === "due"
+    ? { ...base, background: "var(--warning-bg)", color: "var(--warning-text)", fontWeight: 600 }
+    : { ...base, background: "var(--bg-secondary)", color: "var(--text-muted)" };
+}
+
 export const OPEN_SPLIT_TARGET = "__OPEN_SPLIT__";
 
 /**

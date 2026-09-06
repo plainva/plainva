@@ -372,6 +372,7 @@ describe("a checkbox task database (one-click scaffold)", () => {
     const { path, content } = buildTaskDbFile("Aufgaben", {
       viewTable: "Tabelle",
       viewBoard: "Board",
+      viewTimeline: "Zeitleiste",
       doneKey: "erledigt",
       dueKey: "frist",
       statusOptions: ["Offen", "In Arbeit", "Erledigt"],

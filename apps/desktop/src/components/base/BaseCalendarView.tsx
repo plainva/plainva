@@ -4,6 +4,8 @@ import {
   Segmented,
   compareByTime,
   entryDayKeys,
+  rowDueTone,
+  type TaskCompletionModel,
   getWeekStartSetting,
   layoutSpanningEvents,
   rangeRows,
@@ -35,6 +37,7 @@ export function BaseCalendarView({
   setCursor,
   visibleColumns,
   cells,
+  dueModel = null,
   onOpenNote,
   onDropToSplit,
 }: {
@@ -42,6 +45,8 @@ export function BaseCalendarView({
   dateProp: string | null;
   /** The view's end column — an entry that has one spans (S20). */
   endProp: string | null;
+  /** Overdue emphasis for unfinished entries whose day has come (issues #83/#84). */
+  dueModel?: TaskCompletionModel | null;
   cursor: CalendarCursor;
   setCursor: React.Dispatch<React.SetStateAction<CalendarCursor>>;
   /** Properties enabled in the config panel — shown on each entry (P4). */
@@ -164,8 +169,13 @@ export function BaseCalendarView({
     );
 
 
+  // The overdue rule of every database view: an unfinished entry whose (end)
+  // day is today or earlier takes the warning edge instead of the accent.
+  const isDue = (row: any) => dateProp != null && rowDueTone(row, dueModel, endProp ? (row[endProp] ?? row[dateProp]) : row[dateProp]) === "due";
+
   const entryCard = (row: any, key: string) => {
     const time = dateProp ? timeLabel(row[dateProp]) : "";
+    const due = isDue(row);
     return (
       <div
         key={row["file.path"] || key}
@@ -174,7 +184,8 @@ export function BaseCalendarView({
         onContextMenu={(e) => cells.onRowContextMenu?.(row["file.path"], e)}
         onClick={(e) => onOpenNote?.(row["file.path"], e)}
         data-tip={row["file.name"]}
-        style={{ background: "var(--bg-secondary)", color: "var(--text-main)", padding: "0.3rem 0.45rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", cursor: "pointer", borderLeft: "2px solid var(--accent-color)", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}
+        data-due={due ? "true" : undefined}
+        style={{ background: due ? "var(--warning-bg)" : "var(--bg-secondary)", color: due ? "var(--warning-text)" : "var(--text-main)", padding: "0.3rem 0.45rem", borderRadius: "var(--radius-sm)", fontSize: "var(--text-sm)", cursor: "pointer", borderLeft: due ? "2px solid var(--warning-text)" : "2px solid var(--accent-color)", touchAction: "none", opacity: draggingPath === row["file.path"] ? 0.45 : 1 }}
       >
         <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>
           {time && <span style={{ color: "var(--text-muted)", marginRight: "0.35rem", fontVariantNumeric: "tabular-nums" }}>{time}</span>}
@@ -252,8 +263,8 @@ export function BaseCalendarView({
                             style={{
                               gridColumn: `${bar.startCol + 1} / ${bar.endCol + 2}`,
                               gridRow: bar.lane + 1,
-                              background: "var(--accent-container)",
-                              color: "var(--on-accent-container)",
+                              background: isDue(bar.event) ? "var(--warning-bg)" : "var(--accent-container)",
+                              color: isDue(bar.event) ? "var(--warning-text)" : "var(--on-accent-container)",
                               fontSize: "var(--text-xs)",
                               padding: "0.15rem 0.4rem",
                               borderRadius: "var(--radius-sm)",

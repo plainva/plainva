@@ -42,7 +42,7 @@ import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
 import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
-import { getStoredContentFont, setStoredContentFont, DEFAULT_CONTENT_FONT_SIZE, type ContentFontSettings } from "../services/contentFont";
+import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppFontSettings } from "../services/appFonts";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
@@ -121,8 +121,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getWeekStartSetting().then(setWeekStart).catch(() => {}); }, []);
   const [defaultViewMode, setDefaultViewMode] = useState<EditorViewMode>(DEFAULT_VIEW_MODE);
   useEffect(() => { getStoredDefaultViewMode().then(setDefaultViewMode).catch(() => {}); }, []);
-  const [contentFont, setContentFont] = useState<ContentFontSettings>({ size: DEFAULT_CONTENT_FONT_SIZE, family: "theme", customName: "" });
-  useEffect(() => { getStoredContentFont().then(setContentFont).catch(() => {}); }, []);
+  const [fonts, setFonts] = useState<AppFontSettings>(() => defaultAppFontSettings());
+  useEffect(() => { getStoredAppFonts().then(setFonts).catch(() => {}); }, []);
   const [askBeforeCreateLink, setAskBeforeCreateLinkState] = useState(false);
   useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
@@ -596,6 +596,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       const path = await createTaskDatabase(vaultAdapter, name, {
         viewTable: t("database.viewTable"),
         viewBoard: t("database.viewBoard"),
+        viewTimeline: t("database.viewTimeline"),
         doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
         dueKey: t("tasks.dbDueKey"),
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
@@ -797,6 +798,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
+                      fonts={fonts}
+                      onFonts={(next) => { setFonts(next); void setStoredAppFonts(next); }}
                     />
                   </SettingsPage>
                   {/* "Mein Design" (A2): a second level under Appearance, not a rail entry. */}
@@ -811,8 +814,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     <EditorPage
                       defaultViewMode={defaultViewMode}
                       onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
-                      contentFont={contentFont}
-                      onContentFont={(next) => { setContentFont(next); void setStoredContentFont(next); }}
                       askBeforeCreateLink={askBeforeCreateLink}
                       onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
                     />
