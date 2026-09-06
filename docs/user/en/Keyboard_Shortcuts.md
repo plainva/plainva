@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-07-26
+Last reviewed: 2026-09-06
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -39,7 +39,7 @@ In the file tree: **click** selects and opens, `Ctrl`+click toggles a multi-sele
 | `Ctrl+Shift+G` | Open the graph / vault map |
 | `Ctrl+Shift+F` | Find & replace across the vault |
 | `Ctrl+T` | New tab (pick a note to open) |
-| `Ctrl+W` | Close tab |
+| `Ctrl+W` | Close tab; in a separate window, closing the last tab closes the window |
 | `Ctrl+Shift+T` | Reopen the last closed tab |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab (`Ctrl` on every OS) |
 | `Ctrl+1` … `Ctrl+8` | Jump to tab 1–8 |

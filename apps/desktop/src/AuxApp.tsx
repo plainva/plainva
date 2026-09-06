@@ -82,6 +82,31 @@ export function AuxApp() {
     layoutScope: label,
   });
 
+  // Cmd/Ctrl+W (#86). The central window's key handler does not run here,
+  // and a window without a close button of its own (macOS, before the
+  // chrome fix) had no way out at all. With several tabs the key closes the
+  // active one, as it does in the central window; the last tab, or a window
+  // that has none (the composer), takes the window with it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "w") return;
+      e.preventDefault();
+      const tabCount = layout.panes.reduce((n, p) => n + p.tabs.length, 0);
+      if (tabCount > 1) {
+        const pane = layout.panes[layout.activePaneIndex];
+        if (pane && pane.activeIndex >= 0) closeTab(layout.activePaneIndex, pane.activeIndex);
+        return;
+      }
+      void import("@tauri-apps/api/window")
+        .then((m) => m.getCurrentWindow().close())
+        .catch(() => {
+          /* browser/test: no OS window to close */
+        });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [layout, closeTab]);
+
   // What the window opened with, once the stored layout has had its say. A
   // window that was closed with three tabs comes back with three; a fresh one
   // starts with what it was popped out with, and a preset window starts split.

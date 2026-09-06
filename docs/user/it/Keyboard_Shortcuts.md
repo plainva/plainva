@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-07-26
+Ultimo aggiornamento: 2026-09-06
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -39,7 +39,7 @@ Nell'albero dei file: **clic** seleziona e apre, `Ctrl`+clic attiva/disattiva un
 | `Ctrl+Shift+G` | Apri il grafo / la mappa del vault |
 | `Ctrl+Shift+F` | Trova e sostituisci nel vault |
 | `Ctrl+T` | Nuova scheda (scegli una nota da aprire) |
-| `Ctrl+W` | Chiudi scheda |
+| `Ctrl+W` | Chiudi scheda; in una finestra separata, chiudere l'ultima scheda chiude la finestra |
 | `Ctrl+Shift+T` | Riapri l'ultima scheda chiusa |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Scheda successiva / precedente (`Ctrl` su qualsiasi sistema operativo) |
 | `Ctrl+1` … `Ctrl+8` | Vai alla scheda 1–8 |

@@ -5,6 +5,7 @@ import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./m
 import { isVirtualPath } from "../components/graph/virtualPaths";
 import { heldVaults, releaseHolder } from "./vaultRuntimes";
 import { vaultNestingConflict, vaultNestingMessage } from "./vaultNesting";
+import { detectMac } from "../components/WindowControls";
 
 /**
  * Opening, focusing and remembering auxiliary windows (multi-window P0).
@@ -242,6 +243,22 @@ export function readPersistedWindows(vaultPath: string): AuxWindowRecord[] {
 }
 
 /**
+ * The chrome an auxiliary window is built with, by platform (#86).
+ *
+ * The central window draws its own title bar everywhere, so the OS
+ * decorations are off -- except on macOS, where `tauri.macos.conf.json`
+ * keeps them and hides the title instead: the traffic lights stay, the bar
+ * is ours. An auxiliary window used to copy only the first half of that.
+ * On a Mac it therefore had no traffic lights AND no drawn buttons
+ * (`WindowControls` draws none there, trusting the lights), and no way to
+ * close it. One function for the choice, so the two windows never diverge
+ * again.
+ */
+export function auxWindowChrome(mac: boolean): { decorations: boolean; titleBarStyle?: "overlay"; hiddenTitle?: boolean } {
+  return mac ? { decorations: true, titleBarStyle: "overlay", hiddenTitle: true } : { decorations: false };
+}
+
+/**
  * Opens an auxiliary window for a piece of content.
  *
  * The label is the address the bus talks to, so it has to be unique for the
@@ -297,8 +314,9 @@ export async function openAuxWindow(params: {
     x: params.bounds?.x,
     y: params.bounds?.y,
     alwaysOnTop: params.alwaysOnTop === true,
-    // Same frameless chrome as the main window — the aux title bar draws it.
-    decorations: false,
+    // Same chrome as the central window, platform by platform -- the aux
+    // title bar draws the rest (#86).
+    ...auxWindowChrome(detectMac()),
   });
 
   open.set(label, record);

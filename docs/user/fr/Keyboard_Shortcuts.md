@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-07-26
+Dernière mise à jour : 2026-09-06
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -39,7 +39,7 @@ Dans l'arborescence de fichiers : le **clic** sélectionne et ouvre, `Ctrl`+clic
 | `Ctrl+Shift+G` | Ouvrir le graphe / la carte du coffre |
 | `Ctrl+Shift+F` | Rechercher et remplacer dans le vault |
 | `Ctrl+T` | Nouvel onglet (choisir une note à ouvrir) |
-| `Ctrl+W` | Fermer l'onglet |
+| `Ctrl+W` | Fermer l'onglet ; dans une fenêtre séparée, fermer le dernier onglet ferme la fenêtre |
 | `Ctrl+Shift+T` | Rouvrir le dernier onglet fermé |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Onglet suivant / précédent (`Ctrl` sur tous les systèmes, y compris macOS) |
 | `Ctrl+1` … `Ctrl+8` | Aller à l'onglet 1–8 |

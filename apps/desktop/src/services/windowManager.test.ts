@@ -22,6 +22,9 @@ const created: Array<{
   x?: number;
   y?: number;
   alwaysOnTop?: boolean;
+  decorations?: boolean;
+  titleBarStyle?: string;
+  hiddenTitle?: boolean;
 }> = [];
 /** Labels whose OS window has vanished without telling the registry. */
 const gone = new Set<string>();
@@ -33,7 +36,17 @@ vi.mock("@tauri-apps/api/webviewWindow", () => {
     label: string;
     constructor(
       label: string,
-      options: { url: string; width?: number; height?: number; x?: number; y?: number; alwaysOnTop?: boolean },
+      options: {
+        url: string;
+        width?: number;
+        height?: number;
+        x?: number;
+        y?: number;
+        alwaysOnTop?: boolean;
+        decorations?: boolean;
+        titleBarStyle?: string;
+        hiddenTitle?: boolean;
+      },
     ) {
       this.label = label;
       for (const frag of refuse) {
@@ -47,6 +60,9 @@ vi.mock("@tauri-apps/api/webviewWindow", () => {
         x: options.x,
         y: options.y,
         alwaysOnTop: options.alwaysOnTop,
+        decorations: options.decorations,
+        titleBarStyle: options.titleBarStyle,
+        hiddenTitle: options.hiddenTitle,
       });
     }
     async onCloseRequested() {
@@ -118,6 +134,7 @@ import {
   noteWindowContent,
   isDuplicableView,
   noteWindowVault,
+  auxWindowChrome,
 } from "./windowManager";
 
 import { forgetComposeDraft, readComposeDraft } from "./mail/composeHandoff";
@@ -225,6 +242,24 @@ describe("window routing (dedup)", () => {
       where: "focused",
       label: rec.label,
     });
+  });
+});
+
+describe("the chrome of an auxiliary window (#86)", () => {
+  it("keeps the traffic lights on macOS, and draws its own bar elsewhere", () => {
+    // The same three values tauri.macos.conf.json gives the central window:
+    // a Mac window without them has no close button at all.
+    expect(auxWindowChrome(true)).toEqual({ decorations: true, titleBarStyle: "overlay", hiddenTitle: true });
+    expect(auxWindowChrome(false)).toEqual({ decorations: false });
+  });
+
+  it("hands that choice to the window it builds", async () => {
+    created.length = 0;
+    await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "Note.md" });
+    // jsdom is not a Mac: the frameless chrome, and no overlay flags at all.
+    expect(created[0]).toMatchObject({ decorations: false });
+    expect(created[0]?.titleBarStyle).toBeUndefined();
+    expect(created[0]?.hiddenTitle).toBeUndefined();
   });
 });
 

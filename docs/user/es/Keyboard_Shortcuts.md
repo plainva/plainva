@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-07-26
+Última actualización: 2026-09-06
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -39,7 +39,7 @@ En el árbol de archivos: **clic** selecciona y abre, `Ctrl`+clic alterna una se
 | `Ctrl+Shift+G` | Abrir el grafo / mapa del vault |
 | `Ctrl+Shift+F` | Buscar y reemplazar en todo el vault |
 | `Ctrl+T` | Nueva pestaña (elige una nota para abrir) |
-| `Ctrl+W` | Cerrar pestaña |
+| `Ctrl+W` | Cerrar pestaña; en una ventana aparte, cerrar la última pestaña cierra la ventana |
 | `Ctrl+Shift+T` | Reabrir la última pestaña cerrada |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Pestaña siguiente / anterior (`Ctrl` en todos los sistemas operativos) |
 | `Ctrl+1` … `Ctrl+8` | Saltar a la pestaña 1–8 |

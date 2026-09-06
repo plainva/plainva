@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-07-26
+Stan na: 2026-09-06
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -39,7 +39,7 @@ W drzewie plików: **kliknięcie** wybiera i otwiera, `Ctrl`+klik przełącza za
 | `Ctrl+Shift+G` | Otwórz graf / mapę sejfu |
 | `Ctrl+Shift+F` | Znajdź i zamień w vaulcie |
 | `Ctrl+T` | Nowa karta (wybierz notatkę do otwarcia) |
-| `Ctrl+W` | Zamknij kartę |
+| `Ctrl+W` | Zamknij kartę; w osobnym oknie zamknięcie ostatniej karty zamyka okno |
 | `Ctrl+Shift+T` | Otwórz ponownie ostatnio zamkniętą kartę |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Następna / poprzednia karta (`Ctrl` we wszystkich systemach) |
 | `Ctrl+1` … `Ctrl+8` | Przejdź do karty 1–8 |

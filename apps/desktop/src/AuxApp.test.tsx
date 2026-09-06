@@ -38,9 +38,14 @@ vi.mock("./components/RightSidebar", () => ({
   },
 }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => null }));
+/** How often the shell asked the OS to close this window. */
+let closed = 0;
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
     async setTitle() {},
+    async close() {
+      closed += 1;
+    },
     async isAlwaysOnTop() {
       return false;
     },
@@ -91,6 +96,7 @@ const panes = () => Array.from(host.querySelectorAll('[data-testid="pane"]')).ma
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
+  closed = 0;
   sidebarSections.length = 0;
 });
 
@@ -101,6 +107,37 @@ afterEach(async () => {
   host.remove();
   vi.useRealTimers();
   resetWindowParamsForTest();
+});
+
+describe("closing with the keyboard (#86)", () => {
+  it("Cmd+W on the only tab closes the window, not just the tab", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-1");
+    expect(panes()).toEqual(["Note.md"]);
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "w", metaKey: true, bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(closed).toBe(1);
+  });
+
+  it("a composer window goes the same way", async () => {
+    await mount("/?win=compose&vault=%2Fvault&label=compose-1");
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "w", ctrlKey: true, bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+    expect(closed).toBe(1);
+  });
+
+  it("leaves Shift+Cmd+W and plain W alone", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-1");
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "w", metaKey: true, shiftKey: true, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "w", bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(closed).toBe(0);
+  });
 });
 
 describe("what an auxiliary window starts with", () => {

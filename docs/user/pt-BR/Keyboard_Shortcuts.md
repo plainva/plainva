@@ -1,6 +1,6 @@
 # Atalhos de Teclado
 
-Última revisão: 2026-07-26
+Última revisão: 2026-09-06
 
 Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para abrir a janela de atalhos a qualquer momento. Ela agrupa todos os atalhos e gestos do mouse em áreas que você alterna pelos chips na parte superior, tem um campo de busca que abrange todas as áreas e detecta automaticamente a sua plataforma: mostra `Ctrl`/`Alt` no Windows e no Linux, e `⌘`/`⌥` no macOS. Nas tabelas abaixo, portanto, `Ctrl` significa `⌘` no macOS, e `Alt` significa `⌥`.
 
@@ -39,7 +39,7 @@ Na árvore de arquivos: **clique** seleciona e abre, `Ctrl`+clique alterna uma s
 | `Ctrl+Shift+G` | Abrir o grafo / mapa do vault |
 | `Ctrl+Shift+F` | Localizar e substituir no vault |
 | `Ctrl+T` | Nova aba (escolher uma nota para abrir) |
-| `Ctrl+W` | Fechar aba |
+| `Ctrl+W` | Fechar aba; em uma janela separada, fechar a última aba fecha a janela |
 | `Ctrl+Shift+T` | Reabrir a última aba fechada |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima aba / aba anterior (`Ctrl` em qualquer sistema) |
 | `Ctrl+1` … `Ctrl+8` | Ir para a aba 1–8 |

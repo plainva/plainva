@@ -7,6 +7,16 @@ reaches 1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A window opened with "Open in new window" can be closed on macOS again**
+  (#86). It was built without the traffic lights the central window keeps,
+  and the drawn window buttons exist on Windows and Linux only — so it had
+  no close button at all, and ⌘W closed a tab, never the window. Auxiliary
+  windows now carry the same chrome as the central one, and ⌘W / Ctrl+W
+  closes the window once its last tab is the active one (the composer
+  window too).
+
 ## [0.8.0] — 2026-09-04
 
 A note used to be something you wrote alone. This release is about what happens

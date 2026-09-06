@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-07-26
+Stand: 2026-09-06
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -39,7 +39,7 @@ Im Dateibaum: **Klick** wählt aus und öffnet, `Strg`+Klick schaltet eine Mehrf
 | `Strg+Umschalt+G` | Graph / Vault-Karte öffnen |
 | `Strg+Umschalt+F` | Im ganzen Vault suchen & ersetzen |
 | `Strg+T` | Neuer Tab (Notiz zum Öffnen wählen) |
-| `Strg+W` | Tab schließen |
+| `Strg+W` | Tab schließen; in einem eigenen Fenster schließt der letzte Tab das Fenster |
 | `Strg+Umschalt+T` | Zuletzt geschlossenen Tab wieder öffnen |
 | `Strg+Tab` / `Strg+Umschalt+Tab` | Nächster / vorheriger Tab (`Strg` auf jedem System) |
 | `Strg+1` … `Strg+8` | Zu Tab 1–8 springen |
