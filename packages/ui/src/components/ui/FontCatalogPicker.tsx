@@ -4,12 +4,15 @@ import { Check } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 import { GroupCard, Row, RowList } from "./GroupedRows";
-import { canvasFontMeasure, detectFontPlatform, FONT_CATALOG, isFontInstalled, type CatalogFont } from "../../lib/fontCatalog";
+import { canvasFontMeasure, detectFontPlatform, FONT_CATALOG, isFontInstalled, type CatalogFont, type FontKind } from "../../lib/fontCatalog";
+import { filterFontCatalog } from "../../lib/appFonts";
 
 export interface FontCatalogPickerProps {
   /** The current custom family (css value or typed name) — marks the row it matches. */
   value: string;
   onPick: (font: CatalogFont) => void;
+  /** Narrows the list to these kinds (the code slot: mono only); omitted = all. */
+  kinds?: readonly FontKind[] | null;
   className?: string;
 }
 
@@ -22,10 +25,11 @@ export interface FontCatalogPickerProps {
  * longer ends in "nothing changed". The free-text field below stays the last
  * resort for a family the list does not know.
  */
-export function FontCatalogPicker({ value, onPick, className }: FontCatalogPickerProps) {
+export function FontCatalogPicker({ value, onPick, kinds, className }: FontCatalogPickerProps) {
   const { t } = useTranslation();
   const platform = useMemo(() => detectFontPlatform(), []);
-  const fonts = FONT_CATALOG[platform];
+  const kindKey = kinds && kinds.length > 0 ? kinds.join(",") : "";
+  const fonts = useMemo(() => filterFontCatalog(FONT_CATALOG[platform], kindKey ? (kindKey.split(",") as FontKind[]) : null), [platform, kindKey]);
   const [installed, setInstalled] = useState<Record<string, boolean | null>>({});
 
   // Measured after mount: the canvas is a renderer question, not a render one.

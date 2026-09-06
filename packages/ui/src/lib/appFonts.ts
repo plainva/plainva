@@ -20,6 +20,8 @@
  * would silently fall back to the stack. Each shell persists its own copy.
  */
 
+import type { FontKind } from "./fontCatalog";
+
 export type FontSlot = "ui" | "content" | "code";
 export const FONT_SLOTS: readonly FontSlot[] = ["ui", "content", "code"];
 
@@ -57,6 +59,36 @@ export const FONT_FAMILY_STACKS: Record<Exclude<ContentFontFamily, "theme" | "cu
   sans: "Inter, Avenir, Helvetica, Arial, sans-serif",
   mono: 'ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace',
 };
+
+/**
+ * The presets a slot offers (P2): interface and content take any family, the
+ * code slot only monospace — a proportional face in a code block is never what
+ * the choice meant, so the drop-down and the catalogue behind "Custom…" both
+ * narrow to `kind: "mono"` there, and a stored proportional preset on the code
+ * slot keeps the theme's font instead of being applied.
+ */
+export const FONT_SLOT_FAMILIES: Record<FontSlot, readonly Exclude<ContentFontFamily, "theme" | "custom">[]> = {
+  ui: ["serif", "sans", "mono"],
+  content: ["serif", "sans", "mono"],
+  code: ["mono"],
+};
+
+const MONO_ONLY: readonly FontKind[] = Object.freeze(["mono"]);
+
+/** The catalogue kinds a slot shows; null = every kind. Stable identity. */
+export function fontKindsForSlot(slot: FontSlot): readonly FontKind[] | null {
+  return slot === "code" ? MONO_ONLY : null;
+}
+
+/** The catalogue narrowed to some kinds; null/empty = the whole list. */
+export function filterFontCatalog<T extends { kind: FontKind }>(fonts: readonly T[], kinds: readonly FontKind[] | null | undefined): readonly T[] {
+  return kinds && kinds.length > 0 ? fonts.filter((f) => kinds.includes(f.kind)) : fonts;
+}
+
+/** The catalogue rows a slot may pick from. */
+export function catalogForSlot<T extends { kind: FontKind }>(fonts: readonly T[], slot: FontSlot): readonly T[] {
+  return filterFontCatalog(fonts, fontKindsForSlot(slot));
+}
 
 export function isContentFontFamily(v: unknown): v is ContentFontFamily {
   return v === "theme" || v === "serif" || v === "sans" || v === "mono" || v === "custom";
@@ -126,6 +158,7 @@ export function resolveFontChoiceValue(slot: FontSlot, choice: FontChoice): stri
     const value = `${family}, ${fallback}`;
     return fontFamilySupported(value) ? value : null;
   }
+  if (!FONT_SLOT_FAMILIES[slot].includes(choice.family)) return null;
   return FONT_FAMILY_STACKS[choice.family];
 }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
-import { FontCatalogPicker, GroupCard, ICON, Row, RowList, SettingField, TextInput, sanitizeFontName, type ContentFontFamily, type FontChoice } from "@plainva/ui";
+import { FONT_SLOT_FAMILIES, FontCatalogPicker, fontKindsForSlot, GroupCard, ICON, Row, RowList, SettingField, TextInput, sanitizeFontName, type ContentFontFamily, type FontChoice, type FontSlot } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -10,14 +10,17 @@ import { SheetGrip } from "./SheetGrip";
  * then the catalogue (each row in its own face, missing fonts greyed), then a
  * field for a family the list does not know. The row that opens it shows what
  * is chosen; the list is never on the screen itself (plan 2026-09-04, A3).
+ * The code slot offers monospace only — presets and catalogue alike (P2).
  * Successor of the custom theme's FontPickSheet, whose only slot moved here.
  */
 export function FontSlotSheet({
+  slot,
   title,
   value,
   onPick,
   onClose,
 }: {
+  slot: FontSlot;
   title: string;
   value: FontChoice;
   onPick: (choice: FontChoice) => void;
@@ -25,11 +28,14 @@ export function FontSlotSheet({
 }) {
   const { t } = useTranslation();
   const [other, setOther] = useState("");
+  const presetLabel: Record<Exclude<ContentFontFamily, "theme" | "custom">, string> = {
+    serif: t("settings.fontSerif"),
+    sans: t("settings.fontSans"),
+    mono: t("settings.fontMono"),
+  };
   const presets: Array<[Exclude<ContentFontFamily, "custom">, string]> = [
     ["theme", t("settings.fontTheme")],
-    ["serif", t("settings.fontSerif")],
-    ["sans", t("settings.fontSans")],
-    ["mono", t("settings.fontMono")],
+    ...FONT_SLOT_FAMILIES[slot].map((family): [Exclude<ContentFontFamily, "custom">, string] => [family, presetLabel[family]]),
   ];
   const customName = value.family === "custom" ? value.customName : "";
   return (
@@ -52,7 +58,7 @@ export function FontSlotSheet({
               ))}
             </RowList>
           </GroupCard>
-          <FontCatalogPicker value={customName} onPick={(font) => onPick({ family: "custom", customName: font.css })} />
+          <FontCatalogPicker value={customName} kinds={fontKindsForSlot(slot)} onPick={(font) => onPick({ family: "custom", customName: font.css })} />
           <GroupCard>
             <RowList>
               <SettingField label={t("settings.fontFieldOther")}>

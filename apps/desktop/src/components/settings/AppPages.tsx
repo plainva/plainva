@@ -11,7 +11,7 @@ import {
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
-import { CUSTOM_THEME_ID, FontField, type CustomThemeSpec } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, type CustomThemeSpec } from "@plainva/ui";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -37,7 +37,14 @@ export const AreaHead: React.FC<{ areaId: string; children?: React.ReactNode }> 
   return <SettingsPageHead title={t(area.labelKey)} desc={t(area.descKey)}>{children}</SettingsPageHead>;
 };
 
-/** One font slot: a family choice, and the catalogue field once it is "custom". */
+const FONT_PRESET_LABEL: Record<Exclude<ContentFontFamily, "theme" | "custom">, [string, string]> = {
+  serif: ["settings.fontSerif", "Serif"],
+  sans: ["settings.fontSans", "Sans-Serif"],
+  mono: ["settings.fontMono", "Monospace"],
+};
+
+/** One font slot: a family choice, and the catalogue field once it is "custom".
+ * The code slot offers monospace only — presets and catalogue alike (P2). */
 const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, desc, choice, onChange }) => {
   const { t } = useTranslation();
   // The content slot keeps the test ids the E2E smoke has used since A3.
@@ -52,9 +59,7 @@ const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choic
           onChange={(v) => onChange({ family: v as ContentFontFamily, customName: choice.customName })}
           options={[
             { value: "theme", label: t("settings.fontTheme", { defaultValue: "Theme-Standard" }) },
-            { value: "serif", label: t("settings.fontSerif", { defaultValue: "Serif" }) },
-            { value: "sans", label: t("settings.fontSans", { defaultValue: "Sans-Serif" }) },
-            { value: "mono", label: t("settings.fontMono", { defaultValue: "Monospace" }) },
+            ...FONT_SLOT_FAMILIES[slot].map((family) => ({ value: family, label: t(FONT_PRESET_LABEL[family][0], { defaultValue: FONT_PRESET_LABEL[family][1] }) })),
             { value: "custom", label: t("settings.fontCustom", { defaultValue: "Benutzerdefiniert…" }) },
           ]}
         />
@@ -67,6 +72,7 @@ const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choic
             onChange={(css) => onChange({ family: "custom", customName: css })}
             defaultLabel={t("settings.fontFieldEmpty")}
             ariaLabel={label}
+            kinds={fontKindsForSlot(slot)}
             data-testid={`${idBase}-custom`}
           />
         )}

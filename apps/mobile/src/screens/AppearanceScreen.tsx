@@ -275,6 +275,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
       {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
       {fontSheet && (
         <FontSlotSheet
+          slot={fontSheet}
           title={t(FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![1])}
           value={{ family: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![2]], customName: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![3]] }}
           onPick={(choice) => {

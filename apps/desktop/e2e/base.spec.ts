@@ -299,7 +299,8 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/NoSrc.base': noSrcYaml,
       '/test-vault/Projekte/Alpha.md': '---\nstatus: active\nprio: 2\nkunde: "[[ACME]]"\n---\n# Alpha\n\nSee [[Beta]] and [[Tasks.base]]\n',
       '/test-vault/Projekte/Beta.md': '---\nstatus: paused\nprio: 1\nparent: "[[Alpha]]"\nblockedBy:\n  - uid: "[[Gamma]]"\n    reltype: FINISHTOSTART\n---\n# Beta',
-      '/test-vault/Projekte/Gamma.md': '---\nstatus: active\nprio: 3\nkunde: "[[Nirgendwo]]"\n---\n# Gamma',
+      // Gamma carries two checkboxes: the board card's checklist (issue #83, P4).
+      '/test-vault/Projekte/Gamma.md': '---\nstatus: active\nprio: 3\nkunde: "[[Nirgendwo]]"\n---\n# Gamma\n\n- [ ] Eins\n- [x] Zwei\n',
       '/test-vault/Kunden/ACME.md': '---\nbranche: tech\n---\n# ACME',
       '/test-vault/Kunden/Globex.md': '---\nbranche: energie\n---\n# Globex',
       '/test-vault/Cockpit.base': cockpitYaml,
@@ -950,6 +951,57 @@ test('Base board: swimlanes — a row per lane value, a drop on a cell writes co
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
     .toContain('kunde: "[[Nirgendwo]]"');
+});
+
+test('Base board: the card checklist ticks a note task and adds one (issue #83, P4)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Board');
+
+  // Gamma carries two checkboxes; the card counts them from the index.
+  const card = page.getByTestId('base-row').filter({ hasText: 'Gamma' });
+  const progress = card.getByTestId('board-card-progress');
+  await expect(progress).toContainText('1/2', { timeout: 10000 });
+  await progress.click();
+  await expect(card.getByTestId('board-card-task-0')).not.toBeChecked();
+
+  // A tick writes exactly its line — and the card underneath does not open.
+  await card.getByTestId('board-card-task-0').click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Gamma.md']))
+    .toContain('- [x] Eins');
+  await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+
+  // A new sub-task lands after the last checkbox of the note.
+  await card.getByTestId('board-card-task-add').fill('Drei');
+  await card.getByTestId('board-card-task-add').press('Enter');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Gamma.md']))
+    .toContain('- [x] Zwei\n- [ ] Drei');
+  await expect(progress).toContainText('2/3');
+});
+
+test('Base board: a WIP limit shows n/limit in the column head and marks the excess (issue #83, P5)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Board');
+
+  // Two active cards; the count is the entry for the limit.
+  const count = page.getByTestId('board-col-count-active');
+  await expect(count).toHaveText('2', { timeout: 10000 });
+  await count.click();
+  const input = page.getByTestId('board-col-limit-active');
+  await expect(input).toBeVisible();
+  await input.fill('1');
+  await input.press('Enter');
+
+  // "2/1", marked as over — and it reached the .base file.
+  await expect(count).toHaveText('2/1');
+  await expect(count).toHaveAttribute('data-over', 'true');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Board.base']))
+    .toContain('boardWipLimits');
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Board.base']))
+    .toContain('active: 1');
 });
 
 test('Board: clicking a card opens the peek window; maximize opens a tab (P5)', async ({ page }) => {

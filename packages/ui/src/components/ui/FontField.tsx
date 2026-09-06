@@ -5,7 +5,8 @@ import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 import { useFixedPopover } from "./useFixedPopover";
 import { sanitizeFontName } from "../../lib/contentFont";
-import { canvasFontMeasure, detectFontPlatform, FONT_CATALOG, isFontInstalled, type CatalogFont } from "../../lib/fontCatalog";
+import { canvasFontMeasure, detectFontPlatform, FONT_CATALOG, isFontInstalled, type CatalogFont, type FontKind } from "../../lib/fontCatalog";
+import { filterFontCatalog } from "../../lib/appFonts";
 
 /**
  * A font choice as a FIELD (finding 2026-09-04): the field shows what is
@@ -25,6 +26,8 @@ export interface FontFieldProps {
   /** A second line under the default row ("die Schrift des Designs"). */
   defaultHint?: string;
   ariaLabel: string;
+  /** Narrows the list to these kinds (the code slot: mono only); omitted = all. */
+  kinds?: readonly FontKind[] | null;
   className?: string;
   "data-testid"?: string;
 }
@@ -36,10 +39,13 @@ function catalogMatch(fonts: readonly CatalogFont[], value: string): CatalogFont
   return fonts.find((f) => f.css.toLowerCase() === v || f.name.toLowerCase() === v);
 }
 
-export function FontField({ value, onChange, defaultLabel, defaultHint, ariaLabel, className, "data-testid": testId }: FontFieldProps) {
+export function FontField({ value, onChange, defaultLabel, defaultHint, ariaLabel, kinds, className, "data-testid": testId }: FontFieldProps) {
   const { t } = useTranslation();
   const platform = useMemo(() => detectFontPlatform(), []);
-  const fonts = FONT_CATALOG[platform];
+  // Keyed by content, not identity: a fresh array per render must not re-run
+  // the installed-font measurement (an effect on `fonts`) on every render.
+  const kindKey = kinds && kinds.length > 0 ? kinds.join(",") : "";
+  const fonts = useMemo(() => filterFontCatalog(FONT_CATALOG[platform], kindKey ? (kindKey.split(",") as FontKind[]) : null), [platform, kindKey]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typing, setTyping] = useState(false);

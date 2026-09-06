@@ -2883,3 +2883,27 @@ test('Appearance settings: the content font is a field that opens the catalog wi
     .poll(async () => await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-content')))
     .toContain(css);
 });
+test('Appearance settings: the code font slot offers monospace only (issue #82, P2)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
+
+  // The drop-down: theme default, monospace, custom — neither serif nor sans.
+  await dialog.getByTestId('code-font-family').click();
+  await expect(page.getByRole('option')).toHaveCount(3);
+  await expect(page.getByRole('option', { name: /Serif/i })).toHaveCount(0);
+  await page.getByRole('option', { name: /Benutzerdefiniert|Custom/ }).click();
+
+  // The catalogue behind "Custom…" is the monospace part of the list only.
+  const field = dialog.getByTestId('code-font-custom');
+  await expect(field).toBeVisible();
+  await field.getByRole('button').click();
+  const list = page.getByRole('listbox');
+  await expect(list).toBeVisible();
+  const rows = list.locator('[data-testid^="font-field-"]');
+  expect(await rows.count()).toBeGreaterThan(0);
+  for (const kind of await rows.locator('.pv-popover-count').allInnerTexts()) expect(kind).toMatch(/Monospace/);
+});

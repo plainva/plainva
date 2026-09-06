@@ -83,7 +83,13 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
               className="m-basecard-checkline"
               checked={l.done}
               data-testid={`board-card-task-${l.ordinal}`}
-              onChange={(e) => void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, e.target.checked); return r.changed ? r.content : null; })}
+              onChange={(e) => {
+                // Read the box NOW: the write awaits the file first, and by then
+                // React has reset the controlled box to the old value — read late,
+                // the toggle saw "unchanged" and never wrote (E2E finding 2026-09-06).
+                const checked = e.target.checked;
+                void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, checked); return r.changed ? r.content : null; });
+              }}
             >
               <span className={l.done ? "is-done" : undefined}>{l.text}</span>
             </Checkbox>
