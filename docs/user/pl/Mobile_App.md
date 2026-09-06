@@ -1,12 +1,12 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-04
+Stan na: 2026-09-06
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
 ## Instalacja aplikacji
 
-Aplikacja mobilna działa jako **test otwarty** w Google Play. Na **Androidzie** wchodzisz od razu: otwórz link testu przez [plainva.com/android-beta](https://plainva.com/android-beta), dotknij **Zostań testerem** i zainstaluj aplikację z Google Play — bez zaproszenia i bez dołączania do grupy. Plainva jest też dostępna w Sklepie Play. Na **iPhonie** dystrybucja idzie przez TestFlight; lista oczekujących jest na [plainva.com](https://plainva.com).
+Aplikacja mobilna działa jako **test otwarty** w Google Play. Na **Androidzie** wchodzisz od razu: otwórz link testu przez [plainva.com/android-beta](https://plainva.com/android-beta), dotknij **Zostań testerem** i zainstaluj aplikację z Google Play — bez zaproszenia i bez dołączania do grupy. Plainva jest też dostępna w Sklepie Play. Na **iPhonie** i **iPadzie** TestFlight jest publiczny: otwórz [https://testflight.apple.com/join/ZRSEfZBn](https://testflight.apple.com/join/ZRSEfZBn) na urządzeniu, zainstaluj TestFlight, jeśli o to poprosi, a Plainva zainstaluje się stamtąd.
 
 **Wymagania systemowe:** na iPhonie i iPadzie Plainva wymaga **iOS 16.4** lub nowszego — silnik rysujący interfejs jest tam częścią systemu, a nowszy Safari tego nie zmienia. Na Androidzie wystarczy Android 7, ale **Android System WebView** musi być aktualny; jeśli jest za stary, Plainva powie o tym przy starcie i wskaże drogę przez Sklep Play.
 

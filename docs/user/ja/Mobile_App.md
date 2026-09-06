@@ -1,12 +1,12 @@
 # モバイルアプリ
 
-最終更新: 2026-09-04
+最終更新: 2026-09-06
 
 PlainvaはAndroidとiOS向けのアプリとしても提供されています。デスクトップ版と同じMarkdownファイル、同じ**OKF**形式、同じ同期エンジンを使用します——保管庫はどちらの環境でも同一のままです。
 
 ## アプリをインストールする
 
-モバイルアプリは Google Play の**オープンテスト**として提供されています。**Android** ではそのまま参加できます。[plainva.com/android-beta](https://plainva.com/android-beta) からテストリンクを開き、**テスターになる**をタップして Google Play からインストールしてください——招待もグループへの参加も必要ありません。Plainva は Play ストアにも公開されています。**iPhone** では TestFlight で配布しており、順番待ちリストは [plainva.com](https://plainva.com) にあります。
+モバイルアプリは Google Play の**オープンテスト**として提供されています。**Android** ではそのまま参加できます。[plainva.com/android-beta](https://plainva.com/android-beta) からテストリンクを開き、**テスターになる**をタップして Google Play からインストールしてください——招待もグループへの参加も必要ありません。Plainva は Play ストアにも公開されています。**iPhone** と **iPad** では TestFlight が公開されています。デバイスで [https://testflight.apple.com/join/ZRSEfZBn](https://testflight.apple.com/join/ZRSEfZBn) を開き、求められたら TestFlight をインストールすると、そこから Plainva をインストールできます。
 
 **システム要件：**iPhone と iPad では Plainva に **iOS 16.4** 以降が必要です——画面を描画するエンジンがシステムの一部であり、Safari を新しくしても変わりません。Android では Android 7 で足りますが、**Android System WebView** が最新である必要があります。古すぎる場合は起動時に Plainva がそれを伝え、Play ストアからの更新を案内します。
 

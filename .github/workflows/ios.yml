@@ -17,6 +17,10 @@ on:
         description: "Upload to TestFlight (requires signing secrets)"
         type: boolean
         default: false
+      public_group:
+        description: "Also add the build to the beta group with the public TestFlight link"
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -170,3 +174,23 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+
+      # "What to Test" for this build, from the same catalog the app's What's
+      # New dialog reads (apps/mobile/scripts/store-whatsnew.mjs). App Store
+      # Connect needs a few minutes to process the upload before the build
+      # exists as an object; the script waits for that, then writes one
+      # localisation per language. With `public_group` it also hands the build
+      # to the group behind the public TestFlight link — opt-in, because an
+      # interim build is for the maintainer's devices, not for everyone.
+      - name: Store release notes from the What's New catalog
+        run: node apps/mobile/scripts/store-whatsnew.mjs "$RUNNER_TEMP/whatsnew"
+
+      - name: What to Test on TestFlight
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          export ASC_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          node apps/mobile/scripts/testflight-what-to-test.mjs "$RUNNER_TEMP/whatsnew" \
+            ${{ inputs.public_group && '--public-group' || '' }}

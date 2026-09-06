@@ -172,6 +172,14 @@ jobs:
         run: |
           if [ -n "$SA_JSON" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
 
+      # Play's "What's new" per locale, derived from the What's New catalog and
+      # the locale titles (apps/mobile/scripts/store-whatsnew.mjs) — the same
+      # six lines the app shows after the update, never written a second time.
+      # Runs on every build so a title that outgrows Play's 500 characters
+      # fails here, not at the upload.
+      - name: Store release notes from the What's New catalog
+        run: node apps/mobile/scripts/store-whatsnew.mjs "$RUNNER_TEMP/whatsnew"
+
       - name: Upload AAB to the Play internal test track
         if: steps.play.outputs.present == 'true'
         uses: r0adkll/upload-google-play@v1
@@ -181,6 +189,7 @@ jobs:
           releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
+          whatsNewDirectory: ${{ runner.temp }}/whatsnew
 
       # A coordinated release (X.Y.Z) is published, because the APK is how someone
       # installs the Android build without Play, and a draft is invisible to

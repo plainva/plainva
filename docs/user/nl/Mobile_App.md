@@ -1,12 +1,12 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-04
+Laatst bijgewerkt: 2026-09-06
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
 ## De app installeren
 
-De mobiele app draait als **open test** in Google Play. Op **Android** kom je er direct in: open de testlink via [plainva.com/android-beta](https://plainva.com/android-beta), tik op **Tester worden** en installeer de app vanuit Google Play — geen uitnodiging en geen groep nodig. Plainva staat ook gewoon in de Play Store. Op de **iPhone** loopt de verspreiding via TestFlight; de wachtlijst staat op [plainva.com](https://plainva.com).
+De mobiele app draait als **open test** in Google Play. Op **Android** kom je er direct in: open de testlink via [plainva.com/android-beta](https://plainva.com/android-beta), tik op **Tester worden** en installeer de app vanuit Google Play — geen uitnodiging en geen groep nodig. Plainva staat ook gewoon in de Play Store. Op **iPhone** en **iPad** is TestFlight openbaar: open [https://testflight.apple.com/join/ZRSEfZBn](https://testflight.apple.com/join/ZRSEfZBn) op het apparaat, installeer TestFlight als daarom wordt gevraagd, en Plainva installeert vanaf daar.
 
 **Systeemvereisten:** op iPhone en iPad heeft Plainva **iOS 16.4** of nieuwer nodig — daar hoort de engine die de interface tekent bij het systeem, en een nieuwere Safari verandert daar niets aan. Op Android is Android 7 genoeg, maar **Android System WebView** moet actueel zijn; is die te oud, dan zegt Plainva dat bij het starten en wijst de weg via de Play Store.
 

@@ -47,6 +47,15 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 - **macOS** — the universal `.dmg` (Apple Silicon + Intel), signed and notarized: a normal double-click works.
 - **Linux** — the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/openSUSE) for your package manager; the `.AppImage` (`chmod +x Plainva*.AppImage`, then run) is the fallback for distributions without a package. On a very new system the AppImage can clash with the host's graphics libraries — the packages never do; see [Getting Started](docs/user/en/Getting_Started.md#system-requirements).
 
+### Mobile (beta)
+
+The same vault on a phone or tablet, synced through your own cloud or a folder another app keeps. Both betas are open:
+
+- **Android** — the open test on Google Play: [https://play.google.com/apps/testing/com.plainva.app](https://play.google.com/apps/testing/com.plainva.app) (tap *Become a tester*, install from Play), or the `.apk` attached to every [mobile release](https://github.com/plainva/plainva/releases?q=mobile). Android 8.0 or newer.
+- **iPhone and iPad** — public TestFlight: [https://testflight.apple.com/join/ZRSEfZBn](https://testflight.apple.com/join/ZRSEfZBn). iOS/iPadOS 16.4 or newer.
+
+It is a beta: keep a backup of your vault, and read [Mobile App](docs/user/en/Mobile_App.md) in the user guide before pointing it at a vault you care about.
+
 ### System requirements
 
 Plainva draws its window with the system's web engine, so the engine — not the CPU — sets the floor.
@@ -77,7 +86,7 @@ It covers getting started, notes & Markdown, `.base` databases, sync per provide
 
 ## Roadmap (excerpt)
 
-Mobile apps, end-to-end encryption for synced vaults, a plugin system and real-time collaboration are planned post-1.0 — staging and priorities are tracked in GitHub Issues and Discussions. No feature will ever compromise the plain-Markdown rule.
+A stable mobile release in the stores (the betas above are open), the independent review of the encrypted workspaces, a plugin system and real-time collaboration are planned post-1.0 — staging and priorities are tracked in GitHub Issues and Discussions. No feature will ever compromise the plain-Markdown rule.
 
 ## Building from source
 
