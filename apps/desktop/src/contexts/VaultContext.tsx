@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, effectiveWorkspaceCapabilities, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, outboxEntryAsCommentRecord, type WorkspaceCommentOutboxEntry, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { brokerTokenProvider } from "../services/accountBroker";
@@ -18,7 +18,9 @@ import { appConfirm } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
-import { LOCAL_COMMENT_CAPABILITIES, listAllLocalComments, listLocalCommentAuthors, listLocalComments, localCommentSelfId, postLocalComment } from "../services/localComments";
+import { createLocalCommentStore } from "../services/localComments";
+import { WorkspaceCommentStore } from "../services/workspaceCommentStore";
+import type { CommentStore, CommentStoreState } from "@plainva/core";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
@@ -277,6 +279,12 @@ interface VaultContextType extends VaultState {
   /** Drops a queued remark that never made it - the person's decision, never the worker's (K6). */
   discardWorkspaceComment: (outboxId: string) => Promise<void>;
   /**
+   * Which store serves this vault and how it can hold comments right now
+   * (N0/N3): `locked` is the one state the surface has to explain instead of
+   * showing an empty list; `hasOutbox` decides whether retry/discard exist.
+   */
+  getCommentStoreState: () => Promise<CommentStoreState | null>;
+  /**
    * What the people this note was published to have written back (D7).
    *
    * A publication is a workspace of its own, so their remarks live there and
@@ -325,7 +333,7 @@ export const VaultContext = createContext<VaultContextType | undefined>(undefine
  * level on purpose - nothing here depends on this window's state, and a
  * memoised object would only add a dependency the context value has to track.
  */
-const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "listWorkspaceComments" | "listPublicationComments" | "listWorkspaceMembers" | "getCommentSelfId" | "postWorkspaceComment" | "resolveWorkspaceComment" | "retractWorkspaceComment" | "retryWorkspaceComment" | "discardWorkspaceComment"> = {
+const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "listWorkspaceComments" | "listPublicationComments" | "listWorkspaceMembers" | "getCommentSelfId" | "postWorkspaceComment" | "resolveWorkspaceComment" | "retractWorkspaceComment" | "retryWorkspaceComment" | "discardWorkspaceComment" | "getCommentStoreState"> = {
   getWorkspaceCapabilities: (path) => getWindowBus().then((bus) => bus.request("comment-capabilities", { path })),
   listWorkspaceComments: (path) => getWindowBus().then((bus) => bus.request("comment-list", { path })),
   listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path })),
@@ -337,6 +345,7 @@ const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "list
   retractWorkspaceComment: (path, commentId) => getWindowBus().then((bus) => bus.request("comment-retract", { path, commentId })),
   retryWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-retry", { outboxId })),
   discardWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-discard", { outboxId })),
+  getCommentStoreState: () => getWindowBus().then((bus) => bus.request("comment-state", {})),
 };
 
 /**
@@ -1565,6 +1574,7 @@ export const VaultProvider: React.FC<{
         retry: (outboxId) => commentOps().retry(outboxId),
         discard: (outboxId) => commentOps().discard(outboxId),
         status: () => commentOps().status(),
+        state: () => commentOps().state(),
       },
       // The revision history of a workspace note (finding 2026-09-07), for the
       // version history in an auxiliary window. Through the ref, like above.
@@ -2878,44 +2888,47 @@ export const VaultProvider: React.FC<{
   };
 
   /**
-   * The plain-vault storage path for comments (Stufe D, D4).
+   * ONE store per vault (Nachschaerfung, N0): the sealed path inside an
+   * encrypted workspace, the sideband bundle everywhere else. This is the only
+   * place `workspaceSecurityStatus` decides anything about comments - and
+   * there is no fall-back from the sealed store to the open one: a locked
+   * workspace throws, it does not quietly write a plaintext bundle beside the
+   * signed objects.
    *
-   * Deliberately the BACKUP adapter, exactly what the sync worker hands the
-   * sideband step: the conflict-aware app adapter would mint sync_state rows and
-   * `.CONFLICT` copies of the comment bundle. `BackupVaultAdapter` skips
-   * `.plainva` for snapshots anyway, so nothing here lands in the version
-   * history either.
+   * The open store reads through the BACKUP adapter, exactly what the sync
+   * worker hands the sideband step: the conflict-aware app adapter would mint
+   * sync_state rows and `.CONFLICT` copies of the comment bundle.
+   * `BackupVaultAdapter` skips `.plainva` for snapshots anyway, so nothing
+   * here lands in the version history either.
    */
-  const localCommentContext = (): { vaultPath: string; raw: IVaultAdapter } | null => {
-    if (state.workspaceSecurityStatus || !state.vaultPath || !state.backupAdapter) return null;
-    return { vaultPath: state.vaultPath, raw: state.backupAdapter };
-  };
-
-  const getWorkspaceCapabilities = async (path: string): Promise<WorkspaceCapability[] | null> => {
-    // A vault without a workspace still gets the comment surface — the same
-    // threads, anchors and suggestions, only stored in the sideband bundle
-    // instead of signed objects. Returning null here would switch the whole
-    // column off for everyone who never set up an encrypted workspace.
-    if (!state.workspaceSecurityStatus) return localCommentContext() ? [...LOCAL_COMMENT_CAPABILITIES] : null;
-    const { runtime, workspaceState } = workspaceControlPlane();
-    const object = await workspaceState.getObjectByPath(path);
-    const objectId = object?.objectId ?? createWorkspaceObjectId();
-    const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId, path, contentKind: object?.contentKind });
-    return effectiveWorkspaceCapabilities(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, objectId, sliceIds });
-  };
-
-  const listWorkspaceComments = async (path: string): Promise<WorkspaceCommentRecord[]> => {
-    if (!state.workspaceSecurityStatus) {
-      const local = localCommentContext();
-      return local ? listLocalComments(local.vaultPath, local.raw, path) : [];
+  const commentStore = (): CommentStore | null => {
+    const vaultPath = state.vaultPath;
+    if (!vaultPath) return null;
+    if (state.workspaceSecurityStatus) {
+      return new WorkspaceCommentStore({
+        plane: () => { const { runtime, workspaceState } = workspaceControlPlane(); return { runtime, workspaceState }; },
+        worker: () => state.syncWorker as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
+        changed: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
+      });
     }
-    const { runtime, workspaceState } = workspaceControlPlane();
-    const object = await workspaceState.getObjectByPath(path);
-    if (!object) return [];
-    const stored = await workspaceState.listComments(object.objectId);
-    const queued = (await workspaceState.listCommentOutbox()).filter((entry) => entry.targetObjectId === object.objectId);
-    return mergeCommentOutbox(stored, queued, runtime);
+    if (!state.backupAdapter) return null;
+    return createLocalCommentStore(vaultPath, state.backupAdapter, async () => (await getSettingsStore()).get<string>(verifierNameKey(vaultPath)), (path) => {
+      // On disk already; the sideband carries it with the next cycle, which is
+      // triggered right away so a reply does not wait a whole interval.
+      state.syncWorker?.triggerImmediate();
+      window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+    });
   };
+
+  const getCommentStoreState = async (): Promise<CommentStoreState | null> => commentStore()?.state() ?? null;
+
+  // A vault without a workspace still gets the comment surface - the same
+  // threads, anchors and suggestions, only stored in the sideband bundle
+  // instead of signed objects. Null switches the whole column off, and only a
+  // vault that is not open yet answers that.
+  const getWorkspaceCapabilities = async (path: string): Promise<WorkspaceCapability[] | null> => commentStore()?.capabilities(path) ?? null;
+
+  const listWorkspaceComments = async (path: string): Promise<WorkspaceCommentRecord[]> => (await commentStore()?.list(path)) ?? [];
 
   /**
    * Collects what the recipients of this note's publications wrote back (D7).
@@ -2958,48 +2971,8 @@ export const VaultProvider: React.FC<{
     return collected;
   };
 
-  const listAllWorkspaceComments = async (): Promise<Map<string, WorkspaceCommentRecord[]>> => {
-    if (!state.workspaceSecurityStatus) {
-      const local = localCommentContext();
-      return local ? listAllLocalComments(local.vaultPath, local.raw) : new Map();
-    }
-    const { runtime, workspaceState } = workspaceControlPlane();
-    // A comment names the object it hangs on, never the path — a renamed note
-    // keeps its object and its thread. So the paths come from the objects, and
-    // a comment whose object is gone is dropped rather than filed under "".
-    //
-    // The read right is decided HERE, once per note, off the policy already in
-    // memory. Asking `getWorkspaceCapabilities` from the view would be one
-    // database round-trip per note; leaving it out would show an overview wider
-    // than the note itself does.
-    const paths = new Map<string, string>();
-    for (const object of await workspaceState.listObjects()) {
-      const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, object);
-      const caps = effectiveWorkspaceCapabilities(runtime.policy.payload, {
-        memberId: runtime.memberId,
-        deviceId: runtime.device.publicIdentity.deviceId,
-        objectId: object.objectId,
-        sliceIds,
-      });
-      if (caps.includes("comment.read")) paths.set(object.objectId, object.path);
-    }
-    const byPath = new Map<string, WorkspaceCommentRecord[]>();
-    for (const comment of await workspaceState.listAllComments()) {
-      const path = paths.get(comment.targetObjectId);
-      if (!path) continue;
-      const list = byPath.get(path);
-      if (list) list.push(comment);
-      else byPath.set(path, [comment]);
-    }
-    // The queued ones too (K6): the overview must not miss what was just sent.
-    const queued = await workspaceState.listCommentOutbox();
-    for (const [path, list] of byPath) byPath.set(path, mergeCommentOutbox(list, queued.filter((entry) => entry.path === path), runtime));
-    for (const entry of queued) {
-      if (byPath.has(entry.path) || entry.resolvedCommentId || entry.retractsCommentId) continue;
-      byPath.set(entry.path, mergeCommentOutbox([], queued.filter((candidate) => candidate.path === entry.path), runtime));
-    }
-    return byPath;
-  };
+  /** Every note that carries comments, for the vault-wide overview (D9). */
+  const listAllWorkspaceComments = async (): Promise<Map<string, WorkspaceCommentRecord[]>> => (await commentStore()?.listAll()) ?? new Map();
 
   /**
    * Every remark guests wrote back, across the whole vault (Stufe F, F4).
@@ -3070,105 +3043,29 @@ export const VaultProvider: React.FC<{
     return owned;
   };
 
+  /**
+   * Who can be named: the policy's members in a workspace, and elsewhere what
+   * each device (or named author) calls itself - never a claim about who
+   * somebody is. Every consumer reads names only, so one shape serves both.
+   */
   const listWorkspaceMembers = async (): Promise<WorkspacePolicyMember[]> => {
-    if (!state.workspaceSecurityStatus) {
-      // Without a policy a DEVICE is the author, and its self-chosen name is the
-      // only honest thing to show. Never a claim about who somebody is — just
-      // what that device calls itself.
-      const local = localCommentContext();
-      if (!local) return [];
-      const names = await listLocalCommentAuthors(local.vaultPath, local.raw);
-      return [...names].map(([memberId, displayName]) => ({ memberId, displayName, state: "active" as const }));
-    }
-    return workspaceControlPlane().runtime.policy.payload.members;
+    const names = (await commentStore()?.authors()) ?? new Map<string, string>();
+    return [...names].map(([memberId, displayName]) => ({ memberId, displayName, state: "active" as const }));
   };
 
-  const getCommentSelfId = async (): Promise<string | null> => {
-    // Two honest answers to one question, and each side owns its own: the
-    // workspace signs with the member id, the plain vault writes the device id.
-    if (!state.workspaceSecurityStatus) return localCommentContext() ? localCommentSelfId() : null;
-    return workspaceControlPlane().runtime.memberId;
-  };
+  // Two honest answers to one question, and each store owns its own: the
+  // workspace signs with the member id, the plain vault writes the device id.
+  const getCommentSelfId = async (): Promise<string | null> => (await commentStore()?.selfId()) ?? null;
 
   const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null, batch: { batchId: string; index: number; note: string | null } | null = null): Promise<void> => {
-    const local = localCommentContext();
-    if (local) {
-      // The reviewer field this vault already carries — the person at this
-      // keyboard, device-local — rather than asking the same question twice.
-      const authorName = await (await getSettingsStore()).get<string>(verifierNameKey(local.vaultPath));
-      await postLocalComment(local.vaultPath, local.raw, { path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, suggestionBatchId: batch?.batchId ?? null, batchIndex: batch?.index ?? null, batchNote: batch?.note ?? null, authorName });
-      state.syncWorker?.triggerImmediate();
-      window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
-      return;
-    }
-    const { runtime, workspaceState } = workspaceControlPlane();
-    const object = await workspaceState.getObjectByPath(path);
-    if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
-    // The right is checked HERE, before anything is queued: a refusal must be
-    // immediate and its own, not a "not sent" card a cycle later.
-    const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
-    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
-    // Into the outbox, not onto the network (K6, finding 2026-09-03). Sealing
-    // and the two verified uploads happen in the worker's next cycle, which is
-    // triggered right away; the column shows the card now, with a "sending"
-    // state, and a failure comes back as a reason on that card.
-    const entry: WorkspaceCommentOutboxEntry = {
-      outboxId: createWorkspaceObjectId(), commentId: createWorkspaceObjectId(), path, targetObjectId: object.objectId,
-      body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId,
-      suggestionBatchId: batch?.batchId ?? null, batchIndex: batch?.index ?? null, batchNote: batch?.note ?? null,
-      createdAt: new Date().toISOString(), attempts: 0, lastError: null,
-    };
-    await workspaceState.enqueueCommentOutbox(entry);
-    // The remark alone, now - not a whole cycle with a remote listing in
-    // front of it (finding 2026-09-03: "sending..." for far too long).
-    if (state.syncWorker instanceof EncryptedWorkspaceWorker) void state.syncWorker.publishQueuedComments();
-    else state.syncWorker?.triggerImmediate();
-    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+    const store = commentStore();
+    if (!store) throw new Error("comments-unavailable");
+    await store.post({ path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, batch });
   };
 
-  /**
-   * What the outbox adds to a note's list (K6): queued remarks as pending
-   * records, and a queued resolve marker applied to the record it closes - a
-   * thread somebody just resolved must not stay open until the upload lands.
-   */
-  const mergeCommentOutbox = (stored: WorkspaceCommentRecord[], queued: WorkspaceCommentOutboxEntry[], runtime: { memberId: string; device: { publicIdentity: { deviceId: string } } }): WorkspaceCommentRecord[] => {
-    if (queued.length === 0) return stored;
-    const byId = new Map(stored.map((record) => [record.commentId, { ...record }]));
-    for (const entry of queued) {
-      // A queued deletion takes the remark off the screen now, with every reply
-      // under it (K7) - the marker itself is never a card.
-      if (entry.retractsCommentId) {
-        byId.delete(entry.retractsCommentId);
-        for (const [id, record] of [...byId]) if (record.parentCommentId === entry.retractsCommentId) byId.delete(id);
-        continue;
-      }
-      if (!entry.resolvedCommentId) { byId.set(entry.commentId, outboxEntryAsCommentRecord(entry, runtime.memberId, runtime.device.publicIdentity.deviceId)); continue; }
-      const target = byId.get(entry.resolvedCommentId);
-      if (!target) continue;
-      target.resolvedAt = entry.createdAt;
-      if (target.suggestion && entry.suggestionOutcome === "applied") target.suggestion = { ...target.suggestion, appliedAt: entry.createdAt, appliedBy: runtime.memberId };
-      if (target.suggestion && entry.suggestionOutcome === "declined") target.suggestion = { ...target.suggestion, declinedAt: entry.createdAt };
-    }
-    return [...byId.values()];
-  };
+  const retryWorkspaceComment = async (outboxId: string): Promise<void> => commentStore()?.retry(outboxId);
 
-  const retryWorkspaceComment = async (outboxId: string): Promise<void> => {
-    const { workspaceState } = workspaceControlPlane();
-    const entry = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.outboxId === outboxId);
-    if (!entry) return;
-    await workspaceState.updateCommentOutbox(outboxId, { attempts: entry.attempts, lastError: null });
-    if (state.syncWorker instanceof EncryptedWorkspaceWorker) void state.syncWorker.publishQueuedComments();
-    else state.syncWorker?.triggerImmediate();
-    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
-  };
-
-  const discardWorkspaceComment = async (outboxId: string): Promise<void> => {
-    const { workspaceState } = workspaceControlPlane();
-    const entry = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.outboxId === outboxId);
-    if (!entry) return;
-    await workspaceState.deleteCommentOutbox(outboxId);
-    window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: entry.path } }));
-  };
+  const discardWorkspaceComment = async (outboxId: string): Promise<void> => commentStore()?.discard(outboxId);
 
   const postWorkspaceComment = (path: string, body: string, parentCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, batch: { batchId: string; index: number; note: string | null } | null = null) => postWorkspaceCommentRecord(path, body, parentCommentId, null, anchor, suggestion, null, null, batch);
   // A resolve marker is a fact, not a message: it carries no body. The literal
@@ -3277,6 +3174,7 @@ export const VaultProvider: React.FC<{
       retry: retryWorkspaceComment,
       discard: discardWorkspaceComment,
       status: async () => state.workspaceSecurityStatus,
+      state: getCommentStoreState,
     };
     workspaceHistoryRef.current = { list: listWorkspaceRevisions, read: readWorkspaceRevision };
   });
@@ -3320,7 +3218,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS, ...CLIENT_WORKSPACE_HISTORY } : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS, ...CLIENT_WORKSPACE_HISTORY } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

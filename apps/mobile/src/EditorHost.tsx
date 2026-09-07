@@ -916,7 +916,7 @@ export function EditorHost({
           for (const chunk of chunks) {
             const anchor = buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base));
             if (!anchor.quote && !chunk.replacement) continue;
-            await postMobileComment(vault, { path, body: "", anchor, suggestion: { replacement: chunk.replacement }, suggestionBatchId: batchId, batchIndex: index, batchNote: note, authorName: getMobileSettings().verifierName });
+            await postMobileComment(vault, { path, body: "", anchor, suggestion: { replacement: chunk.replacement }, suggestionBatchId: batchId, batchIndex: index, batchNote: note });
             index += 1;
           }
           suggestingRef.current = false;

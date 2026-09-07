@@ -24,7 +24,7 @@
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
+import type { CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
@@ -172,6 +172,8 @@ export interface RpcMap {
   "comment-retract": { args: { path: string; commentId: string }; result: void };
   "comment-retry": { args: { outboxId: string }; result: void };
   "comment-discard": { args: { outboxId: string }; result: void };
+  /** Which store serves the vault and how it can hold comments right now (N0/N3). */
+  "comment-state": { args: Record<string, never>; result: CommentStoreState | null };
   /** The owner's public workspace security status - what gates the comment surface. */
   "workspace-status": { args: Record<string, never>; result: WorkspaceSecurityPublicStatus | null };
   /**
@@ -419,6 +421,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "comment-retract": "vault",
   "comment-retry": "vault",
   "comment-discard": "vault",
+  "comment-state": "vault",
   "workspace-status": "vault",
   "workspace-revisions": "vault",
   "workspace-revision-read": "vault",

@@ -5,7 +5,7 @@ import {
   KeyfileSyncStep,
   CommentsSyncStep,
   SecretsSyncStep,
-  type CommentsCrypto,
+  type BundleCommentsMode,
   SETTINGS_ENC_PATH,
   SettingsSyncStep,
   connectionFingerprint,
@@ -354,10 +354,7 @@ async function rememberKeyring(vaultId: string, active: MasterKeyBundle, keys: M
  * — the purpose is a byte in the PVE1 frame, so minting a `comments` purpose
  * would be a protocol change older devices could not open.
  */
-export type MobileCommentsMode =
-  | { kind: "plain" }
-  | { kind: "sealed"; crypto: CommentsCrypto }
-  | { kind: "locked" };
+export type MobileCommentsMode = BundleCommentsMode;
 
 export async function mobileCommentsMode(vault: MobileVault): Promise<MobileCommentsMode> {
   const ring = await loadKeyring(vault.vaultId);

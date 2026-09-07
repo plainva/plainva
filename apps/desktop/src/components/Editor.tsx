@@ -216,9 +216,14 @@ export const Editor: React.FC<{
     setViewMode(isPlainText ? "live" : resolveViewModeForPath(activePath));
   }, [activePath, isPlainText]);
 
+  // Asked in EVERY vault, not only in an encrypted workspace (N0, finding
+  // 2026-09-07): the context answers the plain vault's four capabilities since
+  // Stufe D, but this gate still switched the whole column off without a
+  // workspace - the desktop never showed what the phone had all along.
+  // `workspaceSecurityStatus` stays a dependency: unlocking changes the answer.
   useEffect(() => {
     let active = true;
-    if (!activePath || !workspaceSecurityStatus) { setWorkspaceCapabilities(null); return; }
+    if (!activePath) { setWorkspaceCapabilities(null); return; }
     void getWorkspaceCapabilities(activePath).then((value) => { if (active) setWorkspaceCapabilities(value); }).catch(() => { if (active) setWorkspaceCapabilities([]); });
     return () => { active = false; };
   }, [activePath, getWorkspaceCapabilities, workspaceSecurityStatus]);

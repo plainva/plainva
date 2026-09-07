@@ -181,3 +181,29 @@ describe("a database opens and starts property comments on the phone", () => {
     expect(screen).not.toMatch(/effectiveWorkspaceCapabilities\(/);
   });
 });
+
+/**
+ * One store per vault (Nachschaerfung, N0).
+ *
+ * The phone's comment service used to re-implement the bundle logic the
+ * desktop had - the mode fork, the read, the record a post writes - and the
+ * two drifted in wording while meaning the same. Now both shells hand a few
+ * device facts to the core's `BundleCommentStore`; what this pins is that the
+ * service stays that thin, so the next branch lands in the core, not here.
+ */
+describe("the phone's comment service is a thin shell over the core store", () => {
+  const service = strip(read("services", "mobileComments.ts"));
+
+  it("builds the core store instead of reading the bundle itself", () => {
+    expect(service).toMatch(/new BundleCommentStore\(/);
+    expect(service).not.toMatch(/readLocalComments|localCommentsForPath|localCommentsByPath|appendLocalComment/);
+  });
+
+  it("never forks on the workspace status - the store decides its mode", () => {
+    expect(service).not.toMatch(/workspaceSecurityStatus|kind === "locked"/);
+  });
+
+  it("signs with the reviewer name the phone already carries", () => {
+    expect(service).toMatch(/authorName: async \(\) => getMobileSettings\(\)\.verifierName/);
+  });
+});

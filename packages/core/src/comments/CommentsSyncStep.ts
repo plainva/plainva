@@ -92,13 +92,13 @@ export async function writeLocalComments(vault: IVaultAdapter, bundle: CommentsB
 export async function appendLocalComment(
   vault: IVaultAdapter,
   record: LocalCommentRecord,
-  options: { crypto?: CommentsCrypto; authorName?: string; now?: string } = {},
+  options: { crypto?: CommentsCrypto; authorName?: string; /** Whose name it is: a named author's id, else this device. */ authorKey?: string; now?: string } = {},
 ): Promise<CommentsBundle> {
   const now = options.now ?? new Date().toISOString();
   const current = (await readLocalComments(vault, options.crypto)) ?? emptyCommentsBundle(now);
   const authors = { ...current.authors };
   const name = options.authorName?.trim();
-  if (name) authors[record.authorDeviceId] = { name, updatedAt: now };
+  if (name) authors[options.authorKey ?? record.authorDeviceId] = { name, updatedAt: now };
   const next: CommentsBundle = {
     ...current,
     updatedAt: now,

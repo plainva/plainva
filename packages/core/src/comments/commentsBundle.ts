@@ -41,6 +41,13 @@ export interface LocalCommentRecord {
   batchNote?: string | null;
   /** The device that wrote it. In a plain vault a device IS the author. */
   authorDeviceId: string;
+  /**
+   * A named author acting through that device (N0): the KI harness writes
+   * `plainva-ai/<model>` here. Absent, the device is the author. The device
+   * stays the WRITER either way - a retraction is judged by the device, so a
+   * person can delete what an assistant proposed from their keyboard.
+   */
+  authorId?: string | null;
   body: string;
   anchor: WorkspaceCommentAnchor | null;
   suggestion: { replacement: string } | null;
@@ -59,7 +66,10 @@ export interface CommentsBundle {
   updatedAt: string;
   /** Keyed by commentId. Grow-only: see the module note. */
   comments: Record<string, LocalCommentRecord>;
-  /** Keyed by deviceId. Each device only ever writes its own entry. */
+  /**
+   * Keyed by author id - a device id, or the id of a named author (N0). Each
+   * device only ever writes the entries it speaks for.
+   */
   authors: Record<string, LocalCommentAuthor>;
 }
 
@@ -138,6 +148,7 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
     if (raw.commentId !== id) throw new CommentBundleError("comment record id does not match its key");
     if (!isNonEmptyString(raw.path)) throw new CommentBundleError("comment record path is missing");
     if (!isNonEmptyString(raw.authorDeviceId)) throw new CommentBundleError("comment record author is missing");
+    if (raw.authorId !== undefined && raw.authorId !== null && (!isNonEmptyString(raw.authorId) || raw.authorId.length > 128)) throw new CommentBundleError("comment record named author is malformed");
     if (!isNonEmptyString(raw.createdAt)) throw new CommentBundleError("comment record timestamp is missing");
     if (typeof raw.body !== "string") throw new CommentBundleError("comment record body is malformed");
     if (new TextEncoder().encode(raw.body).length > MAX_LOCAL_COMMENT_BODY_BYTES) throw new CommentBundleError("comment record body is too large");
@@ -273,8 +284,9 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
         targetRevisionId: "",
         parentCommentId: record.parentCommentId,
         // A device is the author in a plain vault: there are no members, and the
-        // surface keys its name map by exactly this field.
-        authorMemberId: record.authorDeviceId,
+        // surface keys its name map by exactly this field. A named author (N0)
+        // stands in front of the device that wrote for it.
+        authorMemberId: record.authorId ?? record.authorDeviceId,
         authorDeviceId: record.authorDeviceId,
         operationHash: "",
         payloadHash: "",

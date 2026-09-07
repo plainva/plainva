@@ -299,6 +299,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
         commentCalls.push("status");
         return { phase: "active" } as never;
       },
+      state: async () => ({ mode: "workspace" as const, hasOutbox: true }),
     },
   });
   const disposeApp = await installOwnerAppBus();

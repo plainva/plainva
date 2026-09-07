@@ -57,6 +57,7 @@ export interface OwnerCommentDeps {
   retry: (outboxId: string) => Promise<void>;
   discard: (outboxId: string) => Promise<void>;
   status: () => Promise<RpcMap["workspace-status"]["result"]>;
+  state: () => Promise<RpcMap["comment-state"]["result"]>;
 }
 
 /**
@@ -308,6 +309,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(await bus.handle("comment-retry", ({ outboxId }) => comments().retry(outboxId), scoped));
   offs.push(await bus.handle("comment-discard", ({ outboxId }) => comments().discard(outboxId), scoped));
   offs.push(await bus.handle("workspace-status", () => comments().status(), scoped));
+  offs.push(await bus.handle("comment-state", () => comments().state(), scoped));
 
   // The revision history of a workspace note, for the version history in an
   // auxiliary window (finding 2026-09-07). The runtime is here; the bytes go

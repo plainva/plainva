@@ -594,7 +594,6 @@ export function NoteScreen({
         t("workspaceSecurity.commentTaskCreated"),
       ),
       parentCommentId: comment.commentId,
-      authorName: getMobileSettings().verifierName,
     });
     setCommentTick((n) => n + 1);
     // The word to the person first, the provider round trip behind it (K4).
@@ -624,9 +623,8 @@ export function NoteScreen({
     for (const span of spans) next = next.slice(0, span.from) + span.comment.suggestion!.replacement + next.slice(span.to);
     setDoc(next);
     noteSaver.schedule(vault, path, next);
-    const name = getMobileSettings().verifierName;
     try {
-      for (const span of spans) await postMobileComment(vault, { path, body: "", resolvedCommentId: span.comment.commentId, suggestionOutcome: "applied", authorName: name });
+      for (const span of spans) await postMobileComment(vault, { path, body: "", resolvedCommentId: span.comment.commentId, suggestionOutcome: "applied" });
     } catch (error) {
       setDoc(text);
       noteSaver.schedule(vault, path, text);
@@ -637,9 +635,8 @@ export function NoteScreen({
   };
 
   const declineRound = async (batchId: string) => {
-    const name = getMobileSettings().verifierName;
     for (const comment of comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt)) {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined", authorName: name });
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined" });
     }
     setCommentTick((n) => n + 1);
   };
@@ -649,7 +646,7 @@ export function NoteScreen({
    * the text where this device may write - the desktop does the same.
    */
   const deleteComment = async (comment: WorkspaceCommentRecord) => {
-    await postMobileComment(vault, { path, body: "", retractsCommentId: comment.commentId, authorName: getMobileSettings().verifierName });
+    await postMobileComment(vault, { path, body: "", retractsCommentId: comment.commentId });
     const markerId = comment.anchor?.markerId;
     const text = doc;
     if (markerId && text !== null && workspaceCanWrite && !comment.parentCommentId) {
@@ -668,9 +665,8 @@ export function NoteScreen({
    * writing a proposal into a spot nobody proposed it for is the worse failure.
    */
   const applySuggestion = async (comment: WorkspaceCommentRecord, outcome: "applied" | "declined") => {
-    const name = getMobileSettings().verifierName;
     if (outcome === "declined") {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined", authorName: name });
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined" });
       setCommentTick((n) => n + 1);
       return;
     }
@@ -685,7 +681,7 @@ export function NoteScreen({
     setDoc(next);
     noteSaver.schedule(vault, path, next);
     try {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "applied", authorName: name });
+      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "applied" });
     } catch (error) {
       // The swap is already in the buffer. If the record never landed, the note
       // must not silently keep a change nobody agreed to.
@@ -943,7 +939,7 @@ export function NoteScreen({
               }
             }
             try {
-              await postMobileComment(vault, { path, body, parentCommentId, anchor, authorName: getMobileSettings().verifierName });
+              await postMobileComment(vault, { path, body, parentCommentId, anchor });
             } catch (error) {
               /* The markers are already in the buffer. If the record never
                  landed, the note must not keep a pair pointing at a comment
@@ -959,7 +955,7 @@ export function NoteScreen({
             setCommentTick((n) => n + 1);
           }}
           onResolve={(commentId) => {
-            void postMobileComment(vault, { path, body: "", resolvedCommentId: commentId, authorName: getMobileSettings().verifierName })
+            void postMobileComment(vault, { path, body: "", resolvedCommentId: commentId })
               .then(() => setCommentTick((n) => n + 1));
           }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
