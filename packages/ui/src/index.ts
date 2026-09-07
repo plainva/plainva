@@ -127,6 +127,7 @@ export * from "./lib/imageTarget";
 export * from "./lib/dailyNotes";
 export * from "./lib/readSelectionVerbs";
 export * from "./lib/baseViewState";
+export * from "./lib/backlinks";
 export * from "./components/selectAllBridge";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";

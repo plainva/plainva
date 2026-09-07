@@ -17,6 +17,11 @@ import {
   toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
+  backlinkContexts,
+  contextChain,
+  groupBacklinks,
+  setPendingSearchJump,
+  type BacklinkContext,
 } from "@plainva/ui";
 import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -114,7 +119,7 @@ export function NoteContextSheet({
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
-  const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number }>>([]);
+  const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number; places: BacklinkContext[] }>>([]);
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [edit, setEdit] = useState<CellEditTarget | null>(null);
   const [tick, setTick] = useState(0);
@@ -143,13 +148,17 @@ export function NoteContextSheet({
       const q = vault.queryService;
       if (q) {
         const links = await q.getBacklinks(path);
-        const bySource = new Map<string, number>();
-        for (const l of links) bySource.set(l.source_path, (bySource.get(l.source_path) ?? 0) + 1);
-        const bl = [...bySource.entries()].map(([p, count]) => ({
-          path: p,
-          title: p.split("/").pop()!.replace(/\.md$/i, ""),
-          count,
-        }));
+        // One row per source with its places (P7): the same grouping and the
+        // same outline context the desktop panel shows.
+        const bl = [];
+        for (const g of groupBacklinks(links)) {
+          let places: BacklinkContext[] = [];
+          if (g.lines.length > 0) {
+            const source = await vaultOps.read(vault, g.source_path).catch(() => null);
+            if (source !== null) places = backlinkContexts(source, g.lines);
+          }
+          bl.push({ path: g.source_path, title: g.source_path.split("/").pop()!.replace(/\.md$/i, ""), count: g.count, places });
+        }
         if (!stale) setBacklinks(bl);
       }
     })();
@@ -434,18 +443,41 @@ export function NoteContextSheet({
               <p className="m-hint">{t("mobile.noBacklinks")}</p>
             ) : (
               backlinks.map((b) => (
-                <button
-                  className="m-row"
-                  key={b.path}
-                  onClick={() => {
-                    onClose();
-                    onOpenNote(b.path);
-                  }}
-                >
-                  <FileText size={ICON.head} />
-                  <span>{b.title}</span>
-                  {b.count > 1 && <span className="m-badge-muted">×{b.count}</span>}
-                </button>
+                <div key={b.path}>
+                  <button
+                    className="m-row"
+                    onClick={() => {
+                      onClose();
+                      onOpenNote(b.path);
+                    }}
+                  >
+                    <FileText size={ICON.head} />
+                    <span>{b.title}</span>
+                    {b.count > 1 && <span className="m-badge-muted">×{b.count}</span>}
+                  </button>
+                  {/* Its places (P7): breadcrumb of headings and list parents,
+                      the line below; a tap lands on that line. */}
+                  {b.places.map((ctx) => {
+                    const chain = contextChain(ctx);
+                    return (
+                      <button
+                        className="m-row m-row--place"
+                        data-testid="backlink-place"
+                        key={ctx.line}
+                        onClick={() => {
+                          setPendingSearchJump({ path: b.path, line: ctx.line, term: ctx.lineText });
+                          onClose();
+                          onOpenNote(b.path);
+                        }}
+                      >
+                        <span className="m-backlink-place">
+                          {chain && <span className="m-backlink-chain">{chain}</span>}
+                          <span className="m-backlink-line">{ctx.lineText}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               ))
             ))}
 

@@ -1663,13 +1663,16 @@ export const Editor: React.FC<{
   const searchJumpRafRef = useRef(0);
   const viewModeRef = useRef(viewMode);
   useEffect(() => { viewModeRef.current = viewMode; });
-  const startSearchJump = (jump: { path: string; term: string }) => {
+  const startSearchJump = (jump: { path: string; term?: string; line?: number }) => {
     cancelAnimationFrame(searchJumpRafRef.current);
     const tick = (attemptsLeft: number) => {
       if (attemptsLeft <= 0) return;
       const retry = () => { searchJumpRafRef.current = requestAnimationFrame(() => tick(attemptsLeft - 1)); };
       if (loadedPathRef.current !== jump.path) return retry();
       if (viewModeRef.current === 'read') {
+        // The read view has no lines; a backlink's jump (P7) carries the line
+        // text as its term for exactly this case.
+        if (!jump.term) return;
         const root = readScrollRef.current;
         const range = root ? findTextRange(root, jump.term) : null;
         if (!range) return retry(); // read view may not have painted yet
@@ -1678,7 +1681,10 @@ export const Editor: React.FC<{
       }
       const view = sessionRef.current?.view;
       if (!view) return retry(); // session mounts in a layout effect
-      const match = findFirstMatch(view.state.doc.toString(), jump.term);
+      // A backlink names its line (P7); the search names a term.
+      const match = jump.line
+        ? (() => { const l = view.state.doc.line(Math.min(Math.max(jump.line, 1), view.state.doc.lines)); return { from: l.from, to: l.to }; })()
+        : jump.term ? findFirstMatch(view.state.doc.toString(), jump.term) : null;
       if (!match) return; // e.g. an FTS diacritic-fold hit — silently skip
       view.dispatch({
         selection: { anchor: match.from, head: match.to },

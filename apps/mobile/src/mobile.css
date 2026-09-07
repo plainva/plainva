@@ -435,6 +435,33 @@ textarea {
   color: var(--text-muted);
 }
 
+/* A backlink's place under its file row (Build-91 feedback, P7): indented,
+   two lines — the breadcrumb of headings and list parents, then the line. */
+.m-row--place {
+  min-height: var(--touch-row);
+  padding-inline-start: var(--space-8);
+  font-size: var(--text-md);
+}
+.m-backlink-place {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-1);
+  text-align: start;
+}
+.m-backlink-chain {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-backlink-line {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .m-badge-muted {
   font-size: var(--text-xs);
   color: var(--text-muted);

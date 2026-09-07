@@ -565,7 +565,13 @@ export function EditorHost({
       requestAnimationFrame(() => {
         const view = sessionRef.current?.view;
         if (!view) return;
-        const m = findFirstMatch(view.state.doc.toString(), jump.term);
+        // A backlink names its line (P7); the search names a term.
+        if (jump.line) {
+          const l = view.state.doc.line(Math.min(Math.max(jump.line, 1), view.state.doc.lines));
+          view.dispatch({ selection: { anchor: l.from, head: l.to }, scrollIntoView: true });
+          return;
+        }
+        const m = jump.term ? findFirstMatch(view.state.doc.toString(), jump.term) : null;
         if (m) {
           view.dispatch({ selection: { anchor: m.from, head: m.to }, scrollIntoView: true });
         }

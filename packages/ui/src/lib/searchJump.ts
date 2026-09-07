@@ -10,14 +10,25 @@
  *  stores the request here and pokes mounted editors via the
  *  `plainva-search-jump` event; whichever consumer sees the file first takes
  *  the jump (one-shot). */
-let pendingSearchJump: { path: string; term: string } | null = null;
+/**
+ * A jump names a term (the sidebar search), a line (a backlink's place since
+ * the Build-91 feedback round, P7), or both — with both, the line wins in the
+ * editor and the term serves the read view, which has no lines.
+ */
+export interface SearchJump {
+  path: string;
+  term?: string;
+  line?: number;
+}
 
-export function setPendingSearchJump(jump: { path: string; term: string }): void {
+let pendingSearchJump: SearchJump | null = null;
+
+export function setPendingSearchJump(jump: SearchJump): void {
   pendingSearchJump = jump;
 }
 
 /** Hands the parked jump to the caller iff it targets `path`; clears it. */
-export function consumePendingSearchJump(path: string | null): { path: string; term: string } | null {
+export function consumePendingSearchJump(path: string | null): SearchJump | null {
   if (!path || !pendingSearchJump || pendingSearchJump.path !== path) return null;
   const jump = pendingSearchJump;
   pendingSearchJump = null;

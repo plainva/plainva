@@ -499,6 +499,9 @@ option {
    context line — at this width it was one word per line. */
 .pv-side-right[data-side-step="minimal"] .pv-graph-stage { height: 200px; }
 .pv-side-right[data-side-step="minimal"] .pv-backlink-context { display: none; }
+/* A backlink's place (heading chain + line, Build-91 feedback P7) needs the
+   width the minimal step does not have — same rule as the path line above. */
+.pv-side-right[data-side-step="minimal"] .pv-backlink-place { display: none; }
 /* Chips truncate at EVERY width now (ui.css: nowrap on the chip, ellipsis on
    .pv-chip-text) — the former minimal-only rule here masked that the label
    text was never wrapped in .pv-chip-text and broke into lines instead. */

@@ -31,10 +31,13 @@ Not a #123 tag.
     const ast = parseMarkdownAst(md, { preserveObsidianSyntax: true });
     const result = extractLinksAndTags(ast);
 
+    // Each link carries its line (Build-91 feedback, P7) — the preserve plugin
+    // derives it from the text node it split, so a link on the third line of a
+    // paragraph is on line 4 of this fixture, not on the paragraph's first.
     expect(result.links).toEqual([
-      { type: "wikilink", target: "WikiLink", rawTarget: "WikiLink", alias: undefined },
-      { type: "wikilink", target: "Folder/Note", rawTarget: "Folder/Note", alias: "Alias Name" },
-      { type: "embed", target: "Image.png", rawTarget: "Image.png", alias: "100x100" }
+      { type: "wikilink", target: "WikiLink", rawTarget: "WikiLink", alias: undefined, line: 2 },
+      { type: "wikilink", target: "Folder/Note", rawTarget: "Folder/Note", alias: "Alias Name", line: 3 },
+      { type: "embed", target: "Image.png", rawTarget: "Image.png", alias: "100x100", line: 4 }
     ]);
   });
 
@@ -46,7 +49,9 @@ Not a #123 tag.
     const result = extractLinksAndTags(ast);
 
     expect(result.links).toEqual([
-      { type: "markdown-link", target: "https://plainva.com", rawTarget: "https://plainva.com", alias: "Plainva" }
+      // `line` is the link's place in the source (Build-91 feedback, P7): the
+      // leading newline of the fixture puts it on line 2.
+      { type: "markdown-link", target: "https://plainva.com", rawTarget: "https://plainva.com", alias: "Plainva", line: 2 }
     ]);
   });
 });

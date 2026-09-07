@@ -15,6 +15,8 @@ export type LinkOccurrence = {
   rawTarget: string;
   alias?: string;
   anchor?: string;
+  /** 1-based line of the link in the source — what a backlink shows as its context (Build-91 feedback, P7). */
+  line?: number;
 };
 
 export type ExtractedData = {
@@ -61,6 +63,7 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
           rawTarget: targetRaw.trim(),
           anchor,
           alias: aliasParts.length > 0 ? aliasParts.join("|") : undefined,
+          line: node.position?.start?.line,
         });
       } else if (value.startsWith("[[") && value.endsWith("]]")) {
         const inner = value.slice(2, -2);
@@ -72,6 +75,7 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
           rawTarget: targetRaw.trim(),
           anchor,
           alias: aliasParts.length > 0 ? aliasParts.join("|") : undefined,
+          line: node.position?.start?.line,
         });
       }
     } else if (node.type === "link") {
@@ -93,6 +97,7 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
         rawTarget: decodedUrl,
         anchor: parsed.anchor,
         alias: getChildrenText(node) || undefined,
+        line: node.position?.start?.line,
       });
     }
   });

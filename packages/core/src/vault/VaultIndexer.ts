@@ -323,12 +323,16 @@ export class VaultIndexer {
       // Link rows exactly as they are inserted below: body links (property_key
       // NULL) plus frontmatter relation links. Built up front so the change
       // detection compares the very same values that hit the DB.
+      // The seventh column is the line (Build-91 feedback, P7): it existed in
+      // the schema and was read by the graph and the backlinks, but never
+      // written — every backlink came back without a place. Frontmatter links
+      // carry none; they belong to the property, not to a line of prose.
       const linkRows: unknown[][] = links.map((link) => [
-        fileId, link.target, link.rawTarget, link.type, link.anchor || null, null,
+        fileId, link.target, link.rawTarget, link.type, link.anchor || null, null, link.line ?? null,
       ]);
       if (fmResult.success && fmResult.data) {
         for (const fmLink of extractFrontmatterLinks(fmResult.data)) {
-          linkRows.push([fileId, fmLink.target, fmLink.rawTarget, "wikilink", fmLink.anchor || null, fmLink.propertyKey]);
+          linkRows.push([fileId, fmLink.target, fmLink.rawTarget, "wikilink", fmLink.anchor || null, fmLink.propertyKey, null]);
         }
       }
 
@@ -430,8 +434,8 @@ export class VaultIndexer {
       // Insert links (rows built above): ONE multi-row batch — inserting row
       // by row was 10-30 additional IPC round-trips per file (P2.4).
       await this.executeBatch(
-        `INSERT INTO links (source_id, target_path, target_raw, link_type, anchor, property_key) VALUES `,
-        `(?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO links (source_id, target_path, target_raw, link_type, anchor, property_key, line_number) VALUES `,
+        `(?, ?, ?, ?, ?, ?, ?)`,
         linkRows,
         writer
       );

@@ -55,19 +55,22 @@ describe("VaultIndexer", () => {
     await indexer.indexVaultFull();
 
     // All links of one file land in ONE multi-row INSERT (P2.4). Split the
-    // flat parameter list back into 6-column rows for the assertions.
+    // flat parameter list back into 7-column rows for the assertions (the
+    // seventh is the line, Build-91 feedback P7).
     const linkInserts = db.queries.filter(q => q.query.includes("INSERT INTO links"));
     expect(linkInserts.length).toBe(1);
+    expect(linkInserts[0].query).toContain("line_number");
     const flat = linkInserts[0].params as any[];
-    expect(flat.length % 6).toBe(0);
+    expect(flat.length % 7).toBe(0);
     const rows: any[][] = [];
-    for (let i = 0; i < flat.length; i += 6) rows.push(flat.slice(i, i + 6));
+    for (let i = 0; i < flat.length; i += 7) rows.push(flat.slice(i, i + 7));
     // 1 body link + projekt + 2 refs; the embedded-in-text link is not a relation value
     expect(rows.length).toBe(4);
 
     const body = rows.find(r => r[1] === "BodyTarget");
     expect(body).toBeDefined();
     expect(body![5]).toBeNull(); // property_key null = body link
+    expect(body![6]).toBe(8); // the line the link stands on (after seven frontmatter lines)
 
     const projekt = rows.find(r => r[1] === "Projekt X");
     expect(projekt).toBeDefined();

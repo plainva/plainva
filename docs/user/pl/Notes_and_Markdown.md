@@ -55,7 +55,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 
 - **Linki wewnętrzne**: `[[Nazwa notatki]]` (link wiki) — przez menu slash lub `@` z wbudowanym wyszukiwaniem notatek. Klasyczne linki Markdown `[tekst](ścieżka.md)` również działają.
 - **Cele, które jeszcze nie istnieją**: link wiki do notatki, która nie została jeszcze utworzona, jest wyświetlany **przygaszony, z przerywanym podkreśleniem** (zarówno w Podglądzie na żywo, jak i w trybie czytania). **Kliknięcie go tworzy notatkę** i ją otwiera — w folderze bieżącej notatki (lub pod podaną ścieżką, jeśli link ją zawiera, np. `[[Folder/New note]]`). Aby najpierw zapytać, włącz **Ustawienia → Aplikacja → Edytor i notatki → Pytaj przed utworzeniem pustych linków**.
-- **Linki zwrotne**: sekcja **Linki zwrotne** w prawym pasku bocznym pokazuje, które notatki linkują do aktywnej — pogrupowane według pliku źródłowego, z licznikiem przy wielu wystąpieniach.
+- **Linki zwrotne**: sekcja **Linki zwrotne** w prawym pasku bocznym pokazuje, które notatki linkują do aktywnej — pogrupowane według pliku źródłowego, z licznikiem przy wielu wystąpieniach. Pod każdym plikiem wymienione jest każde wystąpienie wraz z nagłówkami i elementami listy nad nim oraz samą linią; kliknięcie przenosi dokładnie tam. Na telefonie arkusz kontekstu notatki pokazuje te same miejsca.
 - **Zmiana nazwy z dbałością o linki**: przy zmianie nazwy pliku w drzewie plików Plainva aktualizuje wszystkie linki do niego w całym vaulcie (kotwice takie jak `#Sekcja` są zachowywane) i zgłasza: „Zaktualizowano N link(ów) w M pliku(ach) na nową nazwę."
 
 ## Właściwości (frontmatter)

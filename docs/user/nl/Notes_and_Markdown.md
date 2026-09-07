@@ -55,7 +55,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 
 - **Interne links**: `[[Notitienaam]]` (wiki-link) — via het slash-menu of `@` met ingebouwde notitiezoekfunctie. Klassieke Markdown-links `[tekst](pad.md)` werken ook.
 - **Doelen die nog niet bestaan**: Een wiki-link naar een notitie die nog niet is aangemaakt, wordt **gedempt met een gestreepte onderstreping** weergegeven (zowel in het live-voorbeeld als in de leesmodus). **Erop klikken maakt de notitie aan** en opent hem — in de map van de huidige notitie (of op het opgegeven pad als de link er een bevat, bijv. `[[Map/Nieuwe notitie]]`). Om eerst te worden gevraagd, schakel je **Instellingen → App → Editor en notities → Vragen voordat lege links worden aangemaakt** in.
-- **Backlinks**: De sectie **Backlinks** in de rechterzijbalk toont welke notities naar de actieve notitie linken — gegroepeerd per bronbestand, met een teller bij meerdere voorkomens.
+- **Backlinks**: De sectie **Backlinks** in de rechterzijbalk toont welke notities naar de actieve notitie linken — gegroepeerd per bronbestand, met een teller bij meerdere voorkomens. Onder elk bestand staat elk voorkomen met de koppen en lijstitems erboven en de regel zelf; een klik springt er direct heen. Op de telefoon toont het contextblad van de notitie dezelfde plekken.
 - **Hernoemen met linkzorg**: Wanneer je een bestand hernoemt in de bestandsboom, werkt Plainva elke link ernaartoe bij in de hele vault (ankers zoals `#Sectie` blijven behouden) en meldt: "N link(s) in M bestand(en) zijn bijgewerkt naar de nieuwe naam."
 
 ## Eigenschappen (frontmatter)
