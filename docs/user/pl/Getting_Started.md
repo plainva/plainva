@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-06
+Stan na: 2026-09-07
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -44,6 +44,7 @@ Po uruchomieniu wita ekran powitalny:
 - **Kolejne okna** — notatka w osobnym oknie pokazuje po prawej ten sam pasek boczny kontekstu (konspekt, graf, bazy danych, backlinki, właściwości; kalendarz zostaje w oknie głównym), zwijany i rozwijany z paska tytułu.
 - **Prawy pasek boczny** — cztery sekcje, których kolejność można zmieniać przez przeciąganie: **Kalendarz** (notatki dzienne), **Konspekt** (nagłówki aktywnej notatki), **Linki zwrotne** (kto tu linkuje) i **Właściwości** (frontmatter notatki).
 - **Pasek stanu** — liczba słów/znaków, status synchronizacji (Lokalnie/Online/Offline) i status zapisu (**Zapisywanie...** / **Zapisano**).
+- **Puste listy** — lista bez zawartości mówi, czego oczekuje, i proponuje pierwszy krok: drzewo plików, bazy danych, graf, poczta, zadania.
 
 ## Trzy tryby edytora
 

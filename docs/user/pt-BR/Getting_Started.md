@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-06
+Última revisão: 2026-09-07
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -44,6 +44,7 @@ Ao iniciar, a tela de boas-vindas recebe você:
 - **Outras janelas** — uma nota em sua própria janela mostra à direita a mesma barra lateral de contexto (estrutura, grafo, bancos de dados, backlinks, propriedades; o calendário fica na janela principal), recolhível pela barra de título.
 - **Barra lateral direita** — quatro seções, reordenáveis por arrastar: **Calendário** (notas diárias), **Estrutura** (títulos da nota ativa), **Backlinks** (quem faz link para cá) e **Propriedades** (o frontmatter da nota).
 - **Barra de status** — contagem de palavras/caracteres, status de sincronização (Local/Online/Offline) e status de salvamento (**Salvando...** / **Salvo**).
+- **Listas vazias** — uma lista sem conteúdo diz o que espera e oferece o primeiro passo: a árvore de arquivos, os bancos de dados, o grafo, os e-mails, as tarefas.
 
 ## Os três modos do editor
 

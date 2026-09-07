@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-06
+Ultimo aggiornamento: 2026-09-07
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -44,6 +44,7 @@ All'avvio, la schermata di benvenuto ti accoglie con:
 - **Altre finestre**: una nota nella propria finestra mostra a destra la stessa barra laterale di contesto (struttura, grafo, database, backlink, proprietà; il calendario resta nella finestra principale), apribile e chiudibile dalla barra del titolo.
 - **Barra laterale destra** — quattro sezioni, riordinabili trascinandole: **Calendario** (note giornaliere), **Struttura** (i titoli della nota attiva), **Backlink** (chi collega qui) e **Proprietà** (il frontmatter della nota).
 - **Barra di stato** — conteggio di parole/caratteri, stato di sincronizzazione (Locale/Online/Offline) e stato di salvataggio (**Salvataggio...** / **Salvato**).
+- **Elenchi vuoti** — un elenco senza contenuto dice cosa si aspetta e propone il primo passo: l’albero dei file, i database, il grafo, la posta, le attività.
 
 ## Le tre modalità dell'editor
 

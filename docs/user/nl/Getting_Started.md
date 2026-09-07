@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-06
+Laatst bijgewerkt: 2026-09-07
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -44,6 +44,7 @@ Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit 
 - **Extra vensters** — een notitie in een eigen venster toont rechts dezelfde contextzijbalk (overzicht, graaf, databases, backlinks, eigenschappen; de kalender blijft bij het hoofdvenster), in- en uitklapbaar via de titelbalk.
 - **Rechterzijbalk** — vier secties, herordenbaar door slepen: **Kalender** (dagelijkse notities), **Structuur** (koppen van de actieve notitie), **Backlinks** (wie hierheen linkt) en **Eigenschappen** (de frontmatter van de notitie).
 - **Statusbalk** — woord-/tekenaantal, sync-status (Lokaal/Online/Offline) en opslagstatus (**Opslaan...** / **Opgeslagen**).
+- **Lege lijsten** — een lijst zonder inhoud zegt wat ze verwacht en biedt de eerste stap aan: de bestandsboom, de databases, de graaf, de mail, de taken.
 
 ## De drie editormodi
 

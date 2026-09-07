@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-09-06
+Stand: 2026-09-07
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -44,6 +44,7 @@ Unter **Kürzliche Vaults** findest Du alles, was Du schon einmal geöffnet hast
 - **Weitere Fenster** — eine Notiz in einem eigenen Fenster zeigt rechts dieselbe Kontext-Seitenleiste (Gliederung, Graph, Datenbanken, Backlinks, Eigenschaften; der Kalender bleibt beim Hauptfenster), ein- und ausklappbar über die Titelleiste.
 - **Rechte Seitenleiste** — vier Abschnitte, per Drag umsortierbar: **Kalender** (Tagesnotizen), **Gliederung** (Überschriften der aktiven Notiz), **Backlinks** (wer verlinkt hierher) und **Eigenschaften** (das Frontmatter der Notiz).
 - **Statusleiste** — Wortzahl/Zeichen, Sync-Status (Lokal/Online/Offline) und Speicherstatus (**Speichert...** / **Gespeichert**).
+- **Leere Listen** — eine Liste ohne Inhalt sagt, was sie erwartet, und bietet den ersten Schritt an: Dateibaum, Datenbanken, Graph, Post, Aufgaben.
 
 ## Die drei Editor-Modi
 

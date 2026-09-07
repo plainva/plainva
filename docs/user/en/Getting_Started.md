@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-06
+Last updated: 2026-09-07
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -44,6 +44,7 @@ On launch, the welcome screen greets you:
 - **Further windows** — a note in its own window shows the same context sidebar on the right (outline, graph, databases, backlinks, properties; the calendar stays with the main window), folded and unfolded from the title bar.
 - **Right sidebar** — four sections, reorderable by drag: **Calendar** (daily notes), **Outline** (headings of the active note), **Backlinks** (who links here) and **Properties** (the note's frontmatter).
 - **Status bar** — word/character count, sync status (Local/Online/Offline) and save status (**Saving...** / **Saved**).
+- **Empty lists** — a list with nothing in it says what it expects and offers the first step: the file tree, the databases, the graph, the mail, the tasks.
 
 ## The three editor modes
 

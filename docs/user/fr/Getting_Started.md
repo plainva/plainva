@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-06
+Dernière mise à jour : 2026-09-07
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -44,6 +44,7 @@ Au démarrage, l'écran d'accueil vous accueille :
 - **Autres fenêtres** — une note dans sa propre fenêtre affiche à droite la même barre latérale de contexte (plan, graphe, bases de données, backlinks, propriétés ; le calendrier reste dans la fenêtre principale), repliable depuis la barre de titre.
 - **Barre latérale droite** — quatre sections, réorganisables par glisser-déposer : **Calendrier** (notes quotidiennes), **Plan** (titres de la note active), **Backlinks** (qui renvoie ici) et **Propriétés** (le frontmatter de la note).
 - **Barre d'état** — nombre de mots/caractères, statut de synchronisation (Local/En ligne/Hors ligne) et statut d'enregistrement (**Enregistrement...** / **Enregistré**).
+- **Listes vides** — une liste sans contenu dit ce qu’elle attend et propose la première étape : l’arborescence, les bases de données, le graphe, le courrier, les tâches.
 
 ## Les trois modes de l'éditeur
 
