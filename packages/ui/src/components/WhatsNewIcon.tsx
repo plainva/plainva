@@ -12,6 +12,7 @@ import {
   CalendarDays,
   Smartphone,
   Paperclip,
+  Palette,
   Sparkles,
   WandSparkles,
   AppWindow,
@@ -72,6 +73,7 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'tasks' ? ListChecks
     : name === 'code' ? FileCode
     : name === 'message' ? MessageSquare
+    : name === 'palette' ? Palette
     : Sparkles;
   return <Glyph size={size} />;
 };

@@ -47,7 +47,8 @@ export type WhatsNewIconName =
   | "tasks"
   | "code"
   | "windows"
-  | "message";
+  | "message"
+  | "palette";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -72,6 +73,25 @@ export interface WhatsNewItem {
 }
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.8.1",
+    releaseDate: "2026-09-07",
+    highlights: [
+      // "My theme": a palette, not the sparkles -- sparkles is the fallback glyph
+      // of WhatsNewIcon, and the icon test forbids a catalog entry that renders it.
+      { icon: "palette" },
+      { icon: "database" },
+      // The device's own calendars (EventKit / CalendarContract). The native
+      // layer compiles in CI and had not run on a real device when this
+      // shipped -- the release builds are the first ones. The pill says so;
+      // the sentence names the phone, because the desktop has no such thing.
+      { icon: "calendar", experimental: true },
+      { icon: "shield" },
+      { icon: "layout" },
+      { icon: "phone" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-8-1",
+  },
   {
     version: "0.8.0",
     releaseDate: "2026-09-04",

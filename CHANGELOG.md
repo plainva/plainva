@@ -7,15 +7,92 @@ reaches 1.0.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-09-07
+
+Four days after 0.8.0. On the day 0.8.0 shipped, three feature requests and one Fedora bug
+report came in; they are all in here, together with what had been building on `main` since
+the cut — a theme of your own, the device's calendars on the phone, and one correction in the
+encrypted-workspace protocol that mattered more than its size.
+
+**If you use an encrypted workspace on more than one device, update all of them.** A device
+still on 0.8.0 judges a change under the newest policy version; this release judges it under
+the version the change names. Until every device has updated, two of them can disagree about
+the same operation, and the quarantine card on the older one will say so.
+
+### Added
+
+- **My theme, with guardrails.** A custom theme has its own page: mood (light/dark), a
+  background from a bounded brightness range, a free accent, rounding, and "take from" any
+  built-in theme. Text colours are derived, never chosen — an accent too pale for its
+  background is lifted to at least 3:1 and the editor says so. Same controls on the phone.
+- **Three font slots, on every theme.** The **Fonts** card sets interface, content and code
+  separately (code offers monospace only), with the same preview catalog as before. A font
+  saved in a custom theme moves into the interface slot on update. (#82)
+- **Kanban: a note's checklist on its card.** The task lines of the note (`- [ ]`) show on the
+  board card with a progress bar, tick directly there, and "Add subtask" writes into the note.
+  `file.tasks` is a column you can show in any view. (#83)
+- **WIP limits per column** — click the count in a column header, type the limit; `6/5` is
+  shown in the warning tone. (#83)
+- **Swimlanes** — a second grouping axis on the board from any property, lanes collapsible,
+  the lane as a chip on the card. Dropping on a cell sets both properties. (#83)
+- **Overdue means the same everywhere.** One rule for all eight views: a date chip on cards, in
+  the timeline and the calendar, and an overdue chip in the warning tone. (#84)
+- **Comment on a property from the table it is shown in.** The dot in a cell opens the thread;
+  the context menu has "Comment on property". Both shells.
+- **One "New…" catalog** in two groups, reached from the sidebar, the action bar, the palettes
+  and the phone's FAB; an event or a task is created where it lives.
+- **Empty states** on every list on the desktop — including the empty graph — say what the
+  list expects and offer the first step.
+- **The arrow keys walk the mail list**, and a long press on a mail row (phone) opens the sheet.
+  One action list per row kind (mail, task, file) feeds the context menu, the selection bar,
+  the sheet and the swipe, so they can no longer drift apart.
+- **The quarantine card names its cause.** A cause code per entry, a cascade grouped as one,
+  entries that validate later close themselves, and a **diagnostics export** for a report.
+- **Compare local forks** of a note, and an unsent suggestion copy survives the app closing:
+  a banner says "unsent suggestions found" and offers them back.
+- **The folder of a folder slice is picked from the vault**, on both shells.
+- **Colour, chosen the same way everywhere:** heading colour, icon tint, pen, event colour and
+  three phone sheets share one swatch grid and popover.
+
+### Changed
+
+- **The desktop updater reads its manifest from a fixed location** first
+  (`releases/download/updater/latest.json`) and only then from whichever release GitHub labels
+  "Latest". Nothing to do; existing installs learn the new path with this update.
+- **The default calendar travels with the profile** to your other devices, and the adoption
+  notice remembers values, not names.
+- **A timed event grows into the free lanes to its right**; a short event's minimum height
+  grows only into free room, never into the next event.
+- **The peek window's properties column has steps and a grip**, and three editors hold at
+  every width.
+- **The settings page reserves its scrollbar gutter**, so the theme gallery never reflows when
+  a page starts to scroll.
+- **"Not readable" instead of "0 backups"** when an archive folder cannot be listed.
+- Android: platform requirements are on the record, a **16 KB page-size guard** runs before the
+  Play upload, and the diagnostics show the system's exit reasons.
+
 ### Fixed
 
-- **A window opened with "Open in new window" can be closed on macOS again**
-  (#86). It was built without the traffic lights the central window keeps,
-  and the drawn window buttons exist on Windows and Linux only — so it had
-  no close button at all, and ⌘W closed a tab, never the window. Auxiliary
-  windows now carry the same chrome as the central one, and ⌘W / Ctrl+W
-  closes the window once its last tab is the active one (the composer
-  window too).
+- **A window opened with "Open in new window" can be closed on macOS again** (#86). It was
+  built without the traffic lights the central window keeps, the drawn window buttons exist
+  on Windows and Linux only, and ⌘W closed a tab, never the window. Auxiliary windows now carry
+  the central window's chrome, and ⌘W / Ctrl+W closes the window once its last tab is the
+  active one — the composer window too.
+- **The AppImage starts on Mesa 25 hosts** — Fedora 44 among them (#85). The bundler ships the
+  build machine's `libwayland-client`; Mesa's EGL loaded against it and aborted with
+  `EGL_BAD_PARAMETER`. The AppImage now preloads the host's own copy at start-up. The `.rpm`
+  and `.deb` were never affected.
+- **185 quarantine entries were a protocol error, not tampering.** An operation is now judged
+  in the policy version it references, the device chain continues from what the workspace
+  holds, applied work is not re-judged, and a revoked device is heard only as far as its
+  revocation was witnessed. A device that joins later builds the vault completely.
+- **A comment anchor never starts a block** — a commented list item keeps its bullet.
+- **A suggestion picked in the text shows its card**, on both shells.
+- **Markdown link targets survive `#`, `?` and parentheses** in file names.
+- **Google accepts a blocked copy of a recurring event** (the time zone of the master).
+- **The free colour disc carries the pick ring** when the value is no preset; the colour rows of
+  "My theme" are one eight-slot grid.
+- `head()` on a sync store asks for one object instead of listing everything.
 
 ## [0.8.0] — 2026-09-04
 
