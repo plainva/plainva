@@ -49,14 +49,14 @@ function apply(state: EditorState, list: readonly AnchorHighlight[]): EditorStat
 
 describe("anchorDisplayLabel", () => {
   it("names the image and the diagram without parameters", () => {
-    expect(anchorDisplayLabel({ kind: "image" })).toEqual({ key: "workspaceSecurity.commentAtImage" });
-    expect(anchorDisplayLabel({ kind: "diagram" })).toEqual({ key: "workspaceSecurity.commentAtDiagram" });
+    expect(anchorDisplayLabel({ kind: "image" })).toEqual({ key: "comments.commentAtImage" });
+    expect(anchorDisplayLabel({ kind: "diagram" })).toEqual({ key: "comments.commentAtDiagram" });
   });
 
   it("says a marked spot instead of the whole picture when there is a region", () => {
     // "On the picture" would hide what the writer actually pointed at.
     expect(anchorDisplayLabel({ kind: "image", rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } })).toEqual({
-      key: "workspaceSecurity.commentAtImageRegion",
+      key: "comments.commentAtImageRegion",
     });
   });
 
@@ -65,21 +65,21 @@ describe("anchorDisplayLabel", () => {
     // No caveat by default (V7): a cell that sits where it was says nothing;
     // only a moved or changed one earns a word.
     expect(anchorDisplayLabel({ kind: "tableCell", row: 2, column: 0 })).toEqual({
-      key: "workspaceSecurity.commentAtCell",
+      key: "comments.commentAtCell",
       params: { row: 2, column: 1, label: "" },
       caveat: undefined,
     });
     expect(anchorDisplayLabel({ kind: "tableCell", row: 3, column: 0, columnLabel: "Status", moved: true })).toEqual({
-      key: "workspaceSecurity.commentAtCellNamed",
+      key: "comments.commentAtCellNamed",
       params: { row: 3, column: 1, label: "Status" },
-      caveat: "workspaceSecurity.commentCellMoved",
+      caveat: "comments.commentCellMoved",
     });
-    expect(anchorDisplayLabel({ kind: "tableCell", row: 2, column: 0, changed: true }).caveat).toBe("workspaceSecurity.commentCellChanged");
+    expect(anchorDisplayLabel({ kind: "tableCell", row: 2, column: 0, changed: true }).caveat).toBe("comments.commentCellChanged");
   });
 
   it("says the cell may have moved instead of inventing coordinates", () => {
     // Without row/column there is nothing honest to name — the caveat IS the label.
-    expect(anchorDisplayLabel({ kind: "tableCell" })).toEqual({ key: "workspaceSecurity.commentCellMoved" });
+    expect(anchorDisplayLabel({ kind: "tableCell" })).toEqual({ key: "comments.commentCellMoved" });
   });
 });
 

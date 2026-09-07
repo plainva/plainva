@@ -2337,7 +2337,7 @@ export const Editor: React.FC<{
       return;
     }
     const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
-    const title = commentTaskTitle(comment.body, t("workspaceSecurity.commentTaskFallback"));
+    const title = commentTaskTitle(comment.body, t("comments.commentTaskFallback"));
     const res = await createTaskInDatabase({
       adapter: vaultAdapter,
       dbPath,
@@ -2347,7 +2347,7 @@ export const Editor: React.FC<{
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,
         noteTarget: wikiTargetForPath(activePath, allNotePaths),
-        sourceLabel: t("workspaceSecurity.commentTaskSource"),
+        sourceLabel: t("comments.commentTaskSource"),
       }),
     });
     if (!res.ok) {
@@ -2360,7 +2360,7 @@ export const Editor: React.FC<{
     // computed against a list that contains it - otherwise the reply links to
     // a name that could collide with a note added a moment later.
     const taskTarget = wikiTargetForPath(res.notePath, [...allNotePaths, res.notePath]);
-    const reply = commentTaskReply(taskTarget, t("workspaceSecurity.commentTaskCreated"));
+    const reply = commentTaskReply(taskTarget, t("comments.commentTaskCreated"));
     // The reply and the word to the person come FIRST (K4, finding
     // 2026-09-03): both used to wait behind the provider round trip below, so
     // the feedback for a click was the last thing to arrive. The reply goes
@@ -2369,7 +2369,7 @@ export const Editor: React.FC<{
     // Not the checkbox wording ("moved"): nothing moved here. The comment is
     // still where it was, and saying otherwise would send the user looking for
     // a passage that never left. The action opens the task it just made.
-    toast.info(t("workspaceSecurity.commentTaskCreated"), { label: t("workspaceSecurity.commentTaskOpen"), run: () => openNoteFromComment(taskTarget) });
+    toast.info(t("comments.commentTaskCreated"), { label: t("comments.commentTaskOpen"), run: () => openNoteFromComment(taskTarget) });
     // ...and, like every other task in that database, on to the provider list
     // it names (C4/S17) - in the background. A failure there never costs the
     // note or the reply, both are already written; it gets its own word.
@@ -2462,7 +2462,7 @@ export const Editor: React.FC<{
     // An orphan has no passage left to replace. Guessing a spot would write the
     // proposal into a place nobody proposed it for.
     if (!view || !resolution || resolution.status === "orphan") {
-      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      toast.error(t("comments.suggestionOrphan"));
       return;
     }
     const previous = view.state.doc.sliceString(resolution.from, resolution.to);
@@ -2496,12 +2496,12 @@ export const Editor: React.FC<{
     const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
     for (const comment of blocks) {
       const resolution = anchorResolutions.get(comment.commentId);
-      if (!resolution || resolution.status === "orphan") { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      if (!resolution || resolution.status === "orphan") { toast.error(t("comments.suggestRoundOrphan")); return; }
       spans.push({ comment, from: resolution.from, to: resolution.to });
     }
     spans.sort((a, b) => b.from - a.from || b.to - a.to);
     for (let i = 1; i < spans.length; i += 1) {
-      if (spans[i].to > spans[i - 1].from) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      if (spans[i].to > spans[i - 1].from) { toast.error(t("comments.suggestRoundOrphan")); return; }
     }
     const before = view.state.doc.toString();
     view.dispatch({ changes: spans.map((span) => ({ from: span.from, to: span.to, insert: span.comment.suggestion!.replacement })) });
@@ -2513,7 +2513,7 @@ export const Editor: React.FC<{
       toast.error(errorText(error));
       return;
     }
-    toast.info(t("workspaceSecurity.suggestRoundApplied", { n: spans.length }));
+    toast.info(t("comments.suggestRoundApplied", { n: spans.length }));
   }, [activePath, workspaceComments, anchorResolutions, resolveWorkspaceComment, t]);
 
   const declineRound = useCallback(async (batchId: string) => {
@@ -2566,7 +2566,7 @@ export const Editor: React.FC<{
     // Locked (N3): the verb stays and leads to the explanation - the column
     // opens and says what to do - rather than into a mode whose send would
     // fail a minute later.
-    if (commentsLocked) { setCommentColumnSession("open"); toast.info(t("workspaceSecurity.commentsLockedToast")); return; }
+    if (commentsLocked) { setCommentColumnSession("open"); toast.info(t("comments.commentsLockedToast")); return; }
     if (viewMode === "source") { setViewMode("live"); rememberSessionViewMode(activePath, "live"); }
     suggestingRef.current = true;
     setSuggesting(true);
@@ -2590,7 +2590,7 @@ export const Editor: React.FC<{
   const discardSuggestions = useCallback(async () => {
     if (!activePath) return;
     if (suggestCount > 0) {
-      const ok = await appConfirm({ title: t("workspaceSecurity.suggestDiscard"), message: t("workspaceSecurity.suggestDiscardConfirm", { n: suggestCount }), kind: "warning" });
+      const ok = await appConfirm({ title: t("comments.suggestDiscard"), message: t("comments.suggestDiscardConfirm", { n: suggestCount }), kind: "warning" });
       if (!ok) return;
     }
     suggestParkRef.current.delete(activePath);
@@ -2610,9 +2610,9 @@ export const Editor: React.FC<{
     const session = sessionRef.current;
     if (!session || !activePath) return;
     const { base, chunks } = session.suggestion();
-    if (base === null || chunks.length === 0) { toast.info(t("workspaceSecurity.suggestNothing")); return; }
+    if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
     const tooLarge = chunks.find((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES);
-    if (tooLarge) { toast.warning(t("workspaceSecurity.suggestTooLarge")); return; }
+    if (tooLarge) { toast.warning(t("comments.suggestTooLarge")); return; }
     const batchId = createWorkspaceObjectId();
     const note = suggestNote.trim() || null;
     let index = 0;
@@ -2630,7 +2630,7 @@ export const Editor: React.FC<{
     suggestParkRef.current.delete(activePath);
     forgetPark(activePath);
     stopSuggesting();
-    toast.info(t("workspaceSecurity.suggestSent", { n: index }));
+    toast.info(t("comments.suggestSent", { n: index }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, suggestNote, postWorkspaceComment, stopSuggesting, t]);
 
@@ -2672,7 +2672,7 @@ export const Editor: React.FC<{
     suggestParkRef.current.set(activePath, { copy: reconciled.copy, note, base: session.view.state.doc.toString() });
     setStoredPark(null);
     startSuggesting();
-    if (reconciled.orphaned.length > 0) toast.info(t("workspaceSecurity.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
   }, [activePath, storedPark, startSuggesting, t]);
   const discardParked = useCallback(() => {
     if (!activePath) return;
@@ -2708,7 +2708,7 @@ export const Editor: React.FC<{
           note's top right until the column is open - which has its own X. */}
       {peek && workspaceCanReadComments && !commentColumnOpen && (
         <IconButton
-          label={t("workspaceSecurity.commentColumnShow")}
+          label={t("comments.commentColumnShow")}
           onClick={toggleCommentColumn}
           className="pv-comment-toggle pv-comment-toggle--peek"
           data-testid="peek-comments-toggle"
@@ -2772,7 +2772,7 @@ export const Editor: React.FC<{
                 the band below says the same in words. */}
             {workspaceCanComment && !managedIndex && (
               <IconButton
-                label={t("workspaceSecurity.suggestMode")}
+                label={t("comments.suggestMode")}
                 active={suggesting}
                 onClick={() => { if (suggesting) void discardSuggestions(); else startSuggesting(); }}
                 data-testid="editor-suggest-mode"
@@ -2785,7 +2785,7 @@ export const Editor: React.FC<{
 
           {workspaceCanReadComments && (
             <IconButton
-              label={commentColumnOpen ? t("workspaceSecurity.commentColumnHide") : t("workspaceSecurity.commentColumnShow")}
+              label={commentColumnOpen ? t("comments.commentColumnHide") : t("comments.commentColumnShow")}
               active={commentColumnOpen}
               onClick={toggleCommentColumn}
               className="pv-comment-toggle"
@@ -3010,22 +3010,22 @@ export const Editor: React.FC<{
         <div className="pv-suggest-band" role="status" data-testid="suggest-parked">
           <PenLine size={ICON.ui} />
           <span className="pv-suggest-band__text">
-            <strong>{t("workspaceSecurity.suggestParkedTitle")}</strong>{" "}
-            {t("workspaceSecurity.suggestParkedBody", { n: parkedSuggestionBlocks(storedPark), when: storedPark.savedAt ? new Date(storedPark.savedAt).toLocaleString() : "" })}
+            <strong>{t("comments.suggestParkedTitle")}</strong>{" "}
+            {t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(storedPark), when: storedPark.savedAt ? new Date(storedPark.savedAt).toLocaleString() : "" })}
           </span>
-          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("workspaceSecurity.suggestDiscard")}</Button>
-          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("workspaceSecurity.suggestParkedResume")}</Button>
+          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("comments.suggestDiscard")}</Button>
+          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("comments.suggestParkedResume")}</Button>
         </div>
       )}
       {suggesting && (
         <div className="pv-suggest-band" role="status" data-testid="suggest-band">
           <PenLine size={ICON.ui} />
           <span className="pv-suggest-band__text">
-            <strong>{t("workspaceSecurity.suggestBandTitle")}</strong> {t("workspaceSecurity.suggestBandBody")} {t("workspaceSecurity.suggestCount", { n: suggestCount })}
+            <strong>{t("comments.suggestBandTitle")}</strong> {t("comments.suggestBandBody")} {t("comments.suggestCount", { n: suggestCount })}
           </span>
-          <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
-          <UiButton size="sm" variant="ghost" onClick={() => { void discardSuggestions(); }}>{t("workspaceSecurity.suggestDiscard")}</UiButton>
-          <UiButton size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">{t("workspaceSecurity.suggestSend", { n: suggestCount })}</UiButton>
+          <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
+          <UiButton size="sm" variant="ghost" onClick={() => { void discardSuggestions(); }}>{t("comments.suggestDiscard")}</UiButton>
+          <UiButton size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">{t("comments.suggestSend", { n: suggestCount })}</UiButton>
         </div>
       )}
       <div className={workspaceCanReadComments ? "pv-comment-layout" : undefined} style={workspaceCanReadComments ? undefined : { display: "contents" }}>

@@ -21,6 +21,7 @@ Plainvaは、Markdownベースの保管庫エディターです。あなたの�
 | [モバイルアプリ](Mobile_App.md) | Android と iOS の Plainva：レイアウト、編集、データベース、同期、セーフティネット |
 | [同期の設定](Sync_Setup.md) | プロバイダーごとの手順: WebDAV/Nextcloud、Google Drive、OneDrive、Dropbox、S3 |
 | [セキュリティと共有](Security_and_Sharing.md) | 個人暗号化ワークスペース、復旧、移行、ロック |
+| [コメントと提案](Comments_and_Suggestions.md) | コメント、提案モード、一覧、通知 — 暗号化の有無を問わずすべての保管庫で |
 | [同期の互換性](Sync_Compatibility.md) | どのサービスが利用可能か——直接統合、WebDAV経由、またはプロバイダーのデスクトップクライアント経由 |
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | 自分の認証情報でGoogle Drive同期を設定する |
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | 自分のアプリ登録でOneDriveとDropboxの同期を設定する |

@@ -359,7 +359,7 @@ class TableWidget extends WidgetType {
         range: { from: this.from, to: this.to },
         display: { kind: "tableCell", row, column: colIndex },
         frame: null,
-        bubbleLabel: commented ? undefined : i18n.t("workspaceSecurity.commentOnCell"),
+        bubbleLabel: commented ? undefined : i18n.t("comments.commentOnCell"),
         bubbleClass: "cm-anchor-bubble--cell",
       });
       cell.addEventListener("mousedown", (e) => {
@@ -444,7 +444,7 @@ class TableWidget extends WidgetType {
         frame,
         // No bubble here: `wireCell` already gave every cell its own.
         // The corner triangle instead of an outline (V7).
-        corner: { label: i18n.t("workspaceSecurity.commentCellOpen") },
+        corner: { label: i18n.t("comments.commentCellOpen") },
       });
     }
     if (tableFrame) {

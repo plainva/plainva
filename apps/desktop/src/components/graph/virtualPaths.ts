@@ -36,7 +36,7 @@ const VIRTUAL_TAB_META: Record<string, VirtualTabMeta> = {
   [TASKS_TAB_PATH]: { labelKey: "tasks.title", defaultLabel: "Aufgaben", icon: ListChecks },
   [CALENDAR_TAB_PATH]: { labelKey: "rightPanel.calendar", defaultLabel: "Kalender", icon: CalendarRange },
   [MAIL_TAB_PATH]: { labelKey: "mail.title", defaultLabel: "E-Mail", icon: Mail },
-  [COMMENTS_TAB_PATH]: { labelKey: "workspaceSecurity.commentOverview", defaultLabel: "Kommentare", icon: MessageSquare },
+  [COMMENTS_TAB_PATH]: { labelKey: "comments.commentOverview", defaultLabel: "Kommentare", icon: MessageSquare },
 };
 
 /** Localized label key + icon for a virtual tab path; null for vault files. */

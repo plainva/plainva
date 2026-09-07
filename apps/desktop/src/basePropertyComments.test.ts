@@ -44,7 +44,7 @@ describe("a database opens and starts property comments", () => {
     expect(viewer).toMatch(/caps\?\.includes\("comment\.create"\)/);
     expect(viewer).toMatch(/rowMenu\.col && rowMenu\.canComment &&/);
     expect(viewer).toContain('data-testid="base-comment-property"');
-    expect(viewer).toContain('t("workspaceSecurity.commentOnProperty")');
+    expect(viewer).toContain('t("comments.commentOnProperty")');
   });
 
   it("routes both ways through the shared jump, and opens the entry", () => {

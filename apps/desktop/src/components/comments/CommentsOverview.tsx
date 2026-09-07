@@ -84,15 +84,15 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
     <div className="pv-comment-overview">
       <div className="pv-comment-overview__head">
         <MessageSquare size={ICON.head} aria-hidden="true" />
-        <h2 className="pv-comment-overview__title">{t("workspaceSecurity.commentOverview")}</h2>
+        <h2 className="pv-comment-overview__title">{t("comments.commentOverview")}</h2>
         <span className="pv-comment-overview__spacer" />
         <Segmented
           value={filter}
           onChange={(value) => setFilter(value as "all" | "mine" | "new")}
           options={[
-            ...(focus ? [{ value: "new", label: t("workspaceSecurity.commentOverviewNew"), testId: "comments-overview-new" }] : []),
-            { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comments-overview-all" },
-            { value: "mine", label: t("workspaceSecurity.commentOverviewMine"), testId: "comments-overview-mine" },
+            ...(focus ? [{ value: "new", label: t("comments.commentOverviewNew"), testId: "comments-overview-new" }] : []),
+            { value: "all", label: t("comments.commentOverviewAll"), testId: "comments-overview-all" },
+            { value: "mine", label: t("comments.commentOverviewMine"), testId: "comments-overview-mine" },
           ]}
         />
         <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
@@ -103,14 +103,14 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
         {storeState?.mode === "locked" && (
           <EmptyState
             icon={<Lock size={ICON.empty} />}
-            action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))}>{t("workspaceSecurity.commentsUnlock")}</Button>}
+            action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))}>{t("comments.commentsUnlock")}</Button>}
           >
-            {t("workspaceSecurity.commentsLocked")}
+            {t("comments.commentsLocked")}
           </EmptyState>
         )}
         {storeState?.mode !== "locked" && notes.length === 0 && (
           <EmptyState icon={<MessageSquare size={ICON.empty} />}>
-            {filter === "new" ? t("workspaceSecurity.commentOverviewNoneNew") : onlyAddressed ? t("workspaceSecurity.commentOverviewNoneMine") : t("workspaceSecurity.commentOverviewNone")}
+            {filter === "new" ? t("comments.commentOverviewNoneNew") : onlyAddressed ? t("comments.commentOverviewNoneMine") : t("comments.commentOverviewNone")}
           </EmptyState>
         )}
         {notes.map((note) => (
@@ -141,8 +141,8 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                 }}
               >
                 <p className="pv-comment-round__meta">
-                  <strong>{t("workspaceSecurity.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor") })}</strong>
-                  {" · "}{t("workspaceSecurity.suggestRoundCount", { n: round.open })}
+                  <strong>{t("comments.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor") })}</strong>
+                  {" · "}{t("comments.suggestRoundCount", { n: round.open })}
                   {round.note ? <em> · „{round.note}“</em> : null}
                 </p>
               </div>
@@ -162,17 +162,17 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
               >
                 {addressed && (
                   <span className="pv-comment-card__state">
-                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}
+                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("comments.commentMentionsYou")}
                   </span>
                 )}
                 {root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 {root.suggestion && (
                   <span className="pv-comment-card__state">
-                    <Replace size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.suggestionPending")}
+                    <Replace size={ICON.meta} aria-hidden="true" /> {t("comments.suggestionPending")}
                   </span>
                 )}
                 <small className="pv-comment-card__meta" data-tip={root.authorMemberId}>
-                  {memberNames.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")}
+                  {memberNames.get(root.authorMemberId) ?? t("comments.commentUnknownAuthor")}
                   {" · "}
                   {new Date(root.createdAt).toLocaleString()}
                 </small>
@@ -189,7 +189,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                     places to go, and the thread itself reads better beside the
                     passage it talks about. */}
                 {replies.length > 0 && (
-                  <span className="pv-comment-card__state">{t("workspaceSecurity.commentReplyCount", { count: replies.length })}</span>
+                  <span className="pv-comment-card__state">{t("comments.commentReplyCount", { count: replies.length })}</span>
                 )}
               </div>
             ))}

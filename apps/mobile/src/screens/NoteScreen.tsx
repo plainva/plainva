@@ -496,7 +496,7 @@ export function NoteScreen({
       window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note } }));
       window.dispatchEvent(new CustomEvent("m-editor-suggest-restore", { detail: { path, copy: reconciled.copy } }));
     }, 0);
-    if (reconciled.orphaned.length > 0) toast.info(t("workspaceSecurity.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
+    if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
   };
   const discardParked = () => {
     setParked(null);
@@ -589,7 +589,7 @@ export function NoteScreen({
     const notes = vault.queryService
       ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
       : [];
-    const title = commentTaskTitle(comment.body, t("workspaceSecurity.commentTaskFallback"));
+    const title = commentTaskTitle(comment.body, t("comments.commentTaskFallback"));
     const res = await createTaskInDatabase({
       adapter: vault.files,
       dbPath,
@@ -599,7 +599,7 @@ export function NoteScreen({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,
         noteTarget: wikiTargetForPath(path, notes),
-        sourceLabel: t("workspaceSecurity.commentTaskSource"),
+        sourceLabel: t("comments.commentTaskSource"),
       }),
     });
     if (!res.ok) {
@@ -613,13 +613,13 @@ export function NoteScreen({
       path,
       body: commentTaskReply(
         wikiTargetForPath(res.notePath, [...notes, res.notePath]),
-        t("workspaceSecurity.commentTaskCreated"),
+        t("comments.commentTaskCreated"),
       ),
       parentCommentId: comment.commentId,
     });
     setCommentTick((n) => n + 1);
     // The word to the person first, the provider round trip behind it (K4).
-    toast.info(t("workspaceSecurity.commentTaskCreated"), { label: t("workspaceSecurity.commentTaskOpen"), run: () => onOpenNote(res.notePath) });
+    toast.info(t("comments.commentTaskCreated"), { label: t("comments.commentTaskOpen"), run: () => onOpenNote(res.notePath) });
     void sendTaskToProviderList(vault.files, dbPath, res.notePath, title)
       .catch((e) => toast.warning(errorText(e)));
   };
@@ -634,13 +634,13 @@ export function NoteScreen({
     const blocks = comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
     const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
     for (const comment of blocks) {
-      if (!comment.anchor) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      if (!comment.anchor) { toast.error(t("comments.suggestRoundOrphan")); return; }
       const resolution = resolveCommentAnchor(text, comment.anchor);
-      if (resolution.status === "orphan") { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+      if (resolution.status === "orphan") { toast.error(t("comments.suggestRoundOrphan")); return; }
       spans.push({ comment, from: resolution.from, to: resolution.to });
     }
     spans.sort((a, b) => b.from - a.from || b.to - a.to);
-    for (let i = 1; i < spans.length; i += 1) if (spans[i].to > spans[i - 1].from) { toast.error(t("workspaceSecurity.suggestRoundOrphan")); return; }
+    for (let i = 1; i < spans.length; i += 1) if (spans[i].to > spans[i - 1].from) { toast.error(t("comments.suggestRoundOrphan")); return; }
     let next = text;
     for (const span of spans) next = next.slice(0, span.from) + span.comment.suggestion!.replacement + next.slice(span.to);
     setDoc(next);
@@ -653,7 +653,7 @@ export function NoteScreen({
       throw error;
     }
     setCommentTick((n) => n + 1);
-    toast.info(t("workspaceSecurity.suggestRoundApplied", { n: spans.length }));
+    toast.info(t("comments.suggestRoundApplied", { n: spans.length }));
   };
 
   const declineRound = async (batchId: string) => {
@@ -696,7 +696,7 @@ export function NoteScreen({
     if (!comment.suggestion || !comment.anchor || text === null) return;
     const resolution = resolveCommentAnchor(text, comment.anchor);
     if (resolution.status === "orphan") {
-      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      toast.error(t("comments.suggestionOrphan"));
       return;
     }
     const next = text.slice(0, resolution.from) + comment.suggestion.replacement + text.slice(resolution.to);
@@ -726,7 +726,7 @@ export function NoteScreen({
     if (!comment.anchor || doc === null) return;
     const resolution = resolveCommentAnchor(doc, comment.anchor);
     if (resolution.status === "orphan") {
-      toast.error(t("workspaceSecurity.suggestionOrphan"));
+      toast.error(t("comments.suggestionOrphan"));
       return;
     }
     setCommentsOpen(false);
@@ -841,22 +841,22 @@ export function NoteScreen({
       )}
       {parked && !suggesting && doc !== null && (
         <Banner kind="info" rounded actions={<>
-          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("workspaceSecurity.suggestDiscard")}</Button>
-          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("workspaceSecurity.suggestParkedResume")}</Button>
+          <Button size="sm" variant="ghost" onClick={discardParked} data-testid="suggest-parked-discard">{t("comments.suggestDiscard")}</Button>
+          <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("comments.suggestParkedResume")}</Button>
         </>}>
-          <strong>{t("workspaceSecurity.suggestParkedTitle")}</strong>
-          <p className="m-hint" data-testid="suggest-parked">{t("workspaceSecurity.suggestParkedBody", { n: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
+          <strong>{t("comments.suggestParkedTitle")}</strong>
+          <p className="m-hint" data-testid="suggest-parked">{t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
         </Banner>
       )}
       {suggesting && (
           <div className="pv-suggest-band" role="status">
             <PenLine size={ICON.head} />
             <span className="pv-suggest-band__text">
-              <strong>{t("workspaceSecurity.suggestBandTitle")}</strong> {t("workspaceSecurity.suggestCount", { n: suggestCount })}
+              <strong>{t("comments.suggestBandTitle")}</strong> {t("comments.suggestCount", { n: suggestCount })}
             </span>
-            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("workspaceSecurity.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note: event.target.value } })); }} />
-            <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("workspaceSecurity.suggestDiscard")}</Button>
-            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { path, note: suggestNote } })); }}>{t("workspaceSecurity.suggestSend", { n: suggestCount })}</Button>
+            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note: event.target.value } })); }} />
+            <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("comments.suggestDiscard")}</Button>
+            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { path, note: suggestNote } })); }}>{t("comments.suggestSend", { n: suggestCount })}</Button>
           </div>
         )}
       {doc !== null && (
@@ -1052,7 +1052,7 @@ export function NoteScreen({
             // round. Needs the right to comment, not to write.
             ...(canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? [{
               icon: <PenLine size={ICON.head} />,
-              label: t("workspaceSecurity.suggestMode"),
+              label: t("comments.suggestMode"),
               onClick: () => {
                 setMenu(false);
                 setEditing(true);
@@ -1078,7 +1078,7 @@ export function NoteScreen({
              */
             ...(commentCaps.includes("comment.read") ? [{
               icon: <MessageSquare size={ICON.head} />,
-              label: t("workspaceSecurity.comments"),
+              label: t("comments.comments"),
               onClick: () => {
                 setMenu(false);
                 setCommentsOpen(true);

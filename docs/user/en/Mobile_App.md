@@ -256,4 +256,6 @@ When somebody has written on a note, Plainva can tell you — the same three lev
 
 When several remarks are new at once, the notification opens **Open comments** on the **New** tab — exactly the threads it meant; **All** and **For me** stand next to it.
 
+Everything else about comments and suggestions — where the files live, what “locked” means — is under [Comments & Suggestions](Comments_and_Suggestions.md).
+
 **The message arrives later here than on the desktop, and that is a property rather than a fault.** Plainva has no server that could nudge your phone — building one would mean a foreign server learning when who commented on which note. A remark is therefore noticed where the phone looks anyway: after a sync cycle and on returning to the foreground. No timer runs in the background for it; no phone platform allows one.

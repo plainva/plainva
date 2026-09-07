@@ -256,4 +256,6 @@ Quando qualcuno ha scritto su una nota, Plainva può avvisarti: gli stessi tre l
 
 Se più annotazioni sono nuove insieme, la notifica apre **Commenti aperti** sulla scheda **Nuovi**: esattamente i thread che intendeva; **Tutti** e **Per me** stanno accanto.
 
+Tutto il resto su commenti e suggerimenti — dove stanno i file, cosa significa «bloccato» — è in [Commenti e suggerimenti](Comments_and_Suggestions.md).
+
 **Qui il messaggio arriva più tardi che sul desktop, ed è una caratteristica, non un difetto.** Plainva non ha alcun server che possa sollecitare il tuo telefono: costruirne uno significherebbe che un server estraneo viene a sapere quando chi ha commentato quale nota. Un'annotazione viene quindi notata dove il telefono guarda comunque: dopo un ciclo di sincronizzazione e al ritorno in primo piano. Per questo non gira alcun timer in background; nessuna piattaforma mobile lo consente.

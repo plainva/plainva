@@ -298,7 +298,7 @@ class MermaidLiveWidget extends WidgetType {
       range: { from: this.from, to: this.to },
       display: { kind: "diagram" },
       frame: this.frame,
-      bubbleLabel: i18n.t("workspaceSecurity.commentOnDiagram"),
+      bubbleLabel: i18n.t("comments.commentOnDiagram"),
     });
     el.textContent = this.texts.loading;
     el.style.color = "var(--text-faint)";

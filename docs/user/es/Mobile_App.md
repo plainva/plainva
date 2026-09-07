@@ -256,4 +256,6 @@ Cuando alguien ha escrito en una nota, Plainva puede avisarte: los mismos tres n
 
 Si hay varias anotaciones nuevas a la vez, el aviso abre **Comentarios abiertos** en la pestaña **Nuevos**: exactamente los hilos a los que se refería; **Todos** y **Para mí** están al lado.
 
+Todo lo demás sobre comentarios y sugerencias — dónde viven los archivos, qué significa «bloqueado» — está en [Comentarios y sugerencias](Comments_and_Suggestions.md).
+
 **Aquí el mensaje llega más tarde que en el escritorio, y eso es una propiedad, no un fallo.** Plainva no tiene ningún servidor que pueda avisar a tu teléfono: construirlo significaría que un servidor ajeno sabría cuándo comentó quién qué nota. Por eso una anotación se detecta donde el teléfono mira de todos modos: tras un ciclo de sincronización y al volver al primer plano. Para ello no se ejecuta ningún temporizador en segundo plano; ninguna plataforma de teléfono lo permite.

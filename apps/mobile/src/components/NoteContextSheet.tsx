@@ -558,7 +558,7 @@ export function NoteContextSheet({
               : []),
             {
               icon: <MessageSquare size={ICON.head} />,
-              label: t("workspaceSecurity.commentOnProperty"),
+              label: t("comments.commentOnProperty"),
               testId: "prop-comment",
               onClick: () => { const key = propSheet.key; setPropSheet(null); onCommentProperty?.(key); },
             },

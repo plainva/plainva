@@ -72,7 +72,7 @@ function escapeCriticBody(text: string): string {
 }
 
 function authorName(memberId: string, names: ReadonlyMap<string, string>): string {
-  return names.get(memberId) ?? i18n.t("workspaceSecurity.commentUnknownAuthor");
+  return names.get(memberId) ?? i18n.t("comments.commentUnknownAuthor");
 }
 
 function defaultDate(iso: string): string {

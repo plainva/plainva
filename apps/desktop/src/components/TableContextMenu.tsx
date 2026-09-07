@@ -49,7 +49,7 @@ export const TableContextMenu: React.FC<Props> = ({ x, y, kind, align, canCommen
 
   const items: Item[] = [];
   if (canComment) {
-    items.push({ kind: "item", action: "cell-comment", label: t("workspaceSecurity.commentOnCell") });
+    items.push({ kind: "item", action: "cell-comment", label: t("comments.commentOnCell") });
     items.push({ kind: "sep" });
   }
   if (kind === "body") {

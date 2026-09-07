@@ -166,7 +166,7 @@ describe("a database opens and starts property comments on the phone", () => {
     expect(base).toMatch(/onCommentProperty=\{cellEditCanComment \?/);
     expect(base).toMatch(/composePropertyComment\(c\.notePath, c\.col\)/);
     expect(sheet).toContain('data-testid="base-comment-property"');
-    expect(sheet).toContain('t("workspaceSecurity.commentOnProperty")');
+    expect(sheet).toContain('t("comments.commentOnProperty")');
   });
 
   it("lands the note screen on the named card, or on the composer for the named property", () => {

@@ -2552,7 +2552,7 @@ export function BaseViewer({
             <>
               <MenuLabel>{cells.columnLabel(rowMenu.col)}</MenuLabel>
               <MenuItem onSelect={() => { const m = rowMenu; setRowMenu(null); composePropertyComment(m.path, m.col!); }} data-testid="base-comment-property">
-                <MessageSquare size={ICON.meta} /> {t("workspaceSecurity.commentOnProperty")}
+                <MessageSquare size={ICON.meta} /> {t("comments.commentOnProperty")}
               </MenuItem>
               <MenuSeparator />
             </>

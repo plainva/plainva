@@ -2970,7 +2970,7 @@ export const VaultProvider: React.FC<{
       if (moves.length === 0) return;
       void recordCommentMovesRef.current(moves).catch((error) => {
         console.error("[VaultContext] comment moves not recorded", error);
-        toast.warning(i18n.t("workspaceSecurity.commentMoveFailed"));
+        toast.warning(i18n.t("comments.commentMoveFailed"));
       });
     };
     window.addEventListener("plainva-file-ops", onOps);

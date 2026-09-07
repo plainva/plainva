@@ -630,7 +630,7 @@ export function useBaseCells({
     // does not start editing underneath it. Without a handler (an embedded
     // base with nowhere to open) it stays the span it was.
     const commentCount = commentedProperties?.get(path)?.get(col) ?? 0;
-    const commentLabel = t("workspaceSecurity.commentThreadCount", { count: commentCount });
+    const commentLabel = t("comments.commentThreadCount", { count: commentCount });
     const commentDot = commentCount === 0 ? null : onOpenPropertyComments ? (
       <button
         type="button"

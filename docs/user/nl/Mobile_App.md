@@ -256,4 +256,6 @@ Heeft iemand bij een notitie iets geschreven, dan kan Plainva je dat melden — 
 
 Zijn er meerdere opmerkingen tegelijk nieuw, dan opent de melding **Open opmerkingen** op het tabblad **Nieuw** — precies de draden die ze bedoelde; **Alle** en **Voor mij** staan ernaast.
 
+Al het overige over opmerkingen en voorstellen — waar de bestanden staan, wat „vergrendeld” betekent — staat onder [Opmerkingen en voorstellen](Comments_and_Suggestions.md).
+
 **De melding komt hier later dan op de desktop, en dat is een eigenschap, geen fout.** Plainva heeft geen server die je telefoon kan porren — er een bouwen zou betekenen dat een vreemde server verneemt wanneer wie welke notitie becommentarieerde. Een opmerking valt daarom op waar de telefoon toch al kijkt: na een synchronisatieronde en bij terugkeer naar de voorgrond. Er loopt daarvoor geen timer op de achtergrond; geen enkel telefoonplatform staat dat toe.

@@ -641,8 +641,8 @@ export function PropertyRow(props: PropertyRowProps) {
           type="button"
           className="pv-comment-dot"
           data-has={commentCount ? "true" : "false"}
-          data-tip={commentCount ? t("workspaceSecurity.commentThreadCount", { count: commentCount }) : t("workspaceSecurity.commentOnProperty")}
-          aria-label={commentCount ? t("workspaceSecurity.commentThreadCount", { count: commentCount }) : t("workspaceSecurity.commentOnProperty")}
+          data-tip={commentCount ? t("comments.commentThreadCount", { count: commentCount }) : t("comments.commentOnProperty")}
+          aria-label={commentCount ? t("comments.commentThreadCount", { count: commentCount }) : t("comments.commentOnProperty")}
           onClick={() => onComment(propKey)}
         >
           <MessageSquare size={ICON.meta} aria-hidden="true" />

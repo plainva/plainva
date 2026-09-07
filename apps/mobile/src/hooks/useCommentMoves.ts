@@ -28,7 +28,7 @@ export function useCommentMoves(vault: MobileVault | null): void {
       if (moves.length === 0) return;
       void mobileCommentStore(vault).recordMoves(moves).catch((error) => {
         console.error("[comments] moves not recorded", error);
-        toast.warning(t("workspaceSecurity.commentMoveFailed"));
+        toast.warning(t("comments.commentMoveFailed"));
       });
     };
     window.addEventListener("plainva-file-ops", onOps);

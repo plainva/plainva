@@ -17,11 +17,11 @@ import type { MobileVault } from "../services/vaultService";
 export function describeCommentFaults(faults: readonly CommentBundleFault[], t: (key: string, vars?: Record<string, string>) => string): string {
   return faults
     .map((fault) => {
-      const reason = t(`workspaceSecurity.commentFaultReason.${fault.reason}`);
+      const reason = t(`comments.commentFaultReason.${fault.reason}`);
       const file = fault.path.replace(/^remote:/, "");
       return fault.movedTo
-        ? t("workspaceSecurity.commentFileSetAside", { file: fault.movedTo, reason })
-        : t("workspaceSecurity.commentFileUnreadable", { file, reason });
+        ? t("comments.commentFileSetAside", { file: fault.movedTo, reason })
+        : t("comments.commentFileUnreadable", { file, reason });
     })
     .join("\n");
 }
@@ -55,7 +55,7 @@ export function useCommentFaults(vault: MobileVault | null): void {
       });
       if (fresh.length === 0) return;
       toast.warning(describeCommentFaults(fresh, t), {
-        label: t("workspaceSecurity.commentFaultExport"),
+        label: t("comments.commentFaultExport"),
         run: () => {
           void shareVaultText(`Plainva-Comments-Diagnostics-${new Date().toISOString().slice(0, 10)}.json`, commentFaultDiagnostics(fresh), "application/json").catch((error) => toast.error(error instanceof Error ? error.message : String(error)));
         },

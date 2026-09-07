@@ -256,4 +256,6 @@ Hat jemand etwas an eine Notiz geschrieben, kann Plainva Dich benachrichtigen �
 
 Sind mehrere Anmerkungen auf einmal neu, öffnet die Meldung **Offene Kommentare** auf dem Reiter **Neu** — genau die Fäden, die sie gemeint hat; **Alle** und **An mich** stehen daneben.
 
+Alles Weitere zu Kommentaren und Vorschlägen — auch wo die Dateien liegen und was „gesperrt“ heißt — steht unter [Kommentare & Vorschläge](Comments_and_Suggestions.md).
+
 **Die Meldung kommt hier später als am Desktop, und das ist eine Eigenschaft, kein Fehler.** Plainva hat keinen Server, der Dein Telefon anstupsen könnte — den zu bauen hieße, dass ein fremder Server erfährt, wann wer welche Notiz kommentiert hat. Eine Anmerkung fällt deshalb dort auf, wo das Telefon ohnehin nachsieht: nach einem Sync-Zyklus und beim Zurückkehren in den Vordergrund. Im Hintergrund läuft dafür kein Zeitgeber; das erlaubt keine Telefon-Plattform.

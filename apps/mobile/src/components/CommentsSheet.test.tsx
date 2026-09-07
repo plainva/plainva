@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { CommentsSheet } from "./CommentsSheet";
@@ -61,8 +60,8 @@ describe("the comments sheet, locked", () => {
         />,
       );
     });
-    expect(host.textContent).toContain(tr("workspaceSecurity.commentsLocked"));
-    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentsNone"));
+    expect(host.textContent).toContain(tr("comments.commentsLocked"));
+    expect(host.textContent).not.toContain(tr("comments.commentsNone"));
     expect(host.querySelector(".pv-comment-compose")).toBeNull();
     await act(async () => { (host.querySelector('[data-testid="comments-unlock"]') as HTMLButtonElement).click(); });
     expect(onUnlock).toHaveBeenCalledTimes(1);

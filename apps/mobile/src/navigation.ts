@@ -53,7 +53,7 @@ export const TAB_POOL: TabDef[] = [
   // no migration: the bar holds four at a time, and the areas sheet lists the
   // whole pool — so it is reachable the moment it exists, and being outside the
   // bar is the normal state for most of the pool rather than an oversight.
-  { id: "comments", icon: MessageSquare, labelKey: "workspaceSecurity.commentOverview" },
+  { id: "comments", icon: MessageSquare, labelKey: "comments.commentOverview" },
 ];
 
 /**

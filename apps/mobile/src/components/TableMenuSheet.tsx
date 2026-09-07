@@ -46,7 +46,7 @@ export function TableMenuSheet({
   const { t } = useTranslation();
   const rows: Array<{ action: TableMenuAction; icon: React.ReactNode; label: string; danger?: boolean }> = [
     ...(canComment
-      ? [{ action: "cell-comment" as const, icon: <MessageSquarePlus size={ICON.head} />, label: t("workspaceSecurity.commentOnCell") }]
+      ? [{ action: "cell-comment" as const, icon: <MessageSquarePlus size={ICON.head} />, label: t("comments.commentOnCell") }]
       : []),
     // S21: the three destructive entries used to sit BETWEEN the harmless ones
     // — "delete row" between "row below" and "column left". Insert, then align,

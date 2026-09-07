@@ -168,20 +168,20 @@ export function CommentsSheet({
     if (!activeCommentId || !card || typeof card.scrollIntoView !== "function") return;
     card.scrollIntoView({ block: "nearest" });
   }, [activeCommentId, kind, filter]);
-  const nameOf = (id: string) => memberNames.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
+  const nameOf = (id: string) => memberNames.get(id) ?? t("comments.commentUnknownAuthor");
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
-    <IconButton label={t("workspaceSecurity.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
+    <IconButton label={t("comments.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
       <Trash2 size={ICON.touch} />
     </IconButton>
   ) : null;
   const confirmBox = (record: WorkspaceCommentRecord, replyCount: number) => confirmDelete === record.commentId ? (
     <div className="pv-comment-card__confirm" role="alertdialog">
-      <span>{replyCount > 0 ? t("workspaceSecurity.commentDeleteConfirmThread") : t("workspaceSecurity.commentDeleteConfirm")}</span>
+      <span>{replyCount > 0 ? t("comments.commentDeleteConfirmThread") : t("comments.commentDeleteConfirm")}</span>
       <div className="pv-comment-card__actions">
-        <Button variant="danger" size="sm" onClick={() => { setConfirmDelete(null); onDelete?.(record); }}>{t("workspaceSecurity.commentDelete")}</Button>
+        <Button variant="danger" size="sm" onClick={() => { setConfirmDelete(null); onDelete?.(record); }}>{t("comments.commentDelete")}</Button>
         <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>{t("common.cancel")}</Button>
       </div>
     </div>
@@ -216,11 +216,11 @@ export function CommentsSheet({
       if (property.status === "orphan") {
         // Same record as the desktop card: the key it was written against plus
         // the value it held. A name alone leaves the reader nothing to place.
-        const gone = t("workspaceSecurity.commentPropertyOrphan", {
+        const gone = t("comments.commentPropertyOrphan", {
           key: comment.anchor.display?.kind === "property" ? comment.anchor.display.key : "",
         });
         if (!comment.anchor.quote) return gone;
-        return `${gone} ${t("workspaceSecurity.commentPropertyOrphanValue", { value: comment.anchor.quote })}`;
+        return `${gone} ${t("comments.commentPropertyOrphanValue", { value: comment.anchor.quote })}`;
       }
       const hint = toAnchorDisplayHint(
         comment.anchor.display,
@@ -244,7 +244,7 @@ export function CommentsSheet({
                 <CommentCardHead name={nameOf(root.authorMemberId)} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
                 {addressed && (
                   <span className="pv-comment-card__state">
-                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}
+                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("comments.commentMentionsYou")}
                   </span>
                 )}
                 {root.anchor && (
@@ -261,7 +261,7 @@ export function CommentsSheet({
                 )}
                 {root.body && <CommentBody body={root.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
                 {state && root.suggestion && (
-                  <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
+                  <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
                 )}
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
@@ -276,31 +276,31 @@ export function CommentsSheet({
                   // parity): accept and decline side by side, never wrapped apart.
                   <div className="pv-comment-card__decision">
                     <Button size="sm" onClick={() => onApplySuggestion(root)}>
-                      {t("workspaceSecurity.suggestionApply")}
+                      {t("comments.suggestionApply")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => onDeclineSuggestion(root)}>
-                      {t("workspaceSecurity.suggestionDecline")}
+                      {t("comments.suggestionDecline")}
                     </Button>
                   </div>
                 )}
                 <div className="pv-comment-card__actions">
                   {state === "applied" && (
-                    <span className="pv-comment-card__state">{t("workspaceSecurity.suggestionApplied")}</span>
+                    <span className="pv-comment-card__state">{t("comments.suggestionApplied")}</span>
                   )}
                   {state === "declined" && (
-                    <span className="pv-comment-card__state">{t("workspaceSecurity.suggestionDeclined")}</span>
+                    <span className="pv-comment-card__state">{t("comments.suggestionDeclined")}</span>
                   )}
                   {canComment && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => setReplyTo(root.commentId)}>
-                        {t("workspaceSecurity.commentReply")}
+                        {t("comments.commentReply")}
                       </Button>
                       {/* A remark and a proposal alike can turn out to be
                           work, so this sits outside the `!state` branch. */}
                       {!root.resolvedAt && (
                         <Button size="sm" variant="ghost" onClick={() => onPromoteToTask(root)}>
                           <ListChecks size={ICON.meta} aria-hidden="true" />
-                          {t("workspaceSecurity.commentToTask")}
+                          {t("comments.commentToTask")}
                         </Button>
                       )}
                       {!state && !root.resolvedAt && (
@@ -325,30 +325,30 @@ export function CommentsSheet({
         <div className="pv-comment-column__head">
           <Segmented
             size="sm"
-            ariaLabel={t("workspaceSecurity.comments")}
+            ariaLabel={t("comments.comments")}
             value={kind}
             onChange={(next) => { kindTouched.current = true; setKind(next); }}
             options={[
-              { value: "comments", label: `${t("workspaceSecurity.comments")} · ${openByKind.comments}` },
-              { value: "suggestions", label: `${t("workspaceSecurity.suggestions")} · ${openByKind.suggestions}` },
+              { value: "comments", label: `${t("comments.comments")} · ${openByKind.comments}` },
+              { value: "suggestions", label: `${t("comments.suggestions")} · ${openByKind.suggestions}` },
             ]}
           />
-          <span className="pv-comment-column__count" hidden>{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+          <span className="pv-comment-column__count" hidden>{t("comments.commentOpenCount", { n: openCount })}</span>
           <span className="pv-comment-column__spacer" />
           {threads.length > 0 && (
             <Segmented
               size="sm"
-              ariaLabel={t("workspaceSecurity.comments")}
+              ariaLabel={t("comments.comments")}
               value={filter}
               onChange={setFilter}
               options={[
-                { value: "open", label: t("workspaceSecurity.commentFilterOpen") },
-                { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
+                { value: "open", label: t("comments.commentFilterOpen") },
+                { value: "all", label: t("comments.commentOverviewAll") },
               ]}
             />
           )}
           {onToggleInlineSuggestions && (
-            <IconButton label={t("workspaceSecurity.suggestionInline")} active={inlineSuggestions === true} onClick={onToggleInlineSuggestions}>
+            <IconButton label={t("comments.suggestionInline")} active={inlineSuggestions === true} onClick={onToggleInlineSuggestions}>
               <Replace size={ICON.touch} />
             </IconButton>
           )}
@@ -363,23 +363,23 @@ export function CommentsSheet({
           )}
         </div>
         {locked && (
-          <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("workspaceSecurity.commentsUnlock")}</Button>}>
-            {t("workspaceSecurity.commentsLocked")}
+          <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>}>
+            {t("comments.commentsLocked")}
           </EmptyState>
         )}
-        {!locked && kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+        {!locked && kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
         <div className="pv-comment-list">
-          {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+          {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
           {kind === "suggestions" && grouped.rounds.map((round) => (
             <section key={round.batchId} className="pv-comment-round">
               {!round.batchId.startsWith("single:") && (
                 <div className="pv-comment-round__head">
                   <CommentCardHead name={nameOf(round.authorMemberId)} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
-                  <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("workspaceSecurity.suggestRoundCount", { n: round.blocks.length })}</p>
+                  <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("comments.suggestRoundCount", { n: round.blocks.length })}</p>
                   {round.open > 1 && (
                     <div className="pv-comment-card__actions">
-                      {canWrite && onApplyRound && <Button size="sm" onClick={() => onApplyRound(round.batchId)}>{t("workspaceSecurity.suggestApplyAll")}</Button>}
-                      {canComment && onDeclineRound && <Button size="sm" variant="ghost" onClick={() => onDeclineRound(round.batchId)}>{t("workspaceSecurity.suggestDeclineAll")}</Button>}
+                      {canWrite && onApplyRound && <Button size="sm" onClick={() => onApplyRound(round.batchId)}>{t("comments.suggestApplyAll")}</Button>}
+                      {canComment && onDeclineRound && <Button size="sm" variant="ghost" onClick={() => onDeclineRound(round.batchId)}>{t("comments.suggestDeclineAll")}</Button>}
                     </div>
                   )}
                 </div>
@@ -392,11 +392,11 @@ export function CommentsSheet({
         {canComment && !locked && (
           <div className="pv-comment-compose">
             <MentionTextArea
-              aria-label={t(replyTo ? "workspaceSecurity.commentReply" : "workspaceSecurity.addComment")}
+              aria-label={t(replyTo ? "comments.commentReply" : "workspaceSecurity.addComment")}
               names={memberNames}
               onChange={setBody}
-              pickerLabel={t("workspaceSecurity.commentMentionPicker")}
-              placeholder={t(replyTo ? "workspaceSecurity.commentReplyPlaceholder" : "workspaceSecurity.addComment")}
+              pickerLabel={t("comments.commentMentionPicker")}
+              placeholder={t(replyTo ? "comments.commentReplyPlaceholder" : "workspaceSecurity.addComment")}
               rows={3}
               value={body}
             />

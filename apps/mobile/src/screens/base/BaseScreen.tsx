@@ -443,7 +443,7 @@ export function BaseScreen({
         type="button"
         className="m-prop-comments"
         data-testid={`cell-comments-${col}`}
-        aria-label={t("workspaceSecurity.commentThreadCount", { count })}
+        aria-label={t("comments.commentThreadCount", { count })}
         onClick={(e) => { e.stopPropagation(); openPropertyComments(path, col); }}
       >
         <MessageSquare size={ICON.meta} />

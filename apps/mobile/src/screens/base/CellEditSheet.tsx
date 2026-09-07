@@ -289,7 +289,7 @@ export function CellEditSheet({
         {onCommentProperty && (
           <button className="m-row" onClick={onCommentProperty} data-testid="base-comment-property">
             <MessageSquare size={ICON.head} />
-            <span>{t("workspaceSecurity.commentOnProperty")}</span>
+            <span>{t("comments.commentOnProperty")}</span>
           </button>
         )}
       </div>

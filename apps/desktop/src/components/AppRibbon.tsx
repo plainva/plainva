@@ -149,7 +149,7 @@ export function AppRibbon(props: AppRibbonProps) {
     ...(props.onOpenMail
       ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail", windowPath: MAIL_TAB_PATH } }
       : {}),
-    comments: { key: "comments", label: t("workspaceSecurity.commentOverview", { defaultValue: "Offene Kommentare" }), icon: <MessageSquare size={ICON.head} />, run: props.onOpenComments, testId: "ribbon-comments", windowPath: COMMENTS_TAB_PATH },
+    comments: { key: "comments", label: t("comments.commentOverview", { defaultValue: "Offene Kommentare" }), icon: <MessageSquare size={ICON.head} />, run: props.onOpenComments, testId: "ribbon-comments", windowPath: COMMENTS_TAB_PATH },
     palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
   };
 

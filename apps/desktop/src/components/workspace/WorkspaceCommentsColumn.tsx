@@ -146,7 +146,7 @@ export function WorkspaceCommentsColumn({
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton
       size="sm"
-      label={t("workspaceSecurity.commentDelete")}
+      label={t("comments.commentDelete")}
       onClick={(event) => { event.stopPropagation(); setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId); }}
       data-testid={`comment-delete-${record.commentId}`}
     >
@@ -155,10 +155,10 @@ export function WorkspaceCommentsColumn({
   ) : null;
   const confirmBox = (record: WorkspaceCommentRecord, replyCount: number) => confirmDelete === record.commentId ? (
     <div className="pv-comment-card__confirm" role="alertdialog" onClick={(event) => event.stopPropagation()}>
-      <span>{replyCount > 0 ? t("workspaceSecurity.commentDeleteConfirmThread") : t("workspaceSecurity.commentDeleteConfirm")}</span>
+      <span>{replyCount > 0 ? t("comments.commentDeleteConfirmThread") : t("comments.commentDeleteConfirm")}</span>
       <div className="pv-comment-card__actions">
         <Button variant="danger" size="sm" onClick={() => { setConfirmDelete(null); onDelete?.(record); }} data-testid="comment-delete-confirm">
-          {t("workspaceSecurity.commentDelete")}
+          {t("comments.commentDelete")}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>{t("common.cancel")}</Button>
       </div>
@@ -213,7 +213,7 @@ export function WorkspaceCommentsColumn({
   }, [activeCommentId, kind, filter]);
 
   const authorOf = (comment: WorkspaceCommentRecord): string =>
-    memberNames.get(comment.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor");
+    memberNames.get(comment.authorMemberId) ?? t("comments.commentUnknownAuthor");
 
   /**
    * The returns, grouped by the publication they arrived through.
@@ -268,19 +268,19 @@ export function WorkspaceCommentsColumn({
   const pendingState = (record: WorkspaceCommentRecord, own: boolean) => {
     if (!record.pending) return null;
     if (record.pending.lastError === null) {
-      return <span className="pv-comment-card__state" data-state="sending"><Send size={ICON.meta} /> {t("workspaceSecurity.commentSending")}</span>;
+      return <span className="pv-comment-card__state" data-state="sending"><Send size={ICON.meta} /> {t("comments.commentSending")}</span>;
     }
     return (
       <>
-        <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("workspaceSecurity.commentSendFailed", { reason: record.pending.lastError })}</span>
+        <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("comments.commentSendFailed", { reason: record.pending.lastError })}</span>
         {own && onRetryPending && (
           <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onRetryPending(record.pending!.outboxId); }}>
-            {t("workspaceSecurity.commentSendRetry")}
+            {t("comments.commentSendRetry")}
           </Button>
         )}
         {own && onDiscardPending && (
           <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDiscardPending(record.pending!.outboxId); }}>
-            {t("workspaceSecurity.commentSendDiscard")}
+            {t("comments.commentSendDiscard")}
           </Button>
         )}
       </>
@@ -300,11 +300,11 @@ export function WorkspaceCommentsColumn({
         // the value an orphan is a name with nothing behind it.
         return (
           <span className="pv-comment-card__state">
-            {t("workspaceSecurity.commentPropertyOrphan", {
+            {t("comments.commentPropertyOrphan", {
               key: comment.anchor.display?.kind === "property" ? comment.anchor.display.key : "",
             })}
             {comment.anchor.quote
-              ? ` ${t("workspaceSecurity.commentPropertyOrphanValue", { value: comment.anchor.quote })}`
+              ? ` ${t("comments.commentPropertyOrphanValue", { value: comment.anchor.quote })}`
               : ""}
           </span>
         );
@@ -328,8 +328,8 @@ export function WorkspaceCommentsColumn({
     // A cell is named by where it is TODAY (V7): the row and the column's
     // header, with a caveat only when it moved or says something else.
     const place = resolution && resolution.status !== "orphan" && resolution.cell ? { ...resolution.cell, moved: resolution.status === "moved" } : null;
-    if (status === "orphan") return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorOrphan")}</span>;
-    if (status === "moved" && !place) return <span className="pv-comment-card__state">{t("workspaceSecurity.commentAnchorMoved")}</span>;
+    if (status === "orphan") return <span className="pv-comment-card__state">{t("comments.commentAnchorOrphan")}</span>;
+    if (status === "moved" && !place) return <span className="pv-comment-card__state">{t("comments.commentAnchorMoved")}</span>;
     // Stufe E (E1): a widget covers the range, so there is no quote to show.
     // The card names the thing instead - "on the image" beats an empty card.
     const displayHint = toAnchorDisplayHint(comment.anchor.display, undefined, place);
@@ -352,8 +352,8 @@ export function WorkspaceCommentsColumn({
    */
   const suggestionState = (comment: WorkspaceCommentRecord) => {
     if (!comment.suggestion) return null;
-    if (comment.suggestion.appliedAt) return <span className="pv-comment-card__state"><Check size={ICON.meta} /> {t("workspaceSecurity.suggestionApplied")}</span>;
-    if (comment.suggestion.declinedAt) return <span className="pv-comment-card__state"><X size={ICON.meta} /> {t("workspaceSecurity.suggestionDeclined")}</span>;
+    if (comment.suggestion.appliedAt) return <span className="pv-comment-card__state"><Check size={ICON.meta} /> {t("comments.suggestionApplied")}</span>;
+    if (comment.suggestion.declinedAt) return <span className="pv-comment-card__state"><X size={ICON.meta} /> {t("comments.suggestionDeclined")}</span>;
     // Resolved without an outcome: a device that predates suggestions closed
     // the thread. Saying "resolved" is the honest answer, not a guess.
     if (comment.resolvedAt) return <span className="pv-comment-card__state"><Check size={ICON.meta} /> {t("workspaceSecurity.resolved")}</span>;
@@ -369,11 +369,11 @@ export function WorkspaceCommentsColumn({
           onClick={() => onSelect(activeCommentId === root.commentId ? null : root.commentId)}
         >
           {root.suggestion
-            ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
+            ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
             : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
           {addressed && (
             <span className="pv-comment-card__state">
-              <AtSign size={ICON.meta} /> {t("workspaceSecurity.commentMentionsYou")}
+              <AtSign size={ICON.meta} /> {t("comments.commentMentionsYou")}
             </span>
           )}
           {anchorNote(root)}
@@ -401,12 +401,12 @@ export function WorkspaceCommentsColumn({
                   declining only closes the thread. */}
               {canWrite && (
                 <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onApplySuggestion(root); }}>
-                  <Check size={ICON.meta} /> {t("workspaceSecurity.suggestionApply")}
+                  <Check size={ICON.meta} /> {t("comments.suggestionApply")}
                 </Button>
               )}
               {canComment && (
                 <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDeclineSuggestion(root); }}>
-                  <X size={ICON.meta} /> {t("workspaceSecurity.suggestionDecline")}
+                  <X size={ICON.meta} /> {t("comments.suggestionDecline")}
                 </Button>
               )}
             </div>
@@ -418,7 +418,7 @@ export function WorkspaceCommentsColumn({
                 size="sm"
                 onClick={(event) => { event.stopPropagation(); setReplyTo(replyTo === root.commentId ? null : root.commentId); setReplyDraft(""); }}
               >
-                <CornerDownRight size={ICON.meta} /> {t("workspaceSecurity.commentReply")}
+                <CornerDownRight size={ICON.meta} /> {t("comments.commentReply")}
               </Button>
             )}
             {suggestionState(root)}
@@ -426,7 +426,7 @@ export function WorkspaceCommentsColumn({
                 turn out to be work, and which one it was does not change that. */}
             {canComment && !root.resolvedAt && (
               <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onPromoteToTask(root); }}>
-                <ListChecks size={ICON.meta} /> {t("workspaceSecurity.commentToTask")}
+                <ListChecks size={ICON.meta} /> {t("comments.commentToTask")}
               </Button>
             )}
             {root.resolvedAt
@@ -447,8 +447,8 @@ export function WorkspaceCommentsColumn({
                 value={replyDraft}
                 rows={2}
                 names={memberNames}
-                pickerLabel={t("workspaceSecurity.commentMentionPicker")}
-                placeholder={t("workspaceSecurity.commentReplyPlaceholder")}
+                pickerLabel={t("comments.commentMentionPicker")}
+                placeholder={t("comments.commentReplyPlaceholder")}
                 onChange={setReplyDraft}
               />
               <Button size="sm" disabled={busy || !replyDraft.trim()} onClick={() => void post(replyDraft.trim(), root.commentId)}>
@@ -460,35 +460,35 @@ export function WorkspaceCommentsColumn({
   );
 
   return (
-    <aside className="pv-comment-column" aria-label={t("workspaceSecurity.comments")}>
+    <aside className="pv-comment-column" aria-label={t("comments.comments")}>
       <div className="pv-comment-column__head">
         <Segmented
           size="sm"
-          ariaLabel={t("workspaceSecurity.comments")}
+          ariaLabel={t("comments.comments")}
           value={kind}
           onChange={(next) => { kindTouched.current = true; setKind(next); }}
           options={[
-            { value: "comments", label: `${t("workspaceSecurity.comments")} · ${openByKind.comments}`, testId: "comment-kind-comments" },
-            { value: "suggestions", label: `${t("workspaceSecurity.suggestions")} · ${openByKind.suggestions}`, testId: "comment-kind-suggestions" },
+            { value: "comments", label: `${t("comments.comments")} · ${openByKind.comments}`, testId: "comment-kind-comments" },
+            { value: "suggestions", label: `${t("comments.suggestions")} · ${openByKind.suggestions}`, testId: "comment-kind-suggestions" },
           ]}
         />
-        <span className="pv-comment-column__count" data-testid="comment-open-count" hidden>{t("workspaceSecurity.commentOpenCount", { n: openCount })}</span>
+        <span className="pv-comment-column__count" data-testid="comment-open-count" hidden>{t("comments.commentOpenCount", { n: openCount })}</span>
         <span className="pv-comment-column__spacer" />
         {threads.length > 0 && (
           <Segmented
             size="sm"
-            ariaLabel={t("workspaceSecurity.comments")}
+            ariaLabel={t("comments.comments")}
             value={filter}
             onChange={setFilter}
             options={[
-              { value: "open", label: t("workspaceSecurity.commentFilterOpen"), testId: "comment-filter-open" },
-              { value: "all", label: t("workspaceSecurity.commentOverviewAll"), testId: "comment-filter-all" },
+              { value: "open", label: t("comments.commentFilterOpen"), testId: "comment-filter-open" },
+              { value: "all", label: t("comments.commentOverviewAll"), testId: "comment-filter-all" },
             ]}
           />
         )}
         {onToggleInlineSuggestions && (
           <IconButton
-            label={t("workspaceSecurity.suggestionInline")}
+            label={t("comments.suggestionInline")}
             active={inlineSuggestions === true}
             onClick={onToggleInlineSuggestions}
             data-testid="comment-inline-toggle"
@@ -508,40 +508,40 @@ export function WorkspaceCommentsColumn({
           </IconButton>
         )}
         {onClose && (
-          <IconButton label={t("workspaceSecurity.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
+          <IconButton label={t("comments.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
             <X size={ICON.ui} />
           </IconButton>
         )}
       </div>
       <div className="pv-comment-column__body">
       {locked && (
-        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("workspaceSecurity.commentsUnlock")}</Button>} >
-          {t("workspaceSecurity.commentsLocked")}
+        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>} >
+          {t("comments.commentsLocked")}
         </EmptyState>
       )}
-      {!locked && kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+      {!locked && kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
+      {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("comments.suggestionsNone")}</p>}
       {kind === "suggestions" && grouped.rounds.map((round) => {
         const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
         return (
-          <section key={round.batchId} className="pv-comment-round" aria-label={t("workspaceSecurity.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor") })}>
+          <section key={round.batchId} className="pv-comment-round" aria-label={t("comments.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor") })}>
             {!round.batchId.startsWith("single:") && (
             <div className="pv-comment-round__head">
-              <CommentCardHead name={memberNames.get(round.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+              <CommentCardHead name={memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor")} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
               <p className="pv-comment-round__meta">
                 {round.note ? <em>„{round.note}“ · </em> : null}
-                {t("workspaceSecurity.suggestRoundCount", { n: round.blocks.length })}
+                {t("comments.suggestRoundCount", { n: round.blocks.length })}
               </p>
               {open.length > 1 && (
                 <div className="pv-comment-card__actions">
                   {canWrite && onApplyRound && (
                     <Button variant="ghost" size="sm" onClick={() => onApplyRound(round.batchId)} data-testid={`round-apply-${round.batchId}`}>
-                      <Check size={ICON.meta} /> {t("workspaceSecurity.suggestApplyAll")}
+                      <Check size={ICON.meta} /> {t("comments.suggestApplyAll")}
                     </Button>
                   )}
                   {canComment && onDeclineRound && (
                     <Button variant="ghost" size="sm" onClick={() => onDeclineRound(round.batchId)}>
-                      <X size={ICON.meta} /> {t("workspaceSecurity.suggestDeclineAll")}
+                      <X size={ICON.meta} /> {t("comments.suggestDeclineAll")}
                     </Button>
                   )}
                 </div>
@@ -559,8 +559,8 @@ export function WorkspaceCommentsColumn({
         <div className="pv-comment-compose pv-comment-compose--new">
           <p className="pv-comment-compose__target">
             {selectionQuote
-              ? t("workspaceSecurity.commentOnSelection", { quote: selectionQuote })
-              : t("workspaceSecurity.commentOnNote")}
+              ? t("comments.commentOnSelection", { quote: selectionQuote })
+              : t("comments.commentOnNote")}
           </p>
           {/* Proposing left this box with the suggestion mode (V4, decision F6):
               a remark is written here, a change is proposed in the text. */}
@@ -568,7 +568,7 @@ export function WorkspaceCommentsColumn({
             value={draft}
             rows={3}
             names={memberNames}
-            pickerLabel={t("workspaceSecurity.commentMentionPicker")}
+            pickerLabel={t("comments.commentMentionPicker")}
             placeholder={t("workspaceSecurity.addComment")}
             onChange={setDraft}
           />
@@ -594,12 +594,12 @@ export function WorkspaceCommentsColumn({
             return (
               <div key={root.commentId} className="pv-comment-card pv-comment-card--incoming">
                 {root.suggestion
-                  ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("workspaceSecurity.suggestionDeletes")} />
+                  ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
                   : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
-                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("workspaceSecurity.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                   </div>
                 ))}
                 {/* Both lines state a fact about the record, not a failure: the

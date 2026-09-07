@@ -104,7 +104,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
       { id: "calendar", labelKey: "pim.openCalendar", icon: CalendarRange },
       { id: "mail", labelKey: "mail.openMail", icon: Mail },
-      { id: "comments", labelKey: "workspaceSecurity.commentOverview", icon: MessageSquare },
+      { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
       { id: "palette", labelKey: "palette.title", icon: Command },
     ],
   },
@@ -157,7 +157,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "calendar", labelKey: "mobile.tabCalendar", icon: CalendarDays },
       { id: "mail", labelKey: "mail.title", icon: Mail },
       { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
-      { id: "comments", labelKey: "workspaceSecurity.commentOverview", icon: MessageSquare },
+      { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
     ],
   },
 ];

@@ -20,11 +20,11 @@ export function describeCommentFaults(faults: readonly CommentBundleFault[]): st
   const t = i18n.t.bind(i18n);
   return faults
     .map((fault) => {
-      const reason = t(`workspaceSecurity.commentFaultReason.${fault.reason}`, { defaultValue: fault.reason });
+      const reason = t(`comments.commentFaultReason.${fault.reason}`, { defaultValue: fault.reason });
       const file = fault.path.replace(/^remote:/, "");
       return fault.movedTo
-        ? t("workspaceSecurity.commentFileSetAside", { file: fault.movedTo, reason })
-        : t("workspaceSecurity.commentFileUnreadable", { file, reason });
+        ? t("comments.commentFileSetAside", { file: fault.movedTo, reason })
+        : t("comments.commentFileUnreadable", { file, reason });
     })
     .join("\n");
 }
@@ -61,7 +61,7 @@ export function installCommentFaultReporter(vaultPath: string): () => void {
     });
     if (fresh.length === 0) return;
     toast.warning(describeCommentFaults(fresh), {
-      label: i18n.t("workspaceSecurity.commentFaultExport"),
+      label: i18n.t("comments.commentFaultExport"),
       run: () => {
         void (async () => {
           const target = await save({ defaultPath: `Plainva-Comments-Diagnostics-${new Date().toISOString().slice(0, 10)}.json` });

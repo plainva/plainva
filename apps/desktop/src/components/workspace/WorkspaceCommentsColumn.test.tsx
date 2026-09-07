@@ -114,8 +114,8 @@ describe("workspace comment column", () => {
     const cases: Array<[WorkspaceCommentAnchorResolution, string | null]> = [
       [{ status: "marker", from: 19, to: 38 }, null],
       [{ status: "quote", from: 19, to: 38 }, null],
-      [{ status: "moved", from: 42, to: 61 }, "workspaceSecurity.commentAnchorMoved"],
-      [{ status: "orphan" }, "workspaceSecurity.commentAnchorOrphan"],
+      [{ status: "moved", from: 42, to: 61 }, "comments.commentAnchorMoved"],
+      [{ status: "orphan" }, "comments.commentAnchorOrphan"],
     ];
     for (const [resolution, expected] of cases) {
       const resolutions = new Map([[anchored.commentId, resolution]]);
@@ -138,7 +138,7 @@ describe("workspace comment column", () => {
     expect(metas[0].getAttribute("data-tip")).toBe("aabbccdd11223344");
     // A name is a claim the policy carries. Where it carries none, the column
     // says so in words - it does not print eight characters of an id.
-    expect(metas[1].textContent).toContain(tr("workspaceSecurity.commentUnknownAuthor"));
+    expect(metas[1].textContent).toContain(tr("comments.commentUnknownAuthor"));
     expect(metas[1].textContent).not.toContain("1234");
     unmount();
   });
@@ -168,7 +168,7 @@ describe("workspace comment column", () => {
     withSelection.unmount();
 
     const withoutSelection = render(<WorkspaceCommentsColumn {...props()} />);
-    expect(withoutSelection.host.querySelector(".pv-comment-compose__target")?.textContent).toBe(tr("workspaceSecurity.commentOnNote"));
+    expect(withoutSelection.host.querySelector(".pv-comment-compose__target")?.textContent).toBe(tr("comments.commentOnNote"));
     withoutSelection.unmount();
   });
 
@@ -202,7 +202,7 @@ describe("workspace comment column", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, suggestion: { replacement: "", appliedAt: null, appliedBy: null, declinedAt: null } })],
     })} />);
-    expect(host.querySelector(".pv-comment-card__diff")?.textContent).toContain(tr("workspaceSecurity.suggestionDeletes"));
+    expect(host.querySelector(".pv-comment-card__diff")?.textContent).toContain(tr("comments.suggestionDeletes"));
     unmount();
   });
 
@@ -213,14 +213,14 @@ describe("workspace comment column", () => {
     const open = comment({ commentId: "aa".repeat(16), anchor: ANCHOR, suggestion: SUGGESTION });
     const writer = render(<WorkspaceCommentsColumn {...props({ comments: [open] })} />);
     const writerLabels = [...writer.host.querySelectorAll("button")].map((b) => b.textContent?.trim());
-    expect(writerLabels).toContain(tr("workspaceSecurity.suggestionApply"));
-    expect(writerLabels).toContain(tr("workspaceSecurity.suggestionDecline"));
+    expect(writerLabels).toContain(tr("comments.suggestionApply"));
+    expect(writerLabels).toContain(tr("comments.suggestionDecline"));
     writer.unmount();
 
     const commenter = render(<WorkspaceCommentsColumn {...props({ comments: [open], canWrite: false })} />);
     const commenterLabels = [...commenter.host.querySelectorAll("button")].map((b) => b.textContent?.trim());
-    expect(commenterLabels).not.toContain(tr("workspaceSecurity.suggestionApply"));
-    expect(commenterLabels).toContain(tr("workspaceSecurity.suggestionDecline"));
+    expect(commenterLabels).not.toContain(tr("comments.suggestionApply"));
+    expect(commenterLabels).toContain(tr("comments.suggestionDecline"));
     commenter.unmount();
   });
 
@@ -231,14 +231,14 @@ describe("workspace comment column", () => {
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, appliedAt: NOW, appliedBy: "aabbccdd11223344" } })],
     })} />);
     showAll(applied.host);
-    expect(applied.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionApplied"));
+    expect(applied.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("comments.suggestionApplied"));
     applied.unmount();
 
     const declined = render(<WorkspaceCommentsColumn {...props({
       comments: [comment({ commentId: "aa".repeat(16), anchor: ANCHOR, resolvedAt: NOW, suggestion: { ...SUGGESTION, declinedAt: NOW } })],
     })} />);
     showAll(declined.host);
-    expect(declined.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.suggestionDeclined"));
+    expect(declined.host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("comments.suggestionDeclined"));
     declined.unmount();
   });
 
@@ -258,7 +258,7 @@ describe("workspace comment column", () => {
     })} />);
     const cards = [...host.querySelectorAll(".pv-comment-card")];
     expect(cards[0].textContent).toContain("Bitte @Anna schauen");
-    expect(cards[0].querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.commentMentionsYou"));
+    expect(cards[0].querySelector(".pv-comment-card__state")?.textContent).toContain(tr("comments.commentMentionsYou"));
     // ...and the other card keeps quiet, or the badge would say nothing.
     expect(cards[1].querySelector(".pv-comment-card__state")).toBeNull();
     unmount();
@@ -270,7 +270,7 @@ describe("workspace comment column", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({
       comments: [root, reply], selfMemberId: "9999888877776666",
     })} />);
-    expect(host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("workspaceSecurity.commentMentionsYou"));
+    expect(host.querySelector(".pv-comment-card__state")?.textContent).toContain(tr("comments.commentMentionsYou"));
     unmount();
   });
 
@@ -284,14 +284,14 @@ describe("workspace comment column", () => {
     })} />);
     const cards = [...host.querySelectorAll(".pv-comment-card")];
     expect(cards[0].textContent).toContain("Offen");
-    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentMentionsYou"));
+    expect(host.textContent).not.toContain(tr("comments.commentMentionsYou"));
     unmount();
   });
 
   it("claims nothing while this device cannot say who it is", () => {
     const forSomeone = comment({ commentId: "aa".repeat(16), body: "Bitte @Anna schauen" });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [forSomeone] })} />);
-    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentMentionsYou"));
+    expect(host.textContent).not.toContain(tr("comments.commentMentionsYou"));
     unmount();
   });
 
@@ -430,9 +430,9 @@ describe("pending remarks (K6)", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[pending]} />);
     try {
       expect(host.textContent).toContain("On its way");
-      expect(host.textContent).toContain(tr("workspaceSecurity.commentSending"));
+      expect(host.textContent).toContain(tr("comments.commentSending"));
       expect(host.querySelector(".pv-comment-card.is-pending")).not.toBeNull();
-      expect(host.textContent).not.toContain(tr("workspaceSecurity.commentReply"));
+      expect(host.textContent).not.toContain(tr("comments.commentReply"));
       expect(host.textContent).not.toContain(tr("workspaceSecurity.resolve"));
     } finally { unmount(); }
   });
@@ -443,10 +443,10 @@ describe("pending remarks (K6)", () => {
     const failed = comment({ commentId: "c2", body: "Stuck", pending: { outboxId: "o2", attempts: 3, lastError: "workspace-object-not-synced" } });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[failed]} onRetryPending={onRetryPending} onDiscardPending={onDiscardPending} />);
     try {
-      expect(host.textContent).toContain(tr("workspaceSecurity.commentSendFailed").replace("{{reason}}", "workspace-object-not-synced"));
+      expect(host.textContent).toContain(tr("comments.commentSendFailed").replace("{{reason}}", "workspace-object-not-synced"));
       const buttons = [...host.querySelectorAll("button")];
-      const retry = buttons.find((b) => b.textContent?.trim() === tr("workspaceSecurity.commentSendRetry"))!;
-      const discard = buttons.find((b) => b.textContent?.trim() === tr("workspaceSecurity.commentSendDiscard"))!;
+      const retry = buttons.find((b) => b.textContent?.trim() === tr("comments.commentSendRetry"))!;
+      const discard = buttons.find((b) => b.textContent?.trim() === tr("comments.commentSendDiscard"))!;
       act(() => { retry.click(); });
       act(() => { discard.click(); });
       expect(onRetryPending).toHaveBeenCalledWith("o2");
@@ -458,7 +458,7 @@ describe("pending remarks (K6)", () => {
     const failed = comment({ commentId: "c3", body: "Theirs", authorMemberId: "9999888877776666", pending: { outboxId: "o3", attempts: 1, lastError: "x" } });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[failed]} onRetryPending={() => {}} onDiscardPending={() => {}} />);
     try {
-      expect(host.textContent).not.toContain(tr("workspaceSecurity.commentSendRetry"));
+      expect(host.textContent).not.toContain(tr("comments.commentSendRetry"));
     } finally { unmount(); }
   });
 });
@@ -490,7 +490,7 @@ describe("column head and card head (K3)", () => {
     const done = comment({ commentId: "d1", body: "Settled", resolvedAt: NOW });
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[open, done]} />);
     try {
-      expect(host.querySelector("[data-testid=comment-open-count]")?.textContent).toBe(tr("workspaceSecurity.commentOpenCount").replace("{{n}}", "1"));
+      expect(host.querySelector("[data-testid=comment-open-count]")?.textContent).toBe(tr("comments.commentOpenCount").replace("{{n}}", "1"));
       expect(host.textContent).toContain("Still open");
       expect(host.textContent).not.toContain("Settled");
       act(() => { (host.querySelector("[data-testid=comment-filter-all]") as HTMLElement).click(); });
@@ -540,7 +540,7 @@ describe("deleting a remark (K7)", () => {
     const { host, unmount } = render(<WorkspaceCommentsColumn {...baseProps} comments={[mine]} onDelete={onDelete} />);
     try {
       act(() => { (host.querySelector("[data-testid=comment-delete-m1]") as HTMLElement).click(); });
-      expect(host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("workspaceSecurity.commentDeleteConfirm"));
+      expect(host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("comments.commentDeleteConfirm"));
       expect(onDelete).not.toHaveBeenCalled();
       act(() => { (host.querySelector("[data-testid=comment-delete-confirm]") as HTMLElement).click(); });
       expect(onDelete).toHaveBeenCalledWith(mine);
@@ -560,7 +560,7 @@ describe("deleting a remark (K7)", () => {
     const moderator = render(<WorkspaceCommentsColumn {...baseProps} comments={[theirs, reply]} onDelete={() => {}} canModerate />);
     try {
       act(() => { (moderator.host.querySelector("[data-testid=comment-delete-t1]") as HTMLElement).click(); });
-      expect(moderator.host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("workspaceSecurity.commentDeleteConfirmThread"));
+      expect(moderator.host.querySelector(".pv-comment-card__confirm")?.textContent).toContain(tr("comments.commentDeleteConfirmThread"));
     } finally { moderator.unmount(); }
   });
 });
@@ -596,7 +596,7 @@ describe("proposal rounds (V3)", () => {
       act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
       const round = host.querySelector(".pv-comment-round")!;
       expect(round.textContent).toContain("From the PDF");
-      expect(round.textContent).toContain(tr("workspaceSecurity.suggestRoundCount").replace("{{n}}", "2"));
+      expect(round.textContent).toContain(tr("comments.suggestRoundCount").replace("{{n}}", "2"));
       expect(round.querySelectorAll(".pv-comment-card")).toHaveLength(2);
       act(() => { (host.querySelector("[data-testid=round-apply-" + "ab".repeat(16) + "]") as HTMLElement).click(); });
       expect(onApplyRound).toHaveBeenCalledWith("ab".repeat(16));
@@ -668,8 +668,8 @@ describe("locked on this device (N3)", () => {
         locked={{ onUnlock }}
       />,
     );
-    expect(host.textContent).toContain(tr("workspaceSecurity.commentsLocked"));
-    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentsNone"));
+    expect(host.textContent).toContain(tr("comments.commentsLocked"));
+    expect(host.textContent).not.toContain(tr("comments.commentsNone"));
     expect(host.querySelector(".pv-comment-compose")).toBeNull();
     await act(async () => { (host.querySelector('[data-testid="comments-unlock"]') as HTMLButtonElement).click(); });
     expect(onUnlock).toHaveBeenCalledTimes(1);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -125,5 +125,27 @@ describe("locked and unreadable are said, not hidden (N3)", () => {
     expect(context).toMatch(/if \(!state\.vaultPath \|\| isClient\) return;\s*return installCommentFaultReporter\(state\.vaultPath\);/);
     const overview = strip(read("components", "comments", "CommentsOverview.tsx"));
     expect(overview).toMatch(/storeState\?\.mode === "locked"/);
+  });
+});
+
+describe("the comment texts live in their own namespace (N4)", () => {
+  it("no code asks for a comment or suggestion text under workspaceSecurity any more", () => {
+    // The feature stopped hanging on the encryption in Stufe D; the KI harness
+    // adds more comment texts, and they must not land under "security" either.
+    // `commentOnly` is a workspace ROLE description and stays where it is.
+    const roots = [join(SRC), join(SRC, "..", "..", "mobile", "src"), join(SRC, "..", "..", "..", "packages", "ui", "src")];
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) { if (entry.name !== "node_modules") walk(path); continue; }
+        if (!/\.(ts|tsx)$/.test(entry.name) || path.endsWith("commentStoreWiring.test.ts")) continue;
+        const content = readFileSync(path, "utf8").split("workspaceSecurity.commentOnly").join("");
+        const hit = content.match(/workspaceSecurity\.(?:comment|suggest)[A-Za-z]*/);
+        if (hit) offenders.push(`${path} :: ${hit[0]}`);
+      }
+    };
+    for (const root of roots) walk(root);
+    expect(offenders).toEqual([]);
   });
 });

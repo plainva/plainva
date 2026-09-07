@@ -256,4 +256,6 @@ Gdy ktoś napisał coś przy notatce, Plainva może o tym powiadomić — te sam
 
 Gdy kilka uwag jest nowych naraz, powiadomienie otwiera **Otwarte komentarze** na karcie **Nowe** — dokładnie te wątki, o które chodziło; obok są **Wszystkie** i **Do mnie**.
 
+Wszystko inne o komentarzach i propozycjach — gdzie leżą pliki, co znaczy „zablokowane” — znajdziesz w [Komentarze i propozycje](Comments_and_Suggestions.md).
+
 **Powiadomienie przychodzi tu później niż na komputerze i jest to cecha, a nie usterka.** Plainva nie ma serwera, który mógłby trącić telefon — zbudowanie go oznaczałoby, że obcy serwer dowiaduje się, kto i kiedy skomentował którą notatkę. Uwaga zostaje więc zauważona tam, gdzie telefon i tak zagląda: po cyklu synchronizacji i przy powrocie na pierwszy plan. Nie działa w tym celu żaden licznik w tle; nie pozwala na to żadna platforma telefonu.

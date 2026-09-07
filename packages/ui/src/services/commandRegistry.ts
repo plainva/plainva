@@ -151,7 +151,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openTasks, (run) => ({ id: "open-tasks", group: "open", icon: ListChecks, titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run })),
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
-    need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "workspaceSecurity.commentOverview", titleDefault: "Offene Kommentare", run })),
+    need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "comments.commentOverview", titleDefault: "Offene Kommentare", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),
     need(d.openSecondWindow, (run) => ({ id: "open-second-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openSecond", titleDefault: "Zweites Fenster öffnen", run })),
     need(d.openVaultWindow, (run) => ({ id: "open-vault-window", group: "open", icon: FolderOpen, titleKey: "window.openVaultWindow", titleDefault: "Vault in neuem Fenster öffnen", run })),

@@ -909,8 +909,8 @@ export function EditorHost({
       const { base, chunks } = session.suggestion();
       void (async () => {
         try {
-          if (base === null || chunks.length === 0) { toast.info(t("workspaceSecurity.suggestNothing")); return; }
-          if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("workspaceSecurity.suggestTooLarge")); return; }
+          if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
+          if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
           const batchId = createWorkspaceObjectId();
           let index = 0;
           for (const chunk of chunks) {
@@ -923,7 +923,7 @@ export function EditorHost({
           session.setSuggesting(false);
           forgetPark();
           window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { path, sent: index } }));
-          toast.info(t("workspaceSecurity.suggestSent", { n: index }));
+          toast.info(t("comments.suggestSent", { n: index }));
         } catch (error) {
           toast.error(errorText(error));
         }
@@ -1289,7 +1289,7 @@ export function EditorHost({
       }).length > 0 && (
         <div
           role="toolbar"
-          aria-label={t("workspaceSecurity.comments")}
+          aria-label={t("comments.comments")}
           className={`pv-popover--fixed pv-seltoolbar${selectionAt.above ? " is-above" : ""}`}
           data-testid="read-selection-bar"
           onMouseDown={(e) => e.preventDefault()}
@@ -1308,7 +1308,7 @@ export function EditorHost({
               }}
             >
               <MessageSquarePlus size={ICON.ui} />
-              <span>{t("workspaceSecurity.comment")}</span>
+              <span>{t("comments.comment")}</span>
             </button>
           )}
           {onEditAt && (
@@ -1337,7 +1337,7 @@ export function EditorHost({
               }}
             >
               <PenLine size={ICON.ui} />
-              <span>{t("workspaceSecurity.suggestMode")}</span>
+              <span>{t("comments.suggestMode")}</span>
             </button>
           )}
         </div>

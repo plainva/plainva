@@ -115,7 +115,7 @@ export function CommentsScreen({
     [byPath, names, selfId, onlyMine, filter, focus],
   );
 
-  const nameOf = (id: string) => names.get(id) ?? t("workspaceSecurity.commentUnknownAuthor");
+  const nameOf = (id: string) => names.get(id) ?? t("comments.commentUnknownAuthor");
 
   return (
     <div className="m-page" ref={ptrRef}>
@@ -123,26 +123,26 @@ export function CommentsScreen({
         large={!onBack}
         onBack={onBack}
         onMenu={onMenu}
-        title={t("workspaceSecurity.commentOverview")}
+        title={t("comments.commentOverview")}
       />
       {ptrIndicator}
       <Segmented
-        ariaLabel={t("workspaceSecurity.commentOverview")}
+        ariaLabel={t("comments.commentOverview")}
         value={filter}
         onChange={(value) => setFilter(value as "all" | "mine" | "new")}
         options={[
-          ...(focus ? [{ value: "new", label: t("workspaceSecurity.commentOverviewNew") }] : []),
-          { value: "all", label: t("workspaceSecurity.commentOverviewAll") },
-          { value: "mine", label: t("workspaceSecurity.commentOverviewMine") },
+          ...(focus ? [{ value: "new", label: t("comments.commentOverviewNew") }] : []),
+          { value: "all", label: t("comments.commentOverviewAll") },
+          { value: "mine", label: t("comments.commentOverviewMine") },
         ]}
       />
       {locked ? (
-        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("m-comments-unlock"))}>{t("workspaceSecurity.commentsUnlock")}</Button>}>
-          {t("workspaceSecurity.commentsLocked")}
+        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("m-comments-unlock"))}>{t("comments.commentsUnlock")}</Button>}>
+          {t("comments.commentsLocked")}
         </EmptyState>
       ) : notes.length === 0 ? (
         <EmptyState icon={<MessageSquare size={ICON.empty} />}>
-          {t(filter === "new" ? "workspaceSecurity.commentOverviewNoneNew" : onlyMine ? "workspaceSecurity.commentOverviewNoneMine" : "workspaceSecurity.commentOverviewNone")}
+          {t(filter === "new" ? "comments.commentOverviewNoneNew" : onlyMine ? "comments.commentOverviewNoneMine" : "comments.commentOverviewNone")}
         </EmptyState>
       ) : (
         notes.map((note) => (
@@ -168,13 +168,13 @@ export function CommentsScreen({
               >
                 {addressed && (
                   <span className="pv-comment-card__state">
-                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.commentMentionsYou")}
+                    <AtSign size={ICON.meta} aria-hidden="true" /> {t("comments.commentMentionsYou")}
                   </span>
                 )}
                 {root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 {root.suggestion && !root.suggestion.appliedAt && !root.suggestion.declinedAt && (
                   <span className="pv-comment-card__state">
-                    <Replace size={ICON.meta} aria-hidden="true" /> {t("workspaceSecurity.suggestionPending")}
+                    <Replace size={ICON.meta} aria-hidden="true" /> {t("comments.suggestionPending")}
                   </span>
                 )}
                 <small className="pv-comment-card__meta">
@@ -193,7 +193,7 @@ export function CommentsScreen({
                 </span>
                 {replies.length > 0 && (
                   <small className="pv-comment-card__meta">
-                    {t("workspaceSecurity.commentReplyCount", { count: replies.length })}
+                    {t("comments.commentReplyCount", { count: replies.length })}
                   </small>
                 )}
               </button>

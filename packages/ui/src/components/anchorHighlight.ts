@@ -405,26 +405,26 @@ export function anchorDisplayLabel(display: AnchorDisplayHint): { key: string; p
     // A renamed property names BOTH: the key the writer saw is what makes the
     // comment readable, the key it lives under today is what makes it findable.
     if (display.renamedTo && display.renamedTo !== display.key) {
-      return { key: "workspaceSecurity.commentAtPropertyRenamed", params: { key: display.key, current: display.renamedTo } };
+      return { key: "comments.commentAtPropertyRenamed", params: { key: display.key, current: display.renamedTo } };
     }
-    return { key: "workspaceSecurity.commentAtProperty", params: { key: display.key } };
+    return { key: "comments.commentAtProperty", params: { key: display.key } };
   }
   if (display.kind === "image") {
     // A region names a place INSIDE the picture, and saying so is the whole
     // point of it - "on the picture" would hide what the writer marked.
-    return { key: display.rect ? "workspaceSecurity.commentAtImageRegion" : "workspaceSecurity.commentAtImage" };
+    return { key: display.rect ? "comments.commentAtImageRegion" : "comments.commentAtImage" };
   }
-  if (display.kind === "diagram") return { key: "workspaceSecurity.commentAtDiagram" };
-  if (display.row === undefined || display.column === undefined) return { key: "workspaceSecurity.commentCellMoved" };
+  if (display.kind === "diagram") return { key: "comments.commentAtDiagram" };
+  if (display.row === undefined || display.column === undefined) return { key: "comments.commentCellMoved" };
   // The column's header names the column where the table has one (V7), and
   // the caveat is earned rather than automatic: only a cell that moved or
   // changed says so - a cell that sits where it was says nothing.
   return {
-    key: display.columnLabel ? "workspaceSecurity.commentAtCellNamed" : "workspaceSecurity.commentAtCell",
+    key: display.columnLabel ? "comments.commentAtCellNamed" : "comments.commentAtCell",
     // Columns are stored 0-based and read 1-based; the row already counts the
     // header as 0, which is what a reader points at when they say "row 1".
     params: { row: display.row, column: display.column + 1, label: display.columnLabel ?? "" },
-    caveat: display.changed ? "workspaceSecurity.commentCellChanged" : display.moved ? "workspaceSecurity.commentCellMoved" : undefined,
+    caveat: display.changed ? "comments.commentCellChanged" : display.moved ? "comments.commentCellMoved" : undefined,
   };
 }
 

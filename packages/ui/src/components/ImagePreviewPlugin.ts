@@ -160,9 +160,9 @@ class ImageWidget extends WidgetType {
       // Plainva can guarantee neither the size the fractions were measured
       // against nor that the picture is still the same one.
       pickRegion: this.source.kind === "vault"
-        ? () => pickImageRegion({ host: container, box: img }, { hint: i18n.t("workspaceSecurity.commentRegionHint") })
+        ? () => pickImageRegion({ host: container, box: img }, { hint: i18n.t("comments.commentRegionHint") })
         : undefined,
-      bubbleLabel: i18n.t("workspaceSecurity.commentOnImage"),
+      bubbleLabel: i18n.t("comments.commentOnImage"),
     });
     return container;
   }

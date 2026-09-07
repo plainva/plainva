@@ -256,4 +256,6 @@ Lorsque quelqu'un a écrit sur une note, Plainva peut vous en informer : les mê
 
 Quand plusieurs remarques sont nouvelles à la fois, la notification ouvre **Commentaires ouverts** sur l’onglet **Nouveaux** — exactement les fils qu’elle visait ; **Tous** et **Pour moi** sont à côté.
 
+Tout le reste sur les commentaires et les suggestions — où vivent les fichiers, ce que « verrouillé » signifie — se trouve dans [Commentaires et suggestions](Comments_and_Suggestions.md).
+
 **Le message arrive ici plus tard que sur le bureau, et c'est une propriété, pas un défaut.** Plainva n'a aucun serveur capable de solliciter votre téléphone — en construire un signifierait qu'un serveur étranger apprend quand qui a commenté quelle note. Une annotation est donc repérée là où le téléphone regarde de toute façon : après un cycle de synchronisation et au retour au premier plan. Aucun minuteur ne tourne en arrière-plan pour cela ; aucune plateforme mobile ne l'autorise.

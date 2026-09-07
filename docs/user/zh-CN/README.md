@@ -21,6 +21,7 @@ Plainva是一款Markdown仓库编辑器：你的笔记就是电脑上某个文�
 | [移动应用](Mobile_App.md) | Android 和 iOS 上的 Plainva：布局、编辑、数据库、同步与安全网 |
 | [设置同步](Sync_Setup.md) | 各服务商的分步指南：WebDAV/Nextcloud、Google Drive、OneDrive、Dropbox、S3 |
 | [安全与共享](Security_and_Sharing.md) | 个人加密工作区、恢复备份、迁移与锁定 |
+| [评论与建议](Comments_and_Suggestions.md) | 评论、建议模式、总览和通知——在每个保险库中，无论是否加密 |
 | [同步兼容性](Sync_Compatibility.md) | 目前哪些服务可以使用——直接集成、通过WebDAV，或通过服务商自己的桌面客户端 |
 | [Google Drive（BYO）](Google_Drive_BYO_Guide.md) | 使用自己的凭据配置Google Drive同步 |
 | [OneDrive与Dropbox（BYO）](OneDrive_and_Dropbox_BYO_Guide.md) | 使用自己的App注册配置OneDrive和Dropbox同步 |
