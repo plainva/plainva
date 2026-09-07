@@ -155,6 +155,11 @@ who updates, in every language.
 - [ ] The coordinated cut includes a fresh iOS/TestFlight build. Keep the Apple
       marketing-version policy selected for that release and increase the build
       number monotonically.
+- [ ] Both store builds carry the release note: Play "What's new" and TestFlight
+      "What to Test" are generated from the What's New catalog by
+      `apps/mobile/scripts/store-whatsnew.mjs` (every locale under 500 characters,
+      pinned by `storeWhatsNew.test.ts`); the Android run shows the upload step with
+      the directory, the iOS run shows one "what to test" line per locale.
 - [ ] Android's `versionCode` is higher than every previously distributed build.
       Public Play/App Store production still requires its own explicit approval.
 
