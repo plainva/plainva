@@ -83,7 +83,8 @@ export function PinboardView({
   onOpenNote,
   onMutated,
   onPatchView,
-  onNeedsConfig,
+  askStorageFolder,
+  viewIndex = 0,
   captureSignal,
 }: {
   vault: MobileVault;
@@ -100,8 +101,14 @@ export function PinboardView({
   onMutated: () => void;
   /** Patch the active view (pinboardOrder/pinboardPinned) and persist. */
   onPatchView: (patch: Record<string, unknown>) => void;
-  /** Capture without a folder source: open the configure sheet (createBaseItem parity). */
-  onNeedsConfig: () => void;
+  /**
+   * Capture without a folder source: ask the ONE question (where do new
+   * entries go?), persist the answer and hand back the updated config so the
+   * capture carries on — never the whole configuration sheet (P2).
+   */
+  askStorageFolder: () => Promise<{ config: any; folder: string } | null>;
+  /** Index of `view` in the config — the prefill reads that view's filters. */
+  viewIndex?: number;
   /** Bumped by the screen's FAB: open the capture card (M2). */
   captureSignal?: number;
 }) {
@@ -543,21 +550,25 @@ export function PinboardView({
     }
     setCaptureBusy(true);
     try {
-      const created = await captureBaseItem(vault, config, { title, text });
+      let created = await captureBaseItem(vault, config, { title, text }, { viewIndex });
+      if (!created) {
+        // No folder to store into: the one question, then the same capture
+        // again with the answer — the typed text stays until it is written.
+        const asked = await askStorageFolder();
+        if (asked) created = await captureBaseItem(vault, asked.config, { title, text }, { viewIndex, folder: asked.folder });
+      }
       if (created) {
         setCaptureTitle("");
         setCaptureText("");
         setCaptureOpen(false);
         onMutated();
-      } else {
-        onNeedsConfig(); // no folder source yet — same move as the + button
       }
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
     } finally {
       setCaptureBusy(false);
     }
-  }, [captureTitle, captureText, captureBusy, vault, config, onMutated, onNeedsConfig]);
+  }, [captureTitle, captureText, captureBusy, vault, config, viewIndex, onMutated, askStorageFolder]);
 
   const cardLabels = useMemo(
     () => ({

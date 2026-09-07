@@ -195,6 +195,7 @@ export * from "./base/boardOrder";
 export * from "./base/boardLanes";
 export * from "./base/filterExpr";
 export * from "./base/newItemNaming";
+export * from "./base/newItemFolder";
 export * from "./base/pinboardModel";
 export * from "./base/pinboardSweep";
 export * from "./base/propertyModel";

@@ -51,7 +51,7 @@ import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { BasePeekModal } from "./BasePeekModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems, getCollapsedLanes, setCollapsedLanes } from "../services/baseViewState";
-import { buildSourceClause, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
+import { applyNewItemFolder, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
 import { BaseViewTabs } from "./base/BaseViewTabs";
@@ -1056,18 +1056,10 @@ export function BaseViewer({
         return;
       }
     }
-    const nc = JSON.parse(JSON.stringify(dbConfig));
-    const target = resolveNewItemTarget(nc);
-    // Setup on a base WITHOUT any source: the folder also becomes the source
-    // (requirement). A tag-sourced base keeps its membership definition — the
-    // folder is only where new items are stored; the tags make them members.
-    if (dlg.mode === "setup" && target.inheritTags.length === 0) {
-      if (!nc.filters) nc.filters = {};
-      if (!Array.isArray(nc.filters.and)) nc.filters.and = [];
-      const clause = buildSourceClause("folder", clean);
-      if (!nc.filters.and.includes(clause)) nc.filters.and.push(clause);
-    }
-    nc.newItemFolder = clean;
+    // The one shared rule (Build-91 feedback, P2): the folder becomes the
+    // source when the base had none, a tag-sourced base keeps its tags.
+    const nc = applyNewItemFolder(dbConfig, clean, dlg.mode);
+    if (!nc) return;
     await saveConfig(nc);
     if (dlg.pendingTemplate !== undefined) {
       await doCreateItem(nc, clean, resolveNewItemTarget(nc).inheritTags, dlg.pendingTemplate);

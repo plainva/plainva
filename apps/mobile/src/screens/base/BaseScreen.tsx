@@ -32,6 +32,7 @@ import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
+import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import {
   commitCellValue,
   createBaseItem,
@@ -299,6 +300,50 @@ export function BaseScreen({
     setLoaded({ ...loaded, config: next });
     void saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
   };
+
+  /**
+   * The one question a database without a storage folder needs answered
+   * (Build-91 feedback, P2): where do new entries go? A tag-sourced base has
+   * no folder of its own; this used to open the whole configuration sheet in
+   * silence and write nothing, the tester's text left in the form. The
+   * desktop asks exactly this — the answer is persisted in the base, the
+   * folder is created, and the caller carries on with what it was doing.
+   * Resolves to the updated config and folder, or null when cancelled.
+   */
+  const askStorageFolder = useCallback(async (): Promise<{ config: any; folder: string } | null> => {
+    if (!loaded) return null;
+    const target = resolveNewItemTarget(loaded.config);
+    const mode = newItemFolderMode(target) ?? "setup";
+    const hint =
+      mode === "choice"
+        ? t("database.newItemFolderChoiceHint")
+        : target.inheritTags.length > 0
+          ? t("database.newItemFolderSetupTagHint")
+          : t("database.newItemFolderSetupHint");
+    const answer = await mPrompt({
+      title: t("database.newItemFolderTitle"),
+      message: hint,
+      initial: suggestNewItemFolder(path, loaded.config, target),
+      placeholder: t("database.newItemFolderPlaceholder"),
+    });
+    if (answer.cancelled) return null;
+    const next = applyNewItemFolder(loaded.config, answer.value, mode);
+    if (!next) return null;
+    const folder: string = next.newItemFolder;
+    // The folder must exist before a note can land in it; an already
+    // existing folder counts as success (same contract as the desktop).
+    try {
+      await vaultOps.createFolder(vault, folder);
+    } catch {
+      if (!(await vault.files.exists(folder).catch(() => false))) {
+        toast.error(t("mobile.saveRetry"));
+        return null;
+      }
+    }
+    setLoaded({ ...loaded, config: next });
+    await saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
+    return { config: next, folder };
+  }, [loaded, path, vault, t]);
 
   const columnsPool = useMemo(() => {
     const set = new Set<string>(Object.keys(config?.columns ?? {}));
@@ -676,9 +721,16 @@ export function BaseScreen({
       setCaptureSignal((n) => n + 1);
       return;
     }
-    void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then((p) => {
-      if (p) onOpenNote(p);
-      else setShowConfig(true); // no folder source to store into
+    void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then(async (p) => {
+      if (p) {
+        onOpenNote(p);
+        return;
+      }
+      // No folder to store into: ask the one question, then carry on (P2).
+      const asked = await askStorageFolder();
+      if (!asked) return;
+      const created = await createBaseItem(vault, path, asked.config, rows?.length ?? 0, viewIndex, asked.folder);
+      if (created) onOpenNote(created);
     });
   };
 
@@ -1874,7 +1926,8 @@ export function BaseScreen({
           onOpenNote={onOpenNote}
           onMutated={() => requery(config, viewIndex)}
           onPatchView={patchActiveView}
-          onNeedsConfig={() => setShowConfig(true)}
+          askStorageFolder={askStorageFolder}
+          viewIndex={viewIndex}
         />
       ) : rows.length === 0 ? (
         /* The one action a database view can offer is the row it is missing —

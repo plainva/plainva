@@ -353,9 +353,11 @@ export async function createBaseItem(
   config: any,
   rowCount: number,
   viewIndex = 0,
+  /** The folder just answered in the storage-folder question (P2), when the config has not caught up yet. */
+  folderOverride?: string,
 ): Promise<string | null> {
   const target = resolveNewItemTarget(config);
-  const folder = target.folder ?? target.folderSources[0];
+  const folder = folderOverride ?? target.folder ?? target.folderSources[0];
   if (!folder) return null;
   const stem = baseStemOf(basePath);
   const name = await nextItemName(stem, rowCount, (n) => v.files.exists(`${folder}/${n}.md`));
@@ -407,16 +409,19 @@ export async function createBaseItem(
  * 2026-07-17): the typed text IS the body — deliberately no template. A typed
  * TITLE becomes the file name and the H1; without one the file gets a
  * timestamp name and the note has no H1. OKF frontmatter + inherited source
- * tags still apply. Returns null when the base has no folder source (caller
- * opens the config).
+ * tags still apply — and, like `createBaseItem`, the active view's simple
+ * `==` rules (Build-91 feedback, P2: a capture under a filtered view used to
+ * be written and hidden at once). Returns null when the base has no folder
+ * source; the caller then asks the storage-folder question and retries.
  */
 export async function captureBaseItem(
   v: MobileVault,
   config: any,
   input: { title: string; text: string },
+  opts: { viewIndex?: number; folder?: string } = {},
 ): Promise<string | null> {
   const target = resolveNewItemTarget(config);
-  const folder = target.folder ?? target.folderSources[0];
+  const folder = opts.folder ?? target.folder ?? target.folderSources[0];
   if (!folder) return null;
   // Title popup semantics (2026-07-17, desktop parity): a typed title becomes
   // the file name AND the H1; without one the file gets a timestamp name and
@@ -432,11 +437,13 @@ export async function captureBaseItem(
   const body = text.replace(/\s+$/, "");
   const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
   let content = `---\ntype: ${getMobileSettings().defaultNoteType}\n---\n\n${noteBody}`;
-  if (target.inheritTags.length > 0) {
+  const prefill = newItemPrefill(config, opts.viewIndex ?? 0);
+  if (target.inheritTags.length > 0) prefill.tags = target.inheritTags;
+  if (Object.keys(prefill).length > 0) {
     const fmResult = extractFrontmatter(parseMarkdownAst(content));
     const props: Record<string, unknown> = {
       ...((fmResult.success && fmResult.data ? fmResult.data : {}) as Record<string, unknown>),
-      tags: target.inheritTags,
+      ...prefill,
     };
     content = updateFrontmatterString(content, props);
   }
