@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flatMailRows, mailListKeyAction, stepMailRow, threadNavId, threadedMailRows } from "@plainva/ui/mail";
+import { flatMailRows, mailListKeyAction, stepMailRow, stepMailRowInto, threadNavId, threadedMailRows } from "@plainva/ui/mail";
 
 /**
  * Arrow keys through the message list (2026-09-04). The list had no keyboard
@@ -68,5 +68,56 @@ describe("keys", () => {
     expect(mailListKeyAction("Delete", false)).toEqual({ type: "trash" });
     expect(mailListKeyAction("Backspace", false)).toBeNull();
     expect(mailListKeyAction("a", false)).toBeNull();
+  });
+});
+
+describe("stepping through conversations (finding 2026-09-07)", () => {
+  // Down from a message ABOVE a folded conversation used to land on its header
+  // and open nothing — "the arrow keys skip conversations", as seen from the
+  // reader. These pin the rule that the step reads through instead.
+  const rows = [single("a"), thread("k", ["b", "c", "d"]), single("e")];
+  const folded = threadedMailRows(rows, new Set());
+  const open = threadedMailRows(rows, new Set(["k"]));
+
+  it("Down onto a folded conversation opens it and picks its first message", () => {
+    expect(stepMailRowInto(folded, "a", "next")).toEqual({ row: { kind: "message", id: "b", mailbox: "INBOX", threadKey: "k" }, unfold: "k" });
+  });
+
+  it("Up onto a folded conversation opens it and picks its last message", () => {
+    expect(stepMailRowInto(folded, "e", "prev")).toEqual({ row: { kind: "message", id: "d", mailbox: "INBOX", threadKey: "k" }, unfold: "k" });
+  });
+
+  it("walks over the header of an open conversation in both directions", () => {
+    // Down from the row above: straight to the first message, nothing to unfold.
+    expect(stepMailRowInto(open, "a", "next")).toEqual({ row: { kind: "message", id: "b", mailbox: "INBOX", threadKey: "k" } });
+    // Up from the first message: to the row above the conversation.
+    expect(stepMailRowInto(open, "b", "prev")).toEqual({ row: { kind: "message", id: "a", mailbox: "INBOX", threadKey: "t-a" } });
+    // Inside, the messages are the stops.
+    expect(stepMailRowInto(open, "b", "next")?.row.id).toBe("c");
+  });
+
+  it("Home and End follow the same rule", () => {
+    const first = [thread("k", ["b", "c"]), single("e")];
+    expect(stepMailRowInto(threadedMailRows(first, new Set()), "e", "first")).toMatchObject({ row: { id: "b" }, unfold: "k" });
+    const last = [single("a"), thread("k", ["b", "c"])];
+    expect(stepMailRowInto(threadedMailRows(last, new Set()), "a", "last")).toMatchObject({ row: { id: "c" }, unfold: "k" });
+  });
+
+  it("rests on the header at the very top instead of jumping", () => {
+    const top = threadedMailRows([thread("k", ["b", "c"]), single("e")], new Set(["k"]));
+    // Up from the first message of the first, open conversation: the clamp.
+    expect(stepMailRowInto(top, "b", "prev")).toEqual({ row: top[0] });
+  });
+
+  it("keeps a folded header as the header's own step target after Left", () => {
+    // After Left the focus sits on the folded header; Down from there opens it
+    // again (Left is the deliberate fold, Down is reading on), Up leaves it.
+    expect(stepMailRowInto(folded, threadNavId("k"), "next")).toMatchObject({ row: { id: "b" }, unfold: "k" });
+    expect(stepMailRowInto(folded, threadNavId("k"), "prev")?.row.id).toBe("a");
+  });
+
+  it("leaves the flat list to stepMailRow", () => {
+    expect(stepMailRowInto(flatMailRows([{ id: "x" }, { id: "y" }]), "x", "next")).toEqual({ row: { kind: "message", id: "y" } });
+    expect(stepMailRowInto([], null, "next")).toBeNull();
   });
 });

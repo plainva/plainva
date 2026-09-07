@@ -1477,3 +1477,41 @@ test('multi-window P3: the composer pops out into its own window, losing nothing
   expect(created.url).not.toContain('content=');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });
+
+test('conversations: the arrow keys read INTO a folded conversation instead of stopping on it', async ({ page }) => {
+  // Reported 2026-09-07: with conversations on, Up/Down landed on a folded
+  // conversation's header and opened nothing — from the reader's point of view
+  // the conversation was skipped. Arriving now unfolds it and picks its last
+  // message going up (first going down); Left still folds.
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  const thread = page.getByTestId('mail-thread-row').first();
+  await expect(thread).toBeVisible();
+  await expect(thread).toHaveAttribute('aria-expanded', 'false');
+
+  // Start on the plain row below the conversation (the newsletter).
+  const newsletter = page.getByTestId('mail-envelope').filter({ hasText: 'Newsletter Juli' });
+  await newsletter.click();
+  await expect(newsletter).toBeFocused();
+
+  // Up: the conversation opens and its LAST message has the focus and the reader.
+  await page.keyboard.press('ArrowUp');
+  await expect(thread).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('mail-thread-message')).toHaveCount(3);
+  await expect(page.getByTestId('mail-thread-message').nth(2)).toBeFocused();
+  await expect(page.getByTestId('mail-thread-message').nth(2)).toHaveClass(/\bon\b/);
+
+  // Up again walks the messages; Left folds and lands on the header.
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByTestId('mail-thread-message').nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(thread).toHaveAttribute('aria-expanded', 'false');
+  await expect(thread).toBeFocused();
+
+  // Down from the folded header reads on: open again, first message.
+  await page.keyboard.press('ArrowDown');
+  await expect(thread).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('mail-thread-message').nth(0)).toBeFocused();
+});

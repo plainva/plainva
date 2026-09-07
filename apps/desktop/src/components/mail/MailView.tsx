@@ -18,7 +18,7 @@ import {
   snoozeUntil,
   type SnoozeEntry,
   type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
-import { flatMailRows, mailListKeyAction, stepMailRow, threadNavId, threadedMailRows } from "@plainva/ui/mail";
+import { flatMailRows, mailListKeyAction, stepMailRow, stepMailRowInto, threadNavId, threadedMailRows, type MailNavStep } from "@plainva/ui/mail";
 import { getSettingsStore } from "../../services/settingsStore";
 import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
@@ -1325,9 +1325,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       const currentId = navId ?? selectedId;
       const current = navRows.find((r) => r.id === currentId) ?? null;
       if (action.type === "move") {
-        const next = stepMailRow(navRows, currentId, action.move);
-        if (!next) return;
+        // Through conversations, not onto them (finding 2026-09-07): a folded
+        // one opens and the step lands on its first/last message; the header
+        // of an open one is walked over. The flat list has nothing to unfold.
+        const step: MailNavStep | null = showThreads ? stepMailRowInto(navRows, currentId, action.move) : (() => {
+          const row = stepMailRow(navRows, currentId, action.move);
+          return row ? { row } : null;
+        })();
+        if (!step) return;
+        const next = step.row;
         ev.preventDefault();
+        if (step.unfold) {
+          const key = step.unfold;
+          setOpenThreads((prev) => {
+            const n = new Set(prev);
+            n.add(key);
+            return n;
+          });
+        }
         navFocusRef.current = true;
         setNavId(next.id);
         if (action.extend) {

@@ -24,6 +24,12 @@ export type MailNavRow =
       id: string;
       threadKey: string;
       open: boolean;
+      /**
+       * The messages behind the header, in screen order — present whether or
+       * not they are on screen, so a step that lands on a folded conversation
+       * can walk INTO it (finding 2026-09-07) without a second source of rows.
+       */
+      messages: readonly { id: string; mailbox?: string }[];
     };
 
 /** A conversation header's navigation id: never collides with a message id. */
@@ -45,10 +51,59 @@ export function threadedMailRows(rows: readonly NavThreadRow[], openThreads: Rea
       continue;
     }
     const open = openThreads.has(row.thread.key);
-    out.push({ kind: "thread", id: threadNavId(row.thread.key), threadKey: row.thread.key, open });
+    out.push({ kind: "thread", id: threadNavId(row.thread.key), threadKey: row.thread.key, open, messages: row.thread.messages });
     if (open) for (const m of row.thread.messages) out.push({ kind: "message", id: m.id, mailbox: m.mailbox, threadKey: row.thread.key });
   }
   return out;
+}
+
+/** Where a step through conversations lands, and what it had to unfold to get there. */
+export interface MailNavStep {
+  row: MailNavRow;
+  /** The conversation the step walked into — the shell opens it before focusing the row. */
+  unfold?: string;
+}
+
+/**
+ * A step that reads THROUGH conversations (finding 2026-09-07).
+ *
+ * `stepMailRow` moves one row and stops wherever it lands — on a folded
+ * conversation that meant the header: focus moved, nothing opened, and the
+ * reader stayed on the previous message. To the person watching the reader
+ * that was "the arrow keys skip conversations". The rule here follows the
+ * reader instead: landing on a folded conversation opens it and picks its
+ * first message going down, its last going up; the header of an OPEN
+ * conversation is not a stop at all, its messages are. The two explicit
+ * keys keep their meaning — Left folds and lands on the header (which the
+ * next Down opens again: Left is the deliberate fold, Down is reading on),
+ * Right and Enter on a header are unchanged.
+ *
+ * Clamped like `stepMailRow`: at the very top, Up from the first message of
+ * an open conversation rests on its header rather than jumping.
+ */
+export function stepMailRowInto(rows: readonly MailNavRow[], currentId: string | null, move: MailNavMove): MailNavStep | null {
+  const forward = move === "next" || move === "first";
+  // Down from a folded header (where Left left the focus) reads INTO the
+  // conversation rather than past it; Up leaves it, as from any row.
+  const current = currentId === null ? null : (rows.find((r) => r.id === currentId) ?? null);
+  if (current && current.kind === "thread" && !current.open && move === "next" && current.messages.length > 0) {
+    const m = current.messages[0];
+    return { row: { kind: "message", id: m.id, mailbox: m.mailbox, threadKey: current.threadKey }, unfold: current.threadKey };
+  }
+  let next = stepMailRow(rows, currentId, move);
+  // Walk past open headers in the direction of travel; a folded one is the
+  // exit, an end of the list too.
+  for (let guard = 0; next && next.kind === "thread" && next.open && guard < rows.length; guard += 1) {
+    const step = stepMailRow(rows, next.id, forward ? "next" : "prev");
+    if (!step || step.id === next.id) break;
+    next = step;
+  }
+  if (!next) return null;
+  if (next.kind === "thread" && !next.open && next.messages.length > 0) {
+    const m = forward ? next.messages[0] : next.messages[next.messages.length - 1];
+    return { row: { kind: "message", id: m.id, mailbox: m.mailbox, threadKey: next.threadKey }, unfold: next.threadKey };
+  }
+  return { row: next };
 }
 
 /** The rows of the flat list. */
