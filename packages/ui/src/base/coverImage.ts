@@ -1,4 +1,4 @@
-import { resolveVaultRelative } from "../adapters/pathGuard";
+import { imageCandidates } from "../lib/imageTarget";
 
 /**
  * Gallery cover resolution (plan "Vorlagen-Überarbeitung + Plainva-Tour", P1.4).
@@ -52,11 +52,9 @@ export function resolveCoverSource(raw: unknown, notePath?: string): CoverSource
   const target = (embed ? embed[1] : value).trim();
   if (!target) return null;
 
-  const noteDir = notePath && notePath.includes("/") ? notePath.slice(0, notePath.lastIndexOf("/")) : "";
-  const candidates = [
-    resolveVaultRelative(target),
-    noteDir ? resolveVaultRelative(`${noteDir}/${target}`) : null,
-  ].filter((p): p is string => !!p);
+  // The one image rule (Build-91 feedback, P3): literal, beside the note.
+  // The index by basename is the viewer's last resort, not this parser's.
+  const candidates = imageCandidates(target, { notePath: notePath ?? "" });
 
   return candidates.length > 0 ? { kind: "vault", candidates } : null;
 }

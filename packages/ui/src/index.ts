@@ -123,6 +123,7 @@ export * from "./lib/lineDiff";
 export * from "./lib/compareVersions";
 export * from "./lib/folderSort";
 export * from "./lib/scrollMemory";
+export * from "./lib/imageTarget";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
 export * from "./lib/folderTemplates";

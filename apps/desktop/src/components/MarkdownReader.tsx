@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, type AnchorHighlight } from '@plainva/ui';
+import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, imageBasename, isImageTarget, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { stripAnchorMarkers } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
@@ -76,10 +76,25 @@ const AnchorRegions: React.FC<{ regions: string | undefined; onActivate?: (comme
   );
 };
 
-const VaultImage: React.FC<{ path: string; alt: string; frameClass?: string; regions?: string; commentId?: string; onActivate?: (commentId: string) => void }> = ({ path, alt, frameClass, regions, commentId, onActivate }) => {
-  const { vaultAdapter } = useVault();
+const VaultImage: React.FC<{
+  path: string;
+  /** Further vault-relative paths to try when `path` does not load (P3). */
+  fallbacks?: string[];
+  /** The bare file name for the index lookup — Obsidian's way of naming attachments. */
+  basename?: string | null;
+  /** Obsidian's `|300`: a display width in CSS pixels. */
+  width?: number | null;
+  alt: string;
+  frameClass?: string;
+  regions?: string;
+  commentId?: string;
+  onActivate?: (commentId: string) => void;
+}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate }) => {
+  const { vaultAdapter, queryService } = useVault();
   const [url, setUrl] = React.useState<string | null>(null);
+  const [loadedPath, setLoadedPath] = React.useState(path);
   const [failed, setFailed] = React.useState(false);
+  const fallbackKey = (fallbacks ?? []).join('\n');
 
   React.useEffect(() => {
     if (!vaultAdapter) return;
@@ -87,20 +102,32 @@ const VaultImage: React.FC<{ path: string; alt: string; frameClass?: string; reg
     let objectUrl: string | null = null;
     setUrl(null);
     setFailed(false);
-    void loadImageBlob(vaultAdapter, path)
-      .then((blob) => {
-        if (!alive) return;
-        objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
-      })
-      .catch(() => {
-        if (alive) setFailed(true);
-      });
+    void (async () => {
+      const candidates = [path, ...(fallbackKey ? fallbackKey.split('\n') : [])];
+      // The index answers last: it is the only candidate that costs a query.
+      if (basename && queryService) {
+        const indexed = await queryService.findByFileName(basename, path).catch(() => null);
+        if (indexed && !candidates.includes(indexed)) candidates.push(indexed);
+      }
+      for (const candidate of candidates) {
+        try {
+          const blob = await loadImageBlob(vaultAdapter, candidate);
+          if (!alive) return;
+          objectUrl = URL.createObjectURL(blob);
+          setLoadedPath(candidate);
+          setUrl(objectUrl);
+          return;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      if (alive) setFailed(true);
+    })();
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, path]);
+  }, [vaultAdapter, queryService, path, fallbackKey, basename]);
 
   if (failed) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || path}</span>;
   if (!url) return <span aria-hidden="true" />;
@@ -119,10 +146,10 @@ const VaultImage: React.FC<{ path: string; alt: string; frameClass?: string; reg
           y: e.clientY,
           selection: "",
           editable: null,
-          image: { loadBytes: () => vaultAdapter.readBinaryFile(path), filename: path.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(path) },
+          image: { loadBytes: () => vaultAdapter.readBinaryFile(loadedPath), filename: loadedPath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(loadedPath) },
         });
       }}
-      style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)' }}
+      style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)', ...(width ? { width: `${width}px` } : {}) }}
     />
   );
   // Only a commented picture gets the positioned host: the regions are laid
@@ -374,7 +401,9 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     // Replace images ![[...]] — encodeWikiTarget (not bare encodeURIComponent):
     // a raw paren in the target breaks the generated markdown destination.
     result = result.replace(/!\[\[(.*?)\]\]/g, (_match, p1) => {
-      const isImg = p1.match(/\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i);
+      // `![[foto.png|300]]`: the width suffix used to hide the extension and
+      // turn a picture into a note embed (Build-91 feedback, P3).
+      const isImg = isImageTarget(parseWikiImageTarget(p1).target);
       if (isImg) {
         return `![img](wiki-image://${encodeWikiTarget(p1)})`;
       } else {
@@ -485,16 +514,19 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               return <EmbeddedNote target={target} depth={embedDepth} onOpenPath={onOpenPath} hostPath={sourcePath} />;
             }
             if (src?.startsWith('wiki-image://')) {
-              const target = decodeURIComponent(src.replace('wiki-image://', ''));
+              const inner = decodeURIComponent(src.replace('wiki-image://', ''));
+              const embed = parseWikiImageTarget(inner);
               // Embed targets come from note content (possibly synced/foreign):
-              // resolve them lexically and refuse anything that is absolute or
-              // escapes the vault. Loading goes through a BLOB URL (P5.11) —
-              // the filesystem-wide asset protocol is disabled entirely.
-              const rel = resolveVaultRelative(target);
-              if (!rel) {
-                return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || target}</span>;
+              // every candidate passes the vault guard — absolute paths and
+              // escapes never load. Loading goes through a BLOB URL (P5.11) —
+              // the filesystem-wide asset protocol is disabled entirely. The
+              // candidates are the one image rule (P3): literal, beside the
+              // note, then the index by basename, as Obsidian writes them.
+              const candidates = imageCandidates(embed.target, { notePath: sourcePath ?? '' });
+              if (candidates.length === 0) {
+                return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || embed.target}</span>;
               }
-              return <VaultImage path={rel} alt={alt || target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
+              return <VaultImage path={candidates[0]} fallbacks={candidates.slice(1)} basename={imageBasename(embed.target)} width={embed.width} alt={embed.alt || alt || embed.target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             if (src && !/^(https?:|data:|blob:)/.test(src)) {
               // Plain markdown image with a FILE-relative path (standard MD:

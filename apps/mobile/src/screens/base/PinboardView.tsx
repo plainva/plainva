@@ -3,12 +3,12 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { applyPin, applyUnpin, parseNoteCard, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
 import { confirmDeleteFile } from "../../lib/deleteFile";
-import { type MobileVault } from "../../services/vaultService";
+import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 
 /**
@@ -39,9 +39,16 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
     let objectUrl: string | null = null;
     setUrl(null);
     setFailed(false);
-    const noteDir = notePath.includes("/") ? notePath.slice(0, notePath.lastIndexOf("/")) : "";
-    const candidates = [target, noteDir ? `${noteDir}/${target}` : null].filter((p): p is string => !!p);
+    // The one image rule (P3, Build-91 feedback): literal, beside the note,
+    // then the wiki resolver, which knows attachments by bare file name.
+    const candidates = imageCandidates(target, { notePath });
     void (async () => {
+      const byName = imageBasename(target);
+      if (byName) {
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
+      }
+      if (!alive) return;
       for (const rel of candidates) {
         try {
           const bin = await vault.adapter.readBinaryFile(rel);

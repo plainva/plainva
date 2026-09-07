@@ -20,7 +20,10 @@ import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../
  * reliable watcher for a foreign folder); P5 answers with a rescan on resume
  * and a timestamp check on open.
  */
-const norm = (path: string): string => path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+// NFC on the way in (Build-91 feedback, P3): a link written "Anhänge" meets a
+// folder the iOS Files app hands back decomposed; APFS looks both forms up
+// as the same name, the plugin's string comparison would not.
+const norm = (path: string): string => path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "").normalize("NFC");
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);

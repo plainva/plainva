@@ -7,6 +7,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
+import { isImageTarget, parseWikiImageTarget } from "../lib/imageTarget";
 
 /**
  * Shell-neutral core of the `![[...]]` note-embed live plugin (M3E package H):
@@ -48,7 +49,6 @@ class CoreEmbedWidget extends WidgetType {
   }
 }
 
-const IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i;
 const EMBED_RE = /!\[\[(.*?)\]\]/g;
 
 export function buildNoteEmbedCoreExtension(
@@ -100,7 +100,10 @@ export function buildNoteEmbedCoreExtension(
             let match: RegExpExecArray | null;
             while ((match = EMBED_RE.exec(line.text)) !== null) {
               const target = match[1];
-              if (IMAGE_RE.test(target)) continue; // images have their own plugin
+              // Images have their own plugin — including `![[foto.png|300]]`,
+              // whose width suffix used to hide the extension from this test
+              // and turn a picture into a note card (Build-91 feedback, P3).
+              if (isImageTarget(parseWikiImageTarget(target).target)) continue;
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
               if (hideSyntax && !isLineSelected) {

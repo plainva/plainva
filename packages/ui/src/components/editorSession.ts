@@ -14,7 +14,7 @@ import {
   tableField,
   tableLinkHandlers,
 } from "./LivePreviewPlugin";
-import { imagePreviewPlugin } from "./ImagePreviewPlugin";
+import { imagePreviewPlugin, type ImageLookupFn } from "./ImagePreviewPlugin";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
@@ -168,6 +168,13 @@ export interface EditorSessionDeps {
   onSelectionRange?: (range: { from: number; to: number } | null) => void;
   onPickIcon: (anchor: { x: number; y: number }) => void;
   onPickColor: (anchor: { x: number; y: number }) => void;
+  /**
+   * Where an image embed of the current note may point (Build-91 feedback,
+   * P3): the note's path, the attachment folder, and the index by basename.
+   * Without it only the literal vault path is tried — Obsidian's bare
+   * `![[foto.png]]` then never shows.
+   */
+  imageLookup?: ImageLookupFn;
 }
 
 export interface EditorSessionConfig {
@@ -324,7 +331,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
           ]
         : [],
       markdownDecorationPlugin(isLive),
-      imagePreviewPlugin(cfg.vaultPath, isLive, (path) => deps.current.readBinaryFile(path), (e, abs) => deps.current.onImageContext?.(e, abs)),
+      imagePreviewPlugin(
+        cfg.vaultPath,
+        isLive,
+        (path) => deps.current.readBinaryFile(path),
+        (e, abs) => deps.current.onImageContext?.(e, abs),
+        () => deps.current.imageLookup?.() ?? { notePath: "" },
+      ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab, kind) => deps.current.openWikiTarget(target, newTab, kind), isLive),
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on

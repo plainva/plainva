@@ -2074,6 +2074,12 @@ export const Editor: React.FC<{
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
       readBinaryFile: (absolutePath) => readFile(absolutePath),
+      // Where an embed may point (P3, Build-91 feedback): beside the note or,
+      // as Obsidian writes it, by bare basename anywhere in the vault.
+      imageLookup: () => ({
+        notePath: activePath ?? "",
+        resolveByName: (name) => vaultContext.queryService?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
+      }),
       onImageContext: (e, absolutePath) => openContextMenu({
         x: e.clientX, y: e.clientY, selection: "", editable: null,
         image: { loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },

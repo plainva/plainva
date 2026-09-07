@@ -480,6 +480,29 @@ export class VaultQueryService {
   }
 
   /**
+   * A file by its bare basename, anywhere in the vault — how Obsidian writes
+   * and finds attachments (`![[foto.png]]`, the file in its attachments
+   * folder). Notes and attachments alike; the note's own folder wins on a
+   * tie, then the shortest path (the same rule as the link resolver).
+   * Folder segments are compared in NFC so a folder the iOS Files app hands
+   * back decomposed still matches (Build-91 feedback, P3).
+   */
+  async findByFileName(basename: string, nearPath?: string): Promise<string | null> {
+    const name = basename.trim().normalize("NFC");
+    if (!name || name.includes("/") || name.includes("\\")) return null;
+    const escaped = name.replace(/[\\%_]/g, "\\$&");
+    const rows = await this.db.query<{ path: string }>(
+      `SELECT path FROM files WHERE path = ? COLLATE NOCASE OR path LIKE ? ESCAPE '\\' COLLATE NOCASE ORDER BY length(path) LIMIT 50`,
+      [name, `%/${escaped}`],
+    );
+    const hits = rows.map((r) => r.path).filter((p) => (p.split(/[/\\]/).pop() ?? "").normalize("NFC").toLowerCase() === name.toLowerCase());
+    if (hits.length === 0) return null;
+    const nearDir = nearPath && nearPath.includes("/") ? nearPath.slice(0, nearPath.lastIndexOf("/")).normalize("NFC") : "";
+    const sameFolder = hits.find((p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "").normalize("NFC") === nearDir);
+    return sameFolder ?? hits[0];
+  }
+
+  /**
    * Finds all files that link to the given path (Backlinks).
    */
   async getBacklinks(targetPath: string): Promise<LinkRecord[]> {

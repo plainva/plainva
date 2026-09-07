@@ -1,7 +1,7 @@
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
-import { resolveVaultRelative } from "../adapters/pathGuard";
+import { findImageEmbeds, imageBasename, imageCandidates, type ImageLookup } from "../lib/imageTarget";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import { pickImageRegion } from "./anchorRegion";
 import i18n from "../i18n";
@@ -11,14 +11,33 @@ import i18n from "../i18n";
  * (P5.11) — never via the asset protocol, which required a filesystem-wide
  * `assetProtocol` scope and is now disabled entirely. Targets from note
  * content are validated against the vault root (same rule as the read mode).
+ *
+ * Where a target may point is one shared rule since the Build-91 feedback
+ * round (P3, `lib/imageTarget.ts`): the literal path, beside the note, the
+ * attachment folder, and — through the host's index — the basename anywhere
+ * in the vault, which is how Obsidian writes and finds its attachments.
  */
 
 type ImageSource =
   | { kind: "direct"; url: string }
-  | { kind: "vault"; absolutePath: string };
+  | {
+      kind: "vault";
+      /** Absolute paths to try in order. */
+      candidates: string[];
+      /** Last resort: the index, by basename — resolves to an absolute path. */
+      resolveByIndex: (() => Promise<string | null>) | null;
+      /** Stable identity for the widget and the URL cache. */
+      key: string;
+    };
 
 /** Shell file access, injected by the app (ADR 0011) — no direct fs plugin here. */
 export type ReadBinaryFn = (absolutePath: string) => Promise<Uint8Array>;
+
+/** What the host knows about where embeds of the current note may point. */
+export type ImageLookupFn = () => ImageLookup & {
+  /** The index lookup by basename (vault-relative result), when the host has one. */
+  resolveByName?: (basename: string) => Promise<string | null>;
+};
 
 // One object URL per absolute path for the app's lifetime: images repeat
 // across rebuilds (every cursor line change), and revoking per-widget would
@@ -37,6 +56,25 @@ function blobUrlFor(absolutePath: string, readBinary: ReadBinaryFn): Promise<str
     });
   }
   return pending;
+}
+
+/** The first candidate that loads; the index answer last. */
+async function loadVaultImage(
+  source: Extract<ImageSource, { kind: "vault" }>,
+  readBinary: ReadBinaryFn,
+): Promise<{ url: string; absolutePath: string } | null> {
+  for (const absolutePath of source.candidates) {
+    const url = await blobUrlFor(absolutePath, readBinary);
+    if (url) return { url, absolutePath };
+  }
+  if (source.resolveByIndex) {
+    const absolutePath = await source.resolveByIndex().catch(() => null);
+    if (absolutePath) {
+      const url = await blobUrlFor(absolutePath, readBinary);
+      if (url) return { url, absolutePath };
+    }
+  }
+  return null;
 }
 
 /** Right-click on a vault image → the host opens its own copy/save-as menu. */
@@ -58,43 +96,44 @@ class ImageWidget extends WidgetType {
      * one range and keep the singular helper.
      */
     readonly frames: readonly AnchorFrame[],
+    /** Obsidian's `|300`: a display width in CSS pixels, or null. */
+    readonly width: number | null,
     readonly onImageContext?: ImageContextFn,
   ) { super(); }
 
   eq(other: ImageWidget) {
     // The frames join the identity: without them CodeMirror reuses the DOM it
     // already built and a frame - or a region moved by an edit - never appears.
-    return this.key === other.key && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames);
+    return this.key === other.key && this.width === other.width && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames);
   }
 
   toDOM(view: EditorView) {
     const container = document.createElement("span");
-    container.style.marginTop = "0.5rem";
-    container.style.marginBottom = "0.5rem";
-    container.style.display = "inline-block";
-    container.style.maxWidth = "100%";
+    container.className = "pv-image-embed";
 
     const img = document.createElement("img");
     img.style.maxWidth = "100%";
     img.style.maxHeight = "400px";
     img.style.borderRadius = "4px";
     img.style.boxShadow = "var(--shadow-1)";
+    if (this.width) img.style.width = `${this.width}px`;
 
     if (this.source.kind === "direct") {
       img.src = this.source.url;
     } else {
-      const absolutePath = this.source.absolutePath;
-      void blobUrlFor(absolutePath, this.readBinary).then((url) => {
-        if (url && img.isConnected !== false) img.src = url;
+      const source = this.source;
+      void loadVaultImage(source, this.readBinary).then((loaded) => {
+        if (!loaded || img.isConnected === false) return;
+        img.src = loaded.url;
+        if (this.onImageContext) {
+          const onCtx = this.onImageContext;
+          img.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCtx(e, loaded.absolutePath);
+          };
+        }
       });
-      if (this.onImageContext) {
-        const onCtx = this.onImageContext;
-        img.oncontextmenu = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onCtx(e, absolutePath);
-        };
-      }
     }
 
     container.appendChild(img);
@@ -129,19 +168,36 @@ class ImageWidget extends WidgetType {
   }
 }
 
-function resolveImageSource(src: string, vaultRoot: string): ImageSource | null {
+function resolveImageSource(src: string, vaultRoot: string, lookup: ImageLookupFn | undefined): ImageSource | null {
   if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
     return { kind: "direct", url: src };
   }
-  // Note content is potentially foreign (synced vaults): refuse absolute
-  // paths and anything escaping the vault, exactly like the read mode.
-  const rel = resolveVaultRelative(src);
-  if (!rel) return null;
   const root = vaultRoot.replace(/\\/g, "/").replace(/\/+$/, "");
-  return { kind: "vault", absolutePath: `${root}/${rel}` };
+  const absolute = (rel: string) => `${root}/${rel}`;
+  const known = lookup?.();
+  // Note content is potentially foreign (synced vaults): every candidate
+  // passes the vault guard — absolute paths and escapes never load.
+  const candidates = imageCandidates(src, known ?? { notePath: "" }).map(absolute);
+  if (candidates.length === 0) return null;
+  const basename = known?.resolveByName ? imageBasename(src) : null;
+  const resolveByName = known?.resolveByName;
+  const resolveByIndex =
+    basename && resolveByName
+      ? async () => {
+          const rel = await resolveByName(basename);
+          return rel ? absolute(rel) : null;
+        }
+      : null;
+  return { kind: "vault", candidates, resolveByIndex, key: `${known?.notePath ?? ""}::${src}` };
 }
 
-export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readBinary: ReadBinaryFn, onImageContext?: ImageContextFn) {
+export function imagePreviewPlugin(
+  vaultRoot: string,
+  hideSyntax: boolean,
+  readBinary: ReadBinaryFn,
+  onImageContext?: ImageContextFn,
+  lookup?: ImageLookupFn,
+) {
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -182,46 +238,40 @@ export function imagePreviewPlugin(vaultRoot: string, hideSyntax: boolean, readB
       for (const { from, to } of view.visibleRanges) {
         const text = view.state.sliceDoc(from, to);
 
-        // Match both ![Alt text](url) and ![[url]]
-        const regex = /!\[.*?\]\((.*?)(?:\s+".*?")?\)|!\[\[(.*?(\.(?:png|jpe?g|gif|svg|webp|bmp|ico)))\]\]/gi;
-        let match;
+        for (const embed of findImageEmbeds(text)) {
+          const source = resolveImageSource(embed.target, vaultRoot, lookup);
+          if (!source) continue; // absolute/escaping targets never load
 
-        while ((match = regex.exec(text)) !== null) {
-          const url = match[1] || match[2];
-          if (url) {
-            const source = resolveImageSource(url, vaultRoot);
-            if (!source) continue; // absolute/escaping targets never load
+          const matchStart = from + embed.start;
+          const matchEnd = from + embed.end;
 
-            const matchStart = from + match.index;
-            const matchEnd = matchStart + match[0].length;
-
-            // Check if cursor overlaps this match
-            let isFocused = false;
-            for (const range of selection.ranges) {
-              if (range.from <= matchEnd && range.to >= matchStart) {
-                isFocused = true;
-                break;
-              }
+          // Check if cursor overlaps this match
+          let isFocused = false;
+          for (const range of selection.ranges) {
+            if (range.from <= matchEnd && range.to >= matchStart) {
+              isFocused = true;
+              break;
             }
+          }
 
-            const widget = new ImageWidget(
-              source,
-              source.kind === "direct" ? source.url : source.absolutePath,
-              readBinary,
-              matchStart,
-              matchEnd,
-              anchorFramesAt(view.state, matchStart, matchEnd),
-              onImageContext,
-            );
-            if (!hideSyntax || isFocused) {
-              // Cursor is here or source mode: show text AND image below it
-              const dec = Decoration.widget({ widget, side: 1 });
-              builder.add(matchEnd, matchEnd, dec);
-            } else {
-              // Live Preview: Hide text and show only image
-              const dec = Decoration.replace({ widget });
-              builder.add(matchStart, matchEnd, dec);
-            }
+          const widget = new ImageWidget(
+            source,
+            source.kind === "direct" ? source.url : source.key,
+            readBinary,
+            matchStart,
+            matchEnd,
+            anchorFramesAt(view.state, matchStart, matchEnd),
+            embed.width,
+            onImageContext,
+          );
+          if (!hideSyntax || isFocused) {
+            // Cursor is here or source mode: show text AND image below it
+            const dec = Decoration.widget({ widget, side: 1 });
+            builder.add(matchEnd, matchEnd, dec);
+          } else {
+            // Live Preview: Hide text and show only image
+            const dec = Decoration.replace({ widget });
+            builder.add(matchStart, matchEnd, dec);
           }
         }
       }

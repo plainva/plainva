@@ -376,6 +376,14 @@ export function EditorHost({
       onPickColor: () => setColorPick(true),
       readBinaryFile: (absolutePath) =>
         vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
+      // Where an embed may point (P3, Build-91 feedback): beside the note, in
+      // the attachment folder, or — as Obsidian writes it — by bare basename
+      // anywhere in the vault; the wiki resolver already knows attachments.
+      imageLookup: () => ({
+        notePath: path,
+        attachmentFolder: getMobileSettings().attachmentFolder,
+        resolveByName: (name) => vaultOps.resolveWikiTarget(vault, name, path),
+      }),
       // Note embeds (package H): the shared CM core scans ![[...]] lines;
       // mobile renders a tappable preview card — note text stripped to
       // plain prose, .base as a database card, both opening their target.

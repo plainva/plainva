@@ -811,6 +811,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    container paddings; per-theme WebView2 tuning may refine them (plan P5). */
 .markdown-reader .embedded-note--base { margin-inline: -2rem; }
 .cm-note-embed .embedded-note--base { margin-left: -6px; }
+/* The inline image widget (ImagePreviewPlugin): an inline-block the anchor
+   regions can measure against; the picture itself keeps its own limits. */
+.pv-image-embed { display: inline-block; max-width: 100%; margin: 0.5rem 0; }
 
 /* ------------------------------------------------- UI 2.0 (M3 Expressive) */
 /* Emphasis title in empty states (headline type role). */
