@@ -106,12 +106,9 @@ export async function restoreNavState(
     const out: NavEntry[] = [];
     for (const e of entries) {
       if (PATH_KINDS.has(e.kind) && e.path !== "") {
-        let ok = false;
-        try {
-          ok = await opts.exists(e.path);
-        } catch {
-          ok = false;
-        }
+        const ok = await Promise.resolve()
+          .then(() => opts.exists(e.path))
+          .catch(() => false);
         if (!ok) continue;
       }
       out.push(e);

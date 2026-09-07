@@ -209,7 +209,7 @@ export default function App() {
     void getMobileVault().then((v) => {
       setVault(v);
       bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
-      void restoreSession(v, setNav, shownBarTabs(barLayout, isRailClass(getWindowClass()))); // where you were (P6), else the last note (T6)
+      void restoreSession(v, setNav); // where you were (P6), else the last note (T6)
       void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
       void startPim(v).catch((e) => console.error("[boot] pim start failed", e));

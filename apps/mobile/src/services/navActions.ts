@@ -4,6 +4,8 @@ import { askBeforeLeaving } from "./leaveQuestion";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
 import { markSessionReady, readNavState, restoreNavState } from "./sessionState";
+import { loadMobileBar, shownBarTabs } from "./mobileBar";
+import { getWindowClass, isRailClass } from "./windowClass";
 
 /**
  * The three ways a screen changes, in one place.
@@ -72,19 +74,21 @@ export async function restoreLastOpenNote(
 /**
  * Boots into the navigation the user left (Build-91 feedback, P6): the stored
  * stacks, minus surfaces that carry unfinished input and entries whose file
- * is gone, with the active tab kept inside the bar. Without a stored session
- * — first start, or nothing survived — the last-note memory (T6) is the
- * fallback. Marks the session ready first, so the boot's initial state never
- * overwrites what is about to be restored.
+ * is gone, with the active tab kept inside the bar — the bar is read here,
+ * from the vault's own record, so the restore neither closes over the shell's
+ * state nor races the bar adoption that runs beside it. Without a stored
+ * session — first start, or nothing survived — the last-note memory (T6) is
+ * the fallback. Marks the session ready first, so the boot's initial state
+ * never overwrites what is about to be restored.
  */
 export async function restoreSession(
   vault: MobileVault,
   setNav: Dispatch<SetStateAction<NavState>>,
-  visible: TabScreenId[],
 ): Promise<void> {
   const stored = readNavState(vault.vaultId);
   markSessionReady(vault.vaultId);
   if (stored) {
+    const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => null);
     if (next) {
       setNav(next);
