@@ -3910,6 +3910,13 @@
     "commentTaskCreated": "Trasformato in attività",
     "commentTaskOpen": "Apri",
     "commentMoveFailed": "Le annotazioni non hanno potuto seguire la nota rinominata. La rinomina resta valida; le annotazioni restano sotto il vecchio nome.",
+    "commentsLocked": "Le annotazioni sono bloccate su questo dispositivo. Inserisci la passphrase di sincronizzazione per leggerle e scriverle.",
+    "commentsUnlock": "Sblocca",
+    "commentsLockedToast": "Le annotazioni sono bloccate su questo dispositivo. Sblocca il vault per commentare o suggerire.",
+    "commentFileUnreadable": "Un file di annotazioni non è stato letto: {{file}} ({{reason}}). Non è stato toccato.",
+    "commentFileSetAside": "Il file di annotazioni di questo dispositivo non è stato letto ({{reason}}) ed è stato messo da parte come {{file}}. Ne viene scritto uno nuovo.",
+    "commentFaultExport": "Esporta diagnosi",
+    "commentFaultReason": { "bundle-json": "JSON non valido", "bundle-schema": "struttura inattesa", "bundle-version": "versione non supportata", "bundle-sealed": "non apribile con la chiave di questo dispositivo" },
     "commentTaskFallback": "Commento"
   },
   "cascade": {

@@ -252,3 +252,26 @@ describe("one comment file per device on the phone (N2)", () => {
     expect(screen).toMatch(/changed === path \|\| changed === "\*"/);
   });
 });
+
+describe("locked and unreadable are said, not hidden, on the phone (N3)", () => {
+  it("reads the store state on the note screen and hands the sheet its locked state", () => {
+    const screen = strip(read("screens", "NoteScreen.tsx"));
+    expect(screen).toMatch(/mobileCommentStoreState\(vault\)/);
+    expect(screen).toMatch(/locked=\{commentsLocked \? \{ onUnlock: requestCommentUnlock \} : undefined\}/);
+    // The suggest verb stays and leads to the sheet, not into the mode.
+    expect(screen).toMatch(/if \(commentsLocked\) \{ setCommentsOpen\(true\); return; \}/);
+    const overview = strip(read("screens", "CommentsScreen.tsx"));
+    expect(overview).toMatch(/mobileCommentStoreState\(vault\)/);
+    expect(overview).toMatch(/m-comments-unlock/);
+  });
+
+  it("opens the sync screen on the unlock request and reports unreadable files once", () => {
+    const shell = strip(read("hooks", "useCommentShell.ts"));
+    expect(shell).toMatch(/addEventListener\("m-comments-unlock"/);
+    expect(shell).toMatch(/navigate\(\{ kind: "sync", path: "" \}\)/);
+    expect(shell).toMatch(/useCommentFaults\(vault\)/);
+    const faults = strip(read("hooks", "useCommentFaults.ts"));
+    expect(faults).toMatch(/addEventListener\("plainva-comment-faults"/);
+    expect(faults).toMatch(/shareVaultText\(/);
+  });
+});

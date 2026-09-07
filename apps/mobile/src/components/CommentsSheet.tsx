@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, Bell, BellOff, Check, ListChecks, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread } from "@plainva/ui";
+import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -76,6 +76,12 @@ export interface CommentsSheetProps {
    * its tab, scrolled to it and marked - the desktop column's behaviour.
    */
   activeCommentId?: string | null;
+  /**
+   * The remarks are locked on this phone (N3): a keyfile in the vault, no
+   * unlocked key here. The sheet says so and offers the way out, instead of an
+   * empty list that reads as "nobody wrote anything".
+   */
+  locked?: { onUnlock(): void };
 }
 
 /**
@@ -118,6 +124,7 @@ export function CommentsSheet({
   onClose,
   muted,
   onToggleMute,
+  locked,
 }: CommentsSheetProps) {
   const { t, i18n } = useTranslation();
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -355,9 +362,14 @@ export function CommentsSheet({
             </IconButton>
           )}
         </div>
-        {kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+        {locked && (
+          <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("workspaceSecurity.commentsUnlock")}</Button>}>
+            {t("workspaceSecurity.commentsLocked")}
+          </EmptyState>
+        )}
+        {!locked && kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
         <div className="pv-comment-list">
-          {kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+          {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
           {kind === "suggestions" && grouped.rounds.map((round) => (
             <section key={round.batchId} className="pv-comment-round">
               {!round.batchId.startsWith("single:") && (
@@ -377,7 +389,7 @@ export function CommentsSheet({
           ))}
           {kind === "comments" && grouped.threads.map(renderThread)}
         </div>
-        {canComment && (
+        {canComment && !locked && (
           <div className="pv-comment-compose">
             <MentionTextArea
               aria-label={t(replyTo ? "workspaceSecurity.commentReply" : "workspaceSecurity.addComment")}

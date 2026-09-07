@@ -68,6 +68,10 @@ export const AUX_BRIDGED_EVENTS: Readonly<Record<string, AuxBridgeEntry>> = {
     answer: "local",
     why: "The properties section lives in this window's context sidebar; the shell only has to unfold the sidebar, the section expands itself.",
   },
+  "plainva-encryption-locked": {
+    answer: "owner",
+    why: "The unlock prompt lives with the master key in the central window (EncryptionUnlockHost renders nothing without a backup adapter); the locked remarks column asks for it with `force`, and the owner's own host answers exactly as for a click there (N3).",
+  },
   "plainva-open-sync-settings": {
     answer: "owner",
     why: "Settings bind credentials and start services, so they exist in exactly one window (owner-surface 'settings'); the mail and calendar sign-in cards dispatch this from any window.",

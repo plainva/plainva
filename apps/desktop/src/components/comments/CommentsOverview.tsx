@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, FileText, MessageSquare, RefreshCw, Replace } from "lucide-react";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { AtSign, FileText, Lock, MessageSquare, RefreshCw, Replace } from "lucide-react";
+import type { CommentStoreState, WorkspaceCommentRecord } from "@plainva/core";
 import { buildCommentOverview, Button, COMMENT_OVERVIEW_FOCUS_EVENT, EmptyState, groupSuggestionRounds, ICON, noteDisplayName, parseCommentMentions, requestCommentJump, Segmented, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
@@ -19,7 +19,10 @@ import { useVault } from "../../contexts/VaultContext";
  */
 export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newTab?: boolean): void }) {
   const { t } = useTranslation();
-  const { listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, vaultPath } = useVault();
+  const { listAllWorkspaceComments, listWorkspaceMembers, getCommentSelfId, getCommentStoreState, vaultPath } = useVault();
+  // Locked on this device (N3): the list is empty for a reason, and the
+  // reason is what this view has to say.
+  const [storeState, setStoreState] = useState<CommentStoreState | null>(null);
   const [byPath, setByPath] = useState<ReadonlyMap<string, WorkspaceCommentRecord[]>>(new Map());
   const [memberNames, setMemberNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [selfMemberId, setSelfMemberId] = useState<string | null>(null);
@@ -42,18 +45,20 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
 
   const refresh = useCallback(() => {
     setLoading(true);
+    void getCommentStoreState().then(setStoreState).catch(() => setStoreState(null));
     void listAllWorkspaceComments()
       .then(setByPath)
       .catch(() => setByPath(new Map()))
       .finally(() => setLoading(false));
-  }, [listAllWorkspaceComments]);
+  }, [listAllWorkspaceComments, getCommentStoreState]);
 
   useEffect(() => {
     refresh();
     // Posting, resolving or accepting anywhere changes what is waiting here.
     const listener = () => refresh();
     window.addEventListener("plainva-workspace-comments-changed", listener);
-    return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
+    window.addEventListener("plainva-encryption-changed", listener);
+    return () => { window.removeEventListener("plainva-workspace-comments-changed", listener); window.removeEventListener("plainva-encryption-changed", listener); };
   }, [refresh]);
 
   useEffect(() => {
@@ -95,7 +100,15 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
         </Button>
       </div>
       <div className="pv-comment-overview__body">
-        {notes.length === 0 && (
+        {storeState?.mode === "locked" && (
+          <EmptyState
+            icon={<Lock size={ICON.empty} />}
+            action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))}>{t("workspaceSecurity.commentsUnlock")}</Button>}
+          >
+            {t("workspaceSecurity.commentsLocked")}
+          </EmptyState>
+        )}
+        {storeState?.mode !== "locked" && notes.length === 0 && (
           <EmptyState icon={<MessageSquare size={ICON.empty} />}>
             {filter === "new" ? t("workspaceSecurity.commentOverviewNoneNew") : onlyAddressed ? t("workspaceSecurity.commentOverviewNoneMine") : t("workspaceSecurity.commentOverviewNone")}
           </EmptyState>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bookmark,
@@ -44,7 +44,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
-import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
+import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 
@@ -202,6 +202,18 @@ export function NoteScreen({
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
   const commentCaps = workspaceCapabilities ?? MOBILE_COMMENT_CAPABILITIES;
   const canComment = commentCaps.includes("comment.create");
+  /**
+   * Locked on this phone (N3): the keyfile is in the vault, the key is not.
+   * The verbs stay - comment, suggest - and lead to the sheet, which says what
+   * to do; nothing is posted. Re-read with the remarks: an unlock changes it.
+   */
+  const [commentsLocked, setCommentsLocked] = useState(false);
+  useEffect(() => {
+    let stale = false;
+    void mobileCommentStoreState(vault).then((state) => { if (!stale) setCommentsLocked(state.mode === "locked"); }).catch(() => { if (!stale) setCommentsLocked(false); });
+    return () => { stale = true; };
+  }, [vault, path, commentTick]);
+  const requestCommentUnlock = useCallback(() => window.dispatchEvent(new CustomEvent("m-comments-unlock")), []);
   useEffect(() => {
     let stale = false;
     void Promise.all([listMobileComments(vault, path), listMobileCommentAuthors(vault)])
@@ -856,6 +868,9 @@ export function NoteScreen({
           anchorHighlights={anchorHighlights}
           onCommentAnchorRequest={(req) => { setPendingRange(req); setPendingPropertyAnchor(null); setCommentsOpen(true); }}
           onPassageSuggest={canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
+            // Locked (N3): the verb leads to the explanation, not into a mode
+            // whose send would fail a minute later.
+            if (commentsLocked) { setCommentsOpen(true); return; }
             // The same entry as the note menu's "Suggest" (V5) — from the
             // selection instead of the menu; the copy keeps the marked range.
             setEditing(true);
@@ -979,6 +994,7 @@ export function NoteScreen({
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           activeCommentId={activeCommentId}
+          locked={commentsLocked ? { onUnlock: requestCommentUnlock } : undefined}
           onRevealAnchor={revealAnchor}
           onOpenNote={(target) => {
             // The same resolution the editor's wiki links take (K4).

@@ -3910,6 +3910,13 @@
     "commentTaskCreated": "Transformé en tâche",
     "commentTaskOpen": "Ouvrir",
     "commentMoveFailed": "Les annotations n’ont pas pu suivre la note renommée. Le renommage est conservé ; les annotations restent sous l’ancien nom.",
+    "commentsLocked": "Les annotations sont verrouillées sur cet appareil. Saisissez la phrase secrète de synchronisation pour les lire et les écrire.",
+    "commentsUnlock": "Déverrouiller",
+    "commentsLockedToast": "Les annotations sont verrouillées sur cet appareil. Déverrouillez le coffre pour commenter ou suggérer.",
+    "commentFileUnreadable": "Un fichier d’annotations n’a pas pu être lu : {{file}} ({{reason}}). Il n’a pas été modifié.",
+    "commentFileSetAside": "Le fichier d’annotations de cet appareil n’a pas pu être lu ({{reason}}) ; il a été mis de côté sous {{file}}. Un nouveau est écrit.",
+    "commentFaultExport": "Exporter le diagnostic",
+    "commentFaultReason": { "bundle-json": "JSON invalide", "bundle-schema": "structure inattendue", "bundle-version": "version non prise en charge", "bundle-sealed": "impossible à ouvrir avec la clé de cet appareil" },
     "commentTaskFallback": "Commentaire"
   },
   "cascade": {

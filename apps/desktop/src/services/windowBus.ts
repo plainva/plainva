@@ -262,13 +262,14 @@ export interface RpcMap {
       | "sync-error"
       | "update-indexes"
       | "backup"
-      | "new-window";
+      | "new-window"
+      | "encryption-unlock";
       provider?: string;
       area?: string;
       /** "settings" only: land on THIS cloud account's detail page (D2) —
        *  its own id, or the id of the mail/calendar account it owns. */
       accountId?: string;
-      /** `new-window` only: which vault the new window shows (stage D). */
+      /** `new-window`: which vault the new window shows (stage D); `encryption-unlock`: which vault to unlock (N3). */
       vaultPath?: string;
     };
     result: void;

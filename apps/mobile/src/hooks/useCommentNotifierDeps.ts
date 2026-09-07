@@ -26,7 +26,7 @@ import type { WorkspaceCommentRecord } from "@plainva/core";
  */
 export function useCommentNotifierDeps(
   vault: MobileVault | null,
-  navigate: (entry: { kind: "note" | "comments"; path: string }) => void,
+  navigate: (entry: { kind: "note" | "comments" | "sync"; path: string }) => void,
 ): void {
   useEffect(() => {
     if (!vault) return;

@@ -27,9 +27,11 @@ export const EncryptionUnlockHost: React.FC = () => {
   useEffect(() => {
     if (!vaultPath || !backupAdapter) return;
     const onLocked = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { vaultPath?: string } | undefined;
+      const detail = (e as CustomEvent).detail as { vaultPath?: string; force?: boolean } | undefined;
       if (detail?.vaultPath && detail.vaultPath !== vaultPath) return;
-      if (dismissedFor.current === vaultPath) return;
+      // `force`: the person asked for it (the locked remarks column, N3) -
+      // a dismissal earlier in the session does not stand in the way.
+      if (dismissedFor.current === vaultPath && !detail?.force) return;
       // Only prompt when genuinely locked: a keyfile is present (pulled by the
       // guard) but no master key is cached on this device.
       void Promise.all([hasLocalKeyfile(backupAdapter), loadCachedMasterKey(vaultPath)]).then(([kf, mk]) => {

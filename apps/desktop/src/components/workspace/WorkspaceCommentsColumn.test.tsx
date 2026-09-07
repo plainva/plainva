@@ -645,3 +645,34 @@ describe("a card named from the text (finding 2026-09-03)", () => {
     } finally { unmount(); }
   });
 });
+
+describe("locked on this device (N3)", () => {
+  it("explains, offers the unlock, and shows no composer - instead of an empty list", async () => {
+    const onUnlock = vi.fn();
+    const { host, unmount } = render(
+      <WorkspaceCommentsColumn
+        comments={[]}
+        memberNames={new Map()}
+        selfMemberId="me"
+        resolutions={new Map()}
+        canComment
+        canWrite
+        activeCommentId={null}
+        selectionQuote={null}
+        onSelect={() => {}}
+        onSubmit={async () => {}}
+        onResolve={() => {}}
+        onApplySuggestion={() => {}}
+        onDeclineSuggestion={() => {}}
+        onPromoteToTask={() => {}}
+        locked={{ onUnlock }}
+      />,
+    );
+    expect(host.textContent).toContain(tr("workspaceSecurity.commentsLocked"));
+    expect(host.textContent).not.toContain(tr("workspaceSecurity.commentsNone"));
+    expect(host.querySelector(".pv-comment-compose")).toBeNull();
+    await act(async () => { (host.querySelector('[data-testid="comments-unlock"]') as HTMLButtonElement).click(); });
+    expect(onUnlock).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+});

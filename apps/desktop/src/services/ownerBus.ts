@@ -560,11 +560,16 @@ export async function installOwnerAppBus(): Promise<() => void> {
         "update-indexes": "plainva-update-all-indexes",
         backup: "plainva-backup-now",
         "new-window": "plainva-open-full-window",
+        // The unlock prompt lives with the master key, in this window (N3).
+        "encryption-unlock": "plainva-encryption-locked",
       };
       // `new-window` carries the vault it should show: since stage D the asking
       // window may be looking at a different one than this window is.
       const detail =
-        surface === "settings" ? { provider, area, accountId } : surface === "new-window" && vaultPath ? { vaultPath } : undefined;
+        surface === "settings" ? { provider, area, accountId }
+        : surface === "new-window" && vaultPath ? { vaultPath }
+        : surface === "encryption-unlock" ? { vaultPath, force: true }
+        : undefined;
       window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));
     }),
   );

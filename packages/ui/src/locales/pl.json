@@ -3950,6 +3950,13 @@
     "commentTaskCreated": "Zamieniono w zadanie",
     "commentTaskOpen": "Otwórz",
     "commentMoveFailed": "Uwagi nie mogły podążyć za notatką o zmienionej nazwie. Zmiana nazwy pozostaje; uwagi zostają pod starą nazwą.",
+    "commentsLocked": "Uwagi są zablokowane na tym urządzeniu. Wpisz hasło synchronizacji, aby je czytać i pisać.",
+    "commentsUnlock": "Odblokuj",
+    "commentsLockedToast": "Uwagi są zablokowane na tym urządzeniu. Odblokuj sejf, aby komentować lub proponować.",
+    "commentFileUnreadable": "Nie udało się odczytać pliku uwag: {{file}} ({{reason}}). Plik pozostał nietknięty.",
+    "commentFileSetAside": "Nie udało się odczytać pliku uwag tego urządzenia ({{reason}}); odłożono go jako {{file}}. Zapisywany jest nowy.",
+    "commentFaultExport": "Eksportuj diagnostykę",
+    "commentFaultReason": { "bundle-json": "nieprawidłowy JSON", "bundle-schema": "nieoczekiwana struktura", "bundle-version": "nieobsługiwana wersja", "bundle-sealed": "nie można otworzyć kluczem tego urządzenia" },
     "commentTaskFallback": "Komentarz"
   },
   "cascade": {

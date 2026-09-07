@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
+import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -105,6 +105,13 @@ export interface WorkspaceCommentsColumnProps {
    */
   muted?: boolean;
   onToggleMute?(): void;
+  /**
+   * The remarks are locked on this device (N3): the vault has a keyfile and
+   * no unlocked key here, so the sealed bundle cannot be read and a plaintext
+   * one must not be written. The column says so and offers the way out,
+   * instead of an empty list that reads as "nobody wrote anything".
+   */
+  locked?: { onUnlock(): void };
 }
 
 /**
@@ -120,7 +127,7 @@ export interface WorkspaceCommentsColumnProps {
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
   onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
-  publicationComments = [], muted, onToggleMute,
+  publicationComments = [], muted, onToggleMute, locked,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
   /** "Open" hides what is settled; "all" brings resolved threads back (K3). */
@@ -507,8 +514,13 @@ export function WorkspaceCommentsColumn({
         )}
       </div>
       <div className="pv-comment-column__body">
-      {kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
-      {kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
+      {locked && (
+        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("workspaceSecurity.commentsUnlock")}</Button>} >
+          {t("workspaceSecurity.commentsLocked")}
+        </EmptyState>
+      )}
+      {!locked && kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.commentsNone")}</p>}
+      {!locked && kind === "suggestions" && grouped.rounds.length === 0 && <p className="pv-comment-column__empty">{t("workspaceSecurity.suggestionsNone")}</p>}
       {kind === "suggestions" && grouped.rounds.map((round) => {
         const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
         return (
@@ -542,7 +554,7 @@ export function WorkspaceCommentsColumn({
       })}
       {kind === "comments" && grouped.threads.map(renderThread)}
       </div>
-      {canComment && (
+      {canComment && !locked && (
         <div className="pv-comment-column__foot">
         <div className="pv-comment-compose pv-comment-compose--new">
           <p className="pv-comment-compose__target">

@@ -3830,6 +3830,13 @@
     "commentTaskCreated": "已转为任务",
     "commentTaskOpen": "打开",
     "commentMoveFailed": "批注无法跟随已重命名的笔记。重命名仍然有效；批注保留在旧名称下。",
+    "commentsLocked": "此设备上的批注已锁定。输入同步口令以读取和写入批注。",
+    "commentsUnlock": "解锁",
+    "commentsLockedToast": "此设备上的批注已锁定。请解锁保险库以进行评论或建议。",
+    "commentFileUnreadable": "无法读取批注文件：{{file}}（{{reason}}）。该文件未被改动。",
+    "commentFileSetAside": "无法读取此设备的批注文件（{{reason}}），已将其移至 {{file}}。将写入新文件。",
+    "commentFaultExport": "导出诊断",
+    "commentFaultReason": { "bundle-json": "不是有效的 JSON", "bundle-schema": "结构异常", "bundle-version": "不支持的版本", "bundle-sealed": "无法用此设备的密钥打开" },
     "commentTaskFallback": "评论"
   },
   "cascade": {

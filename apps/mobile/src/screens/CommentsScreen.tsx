@@ -1,9 +1,10 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AtSign, FileText, MessageSquare, Replace } from "lucide-react";
+import { AtSign, FileText, Lock, MessageSquare, Replace } from "lucide-react";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import {
   buildCommentOverview,
+  Button,
   EmptyState,
   ICON,
   noteDisplayName,
@@ -18,6 +19,7 @@ import {
   listAllMobileComments,
   listMobileCommentAuthors,
   mobileCommentSelfId,
+  mobileCommentStoreState,
 } from "../services/mobileComments";
 import type { MobileVault } from "../services/vaultService";
 
@@ -52,6 +54,9 @@ export function CommentsScreen({
   const [byPath, setByPath] = useState<ReadonlyMap<string, WorkspaceCommentRecord[]>>(new Map());
   const [names, setNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [selfId, setSelfId] = useState<string | null>(null);
+  // Locked on this phone (N3): the list is empty for a reason, and the reason
+  // is what this screen has to say.
+  const [locked, setLocked] = useState(false);
   // "new" exists only while a gathered notification handed its ids in (C30).
   const [focus, setFocus] = useState<ReadonlySet<string> | null>(() => takeCommentOverviewFocus());
   const [filter, setFilter] = useState<"all" | "mine" | "new">(() => (focus ? "new" : "all"));
@@ -68,14 +73,16 @@ export function CommentsScreen({
   const ptrRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const [comments, authors, self] = await Promise.all([
+    const [comments, authors, self, state] = await Promise.all([
       listAllMobileComments(vault),
       listMobileCommentAuthors(vault),
       mobileCommentSelfId(),
+      mobileCommentStoreState(vault),
     ]);
     setByPath(comments);
     setNames(authors);
     setSelfId(self);
+    setLocked(state.mode === "locked");
   }, [vault]);
 
   // Pulling refreshes the vault the way every other list does, and then re-reads
@@ -129,7 +136,11 @@ export function CommentsScreen({
           { value: "mine", label: t("workspaceSecurity.commentOverviewMine") },
         ]}
       />
-      {notes.length === 0 ? (
+      {locked ? (
+        <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("m-comments-unlock"))}>{t("workspaceSecurity.commentsUnlock")}</Button>}>
+          {t("workspaceSecurity.commentsLocked")}
+        </EmptyState>
+      ) : notes.length === 0 ? (
         <EmptyState icon={<MessageSquare size={ICON.empty} />}>
           {t(filter === "new" ? "workspaceSecurity.commentOverviewNoneNew" : onlyMine ? "workspaceSecurity.commentOverviewNoneMine" : "workspaceSecurity.commentOverviewNone")}
         </EmptyState>

@@ -3870,6 +3870,13 @@
     "commentTaskCreated": "Made into a task",
     "commentTaskOpen": "Open",
     "commentMoveFailed": "The remarks could not follow the renamed note. The rename stands; the remarks stay under the old name.",
+    "commentsLocked": "Remarks are locked on this device. Enter the sync passphrase to read and write them.",
+    "commentsUnlock": "Unlock",
+    "commentsLockedToast": "Remarks are locked on this device. Unlock the vault to comment or suggest.",
+    "commentFileUnreadable": "A remarks file could not be read: {{file}} ({{reason}}). It was left untouched.",
+    "commentFileSetAside": "This device's remarks file could not be read ({{reason}}) and was set aside as {{file}}. A new one is written.",
+    "commentFaultExport": "Export diagnosis",
+    "commentFaultReason": { "bundle-json": "not valid JSON", "bundle-schema": "unexpected structure", "bundle-version": "unsupported version", "bundle-sealed": "cannot be opened with this device's key" },
     "commentTaskFallback": "Comment"
   },
   "cascade": {

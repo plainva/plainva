@@ -23,7 +23,7 @@ describe("the vault context chooses one comment store", () => {
   const context = strip(read("contexts", "VaultContext.tsx"));
 
   it("forks on the workspace status exactly once, inside the store choice", () => {
-    const choice = context.slice(context.indexOf("const commentStore = ("), context.indexOf("const getCommentStoreState"));
+    const choice = context.slice(context.indexOf("const commentStoreMemo = useMemo("), context.indexOf("const getCommentStoreState"));
     expect(choice, "the store choice reads the status").toMatch(/state\.workspaceSecurityStatus/);
     // Every comment function after the choice goes through `commentStore()`;
     // none of them may ask the status again.
@@ -96,5 +96,34 @@ describe("one comment file per device on the desktop (N2)", () => {
   it("lets the editor accept the wildcard", () => {
     const editor = strip(read("components", "Editor.tsx"));
     expect(editor).toMatch(/path === activePath \|\| path === "\*"/);
+  });
+});
+
+describe("locked and unreadable are said, not hidden (N3)", () => {
+  it("lets the editor read the store state and hand the column its locked state", () => {
+    const editor = strip(read("components", "Editor.tsx"));
+    expect(editor).toMatch(/getCommentStoreState\(\)/);
+    expect(editor).toMatch(/locked=\{commentsLocked \? \{ onUnlock: requestCommentUnlock \} : undefined\}/);
+    // The suggest verb stays and leads to the explanation, never into a mode
+    // whose send would fail a minute later.
+    const start = editor.slice(editor.indexOf("const startSuggesting = useCallback("), editor.indexOf("const stopSuggesting"));
+    expect(start).toMatch(/if \(commentsLocked\) \{ setCommentColumnSession\("open"\)/);
+    // Retry and discard exist only where an outbox does.
+    expect(editor).toMatch(/onRetryPending=\{commentStoreState\?\.hasOutbox \?/);
+    expect(editor).toMatch(/onDiscardPending=\{commentStoreState\?\.hasOutbox \?/);
+  });
+
+  it("asks the unlock prompt by force from the column, and the prompt honours it", () => {
+    const editor = strip(read("components", "Editor.tsx"));
+    expect(editor).toMatch(/"plainva-encryption-locked", \{ detail: \{ vaultPath, force: true \} \}/);
+    const host = strip(read("components", "settings", "EncryptionUnlockHost.tsx"));
+    expect(host).toMatch(/dismissedFor\.current === vaultPath && !detail\?\.force/);
+  });
+
+  it("installs the fault reporter for the life of a vault, owner only", () => {
+    const context = strip(read("contexts", "VaultContext.tsx"));
+    expect(context).toMatch(/if \(!state\.vaultPath \|\| isClient\) return;\s*return installCommentFaultReporter\(state\.vaultPath\);/);
+    const overview = strip(read("components", "comments", "CommentsOverview.tsx"));
+    expect(overview).toMatch(/storeState\?\.mode === "locked"/);
   });
 });

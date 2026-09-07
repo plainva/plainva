@@ -24,7 +24,7 @@ import { docIconValue } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion } from "@plainva/core";
+import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -110,7 +110,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -227,6 +227,28 @@ export const Editor: React.FC<{
     void getWorkspaceCapabilities(activePath).then((value) => { if (active) setWorkspaceCapabilities(value); }).catch(() => { if (active) setWorkspaceCapabilities([]); });
     return () => { active = false; };
   }, [activePath, getWorkspaceCapabilities, workspaceSecurityStatus]);
+  /**
+   * How the store holds remarks right now (N3): `locked` is the one state the
+   * column explains instead of listing nothing, and `hasOutbox` decides whether
+   * a card can offer retry and discard at all. Re-read with the note, after an
+   * unlock, and whenever the remarks changed.
+   */
+  const [commentStoreState, setCommentStoreState] = useState<CommentStoreState | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!activePath) { setCommentStoreState(null); return; }
+    const read = () => void getCommentStoreState().then((value) => { if (active) setCommentStoreState(value); }).catch(() => { if (active) setCommentStoreState(null); });
+    read();
+    window.addEventListener("plainva-encryption-changed", read);
+    window.addEventListener("plainva-workspace-comments-changed", read);
+    return () => { active = false; window.removeEventListener("plainva-encryption-changed", read); window.removeEventListener("plainva-workspace-comments-changed", read); };
+  }, [activePath, getCommentStoreState, workspaceSecurityStatus]);
+  const commentsLocked = commentStoreState?.mode === "locked";
+  // The way out of `locked`, from the column: the unlock prompt, even if it
+  // was dismissed once this session - this time the person asked for it.
+  const requestCommentUnlock = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }));
+  }, [vaultPath]);
   const workspaceReadOnly = workspaceCapabilities !== null && !workspaceCapabilities.includes("content.write");
   const workspaceCanComment = workspaceCapabilities?.includes("comment.create") === true;
   const workspaceCanReadComments = workspaceCapabilities?.includes("comment.read") === true;
@@ -2541,6 +2563,10 @@ export const Editor: React.FC<{
   const startSuggesting = useCallback(() => {
     const session = sessionRef.current;
     if (!session || !activePath) return;
+    // Locked (N3): the verb stays and leads to the explanation - the column
+    // opens and says what to do - rather than into a mode whose send would
+    // fail a minute later.
+    if (commentsLocked) { setCommentColumnSession("open"); toast.info(t("workspaceSecurity.commentsLockedToast")); return; }
     if (viewMode === "source") { setViewMode("live"); rememberSessionViewMode(activePath, "live"); }
     suggestingRef.current = true;
     setSuggesting(true);
@@ -2551,7 +2577,7 @@ export const Editor: React.FC<{
       if (parked.copy !== view.state.doc.toString()) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: parked.copy } });
       setSuggestNote(parked.note);
     }
-  }, [activePath, viewMode]);
+  }, [activePath, viewMode, commentsLocked, t]);
 
   const stopSuggesting = useCallback(() => {
     suggestingRef.current = false;
@@ -3137,8 +3163,9 @@ export const Editor: React.FC<{
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
           onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
-          onRetryPending={(outboxId) => { void retryWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
-          onDiscardPending={(outboxId) => { void discardWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+          onRetryPending={commentStoreState?.hasOutbox ? (outboxId) => { void retryWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
+          onDiscardPending={commentStoreState?.hasOutbox ? (outboxId) => { void discardWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
+          locked={commentsLocked ? { onUnlock: requestCommentUnlock } : undefined}
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
         />

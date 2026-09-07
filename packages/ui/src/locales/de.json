@@ -3870,6 +3870,13 @@
     "commentTaskCreated": "Als Aufgabe angelegt",
     "commentTaskOpen": "Öffnen",
     "commentMoveFailed": "Die Anmerkungen konnten der umbenannten Notiz nicht folgen. Die Umbenennung gilt; die Anmerkungen bleiben unter dem alten Namen.",
+    "commentsLocked": "Anmerkungen sind auf diesem Gerät gesperrt. Gib die Sync-Passphrase ein, um sie zu lesen und zu schreiben.",
+    "commentsUnlock": "Entsperren",
+    "commentsLockedToast": "Anmerkungen sind auf diesem Gerät gesperrt. Entsperre den Vault, um zu kommentieren oder vorzuschlagen.",
+    "commentFileUnreadable": "Eine Anmerkungsdatei konnte nicht gelesen werden: {{file}} ({{reason}}). Sie wurde nicht angetastet.",
+    "commentFileSetAside": "Die Anmerkungsdatei dieses Geräts konnte nicht gelesen werden ({{reason}}) und liegt jetzt unter {{file}}. Eine neue wird geschrieben.",
+    "commentFaultExport": "Diagnose exportieren",
+    "commentFaultReason": { "bundle-json": "kein gültiges JSON", "bundle-schema": "unerwartete Struktur", "bundle-version": "Version wird nicht unterstützt", "bundle-sealed": "lässt sich mit dem Schlüssel dieses Geräts nicht öffnen" },
     "commentTaskFallback": "Kommentar"
   },
   "cascade": {

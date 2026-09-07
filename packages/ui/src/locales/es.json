@@ -3910,6 +3910,13 @@
     "commentTaskCreated": "Convertido en tarea",
     "commentTaskOpen": "Abrir",
     "commentMoveFailed": "Las anotaciones no pudieron seguir a la nota renombrada. El cambio de nombre se mantiene; las anotaciones quedan bajo el nombre anterior.",
+    "commentsLocked": "Las anotaciones están bloqueadas en este dispositivo. Introduce la frase de contraseña de sincronización para leerlas y escribirlas.",
+    "commentsUnlock": "Desbloquear",
+    "commentsLockedToast": "Las anotaciones están bloqueadas en este dispositivo. Desbloquea el vault para comentar o sugerir.",
+    "commentFileUnreadable": "No se pudo leer un archivo de anotaciones: {{file}} ({{reason}}). No se ha tocado.",
+    "commentFileSetAside": "No se pudo leer el archivo de anotaciones de este dispositivo ({{reason}}); se apartó como {{file}}. Se escribe uno nuevo.",
+    "commentFaultExport": "Exportar diagnóstico",
+    "commentFaultReason": { "bundle-json": "JSON no válido", "bundle-schema": "estructura inesperada", "bundle-version": "versión no compatible", "bundle-sealed": "no se puede abrir con la clave de este dispositivo" },
     "commentTaskFallback": "Comentario"
   },
   "cascade": {

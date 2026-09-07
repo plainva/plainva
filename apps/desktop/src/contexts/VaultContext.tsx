@@ -20,6 +20,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createLocalCommentStore } from "../services/localComments";
 import { WorkspaceCommentStore } from "../services/workspaceCommentStore";
+import { installCommentFaultReporter } from "../services/commentFaults";
 import type { CommentPathMove, CommentStore, CommentStoreState } from "@plainva/core";
 import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
@@ -2912,13 +2913,17 @@ export const VaultProvider: React.FC<{
    * `BackupVaultAdapter` skips `.plainva` for snapshots anyway, so nothing
    * here lands in the version history either.
    */
-  const commentStore = (): CommentStore | null => {
+  // Through a ref, not captured: the store lives as long as the vault, the
+  // worker is replaced when sync starts or stops.
+  const syncWorkerRef = useRef(state.syncWorker);
+  syncWorkerRef.current = state.syncWorker;
+  const commentStoreMemo = useMemo((): CommentStore | null => {
     const vaultPath = state.vaultPath;
     if (!vaultPath) return null;
     if (state.workspaceSecurityStatus) {
       return new WorkspaceCommentStore({
         plane: () => { const { runtime, workspaceState } = workspaceControlPlane(); return { runtime, workspaceState }; },
-        worker: () => state.syncWorker as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
+        worker: () => syncWorkerRef.current as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
         changed: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
       });
     }
@@ -2926,10 +2931,14 @@ export const VaultProvider: React.FC<{
     return createLocalCommentStore(vaultPath, state.backupAdapter, async () => (await getSettingsStore()).get<string>(verifierNameKey(vaultPath)), (path) => {
       // On disk already; the sideband carries it with the next cycle, which is
       // triggered right away so a reply does not wait a whole interval.
-      state.syncWorker?.triggerImmediate();
+      syncWorkerRef.current?.triggerImmediate();
       window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
     });
-  };
+    // The store is chosen by these three and nothing else; the control plane
+    // reads its runtime through refs at call time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.vaultPath, state.backupAdapter, state.workspaceSecurityStatus]);
+  const commentStore = (): CommentStore | null => commentStoreMemo;
 
   const getCommentStoreState = async (): Promise<CommentStoreState | null> => commentStore()?.state() ?? null;
 
@@ -2967,6 +2976,12 @@ export const VaultProvider: React.FC<{
     window.addEventListener("plainva-file-ops", onOps);
     return () => window.removeEventListener("plainva-file-ops", onOps);
   }, [state.vaultPath]);
+  // A comment file that could not be read is said once, with the reason and
+  // a diagnosis to export (N3). Owner only: a client has no store.
+  useEffect(() => {
+    if (!state.vaultPath || isClient) return;
+    return installCommentFaultReporter(state.vaultPath);
+  }, [state.vaultPath, isClient]);
 
   // A vault without a workspace still gets the comment surface - the same
   // threads, anchors and suggestions, only stored in the sideband bundle

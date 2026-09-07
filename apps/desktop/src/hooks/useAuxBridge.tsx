@@ -140,6 +140,25 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       })();
     };
 
+    // --- owner: the unlock prompt lives with the master key (N3) ------------
+    const onEncryptionLocked = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { vaultPath?: unknown; force?: unknown } | undefined;
+      // Only a person's request travels: the sync guard's own "locked" never
+      // fires here (a client window runs no worker), and if it ever did, the
+      // owner's guard already prompts for itself.
+      if (detail?.force !== true || typeof detail.vaultPath !== "string") return;
+      const vaultPath = detail.vaultPath;
+      void (async () => {
+        try {
+          const bus = await getWindowBus();
+          await bus.request("owner-surface", { surface: "encryption-unlock", vaultPath });
+        } catch (err) {
+          console.warn("[useAuxBridge] the central window did not answer", err);
+          toast.error(t("window.ownerUnreachable"));
+        }
+      })();
+    };
+
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
     window.addEventListener("plainva-reveal-folder", onRevealFolder);
@@ -148,6 +167,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     window.addEventListener("plainva-open-template-picker", onOpenTemplatePicker);
     window.addEventListener("plainva-reveal-properties", onRevealProperties);
     window.addEventListener("plainva-open-sync-settings", onOpenSyncSettings);
+    window.addEventListener("plainva-encryption-locked", onEncryptionLocked);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
@@ -157,6 +177,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       window.removeEventListener("plainva-open-template-picker", onOpenTemplatePicker);
       window.removeEventListener("plainva-reveal-properties", onRevealProperties);
       window.removeEventListener("plainva-open-sync-settings", onOpenSyncSettings);
+      window.removeEventListener("plainva-encryption-locked", onEncryptionLocked);
     };
   }, [t]);
 

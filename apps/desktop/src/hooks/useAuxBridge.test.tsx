@@ -204,6 +204,14 @@ const CASES: Record<string, () => Promise<void>> = {
     await fire("plainva-open-sync-settings", { area: "cloudAccounts", accountId: "acc-1" });
     expect(requests).toEqual([["owner-surface", { surface: "settings", provider: undefined, area: "cloudAccounts", accountId: "acc-1" }]]);
   },
+  "plainva-encryption-locked": async () => {
+    // The sync guard's own notice (no `force`) stays in this window; the
+    // person's request from the locked remarks column goes to the owner.
+    await fire("plainva-encryption-locked", { vaultPath: "/v" });
+    expect(requests).toEqual([]);
+    await fire("plainva-encryption-locked", { vaultPath: "/v", force: true });
+    expect(requests).toEqual([["owner-surface", { surface: "encryption-unlock", vaultPath: "/v" }]]);
+  },
 };
 
 describe("what the auxiliary window does with each bridged event", () => {

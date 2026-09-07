@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import type { MobileVault } from "../services/vaultService";
 import { useCommentNotifierDeps } from "./useCommentNotifierDeps";
 import { useCommentMoves } from "./useCommentMoves";
+import { useCommentFaults } from "./useCommentFaults";
 
 /**
  * What the shell owes the comment store, in one call.
@@ -13,8 +15,16 @@ import { useCommentMoves } from "./useCommentMoves";
  */
 export function useCommentShell(
   vault: MobileVault | null,
-  navigate: (entry: { kind: "note" | "comments"; path: string }) => void,
+  navigate: (entry: { kind: "note" | "comments" | "sync"; path: string }) => void,
 ): void {
   useCommentNotifierDeps(vault, navigate);
   useCommentMoves(vault);
+  useCommentFaults(vault);
+  // The way out of `locked` (N3): the sheet and the overview ask, the shell
+  // opens the sync screen where the passphrase is entered.
+  useEffect(() => {
+    const onUnlock = () => navigate({ kind: "sync", path: "" });
+    window.addEventListener("m-comments-unlock", onUnlock);
+    return () => window.removeEventListener("m-comments-unlock", onUnlock);
+  }, [navigate]);
 }

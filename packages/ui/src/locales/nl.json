@@ -3870,6 +3870,13 @@
     "commentTaskCreated": "Omgezet in taak",
     "commentTaskOpen": "Openen",
     "commentMoveFailed": "De opmerkingen konden de hernoemde notitie niet volgen. De hernoeming blijft staan; de opmerkingen blijven onder de oude naam.",
+    "commentsLocked": "Opmerkingen zijn op dit apparaat vergrendeld. Voer de synchronisatie-wachtwoordzin in om ze te lezen en te schrijven.",
+    "commentsUnlock": "Ontgrendelen",
+    "commentsLockedToast": "Opmerkingen zijn op dit apparaat vergrendeld. Ontgrendel de kluis om te reageren of voor te stellen.",
+    "commentFileUnreadable": "Een opmerkingenbestand kon niet worden gelezen: {{file}} ({{reason}}). Het is ongemoeid gelaten.",
+    "commentFileSetAside": "Het opmerkingenbestand van dit apparaat kon niet worden gelezen ({{reason}}) en is opzijgezet als {{file}}. Er wordt een nieuw bestand geschreven.",
+    "commentFaultExport": "Diagnose exporteren",
+    "commentFaultReason": { "bundle-json": "geen geldige JSON", "bundle-schema": "onverwachte structuur", "bundle-version": "niet-ondersteunde versie", "bundle-sealed": "kan niet worden geopend met de sleutel van dit apparaat" },
     "commentTaskFallback": "Opmerking"
   },
   "cascade": {

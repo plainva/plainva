@@ -3830,6 +3830,13 @@
     "commentTaskCreated": "タスクにしました",
     "commentTaskOpen": "開く",
     "commentMoveFailed": "注釈は名前を変更したノートに追従できませんでした。名前の変更はそのまま有効で、注釈は以前の名前のままです。",
+    "commentsLocked": "この端末では注釈がロックされています。読み書きするには同期パスフレーズを入力してください。",
+    "commentsUnlock": "ロック解除",
+    "commentsLockedToast": "この端末では注釈がロックされています。コメントや提案をするには保管庫のロックを解除してください。",
+    "commentFileUnreadable": "注釈ファイルを読み取れませんでした: {{file}}（{{reason}}）。ファイルには手を加えていません。",
+    "commentFileSetAside": "この端末の注釈ファイルを読み取れなかったため（{{reason}}）、{{file}} として退避しました。新しいファイルを書き込みます。",
+    "commentFaultExport": "診断をエクスポート",
+    "commentFaultReason": { "bundle-json": "有効な JSON ではありません", "bundle-schema": "想定外の構造です", "bundle-version": "サポートされていないバージョンです", "bundle-sealed": "この端末の鍵では開けません" },
     "commentTaskFallback": "コメント"
   },
   "cascade": {
