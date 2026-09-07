@@ -60,6 +60,8 @@ import {
   FIXTURE_NOTES,
   FIXTURE_TASK_BASE,
   FIXTURE_TASKS,
+  FIXTURE_ZETTEL_BASE,
+  fixtureDailyToday,
   FIXTURE_CLOUD_NOTES,
   CLOUD_VAULT,
   fixtureStorage,
@@ -559,6 +561,36 @@ const SURFACES = [
     steps: [...TO_CLOUD_VAULT, ...settingsArea("security"), { wait: 4000 }],
     unverified: "runtime-gated: groups, team, slices, danger zone and rekey need a workspace runtime, which only a remote probe can mint",
   },
+  /**
+   * The Obsidian corner (TestFlight feedback Build 91, P0). Three surfaces
+   * whose `requires` name the thing the tester saw missing; each turns green
+   * with its package and is red — not absent — until then.
+   */
+  {
+    // The daily note with a bare-basename embed: the picture is the image
+    // widget itself, which the editor could not resolve before P3.
+    id: "note-daily-embed",
+    requires: ".m-editor .cm-content img",
+    steps: [{ click: '.m-page .pv-grouprow:has-text("Tagebuch")' }, { click: '.pv-grouprow:has-text("26.08.31")' }, { wait: 800 }],
+  },
+  {
+    // A tag-sourced database on the pinboard with its quick-add form open:
+    // the surface whose "Save" opened the configuration sheet in silence (P2).
+    id: "base-pinboard-tags",
+    requires: ".m-capture-popup",
+    steps: [
+      { click: '[data-testid="navigator-databases"]' },
+      { click: '.m-page .pv-grouprow:has-text("Zettel")' },
+      { click: ".m-pin-capture" },
+    ],
+  },
+  {
+    // The Today card with a daily note that EXISTS under the dotted format
+    // (seeded for today): it has to read "open", not "create" (P4).
+    id: "today-daily-exists",
+    requires: '[data-testid="today-daily-open"]',
+    steps: area("today"),
+  },
   /** One account carrying THREE services — the card the local vault cannot show. */
   {
     id: "cloud-account-services",
@@ -763,6 +795,8 @@ async function seedContext(context, baseUrl, sql, themeId) {
         ...FIXTURE_TASKS,
         ["Projekte.base", FIXTURE_BASE],
         ["Aufgaben.base", FIXTURE_TASK_BASE],
+        ["Zettel.base", FIXTURE_ZETTEL_BASE],
+        fixtureDailyToday(),
         [".plainva/bookmarks.json", FIXTURE_BOOKMARKS],
       ],
       attachments: FIXTURE_ATTACHMENTS,

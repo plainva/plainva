@@ -283,7 +283,58 @@ export const FIXTURE_NOTES = [
       "Jeder Leerzustand bietet etwas an.\n\nSiehe [[Notizen/Container-Grammatik]].",
     ),
   ],
+  /**
+   * The Obsidian corner of the fixture (TestFlight feedback Build 91, P0).
+   *
+   * Three tester reports failed on Obsidian conventions no fixture carried:
+   * a daily note named `YY.MM.DD` in a `Tagebuch` folder, an embed that names
+   * only the attachment's basename (Obsidian's "shortest" link form, the file
+   * sitting in an attachments folder), and a tag-sourced database without a
+   * folder source. Same content as `packages/core/test/fixtures/obsidian-vault`.
+   */
+  [
+    "Tagebuch/26.08.31.md",
+    "---\ntags:\n  - tagebuch\n---\n\n- 🕹️ 15:46:15- Erster Eintrag des Tages.\n- 🕹️ 15:47:47- Zweiter Eintrag, mit Bild: ![[foto.png]]\n- 🕹️ 15:48:55- Dasselbe Bild in Obsidians Breite: ![[foto.png|300]]\n\n## Aufgaben (To-Dos)\n\n- [ ] IK-Thema Alttechnik vorbereiten 🆔 KLSMG ➕ 2026-01-12 📅 2026-01-20\n- [x] Klärung Stoffmaschinenverfügbarkeit ✅ 2026-01-24\n\nSiehe [[Zettel/Erste Idee]].\n",
+  ],
+  ["Zettel/Erste Idee.md", OKF("Erste Idee", "Offline-Diarization mit Speichern von Personen.", "Note", ["zettel", "css"])],
+  ["Zettel/Zweite Idee.md", OKF("Zweite Idee", "Mietausgleich prüfen. Siehe [[Zettel/Erste Idee]].", "Note", ["zettel", "obsidian"])],
 ];
+
+/**
+ * Today's daily note under the tester's dotted format (P0/P4). Computed at
+ * seed time because the Today card asks for TODAY: a checked-in date would be
+ * right for one day and photograph "create" for the rest of the year.
+ */
+export function fixtureDailyToday(now = new Date()) {
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return [`Tagebuch/${yy}.${mm}.${dd}.md`, `---\ntags:\n  - tagebuch\n---\n\n- 🕹️ 08:00:00- Heute angefangen. Bild: ![[foto.png]]\n`];
+}
+
+/**
+ * A database sourced by TAG, not by folder — the tester's "Zettel" (P0/P2).
+ * Without a folder source the app cannot know where a new entry goes; the
+ * pinboard's quick-add must ask, not open the configuration sheet in silence.
+ */
+export const FIXTURE_ZETTEL_BASE = `filters:
+  and:
+    - file.hasTag("zettel")
+properties:
+  note.status:
+    displayName: Status
+views:
+  - type: table
+    name: Pinnwand
+    order:
+      - note.status
+    plainva:
+      render: pinboard
+  - type: table
+    name: Tabelle
+    order:
+      - note.status
+`;
 
 /**
  * A 1×1 PNG and a tiny text file. The attachments surface only has to prove
@@ -295,6 +346,9 @@ const PNG_1PX_BASE64 =
 
 export const FIXTURE_ATTACHMENTS = [
   ["Anhaenge/Skizze.png", PNG_1PX_BASE64],
+  // Obsidian's attachments folder (umlaut on purpose: the iOS Files app hands
+  // such a name back in NFD), referenced by bare basename from the daily note.
+  ["Anhänge/foto.png", PNG_1PX_BASE64],
   ["Anhaenge/Notizzettel.txt", Buffer.from("Handschriftlich abgetippt.\n", "utf8").toString("base64")],
 ];
 
@@ -470,6 +524,11 @@ export function fixtureStorage() {
     [`mobile-vault-${LOCAL_VAULT}`]: {
       calendarOverlays: ["Projekte.base#Termine"],
       taskDatabase: "Aufgaben.base",
+      // The tester's daily-note convention (P0/P4): a folder and a format
+      // with dots. The Today card and the date strip have to find
+      // `Tagebuch/26.08.31.md` through the format, not through hard ISO.
+      dailyFolder: "Tagebuch",
+      dailyFormat: "YY.MM.DD",
     },
     // A credential per account on THIS device. Since the device sign-in card
     // (P2) an account without one shows "not signed in on this device" instead

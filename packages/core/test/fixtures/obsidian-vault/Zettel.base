@@ -1,0 +1,17 @@
+filters:
+  and:
+    - file.hasTag("zettel")
+properties:
+  note.status:
+    displayName: Status
+views:
+  - type: table
+    name: Pinnwand
+    order:
+      - note.status
+    plainva:
+      render: pinboard
+  - type: table
+    name: Tabelle
+    order:
+      - note.status
