@@ -36,6 +36,7 @@ import { App as CapApp } from "@capacitor/app";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
 import { createNavActions, restoreLastOpenNote } from "./services/navActions";
+import { bindConflictStore } from "./services/conflictState";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
 import { createTemplatePrompt, newNoteFromTemplate } from "./services/templatePrompt";
@@ -205,6 +206,7 @@ export default function App() {
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
+      bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
       void restoreLastOpenNote(v, setNav); // pick up where you stopped (T6)
       void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
@@ -222,6 +224,7 @@ export default function App() {
       setNav((s) => initialNavState(s.activeTab));
       void getMobileVault().then((v) => {
         setVault(v);
+        bindConflictStore(v.vaultId);
         setBump((n) => n + 1);
         void adoptBar(v.vaultId);
         void startSyncIfConfigured(v).catch((e) => console.error("[switch] sync start failed", e));

@@ -87,6 +87,13 @@ export interface IndexScanReport {
 export interface VaultIndexerOptions {
   onExternalModification?: (path: string, oldHash: string | null, newHash: string) => void;
   /**
+   * Answers whether `sha256` is content the app's own adapter wrote to `path`
+   * (feedback Build 91, P1). The adapter records its hash AFTER the bytes hit
+   * the disk, and a pass reading the file in that window used to report the
+   * app's own save as a foreign change. Own content is never external.
+   */
+  isOwnWrite?: (path: string, sha256: string) => boolean;
+  /**
    * Fired when indexing discovers a file with no prior sync state, i.e. one created
    * outside Plainva's own write path (another editor, the OS). The desktop uses this to
    * enqueue a push, since such files are indexed (and thus visible) but were never
@@ -114,6 +121,8 @@ interface BulkIndexLookups {
   fileStateById: Map<string, { sync_state: string | null; ctime: number | null }>;
   queuedPaths: Set<string>;
   syncStateByPath: Map<string, SyncState>;
+  /** Paths the index held BEFORE this pass — what decides whether a sync_state row is orphaned. */
+  knownPaths: Set<string>;
 }
 
 export class VaultIndexer {
@@ -150,7 +159,7 @@ export class VaultIndexer {
   }
 
   /** Loads the three per-pass lookup tables with one query each (P2.4). */
-  private async loadBulkLookups(): Promise<BulkIndexLookups> {
+  private async loadBulkLookups(knownPaths: Set<string>): Promise<BulkIndexLookups> {
     const fileRows = await this.dbAdapter.query<{ id: string; sync_state: string | null; ctime?: number | null }>(
       `SELECT id, sync_state, ctime FROM files`
     );
@@ -167,7 +176,38 @@ export class VaultIndexer {
     }
 
     const syncStateByPath = await this.syncRepo.getAllStates();
-    return { fileStateById, queuedPaths, syncStateByPath };
+    return { fileStateById, queuedPaths, syncStateByPath, knownPaths };
+  }
+
+  /**
+   * How a file's sync_state row counts for this pass (feedback Build 91, P1).
+   *
+   * A row for a path the index does NOT know is ORPHANED: the file it belonged
+   * to was deleted (the row stays behind on purpose, so a remote delete can
+   * still be pushed) and a new file now reuses the name — "Notiz 1" after
+   * "Notiz 1" was removed. Measured against the old row, the new file looked
+   * like a foreign change of a note nobody but the app had touched, and
+   * because a row existed its baseline was never written; the first save then
+   * merged against the deleted note's text and produced a `.CONFLICT` copy.
+   * An orphaned row counts as no row: the file is new, gets its baseline and
+   * is announced as a new local file.
+   *
+   * `isOwnWrite` closes the other window: the app's own write reaching the
+   * disk before the adapter recorded its hash — on an external folder a pass
+   * runs on every note open and every return to the foreground.
+   */
+  private judgeSyncState(
+    path: string,
+    sha256: string,
+    oldSyncState: SyncState | null,
+    knownToIndex: boolean,
+  ): { isNewLocalFile: boolean } {
+    const orphaned = !!oldSyncState && !knownToIndex;
+    const differs = !!oldSyncState?.local_sha256 && oldSyncState.local_sha256 !== sha256;
+    if (differs && !orphaned && !this.options?.isOwnWrite?.(path, sha256)) {
+      this.pendingExternalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
+    }
+    return { isNewLocalFile: !oldSyncState || orphaned };
   }
 
   /**
@@ -254,10 +294,8 @@ export class VaultIndexer {
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
-    const isNewLocalFile = !oldSyncState;
-    if (oldSyncState && oldSyncState.local_sha256 && oldSyncState.local_sha256 !== sha256) {
-      this.pendingExternalMods.push({ path: fileInfo.path, oldHash: oldSyncState.local_sha256, newHash: sha256 });
-    }
+    const knownToIndex = lookups ? lookups.knownPaths.has(fileInfo.path) : existingFileState !== null;
+    const { isNewLocalFile } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex);
 
     try {
       const hasExtremelyLongLines = content.split('\n').some(line => line.length > 10000);
@@ -381,10 +419,11 @@ export class VaultIndexer {
         [content, title, fileInfo.path]
       );
 
-      // Update sync state ONLY if this is a newly discovered file.
-      // We must not overwrite local_sha256 for existing files during index,
-      // as it would destroy the knowledge of the "base text" for 3-way merges.
-      if (!oldSyncState) {
+      // Update sync state ONLY if this is a newly discovered file (an orphaned
+      // row counts as none, see judgeSyncState). We must not overwrite
+      // local_sha256 for existing files during index, as it would destroy the
+      // knowledge of the "base text" for 3-way merges.
+      if (isNewLocalFile) {
         await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
       }
 
@@ -495,10 +534,8 @@ export class VaultIndexer {
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
       : await this.syncRepo.getSyncState(fileInfo.path);
-    const isNewLocalFile = !oldSyncState;
-    if (oldSyncState && oldSyncState.local_sha256 && oldSyncState.local_sha256 !== sha256) {
-      this.pendingExternalMods.push({ path: fileInfo.path, oldHash: oldSyncState.local_sha256, newHash: sha256 });
-    }
+    const knownToIndex = lookups ? lookups.knownPaths.has(fileInfo.path) : existingFileState !== null;
+    const { isNewLocalFile } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex);
 
     // `OR path = ?` for the same reason as in _indexFileInternal: a renamed row
     // keeps its old id, so deleting by id alone would leave it and the INSERT
@@ -696,7 +733,7 @@ export class VaultIndexer {
 
     // One-query-per-table lookups for the whole pass (P2.4) instead of three
     // SELECT round-trips per file.
-    const lookups = await this.loadBulkLookups();
+    const lookups = await this.loadBulkLookups(new Set(dbFileMap.keys()));
 
     await this.dbAdapter.transaction(async () => {
       // The cold full-scan's writes (file/fts/links/tags/properties rows + the

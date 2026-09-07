@@ -199,6 +199,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    replaces three copy-pasted style objects in Editor.tsx. */
 .pv-banner {
   display: flex;
+  /* The actions may wrap under the text: with two buttons at 375 pt the text
+     column shrank to four characters and broke letter by letter (TestFlight
+     feedback Build 91, P1). */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
@@ -214,8 +218,8 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-banner--error { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
 .pv-banner--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
 .pv-banner-ic { display: inline-flex; flex-shrink: 0; }
-.pv-banner-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.pv-banner-actions { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.pv-banner-msg { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.pv-banner-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex-shrink: 0; margin-left: auto; }
 
 /* Select (new primitive, sweep 2026-07-19, E11): trigger in exact field look
    + chevron; the open panel follows the popover contract (radius-md, shadow-2,

@@ -859,6 +859,10 @@ export const VaultProvider: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           void enqueueLocalChange(path);
         },
+        // The app's own save is never a foreign change (Build-91 feedback, P1):
+        // a pass reading the file between the write and its hash update asks
+        // the adapter first.
+        isOwnWrite: (path, sha256) => vaultAdapter.wasWrittenByUs(path, sha256),
         onNewLocalFile: (path) => {
           // During the initial index, defer to the first pull (3c). Runtime discoveries
           // (files created while running) enqueue normally.

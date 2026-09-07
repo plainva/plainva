@@ -298,7 +298,15 @@ export const FIXTURE_NOTES = [
   ],
   ["Zettel/Erste Idee.md", OKF("Erste Idee", "Offline-Diarization mit Speichern von Personen.", "Note", ["zettel", "css"])],
   ["Zettel/Zweite Idee.md", OKF("Zweite Idee", "Mietausgleich prüfen. Siehe [[Zettel/Erste Idee]].", "Note", ["zettel", "obsidian"])],
+  // A note with its `.CONFLICT` sibling already on disk (P1): the card that
+  // was unreadable at 375 pt, and the state that now survives a restart.
+  ["Inbox/Notiz 1.md", "# Notiz 1\n\nEine frisch angelegte Notiz im Eingangsordner.\n"],
+  [FIXTURE_CONFLICT_COPY, "# Notiz 1\n\nEine frisch angelegte Notiz im Eingangsordner, mit dem Satz, den der Nutzer tippte.\n"],
 ];
+
+/** The conflict copy's path, and the local-storage seed that makes the card show it. */
+export const FIXTURE_CONFLICT_COPY = "Inbox/Notiz 1.CONFLICT-2026-09-04T17-27-28-950Z.md";
+export const FIXTURE_CONFLICT_SEED = ["plainva-conflicts-local", JSON.stringify([{ path: "Inbox/Notiz 1.md", copyPath: FIXTURE_CONFLICT_COPY }])];
 
 /**
  * Today's daily note under the tester's dotted format (P0/P4). Computed at

@@ -2890,30 +2890,37 @@ export const Editor: React.FC<{
       )}
 
       {conflictInfo && (
-        <div role="alert" style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", padding: "0.5rem 1rem", borderBottom: "1px solid var(--warning-border)", background: "var(--warning-bg)", color: "var(--warning-text)", fontSize: "var(--text-ui)" }}>
-          <span style={{ flex: 1, minWidth: 180 }}>
-            {conflictInfo.conflictPath
-              ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
-              : t("editor.conflictBannerNoPath")}
-          </span>
-          {conflictInfo.conflictPath && (
-            <button
-              type="button"
-              className="pv-btn pv-btn--secondary pv-btn--sm"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: conflictInfo.conflictPath } }))}
-            >
-              {t("conflict.resolveAction")}
-            </button>
-          )}
-          {conflictInfo.conflictPath && onOpenPath && (
-            <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => onOpenPath(conflictInfo.conflictPath, true)}>
-              {t("editor.conflictOpenCopy")}
-            </button>
-          )}
-          <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => setConflictInfo(null)}>
-            {t("common.dismiss")}
-          </button>
-        </div>
+        // The shared Banner (P1, Build-91 feedback): this strip carried its own
+        // flex-wrap by hand while the primitive the phone uses had none — the
+        // same card was unreadable there. One strip, one layout rule.
+        <Banner
+          kind="warning"
+          actions={
+            <>
+              {conflictInfo.conflictPath && (
+                <button
+                  type="button"
+                  className="pv-btn pv-btn--secondary pv-btn--sm"
+                  onClick={() => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: conflictInfo.conflictPath } }))}
+                >
+                  {t("conflict.resolveAction")}
+                </button>
+              )}
+              {conflictInfo.conflictPath && onOpenPath && (
+                <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => onOpenPath(conflictInfo.conflictPath, true)}>
+                  {t("editor.conflictOpenCopy")}
+                </button>
+              )}
+              <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={() => setConflictInfo(null)}>
+                {t("common.dismiss")}
+              </button>
+            </>
+          }
+        >
+          {conflictInfo.conflictPath
+            ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
+            : t("editor.conflictBannerNoPath")}
+        </Banner>
       )}
 
       {draftOffer && (

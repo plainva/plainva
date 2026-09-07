@@ -43,7 +43,7 @@ import {
   type MobileVault,
 } from "./services/vaultService";
 import { Banner, conflictCopyPath, decideDirtyExternalUpdate, toast } from "@plainva/ui";
-import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
+import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
 import { mConfirm, mSelect } from "./services/mobileDialogs";
@@ -127,6 +127,22 @@ export function EditorHost({
   // and reopening the note does not make an unresolved conflict disappear.
   const conflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   const [conflictDiff, setConflictDiff] = useState(false);
+  // A conflict outlives the app now (P1, Build-91 feedback): the copy may have
+  // been deleted from the file list in the meantime, and a card pointing at
+  // nothing would lie — it goes when its copy is gone.
+  useEffect(() => {
+    if (!conflict) return;
+    let stale = false;
+    vault.files
+      .exists(conflict.copyPath)
+      .then((ok) => {
+        if (!stale && !ok) clearConflict(path);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [conflict, path, vault]);
   // Slash-command sheets (R3.4): the shared plugin fires the same picker
   // events as on the desktop; this host renders them as bottom sheets.
   const [tableSheet, setTableSheet] = useState<{ pos: number } | null>(null);
@@ -1207,10 +1223,10 @@ export function EditorHost({
         <Banner
           actions={
             <>
-              <Button onClick={() => onOpenNote(conflict.copyPath)} variant="ghost">
+              <Button onClick={() => onOpenNote(conflict.copyPath)} size="sm" variant="ghost">
                 {t("mobile.conflictOpenCopy")}
               </Button>
-              <Button onClick={() => setConflictDiff(true)} variant="ghost">
+              <Button onClick={() => setConflictDiff(true)} size="sm" variant="ghost">
                 {t("mobile.conflictShowDiff")}
               </Button>
             </>

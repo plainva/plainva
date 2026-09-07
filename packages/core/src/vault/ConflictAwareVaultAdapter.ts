@@ -44,6 +44,32 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    */
   private writeChains = new Map<string, Promise<unknown>>();
 
+  /**
+   * Hash of the content this adapter last wrote per path (TestFlight feedback
+   * Build 91, P1). The disk holding exactly what we wrote last is proof that
+   * nobody else touched the file since — whatever `sync_state` says. That
+   * bookkeeping can be stale in two ways this memory covers: a row left behind
+   * by a deleted note whose name a new note now reuses, and the indexer
+   * reading the file between our write and the hash update. Neither is a
+   * foreign change, and neither may cost the user a `.CONFLICT` copy.
+   */
+  private lastWritten = new Map<string, string>();
+  private static readonly LAST_WRITTEN_MAX = 4096;
+
+  private rememberWrite(path: string, sha256: string): void {
+    this.lastWritten.delete(path);
+    this.lastWritten.set(path, sha256);
+    if (this.lastWritten.size > ConflictAwareVaultAdapter.LAST_WRITTEN_MAX) {
+      const oldest = this.lastWritten.keys().next().value;
+      if (oldest !== undefined) this.lastWritten.delete(oldest);
+    }
+  }
+
+  /** True when `sha256` is the content this adapter itself last wrote to `path`. */
+  wasWrittenByUs(path: string, sha256: string): boolean {
+    return this.lastWritten.get(path) === sha256;
+  }
+
   private runExclusive<T>(path: string, fn: () => Promise<T>): Promise<T> {
     const prev = this.writeChains.get(path) ?? Promise.resolve();
     const run = prev.catch(() => {}).then(fn);
@@ -92,14 +118,20 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     const isNew = !(await this.inner.exists(path));
     if (isNew) {
       await this.inner.writeTextFile(path, localContent);
+      // No sync_state here on purpose: the indexer announces the file as new
+      // (and enqueues it for push) only while it has no row.
+      this.rememberWrite(path, await sha256Hash(localContent));
       return;
     }
 
     const currentDiskContent = await this.inner.readTextFile(path);
     const diskSha256 = await sha256Hash(currentDiskContent);
     const syncState = await this.syncRepo.getSyncState(path);
+    // The disk holds what we wrote last: not a foreign change, whatever the
+    // stored hash claims (see `lastWritten`).
+    const ownContent = this.wasWrittenByUs(path, diskSha256);
 
-    if (syncState && syncState.local_sha256 && syncState.local_sha256 !== diskSha256) {
+    if (syncState && syncState.local_sha256 && syncState.local_sha256 !== diskSha256 && !ownContent) {
       // Self-heal a legacy byte-hash. The indexer used to hash non-.md text files (e.g.
       // `.base`) as raw bytes (sha256 of readBinaryFile), which can differ from the text
       // hash used here even when the file is byte-for-byte unchanged. If the stored hash
@@ -110,7 +142,9 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         const diskBytes = await this.inner.readBinaryFile(path);
         if ((await sha256BytesHex(diskBytes)) === syncState.local_sha256) {
           await this.inner.writeTextFile(path, localContent);
-          await this.syncRepo.updateLocalHashAndBaseText(path, await sha256Hash(localContent), localContent);
+          const healedHash = await sha256Hash(localContent);
+          await this.syncRepo.updateLocalHashAndBaseText(path, healedHash, localContent);
+          this.rememberWrite(path, healedHash);
           return;
         }
       } catch {
@@ -145,7 +179,9 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       
       // Auto-merge successful, save the merged content and update our expected local hash.
       await this.inner.writeTextFile(path, mergeResult.mergedText);
-      await this.syncRepo.updateLocalHashAndBaseText(path, await sha256Hash(mergeResult.mergedText), mergeResult.mergedText);
+      const mergedHash = await sha256Hash(mergeResult.mergedText);
+      await this.syncRepo.updateLocalHashAndBaseText(path, mergedHash, mergeResult.mergedText);
+      this.rememberWrite(path, mergedHash);
       // Notify listeners (e.g. the editor) so the in-memory view adopts the merged
       // content. Otherwise a subsequent save would overwrite the merge with stale,
       // pre-merge content and silently drop the external changes.
@@ -155,7 +191,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // merge base here, otherwise an unsynced local edit becomes the base and the
       // next pull would see "local == base" and drop the edit in favour of remote.
       await this.inner.writeTextFile(path, localContent);
-      await this.syncRepo.updateLocalHash(path, await sha256Hash(localContent));
+      const writtenHash = await sha256Hash(localContent);
+      // Remembered BEFORE the hash lands in sync_state: an indexer pass that
+      // reads the file in between asks `wasWrittenByUs` and stays quiet.
+      this.rememberWrite(path, writtenHash);
+      await this.syncRepo.updateLocalHash(path, writtenHash);
     }
   }
 

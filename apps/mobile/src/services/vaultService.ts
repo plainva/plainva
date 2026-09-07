@@ -561,11 +561,15 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     }) : null;
     const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : new QueueingVaultAdapter(backup, queue);
     syncRepo = new SyncStateRepository(db);
-    files = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
+    const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
     });
+    files = conflictAware;
 
     indexer = new VaultIndexer(files, db, {
+      // The app's own save is never a foreign change (P1): a pass reading the
+      // file between the write and its hash update asks the adapter first.
+      isOwnWrite: (path, sha256) => conflictAware.wasWrittenByUs(path, sha256),
       onExternalModification: (path) => {
         void enqueueLocal(path);
         window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path } }));
@@ -785,6 +789,12 @@ export const vaultOps = {
     await noteSaver.flush(path);
     await v.files.deleteItem(path);
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
+    // Without a sync target nobody ever cleans the sync_state row — the sync
+    // layer owns it and does not exist here — and a new note reusing the name
+    // inherited the deleted note's baseline: a `.CONFLICT` copy on the first
+    // save (TestFlight feedback Build 91, P1). The desktop drops the row in
+    // the same case (VaultContext.onLocalFileDeleted).
+    if (!v.syncQueue && !v.workspaceState && v.syncRepo) await v.syncRepo.deleteSyncState(path).catch(() => {});
     // Drop a bookmark to the deleted note so it can't be tapped into a crash.
     await this.removeBookmark(v, path).catch(() => {});
     notifyFileOps([{ type: "delete", path }]);
@@ -970,6 +980,10 @@ export const vaultOps = {
       const outcome = await v.indexer.indexPath(path).catch(() => "unchanged" as const);
       if (outcome === "needs-full-scan") await v.indexer.indexVaultFull().catch(() => {});
     }
+    // Desktop parity (P1): the content the editor just loaded IS what the app
+    // knows about — record its hash so a stale row cannot turn the first save
+    // into a conflict. Never advances the merge base.
+    if (v.files.acknowledgeExternalUpdate) await v.files.acknowledgeExternalUpdate(path).catch(() => {});
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {

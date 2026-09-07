@@ -61,6 +61,7 @@ import {
   FIXTURE_TASK_BASE,
   FIXTURE_TASKS,
   FIXTURE_ZETTEL_BASE,
+  FIXTURE_CONFLICT_SEED,
   fixtureDailyToday,
   FIXTURE_CLOUD_NOTES,
   CLOUD_VAULT,
@@ -567,6 +568,13 @@ const SURFACES = [
    * with its package and is red — not absent — until then.
    */
   {
+    // The conflict card at 375 pt with both buttons — the picture the tester
+    // sent, letter by letter, until the Banner learned to wrap (P1).
+    id: "note-conflict",
+    requires: ".pv-banner--warning .pv-banner-actions",
+    steps: [{ click: '.m-page .pv-grouprow:has-text("Inbox")' }, { click: '.pv-grouprow:has-text("Notiz 1")', nth: 0 }, { wait: 500 }],
+  },
+  {
     // The daily note with a bare-basename embed: the picture is the image
     // widget itself, which the editor could not resolve before P3.
     id: "note-daily-embed",
@@ -784,7 +792,7 @@ async function seedContext(context, baseUrl, sql, themeId) {
   const page = await context.newPage();
   await page.addInitScript((entries) => {
     for (const [key, value] of entries) globalThis.localStorage.setItem(key, value);
-  }, [[SETTINGS_KEY, JSON.stringify(settings)]]);
+  }, [[SETTINGS_KEY, JSON.stringify(settings)], FIXTURE_CONFLICT_SEED]);
   try {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
@@ -891,7 +899,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
           if (key.startsWith("plainva-last-open-")) globalThis.localStorage.removeItem(key);
         }
       },
-      [[SETTINGS_KEY, JSON.stringify(settings)]],
+      [[SETTINGS_KEY, JSON.stringify(settings)], FIXTURE_CONFLICT_SEED],
     );
     try {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
