@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-07
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -21,7 +21,7 @@ Lorsque vous renommez ou déplacez un fichier, son historique de versions le sui
 
 ## Consulter et restaurer des versions
 
-Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu **⋮** en haut à droite de l'éditeur → **Historique des versions…** ouvre la liste des versions :
+Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu **⋮** en haut à droite de l'éditeur → **Historique des versions…** ouvre la liste des versions — aussi pour une note dans sa propre fenêtre, là-même :
 
 - À gauche : tous les instantanés, groupés par jour, avec l'heure et la taille.
 - À droite : un aperçu ; pour les fichiers texte, **Comparer avec la version actuelle** affiche la version sélectionnée côte à côte avec le contenu actuel (l'ancienne version à gauche, l'état actuel à droite).

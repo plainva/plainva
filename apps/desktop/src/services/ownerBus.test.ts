@@ -23,6 +23,8 @@ vi.mock("@tauri-apps/api/window", () => ({
     },
   }),
 }));
+/** Labels the fake backend knows — `getByLabel` answers with a focusable window for these. */
+const knownWindows = new Set<string>();
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
   WebviewWindow: class {
     label: string;
@@ -32,8 +34,15 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
     async onCloseRequested() {
       return () => {};
     }
-    static async getByLabel() {
-      return null;
+    static async getByLabel(label: string) {
+      if (!knownWindows.has(label)) return null;
+      return {
+        async unminimize() {},
+        async show() {},
+        async setFocus() {
+          focusedWindows.push(label);
+        },
+      };
     }
   },
 }));
@@ -64,6 +73,8 @@ vi.mock("./windowBus", async (importOriginal) => {
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { syncStatusStore } from "./syncStatusStore";
 import { installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { resetVaultRuntimes, setHolderVault } from "./vaultRuntimes";
+import { consumePendingTreeReveal } from "@plainva/ui";
 import {
   findWindowForContent,
   listAuxWindows,
@@ -210,7 +221,20 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
   const reindexed: string[] = [];
   const syncCalls: string[] = [];
   const commentCalls: string[] = [];
+  const historyCalls: string[] = [];
   const dispose = await installOwnerBus({
+    // The workspace revision history (finding 2026-09-07): records the ask,
+    // answers with fixed values so the wire's fidelity is what is tested.
+    workspaceHistory: {
+      list: async (path) => {
+        historyCalls.push("list:" + path);
+        return [{ revisionId: "r1" }] as never;
+      },
+      read: async (revisionId) => {
+        historyCalls.push("read:" + revisionId);
+        return new Uint8Array([104, 105]);
+      },
+    },
     vaultPath: "/vault",
     vaultAdapter: createAdapter(calls),
     indexer: indexer as never,
@@ -281,6 +305,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
 
   return {
     aux,
+    wire,
     calls,
     refreshed,
     indexed,
@@ -288,6 +313,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     reindexed,
     syncCalls,
     commentCalls,
+    historyCalls,
     dispose: () => {
       dispose();
       disposeApp();
@@ -298,6 +324,9 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
 beforeEach(() => {
   syncStatusStore.resetAll();
   resetWindowRegistryForTest();
+  resetVaultRuntimes();
+  knownWindows.clear();
+  consumePendingTreeReveal();
   setOwnerOpenContents([]);
   focusedWindows.length = 0;
   drafts.length = 0;
@@ -824,6 +853,95 @@ describe("remarks from a client window (Vorschlagsmodus, V7)", () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(seen).toEqual(["Note.md"]);
     off();
+    dispose();
+  });
+});
+
+describe("reveal in tree from a window without one (finding 2026-09-07)", () => {
+  // An auxiliary window shows content and has no tree. Its "reveal in tree"
+  // travels here, and the owner routes it to the window that shows the
+  // CALLER's vault with a tree — the central window, or a full second one.
+  it("parks the path and raises the event in the central window when it shows the vault", async () => {
+    const { aux, dispose } = await setup();
+    setHolderVault("/vault", OWNER_LABEL);
+    const seen: string[] = [];
+    const on = (e: Event) => seen.push((e as CustomEvent).detail.path);
+    window.addEventListener("plainva-reveal-folder", on);
+
+    const result = await aux.request("reveal-in-tree", { path: "Notes/A.md" });
+
+    expect(result).toEqual({ where: "owner" });
+    // Focus first (a selection in a window nobody sees is nothing), then the
+    // same two steps the owner's own ⋮ entry takes.
+    expect(focusedWindows).toEqual(["main"]);
+    expect(seen).toEqual(["Notes/A.md"]);
+    expect(consumePendingTreeReveal()).toBe("Notes/A.md");
+    window.removeEventListener("plainva-reveal-folder", on);
+    dispose();
+  });
+
+  it("brings the full window holding the vault forward and tells it the path", async () => {
+    const { aux, wire, dispose } = await setup();
+    // Stage D: the central window shows another vault; a full window holds this one.
+    setHolderVault("/other", OWNER_LABEL);
+    setHolderVault("/vault", "full-1");
+    knownWindows.add("full-1");
+    await openAuxWindow({ role: "full", vaultPath: "/vault", label: "full-1" });
+    const full = createWindowBus(wire("full-1"), undefined, () => "/vault");
+    const told: Array<{ label: string; path: string }> = [];
+    await full.onBroadcast("reveal-path", (payload) => told.push(payload));
+    const seenHere: string[] = [];
+    const on = (e: Event) => seenHere.push((e as CustomEvent).detail.path);
+    window.addEventListener("plainva-reveal-folder", on);
+
+    const result = await aux.request("reveal-in-tree", { path: "Notes/B.md" });
+
+    expect(result).toEqual({ where: "window" });
+    expect(focusedWindows).toEqual(["full-1"]);
+    expect(told).toEqual([{ label: "full-1", path: "Notes/B.md" }]);
+    // Not here: the central window's tree belongs to another vault.
+    expect(seenHere).toEqual([]);
+    window.removeEventListener("plainva-reveal-folder", on);
+    await full.dispose();
+    dispose();
+  });
+
+  it("says none when no window with a tree shows the vault", async () => {
+    const { aux, dispose } = await setup();
+    const seen: string[] = [];
+    const on = (e: Event) => seen.push((e as CustomEvent).detail.path);
+    window.addEventListener("plainva-reveal-folder", on);
+
+    const result = await aux.request("reveal-in-tree", { path: "Notes/C.md" });
+
+    expect(result).toEqual({ where: "none" });
+    expect(focusedWindows).toEqual([]);
+    expect(seen).toEqual([]);
+    window.removeEventListener("plainva-reveal-folder", on);
+    dispose();
+  });
+});
+
+describe("workspace revisions for an auxiliary window (finding 2026-09-07)", () => {
+  it("lists and reads through the owner's runtime, bytes base64 on the wire", async () => {
+    const { aux, historyCalls, dispose } = await setup();
+
+    const list = await aux.request("workspace-revisions", { path: "Note.md" });
+    const read = await aux.request("workspace-revision-read", { revisionId: "r1" });
+
+    expect(list).toEqual([{ revisionId: "r1" }]);
+    // "hi" — a Uint8Array would not have survived the JSON.
+    expect(read).toEqual({ base64: "aGk=" });
+    expect(historyCalls).toEqual(["list:Note.md", "read:r1"]);
+    dispose();
+  });
+
+  it("refuses a vault this owner does not serve", async () => {
+    const { wire, dispose } = await setup();
+    const stranger = createWindowBus(wire("aux-9"), 200, () => "/elsewhere");
+
+    await expect(stranger.request("workspace-revisions", { path: "Note.md" })).rejects.toThrow(/timed out/);
+    await stranger.dispose();
     dispose();
   });
 });

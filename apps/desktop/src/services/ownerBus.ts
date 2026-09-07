@@ -1,14 +1,15 @@
 import { PimConflictError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
-import { getWindowBus, type RpcMap } from "./windowBus";
+import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { toggleBookmarkOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
+  listAuxWindows,
   noteWindowBounds,
   noteWindowContent,
   noteWindowContents,
@@ -17,7 +18,7 @@ import {
   openOrFocusContent,
   noteWindowVault,
 } from "./windowManager";
-import { setHolderVault } from "./vaultRuntimes";
+import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -58,11 +59,23 @@ export interface OwnerCommentDeps {
   status: () => Promise<RpcMap["workspace-status"]["result"]>;
 }
 
+/**
+ * What the owner answers about a workspace note's revisions (finding
+ * 2026-09-07): the version history of a popped-out note in an encrypted
+ * workspace. Same reason as the comments — the runtime is here.
+ */
+export interface OwnerWorkspaceHistoryDeps {
+  list: (path: string) => Promise<RpcMap["workspace-revisions"]["result"]>;
+  read: (revisionId: string) => Promise<Uint8Array>;
+}
+
 export interface OwnerBusDeps {
   /** Absolute path of the open vault — auxiliary windows belong to one vault. */
   vaultPath: string;
   /** The comment surface for auxiliary windows (V7); absent only in tests that never ask. */
   comments?: OwnerCommentDeps;
+  /** The workspace revision history for auxiliary windows; absent only in tests that never ask. */
+  workspaceHistory?: OwnerWorkspaceHistoryDeps;
   /** The full owner chain — never the raw adapter. */
   vaultAdapter: IVaultAdapter;
   /** The owner's indexer, so a delegated write lands in the index at once. */
@@ -89,6 +102,13 @@ export interface OwnerBusDeps {
 
 /** Path separator on either platform — the note name is the window title. */
 const SEP = /[/\\]/;
+
+/** Encodes bytes for the wire — the inverse of `base64ToBytes`, chunked so a large revision does not blow the call stack. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
 
 /** Decodes the base64 an auxiliary window sends binary content as. */
 function base64ToBytes(base64: string): Uint8Array {
@@ -288,6 +308,18 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(await bus.handle("comment-retry", ({ outboxId }) => comments().retry(outboxId), scoped));
   offs.push(await bus.handle("comment-discard", ({ outboxId }) => comments().discard(outboxId), scoped));
   offs.push(await bus.handle("workspace-status", () => comments().status(), scoped));
+
+  // The revision history of a workspace note, for the version history in an
+  // auxiliary window (finding 2026-09-07). The runtime is here; the bytes go
+  // out base64 because a Uint8Array does not survive the JSON on the wire.
+  const history = (): OwnerWorkspaceHistoryDeps => {
+    if (!deps.workspaceHistory) throw new Error("workspace revisions are not served in this window");
+    return deps.workspaceHistory;
+  };
+  offs.push(await bus.handle("workspace-revisions", ({ path }) => history().list(path), scoped));
+  offs.push(
+    await bus.handle("workspace-revision-read", async ({ revisionId }) => ({ base64: bytesToBase64(await history().read(revisionId)) }), scoped),
+  );
 
   offs.push(
     await bus.handle("sync-control", async ({ what, paths }) => {
@@ -530,6 +562,41 @@ export async function installOwnerAppBus(): Promise<() => void> {
       const detail =
         surface === "settings" ? { provider, area, accountId } : surface === "new-window" && vaultPath ? { vaultPath } : undefined;
       window.dispatchEvent(new CustomEvent(events[surface], detail ? { detail } : undefined));
+    }),
+  );
+
+  offs.push(
+    await bus.handle("reveal-in-tree", async ({ path }, _from, vaultPath) => {
+      // "Reveal in file tree" from a window without a tree (finding
+      // 2026-09-07). The tree that can show this file belongs to the window
+      // that shows the CALLER's vault — the central window when it does,
+      // otherwise the full second window holding it (stage D). Same reasoning
+      // as the reminder routing in showContentInVaultWindow: opening the file
+      // centrally would silently switch the vault out from under a window.
+      if (!vaultPath) return { where: "none" as const };
+      const holders = holdersOf(vaultPath);
+      if (holders.includes(OWNER_LABEL)) {
+        // The same two steps the owner's own ⋮ entry takes: park the path for
+        // a tree that may be unmounted, then raise the event the shell and a
+        // mounted tree already listen for. Focus first, as owner-surface does.
+        parkTreeReveal(path);
+        try {
+          const { getCurrentWindow } = await import("@tauri-apps/api/window");
+          const win = getCurrentWindow();
+          await win.unminimize().catch(() => {});
+          await win.setFocus();
+        } catch {
+          /* no backend (browser/test): the dispatch below still works */
+        }
+        window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path } }));
+        return { where: "owner" as const };
+      }
+      const full = listAuxWindows().find((w) => w.role === "full" && holders.includes(w.label));
+      if (!full) return { where: "none" as const };
+      const focused = await focusAuxWindow(full.label);
+      if (!focused) return { where: "none" as const };
+      await bus.broadcast("reveal-path", { label: full.label, path }, null);
+      return { where: "window" as const };
     }),
   );
 

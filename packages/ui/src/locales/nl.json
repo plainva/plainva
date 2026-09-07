@@ -4134,7 +4134,9 @@
     "restoreWindows": "Vensterindeling herstellen",
     "restoreWindowsDesc": "Opent bij het starten de extra vensters die openstonden. Niet-verzonden berichten worden nooit hersteld.",
     "noVaultTitle": "Geen kluis geopend",
-    "noVaultBody": "Dit venster toont op dit moment geen kluis. Kies er een uit de recente of selecteer een map."
+    "noVaultBody": "Dit venster toont op dit moment geen kluis. Kies er een uit de recente of selecteer een map.",
+    "revealNoTree": "Geen venster met bestandsboom toont deze kluis.",
+    "ownerUnreachable": "Het hoofdvenster reageert niet."
   },
   "commentNotify": {
     "actionOpen": "Openen",

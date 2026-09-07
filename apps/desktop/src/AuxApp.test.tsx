@@ -37,7 +37,28 @@ vi.mock("./components/RightSidebar", () => ({
     return <div data-testid="sidebar">{(sections ?? []).join(",")}</div>;
   },
 }));
-vi.mock("./services/windowBus", () => ({ getWindowBus: async () => null }));
+/** What this window asked the owner for (finding 2026-09-07: the aux bridge). */
+const busRequests: Array<[string, unknown]> = [];
+vi.mock("./services/windowBus", () => ({
+  getWindowBus: async () => ({
+    request: async (kind: string, args: unknown) => {
+      busRequests.push([kind, args]);
+      if (kind === "reveal-in-tree") return { where: "owner" };
+      return undefined;
+    },
+    onBroadcast: async () => () => {},
+  }),
+}));
+/** The surfaces the bridge opens, reduced to "which one, with what". */
+vi.mock("./components/CompareModal", () => ({
+  CompareModal: ({ subject }: { subject: unknown }) => <div data-testid="compare-modal">{JSON.stringify(subject)}</div>,
+}));
+vi.mock("./components/TemplatePickerModal", () => ({
+  TemplatePickerModal: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="template-picker" /> : null),
+}));
+vi.mock("./components/mail/MailDraftModal", () => ({
+  MailDraftModal: ({ subject }: { subject: string }) => <div data-testid="mail-draft">{subject}</div>,
+}));
 /** How often the shell asked the OS to close this window. */
 let closed = 0;
 vi.mock("@tauri-apps/api/window", () => ({
@@ -98,6 +119,7 @@ beforeEach(() => {
   localStorage.clear();
   closed = 0;
   sidebarSections.length = 0;
+  busRequests.length = 0;
 });
 
 afterEach(async () => {
@@ -215,5 +237,107 @@ describe("the context sidebar of an auxiliary window (finding 2026-09-01, D4)", 
     expect(keys.length).toBe(1);
     expect(keys[0]).not.toBe("plainva-aux-right-collapsed");
     expect(localStorage.getItem(keys[0])).toBe("true");
+  });
+});
+
+describe("what the shared components can ask this window for (finding 2026-09-07)", () => {
+  /** Two tabs, so the title bar carries a strip to right-click on. */
+  const twoTabs = (label: string) =>
+    localStorage.setItem(
+      `plainva-layout-/vault-${label}`,
+      JSON.stringify({
+        panes: [{ tabs: [{ history: ["A.md"], historyIndex: 0 }, { history: ["B.md"], historyIndex: 0 }], activeIndex: 0 }],
+        direction: "vertical",
+        activePaneIndex: 0,
+        splitRatio: 0.5,
+      }),
+    );
+  const menuItem = (label: string) =>
+    Array.from(host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find((b) => b.textContent?.includes(label)) ?? null;
+  const rightClickTab = async (index: number) => {
+    const tab = host.querySelectorAll<HTMLElement>('[role="tab"]')[index];
+    expect(tab).toBeTruthy();
+    await act(async () => {
+      tab.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 20 }));
+    });
+  };
+
+  it("opens the version history HERE, for the note the editor asked about", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-20");
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: "Note.md" } }));
+    });
+    // The lazy chunk resolves on the next tick.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    const modal = host.querySelector('[data-testid="compare-modal"]');
+    expect(modal?.textContent).toContain('"kind":"version"');
+    expect(modal?.textContent).toContain("Note.md");
+  });
+
+  it("asks the owner for a tree when the editor wants the file revealed", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-21");
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: "Note.md" } }));
+      await Promise.resolve();
+    });
+    expect(busRequests).toContainEqual(["reveal-in-tree", { path: "Note.md" }]);
+  });
+
+  it("right-click on a tab opens the menu, and its entries act on THAT tab", async () => {
+    twoTabs("aux-22");
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-22");
+    // The background tab, not the active one — they differ, and the menu
+    // must follow the click.
+    await rightClickTab(1);
+    const history = menuItem("Versionsverlauf") ?? menuItem("Version history");
+    expect(history, "the version-history entry is in the menu").not.toBeNull();
+    await act(async () => {
+      history!.click();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(host.querySelector('[data-testid="compare-modal"]')?.textContent).toContain("B.md");
+
+    await rightClickTab(1);
+    const reveal = menuItem("Dateibaum") ?? menuItem("file tree");
+    expect(reveal, "the reveal entry is in the menu").not.toBeNull();
+    await act(async () => {
+      reveal!.click();
+      await Promise.resolve();
+    });
+    expect(busRequests).toContainEqual(["reveal-in-tree", { path: "B.md" }]);
+
+    // The tab IS in its own window: no "open in new window" here.
+    await rightClickTab(1);
+    expect(menuItem("neuem Fenster") ?? menuItem("new window")).toBeNull();
+  });
+
+  it("hosts the template picker and the composer for the editor's menu", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-23");
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-open-template-picker"));
+    });
+    expect(host.querySelector('[data-testid="template-picker"]')).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: "Betreff", markdown: "Text" } }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(host.querySelector('[data-testid="mail-draft"]')?.textContent).toBe("Betreff");
+  });
+
+  it("unfolds the context sidebar when the editor asks for the properties", async () => {
+    await mount("/?win=aux&vault=%2Fvault&content=Note.md&label=aux-24");
+    const toggle = host.querySelector('[data-testid="aux-right-toggle"]') as HTMLButtonElement;
+    await act(async () => { toggle.click(); });
+    expect(host.querySelector('[data-testid="aux-right-sidebar"]')).toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-reveal-properties"));
+    });
+    expect(host.querySelector('[data-testid="aux-right-sidebar"]')).not.toBeNull();
   });
 });

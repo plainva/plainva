@@ -32,7 +32,7 @@ import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps } from "../services/ownerBus";
+import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
@@ -337,6 +337,25 @@ const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "list
   retractWorkspaceComment: (path, commentId) => getWindowBus().then((bus) => bus.request("comment-retract", { path, commentId })),
   retryWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-retry", { outboxId })),
   discardWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-discard", { outboxId })),
+};
+
+/**
+ * The revision history of a workspace note, from an auxiliary window (finding
+ * 2026-09-07): the version history of a popped-out note in an encrypted
+ * workspace. The runtime is the owner's, so both reads are requests; bytes
+ * come back base64 because a Uint8Array does not survive the wire.
+ */
+const CLIENT_WORKSPACE_HISTORY: Pick<VaultContextType, "listWorkspaceRevisions" | "readWorkspaceRevision"> = {
+  listWorkspaceRevisions: (path) => getWindowBus().then((bus) => bus.request("workspace-revisions", { path })),
+  readWorkspaceRevision: (revisionId) =>
+    getWindowBus()
+      .then((bus) => bus.request("workspace-revision-read", { revisionId }))
+      .then(({ base64 }) => {
+        const binary = atob(base64);
+        const out = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+        return out;
+      }),
 };
 
 // Store filename lives with the desktop settings adapter now (ADR 0011);
@@ -1547,6 +1566,20 @@ export const VaultProvider: React.FC<{
         discard: (outboxId) => commentOps().discard(outboxId),
         status: () => commentOps().status(),
       },
+      // The revision history of a workspace note (finding 2026-09-07), for the
+      // version history in an auxiliary window. Through the ref, like above.
+      workspaceHistory: {
+        list: (path) => {
+          const ops = workspaceHistoryRef.current;
+          if (!ops) throw new Error("vault not ready");
+          return ops.list(path);
+        },
+        read: (revisionId) => {
+          const ops = workspaceHistoryRef.current;
+          if (!ops) throw new Error("vault not ready");
+          return ops.read(revisionId);
+        },
+      },
       // Same reason, one step further: the worker is created AFTER the vault
       // has loaded, so a captured one would always be the null it was at
       // install time — and "sync now" from another window would do nothing.
@@ -2229,6 +2262,8 @@ export const VaultProvider: React.FC<{
   });
   /** The comment functions an auxiliary window is served with (V7); filled below, once they exist. */
   const commentOpsRef = useRef<OwnerCommentDeps | null>(null);
+  /** Same for the workspace revision history (finding 2026-09-07). */
+  const workspaceHistoryRef = useRef<OwnerWorkspaceHistoryDeps | null>(null);
 
   // Build recovery material before any remote state is created. Activation is a
   // separate, recovery-confirmed step in the Security Center.
@@ -3243,6 +3278,7 @@ export const VaultProvider: React.FC<{
       discard: discardWorkspaceComment,
       status: async () => state.workspaceSecurityStatus,
     };
+    workspaceHistoryRef.current = { list: listWorkspaceRevisions, read: readWorkspaceRevision };
   });
 
   const clientLifecycle: VaultLifecycleApi = useMemo(
@@ -3284,7 +3320,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS } : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS, ...CLIENT_WORKSPACE_HISTORY } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

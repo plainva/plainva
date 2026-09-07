@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-09-03
+Stand: 2026-09-07
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -21,7 +21,7 @@ Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit.
 
 ## Versionsverlauf ansehen und wiederherstellen
 
-Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Menü oben rechts im Editor → **Versionsverlauf…** öffnet die Versionsliste:
+Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Menü oben rechts im Editor → **Versionsverlauf…** öffnet die Versionsliste — auch für eine Notiz in ihrem eigenen Fenster, dort im selben Fenster:
 
 - Links stehen alle Snapshots nach Tag gruppiert, mit Uhrzeit und Größe.
 - Rechts siehst Du die Vorschau; bei Textdateien vergleicht **Mit aktueller Fassung vergleichen** die gewählte Version Seite an Seite mit dem aktuellen Inhalt (links die alte Version, rechts der aktuelle Stand).

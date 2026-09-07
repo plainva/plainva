@@ -4134,7 +4134,9 @@
     "restoreWindows": "Restore window layout",
     "restoreWindowsDesc": "Reopens the auxiliary windows you had open when the app starts. Unsent messages are never restored.",
     "noVaultTitle": "No vault open",
-    "noVaultBody": "This window is not showing a vault right now. Pick a recent one or choose a folder."
+    "noVaultBody": "This window is not showing a vault right now. Pick a recent one or choose a folder.",
+    "revealNoTree": "No window with a file tree is showing this vault.",
+    "ownerUnreachable": "The main window is not responding."
   },
   "commentNotify": {
     "actionOpen": "Open",

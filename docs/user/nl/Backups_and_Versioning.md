@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-07
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -21,7 +21,7 @@ Wanneer je een bestand hernoemt of verplaatst, verhuist de versiegeschiedenis me
 
 ## Versies bekijken en herstellen
 
-Rechtsklik op een bestand in de bestandsboom (of op het bijbehorende tabblad), of gebruik het **⋮**-menu rechtsboven in de editor → **Versiegeschiedenis…** opent de versielijst:
+Rechtsklik op een bestand in de bestandsboom (of op het bijbehorende tabblad), of gebruik het **⋮**-menu rechtsboven in de editor → **Versiegeschiedenis…** opent de versielijst — ook voor een notitie in haar eigen venster, daar zelf:
 
 - Aan de linkerkant staan alle snapshots gegroepeerd per dag, met tijd en grootte.
 - Aan de rechterkant zie je een voorbeeld; bij tekstbestanden toont **Vergelijken met huidige versie** de gekozen versie naast de huidige inhoud (oude versie links, huidige staat rechts).

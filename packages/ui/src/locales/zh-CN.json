@@ -4082,7 +4082,9 @@
     "restoreWindows": "恢复窗口布局",
     "restoreWindowsDesc": "启动时重新打开上次开着的附加窗口。未发送的邮件不会被恢复。",
     "noVaultTitle": "未打开任何知识库",
-    "noVaultBody": "此窗口当前没有显示任何知识库。请选择最近使用的一个，或指定一个文件夹。"
+    "noVaultBody": "此窗口当前没有显示任何知识库。请选择最近使用的一个，或指定一个文件夹。",
+    "revealNoTree": "没有带文件树的窗口正在显示此知识库。",
+    "ownerUnreachable": "主窗口没有响应。"
   },
   "commentNotify": {
     "actionOpen": "打开",

@@ -4186,7 +4186,9 @@
     "restoreWindows": "Restaurar a disposição das janelas",
     "restoreWindowsDesc": "Ao iniciar, reabre as janelas adicionais que estavam abertas. Mensagens não enviadas nunca são restauradas.",
     "noVaultTitle": "Nenhum cofre aberto",
-    "noVaultBody": "Esta janela não está mostrando nenhum cofre no momento. Escolha um dos recentes ou selecione uma pasta."
+    "noVaultBody": "Esta janela não está mostrando nenhum cofre no momento. Escolha um dos recentes ou selecione uma pasta.",
+    "revealNoTree": "Nenhuma janela com árvore de arquivos está mostrando este cofre.",
+    "ownerUnreachable": "A janela principal não responde."
   },
   "commentNotify": {
     "actionOpen": "Abrir",

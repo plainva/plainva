@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-09-03
+Stan na: 2026-09-07
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -21,7 +21,7 @@ Podczas zmiany nazwy lub przenoszenia pliku jego historia wersji przenosi się r
 
 ## Przeglądanie i przywracanie wersji
 
-Kliknij prawym przyciskiem myszy plik w drzewie plików (lub jego kartę) albo użyj menu **⋮** w prawym górnym rogu edytora → **Historia wersji…** otwiera listę wersji:
+Kliknij prawym przyciskiem myszy plik w drzewie plików (lub jego kartę) albo użyj menu **⋮** w prawym górnym rogu edytora → **Historia wersji…** otwiera listę wersji — również dla notatki w jej własnym oknie, tam samo:
 
 - Po lewej stronie znajduje się lista wszystkich migawek pogrupowanych według dnia, z godziną i rozmiarem.
 - Po prawej stronie widoczny jest podgląd; dla plików tekstowych **Porównaj z bieżącą wersją** pokazuje wybraną wersję obok bieżącej treści (stara wersja po lewej, bieżący stan po prawej).

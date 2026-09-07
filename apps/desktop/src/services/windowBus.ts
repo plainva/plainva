@@ -24,7 +24,7 @@
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember } from "@plainva/core";
+import type { PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
@@ -107,6 +107,13 @@ export interface BroadcastMap {
   "focus-content": { label: string; path: string };
   /** Owner to one window: show this content instead of what it has open. */
   "set-content": { label: string; path: string | null };
+  /**
+   * Owner to one FULL window: select this path in your file tree and come
+   * forward (finding 2026-09-07). The answer to "reveal in tree" from a window
+   * that has no tree, when the vault is shown by a second full window rather
+   * than by the central one.
+   */
+  "reveal-path": { label: string; path: string };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -167,6 +174,18 @@ export interface RpcMap {
   "comment-discard": { args: { outboxId: string }; result: void };
   /** The owner's public workspace security status - what gates the comment surface. */
   "workspace-status": { args: Record<string, never>; result: WorkspaceSecurityPublicStatus | null };
+  /**
+   * The revision history of a workspace note, from the owner's runtime
+   * (finding 2026-09-07: the version history in an auxiliary window).
+   *
+   * File backups a client reads itself, through the vault adapter. Workspace
+   * revisions live behind the runtime — keys, state store, object store — and
+   * that exists in exactly one window. Same shape as the comment surface: the
+   * client's context hands the two calls over, the modal never learns which
+   * window it runs in. Bytes travel base64: a Uint8Array does not survive JSON.
+   */
+  "workspace-revisions": { args: { path: string }; result: WorkspaceRevisionRecord[] | null };
+  "workspace-revision-read": { args: { revisionId: string }; result: { base64: string } };
   /** Draft snapshot of an unsaved buffer — the owner owns the journal on disk. */
   "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number }; result: void };
   /** Clears a journal entry; `upToRevision: null` forces (Infinity over JSON). */
@@ -220,6 +239,17 @@ export interface RpcMap {
    * reason (multi-window C2): they touch the whole vault, and the window that
    * owns the schedulers and the indexer is the one that should be doing it.
    */
+  /**
+   * "Reveal in file tree" from a window that has no tree (finding 2026-09-07).
+   *
+   * An auxiliary window shows content and nothing else, so the request goes
+   * to the window that shows THIS vault with a tree: the central window when
+   * it does, otherwise the full second window that holds the vault (stage D).
+   * That window comes forward with the file selected. `none` is the honest
+   * answer when no such window exists — a held vault always has one, so this
+   * is a guard rather than a path, but the caller says so instead of nothing.
+   */
+  "reveal-in-tree": { args: { path: string }; result: { where: "owner" | "window" | "none" } };
   "owner-surface": {
     args: {
       surface:
@@ -354,6 +384,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "tab-registry": "app",
   "focus-content": "app",
   "set-content": "app",
+  "reveal-path": "app",
 };
 
 /**
@@ -389,6 +420,8 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "comment-retry": "vault",
   "comment-discard": "vault",
   "workspace-status": "vault",
+  "workspace-revisions": "vault",
+  "workspace-revision-read": "vault",
   // Answered once for the process: these route windows, hand over drafts, open
   // owner surfaces or carry their vault in the arguments already.
   "focus-content": "app",
@@ -405,6 +438,9 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   // vault in the arguments — addressing it by vault would be circular.
   "hold-vault": "app",
   "owner-surface": "app",
+  // Routes by the CALLER's vault, like open-content: the tree it wants may
+  // belong to a window that is not the central one.
+  "reveal-in-tree": "app",
   "draft-record": "app",
   "draft-clear": "app",
   "flush-pending": "app",

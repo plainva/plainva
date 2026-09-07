@@ -4186,7 +4186,9 @@
     "restoreWindows": "Ripristina la disposizione delle finestre",
     "restoreWindowsDesc": "All'avvio riapre le finestre aggiuntive che erano aperte. I messaggi non inviati non vengono mai ripristinati.",
     "noVaultTitle": "Nessun vault aperto",
-    "noVaultBody": "Questa finestra non sta mostrando nessun vault al momento. Scegline uno tra i recenti oppure seleziona una cartella."
+    "noVaultBody": "Questa finestra non sta mostrando nessun vault al momento. Scegline uno tra i recenti oppure seleziona una cartella.",
+    "revealNoTree": "Nessuna finestra con albero dei file sta mostrando questo vault.",
+    "ownerUnreachable": "La finestra principale non risponde."
   },
   "commentNotify": {
     "actionOpen": "Apri",

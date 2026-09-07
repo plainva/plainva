@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-09-03
+Última actualización: 2026-09-07
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -21,7 +21,7 @@ Al renombrar o mover un archivo, su historial de versiones se traslada con él.
 
 ## Ver y restaurar versiones
 
-Haz clic derecho en un archivo del árbol de archivos (o en su pestaña), o usa el menú **⋮** arriba a la derecha del editor → **Historial de versiones…** abre la lista de versiones:
+Haz clic derecho en un archivo del árbol de archivos (o en su pestaña), o usa el menú **⋮** arriba a la derecha del editor → **Historial de versiones…** abre la lista de versiones — también para una nota en su propia ventana, justo ahí:
 
 - El lado izquierdo lista todos los snapshots agrupados por día, con hora y tamaño.
 - El lado derecho muestra una vista previa; para archivos de texto, **Comparar con la versión actual** muestra la versión seleccionada junto al contenido actual (la versión antigua a la izquierda, el estado actual a la derecha).

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ICON } from "@plainva/ui";
+import { Button, EmptyState, ICON, parkTreeReveal } from "@plainva/ui";
 import { FolderOpen } from "lucide-react";
 import { AppShell } from "./AppShell";
 import { useVault } from "./contexts/VaultContext";
 import { useApp } from "./contexts/AppContext";
 import { getWindowBus, type OwnerSurface } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
+import { installRevealPathListener } from "./services/revealRouting";
 import { currentWindowParams } from "./services/windowContext";
 import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
 import type { ShellCapabilities } from "./shellCapabilities";
@@ -47,6 +48,27 @@ export function FullApp() {
   // it shows. With a second vault open that is also what tells two of these
   // apart in the taskbar (stage D).
   useOsWindowTitle(composeWindowTitle({ vaultPath, vaultCount: heldVaults.length }));
+
+  // "Reveal in tree" routed here by the owner (finding 2026-09-07): an
+  // auxiliary window on THIS vault asked, and this is the window with the
+  // tree. The same two steps the ⋮ entry takes locally — park the path for a
+  // tree that may be unmounted, raise the event the shell listens for.
+  useEffect(() => {
+    if (!label) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    void installRevealPathListener(label, (path) => {
+      parkTreeReveal(path);
+      window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path } }));
+    }).then((un) => {
+      if (cancelled) un();
+      else stop = un;
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [label]);
 
   const openOwnerSurface = useCallback(
     (

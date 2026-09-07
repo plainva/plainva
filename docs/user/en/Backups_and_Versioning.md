@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-09-03
+Last reviewed: 2026-09-07
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -21,7 +21,7 @@ When you rename or move a file, its version history moves along with it.
 
 ## Viewing and restoring versions
 
-Right-click a file in the file tree (or its tab), or use the **⋮** menu at the top right of the editor → **Version history…** opens the version list:
+Right-click a file in the file tree (or its tab), or use the **⋮** menu at the top right of the editor → **Version history…** opens the version list — for a note in its own window too, right there:
 
 - The left side lists all snapshots grouped by day, with time and size.
 - The right side shows a preview; for text files, **Compare with current** shows the selected version side by side with the current content (old version on the left, current state on the right).

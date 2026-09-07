@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-07
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -21,7 +21,7 @@ Quando rinomini o sposti un file, la sua cronologia delle versioni lo segue.
 
 ## Visualizzare e ripristinare le versioni
 
-Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu **⋮** in alto a destra nell'editor → **Cronologia delle versioni…** apre l'elenco delle versioni:
+Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu **⋮** in alto a destra nell'editor → **Cronologia delle versioni…** apre l'elenco delle versioni — anche per una nota nella propria finestra, proprio lì:
 
 - A sinistra sono elencati tutti gli snapshot raggruppati per giorno, con orario e dimensione.
 - A destra viene mostrata un'anteprima; per i file di testo, **Confronta con la versione attuale** mostra la versione selezionata affiancata al contenuto attuale (la vecchia versione a sinistra, lo stato attuale a destra).

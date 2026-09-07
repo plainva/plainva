@@ -4134,7 +4134,9 @@
     "restoreWindows": "Fensteraufteilung wiederherstellen",
     "restoreWindowsDesc": "Beim Start werden die zuletzt geöffneten Zusatzfenster wieder geöffnet. Verfasste, noch nicht gesendete Nachrichten werden nie wiederhergestellt.",
     "noVaultTitle": "Kein Vault geöffnet",
-    "noVaultBody": "Dieses Fenster zeigt gerade keinen Vault. Wähle einen der zuletzt geöffneten oder such einen Ordner aus."
+    "noVaultBody": "Dieses Fenster zeigt gerade keinen Vault. Wähle einen der zuletzt geöffneten oder such einen Ordner aus.",
+    "revealNoTree": "Kein Fenster mit Dateibaum zeigt diesen Vault.",
+    "ownerUnreachable": "Das Hauptfenster antwortet nicht."
   },
   "commentNotify": {
     "actionOpen": "Öffnen",

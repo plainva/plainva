@@ -1,14 +1,19 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState, ICON, IconButton } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, toast } from "@plainva/ui";
 import { PanelRight } from "lucide-react";
 import { RightSidebar, type SectionId } from "./components/RightSidebar";
 import { windowStateKey } from "./services/windowContext";
 import { AuxTitleBar } from "./components/AuxTitleBar";
 import { AuxPane } from "./components/AuxPane";
 import { PaneTabStrip } from "./components/PaneTabStrip";
+import { TabContextMenu } from "./components/TabContextMenu";
+import { TemplatePickerModal } from "./components/TemplatePickerModal";
+import { isVirtualPath } from "./components/graph/virtualPaths";
 import { useVault } from "./contexts/VaultContext";
 import { usePaneLayout } from "./hooks/usePaneLayout";
+import { useAuxBridge } from "./hooks/useAuxBridge";
+import { popOutCompose } from "./services/mail/composeWindow";
 import { currentWindowParams } from "./services/windowContext";
 import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
 import { useApp } from "./contexts/AppContext";
@@ -22,6 +27,10 @@ const AUX_SECTIONS: readonly SectionId[] = ["outline", "graph", "databases", "ba
 const AUX_RIGHT_WIDTH = 300;
 
 const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then((m) => ({ default: m.ComposeWindow })));
+// The surfaces the aux bridge opens (finding 2026-09-07) — the same lazy
+// chunks the central window mounts, loaded on first use.
+const CompareModal = lazy(() => import("./components/CompareModal").then((m) => ({ default: m.CompareModal })));
+const MailDraftModal = lazy(() => import("./components/mail/MailDraftModal").then((m) => ({ default: m.MailDraftModal })));
 
 /**
  * The shell of an auxiliary window (multi-window P0/P1, panes since P4).
@@ -43,7 +52,7 @@ export function AuxApp() {
   const { heldVaults } = useApp();
   const { t } = useTranslation();
   const params = currentWindowParams();
-  const { vaultAdapter, vaultPath, isLoading, error, fileTreeVersion } = useVault();
+  const { vaultAdapter, vaultPath, isLoading, error, fileTreeVersion, triggerFileTreeUpdate } = useVault();
   // Per window (multi-window C4 convention): whether the context sidebar is
   // open describes THIS window's view.
   const rightCollapsedKey = windowStateKey("plainva-aux-right-collapsed");
@@ -56,6 +65,11 @@ export function AuxApp() {
       try { localStorage.setItem(rightCollapsedKey, String(next)); } catch { /* storage unavailable */ }
       return next;
     });
+  }, [rightCollapsedKey]);
+  /** "Show properties" must be able to unfold the sidebar (the section expands itself). */
+  const revealRightSidebar = useCallback(() => {
+    setRightCollapsed(false);
+    try { localStorage.setItem(rightCollapsedKey, "false"); } catch { /* storage unavailable */ }
   }, [rightCollapsedKey]);
   const label = params.label;
 
@@ -72,7 +86,7 @@ export function AuxApp() {
 
   const {
     layout, splitRatio, activePath, isSplit, activeSplitDirection,
-    openTab, openInFocusedPane, openInOtherPane, selectTab, closeTab, focusPane,
+    openTab, openInFocusedPane, openInOtherPane, selectTab, closeTab, closeTabsBulk, closeTabsByPrefix, toggleTabPinned, focusPane,
     splitEditorWithTab, moveTabTo, setSplitRatio,
   } = usePaneLayout({
     vaultPath,
@@ -81,6 +95,33 @@ export function AuxApp() {
     // untouched, so an existing layout survives the update.
     layoutScope: label,
   });
+
+  // What the shared components ask the shell for (finding 2026-09-07): the
+  // version history, "reveal in tree", the note behind a link, the composer,
+  // the template picker — answered here, from the table in services/auxBridge.
+  const bridge = useAuxBridge({ label, openInFocusedPane, revealRightSidebar });
+
+  // The tab menu (finding 2026-09-07): right-click on a tab used to be an empty
+  // handler here. The closed-tab stack behind "reopen closed tab" is this
+  // window's own, like its tabs.
+  const [tabMenu, setTabMenu] = useState<{ paneIndex: number; tabIndex: number; x: number; y: number } | null>(null);
+  const closedTabsRef = useRef<string[]>([]);
+  const [closedTabCount, setClosedTabCount] = useState(0);
+  const trackClose = useCallback((paneIndex: number, index: number) => {
+    const tab = layout.panes[paneIndex]?.tabs[index];
+    const path = tab?.history[tab.historyIndex];
+    if (path) {
+      closedTabsRef.current.push(path);
+      if (closedTabsRef.current.length > 25) closedTabsRef.current.shift();
+      setClosedTabCount(closedTabsRef.current.length);
+    }
+    closeTab(paneIndex, index);
+  }, [layout, closeTab]);
+  const reopenClosedTab = useCallback(() => {
+    const path = closedTabsRef.current.pop();
+    setClosedTabCount(closedTabsRef.current.length);
+    if (path) openInFocusedPane(path, true);
+  }, [openInFocusedPane]);
 
   // Cmd/Ctrl+W (#86). The central window's key handler does not run here,
   // and a window without a close button of its own (macOS, before the
@@ -328,6 +369,14 @@ export function AuxApp() {
 
   const single = layout.panes[0];
   const activePaneIndex = layout.activePaneIndex;
+  // The right-clicked tab, not the active one (they differ on a background
+  // tab) — the central window's rule, same derivations.
+  const menuPane = tabMenu ? layout.panes[tabMenu.paneIndex] : undefined;
+  const menuTab = tabMenu && menuPane ? menuPane.tabs[tabMenu.tabIndex] : undefined;
+  const menuTabPath = menuTab ? menuTab.history[menuTab.historyIndex] : null;
+  const menuIsFile = !!menuTabPath && !isVirtualPath(menuTabPath);
+  const menuHasUnpinnedLeft = !!tabMenu && !!menuPane && menuPane.tabs.slice(0, tabMenu.tabIndex).some((tb) => !tb.pinned);
+  const menuHasUnpinnedRight = !!tabMenu && !!menuPane && menuPane.tabs.slice(tabMenu.tabIndex + 1).some((tb) => !tb.pinned);
   const rightSidebarToggle = (
     <IconButton
       label={t("titlebar.toggleRightSidebar")}
@@ -351,8 +400,8 @@ export function AuxApp() {
           pinnedTabs={single.tabs.map((tb) => tb.pinned === true)}
           activeIndex={single.activeIndex}
           onSelect={(idx) => selectTab(0, idx)}
-          onClose={(idx) => closeTab(0, idx)}
-          onContextMenu={() => {}}
+          onClose={(idx) => trackClose(0, idx)}
+          onContextMenu={(idx, x, y) => setTabMenu({ paneIndex: 0, tabIndex: idx, x, y })}
           onMoveTab={moveTabTo}
         />
       </div>
@@ -420,8 +469,8 @@ export function AuxApp() {
                       pinnedTabs={pane.tabs.map((tb) => tb.pinned === true)}
                       activeIndex={pane.activeIndex}
                       onSelect={(idx) => selectTab(i, idx)}
-                      onClose={(idx) => closeTab(i, idx)}
-                      onContextMenu={() => {}}
+                      onClose={(idx) => trackClose(i, idx)}
+                      onContextMenu={(idx, x, y) => setTabMenu({ paneIndex: i, tabIndex: idx, x, y })}
                       onMoveTab={moveTabTo}
                       onSplitWithTab={splitEditorWithTab}
                     />
@@ -463,6 +512,70 @@ export function AuxApp() {
         </aside>
       )}
       </div>
+
+      {/* What the aux bridge opens (finding 2026-09-07): the comparison surface
+          (version history, conflict), the floating composer, the template
+          picker — the same components the central window mounts. A restore or
+          a resolved conflict writes through the client adapter, so the owner
+          indexes it; this window only re-reads its own views. */}
+      <Suspense fallback={null}>
+        {bridge.compareTarget && (
+          <CompareModal
+            subject={bridge.compareTarget}
+            onClose={bridge.closeCompare}
+            onResolved={(outcome) => {
+              bridge.closeCompare();
+              closeTabsByPrefix(outcome.conflictPath);
+              if (outcome.mergedContent !== null) {
+                // Same adoption path as a version restore: the open editor
+                // takes the merged text without re-dirtying or racing a save.
+                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
+              }
+              triggerFileTreeUpdate(outcome.touched);
+            }}
+          />
+        )}
+        {bridge.mailDraft && vaultPath && (
+          <MailDraftModal
+            subject={bridge.mailDraft.subject}
+            markdown={bridge.mailDraft.markdown}
+            attachments={bridge.mailDraft.attachments}
+            initialTo={bridge.mailDraft.to}
+            onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
+            onClose={bridge.closeMailDraft}
+          />
+        )}
+      </Suspense>
+      <TemplatePickerModal isOpen={bridge.templatePickerOpen} onClose={bridge.closeTemplatePicker} />
+      {tabMenu && (
+        <TabContextMenu
+          x={tabMenu.x}
+          y={tabMenu.y}
+          onSplitVertical={() => splitEditorWithTab("vertical", tabMenu.paneIndex, tabMenu.tabIndex)}
+          onSplitHorizontal={() => splitEditorWithTab("horizontal", tabMenu.paneIndex, tabMenu.tabIndex)}
+          activeDirection={activeSplitDirection}
+          onCloseTab={() => trackClose(tabMenu.paneIndex, tabMenu.tabIndex)}
+          onClose={() => setTabMenu(null)}
+          pinned={menuTab?.pinned === true}
+          onTogglePin={() => toggleTabPinned(tabMenu.paneIndex, tabMenu.tabIndex)}
+          onReload={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reload-file", { detail: { path: menuTabPath } })) : undefined}
+          onRevealInTree={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: menuTabPath } })) : undefined}
+          onCopyPath={menuIsFile ? () => { void navigator.clipboard.writeText(menuTabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
+          onRename={menuIsFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
+          onToggleBookmark={menuIsFile ? () => toggleBookmark(menuTabPath!) : undefined}
+          onReopenClosed={reopenClosedTab}
+          canReopenClosed={closedTabCount > 0}
+          onCloseOthers={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "others")}
+          onCloseLeft={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "left")}
+          onCloseRight={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "right")}
+          onCloseAll={() => closeTabsBulk(tabMenu.paneIndex, tabMenu.tabIndex, "all")}
+          canCloseLeft={menuHasUnpinnedLeft}
+          canCloseRight={menuHasUnpinnedRight}
+          onShowVersionHistory={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: menuTabPath } })) : undefined}
+          // No "open in new window": the tab IS in one. Going back into the
+          // central window is a different command (Sammelplan § 3.21).
+        />
+      )}
     </div>
   );
 }

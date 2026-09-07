@@ -4186,7 +4186,9 @@
     "restoreWindows": "Restaurer la disposition des fenêtres",
     "restoreWindowsDesc": "Rouvre au démarrage les fenêtres supplémentaires qui étaient ouvertes. Les messages non envoyés ne sont jamais restaurés.",
     "noVaultTitle": "Aucun coffre ouvert",
-    "noVaultBody": "Cette fenêtre n'affiche aucun coffre pour le moment. Choisis-en un parmi les récents ou sélectionne un dossier."
+    "noVaultBody": "Cette fenêtre n'affiche aucun coffre pour le moment. Choisis-en un parmi les récents ou sélectionne un dossier.",
+    "revealNoTree": "Aucune fenêtre avec arborescence de fichiers n'affiche ce coffre.",
+    "ownerUnreachable": "La fenêtre principale ne répond pas."
   },
   "commentNotify": {
     "actionOpen": "Ouvrir",

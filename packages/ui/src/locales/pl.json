@@ -4238,7 +4238,9 @@
     "restoreWindows": "Przywróć układ okien",
     "restoreWindowsDesc": "Przy uruchomieniu ponownie otwiera dodatkowe okna, które były otwarte. Niewysłane wiadomości nigdy nie są przywracane.",
     "noVaultTitle": "Nie otwarto żadnego sejfu",
-    "noVaultBody": "To okno nie pokazuje teraz żadnego sejfu. Wybierz jeden z ostatnich albo wskaż folder."
+    "noVaultBody": "To okno nie pokazuje teraz żadnego sejfu. Wybierz jeden z ostatnich albo wskaż folder.",
+    "revealNoTree": "Żadne okno z drzewem plików nie pokazuje tego sejfu.",
+    "ownerUnreachable": "Główne okno nie odpowiada."
   },
   "commentNotify": {
     "actionOpen": "Otwórz",

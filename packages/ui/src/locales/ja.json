@@ -4082,7 +4082,9 @@
     "restoreWindows": "ウィンドウ配置を復元",
     "restoreWindowsDesc": "起動時に、前回開いていた追加ウィンドウを開き直します。未送信のメッセージは復元されません。",
     "noVaultTitle": "Vault が開かれていません",
-    "noVaultBody": "このウィンドウは現在どの Vault も表示していません。最近使ったものを選ぶか、フォルダーを指定してください。"
+    "noVaultBody": "このウィンドウは現在どの Vault も表示していません。最近使ったものを選ぶか、フォルダーを指定してください。",
+    "revealNoTree": "ファイルツリーのあるウィンドウでこの Vault を表示しているものはありません。",
+    "ownerUnreachable": "メインウィンドウが応答しません。"
   },
   "commentNotify": {
     "actionOpen": "開く",
