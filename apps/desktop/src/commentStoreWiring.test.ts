@@ -60,3 +60,16 @@ describe("the editor asks for its capabilities in every vault", () => {
     expect(effect).not.toMatch(/!workspaceSecurityStatus/);
   });
 });
+
+describe("a rename reaches the comment store on the desktop (N1)", () => {
+  const context = strip(read("contexts", "VaultContext.tsx"));
+
+  it("listens to the file operations once and records the moves", () => {
+    expect(context.match(/addEventListener\("plainva-file-ops"/g) ?? []).toHaveLength(1);
+    expect(context).toMatch(/commentStore\(\)\?\.recordMoves\(moves\)/);
+    // A client window has no store; it hands the moves to the owner.
+    expect(context).toMatch(/bus\.request\("comment-move", \{ moves \}\)/);
+    // A failed marker leaves the rename standing and says so.
+    expect(context).toMatch(/commentMoveFailed/);
+  });
+});

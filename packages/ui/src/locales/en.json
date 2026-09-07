@@ -3869,6 +3869,7 @@
     "commentTaskSource": "From a comment in",
     "commentTaskCreated": "Made into a task",
     "commentTaskOpen": "Open",
+    "commentMoveFailed": "The remarks could not follow the renamed note. The rename stands; the remarks stay under the old name.",
     "commentTaskFallback": "Comment"
   },
   "cascade": {

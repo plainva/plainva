@@ -5,7 +5,11 @@ import {
   COMMENTS_ENC_PATH,
   COMMENTS_SYNC_PATH,
   CommentStoreLockedError,
+  mergeCommentsBundles,
   parseCommentsBundle,
+  resolveCommentPath,
+  serializeCommentsBundle,
+  type LocalMoveRecord,
   type BundleCommentsMode,
   type CommentsCrypto,
   type IVaultAdapter,
@@ -145,5 +149,111 @@ describe("BundleCommentStore", () => {
     expect(proposal.suggestionBatchId).toBe("cd".repeat(16));
     expect(proposal.batchIndex).toBe(2);
     expect(proposal.batchNote).toBe("tidy");
+  });
+});
+
+/**
+ * A renamed note keeps its remarks (Nachschaerfung, N1).
+ *
+ * Records stay immutable; the move is its own record, and the reader follows
+ * the chain. What these pin is the walk: chains, a rename and back, a freed
+ * name reused by a new note, a device that remarked under the old name after
+ * the rename, and two devices renaming the same note differently.
+ */
+describe("move markers", () => {
+  const move = (over: Partial<LocalMoveRecord>): LocalMoveRecord => ({ moveId: "ab".repeat(16), from: "A.md", to: "B.md", folder: false, deviceId: "laptop", at: "2026-09-07T11:00:00Z", ...over });
+  const T0 = "2026-09-07T10:00:00Z";
+  const T1 = "2026-09-07T11:00:00Z";
+  const T2 = "2026-09-07T12:00:00Z";
+  const T3 = "2026-09-07T13:00:00Z";
+  const sorted = (moves: LocalMoveRecord[]) => moves.sort((a, b) => (a.at === b.at ? a.moveId.localeCompare(b.moveId) : a.at.localeCompare(b.at)));
+
+  it("follows a chain and a rename-and-back", () => {
+    const chain = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "B.md", to: "C.md", at: T2 })]);
+    expect(resolveCommentPath(chain, "A.md", T0)).toBe("C.md");
+    const back = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "B.md", to: "A.md", at: T2 })]);
+    expect(resolveCommentPath(back, "A.md", T0)).toBe("A.md");
+  });
+
+  it("leaves a note that reuses a freed name alone", () => {
+    // A.md was renamed at T1; a NEW A.md was written at T2 and remarked on at
+    // T3. That remark belongs to the new note, not to the old one's move.
+    const moves = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 })]);
+    expect(resolveCommentPath(moves, "A.md", T3)).toBe("A.md");
+  });
+
+  it("carries a late remark along once the old name has no file - and not while it has one", () => {
+    const moves = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "B.md", to: "C.md", at: T3 })]);
+    // Remarked at T2 under A.md by a device that had not seen the rename. The
+    // data reads like a reused name; only the missing file tells: then the
+    // latest earlier marker applies, and the walk continues to C.md.
+    expect(resolveCommentPath(moves, "A.md", T2)).toBe("A.md");
+    expect(resolveCommentPath(moves, "A.md", T2, new Set(["A.md"]))).toBe("C.md");
+  });
+
+  it("asks the vault only about the paths a marker could move on", async () => {
+    const vault = new FakeVault();
+    let now = T0;
+    const store = new BundleCommentStore({ vault: vault as unknown as IVaultAdapter, deviceId: async () => "laptop", mode: async () => ({ kind: "plain" }), now: () => now });
+    await store.post({ path: "A.md", body: "early" });
+    now = T1;
+    await store.recordMoves([{ from: "A.md", to: "B.md" }]);
+    now = T2;
+    await store.post({ path: "A.md", body: "late or reused?" });
+    // No file at A.md: the late remark follows the rename.
+    expect((await store.list("B.md")).map((c) => c.body)).toEqual(["early", "late or reused?"]);
+    // A new note took the freed name: its remark stays with it.
+    vault.files.set("A.md", "# new note");
+    expect((await store.list("B.md")).map((c) => c.body)).toEqual(["early"]);
+    expect((await store.list("A.md")).map((c) => c.body)).toEqual(["late or reused?"]);
+  });
+
+  it("resolves two conflicting renames to the earlier one on every device alike", () => {
+    const moves = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "A.md", to: "C.md", at: T2 })]);
+    expect(resolveCommentPath(moves, "A.md", T0)).toBe("B.md");
+  });
+
+  it("moves a whole folder by prefix", () => {
+    const moves = sorted([move({ moveId: "01".repeat(16), from: "Old", to: "Archive/New", folder: true, at: T1 })]);
+    expect(resolveCommentPath(moves, "Old/Deep/Note.md", T0)).toBe("Archive/New/Deep/Note.md");
+    expect(resolveCommentPath(moves, "Older/Note.md", T0)).toBe("Older/Note.md");
+  });
+
+  it("records a move through the store and lists the remark under the new name, replies included", async () => {
+    const vault = new FakeVault();
+    let now = T0;
+    const store = new BundleCommentStore({ vault: vault as unknown as IVaultAdapter, deviceId: async () => "laptop", mode: async () => ({ kind: "plain" }), now: () => now });
+    await store.post({ path: "Notes/Plan.md", body: "root" });
+    const [root] = await store.list("Notes/Plan.md");
+    now = T1;
+    await store.recordMoves([{ from: "Notes/Plan.md", to: "Notes/Roadmap.md" }]);
+    now = T2;
+    // A reply written after the move, against the new path, joins its thread.
+    await store.post({ path: "Notes/Roadmap.md", body: "reply", parentCommentId: root.commentId });
+    expect(await store.list("Notes/Plan.md")).toEqual([]);
+    expect((await store.list("Notes/Roadmap.md")).map((c) => c.body)).toEqual(["root", "reply"]);
+    expect([...(await store.listAll()).keys()]).toEqual(["Notes/Roadmap.md"]);
+  });
+
+  it("writes no bundle for a rename in a vault that never carried a remark", async () => {
+    const vault = new FakeVault();
+    const store = storeFor(vault, { kind: "plain" });
+    await store.recordMoves([{ from: "A.md", to: "B.md" }]);
+    expect(vault.files.size).toBe(0);
+  });
+
+  it("refuses on a locked device rather than writing a plaintext marker", async () => {
+    const store = storeFor(new FakeVault(), { kind: "locked" });
+    await expect(store.recordMoves([{ from: "A.md", to: "B.md" }])).rejects.toBeInstanceOf(CommentStoreLockedError);
+  });
+
+  it("survives the union merge and serializes byte-identically without moves", () => {
+    const left = { format: "plainva-comments" as const, version: 1 as const, updatedAt: T0, comments: {}, authors: {}, moves: { ["01".repeat(16)]: move({ moveId: "01".repeat(16) }) } };
+    const right = { format: "plainva-comments" as const, version: 1 as const, updatedAt: T0, comments: {}, authors: {}, moves: { ["02".repeat(16)]: move({ moveId: "02".repeat(16), from: "B.md", to: "C.md" }) } };
+    const merged = mergeCommentsBundles(left, right, T1);
+    expect(Object.keys(merged.moves ?? {}).sort()).toEqual(["01".repeat(16), "02".repeat(16)]);
+    // A bundle without moves keeps the pre-N1 shape on disk.
+    expect(serializeCommentsBundle({ format: "plainva-comments", version: 1, updatedAt: T0, comments: {}, authors: {} })).not.toContain("moves");
+    expect(parseCommentsBundle(serializeCommentsBundle(merged))?.moves?.["02".repeat(16)]?.to).toBe("C.md");
   });
 });

@@ -300,6 +300,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
         return { phase: "active" } as never;
       },
       state: async () => ({ mode: "workspace" as const, hasOutbox: true }),
+      move: async () => {},
     },
   });
   const disposeApp = await installOwnerAppBus();

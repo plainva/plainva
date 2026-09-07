@@ -3909,6 +3909,7 @@
     "commentTaskSource": "Da un commento in",
     "commentTaskCreated": "Trasformato in attività",
     "commentTaskOpen": "Apri",
+    "commentMoveFailed": "Le annotazioni non hanno potuto seguire la nota rinominata. La rinomina resta valida; le annotazioni restano sotto il vecchio nome.",
     "commentTaskFallback": "Commento"
   },
   "cascade": {

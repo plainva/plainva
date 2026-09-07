@@ -3949,6 +3949,7 @@
     "commentTaskSource": "Z komentarza w",
     "commentTaskCreated": "Zamieniono w zadanie",
     "commentTaskOpen": "Otwórz",
+    "commentMoveFailed": "Uwagi nie mogły podążyć za notatką o zmienionej nazwie. Zmiana nazwy pozostaje; uwagi zostają pod starą nazwą.",
     "commentTaskFallback": "Komentarz"
   },
   "cascade": {

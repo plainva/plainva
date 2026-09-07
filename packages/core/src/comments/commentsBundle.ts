@@ -54,6 +54,26 @@ export interface LocalCommentRecord {
   createdAt: string;
 }
 
+/**
+ * A note moved (Nachschaerfung, N1). The open store addresses a note by PATH -
+ * without a workspace there is no object id - so a rename used to orphan every
+ * remark on it. Records stay immutable (rewriting `path` would break the union:
+ * one id with two paths on two devices), so the move is its own immutable
+ * record, and the reader follows the chain `from -> to` when it lists.
+ *
+ * `folder` marks a folder move: every path under `from` follows by prefix. One
+ * marker instead of one per note, and a device that still remarks under the
+ * old folder path (it had not seen the move yet) is carried along too.
+ */
+export interface LocalMoveRecord {
+  moveId: string;
+  from: string;
+  to: string;
+  folder: boolean;
+  deviceId: string;
+  at: string;
+}
+
 /** What one device calls itself in this vault. Never a claim about anyone else. */
 export interface LocalCommentAuthor {
   name: string;
@@ -71,6 +91,8 @@ export interface CommentsBundle {
    * device only ever writes the entries it speaks for.
    */
   authors: Record<string, LocalCommentAuthor>;
+  /** Keyed by moveId (N1). Optional: a bundle written before N1 has none. */
+  moves?: Record<string, LocalMoveRecord>;
 }
 
 export class CommentBundleError extends Error {
@@ -127,7 +149,15 @@ export function mergeCommentsBundles(local: CommentsBundle | null, remote: Comme
     // one. Nothing here lets one device rename another.
     authors[deviceId] = mine && theirs ? (mine.updatedAt >= theirs.updatedAt ? mine : theirs) : (mine ?? theirs)!;
   }
-  return { format: "plainva-comments", version: 1, updatedAt: now, comments, authors };
+  // Moves are immutable events like the records: a union, never a choice.
+  const moves: Record<string, LocalMoveRecord> = {};
+  const moveIds = new Set<string>([...Object.keys(local?.moves ?? {}), ...Object.keys(remote?.moves ?? {})]);
+  for (const id of moveIds) {
+    const mine = local?.moves?.[id];
+    const theirs = remote?.moves?.[id];
+    moves[id] = mine && theirs ? (JSON.stringify(mine) <= JSON.stringify(theirs) ? mine : theirs) : (mine ?? theirs)!;
+  }
+  return { format: "plainva-comments", version: 1, updatedAt: now, comments, authors, ...(moveIds.size > 0 ? { moves } : {}) };
 }
 
 /**
@@ -196,6 +226,16 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
     if (!isNonEmptyString(deviceId)) throw new CommentBundleError("comment author device is malformed");
     if (!isRecord(raw) || typeof raw.name !== "string" || !isNonEmptyString(raw.updatedAt)) throw new CommentBundleError("comment author entry is malformed");
   }
+  if (value.moves !== undefined) {
+    if (!isRecord(value.moves)) throw new CommentBundleError("comment moves are malformed");
+    for (const [id, raw] of Object.entries(value.moves)) {
+      if (!isHexId(id)) throw new CommentBundleError("comment move id is malformed");
+      if (!isRecord(raw) || raw.moveId !== id) throw new CommentBundleError("comment move record is malformed");
+      if (!isNonEmptyString(raw.from) || !isNonEmptyString(raw.to) || raw.from === raw.to) throw new CommentBundleError("comment move paths are malformed");
+      if (typeof raw.folder !== "boolean") throw new CommentBundleError("comment move kind is malformed");
+      if (!isNonEmptyString(raw.deviceId) || !isNonEmptyString(raw.at)) throw new CommentBundleError("comment move origin is malformed");
+    }
+  }
 }
 
 /** Parses and validates. Returns null for an empty document, throws for a broken one. */
@@ -219,7 +259,95 @@ export function serializeCommentsBundle(bundle: CommentsBundle): string {
   for (const id of Object.keys(bundle.comments).sort()) comments[id] = bundle.comments[id];
   const authors: Record<string, LocalCommentAuthor> = {};
   for (const deviceId of Object.keys(bundle.authors).sort()) authors[deviceId] = bundle.authors[deviceId];
-  return JSON.stringify({ format: bundle.format, version: bundle.version, updatedAt: bundle.updatedAt, comments, authors }, null, 2);
+  const moveIds = Object.keys(bundle.moves ?? {}).sort();
+  const moves: Record<string, LocalMoveRecord> = {};
+  for (const id of moveIds) moves[id] = bundle.moves![id];
+  // A bundle without moves serializes exactly as before N1: nothing changes on
+  // disk for a vault that never renamed a commented note.
+  return JSON.stringify({ format: bundle.format, version: bundle.version, updatedAt: bundle.updatedAt, comments, authors, ...(moveIds.length > 0 ? { moves } : {}) }, null, 2);
+}
+
+/** The bundle's moves in the order they happened; ties broken by id so every device walks them alike. */
+export function sortedCommentMoves(bundle: CommentsBundle | null): LocalMoveRecord[] {
+  return Object.values(bundle?.moves ?? {}).sort((a, b) => (a.at === b.at ? a.moveId.localeCompare(b.moveId) : a.at.localeCompare(b.at)));
+}
+
+function moveApplies(move: LocalMoveRecord, path: string): boolean {
+  if (move.folder) return path === move.from || path.startsWith(move.from + "/");
+  return path === move.from;
+}
+
+function applyMove(move: LocalMoveRecord, path: string): string {
+  return move.folder && path !== move.from ? move.to + path.slice(move.from.length) : move.to;
+}
+
+/**
+ * Where a record written against `path` at `createdAt` lives today (N1).
+ *
+ * The chain is walked in time order from the record's creation: at each step
+ * the EARLIEST unused marker at or after the current floor that matches the
+ * current path is taken, and the floor moves to that marker. A rename that
+ * happened BEFORE the record was written does not apply to it - a new note
+ * that reuses a freed name ("Untitled" is renamed, the next note is called
+ * "Untitled" again) keeps its own remarks - while a chain A -> B -> C and a
+ * rename-and-back A -> B -> A both end where the note is.
+ *
+ * The one case the data alone cannot tell apart is a record that arrived
+ * LATE: written under a path that had already been renamed, by a device that
+ * had not seen the rename yet. It looks exactly like the reused name - until
+ * the file is checked: the reused name has a file, the late remark's path has
+ * none. So the caller may pass the set of resolved paths it found MISSING, and
+ * for those the latest earlier marker is taken instead (the most recent
+ * whereabouts of that path) and the walk continues from there.
+ *
+ * Two devices that renamed the same note differently resolve to the earlier of
+ * the two markers on every device alike; the other name's remarks are still
+ * listed, under a path without a file (SD3).
+ */
+export function resolveCommentPath(moves: readonly LocalMoveRecord[], path: string, createdAt: string, missing?: ReadonlySet<string>): string {
+  let current = path;
+  let floor = createdAt;
+  const used = new Set<string>();
+  for (let step = 0; step <= moves.length; step += 1) {
+    let pick: LocalMoveRecord | null = null;
+    for (const move of moves) {
+      if (used.has(move.moveId) || move.at < floor || !moveApplies(move, current)) continue;
+      pick = move; // sorted ascending: the first hit is the earliest
+      break;
+    }
+    if (!pick && missing?.has(current)) {
+      for (let i = moves.length - 1; i >= 0; i -= 1) {
+        const move = moves[i];
+        if (used.has(move.moveId) || move.at >= floor || !moveApplies(move, current)) continue;
+        pick = move; // descending: the latest earlier marker
+        break;
+      }
+    }
+    if (!pick) break;
+    used.add(pick.moveId);
+    current = applyMove(pick, current);
+    floor = pick.at;
+  }
+  return current;
+}
+
+/**
+ * The resolved paths whose fate depends on whether a file is there (see
+ * `resolveCommentPath`): a root record that lands on a path some EARLIER
+ * marker would move on. The store checks exactly these against the vault and
+ * hands the missing ones back in - a handful of stats at most, and none in a
+ * vault that never renamed a commented note.
+ */
+export function commentPathsToCheck(bundle: CommentsBundle | null): Set<string> {
+  const out = new Set<string>();
+  if (!bundle?.moves) return out;
+  const moves = sortedCommentMoves(bundle);
+  for (const record of Object.values(bundle.comments)) {
+    if (record.parentCommentId) continue;
+    const resolved = resolveCommentPath(moves, record.path, record.createdAt);
+    if (moves.some((move) => moveApplies(move, resolved))) out.add(resolved);
+  }
+  return out;
 }
 
 /**
@@ -249,10 +377,19 @@ export function serializeCommentsBundle(bundle: CommentsBundle): string {
  * it in put a phantom card with no text into the plain-vault column (found
  * 2026-08-26 while lifting this query; the workspace path never had it).
  */
-export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, WorkspaceCommentRecord[]> {
+export function localCommentsByPath(bundle: CommentsBundle | null, missing?: ReadonlySet<string>): Map<string, WorkspaceCommentRecord[]> {
   const byPath = new Map<string, WorkspaceCommentRecord[]>();
   if (!bundle) return byPath;
   const all = Object.values(bundle.comments);
+  const moves = sortedCommentMoves(bundle);
+  // A reply inherits its thread's place: it is resolved from the ROOT's path
+  // and time, so a rename between the root and the reply cannot split a
+  // thread across two notes.
+  const roots = new Map(all.filter((record) => !record.parentCommentId).map((record) => [record.commentId, record]));
+  const placeOf = (record: LocalCommentRecord): string => {
+    const root = (record.parentCommentId && roots.get(record.parentCommentId)) || record;
+    return moves.length === 0 ? root.path : resolveCommentPath(moves, root.path, root.createdAt, missing);
+  };
   // A retraction counts only from the record's own author (K7): a plain vault
   // has no roles, so nothing else could vouch for a stranger's marker. What it
   // retracts disappears with every reply under it.
@@ -279,8 +416,9 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
       const closed = closedBy.get(record.commentId);
       return {
         commentId: record.commentId,
-        // No object id without a workspace; the path IS the identity here.
-        targetObjectId: record.path,
+        // No object id without a workspace; the path IS the identity here -
+        // followed through the move markers (N1) to where the note is today.
+        targetObjectId: placeOf(record),
         targetRevisionId: "",
         parentCommentId: record.parentCommentId,
         // A device is the author in a plain vault: there are no members, and the
@@ -319,8 +457,8 @@ export function localCommentsByPath(bundle: CommentsBundle | null): Map<string, 
   return byPath;
 }
 
-export function localCommentsForPath(bundle: CommentsBundle | null, path: string): WorkspaceCommentRecord[] {
-  return localCommentsByPath(bundle).get(path) ?? [];
+export function localCommentsForPath(bundle: CommentsBundle | null, path: string, missing?: ReadonlySet<string>): WorkspaceCommentRecord[] {
+  return localCommentsByPath(bundle, missing).get(path) ?? [];
 }
 
 /** deviceId -> what that device calls itself. Never a claim about anyone else. */

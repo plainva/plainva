@@ -3909,6 +3909,7 @@
     "commentTaskSource": "De un comentario en",
     "commentTaskCreated": "Convertido en tarea",
     "commentTaskOpen": "Abrir",
+    "commentMoveFailed": "Las anotaciones no pudieron seguir a la nota renombrada. El cambio de nombre se mantiene; las anotaciones quedan bajo el nombre anterior.",
     "commentTaskFallback": "Comentario"
   },
   "cascade": {

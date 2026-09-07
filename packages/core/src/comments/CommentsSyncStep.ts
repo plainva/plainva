@@ -24,6 +24,7 @@ import {
   serializeCommentsBundle,
   type CommentsBundle,
   type LocalCommentRecord,
+  type LocalMoveRecord,
 } from "./commentsBundle.js";
 
 const decoder = new TextDecoder();
@@ -105,6 +106,28 @@ export async function appendLocalComment(
     comments: { ...current.comments, [record.commentId]: record },
     authors,
   };
+  await writeLocalComments(vault, next, options.crypto);
+  return next;
+}
+
+/**
+ * Appends move markers (N1) - one immutable record each, exactly like a
+ * comment. Written after the rename succeeded; if this fails the rename
+ * stands and the caller says so.
+ */
+export async function appendLocalMoves(
+  vault: IVaultAdapter,
+  moves: readonly LocalMoveRecord[],
+  options: { crypto?: CommentsCrypto; now?: string } = {},
+): Promise<CommentsBundle> {
+  const now = options.now ?? new Date().toISOString();
+  const current = (await readLocalComments(vault, options.crypto)) ?? emptyCommentsBundle(now);
+  const next: CommentsBundle = {
+    ...current,
+    updatedAt: now,
+    moves: { ...(current.moves ?? {}) },
+  };
+  for (const move of moves) next.moves![move.moveId] = move;
   await writeLocalComments(vault, next, options.crypto);
   return next;
 }
@@ -196,8 +219,8 @@ export class CommentsSyncStep {
 /** Compares content, ignoring the bundle timestamp — which changes on every merge. */
 function sameBundle(a: CommentsBundle, b: CommentsBundle): boolean {
   return (
-    JSON.stringify({ c: sortedKeys(a.comments), a: sortedKeys(a.authors) })
-    === JSON.stringify({ c: sortedKeys(b.comments), a: sortedKeys(b.authors) })
+    JSON.stringify({ c: sortedKeys(a.comments), a: sortedKeys(a.authors), m: sortedKeys(a.moves ?? {}) })
+    === JSON.stringify({ c: sortedKeys(b.comments), a: sortedKeys(b.authors), m: sortedKeys(b.moves ?? {}) })
   );
 }
 

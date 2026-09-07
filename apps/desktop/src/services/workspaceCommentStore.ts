@@ -180,6 +180,9 @@ export class WorkspaceCommentStore implements CommentStore {
     this.deps.changed(entry.path);
   }
 
+  /** A workspace comment names its OBJECT, and a renamed note keeps its object: nothing to record. */
+  async recordMoves(): Promise<void> {}
+
   /** The remark alone, now - not a whole cycle with a remote listing in front of it (finding 2026-09-03). */
   private publish(): void {
     const worker = this.deps.worker();

@@ -20,7 +20,8 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createLocalCommentStore } from "../services/localComments";
 import { WorkspaceCommentStore } from "../services/workspaceCommentStore";
-import type { CommentStore, CommentStoreState } from "@plainva/core";
+import type { CommentPathMove, CommentStore, CommentStoreState } from "@plainva/core";
+import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
@@ -1575,6 +1576,7 @@ export const VaultProvider: React.FC<{
         discard: (outboxId) => commentOps().discard(outboxId),
         status: () => commentOps().status(),
         state: () => commentOps().state(),
+        move: (args) => commentOps().move(args),
       },
       // The revision history of a workspace note (finding 2026-09-07), for the
       // version history in an auxiliary window. Through the ref, like above.
@@ -2922,6 +2924,41 @@ export const VaultProvider: React.FC<{
 
   const getCommentStoreState = async (): Promise<CommentStoreState | null> => commentStore()?.state() ?? null;
 
+  /**
+   * A renamed or moved note keeps its remarks (N1). Every rename path of the
+   * shell - the tree's inline rename, the editor menu, drag and drop, "Move
+   * to..." - reports itself through `plainva-file-ops` AFTER it succeeded, so
+   * this is the one place that turns those reports into move markers. A client
+   * window has no store of its own and hands the moves to the owner; a failure
+   * leaves the rename standing and says so.
+   */
+  const recordCommentMoves = async (moves: CommentPathMove[]): Promise<void> => {
+    if (moves.length === 0) return;
+    if (isClient) {
+      const bus = await getWindowBus();
+      await bus.request("comment-move", { moves });
+      return;
+    }
+    await commentStore()?.recordMoves(moves);
+  };
+  const recordCommentMovesRef = useRef(recordCommentMoves);
+  recordCommentMovesRef.current = recordCommentMoves;
+  useEffect(() => {
+    if (!state.vaultPath) return;
+    const onOps = (event: Event) => {
+      const ops = ((event as CustomEvent<{ ops?: FileOp[] }>).detail?.ops ?? []);
+      const moves: CommentPathMove[] = [];
+      for (const op of ops) if (op.type === "move") moves.push({ from: op.from, to: op.to, folder: op.isFolder === true });
+      if (moves.length === 0) return;
+      void recordCommentMovesRef.current(moves).catch((error) => {
+        console.error("[VaultContext] comment moves not recorded", error);
+        toast.warning(i18n.t("workspaceSecurity.commentMoveFailed"));
+      });
+    };
+    window.addEventListener("plainva-file-ops", onOps);
+    return () => window.removeEventListener("plainva-file-ops", onOps);
+  }, [state.vaultPath]);
+
   // A vault without a workspace still gets the comment surface - the same
   // threads, anchors and suggestions, only stored in the sideband bundle
   // instead of signed objects. Null switches the whole column off, and only a
@@ -3175,6 +3212,7 @@ export const VaultProvider: React.FC<{
       discard: discardWorkspaceComment,
       status: async () => state.workspaceSecurityStatus,
       state: getCommentStoreState,
+      move: ({ moves }) => recordCommentMoves(moves),
     };
     workspaceHistoryRef.current = { list: listWorkspaceRevisions, read: readWorkspaceRevision };
   });

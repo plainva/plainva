@@ -3829,6 +3829,7 @@
     "commentTaskSource": "来自以下笔记的评论",
     "commentTaskCreated": "已转为任务",
     "commentTaskOpen": "打开",
+    "commentMoveFailed": "批注无法跟随已重命名的笔记。重命名仍然有效；批注保留在旧名称下。",
     "commentTaskFallback": "评论"
   },
   "cascade": {

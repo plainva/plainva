@@ -3829,6 +3829,7 @@
     "commentTaskSource": "コメントの出典",
     "commentTaskCreated": "タスクにしました",
     "commentTaskOpen": "開く",
+    "commentMoveFailed": "注釈は名前を変更したノートに追従できませんでした。名前の変更はそのまま有効で、注釈は以前の名前のままです。",
     "commentTaskFallback": "コメント"
   },
   "cascade": {

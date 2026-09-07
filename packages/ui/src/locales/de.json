@@ -3869,6 +3869,7 @@
     "commentTaskSource": "Aus einem Kommentar in",
     "commentTaskCreated": "Als Aufgabe angelegt",
     "commentTaskOpen": "Öffnen",
+    "commentMoveFailed": "Die Anmerkungen konnten der umbenannten Notiz nicht folgen. Die Umbenennung gilt; die Anmerkungen bleiben unter dem alten Namen.",
     "commentTaskFallback": "Kommentar"
   },
   "cascade": {

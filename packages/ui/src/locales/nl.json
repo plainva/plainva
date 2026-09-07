@@ -3869,6 +3869,7 @@
     "commentTaskSource": "Uit een opmerking in",
     "commentTaskCreated": "Omgezet in taak",
     "commentTaskOpen": "Openen",
+    "commentMoveFailed": "De opmerkingen konden de hernoemde notitie niet volgen. De hernoeming blijft staan; de opmerkingen blijven onder de oude naam.",
     "commentTaskFallback": "Opmerking"
   },
   "cascade": {

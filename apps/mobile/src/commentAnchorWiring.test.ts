@@ -207,3 +207,30 @@ describe("the phone's comment service is a thin shell over the core store", () =
     expect(service).toMatch(/authorName: async \(\) => getMobileSettings\(\)\.verifierName/);
   });
 });
+
+/**
+ * A renamed note keeps its remarks (Nachschaerfung, N1).
+ *
+ * The open store addresses a note by path, so before N1 a rename orphaned
+ * every remark on it - silently. The rename paths report themselves through
+ * `plainva-file-ops`; what has to hold is that somebody listens and hands the
+ * moves to the store, and that the shell mounts that listener.
+ */
+describe("a rename reaches the comment store on the phone", () => {
+  const hook = strip(read("hooks", "useCommentMoves.ts"));
+  const app = strip(read("App.tsx"));
+
+  it("listens to the file operations and records the moves", () => {
+    expect(hook).toMatch(/addEventListener\("plainva-file-ops"/);
+    expect(hook).toMatch(/mobileCommentStore\(vault\)\.recordMoves\(/);
+    // A failed marker leaves the rename standing and says so.
+    expect(hook).toMatch(/commentMoveFailed/);
+  });
+
+  it("is mounted by the shell", () => {
+    // Through the one comment-shell hook: App.tsx is at its structure budget.
+    const shell = strip(read("hooks", "useCommentShell.ts"));
+    expect(shell).toMatch(/useCommentMoves\(vault\)/);
+    expect(app).toMatch(/useCommentShell\(vault,/);
+  });
+});
