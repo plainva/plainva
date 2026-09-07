@@ -46,11 +46,13 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
   const refresh = useCallback(() => {
     setLoading(true);
     void getCommentStoreState().then(setStoreState).catch(() => setStoreState(null));
+    // Names travel with the files (N2): a device that just showed up has one.
+    void listWorkspaceMembers().then((members) => setMemberNames(new Map(members.map((m) => [m.memberId, m.displayName])))).catch(() => setMemberNames(new Map()));
     void listAllWorkspaceComments()
       .then(setByPath)
       .catch(() => setByPath(new Map()))
       .finally(() => setLoading(false));
-  }, [listAllWorkspaceComments, getCommentStoreState]);
+  }, [listAllWorkspaceComments, getCommentStoreState, listWorkspaceMembers]);
 
   useEffect(() => {
     refresh();

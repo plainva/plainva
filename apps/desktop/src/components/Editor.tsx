@@ -308,8 +308,12 @@ export const Editor: React.FC<{
   useEffect(() => {
     let active = true;
     if (!workspaceCanReadComments) { setWorkspaceMembers([]); return; }
-    void listWorkspaceMembers().then((members) => { if (active) setWorkspaceMembers(members); }).catch(() => { if (active) setWorkspaceMembers([]); });
-    return () => { active = false; };
+    const read = () => void listWorkspaceMembers().then((members) => { if (active) setWorkspaceMembers(members); }).catch(() => { if (active) setWorkspaceMembers([]); });
+    read();
+    // A device whose file just arrived (N2) brings its name with it: the
+    // byline must not read "unknown" until the note is reopened.
+    window.addEventListener("plainva-workspace-comments-changed", read);
+    return () => { active = false; window.removeEventListener("plainva-workspace-comments-changed", read); };
   }, [listWorkspaceMembers, workspaceCanReadComments]);
 
   useEffect(() => {
