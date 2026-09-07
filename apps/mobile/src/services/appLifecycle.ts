@@ -51,6 +51,10 @@ export function onAppBackground(): void {
   void import("./vaultService")
     .then(({ noteSaver }) => noteSaver.flushAll())
     .catch(() => {});
+  // The navigation the user is leaving from (P6) — written now, synchronously.
+  void import("./sessionState")
+    .then(({ flushNavSave }) => flushNavSave())
+    .catch(() => {});
   void import("@plainva/ui/mail")
     .then(({ releaseMailSessions }) => releaseMailSessions())
     .catch(() => {});

@@ -28,7 +28,7 @@ L’app mobile è in **test aperto** su Google Play. Su **Android** si entra dir
 
 Le note si aprono **renderizzate e in sola lettura**; la penna in alto a destra passa alla modifica (con una barra degli strumenti sopra la tastiera: formattazione, elenchi, wiki-link, comandi slash, inserisci foto). Gli incorporamenti `![[Nota]]` appaiono come schede di anteprima toccabili.
 
-Le cartelle si possono **cercare** e **ordinare** dalla barra sopra l’elenco: per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo inverte la direzione, e l’ordinamento viene ricordato sul dispositivo. All’avvio a freddo si riapre l’ultima nota aperta, e ogni nota si apre dove l’avevi lasciata. Gli elenchi con sottovoci si ripiegano e riaprono con un tocco sul loro punto.
+Le cartelle si possono **cercare** e **ordinare** dalla barra sopra l’elenco: per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo inverte la direzione, e l’ordinamento viene ricordato sul dispositivo. All’avvio a freddo l’app riapre ciò che avevi aperto per ultimo — nota, cartella o vista del database, scheda compresa — e ogni nota si apre dove l’avevi lasciata; le procedure guidate di configurazione e un’e-mail non terminata non vengono ripristinate. Gli elenchi con sottovoci si ripiegano e riaprono con un tocco sul loro punto.
 
 Il pulsante **Dettagli della nota** nell'intestazione (tra il segnalibro e il menu ⋮) apre il pannello di contesto della nota: proprietà (modificabili direttamente), backlink, struttura, grafo e la **cronologia delle versioni** — ogni modifica crea automaticamente snapshot che puoi ispezionare, confrontare e ripristinare. Il sorgente Markdown e la ricerca nella nota si trovano nel menu ⋮.
 

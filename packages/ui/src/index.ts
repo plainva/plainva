@@ -126,6 +126,7 @@ export * from "./lib/scrollMemory";
 export * from "./lib/imageTarget";
 export * from "./lib/dailyNotes";
 export * from "./lib/readSelectionVerbs";
+export * from "./lib/baseViewState";
 export * from "./components/selectAllBridge";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";

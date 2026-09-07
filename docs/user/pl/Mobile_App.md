@@ -28,7 +28,7 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
 
-Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie ponownie otwiera się ostatnio otwarta notatka, a każda notatka otwiera się tam, gdzie ją zostawiono. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
+Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie aplikacja otwiera to, co było ostatnio otwarte — notatkę, folder lub widok bazy danych wraz z kartą — a każda notatka otwiera się tam, gdzie ją zostawiono; asystenci konfiguracji i nieukończona wiadomość nie są przywracane. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
 
 Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
 

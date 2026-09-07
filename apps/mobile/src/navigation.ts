@@ -242,7 +242,7 @@ export function reservesFabStrip(top?: NavEntry, activeTab?: TabScreenId): boole
  * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
  * it loses nothing. The credentials are entered on the `sync` surface.
  */
-const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration"]);
+export const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration"]);
 
 /**
  * Surfaces that hide the bar for the OTHER reason: nothing is lost by leaving

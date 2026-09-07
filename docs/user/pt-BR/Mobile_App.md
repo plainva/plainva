@@ -28,7 +28,7 @@ O app mobile está em **teste aberto** no Google Play. No **Android** você entr
 
 As notas abrem **renderizadas e somente leitura**; o lápis no canto superior direito muda para o modo de edição (com uma barra de ferramentas acima do teclado: formatação, listas, link wiki, comandos de barra, inserir foto). Incorporações `![[Nota]]` aparecem como cartões de pré-visualização tocáveis.
 
-Pastas podem ser **pesquisadas** e **ordenadas** pela barra acima da lista — por **Título**, **Última alteração** ou **Criação**; escolher de novo inverte a direção, e a ordenação é lembrada no dispositivo. Em uma inicialização a frio a última nota aberta reabre, e cada nota abre onde você a deixou. Listas com subitens dobram e desdobram com um toque no marcador.
+Pastas podem ser **pesquisadas** e **ordenadas** pela barra acima da lista — por **Título**, **Última alteração** ou **Criação**; escolher de novo inverte a direção, e a ordenação é lembrada no dispositivo. Em uma inicialização a frio o app abre o que você deixou aberto por último — nota, pasta ou visualização de banco de dados, aba incluída — e cada nota abre onde você a deixou; assistentes de configuração e um e-mail inacabado não são restaurados. Listas com subitens dobram e desdobram com um toque no marcador.
 
 O botão **Detalhes da nota** no cabeçalho (entre o marcador e o menu ⋮) abre o painel de contexto da nota: propriedades (diretamente editáveis), backlinks, estrutura, grafo e o **histórico de versões** — cada edição cria automaticamente snapshots que você pode inspecionar, comparar e restaurar. O código-fonte Markdown e a busca na nota ficam no menu ⋮.
 

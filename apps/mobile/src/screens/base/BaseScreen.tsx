@@ -33,6 +33,7 @@ import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Butto
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
+import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
 import {
   commitCellValue,
   createBaseItem,
@@ -216,6 +217,11 @@ export function BaseScreen({
   // (react-hooks lint since the pinboard's patchActiveView joined, P6).
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
   const views: any[] = useMemo(() => (Array.isArray(config?.views) ? config.views : []), [config]);
+  // Remember the view by name whenever it changes (P6) — app-side, never in the file.
+  useEffect(() => {
+    if (!loaded || views.length === 0) return;
+    setLastActiveView(vault.vaultId, path, viewStateName(views[viewIndex], viewIndex));
+  }, [loaded, views, viewIndex, vault.vaultId, path]);
   const view: any = useMemo(() => views[viewIndex] ?? {}, [views, viewIndex]);
   /* Measured at 375 px: three pills already fill the row and the fourth was
      clipped, so a phone shows two and the menu. A wider window has the space
@@ -259,7 +265,12 @@ export function BaseScreen({
     setViewIndex(0);
     void loadBase(vault, path)
       .then((l) => {
-        if (!stale) setLoaded(l);
+        if (stale) return;
+        setLoaded(l);
+        // The view this database was last left on (P6, Build-91 feedback) —
+        // by name, the desktop's rule; a restored session lands on the
+        // pinboard, not on view 0.
+        setViewIndex(resolveViewIndex(l.config?.views, getLastActiveView(vault.vaultId, path)));
       })
       .catch(() => {
         if (!stale) setLoaded({ config: { columns: {}, views: [] }, stem: title });

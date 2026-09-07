@@ -28,7 +28,7 @@ Es una versión temprana: guarda una copia de seguridad de tu vault y cuéntame 
 
 Las notas se abren **renderizadas y de solo lectura**; el lápiz de arriba a la derecha cambia al modo de edición (con una barra de herramientas sobre el teclado: formato, listas, enlace interno, comandos de barra oblicua, insertar foto). Las inclusiones `![[Nota]]` aparecen como tarjetas de vista previa que se pueden tocar.
 
-Las carpetas se pueden **buscar** y **ordenar** desde la barra sobre la lista: por **Título**, **Última modificación** o **Creación**; elegir de nuevo invierte la dirección, y el orden se recuerda en el dispositivo. En un arranque en frío se abre otra vez la última nota abierta, y cada nota se abre donde la dejaste. Las listas con subelementos se pliegan y despliegan con un toque en su viñeta.
+Las carpetas se pueden **buscar** y **ordenar** desde la barra sobre la lista: por **Título**, **Última modificación** o **Creación**; elegir de nuevo invierte la dirección, y el orden se recuerda en el dispositivo. En un arranque en frío la app abre lo que tenías abierto por última vez — nota, carpeta o vista de base de datos, pestaña incluida — y cada nota se abre donde la dejaste; los asistentes de configuración y un correo sin terminar no se restauran. Las listas con subelementos se pliegan y despliegan con un toque en su viñeta.
 
 El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú ⋮) abre la ficha contextual de la nota: propiedades (editables directamente), retroenlaces, esquema, grafo y el **historial de versiones** — cada edición crea automáticamente snapshots que puedes revisar, comparar y restaurar. El código fuente Markdown y la búsqueda en la nota están en el menú ⋮.
 

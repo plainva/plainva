@@ -62,7 +62,14 @@ import { describe, expect, it } from "vitest";
 // call. Two lines is the price of wiring, not of a block growing - and the
 // next feature pays the same two only by extracting too. The explanation that
 // would have been a third line sits in the hook, where it belongs.
-const APP_TSX_LINE_BUDGET = 793;
+// Raised to 795 for the session restore (Build-91 feedback, P6, 2026-09-07):
+// the same price, and the same story. The first draft put a persistence
+// effect with its three-line explanation into the shell and this test broke
+// it by eleven lines; the effect is now `useNavPersistence` in
+// services/sessionState, the boot's restore is `restoreSession` in
+// services/navActions, and the shell pays one import and one call. The
+// conflict store binding (P1) had already used the slack the notifier left.
+const APP_TSX_LINE_BUDGET = 795;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

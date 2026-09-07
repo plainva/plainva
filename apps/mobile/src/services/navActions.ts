@@ -1,8 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
-import { popTop, pushEntry, replaceTop, type NavEntry, type NavState } from "../navigation";
+import { popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
+import { markSessionReady, readNavState, restoreNavState } from "./sessionState";
 
 /**
  * The three ways a screen changes, in one place.
@@ -59,9 +60,36 @@ export async function restoreLastOpenNote(
   const last = recallLastOpen(vault.vaultId);
   if (!last) return;
   try {
-    if (await vault.files.exists(last)) setNav((st) => pushEntry(st, { kind: "note", path: last }));
+    // A database is remembered too since P6 — it opens as what it is.
+    const kind = /\.base$/i.test(last) ? "base" : "note";
+    if (await vault.files.exists(last)) setNav((st) => pushEntry(st, { kind, path: last }));
     else rememberLastOpen(vault.vaultId, null);
   } catch {
     /* the note stays where it is; nothing to restore */
   }
+}
+
+/**
+ * Boots into the navigation the user left (Build-91 feedback, P6): the stored
+ * stacks, minus surfaces that carry unfinished input and entries whose file
+ * is gone, with the active tab kept inside the bar. Without a stored session
+ * — first start, or nothing survived — the last-note memory (T6) is the
+ * fallback. Marks the session ready first, so the boot's initial state never
+ * overwrites what is about to be restored.
+ */
+export async function restoreSession(
+  vault: MobileVault,
+  setNav: Dispatch<SetStateAction<NavState>>,
+  visible: TabScreenId[],
+): Promise<void> {
+  const stored = readNavState(vault.vaultId);
+  markSessionReady(vault.vaultId);
+  if (stored) {
+    const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => null);
+    if (next) {
+      setNav(next);
+      return;
+    }
+  }
+  await restoreLastOpenNote(vault, setNav);
 }

@@ -28,7 +28,7 @@ Het is een vroege build: houd een back-up van je vault en laat me weten wat er m
 
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
 
-Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de laatst geopende notitie opnieuw, en elke notitie opent waar je haar verliet. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
+Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de app wat je het laatst open had — notitie, map of databaseweergave, tabblad inbegrepen — en elke notitie opent waar je haar verliet; installatie-assistenten en een onvoltooide e-mail worden niet hersteld. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
 
 De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
 

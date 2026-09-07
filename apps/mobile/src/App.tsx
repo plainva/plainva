@@ -35,8 +35,9 @@ import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
-import { createNavActions, restoreLastOpenNote } from "./services/navActions";
+import { createNavActions, restoreSession } from "./services/navActions";
 import { bindConflictStore } from "./services/conflictState";
+import { useNavPersistence } from "./services/sessionState";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { createDatabase } from "./services/baseOps";
 import { createTemplatePrompt, newNoteFromTemplate } from "./services/templatePrompt";
@@ -202,12 +203,13 @@ export default function App() {
 
   useBackupSchedule(vault, vaultName);
   useIndexAutoUpdate(vault, vaultName);
+  useNavPersistence(vault, nav); // the session outlives the app (P6)
 
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
       bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
-      void restoreLastOpenNote(v, setNav); // pick up where you stopped (T6)
+      void restoreSession(v, setNav, shownBarTabs(barLayout, isRailClass(getWindowClass()))); // where you were (P6), else the last note (T6)
       void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
       void startPim(v).catch((e) => console.error("[boot] pim start failed", e));

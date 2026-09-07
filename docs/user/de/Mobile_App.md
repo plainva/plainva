@@ -28,7 +28,7 @@ Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Be
 
 Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechselt ins Bearbeiten (mit Werkzeugleiste über der Tastatur: Formatierung, Listen, Wiki-Link, Slash-Befehle, Foto einfügen). `![[Notiz]]`-Einbettungen erscheinen als antippbare Vorschau-Karten.
 
-Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die zuletzt offene Notiz wieder, und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
+Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die App, was Du zuletzt offen hattest — Notiz, Ordner oder Datenbank-Ansicht samt Reiter — und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast; Einrichtungs-Assistenten und eine angefangene Mail werden nicht wiederhergestellt. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
 
 Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü.
 

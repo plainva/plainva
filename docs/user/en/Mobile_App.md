@@ -28,7 +28,7 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
 
-Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the last open note opens again, and every note opens where you left it. Lists with nested items fold and unfold with a tap on their bullet.
+Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the app opens what you last had open — note, folder or database view, tab included — and every note opens where you left it; setup assistants and an unfinished mail are not restored. Lists with nested items fold and unfold with a tap on their bullet.
 
 The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
 

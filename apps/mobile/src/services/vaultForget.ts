@@ -107,7 +107,15 @@ export function forgetVaultMemories(vaultId: string): void {
   // localStorage key below is cleared for installations that still carry it.
   void forgetProfileNotice(vaultId);
   if (typeof localStorage === "undefined") return;
-  for (const key of [`plainva-scroll-${vaultId}`, `plainva-last-open-${vaultId}`, `plainva-profile-announced-${vaultId}`]) {
+  for (const key of [
+    `plainva-scroll-${vaultId}`,
+    `plainva-last-open-${vaultId}`,
+    `plainva-profile-announced-${vaultId}`,
+    // The session, the database views and the conflict cards (Build-91 feedback, P1/P6).
+    `plainva-nav-${vaultId}`,
+    `plainva-base-active-view-${vaultId}`,
+    `plainva-conflicts-${vaultId}`,
+  ]) {
     try {
       localStorage.removeItem(key);
     } catch {
