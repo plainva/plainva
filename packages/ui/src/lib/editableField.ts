@@ -108,6 +108,22 @@ export function insertIntoEditable(t: EditableTarget, text: string): void {
 }
 
 /** Remove the (restored) selection from the field. */
+/**
+ * Selects everything in the field (Build-91 feedback, P5). A contenteditable
+ * gets the platform command — the editor's select-all bridge then widens
+ * that to the whole document, past what CodeMirror has rendered.
+ */
+export function selectAllInEditable(t: EditableTarget): void {
+  if (t.kind === "contenteditable") {
+    t.el.focus();
+    document.execCommand("selectAll");
+    return;
+  }
+  const el = t.el as HTMLInputElement | HTMLTextAreaElement;
+  el.focus();
+  el.select();
+}
+
 export function deleteEditableSelection(t: EditableTarget): void {
   focusAndRestore(t);
   if (t.kind === "contenteditable") {

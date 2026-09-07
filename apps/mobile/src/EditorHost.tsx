@@ -25,6 +25,8 @@ import {
   Undo2,
   MessageSquarePlus,
   PenLine,
+  Pencil,
+  TextSelect,
 } from "lucide-react";
 import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
@@ -54,6 +56,7 @@ import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { readSelectionVerbs, selectAll } from "@plainva/ui";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -74,6 +77,7 @@ export function EditorHost({
   canComment,
   onCommentAnchorRequest,
   onPassageSuggest,
+  onEditAt,
   anchorHighlights,
   onAnchorActivate,
   onSuggestionApply,
@@ -91,6 +95,12 @@ export function EditorHost({
   onCommentAnchorRequest?: (req: { from: number; to: number; display?: AnchorFrameHint }) => void;
   /** The reader chose "Suggest" over a selection (C26): the screen switches into the suggestion mode. */
   onPassageSuggest?: () => void;
+  /**
+   * The reader chose "Edit" over a selection (P5, Build-91 feedback): the
+   * screen switches to writing with the cursor at that range. Absent when the
+   * note cannot be written.
+   */
+  onEditAt?: (range: { from: number; to: number }) => void;
   /**
    * Stufe E (E4): resolved comment ranges to tint and frame.
    *
@@ -1261,7 +1271,16 @@ export function EditorHost({
           takes the toolbar's surface and position; formatting stays out, a
           reader cannot format. preventDefault on pointer/mouse down keeps the
           selection alive through the tap, exactly as the format toolbar does. */}
-      {!editable && canComment && selectionAt && selectionRange && (onCommentAnchorRequest || onPassageSuggest) && (
+      {/* Three verbs since P5 (Build-91 feedback): "Edit" joins them where the
+          note can be written, and it needs no workspace — a plain vault gets
+          the bar for that one verb. The word the double-tap marked stays the
+          place the cursor lands. */}
+      {!editable && selectionAt && selectionRange && readSelectionVerbs({
+        canComment: canComment === true,
+        hasComment: !!onCommentAnchorRequest,
+        hasSuggest: !!onPassageSuggest,
+        canEdit: !!onEditAt,
+      }).length > 0 && (
         <div
           role="toolbar"
           aria-label={t("workspaceSecurity.comments")}
@@ -1271,7 +1290,7 @@ export function EditorHost({
           onPointerDown={(e) => e.preventDefault()}
           style={{ left: selectionAt.x, top: selectionAt.y }}
         >
-          {onCommentAnchorRequest && (
+          {canComment && onCommentAnchorRequest && (
             <button
               type="button"
               className="pv-iconbtn m-selverb"
@@ -1286,7 +1305,22 @@ export function EditorHost({
               <span>{t("workspaceSecurity.comment")}</span>
             </button>
           )}
-          {onPassageSuggest && (
+          {onEditAt && (
+            <button
+              type="button"
+              className="pv-iconbtn m-selverb"
+              data-testid="read-selection-edit"
+              onClick={() => {
+                const range = selectionRange;
+                setSelectionAt(null);
+                onEditAt({ from: range.from, to: range.to });
+              }}
+            >
+              <Pencil size={ICON.ui} />
+              <span>{t("common.edit")}</span>
+            </button>
+          )}
+          {canComment && onPassageSuggest && (
             <button
               type="button"
               className="pv-iconbtn m-selverb"
@@ -1556,6 +1590,19 @@ export function EditorHost({
             <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
               <Copy size={ICON.ui} />
               <span>{t("block.duplicate")}</span>
+            </button>
+            {/* The app's own "select all" (P5, Build-91 feedback) — the whole
+                note, not the lines the platform's callout could reach. */}
+            <button
+              className="m-row"
+              data-testid="block-select-all"
+              onClick={() => {
+                setBlockMenuFrom(null);
+                run((v) => selectAll(v));
+              }}
+            >
+              <TextSelect size={ICON.ui} />
+              <span>{t("shortcuts.selectAll")}</span>
             </button>
             <button className="m-row m-danger" onClick={() => runBlockAction({ kind: "delete" })}>
               <Trash2 size={ICON.ui} />

@@ -857,6 +857,15 @@ export function NoteScreen({
             setSuggestCount(0);
             window.setTimeout(() => editorEvent("m-editor-suggest-start"), 0);
           } : undefined}
+          onEditAt={workspaceCanWrite && !managedIndex && !suggesting ? (range) => {
+            // The third verb over a read-mode selection (P5, Build-91
+            // feedback): switch to writing and land the cursor on the passage
+            // the finger marked — the editor exists in edit shape a tick later.
+            setEditing(true);
+            window.setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("m-editor-goto-range", { detail: { path, from: range.from, to: range.to } }));
+            }, 0);
+          } : undefined}
           onAnchorActivate={(commentId) => { setActiveCommentId(commentId); setCommentsOpen(true); }}
           onSuggestionApply={workspaceCanWrite ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "applied"); } : undefined}
           onSuggestionDecline={canComment ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "declined"); } : undefined}

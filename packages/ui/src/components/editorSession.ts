@@ -15,6 +15,7 @@ import {
   tableLinkHandlers,
 } from "./LivePreviewPlugin";
 import { imagePreviewPlugin, type ImageLookupFn } from "./ImagePreviewPlugin";
+import { selectAllBridge } from "./selectAllBridge";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
@@ -484,6 +485,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     Prec.high(keymap.of(listKeymap)),
     // Selection formatting shortcuts (bold/italic/strike/highlight/link/task).
     keymap.of(formattingKeymap),
+    // "Select all" reaches the whole document, whichever way it was asked for
+    // (Build-91 feedback, P5).
+    selectAllBridge(),
     // Smart paste (#10): clipboard image -> embed; URL over selection -> link.
     // OS file drops (P3.2): images embed, other files copy in + link. Text
     // drags carry no files and fall through to CodeMirror's own handling.

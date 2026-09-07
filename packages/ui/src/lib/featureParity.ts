@@ -326,6 +326,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
+    id: "read-mode-edit-verb",
+    title: "Switch from reading to writing at the marked passage",
+    area: "editor",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason:
+      "The desktop's read mode is its own renderer without a selection bar; the " +
+      "mode switch is Mod+E or the mode button, and a mouse double-click must keep " +
+      "selecting the word. The phone's read mode is the editor itself, so the bar " +
+      "over a selection carries Edit as its third verb (Build-91 feedback, E5).",
+    mobile: "yes",
+    verified: "2026-09-07",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",

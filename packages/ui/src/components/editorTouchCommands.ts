@@ -1,5 +1,5 @@
 import { startCompletion } from "@codemirror/autocomplete";
-import { undo, redo } from "@codemirror/commands";
+import { undo, redo, selectAll } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -10,7 +10,10 @@ import type { EditorView } from "@codemirror/view";
  * they live here because the CodeMirror dependencies do.
  */
 
-export { undo, redo };
+// `selectAll` joins them since the Build-91 feedback round (P5): the app had
+// no "select all" of its own, and the platform's callout could not reach the
+// lines CodeMirror had not rendered.
+export { undo, redo, selectAll };
 
 type TextChange = { from: number; to?: number; insert: string };
 

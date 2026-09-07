@@ -70,6 +70,7 @@ describe("ContextMenuHost", () => {
       i18n.t("contextMenu.cut"),
       i18n.t("contextMenu.copy"),
       i18n.t("contextMenu.paste"),
+      i18n.t("shortcuts.selectAll"), // the app's own select-all (Build-91 feedback, P5)
     ]);
     // No selection -> Cut and Copy disabled, Paste enabled.
     expect(items()[0].disabled).toBe(true);

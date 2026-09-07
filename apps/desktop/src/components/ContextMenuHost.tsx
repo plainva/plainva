@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { Scissors, Copy, ClipboardPaste, Download } from "lucide-react";
+import { Scissors, Copy, ClipboardPaste, Download, TextSelect } from "lucide-react";
 import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
 import { useContextMenu, closeContextMenu, type ImageContextTarget } from "../services/contextMenuStore";
-import { insertIntoEditable, deleteEditableSelection } from "@plainva/ui";
+import { insertIntoEditable, deleteEditableSelection, selectAllInEditable } from "@plainva/ui";
 import { toast } from "@plainva/ui";
 
 /**
@@ -72,6 +72,11 @@ export function ContextMenuHost() {
           </MenuItem>
           <MenuItem icon={<ClipboardPaste size={ICON.ui} />} onSelect={onPaste}>
             {t("contextMenu.paste")}
+          </MenuItem>
+          {/* The app's own "select all" (Build-91 feedback, P5): the phone
+              offers it in the block menu, the desktop here. */}
+          <MenuItem icon={<TextSelect size={ICON.ui} />} onSelect={() => selectAllInEditable(editable)}>
+            {t("shortcuts.selectAll")}
           </MenuItem>
         </>
       ) : (

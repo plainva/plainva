@@ -125,6 +125,8 @@ export * from "./lib/folderSort";
 export * from "./lib/scrollMemory";
 export * from "./lib/imageTarget";
 export * from "./lib/dailyNotes";
+export * from "./lib/readSelectionVerbs";
+export * from "./components/selectAllBridge";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
 export * from "./lib/folderTemplates";
