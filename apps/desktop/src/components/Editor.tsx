@@ -233,7 +233,8 @@ export const Editor: React.FC<{
   useEffect(() => {
     if (!activePath || !workspaceCanReadComments) { setWorkspaceComments([]); return; }
     const refresh = () => void listWorkspaceComments(activePath).then(setWorkspaceComments).catch(() => setWorkspaceComments([]));
-    const listener = (event: Event) => { if ((event as CustomEvent<{ path: string }>).detail?.path === activePath) refresh(); };
+    // "*" is every note (N2): a sync cycle or a foreign file in the folder.
+    const listener = (event: Event) => { const path = (event as CustomEvent<{ path: string }>).detail?.path; if (path === activePath || path === "*") refresh(); };
     refresh(); window.addEventListener("plainva-workspace-comments-changed", listener);
     return () => window.removeEventListener("plainva-workspace-comments-changed", listener);
   }, [activePath, listWorkspaceComments, workspaceCanReadComments]);

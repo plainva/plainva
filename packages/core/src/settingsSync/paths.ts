@@ -39,14 +39,21 @@ export const DELETIONS_SYNC_PATH = ".plainva/sync/deletions.json";
 /**
  * Comments and suggestions for a vault WITHOUT an encrypted workspace (Stufe D).
  *
- * Two paths, never both in use: plaintext until a passphrase exists, sealed
- * afterwards (under K_settings — the frame carries the purpose as a byte, so a
- * new one would be a protocol change older devices could not open). The content
- * deliberately never touches the note: a typed reply must not become a write to
- * the Markdown, or every answer would land in the version history of the note.
+ * Since N2 (Nachschaerfung, 2026-09-07) every device writes its OWN file,
+ * `comments.<deviceId>.json` (plaintext until a passphrase exists) or
+ * `comments.<deviceId>.enc` (sealed under K_settings — the frame carries the
+ * purpose as a byte, so a new one would be a protocol change older devices
+ * could not open), all inside `COMMENTS_SYNC_DIR`; the reader takes the union
+ * of every such file. The two paths below are the LEGACY single file from
+ * before N2: read forever, written never. The content deliberately never
+ * touches the note: a typed reply must not become a write to the Markdown, or
+ * every answer would land in the version history of the note.
  */
+export const COMMENTS_SYNC_DIR = ".plainva/sync";
 export const COMMENTS_SYNC_PATH = ".plainva/sync/comments.json";
 export const COMMENTS_ENC_PATH = ".plainva/sync/comments.enc";
+/** The devices that write comment files (N2): ids only, grow-only, so the sideband knows which files to fetch. */
+export const COMMENTS_DEVICES_PATH = ".plainva/sync/comments.devices.json";
 /**
  * Local-only recovery copy written before an explicitly confirmed removal of
  * legacy entries from the remote secrets bundle. `.plainva` is excluded from

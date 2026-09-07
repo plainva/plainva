@@ -73,3 +73,28 @@ describe("a rename reaches the comment store on the desktop (N1)", () => {
     expect(context).toMatch(/commentMoveFailed/);
   });
 });
+
+describe("one comment file per device on the desktop (N2)", () => {
+  it("hands the sideband step this device's id and a way to report unreadable files", () => {
+    const profile = strip(read("services", "settingsProfile.ts"));
+    const step = profile.slice(profile.indexOf("new CommentsSyncStep({"), profile.indexOf("});", profile.indexOf("new CommentsSyncStep({")));
+    expect(step).toMatch(/deviceId: await getDeviceId\(\)/);
+    expect(step).toMatch(/onFaults:/);
+    // The open column re-reads after every cycle: "*" is every note.
+    expect(profile).toMatch(/"plainva-workspace-comments-changed", \{ detail: \{ path: "\*" \} \}/);
+  });
+
+  it("re-reads when a foreign sync drops another device's file into the folder", () => {
+    // No cycle of ours runs for Dropbox, iCloud or a network share; only the
+    // watcher sees the file land.
+    const context = strip(read("contexts", "VaultContext.tsx"));
+    const watch = context.slice(context.indexOf("state.vaultAdapter.watch(("), context.indexOf("const relevantEvents"));
+    expect(watch).toMatch(/\.plainva\/sync\/comments\./);
+    expect(watch).toMatch(/path: "\*"/);
+  });
+
+  it("lets the editor accept the wildcard", () => {
+    const editor = strip(read("components", "Editor.tsx"));
+    expect(editor).toMatch(/path === activePath \|\| path === "\*"/);
+  });
+});

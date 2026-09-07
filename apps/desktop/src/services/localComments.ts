@@ -48,5 +48,8 @@ export function createLocalCommentStore(
     mode: () => localCommentsMode(vaultPath, raw),
     authorName,
     written,
+    // A comment file that could not be read (N3): the shell shows it once,
+    // with the reason and a way to export the diagnosis.
+    faulted: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultPath, faults } })),
   });
 }

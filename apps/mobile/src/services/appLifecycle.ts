@@ -34,6 +34,10 @@ export function onAppForeground(): void {
   // External vault folder (P5): somebody else may have written into the folder
   // while the app was away — the index is brought up to date on return.
   void import("./vaultService").then((m) => m.rescanExternalVaultOnResume()).catch(() => {});
+  // ...and so are the remarks (N2): another device's comment file may have
+  // arrived through a foreign sync, which no cycle of ours announces. "*" is
+  // every note; the open surfaces re-read.
+  window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
   window.dispatchEvent(new CustomEvent("m-backup-due"));
   window.dispatchEvent(new CustomEvent("m-poll-share"));
 }

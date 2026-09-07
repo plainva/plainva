@@ -2,9 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   BUNDLE_COMMENT_CAPABILITIES,
   BundleCommentStore,
-  COMMENTS_ENC_PATH,
-  COMMENTS_SYNC_PATH,
   CommentStoreLockedError,
+  commentsDevicePath,
   mergeCommentsBundles,
   parseCommentsBundle,
   resolveCommentPath,
@@ -25,11 +24,22 @@ import {
 
 const NOW = "2026-09-07T10:00:00Z";
 
+const OWN_PLAIN = commentsDevicePath("laptop", false);
+const OWN_SEALED = commentsDevicePath("laptop", true);
+
 class FakeVault implements Partial<IVaultAdapter> {
   files = new Map<string, string>();
   bins = new Map<string, Uint8Array>();
   async exists(path: string) {
     return this.files.has(path) || this.bins.has(path);
+  }
+  async listDir(dir: string) {
+    const names = [...this.files.keys(), ...this.bins.keys()].filter((p) => p.startsWith(dir + "/")).map((p) => p.slice(dir.length + 1)).filter((n) => !n.includes("/"));
+    return names.map((name) => ({ path: `${dir}/${name}`, name, isDirectory: false, size: 0, mtime: 0 }));
+  }
+  async renameItem(from: string, to: string) {
+    if (this.files.has(from)) { this.files.set(to, this.files.get(from)!); this.files.delete(from); }
+    if (this.bins.has(from)) { this.bins.set(to, this.bins.get(from)!); this.bins.delete(from); }
   }
   async readTextFile(path: string) {
     const value = this.files.get(path);
@@ -89,15 +99,15 @@ describe("BundleCommentStore", () => {
     expect(list[0].authorMemberId).toBe(await store.selfId());
     expect((await store.authors()).get("laptop")).toBe("Marco");
     expect(written).toEqual(["Notes/Plan.md"]);
-    expect(vault.files.has(COMMENTS_SYNC_PATH)).toBe(true);
+    expect(vault.files.has(OWN_PLAIN)).toBe(true);
   });
 
   it("seals when a key is present", async () => {
     const vault = new FakeVault();
     const store = storeFor(vault, { kind: "sealed", crypto: xorCrypto });
     await store.post({ path: "Notes/Plan.md", body: "secret remark" });
-    expect(vault.files.has(COMMENTS_SYNC_PATH)).toBe(false);
-    expect(new TextDecoder().decode(vault.bins.get(COMMENTS_ENC_PATH)!)).not.toContain("secret remark");
+    expect(vault.files.has(OWN_PLAIN)).toBe(false);
+    expect(new TextDecoder().decode(vault.bins.get(OWN_SEALED)!)).not.toContain("secret remark");
     expect((await store.list("Notes/Plan.md")).map((c) => c.body)).toEqual(["secret remark"]);
   });
 
@@ -126,7 +136,7 @@ describe("BundleCommentStore", () => {
     expect(record.authorMemberId).toBe("plainva-ai/gemma-4");
     expect(record.authorDeviceId).toBe("laptop");
     expect((await store.authors()).get("plainva-ai/gemma-4")).toBe("Gemma 4");
-    const raw = parseCommentsBundle(vault.files.get(COMMENTS_SYNC_PATH)!)!;
+    const raw = parseCommentsBundle(vault.files.get(OWN_PLAIN)!)!;
     expect(Object.values(raw.comments)[0].authorId).toBe("plainva-ai/gemma-4");
     // ...and the person retracts it from their own device.
     await store.post({ path: "Notes/Plan.md", body: "", retractsCommentId: record.commentId });

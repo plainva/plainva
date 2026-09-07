@@ -234,3 +234,21 @@ describe("a rename reaches the comment store on the phone", () => {
     expect(app).toMatch(/useCommentShell\(vault,/);
   });
 });
+
+describe("one comment file per device on the phone (N2)", () => {
+  it("hands the sideband step this device's id and a way to report unreadable files", () => {
+    const sync = strip(read("services", "mobileSettingsSync.ts"));
+    const step = sync.slice(sync.indexOf("new CommentsSyncStep({"), sync.indexOf("});", sync.indexOf("new CommentsSyncStep({")));
+    expect(step).toMatch(/deviceId: device/);
+    expect(step).toMatch(/onFaults:/);
+    expect(sync).toMatch(/"plainva-workspace-comments-changed", \{ detail: \{ path: "\*" \} \}/);
+  });
+
+  it("re-reads on return to the foreground - the phone's moment to notice a foreign file", () => {
+    const lifecycle = strip(read("services", "appLifecycle.ts"));
+    const foreground = lifecycle.slice(lifecycle.indexOf("export function onAppForeground"), lifecycle.indexOf("export function", lifecycle.indexOf("export function onAppForeground") + 10));
+    expect(foreground).toMatch(/"plainva-workspace-comments-changed", \{ detail: \{ path: "\*" \} \}/);
+    const screen = strip(read("screens", "NoteScreen.tsx"));
+    expect(screen).toMatch(/changed === path \|\| changed === "\*"/);
+  });
+});

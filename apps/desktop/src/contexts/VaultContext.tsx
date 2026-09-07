@@ -1834,6 +1834,7 @@ export const VaultProvider: React.FC<{
 
     let unwatchFn: (() => void) | undefined;
     let debounceTimer: ReturnType<typeof setTimeout>;
+    let commentWatchTimer: ReturnType<typeof setTimeout> | undefined;
     // Paths accumulated across the debounce window: the timer only sees the
     // LAST event batch otherwise, and incremental indexing needs all of them.
     const pendingWatchPaths = new Set<string>();
@@ -1843,6 +1844,14 @@ export const VaultProvider: React.FC<{
 
       try {
         unwatchFn = await state.vaultAdapter.watch((events) => {
+          // A comment file another device wrote into the folder (N2) - a
+          // network share, Dropbox, iCloud, Git - reaches the open column
+          // through this, and only this: no sync cycle runs for a foreign
+          // sync. The index does not care; the column re-reads every note.
+          if (events.some((e) => e.path.replace(/\\/g, "/").includes(".plainva/sync/comments."))) {
+            clearTimeout(commentWatchTimer);
+            commentWatchTimer = setTimeout(() => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } })), 500);
+          }
           // Only react to real markdown changes. Crucially this excludes writes
           // inside .plainva (the SQLite db + its -wal/-shm files), which we write
           // on every index/sync; reacting to them caused an endless

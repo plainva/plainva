@@ -209,6 +209,16 @@ export function NoteScreen({
       .catch(() => { if (!stale) { setComments([]); setCommentNames(new Map()); } });
     return () => { stale = true; };
   }, [vault, path, commentTick]);
+  // A sync cycle, the return to the foreground or a rename elsewhere says
+  // "re-read" (N2): this note's path, or "*" for every note.
+  useEffect(() => {
+    const onChanged = (event: Event) => {
+      const changed = (event as CustomEvent<{ path?: string }>).detail?.path;
+      if (changed === path || changed === "*") setCommentTick((n) => n + 1);
+    };
+    window.addEventListener("plainva-workspace-comments-changed", onChanged);
+    return () => window.removeEventListener("plainva-workspace-comments-changed", onChanged);
+  }, [path]);
   useEffect(() => {
     let stale = false;
     void mobileCommentSelfId()

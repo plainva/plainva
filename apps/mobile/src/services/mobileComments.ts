@@ -80,6 +80,9 @@ export function mobileCommentStore(vault: MobileVault): CommentStore {
       // phone - rather than a second name field asking the same question.
       authorName: async () => getMobileSettings().verifierName,
       written: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
+      // A comment file that could not be read (N3): the shell shows it once,
+      // with the reason and a way to export the diagnosis.
+      faulted: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultId: vault.vaultId, faults } })),
     });
     stores.set(vault, store);
   }

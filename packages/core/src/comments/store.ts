@@ -22,7 +22,7 @@ import type { WorkspaceCapability } from "../workspace/documents.js";
 import type { WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
 import type { WorkspaceCommentRecord } from "../workspace/state.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";
-import { appendLocalComment, appendLocalMoves, readLocalComments, type CommentsCrypto } from "./CommentsSyncStep.js";
+import { appendLocalComment, appendLocalMoves, readAllComments, type CommentBundleFault, type CommentsCrypto } from "./CommentsSyncStep.js";
 import { commentPathsToCheck, localCommentAuthorNames, localCommentsByPath, localCommentsForPath, type CommentsBundle, type LocalCommentRecord, type LocalMoveRecord } from "./commentsBundle.js";
 
 /**
@@ -158,8 +158,14 @@ export interface BundleCommentStoreDeps {
   mode(): Promise<BundleCommentsMode>;
   /** The reviewer name this vault already carries; the person at this keyboard, kept on this device only. */
   authorName?(): Promise<string | null | undefined>;
-  /** Called once a record is on disk - the shell triggers its sideband and refreshes the column. */
+  /** Called once a record is on disk - the shell triggers its sideband and refreshes the column. `"*"` means every note (a folder moved). */
   written?(path: string): void;
+  /**
+   * A comment file that could not be read (N3). Reported once per file and
+   * reason for the life of the store; the shell shows it with a way to export
+   * the diagnosis. The file itself is never overwritten.
+   */
+  faulted?(faults: CommentBundleFault[]): void;
   now?(): string;
 }
 
@@ -177,7 +183,20 @@ function cryptoOf(mode: BundleCommentsMode): CommentsCrypto | undefined {
  * union merge makes that early write safe.
  */
 export class BundleCommentStore implements CommentStore {
+  private readonly reported = new Set<string>();
+
   constructor(private readonly deps: BundleCommentStoreDeps) {}
+
+  /** Hands new faults to the shell; one that was already shown stays quiet. */
+  private report(faults: CommentBundleFault[]): void {
+    const fresh = faults.filter((fault) => {
+      const key = `${fault.path}|${fault.reason}`;
+      if (this.reported.has(key)) return false;
+      this.reported.add(key);
+      return true;
+    });
+    if (fresh.length > 0) this.deps.faulted?.(fresh);
+  }
 
   async state(): Promise<CommentStoreState> {
     return { mode: (await this.deps.mode()).kind, hasOutbox: false };
@@ -187,11 +206,17 @@ export class BundleCommentStore implements CommentStore {
     return [...BUNDLE_COMMENT_CAPABILITIES];
   }
 
-  /** The bundle, or null on a locked device - which lists as empty and explains itself through `state()`. */
+  /**
+   * The union of every readable comment file in the vault (N2), or null on a
+   * locked device - which lists as empty and explains itself through `state()`.
+   */
   private async bundle(): Promise<CommentsBundle | null> {
     const mode = await this.deps.mode();
     if (mode.kind === "locked") return null;
-    return readLocalComments(this.deps.vault, cryptoOf(mode));
+    const faults: CommentBundleFault[] = [];
+    const bundle = await readAllComments(this.deps.vault, await this.deps.deviceId(), cryptoOf(mode), { faults, now: this.deps.now?.() });
+    this.report(faults);
+    return bundle;
   }
 
   /**
@@ -256,12 +281,16 @@ export class BundleCommentStore implements CommentStore {
     // A named author brings its own name; the device signs with the reviewer
     // name the vault already has rather than asking the same question twice.
     const authorName = input.author ? input.author.displayName?.trim() || undefined : (await this.deps.authorName?.())?.trim() || undefined;
+    const faults: CommentBundleFault[] = [];
     await appendLocalComment(this.deps.vault, record, {
+      deviceId: record.authorDeviceId,
       crypto: cryptoOf(mode),
       authorName,
       authorKey: input.author?.id ?? undefined,
       now,
+      faults,
     });
+    this.report(faults);
     this.deps.written?.(input.path);
   }
 
@@ -285,10 +314,13 @@ export class BundleCommentStore implements CommentStore {
       deviceId,
       at: now,
     }));
-    // A vault that never carried a remark gets no bundle for a rename alone:
-    // the marker only matters once there is something to keep in place.
-    if (!(await readLocalComments(this.deps.vault, cryptoOf(mode)))) return;
-    await appendLocalMoves(this.deps.vault, records, { crypto: cryptoOf(mode), now });
-    this.deps.written?.(real[0].to);
+    // A vault that never carried a remark gets no file for a rename alone:
+    // the marker only matters once there is something to keep in place - and
+    // that something may sit in another device's file.
+    const faults: CommentBundleFault[] = [];
+    if (!(await readAllComments(this.deps.vault, deviceId, cryptoOf(mode), { faults, now }))) { this.report(faults); return; }
+    await appendLocalMoves(this.deps.vault, records, { deviceId, crypto: cryptoOf(mode), now, faults });
+    this.report(faults);
+    this.deps.written?.(real.length === 1 && !real[0].folder ? real[0].to : "*");
   }
 }

@@ -1006,6 +1006,9 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         window.dispatchEvent(
           new CustomEvent("plainva-comments-synced", { detail: { vaultPath: this.vaultPath } }),
         );
+        // ...and the open column re-reads (N2): another device's file may have
+        // landed, and no note path names "every note" but this one.
+        window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
       }
     }
   }
@@ -1219,7 +1222,14 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         // deletes — a create/delete ping-pong with no end.
         return null;
       }
-      return new CommentsSyncStep({ crypto: mk ? commentsCryptoFor(mk) : undefined });
+      return new CommentsSyncStep({
+        // One file per device (N2): the same id the store writes as the author.
+        deviceId: await getDeviceId(),
+        crypto: mk ? commentsCryptoFor(mk) : undefined,
+        // A file that could not be read is never overwritten; the shell says
+        // so once, with the reason (N3).
+        onFaults: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultPath, faults } })),
+      });
     },
   };
 }

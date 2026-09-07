@@ -855,7 +855,12 @@ class MobileSidebandRunner implements SettingsSyncRunner {
       // background. Fired even after a failure above: in an encrypted workspace
       // comments arrive through the ordinary file sync, so a sideband failure
       // does not mean nothing came.
-      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("plainva-comments-synced"));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("plainva-comments-synced"));
+        // ...and every open surface re-reads (N2): another device's file may
+        // have landed; "*" is every note.
+        window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
+      }
     }
   }
 
@@ -1010,9 +1015,14 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       const ring = await loadKeyring(vaultId);
       if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
       return new CommentsSyncStep({
+        // One file per device (N2): the same id the store writes as the author.
+        deviceId: device,
         crypto: ring
           ? { seal: (plain) => sealBlob(ring.active, plain, "settings"), open: (bytes) => openBlob(ring.active, bytes, "settings") }
           : undefined,
+        // A file that could not be read is never overwritten; the shell says
+        // so once, with the reason (N3).
+        onFaults: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultId, faults } })),
       });
     },
     async secrets(): Promise<SecretsSyncStep | null> {
