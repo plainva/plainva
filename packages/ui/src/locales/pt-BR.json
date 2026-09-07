@@ -360,7 +360,7 @@
     "dailyNotes": "Notas diárias",
     "dailyNotesFolder": "Pasta das notas diárias",
     "dailyNotesFormat": "Formato das notas diárias",
-    "dailyNotesFormatDesc": "Pontos e barras são substituídos automaticamente por hífens.",
+    "dailyNotesFormatDesc": "Barras são substituídas automaticamente por hífens; pontos são permitidos (p. ex. YY.MM.DD).",
     "dailyNotesTemplate": "Modelo",
     "dailyNotesTemplateDesc": "Um arquivo da pasta de modelos",
     "dailyNoteType": "type para notas diárias",

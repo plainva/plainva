@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
@@ -256,7 +256,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           <RowList>
             <SettingField hint={t("settings.dailyNotesFormatDesc")} label={t("settings.dailyNotesFormat")}>
               <TextInput
-                onChange={(e) => update({ dailyFormat: e.target.value })}
+                onChange={(e) => update({ dailyFormat: sanitizeDailyNoteFormat(e.target.value) })}
                 value={settings.dailyFormat}
               />
             </SettingField>

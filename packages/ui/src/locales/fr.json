@@ -360,7 +360,7 @@
     "dailyNotes": "Notes quotidiennes",
     "dailyNotesFolder": "Dossier des notes quotidiennes",
     "dailyNotesFormat": "Format des notes quotidiennes",
-    "dailyNotesFormatDesc": "Les points et barres obliques sont automatiquement remplacés par des tirets.",
+    "dailyNotesFormatDesc": "Les barres obliques sont automatiquement remplacées par des tirets ; les points sont autorisés (p. ex. YY.MM.DD).",
     "dailyNotesTemplate": "Modèle",
     "dailyNotesTemplateDesc": "Un fichier du dossier de modèles",
     "dailyNoteType": "type pour les notes quotidiennes",

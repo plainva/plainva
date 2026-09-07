@@ -213,7 +213,7 @@ The floating **Plus** button remains available inside nested folders, and every 
 
 The editor photo button offers **Take photo** or **Choose from library**, preserves the insertion point, and reports permission or file errors visibly. Photos land in the vault's attachments folder — the same one your computer uses.
 
-Events and daily notes are deliberately separate: **Calendar** shows the connected calendars (see [Calendar and events](#calendar-and-events)), **Today** shows the daily note of a chosen day. There is no local month view of daily notes — the strip in **Today** does that job.
+Events and daily notes are deliberately separate: **Calendar** shows the connected calendars (see [Calendar and events](#calendar-and-events)), **Today** shows the daily note of a chosen day. In the month grid of **Calendar** a dot marks the days that already have a daily note; tapping the dot opens it, tapping the day still opens the day view. The strip in **Today** shows the same dots.
 
 ## Attachments and images
 

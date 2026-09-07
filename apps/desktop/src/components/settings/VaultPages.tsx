@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, okfBundleStatusLines } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -336,7 +336,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           </div>
         </SettingRow>
         <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
-          <input autoComplete="off" value={p.dailyNotesFormat} onChange={(e) => p.onDailyNotesFormat(e.target.value.replace(/[./\\]/g, "-"))} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
+          <input autoComplete="off" value={p.dailyNotesFormat} onChange={(e) => p.onDailyNotesFormat(sanitizeDailyNoteFormat(e.target.value))} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
         </SettingRow>
         <SettingRow label={t("settings.dailyNotesTemplate")} desc={t("settings.dailyNotesTemplateDesc")}>
           {p.templateFiles.length > 0 ? (

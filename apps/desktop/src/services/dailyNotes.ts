@@ -9,7 +9,7 @@ import {
   dailyNoteTypeKey,
   DEFAULT_DAILY_NOTE_TYPE,
 } from "../contexts/VaultContext";
-import { buildDailyNotePath, localIsoKey, parseDailyNoteDate } from "@plainva/ui";
+import { buildDailyNotePath, existingDailyNoteDays, parseDailyNoteDate } from "@plainva/ui";
 import { withOkfDefaults } from "./newNote";
 
 export { buildDailyNotePath };
@@ -42,16 +42,9 @@ export async function listExistingDailyNotes(
   const store = await getSettingsStore();
   const folder = (await store.get<string>(dailyNotesFolderKey(opts.vaultPath))) || "";
   const rawFormat = (await store.get<string>(dailyNotesFormatKey(opts.vaultPath))) || "YYYY-MM-DD";
-  const out = new Set<string>();
-  await Promise.all(
-    dates.map(async (d) => {
-      const { fullPath } = buildDailyNotePath(d, rawFormat, folder);
-      try {
-        if (await opts.adapter.exists(fullPath)) out.add(localIsoKey(d));
-      } catch { /* ignore */ }
-    }),
-  );
-  return out;
+  // The rule itself lives in packages/ui since the Build-91 feedback round
+  // (P4): the phone's Today card and month grid run the same one.
+  return existingDailyNoteDays(dates, { folder, format: rawFormat }, (p) => opts.adapter.exists(p));
 }
 
 // Minimal adapter surface the daily-note logic needs (subset of IVaultAdapter).

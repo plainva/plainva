@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, Square, Trash2 } from "lucide-react";
-import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dayWindow, DocIcon, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
+import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -63,7 +63,12 @@ export function TodayScreen({
   const [sheet, setSheet] = useState<{ path: string; title: string } | null>(null);
   const rowPress = useLongPress<{ path: string; title: string }>((x) => setSheet(x));
   const settings = getMobileSettings();
-  const dailyPath = `${settings.dailyFolder}/${selectedIso}.md`;
+  // Through the configured format, never hard ISO (Build-91 feedback, P4):
+  // a vault set to `YY.MM.DD` had this card say "create" for a note that
+  // existed — the tap went the right way and opened it.
+  const dailySettings = { folder: settings.dailyFolder, format: settings.dailyFormat };
+  const [selY, selM, selD] = selectedIso.split("-").map(Number);
+  const dailyPath = dailyNotePathFor(new Date(selY, selM - 1, selD), dailySettings);
   // The same editor the calendar uses (N1.3) — an appointment opens the same
   // way from either surface, including the series question and the RSVPs.
   const editor = useEventEditor({ bump, onOpenNote });
@@ -92,14 +97,14 @@ export function TodayScreen({
       ?.scrollIntoView({ inline: "center", block: "nearest" });
   }, []);
 
-  // One folder listing marks every strip day that has a daily note (mockup dots).
+  // The strip's dots: the expected path per day, asked of the disk — the
+  // same rule as the desktop calendar (P4). A folder listing compared raw
+  // file names against ISO keys and never lit under a dotted format.
   useEffect(() => {
     let stale = false;
-    void vault.files
-      .listDir(settings.dailyFolder)
-      .then((entries) => {
-        if (stale) return;
-        setDailyDays(new Set(entries.filter((e) => !e.isDirectory).map((e) => e.name.replace(/\.md$/, ""))));
+    void existingDailyNoteDays(days, dailySettings, (p) => vault.files.exists(p))
+      .then((set) => {
+        if (!stale) setDailyDays(set);
       })
       .catch(() => {
         if (!stale) setDailyDays(new Set());
@@ -107,7 +112,9 @@ export function TodayScreen({
     return () => {
       stale = true;
     };
-  }, [vault, settings.dailyFolder, bump]);
+    // `days` is rebuilt every render around the same today; the settings decide.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault, settings.dailyFolder, settings.dailyFormat, bump]);
 
   useEffect(() => {
     let stale = false;
@@ -226,7 +233,7 @@ export function TodayScreen({
             ? `${t("mobile.todayFromTemplate", { name: settings.dailyTemplate.replace(/\.md$/, "") })} · ${t("mobile.todayInFolder", { folder: settings.dailyFolder })}`
             : t("mobile.todayInFolder", { folder: settings.dailyFolder })}
         </p>
-        <Button variant="tonal" onClick={() => onOpenDate(selectedIso)}>
+        <Button data-testid={dailyExists ? "today-daily-open" : "today-daily-create"} variant="tonal" onClick={() => onOpenDate(selectedIso)}>
           {dailyExists ? t("mobile.open") : t("mobile.create")}
         </Button>
       </div>

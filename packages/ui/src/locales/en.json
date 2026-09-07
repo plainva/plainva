@@ -358,7 +358,7 @@
     "dailyNotes": "Daily Notes",
     "dailyNotesFolder": "Daily Notes Folder",
     "dailyNotesFormat": "Daily Notes Format",
-    "dailyNotesFormatDesc": "Dots and slashes are automatically replaced with hyphens.",
+    "dailyNotesFormatDesc": "Slashes are automatically replaced with hyphens; dots are allowed (e.g. YY.MM.DD).",
     "dailyNotesTemplate": "Template",
     "dailyNotesTemplateDesc": "A file from the template folder",
     "dailyNoteType": "type for daily notes",

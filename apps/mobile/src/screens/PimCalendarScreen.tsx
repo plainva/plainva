@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
+import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -83,6 +83,7 @@ export function PimCalendarScreen({
   onMenu,
   onOpenSettings,
   onOpenNote,
+  onOpenDate,
   focus,
 }: {
   /** Absent when this surface is pushed — the root offers the search. */
@@ -96,6 +97,8 @@ export function PimCalendarScreen({
   onOpenSettings?: () => void;
   /** Opens a vault note — used by "Besprechungsnotiz" (S27). */
   onOpenNote?: (path: string) => void;
+  /** Opens (or creates) the daily note of an ISO day — the month grid's daily mark (P4). */
+  onOpenDate?: (iso: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const status = useSyncExternalStore(subscribePimStatus, getPimStatus);
@@ -331,6 +334,25 @@ export function PimCalendarScreen({
     return key ? t(key) : null;
   };
   const todayIso = isoOf(new Date());
+  // Days that already have a daily note (P4, Build-91 feedback): the month
+  // grid marks them like the desktop calendar does, through the configured
+  // folder and format — a tap on the mark opens the note, the day itself
+  // still opens the day view.
+  const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (view !== "month") return;
+    let stale = false;
+    const s = getMobileSettings();
+    void getMobileVault()
+      .then((v) => existingDailyNoteDays(days, { folder: s.dailyFolder, format: s.dailyFormat }, (p) => v.files.exists(p)))
+      .then((set) => {
+        if (!stale) setDailyDays(set);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [view, days, bump]);
 
   // ── Writing events (S24) ──────────────────────────────────────────────────
   // The calendar could show and answer; it could not write. A tapped slot
@@ -540,6 +562,18 @@ export function PimCalendarScreen({
                 >
                   <span>{d.getDate()}</span>
                   <span className="m-cal-dots">
+                    {dailyDays.has(key) && onOpenDate && (
+                      <span
+                        aria-label={t("mobile.todayDailyCard")}
+                        className="m-cal-dot m-cal-dot--daily"
+                        data-testid="cal-daily-mark"
+                        role="button"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          onOpenDate(key);
+                        }}
+                      />
+                    )}
                     {list.slice(0, 3).map((e) => (
                       <span
                         className="m-cal-dot"

@@ -213,7 +213,7 @@ Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar;
 
 Der Foto-Knopf im Editor fragt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
-Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbundenen Kalender (siehe [Kalender und Termine](#kalender-und-termine)), **Heute** die Tagesnotiz eines gewählten Tages. Eine lokale Monatsansicht der Tagesnotizen gibt es nicht — der Streifen in **Heute** übernimmt das.
+Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbundenen Kalender (siehe [Kalender und Termine](#kalender-und-termine)), **Heute** die Tagesnotiz eines gewählten Tages. Im Monatsraster von **Kalender** markiert ein Punkt die Tage, die schon eine Tagesnotiz haben; ein Tipp auf den Punkt öffnet sie, ein Tipp auf den Tag weiterhin die Tagesansicht. Der Streifen in **Heute** zeigt dieselben Punkte.
 
 ## Anhänge und Bilder
 

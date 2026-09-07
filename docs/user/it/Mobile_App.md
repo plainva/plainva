@@ -213,7 +213,7 @@ Il pulsante mobile **Più** resta disponibile nelle cartelle annidate, e ogni az
 
 Il pulsante foto dell'editor propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e segnala in modo visibile gli errori di autorizzazione o di file. Le foto finiscono nella cartella degli allegati del vault — la stessa che usa il tuo computer.
 
-Eventi e note giornaliere sono deliberatamente separati: **Calendario** mostra i calendari collegati (vedi [Calendario ed eventi](#calendario-ed-eventi)), **Oggi** mostra la nota giornaliera di un giorno scelto. Non esiste una vista mensile locale delle note giornaliere — a questo pensa la striscia in **Oggi**.
+Eventi e note giornaliere sono deliberatamente separati: **Calendario** mostra i calendari collegati (vedi [Calendario ed eventi](#calendario-ed-eventi)), **Oggi** mostra la nota giornaliera di un giorno scelto. Nella griglia mensile di **Calendario** un punto segna i giorni che hanno già una nota giornaliera; un tocco sul punto la apre, un tocco sul giorno apre ancora la vista del giorno. La striscia in **Oggi** mostra gli stessi punti.
 
 ## Allegati e immagini
 

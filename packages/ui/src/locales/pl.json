@@ -362,7 +362,7 @@
     "dailyNotes": "Notatki dzienne",
     "dailyNotesFolder": "Folder notatek dziennych",
     "dailyNotesFormat": "Format notatek dziennych",
-    "dailyNotesFormatDesc": "Kropki i ukośniki są automatycznie zastępowane myślnikami.",
+    "dailyNotesFormatDesc": "Ukośniki są automatycznie zastępowane myślnikami; kropki są dozwolone (np. YY.MM.DD).",
     "dailyNotesTemplate": "Szablon",
     "dailyNotesTemplateDesc": "Plik z folderu szablonów",
     "dailyNoteType": "type dla notatek dziennych",

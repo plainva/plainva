@@ -356,7 +356,7 @@
     "dailyNotes": "デイリーノート",
     "dailyNotesFolder": "デイリーノートのフォルダー",
     "dailyNotesFormat": "デイリーノートの日付形式",
-    "dailyNotesFormatDesc": "ピリオドとスラッシュは自動的にハイフンに置き換えられます。",
+    "dailyNotesFormatDesc": "スラッシュは自動的にハイフンに置き換えられます。ピリオドは使用できます（例: YY.MM.DD）。",
     "dailyNotesTemplate": "テンプレート",
     "dailyNotesTemplateDesc": "テンプレートフォルダー内のファイル",
     "dailyNoteType": "デイリーノートのtype",

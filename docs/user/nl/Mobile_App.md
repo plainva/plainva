@@ -213,7 +213,7 @@ De zwevende knop **Plus** blijft beschikbaar in geneste mappen, en elke snelle-a
 
 De fotoknop van de editor biedt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten duidelijk zichtbaar. Foto's komen terecht in de bijlagenmap van de kluis — dezelfde die je computer gebruikt.
 
-Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppelde kalenders (zie [Kalender en afspraken](#kalender-en-afspraken)), **Vandaag** toont de dagnotitie van een gekozen dag. Er is geen lokaal maandoverzicht van dagnotities — de strip in **Vandaag** doet dat werk.
+Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppelde kalenders (zie [Kalender en afspraken](#kalender-en-afspraken)), **Vandaag** toont de dagnotitie van een gekozen dag. In het maandraster van **Kalender** markeert een punt de dagen die al een dagnotitie hebben; tik op het punt om die te openen, tik op de dag om zoals voorheen de dagweergave te openen. De strip in **Vandaag** toont dezelfde punten.
 
 ## Bijlagen en afbeeldingen
 

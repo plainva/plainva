@@ -360,7 +360,7 @@
     "dailyNotes": "Notas diarias",
     "dailyNotesFolder": "Carpeta de notas diarias",
     "dailyNotesFormat": "Formato de las notas diarias",
-    "dailyNotesFormatDesc": "Los puntos y las barras se sustituyen automáticamente por guiones.",
+    "dailyNotesFormatDesc": "Las barras se sustituyen automáticamente por guiones; los puntos están permitidos (p. ej. YY.MM.DD).",
     "dailyNotesTemplate": "Plantilla",
     "dailyNotesTemplateDesc": "Un archivo de la carpeta de plantillas",
     "dailyNoteType": "type para notas diarias",

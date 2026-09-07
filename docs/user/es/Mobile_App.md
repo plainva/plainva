@@ -213,7 +213,7 @@ El botón flotante **Más** sigue disponible dentro de carpetas anidadas, y toda
 
 El botón de foto del editor ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra los errores de permisos o de archivo de forma visible. Las fotos van a la carpeta de adjuntos de la bóveda — la misma que usa tu ordenador.
 
-Los eventos y las notas diarias están deliberadamente separados: **Calendario** muestra los calendarios conectados (ver [Calendario y eventos](#calendario-y-eventos)), **Hoy** muestra la nota diaria de un día elegido. No hay una vista mensual local de las notas diarias — de eso se encarga la franja en **Hoy**.
+Los eventos y las notas diarias están deliberadamente separados: **Calendario** muestra los calendarios conectados (ver [Calendario y eventos](#calendario-y-eventos)), **Hoy** muestra la nota diaria de un día elegido. En la cuadrícula mensual de **Calendario**, un punto marca los días que ya tienen una nota diaria; tocar el punto la abre y tocar el día sigue abriendo la vista del día. La franja en **Hoy** muestra los mismos puntos.
 
 ## Adjuntos e imágenes
 

@@ -213,7 +213,7 @@ Le bouton flottant **Plus** reste disponible dans les dossiers imbriqués, et ch
 
 Le bouton photo de l'éditeur propose **Prendre une photo** ou **Choisir dans la photothèque**, conserve la position d'insertion et signale visiblement les erreurs d'autorisation ou de fichier. Les photos atterrissent dans le dossier des pièces jointes du coffre — celui-là même qu'utilise votre ordinateur.
 
-Les événements et les notes quotidiennes sont délibérément séparés : **Calendrier** affiche les calendriers connectés (voir [Calendrier et événements](#calendrier-et-événements)), **Aujourd'hui** affiche la note quotidienne d'un jour choisi. Il n'existe pas de vue mensuelle locale des notes quotidiennes — c'est le bandeau dans **Aujourd'hui** qui joue ce rôle.
+Les événements et les notes quotidiennes sont délibérément séparés : **Calendrier** affiche les calendriers connectés (voir [Calendrier et événements](#calendrier-et-événements)), **Aujourd'hui** affiche la note quotidienne d'un jour choisi. Dans la grille mensuelle de **Calendrier**, un point marque les jours qui ont déjà une note quotidienne ; toucher le point l'ouvre, toucher le jour ouvre toujours la vue du jour. Le bandeau dans **Aujourd'hui** affiche les mêmes points.
 
 ## Pièces jointes et images
 

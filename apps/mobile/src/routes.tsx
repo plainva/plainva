@@ -328,6 +328,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       focus={parseCalendarFocus(e.path)}
       onBack={c.pop}
       onOpenNote={c.openNote}
+      onOpenDate={c.openDaily}
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
@@ -462,6 +463,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       bump={c.bump}
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenNote={c.openNote}
+      onOpenDate={c.openDaily}
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
       onSearch={() => c.push({ kind: "search", path: "" })}
     />

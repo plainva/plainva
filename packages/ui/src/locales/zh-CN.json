@@ -356,7 +356,7 @@
     "dailyNotes": "日记",
     "dailyNotesFolder": "日记文件夹",
     "dailyNotesFormat": "日记日期格式",
-    "dailyNotesFormatDesc": "点和斜杠会自动替换为连字符。",
+    "dailyNotesFormatDesc": "斜杠会自动替换为连字符；允许使用点（例如 YY.MM.DD）。",
     "dailyNotesTemplate": "模板",
     "dailyNotesTemplateDesc": "模板文件夹中的文件",
     "dailyNoteType": "日记的type",

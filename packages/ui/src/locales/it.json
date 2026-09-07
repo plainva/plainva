@@ -360,7 +360,7 @@
     "dailyNotes": "Note giornaliere",
     "dailyNotesFolder": "Cartella delle note giornaliere",
     "dailyNotesFormat": "Formato delle note giornaliere",
-    "dailyNotesFormatDesc": "Punti e barre vengono sostituiti automaticamente con trattini.",
+    "dailyNotesFormatDesc": "Le barre vengono sostituite automaticamente con trattini; i punti sono consentiti (ad es. YY.MM.DD).",
     "dailyNotesTemplate": "Modello",
     "dailyNotesTemplateDesc": "Un file dalla cartella dei modelli",
     "dailyNoteType": "type per le note giornaliere",

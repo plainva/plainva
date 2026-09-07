@@ -358,7 +358,7 @@
     "dailyNotes": "Dagelijkse notities",
     "dailyNotesFolder": "Map voor dagelijkse notities",
     "dailyNotesFormat": "Datumformaat voor dagelijkse notities",
-    "dailyNotesFormatDesc": "Punten en schuine strepen worden automatisch vervangen door koppeltekens.",
+    "dailyNotesFormatDesc": "Schuine strepen worden automatisch vervangen door koppeltekens; punten zijn toegestaan (bijv. YY.MM.DD).",
     "dailyNotesTemplate": "Sjabloon",
     "dailyNotesTemplateDesc": "Een bestand uit de sjabloonmap",
     "dailyNoteType": "type voor dagelijkse notities",

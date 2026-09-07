@@ -358,7 +358,7 @@
     "dailyNotes": "Tägliche Notizen",
     "dailyNotesFolder": "Basis-Ordner für tägliche Notizen",
     "dailyNotesFormat": "Datumsformat",
-    "dailyNotesFormatDesc": "Punkte und Schrägstriche werden automatisch durch Bindestriche ersetzt.",
+    "dailyNotesFormatDesc": "Schrägstriche werden automatisch durch Bindestriche ersetzt; Punkte sind erlaubt (z. B. YY.MM.DD).",
     "dailyNotesTemplate": "Vorlage",
     "dailyNotesTemplateDesc": "Datei aus dem Vorlagen-Ordner",
     "dailyNoteType": "type für Daily Notes",
