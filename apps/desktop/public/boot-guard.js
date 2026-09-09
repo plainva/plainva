@@ -215,7 +215,9 @@
   /* The quiet failure: no exception, nothing rendered. Without this the screen
      stays white and the guard would have been for nothing. */
   window.setTimeout(function () {
-    if (appHasMounted()) return;
+    /* Only retire the timeout's own overlay. A failed engine probe is still
+       true when a small part of the app manages to mount afterwards. */
+    if (shown || appHasMounted()) return;
     showStartupFailure();
 
     /* The timeout's claim is "nothing rendered", and a slow boot can disprove

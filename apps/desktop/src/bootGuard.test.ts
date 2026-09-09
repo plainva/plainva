@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -51,6 +52,26 @@ describe.each(SHELLS)("boot guard ($name)", ({ guard, html: htmlPath }) => {
   const source = readFileSync(guard, "utf8");
   const code = stripCommentsAndStrings(source);
   const html = readFileSync(htmlPath, "utf8");
+
+  it("keeps the unsupported-engine diagnosis after a late partial mount", () => {
+    vi.useFakeTimers();
+    try {
+      const doc = document.implementation.createHTMLDocument();
+      const root = doc.createElement("div");
+      root.id = "root";
+      doc.body.appendChild(root);
+      const scope = { addEventListener() {}, setTimeout, setInterval, clearInterval };
+      const unsupported = function () { throw new SyntaxError("lookbehind unavailable"); };
+      new Function("window", "document", "navigator", "RegExp", "structuredClone", source)(scope, doc, { userAgent: "old engine" }, unsupported, () => {});
+      vi.advanceTimersByTime(13_000);
+      root.appendChild(doc.createElement("main"));
+      vi.advanceTimersByTime(500);
+      expect(doc.getElementById("plainva-boot-failure")?.textContent).toContain("Missing: RegExp lookbehind");
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
 
   it("is loaded as a classic, blocking script — not a module", () => {
     // A module would be deferred AND parsed as part of the module graph: dead
