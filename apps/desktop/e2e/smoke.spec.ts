@@ -2110,29 +2110,22 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
 // field could not shrink (the caller's `flex: 1; min-width: 0` landed on the
 // inner <input>, not on the field), so the "+" button was drawn over the
 // editor and was unreachable. The panel goes down to 150 px.
-test('A narrow left sidebar keeps its head inside the panel', async ({ page }) => {
-  await page.goto('/');
-  const aside = page.locator('aside[aria-label="Left Sidebar"]');
-  await expect(aside).toBeVisible({ timeout: 10000 });
-
-  for (const width of [300, 200, 150]) {
-    await page.evaluate((w) => localStorage.setItem('plainva-left-sidebar-width', String(w)), width);
-    await page.reload();
+for (const width of [300, 200, 150]) {
+  test(`A narrow left sidebar keeps its head inside the panel at ${width}px`, async ({ page }) => {
+    // Each width gets one boot and an independent failure report. Repeated
+    // full reloads in one test exhausted the budget under parallel dev loads.
+    await page.addInitScript((w) => localStorage.setItem('plainva-left-sidebar-width', String(w)), width);
+    await page.goto('/');
+    const aside = page.locator('aside[aria-label="Left Sidebar"]');
     await expect(aside).toBeVisible({ timeout: 10000 });
-
     const panel = (await aside.boundingBox())!;
     const plus = (await page.getByTestId('sidebar-new').boundingBox())!;
-    // Right edge of the button never crosses the right edge of the panel.
     expect(plus.x + plus.width, `"+" escapes the panel at ${width}px`)
       .toBeLessThanOrEqual(panel.x + panel.width);
-    // And it stays a real target rather than being squeezed to nothing.
     expect(plus.width).toBeGreaterThan(20);
-  }
-
-  // Below the two thresholds the panel names its own step, exactly like the
-  // right one — the tree rows read the tighter density from it.
-  await expect(aside).toHaveAttribute('data-side-step', 'minimal');
-});
+    if (width === 150) await expect(aside).toHaveAttribute('data-side-step', 'minimal');
+  });
+}
 
 test('Sidebar tabs carry labels while they fit, then fall back to the active one', async ({ page }) => {
   // Seven full page loads, because the sidebar width is read at boot. Against
