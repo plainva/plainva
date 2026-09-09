@@ -41,6 +41,11 @@ async function mount() {
   (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   Object.defineProperty(navigator, "platform", { value: "Win32", configurable: true });
   const { WindowControls } = await import("./WindowControls");
+  // resetModules also restarts lazy locale loading. Settle that new instance
+  // before comparing labels across resize events, just as test-setup does.
+  const { i18nReady, loadAllLanguages } = await import("@plainva/ui/i18n");
+  await loadAllLanguages();
+  await i18nReady;
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);

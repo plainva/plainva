@@ -1,6 +1,8 @@
 # Zgodność synchronizacji Plainva
 
-Stan na: 2026-07-08 (OneDrive i Dropbox mają teraz własne centralne identyfikatory aplikacji — konfiguracja własnej aplikacji nie jest już potrzebna)
+Stan na: 2026-09-09
+
+Jeśli usługa WebDAV, CalDAV lub S3 zwróci stronę logowania albo niepełną listę zasobów, Plainva zgłosi błąd synchronizacji. Nie potraktuje takiej odpowiedzi jako pustego folderu lub pustej listy kalendarzy i nie wywnioskuje z niej usunięć. Dotyczy to wersji komputerowej i mobilnej.
 
 Plainva synchronizuje vaulty przez wymienne adaptery synchronizacji. Ta strona pokazuje, które usługi możesz już dziś wykorzystać — bezpośrednio zintegrowane, przez protokół WebDAV lub przez własnego klienta desktopowego danego dostawcy.
 

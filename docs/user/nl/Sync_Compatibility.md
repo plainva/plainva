@@ -1,6 +1,8 @@
 # Plainva Sync-compatibiliteit
 
-Laatst bijgewerkt: 2026-07-08 (OneDrive en Dropbox leveren nu centrale app-ID's mee — geen eigen app-registratie meer nodig)
+Laatst bijgewerkt: 2026-09-09
+
+Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inventaris terugstuurt, meldt Plainva een synchronisatiefout. Die reactie wordt niet als een lege map of kalenderlijst behandeld en leidt niet tot daaruit afgeleide verwijderingen. Dit geldt op desktop en mobiel.
 
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 

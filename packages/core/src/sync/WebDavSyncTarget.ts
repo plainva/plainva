@@ -1,4 +1,4 @@
-import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { parseDavListing } from "./xmlListing.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { timeoutForBody } from "./transferTimeout.js";
@@ -32,19 +32,7 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
   // Strict validation first: the parser itself is lenient, and a garbage body
   // (e.g. an HTML login page served with HTTP 200 by a captive proxy) must
   // surface as a sync error — never as an "empty remote" listing.
-  const valid = XMLValidator.validate(xml);
-  if (valid !== true) {
-    throw new Error(`invalid XML (line ${valid.err.line}): ${valid.err.msg}`);
-  }
-  const parser = new XMLParser({
-    ignoreAttributes: true,
-    removeNSPrefix: true,
-    parseTagValue: false,
-    isArray: (name) => name === "response" || name === "propstat",
-  });
-  const doc = parser.parse(xml);
-  const multistatus = doc?.multistatus;
-  if (!multistatus) return [];
+  const multistatus = parseDavListing(xml);
   const rawResponses: any[] = Array.isArray(multistatus.response) ? multistatus.response : [];
 
   const entries: WebDavResponse[] = [];

@@ -1,4 +1,4 @@
-import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { parseDavListing } from "../sync/xmlListing.js";
 import { pimRequestError } from "./requestError.js";
 import ICAL from "ical.js";
 import { recurrenceToRRule } from "./recurrence.js";
@@ -969,17 +969,7 @@ export function parseCalDavSyncCollection(xml: string): {
   removed: string[];
   token: string;
 } {
-  const valid = XMLValidator.validate(xml);
-  if (valid !== true) throw new Error(`invalid XML (line ${valid.err.line}): ${valid.err.msg}`);
-  const parser = new XMLParser({
-    ignoreAttributes: true,
-    removeNSPrefix: true,
-    parseTagValue: false,
-    isArray: (name) => name === "response" || name === "propstat",
-  });
-  const doc = parser.parse(xml);
-  const ms = doc?.multistatus;
-  if (!ms) return { changed: [], removed: [], token: "" };
+  const ms = parseDavListing(xml);
   const changed: string[] = [];
   const removed: string[] = [];
   for (const resp of (Array.isArray(ms.response) ? ms.response : []) as Array<Record<string, unknown>>) {
@@ -994,19 +984,7 @@ export function parseCalDavSyncCollection(xml: string): {
 }
 
 export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
-  const valid = XMLValidator.validate(xml);
-  if (valid !== true) {
-    throw new Error(`invalid XML (line ${valid.err.line}): ${valid.err.msg}`);
-  }
-  const parser = new XMLParser({
-    ignoreAttributes: true,
-    removeNSPrefix: true,
-    parseTagValue: false,
-    isArray: (name) => name === "response" || name === "propstat" || name === "comp" || name === "privilege",
-  });
-  const doc = parser.parse(xml);
-  const multistatus = doc?.multistatus;
-  if (!multistatus) return [];
+  const multistatus = parseDavListing(xml, ["comp", "privilege"]);
   const rawResponses: any[] = Array.isArray(multistatus.response) ? multistatus.response : [];
   const componentNamesByHref = componentNamesPerResponse(xml);
 

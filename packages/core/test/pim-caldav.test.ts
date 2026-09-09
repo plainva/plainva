@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { XMLValidator } from "fast-xml-parser";
 import { CalDavPimTarget, expandIcsEvents, parseCalDavMultistatus, parseCalDavSyncCollection } from "../src/pim/CalDavPimTarget.ts";
 import { eventCalendarsOf } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
@@ -558,7 +559,8 @@ describe("CalDavPimTarget delta pull (S18)", () => {
     const t = new CalDavPimTarget(CREDS, fetchFn);
     await t.pullEventsDelta("https://cloud.example.org/cal/", "http://ex.org/s?a=1&b=2", 0, 9e12);
     expect(bodies[0]).toContain("a=1&amp;b=2");
-    expect(() => parseCalDavMultistatus(`<d:multistatus xmlns:d="DAV:">${bodies[0]}</d:multistatus>`)).not.toThrow();
+    // This is a request, not a multistatus inventory. Check its XML syntax directly.
+    expect(XMLValidator.validate(bodies[0])).toBe(true);
   });
 
   it("fetches only the changed hrefs and reports removals by href, filtered to the window", async () => {

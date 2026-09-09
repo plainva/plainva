@@ -5,6 +5,7 @@ import { fetchWithRetry } from "./httpRetry.js";
 import { timeoutForBody } from "./transferTimeout.js";
 import { streamUpload } from "./streamUpload.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
+import { parseListingRoot } from "./xmlListing.js";
 
 /**
  * Credentials/config for an S3-compatible object store (AWS S3, Cloudflare R2,
@@ -28,6 +29,26 @@ export interface S3Credentials {
 }
 
 const EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+function parseS3Listing(xml: string): { keys: { key: string; etag: string }[]; prefixes: string[]; nextToken?: string } {
+  const root = parseListingRoot(xml, "ListBucketResult", ["Contents", "CommonPrefixes"]);
+  if (root.IsTruncated !== "true" && root.IsTruncated !== "false") throw new Error("invalid S3 listing: missing IsTruncated");
+  const nextToken = root.IsTruncated === "true" ? root.NextContinuationToken : undefined;
+  if (root.IsTruncated === "true" && (typeof nextToken !== "string" || !nextToken)) {
+    throw new Error("invalid S3 listing: truncated page has no continuation token");
+  }
+  const keys = (root.Contents ?? []).map((entry: any) => {
+    if (!entry || typeof entry.Key !== "string" || !entry.Key) throw new Error("invalid S3 listing: object has no key");
+    const etag = entry.ETag ?? entry.LastModified;
+    if (typeof etag !== "string" || !etag) throw new Error("invalid S3 listing: object has no change marker");
+    return { key: entry.Key, etag: etag.replace(/"/g, "") };
+  });
+  const prefixes = (root.CommonPrefixes ?? []).map((entry: any) => {
+    if (!entry || typeof entry.Prefix !== "string" || !entry.Prefix) throw new Error("invalid S3 listing: folder has no prefix");
+    return entry.Prefix as string;
+  });
+  return { keys, prefixes, nextToken };
+}
 
 /** Minimal XML entity decoder for S3 listing payloads (keys are XML-escaped, not URL-encoded). */
 function decodeXmlEntities(value: string): string {
@@ -228,34 +249,20 @@ export class S3SyncTarget implements ISyncTarget {
     if (!res.ok) {
       throw new Error(`S3 list failed: ${res.status} ${res.statusText}`);
     }
-    const xml = await res.text();
-    const keys: { key: string; etag: string }[] = [];
-    const contentsRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
-    let match;
-    while ((match = contentsRegex.exec(xml)) !== null) {
-      const block = match[1];
-      const keyMatch = /<Key>([\s\S]*?)<\/Key>/.exec(block);
-      if (!keyMatch) continue;
-      const etagMatch = /<ETag>([\s\S]*?)<\/ETag>/.exec(block);
-      const lastModifiedMatch = /<LastModified>([\s\S]*?)<\/LastModified>/.exec(block);
-      const key = decodeXmlEntities(keyMatch[1]);
-      // Some stores omit ETag in listings; fall back to LastModified as change marker.
-      const etag = decodeXmlEntities(etagMatch?.[1] ?? lastModifiedMatch?.[1] ?? "").replace(/"/g, "");
-      keys.push({ key, etag });
-    }
-    const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
-    const tokenMatch = /<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/.exec(xml);
-    return { keys, nextToken: truncated ? decodeXmlEntities(tokenMatch?.[1] ?? "") || undefined : undefined };
+    return parseS3Listing(await res.text());
   }
 
   /** All keys under a raw prefix (paginated). */
   private async listAll(rawPrefix: string): Promise<{ key: string; etag: string }[]> {
     const all: { key: string; etag: string }[] = [];
+    const seen = new Set<string>();
     let token: string | undefined;
     do {
       const page = await this.listPage(rawPrefix, token);
       all.push(...page.keys);
       token = page.nextToken;
+      if (token && seen.has(token)) throw new Error("invalid S3 listing: repeated continuation token");
+      if (token) seen.add(token);
     } while (token);
     return all;
   }
@@ -270,6 +277,7 @@ export class S3SyncTarget implements ISyncTarget {
     const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
     const rawPrefix = clean ? `${clean}/` : "";
     const names: string[] = [];
+    const seen = new Set<string>();
     let token: string | undefined;
     do {
       const queryParams: Record<string, string> = { "list-type": "2", delimiter: "/" };
@@ -277,16 +285,14 @@ export class S3SyncTarget implements ISyncTarget {
       if (token) queryParams["continuation-token"] = token;
       const res = await this.signedFetch("GET", "", { queryParams });
       if (!res.ok) throw new Error(`S3 list failed: ${res.status} ${res.statusText}`);
-      const xml = await res.text();
-      const cpRegex = /<CommonPrefixes>[\s\S]*?<Prefix>([\s\S]*?)<\/Prefix>[\s\S]*?<\/CommonPrefixes>/g;
-      let m;
-      while ((m = cpRegex.exec(xml)) !== null) {
-        const name = decodeXmlEntities(m[1]).substring(rawPrefix.length).replace(/\/$/, "");
+      const page = parseS3Listing(await res.text());
+      for (const prefix of page.prefixes) {
+        const name = prefix.substring(rawPrefix.length).replace(/\/$/, "");
         if (name) names.push(name);
       }
-      const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
-      const tokenMatch = /<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/.exec(xml);
-      token = truncated ? decodeXmlEntities(tokenMatch?.[1] ?? "") || undefined : undefined;
+      token = page.nextToken;
+      if (token && seen.has(token)) throw new Error("invalid S3 listing: repeated continuation token");
+      if (token) seen.add(token);
     } while (token);
     return names.sort((a, b) => a.localeCompare(b));
   }

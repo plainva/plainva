@@ -1,6 +1,8 @@
 # Compatibilidad de sincronización de Plainva
 
-Última actualización: 2026-07-08 (OneDrive y Dropbox ahora incluyen IDs de app centrales — ya no hace falta BYO)
+Última actualización: 2026-09-09
+
+Si un servicio WebDAV, CalDAV o S3 devuelve una página de inicio de sesión o un inventario incompleto, Plainva muestra un error de sincronización. Esa respuesta no se interpreta como una carpeta o una lista de calendarios vacía ni se deducen eliminaciones de ella. Esto se aplica tanto en escritorio como en móvil.
 
 Plainva sincroniza vaults mediante adaptadores de sincronización intercambiables. Esta página muestra qué servicios puedes usar hoy — integrados directamente, mediante el protocolo WebDAV, o mediante el propio cliente de escritorio de sincronización del proveedor.
 

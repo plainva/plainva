@@ -1,6 +1,8 @@
 # Plainva Sync-Kompatibilität
 
-Stand: 2026-07-08 (OneDrive und Dropbox liefern jetzt zentrale App-IDs — kein BYO nötig)
+Stand: 2026-09-09
+
+Antwortet ein WebDAV-, CalDAV- oder S3-Dienst mit einer Anmeldeseite oder einer unvollständigen Bestandsliste, meldet Plainva einen Abgleichfehler. Diese Antwort gilt nicht als leerer Ordner oder Kalenderbestand und löst keine daraus abgeleiteten Löschungen aus. Das gilt auf Desktop und Mobil.
 
 Plainva synchronisiert Vaults über austauschbare Sync-Adapter. Diese Seite zeigt, welche Dienste Du heute schon nutzen kannst — direkt integriert, über das WebDAV-Protokoll oder über den Desktop-Sync-Client des jeweiligen Anbieters.
 
