@@ -67,6 +67,7 @@ export * from "./comments/commentOperations.js";
 export * from "./comments/commentOperationService.js";
 export * from "./comments/commentActions.js";
 export * from "./comments/WorkspaceCommentStore.js";
+export * from "./comments/legacyCommentImport.js";
 export * from "./settingsSync/KeyfileSyncStep.js";
 export * from "./settingsSync/manifestGuard.js";
 export * from "./settingsSync/connectionId.js";

@@ -171,6 +171,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       suggestion_declined_at TEXT,
       suggestion_outcome TEXT,
       decision_proof TEXT,
+      legacy_origin TEXT,
       decision_format INTEGER NOT NULL DEFAULT 0,
       created_at        TEXT NOT NULL,
       resolved_comment_id TEXT,
@@ -196,6 +197,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       suggestion        TEXT,
       suggestion_outcome TEXT,
       decision_proof TEXT,
+      legacy_origin TEXT,
       created_at        TEXT NOT NULL,
       attempts          INTEGER NOT NULL DEFAULT 0,
       last_error        TEXT,
@@ -381,6 +383,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`ALTER TABLE workspace_revision ADD COLUMN created_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z';`);
   } catch {
     // Column might already exist
+  }
+
+  // Import provenance is durable in the outbox and in confirmed comments.
+  // Only a genuinely missing column is migrated; database failures remain errors.
+  for (const table of ["workspace_comment", "workspace_comment_outbox"]) {
+    const columns = await db.query<{ name: string }>(`PRAGMA table_info(${table})`);
+    if (!columns.some(column => column.name === "legacy_origin"))
+      await db.execute(`ALTER TABLE ${table} ADD COLUMN legacy_origin TEXT`);
   }
 
   // Deleting a comment is an appended retraction marker (K7, 2026-09-03);

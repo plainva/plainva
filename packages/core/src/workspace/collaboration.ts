@@ -1,3 +1,4 @@
+import { assertImportedCommentBinding, type LegacyCommentOrigin } from "../comments/legacyCommentImport.js";
 import { isCommentDecisionProof, type CommentDecisionProof } from "../comments/commentDecisions.js";
 import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
@@ -14,6 +15,7 @@ import type { PersonalWorkspaceRuntime } from "./personal.js";
 import type { WorkspaceCommentOutboxEntry, WorkspaceCommentRecord, WorkspaceQuarantineStatus, WorkspaceRevisionRecord, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 
 export interface WorkspaceCommentBody {
+  legacyOrigin?: LegacyCommentOrigin;
   version: 1;
   commentId: string;
   targetObjectId: string;
@@ -119,6 +121,7 @@ export interface PreparedWorkspaceComment {
 }
 
 export async function prepareWorkspaceComment(input: {
+  legacyOrigin?: LegacyCommentOrigin;
   runtime: PersonalWorkspaceRuntime;
   policyHash: string;
   sequence: number;
@@ -141,6 +144,9 @@ export async function prepareWorkspaceComment(input: {
   /** Given by the outbox (K6): the id the card already carries. Fresh otherwise. */
   commentId?: string;
 }): Promise<PreparedWorkspaceComment> {
+  if (input.legacyOrigin) {
+    assertImportedCommentBinding(input.runtime.workspaceId, { ...input, commentId: input.commentId });
+  }
   const now = input.now ?? new Date().toISOString();
   const resolvedCommentId = input.resolvedCommentId ?? null;
   const retractsCommentId = input.retractsCommentId ?? null;
@@ -163,7 +169,7 @@ export async function prepareWorkspaceComment(input: {
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = input.commentId ?? createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}), resolvedCommentId, retractsCommentId, ...(batch ?? {}), createdAt: now };
+  const comment: WorkspaceCommentBody = { ...(input.legacyOrigin ? { legacyOrigin: input.legacyOrigin } : {}), version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}), resolvedCommentId, retractsCommentId, ...(batch ?? {}), createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,
@@ -219,7 +225,9 @@ export async function publishQueuedWorkspaceComment(input: {
     const group = policy.groups.find((candidate) => candidate.groupId === groupId)!;
     return { groupId, keyEpoch: group.keyEpoch, publicKey: decodeBase64Exact(group.hpkePublicKey, 32, "comment recipient key") };
   });
+  if (entry.legacyOrigin) protocolAssert(evaluateWorkspaceAccess(policy, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "workspace.manage" }).allowed, "authorization", "only workspace managers may import legacy history");
   const prepared = await prepareWorkspaceComment({
+    legacyOrigin: entry.legacyOrigin,
     runtime,
     policyHash: meta.policyHash,
     sequence: meta.sequence + 1,
@@ -275,11 +283,12 @@ export async function openWorkspaceComment(input: {
   protocolAssert(body.decisionProof == null || (isCommentDecisionProof(body.decisionProof) && body.resolvedCommentId !== null && body.suggestionOutcome != null), "format", "comment decision proof is invalid");
   assertWorkspaceSuggestionBatch(body, body.suggestion);
   protocolAssert(body.retractsCommentId === undefined || body.retractsCommentId === null || (typeof body.retractsCommentId === "string" && /^[0-9a-f]{32}$/.test(body.retractsCommentId)), "format", "comment retraction target is malformed");
+  assertImportedCommentBinding(input.operation.workspaceId, body);
   return body;
 }
 
 export function workspaceCommentRecord(body: WorkspaceCommentBody, operation: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>, operationHash: string): WorkspaceCommentRecord {
-  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, ...(body.decisionProof ? { decisionProof: body.decisionProof } : {}), createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, suggestionBatchId: body.suggestionBatchId ?? null, batchIndex: body.batchIndex ?? null, batchNote: body.batchNote ?? null, resolvedAt: null };
+  return { ...(body.legacyOrigin ? { legacyOrigin: body.legacyOrigin } : {}), commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, ...(body.decisionProof ? { decisionProof: body.decisionProof } : {}), createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, suggestionBatchId: body.suggestionBatchId ?? null, batchIndex: body.batchIndex ?? null, batchNote: body.batchNote ?? null, resolvedAt: null };
 }
 
 export class WorkspaceRevisionHistoryService {

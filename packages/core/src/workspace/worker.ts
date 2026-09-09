@@ -752,6 +752,9 @@ export class EncryptedWorkspaceWorker {
       const commentSlices = workspaceSliceIdsForObject(operationPolicy, { objectId: commentTarget.objectId, path: commentTarget.path, contentKind: commentTarget.contentKind });
       protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "comment.create", objectId: commentTarget.objectId, sliceIds: commentSlices }).allowed, "authorization", "comment capability is not granted");
       const body = await openWorkspaceComment({ objectBytes, operation: document, readerKeys: this.runtime.groupKeys });
+      if (body.legacyOrigin) protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId,
+        deviceId: operation.deviceId, capability: "workspace.manage" }).allowed,
+      "authorization", "only workspace managers may import legacy history");
       const record = workspaceCommentRecord(body, document, operationHash);
       // A retraction (K7) is honoured from its author, or from a member who
       // governs the workspace. Anyone else's marker is refused here - the
@@ -762,7 +765,7 @@ export class EncryptedWorkspaceWorker {
         const governs = evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "workspace.manage" }).allowed;
         protocolAssert(governs || !retracted || retracted.authorMemberId === record.authorMemberId, "authorization", "only the author or a workspace manager may delete a comment");
         await this.state.saveComment(record);
-        if (governs && retracted && retracted.authorMemberId !== record.authorMemberId) await this.state.retractComment(retracted.commentId, record.createdAt);
+        if (!record.legacyOrigin && governs && retracted && retracted.authorMemberId !== record.authorMemberId) await this.state.retractComment(retracted.commentId, record.createdAt);
         this.commentPathsChanged.add(commentTarget.path);
         return [];
       }

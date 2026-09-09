@@ -1,4 +1,5 @@
 import type { WorkspaceCommentRecord } from "../workspace/state.js";
+import { commentAuthorKey, commentCreatedAt, sameRetractionAuthor } from "./legacyCommentImport.js";
 import { legacySuggestionDecision, resolveSuggestionDecisions, type SuggestionDecisionFact } from "./commentDecisions.js";
 
 /**
@@ -20,15 +21,14 @@ export function projectCommentRecords(
     }
     if (record.resolvedCommentId) {
       const target = byId.get(record.resolvedCommentId);
-      if (target?.targetObjectId !== record.targetObjectId) continue;
+      if (target?.targetObjectId !== record.targetObjectId || (record.legacyOrigin && !target.legacyOrigin)) continue;
       const list = resolutions.get(record.resolvedCommentId) ?? [];
       list.push(record); resolutions.set(record.resolvedCommentId, list);
     }
     if (record.retractsCommentId) {
       const target = byId.get(record.retractsCommentId);
       if (!target || target.targetObjectId !== record.targetObjectId) continue;
-      const sameAuthor = retractionIdentity === "device" ? target.authorDeviceId === record.authorDeviceId
-        : target.authorMemberId === record.authorMemberId;
+      const sameAuthor = sameRetractionAuthor(record, target, retractionIdentity);
       if (sameAuthor) retracted.add(target.commentId);
     }
   }
@@ -41,12 +41,12 @@ export function projectCommentRecords(
   return records.filter((record) => !record.resolvedCommentId && !record.retractsCommentId && !retracted.has(record.commentId))
     .map((record): WorkspaceCommentRecord => {
       const markers = resolutions.get(record.commentId) ?? [];
-      const closeTimes = [record.resolvedAt, ...markers.map((marker) => marker.createdAt)].filter((at): at is string => !!at).sort();
+      const closeTimes = [record.resolvedAt, ...markers.map(commentCreatedAt)].filter((at): at is string => !!at).sort();
       const resolvedAt = closeTimes[closeTimes.length - 1] ?? null;
       if (!record.suggestion) return { ...record, resolvedAt };
       const facts: SuggestionDecisionFact[] = markers.filter((marker) => marker.suggestionOutcome)
-        .map((marker) => ({ id: marker.commentId, outcome: marker.suggestionOutcome!, createdAt: marker.createdAt,
-          by: marker.authorMemberId, ...(marker.decisionProof ? { proof: marker.decisionProof } : {}) }));
+        .map((marker) => ({ id: marker.commentId, outcome: marker.suggestionOutcome!, createdAt: commentCreatedAt(marker),
+          by: commentAuthorKey(marker), ...(marker.decisionProof ? { proof: marker.decisionProof } : {}) }));
       const previous = record.suggestion;
       const addLegacy = (outcome: "applied" | "declined", at: string | null, by: string | null) => {
         if (!at || facts.some((fact) => fact.outcome === outcome && fact.createdAt === at && (!by || by === fact.by))) return;
@@ -70,5 +70,5 @@ export function projectCommentRecords(
         },
       };
     })
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.commentId.localeCompare(b.commentId));
+    .sort((a, b) => commentCreatedAt(a).localeCompare(commentCreatedAt(b)) || a.commentId.localeCompare(b.commentId));
 }

@@ -1,3 +1,4 @@
+import { assertLegacyCommentOrigin, sameLegacyComment, sameRetractionAuthor, type LegacyCommentOrigin } from "../comments/legacyCommentImport.js";
 import { projectCommentRecords } from "../comments/commentProjection.js";
 import { isCommentDecisionProof, type CommentDecisionProof, type SuggestionDecisionState } from "../comments/commentDecisions.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
@@ -37,6 +38,10 @@ export interface WorkspaceRevisionRecord {
 }
 
 export interface WorkspaceCommentRecord {
+  /** A signed import receipt; original author claims remain explicitly unverified. */
+  legacyOrigin?: LegacyCommentOrigin;
+  /** Local source awaiting a permitted, durable workspace import. Never persisted. */
+  legacyPending?: boolean;
   commentId: string;
   /** The object in a workspace; the note's PATH in a vault without one (the bundle store, N0). */
   targetObjectId: string;
@@ -103,6 +108,7 @@ export interface WorkspaceCommentRecord {
  * card the reader sees keeps its id when the publish lands.
  */
 export interface WorkspaceCommentOutboxEntry {
+  legacyOrigin?: LegacyCommentOrigin;
   outboxId: string;
   commentId: string;
   path: string;
@@ -127,6 +133,7 @@ export interface WorkspaceCommentOutboxEntry {
 export function outboxEntryAsCommentRecord(entry: WorkspaceCommentOutboxEntry, authorMemberId: string, authorDeviceId: string): WorkspaceCommentRecord {
   return {
     commentId: entry.commentId,
+    ...(entry.legacyOrigin ? { legacyOrigin: entry.legacyOrigin } : {}),
     targetObjectId: entry.targetObjectId,
     targetRevisionId: "",
     parentCommentId: entry.parentCommentId,
@@ -437,8 +444,15 @@ function commentProofFromRow(json: string | null | undefined): { decisionProof?:
   return { decisionProof: proof };
 }
 
+function commentOriginFromRow(json: string | null | undefined): { legacyOrigin?: LegacyCommentOrigin } {
+  if (json == null) return {};
+  const origin: unknown = JSON.parse(json);
+  assertLegacyCommentOrigin(origin);
+  return { legacyOrigin: origin };
+}
+
 function commentFromRow(row: CommentRow): WorkspaceCommentRecord {
-  return { commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at, suggestionOutcome: row.suggestion_outcome ?? null, ...commentProofFromRow(row.decision_proof), retractsCommentId: row.retracts_comment_id ?? null, retractedAt: row.retracted_at ?? null, suggestionBatchId: row.suggestion_batch_id ?? null, batchIndex: row.batch_index === null || row.batch_index === undefined ? null : Number(row.batch_index), batchNote: row.batch_note ?? null };
+  return { commentId: row.comment_id, targetObjectId: row.target_object_id, targetRevisionId: row.target_revision_id, parentCommentId: row.parent_comment_id, authorMemberId: row.author_member_id, authorDeviceId: row.author_device_id, operationHash: row.operation_hash, payloadHash: row.payload_hash, body: row.body, anchor: parseCommentAnchor(row.anchor), suggestion: row.suggestion === null ? null : { replacement: row.suggestion, appliedAt: row.suggestion_applied_at, appliedBy: row.suggestion_applied_by, declinedAt: row.suggestion_declined_at }, createdAt: row.created_at, resolvedCommentId: row.resolved_comment_id, resolvedAt: row.resolved_at, suggestionOutcome: row.suggestion_outcome ?? null, ...commentProofFromRow(row.decision_proof), ...commentOriginFromRow(row.legacy_origin), retractsCommentId: row.retracts_comment_id ?? null, retractedAt: row.retracted_at ?? null, suggestionBatchId: row.suggestion_batch_id ?? null, batchIndex: row.batch_index === null || row.batch_index === undefined ? null : Number(row.batch_index), batchNote: row.batch_note ?? null };
 }
 
 function clone<T>(value: T): T {
@@ -519,6 +533,11 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   }
   async deleteCommentOutbox(outboxId: string): Promise<void> { this.commentOutbox.delete(outboxId); }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
+    const existing = this.comments.get(comment.commentId);
+    if (existing && (existing.legacyOrigin || comment.legacyOrigin)) {
+      if (!sameLegacyComment(existing, comment)) throw new Error("Legacy comment identity conflict");
+      return;
+    }
     this.comments.set(comment.commentId, clone(comment));
     // The author's own retraction applies in either arrival order: marker
     // first or comment first. A stranger's marker does nothing here - the
@@ -526,10 +545,10 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     // the policy, which this store cannot read.
     if (comment.retractsCommentId) {
       const target = this.comments.get(comment.retractsCommentId);
-      if (target && target.targetObjectId === comment.targetObjectId && target.authorMemberId === comment.authorMemberId) target.retractedAt = comment.createdAt;
+      if (target && target.targetObjectId === comment.targetObjectId && sameRetractionAuthor(comment, target)) target.retractedAt = comment.createdAt;
       return;
     }
-    const retraction = [...this.comments.values()].find((entry) => entry.retractsCommentId === comment.commentId && entry.targetObjectId === comment.targetObjectId && entry.authorMemberId === comment.authorMemberId);
+    const retraction = [...this.comments.values()].find((entry) => entry.retractsCommentId === comment.commentId && entry.targetObjectId === comment.targetObjectId && sameRetractionAuthor(entry, comment));
     if (retraction) this.comments.get(comment.commentId)!.retractedAt = retraction.createdAt;
 
   }
@@ -685,10 +704,12 @@ interface CommentRow {
   suggestion_batch_id?: string | null; batch_index?: number | null; batch_note?: string | null;
   suggestion_outcome?: "applied" | "declined" | null;
   decision_proof?: string | null;
+  legacy_origin?: string | null;
 }
 
 interface CommentOutboxRow {
   decision_proof?: string | null;
+  legacy_origin?: string | null;
   outbox_id: string; comment_id: string; path: string; target_object_id: string; body: string;
   parent_comment_id: string | null; resolved_comment_id: string | null; anchor: string | null; suggestion: string | null;
   suggestion_outcome: "applied" | "declined" | null; created_at: string; attempts: number; last_error: string | null;
@@ -702,7 +723,7 @@ function commentOutboxFromRow(row: CommentOutboxRow): WorkspaceCommentOutboxEntr
     parentCommentId: row.parent_comment_id, resolvedCommentId: row.resolved_comment_id, anchor: parseCommentAnchor(row.anchor),
     // JSON rather than the bare replacement: an empty replacement is a deletion, and "" is not null.
     suggestion: row.suggestion === null ? null : (JSON.parse(row.suggestion) as { replacement: string }),
-    ...commentProofFromRow(row.decision_proof),
+    ...commentProofFromRow(row.decision_proof), ...commentOriginFromRow(row.legacy_origin),
     suggestionOutcome: row.suggestion_outcome, retractsCommentId: row.retracts_comment_id ?? null,
     suggestionBatchId: row.suggestion_batch_id ?? null, batchIndex: row.batch_index === null || row.batch_index === undefined ? null : Number(row.batch_index), batchNote: row.batch_note ?? null,
     createdAt: row.created_at, attempts: Number(row.attempts), lastError: row.last_error,
@@ -884,7 +905,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     return rows.map(commentOutboxFromRow);
   }
   async enqueueCommentOutbox(entry: WorkspaceCommentOutboxEntry): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment_outbox (outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,retracts_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error,suggestion_batch_id,batch_index,batch_note,decision_proof) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [entry.outboxId, entry.commentId, entry.path, entry.targetObjectId, entry.body, entry.parentCommentId, entry.resolvedCommentId, entry.retractsCommentId ?? null, entry.anchor ? JSON.stringify(entry.anchor) : null, entry.suggestion ? JSON.stringify(entry.suggestion) : null, entry.suggestionOutcome, entry.createdAt, entry.attempts, entry.lastError, entry.suggestionBatchId ?? null, entry.batchIndex ?? null, entry.batchNote ?? null, entry.decisionProof ? JSON.stringify(entry.decisionProof) : null]);
+    await this.db.execute(`INSERT INTO workspace_comment_outbox (outbox_id,comment_id,path,target_object_id,body,parent_comment_id,resolved_comment_id,retracts_comment_id,anchor,suggestion,suggestion_outcome,created_at,attempts,last_error,suggestion_batch_id,batch_index,batch_note,decision_proof,legacy_origin) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [entry.outboxId, entry.commentId, entry.path, entry.targetObjectId, entry.body, entry.parentCommentId, entry.resolvedCommentId, entry.retractsCommentId ?? null, entry.anchor ? JSON.stringify(entry.anchor) : null, entry.suggestion ? JSON.stringify(entry.suggestion) : null, entry.suggestionOutcome, entry.createdAt, entry.attempts, entry.lastError, entry.suggestionBatchId ?? null, entry.batchIndex ?? null, entry.batchNote ?? null, entry.decisionProof ? JSON.stringify(entry.decisionProof) : null, entry.legacyOrigin ? JSON.stringify(entry.legacyOrigin) : null]);
   }
   async updateCommentOutbox(outboxId: string, patch: { attempts: number; lastError: string | null }): Promise<void> {
     await this.db.execute(`UPDATE workspace_comment_outbox SET attempts = ?, last_error = ? WHERE outbox_id = ?`, [patch.attempts, patch.lastError, outboxId]);
@@ -893,7 +914,16 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     await this.db.execute(`DELETE FROM workspace_comment_outbox WHERE outbox_id = ?`, [outboxId]);
   }
   async saveComment(comment: WorkspaceCommentRecord): Promise<void> {
-    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at,suggestion_outcome,retracts_comment_id,suggestion_batch_id,batch_index,batch_note,decision_proof,decision_format) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(comment_id) DO NOTHING`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt, comment.suggestionOutcome ?? null, comment.retractsCommentId ?? null, comment.suggestionBatchId ?? null, comment.batchIndex ?? null, comment.batchNote ?? null, comment.decisionProof ? JSON.stringify(comment.decisionProof) : null]);
+    const existing = await this.getComment(comment.commentId);
+    if (existing && (existing.legacyOrigin || comment.legacyOrigin)) {
+      if (!sameLegacyComment(existing, comment)) throw new Error("Legacy comment identity conflict");
+      return;
+    }
+    await this.db.execute(`INSERT INTO workspace_comment (comment_id,target_object_id,target_revision_id,parent_comment_id,author_member_id,author_device_id,operation_hash,payload_hash,body,anchor,suggestion,created_at,resolved_comment_id,resolved_at,suggestion_outcome,retracts_comment_id,suggestion_batch_id,batch_index,batch_note,decision_proof,legacy_origin,decision_format) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(comment_id) DO NOTHING`, [comment.commentId, comment.targetObjectId, comment.targetRevisionId, comment.parentCommentId, comment.authorMemberId, comment.authorDeviceId, comment.operationHash, comment.payloadHash, comment.body, comment.anchor ? JSON.stringify(comment.anchor) : null, comment.suggestion ? comment.suggestion.replacement : null, comment.createdAt, comment.resolvedCommentId, comment.resolvedAt, comment.suggestionOutcome ?? null, comment.retractsCommentId ?? null, comment.suggestionBatchId ?? null, comment.batchIndex ?? null, comment.batchNote ?? null, comment.decisionProof ? JSON.stringify(comment.decisionProof) : null, comment.legacyOrigin ? JSON.stringify(comment.legacyOrigin) : null]);
+    if (comment.legacyOrigin) {
+      const stored = await this.getComment(comment.commentId);
+      if (!stored || !sameLegacyComment(stored, comment)) throw new Error("Legacy comment identity conflict" );
+    }
 
   }
   async listQuarantine(status?: WorkspaceQuarantineStatus): Promise<WorkspaceQuarantineRecord[]> {
