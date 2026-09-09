@@ -19,7 +19,7 @@ const drive = (over: Partial<{ clientId: string; clientSecret: string; refreshTo
 
 describe("resolveFileSyncAccess", () => {
   it("says nothing is configured for a vault without slots", () => {
-    const access = resolveFileSyncAccess(empty, false);
+    const access = resolveFileSyncAccess(empty, { drive: false, onedrive: false });
     expect(access.provider).toBeNull();
     expect(access.blocked).toBeNull();
   });
@@ -27,8 +27,8 @@ describe("resolveFileSyncAccess", () => {
   it("accepts a broker-backed account whose own token is empty by design", () => {
     const slots = { ...empty, drive: drive({ refreshToken: "" }) };
 
-    expect(resolveFileSyncAccess(slots, true).provider).toBe("drive");
-    expect(resolveFileSyncAccess(slots, true).blocked).toBeNull();
+    expect(resolveFileSyncAccess(slots, { drive: true, onedrive: false }).provider).toBe("drive");
+    expect(resolveFileSyncAccess(slots, { drive: true, onedrive: false }).blocked).toBeNull();
   });
 
   it("reports the configured provider as blocked when nothing opens it", () => {
@@ -36,7 +36,7 @@ describe("resolveFileSyncAccess", () => {
     // card said "connected", and no token on this device could open it.
     const slots = { ...empty, drive: drive({ refreshToken: "" }) };
 
-    const access = resolveFileSyncAccess(slots, false);
+    const access = resolveFileSyncAccess(slots, { drive: false, onedrive: false });
     expect(access.provider).toBeNull();
     expect(access.blocked).toBe("drive");
     expect(access.ready.drive).toBe(false);
@@ -47,7 +47,7 @@ describe("resolveFileSyncAccess", () => {
     // must not make a tokenless Dropbox slot look usable.
     const slots = { ...empty, dropbox: { appKey: "k", refreshToken: "" } as SyncSlots["dropbox"] };
 
-    expect(resolveFileSyncAccess(slots, true).blocked).toBe("dropbox");
+    expect(resolveFileSyncAccess(slots, { drive: true, onedrive: false }).blocked).toBe("dropbox");
   });
 
   it("keeps the settings form's provider precedence", () => {
@@ -57,7 +57,7 @@ describe("resolveFileSyncAccess", () => {
       webdav: { url: "https://cloud.example/dav", user: "u", pass: "p" } as SyncSlots["webdav"],
     };
 
-    expect(resolveFileSyncAccess(slots, false).provider).toBe("drive");
+    expect(resolveFileSyncAccess(slots, { drive: false, onedrive: false }).provider).toBe("drive");
   });
 
   it("treats a half-filled slot as blocked, not as absent", () => {
@@ -68,7 +68,7 @@ describe("resolveFileSyncAccess", () => {
       s3: { endpoint: "e", bucket: "b", accessKeyId: "a", secretAccessKey: "s", region: "" } as SyncSlots["s3"],
     };
 
-    const access = resolveFileSyncAccess(slots, false);
+    const access = resolveFileSyncAccess(slots, { drive: false, onedrive: false });
     expect(access.provider).toBeNull();
     expect(access.blocked).toBe("s3");
   });

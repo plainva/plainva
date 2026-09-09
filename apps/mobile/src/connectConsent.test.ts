@@ -22,8 +22,8 @@ describe("what one consent covers", () => {
   /**
    * Both exclusions are about what the token would be USED for. Gmail signs in
    * with an app password and never enters an OAuth consent; Microsoft mail
-   * could run on a broker, but no shell registers a mail token resolver, so a
-   * mail scope here would be a wider consent with no consumer.
+   * can use the broker after setup, but initial mailbox setup still needs its
+   * own connection and probe before it can consume a shared grant.
    */
   it("leaves mail out of the shared consent", () => {
     expect(consentServicesOf("google", ["files", "calendar", "mail"])).toEqual(["files", "calendar"]);
@@ -81,7 +81,7 @@ describe("which services skip their own consent", () => {
     expect(canSkipConsent("google", run, "calendar", false)).toBe(false);
   });
 
-  it("never skips mail — it has no broker to fall back on", () => {
+  it("never skips the initial mailbox connection and probe", () => {
     expect(canSkipConsent("microsoft", run, "mail", true)).toBe(false);
   });
 

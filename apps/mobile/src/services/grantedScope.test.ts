@@ -55,15 +55,17 @@ describe("account tokens are written from the grant", () => {
 
   it("bindRunTokenToAccount records the granted scope, never the requested union", () => {
     const source = read("connectConsent.ts");
-    const call = source.slice(source.indexOf("await saveAccountToken("));
-    expect(call).toContain("granted ? { scopes: granted }");
-    expect(call.slice(0, call.indexOf("});"))).not.toContain("unionScopeFor(");
+    expect(source).toContain("reviewAccountGrant(broker, covered,");
+    expect(source).toContain("creds.grantedScope)");
+    expect(source).toContain("completeAccountGrant({");
+    expect(source).toContain("save: (token) => saveAccountToken(vaultId, record.id, token, null)");
   });
 
   it("the account-login handler does the same", () => {
     const source = read("accountLogin.ts");
-    const call = source.slice(source.indexOf("await saveAccountToken("));
-    expect(call).toContain("granted ? { scopes: granted }");
-    expect(call.slice(0, call.indexOf("});"))).not.toContain("unionScopeFor(");
+    expect(source).toContain("reviewAccountGrant(family, services,");
+    expect(source).toContain("grantedScope)");
+    expect(source).toContain("completeAccountGrant({");
+    expect(source).toContain("save: (token) => saveAccountToken(vaultId, record.id, token, expectedToken)");
   });
 });

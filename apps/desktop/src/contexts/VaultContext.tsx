@@ -5,7 +5,7 @@ import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
-import { brokerTokenProvider } from "../services/accountBroker";
+import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { readSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
@@ -851,7 +851,9 @@ export const VaultProvider: React.FC<{
       // Whether this device can open the vault's provider is ONE rule, shared
       // with the account surface — see `fileSyncAccess.ts` for why it may not
       // be restated per caller.
-      const filesViaBroker = !!(await brokerTokenProvider(path, "files").catch(() => undefined));
+      const driveTokenProvider = driveCreds ? await fileBrokerTokenProvider(path, { provider: "drive", ...driveCreds }) : undefined;
+      const oneDriveTokenProvider = oneDriveCreds ? await fileBrokerTokenProvider(path, { provider: "onedrive", ...oneDriveCreds }) : undefined;
+      const filesViaBroker = { drive: !!driveTokenProvider, onedrive: !!oneDriveTokenProvider };
       const fileAccess = resolveFileSyncAccess(
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
         filesViaBroker
@@ -1142,8 +1144,7 @@ export const VaultProvider: React.FC<{
         // refresh token in the account slot; the file sync then only asks the
         // broker for an access token instead of rotating a copy of its own
         // (cloud accounts stage B). Undefined for every other account.
-        const filesTokenProvider = await brokerTokenProvider(path, "files").catch(() => undefined);
-        if (driveReady && driveCreds && (driveCreds.refreshToken || filesTokenProvider)) {
+        if (driveReady && driveCreds && (driveCreds.refreshToken || driveTokenProvider)) {
           syncProvider = "drive";
           const driveTarget = new DriveSyncTarget(
             {
@@ -1161,10 +1162,10 @@ export const VaultProvider: React.FC<{
             undefined,
             tauriSyncUploader
           );
-          if (filesTokenProvider) driveTarget.accessTokenProvider = filesTokenProvider;
+          if (driveTokenProvider) driveTarget.accessTokenProvider = driveTokenProvider;
           driveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           target = driveTarget;
-        } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || filesTokenProvider)) {
+        } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || oneDriveTokenProvider)) {
           syncProvider = "onedrive";
           const oneDriveTarget = new OneDriveSyncTarget(
             {
@@ -1178,10 +1179,10 @@ export const VaultProvider: React.FC<{
             undefined,
             tauriSyncUploader
           );
-          if (filesTokenProvider) {
+          if (oneDriveTokenProvider) {
             // The broker owns the refresh token and its rotation for every
             // service of the account; this target never refreshes on its own.
-            oneDriveTarget.accessTokenProvider = filesTokenProvider;
+            oneDriveTarget.accessTokenProvider = oneDriveTokenProvider;
           } else {
             // Microsoft ROTATES refresh tokens: persist every rotation immediately or the
             // stored token goes stale and the user is forced through the consent flow again.

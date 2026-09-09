@@ -17,13 +17,13 @@ import {
   type WorkspaceObjectStore,
   type NameCollision,
 } from "@plainva/core";
-import { getPlatformServices, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
+import { getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import i18n from "@plainva/ui/i18n";
 import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
-import { brokerTokenProvider } from "./accountBroker";
+import { fileBrokerTokenProvider } from "./accountBroker";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
@@ -342,14 +342,21 @@ export async function reauthorizeVault(vaultId: string, fresh: MobileSyncProvide
  * left behind here would keep refreshing on the side, which is exactly the
  * arrangement that let one service go stale while another stayed alive.
  */
-export async function switchProviderToAccountBroker(vaultId: string): Promise<void> {
+export async function switchProviderToAccountBroker(vaultId: string, record: CloudAccountRecord, clientId: string): Promise<void> {
   const existing = await getStoredProvider(vaultId);
-  if (!existing) return;
+  if (!record.services.files) return;
+  if (!existing || existing.provider !== record.services.files.provider
+    || (existing.provider !== "drive" && existing.provider !== "onedrive") || existing.creds.clientId !== clientId) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  const broker = await fileBrokerTokenProvider(vaultId, { provider: existing.provider, ...existing.creds, accountId: record.id });
+  if (!broker) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
+  if (JSON.stringify(await getStoredProvider(vaultId)) !== JSON.stringify(existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
   let merged: MobileSyncProvider;
   if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "" } };
   else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
   else return; // password- or key-based providers have nothing to hand over
   await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), merged);
+  await updateVault(vaultId, { paused: false });
   if ((await getActiveVaultEntry()).id === vaultId) {
     stopSync();
     await startWorker(await getMobileVault(), merged);
@@ -505,7 +512,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
         // Awaited, not handed in later: a broker account leaves its own
         // refresh token blank on purpose, so a cycle that started before the
         // provider arrived ran without any token at all and fell into backoff.
-        const provider = await brokerTokenProvider(vaultId, "files").catch(() => undefined);
+        const provider = await fileBrokerTokenProvider(vaultId, { provider: p.provider, ...p.creds }).catch(() => undefined);
         if (provider) target.accessTokenProvider = provider;
       }
       return target;
@@ -527,7 +534,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
         // Awaited, not handed in later: a broker account leaves its own
         // refresh token blank on purpose, so a cycle that started before the
         // provider arrived ran without any token at all and fell into backoff.
-        const provider = await brokerTokenProvider(vaultId, "files").catch(() => undefined);
+        const provider = await fileBrokerTokenProvider(vaultId, { provider: p.provider, ...p.creds }).catch(() => undefined);
         if (provider) target.accessTokenProvider = provider;
       }
       target.onRootFolderCreated = (name) => reportRootFolderCreated(name);

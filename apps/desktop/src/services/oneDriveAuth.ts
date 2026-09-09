@@ -31,7 +31,9 @@ export async function authorizeOneDrive(opts: {
    * sync scopes.
    */
   scope?: string;
-}): Promise<{ clientId: string; refreshToken: string }> {
+  /** Ephemeral proof for an account reconnect; never persisted with credentials. */
+  includeAccessToken?: boolean;
+}): Promise<{ clientId: string; refreshToken: string; grantedScope?: string; accessToken?: string }> {
   const { clientId } = opts;
 
   const port = await invoke<number>("oauth_loopback_start");
@@ -59,7 +61,7 @@ export async function authorizeOneDrive(opts: {
     );
   }
 
-  return { clientId, refreshToken: tokens.refreshToken };
+  return { clientId, refreshToken: tokens.refreshToken, grantedScope: tokens.scope, ...(opts.includeAccessToken ? { accessToken: tokens.accessToken } : {}) };
 }
 
 export async function runOneDriveAuthorization(opts: {

@@ -41,7 +41,7 @@ Aby Plainva mogła używać Twoich danych dostępowych, musi zostać skonfigurow
 
 *Ważne: nie musisz publikować aplikacji — w statusie „Testing" działa ona w pełni. Licz się jednak z tym, że Google unieważni logowanie po **7 dniach** — i to na stałe: w tym trybie wygasa też token odświeżający, więc Plainva nie może go odnowić w tle. Plainva mówi o tym wprost („logowanie wygasło"), a **Zaloguj się ponownie** w szczegółach konta przywraca je jednym przebiegiem dla każdej usługi tego konta.*
 
-*Jeśli nie chcesz robić tego co tydzień, ustaw aplikację w konsoli na **W produkcji** („Publish app"): logowanie pozostanie wtedy ważne na stałe. Nie potrzebujesz do tego weryfikacji przez Google — w przypadku niezweryfikowanej aplikacji przy logowaniu pojawia się raz ekran ostrzeżenia, który jako jej właściciel potwierdzasz przez „Zaawansowane".*
+**W produkcji** usuwa stały termin wygaśnięcia trybu testowego. Nie gwarantuje stałego logowania: Google nadal może wygasić lub cofnąć dostęp. Wymagania dotyczące publikacji i weryfikacji zależą od zastosowania i żądanych uprawnień. [Google: wygasanie tokenów odświeżania](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Utwórz dane dostępowe (Client ID i Secret)
 1. Otwórz **Dane dostępowe** (Credentials) w lewym menu.

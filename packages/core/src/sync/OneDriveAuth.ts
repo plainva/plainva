@@ -15,7 +15,7 @@ import { refreshOAuthToken } from "./oauthRefresh.js";
  * listener works unchanged).
  *
  * IMPORTANT: Microsoft ROTATES refresh tokens — a refresh response may carry a NEW
- * refresh_token that invalidates the old one. Callers must persist
+ * refresh_token. Rotation does not immediately revoke the previous token. Callers must persist
  * `refreshToken` from every token result (the desktop wires this via the sync
  * target's onTokensRefreshed hook).
  */
@@ -83,12 +83,14 @@ async function tokenRequest(body: URLSearchParams, fetchFn?: FetchFn): Promise<O
   };
   // Same rule as the Google path: a 200 without a token must fail here, not two
   // layers later as "Bearer undefined" (finding 2026-07-30).
-  if (!json.access_token) throw new Error("Microsoft token request returned no access token");
+  if (typeof json.access_token !== "string" || !json.access_token.trim()) throw new Error("Microsoft token request returned no access token");
+  if (json.scope !== undefined && typeof json.scope !== "string") throw new Error("Microsoft token request returned invalid permissions");
+  if (json.refresh_token !== undefined && typeof json.refresh_token !== "string") throw new Error("Microsoft token request returned an invalid refresh token");
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
     expiresIn: json.expires_in,
-    ...(json.scope ? { scope: json.scope } : {}),
+    ...(json.scope !== undefined ? { scope: json.scope } : {}),
   };
 }
 

@@ -1,5 +1,7 @@
 import {
   accountServices,
+  resolveFileBrokerAccount,
+  type FileBrokerBinding,
   createTokenBroker,
   oauthScopeFor,
   sameStoredAccountToken,
@@ -21,6 +23,7 @@ import {
 import { secureCredentialStore } from "../platform/secureStore";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
+import { forgetGraphMailRuntime } from "@plainva/ui/mail";
 
 /**
  * Mobile half of the account token broker (cloud accounts stage B / E10).
@@ -40,11 +43,22 @@ export async function getAccountToken(vaultId: string, accountId: string): Promi
   return withAccountCredentialLock(accountSecretKey(vaultId, accountId), () => secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId)));
 }
 
-export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken): Promise<void> {
+async function forgetAccountMailRuntime(vaultId: string, accountId: string): Promise<void> {
+  const record = (await loadCloudAccounts(vaultId)).find((r) => r.id === accountId);
+  if (record?.family === "microsoft" && record.services.mail) forgetGraphMailRuntime(vaultId, record.services.mail.mailAccountId);
+}
+
+export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken, expected?: StoredAccountToken | null): Promise<void> {
   await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    if (expected !== undefined) {
+      const current = await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId));
+      if (expected === null ? current !== null : !sameStoredAccountToken(current, expected)) throw new Error("The account sign-in changed. Please try again.");
+    }
     forgetAccountBroker(vaultId, accountId);
     await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), token);
+    if (!sameStoredAccountToken(await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId)), token)) throw new Error("The account sign-in could not be confirmed in secure storage.");
   });
+  await forgetAccountMailRuntime(vaultId, accountId);
 }
 
 /** Mobile equivalent of the desktop's atomic local client switch. */
@@ -58,6 +72,7 @@ export async function replaceAccountClientRegistration(
     if (current && sameOAuthClient(current, next)) return false;
     forgetAccountBroker(vaultId, accountId);
     await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), replaceOAuthClientRegistration(current, next));
+    await forgetAccountMailRuntime(vaultId, accountId);
     return true;
   });
 }
@@ -66,6 +81,7 @@ export async function clearAccountToken(vaultId: string, accountId: string): Pro
   await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
     forgetAccountBroker(vaultId, accountId);
     await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));
+    await forgetAccountMailRuntime(vaultId, accountId);
   });
 }
 
@@ -138,6 +154,7 @@ export async function brokerTokenProvider(
   service: CloudServiceId,
   subsystemId?: string,
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
+  if (service === "files") return undefined; // Files must supply their concrete provider/client below.
   const records = await loadCloudAccounts(vaultId);
   const candidates = records.filter((record) => {
     if (!brokerFamily(record.family) || !accountServices(record).includes(service)) return false;
@@ -162,6 +179,18 @@ export async function brokerTokenProvider(
   return undefined;
 }
 
+export async function fileBrokerTokenProvider(vaultId: string, binding: FileBrokerBinding): Promise<((force: boolean) => Promise<string>) | undefined> {
+  const resolve = () => loadCloudAccounts(vaultId).then((records) => resolveFileBrokerAccount(records, binding, (id) => getAccountToken(vaultId, id)));
+  const record = await resolve();
+  if (!record) return undefined;
+  return async (force) => {
+    if ((await resolve())?.id !== record.id) throw new Error("The file account changed. Reconnect file sync.");
+    const broker = getAccountBroker(vaultId, record.id, binding.provider === "drive" ? "google" : "microsoft");
+    if (force) broker.forget();
+    return broker.getAccessToken("files");
+  };
+}
+
 /** The same recorded-grant rule as desktop. Older Microsoft slots without
  * recorded scopes must still pass the actual access-token response check. */
 export function tokenCoversService(
@@ -181,4 +210,3 @@ export async function accountTokenCovers(
 ): Promise<boolean> {
   return tokenCoversService(await getAccountToken(vaultId, accountId).catch(() => null), service, family);
 }
-

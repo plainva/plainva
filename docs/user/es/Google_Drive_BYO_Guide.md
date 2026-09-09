@@ -41,7 +41,7 @@ Para que Plainva use tus credenciales, hay que configurar una pantalla de consen
 
 *Importante: NO necesitas publicar la app — funciona por completo en el estado "Testing". En ese caso, cuenta con que Google haga caducar el inicio de sesión a los **7 días**, y para siempre: en este modo también caduca el token de renovación, así que Plainva no puede renovarlo en segundo plano. Plainva te lo dice en palabras claras («inicio de sesión caducado»), y **Volver a conectar** en los detalles de la cuenta lo restablece en una sola ronda para cada servicio de esa cuenta.*
 
-*Si prefieres no hacerlo cada semana, pon la app en **En producción** ("Publish app") en la consola: el inicio de sesión permanece entonces válido. No necesitas que Google te verifique para esto — en una app no verificada, el inicio de sesión muestra una vez una pantalla de advertencia, que confirmas como su propietario mediante "Advanced".*
+**En producción** elimina la caducidad fija del modo de prueba. No garantiza un inicio de sesión permanente: Google puede seguir caducando o revocando el acceso. Los requisitos de publicación y verificación dependen del uso y de los permisos solicitados. [Google: caducidad de los tokens de renovación](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Crear credenciales (Client ID y Secret)
 1. Abre **Credentials** en el menú de la izquierda.

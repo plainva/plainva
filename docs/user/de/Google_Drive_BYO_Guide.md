@@ -41,7 +41,7 @@ Damit Plainva Deine Credentials nutzen kann, muss ein Zustimmungsbildschirm ("OA
 
 *Wichtig: Du musst die App NICHT veröffentlichen — im Status "Testing" funktioniert sie vollständig. Rechne dann aber damit, dass Google die Anmeldung nach **7 Tagen** verfallen lässt, und zwar endgültig: In diesem Modus läuft auch der Erneuerungs-Token ab, Plainva kann ihn im Hintergrund also nicht auffrischen. Plainva sagt Dir das dann im Klartext („Anmeldung abgelaufen"), und **Erneut anmelden** in den Konto-Details stellt sie in einem Durchgang für alle Dienste dieses Kontos wieder her.*
 
-*Wer das nicht jede Woche tun möchte, setzt die App in der Konsole auf **In Produktion** ("Publish app"): Die Anmeldung bleibt dann dauerhaft gültig. Eine Verifizierung durch Google brauchst Du dafür nicht — bei einer nicht verifizierten App erscheint beim Anmelden einmal ein Warnbildschirm, den Du als Eigentümer über "Erweitert" bestätigst.*
+Der Status **In Produktion** beseitigt die feste Ablaufzeit des Testmodus. Er garantiert keine dauerhafte Anmeldung: Google kann Zugänge weiterhin ablaufen lassen oder widerrufen. Die Anforderungen für Veröffentlichung und Verifizierung hängen von der Nutzung und den angeforderten Rechten ab. [Google: Ablauf von Erneuerungs-Tokens](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Zugangsdaten (Client ID & Secret) erstellen
 1. Gehe links im Menü auf **Zugangsdaten** (Credentials).

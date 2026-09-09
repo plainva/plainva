@@ -423,6 +423,18 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
   runtime.worker.triggerImmediate();
 }
 
+/** Reconnect only wakes the worker belonging to the captured vault. A closed
+ * vault reads the new credential when its own runtime starts later. */
+export async function restartPimAccountAfterLogin(vaultId: string, accountId: string): Promise<void> {
+  const target = runtime;
+  if (!target || target.vaultId !== vaultId) return;
+  await target.cache.setScopeState(accountId, "account", { lastError: null });
+  if (runtime !== target) return;
+  if (state.status === "off") setState({ status: "idle", message: null });
+  target.worker.start();
+  target.worker.triggerImmediate();
+}
+
 export async function removePimAccount(accountId: string): Promise<void> {
   if (!runtime) return;
   // Before the account is gone: the tombstone is keyed on the shared id, and

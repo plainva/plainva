@@ -136,6 +136,9 @@ export async function exchangeCode(
   });
   if (!res.ok) throw new Error(await oauthErrorMessage("Google token exchange failed", res));
   const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number; scope?: string };
+  if (typeof json.access_token !== "string" || !json.access_token.trim()) throw new Error("Google token exchange returned no access token");
+  if (json.scope !== undefined && typeof json.scope !== "string") throw new Error("Google token exchange returned invalid permissions");
+  if (json.refresh_token !== undefined && typeof json.refresh_token !== "string") throw new Error("Google token exchange returned an invalid refresh token");
   return { accessToken: json.access_token, refreshToken: json.refresh_token, expiresIn: json.expires_in, scope: json.scope };
 }
 

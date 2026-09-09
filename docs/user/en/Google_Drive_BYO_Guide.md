@@ -41,7 +41,7 @@ For Plainva to use your credentials, a consent screen ("OAuth Consent Screen") m
 
 *Important: you do NOT need to publish the app — it works fully in "Testing" status. Expect Google to expire the sign-in after **7 days** in that case, and for good: in this mode the refresh token expires too, so Plainva cannot renew it in the background. Plainva says so in plain words ("sign-in expired"), and **Sign in again** in the account details restores it in one round trip for every service of that account.*
 
-*If you would rather not do that every week, set the app to **In production** ("Publish app") in the console: the sign-in then stays valid. You do not need Google to verify you for this — for an unverified app the sign-in shows a warning screen once, which you confirm as its owner via "Advanced".*
+**In production** removes the fixed expiry of testing mode. It does not guarantee a permanent sign-in: Google can still expire or revoke access. Publishing and verification requirements depend on the use and requested permissions. [Google: refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Create credentials (Client ID & Secret)
 1. Open **Credentials** in the left menu.

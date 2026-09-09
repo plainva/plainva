@@ -4,13 +4,15 @@ import {
   GRAPH_CALENDAR_SCOPES,
   ONEDRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, saveMailRefreshToken } from "@plainva/ui/mail";
-import { accountServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { forgetGraphMailRuntime, GRAPH_MAIL_SCOPES, saveMicrosoftMailAccount, listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
+import { getPlatformServices, accountServices, accountOAuthServices, completeAccountGrant, reviewAccountGrant, assertAccountGrantIdentity, AccountGrantMissingPermissionsError, PLAINVA_ONEDRIVE_CLIENT_ID, toast, tokenCoversService, type CloudAccountRecord, type CloudServiceId } from "@plainva/ui";
+import { webdavFetch } from "../adapters/webdavHttp";
 import i18n from "@plainva/ui/i18n";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
 import { brokerFamily, getAccountToken, saveAccountToken } from "./accountBroker";
 import { getPimCredentials, savePimCredentials } from "./pim/pimCredentials";
-import { listPimAccounts } from "./pim/pimService";
+import { listPimAccounts, restartPimAccountAfterLogin } from "./pim/pimService";
+import { loadCloudAccounts } from "./cloudAccountsStore";
 import { pickOAuthClient } from "./oauthClientChain";
 import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
 
@@ -125,8 +127,27 @@ async function clientOf(
   return null;
 }
 
-/** The account whose consent is currently running, so the handler can bind it. */
-let pendingAccount: { vaultId: string; record: CloudAccountRecord } | null = null;
+async function accountLoginSources(vaultId: string, record: CloudAccountRecord): Promise<Partial<Record<CloudServiceId, string>>> {
+  const sources: Partial<Record<CloudServiceId, string>> = {};
+  if (record.services.files) sources.files = JSON.stringify(await getStoredProvider(vaultId));
+  if (record.services.calendar) sources.calendar = JSON.stringify(await getPimCredentials(vaultId, record.services.calendar.pimAccountId));
+  if (record.family === "microsoft" && record.services.mail) {
+    const id = record.services.mail.mailAccountId;
+    sources.mail = JSON.stringify({ account: (await listMailAccounts(vaultId)).find((m) => m.id === id), credential: await getPlatformServices().credentials.readSecret(mailSecretKey(vaultId, id)) });
+  }
+  return sources;
+}
+
+export interface AccountLoginStatus { vaultId: string; accountId: string; services: Partial<Record<CloudServiceId, string>>; message?: string }
+const loginStates = new Map<string, AccountLoginStatus>();
+export const ACCOUNT_LOGIN_STATUS_EVENT = "m-account-login-status";
+export function getAccountLoginStatus(vaultId: string, accountId: string): AccountLoginStatus | undefined {
+  return loginStates.get(JSON.stringify([vaultId, accountId]));
+}
+function announceLogin(status: AccountLoginStatus): void {
+  loginStates.set(JSON.stringify([status.vaultId, status.accountId]), structuredClone(status));
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(ACCOUNT_LOGIN_STATUS_EVENT, { detail: status }));
+}
 
 /**
  * What the caller has to do next — the same shape `pimReauth` returns.
@@ -148,6 +169,7 @@ export async function beginAccountLogin(
   /** Client id (and Google secret) typed into the form, after `needsClientId`. */
   fallback?: { clientId?: string; clientSecret?: string }
 ): Promise<AccountLoginOutcome> {
+  record = structuredClone(record);
   const family = brokerFamily(record.family);
   if (!family) throw new Error("this account cannot share one login");
   const services = oauthServicesOf(record);
@@ -155,13 +177,16 @@ export async function beginAccountLogin(
   const client = await clientOf(vaultId, record, family, fallback);
   if (!client) return { kind: "needsClientId", family };
 
-  pendingAccount = { vaultId, record };
+  const expectedToken = await getAccountToken(vaultId, record.id);
+  const serviceSources = await accountLoginSources(vaultId, record);
+  announceLogin({ vaultId, accountId: record.id, services: Object.fromEntries(services.map((s) => [s, i18n.t("cloudAccounts.statusWaiting")])) });
   await beginPimOAuth(family, {
     clientId: client.clientId,
     clientSecret: client.clientSecret,
     label: record.label ?? "",
     purpose: "account",
     scope: unionScopeFor(family, services),
+    accountContext: { vaultId, record, expectedToken, serviceSources },
   });
   return { kind: "started" };
 }
@@ -173,46 +198,72 @@ export async function beginAccountLogin(
  * clearing the old copies leaves the account working either way.
  */
 export function registerAccountLoginHandler(): void {
-  setOAuthPurposeHandler("account", async ({ clientId, clientSecret, refreshToken, grantedScope }) => {
-    const target = pendingAccount;
-    pendingAccount = null;
-    if (!target) throw new Error("no account sign-in pending");
-    const { vaultId, record } = target;
+  setOAuthPurposeHandler("account", async ({ provider, clientId, clientSecret, refreshToken, accessToken, grantedScope, requestedScope, accountContext }) => {
+    if (!accountContext || typeof accountContext.vaultId !== "string" || !accountContext.record?.id || !("expectedToken" in accountContext) || !accountContext.serviceSources) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    const { vaultId, record, expectedToken, serviceSources } = accountContext;
     const family = brokerFamily(record.family);
-    if (!family) throw new Error("this account cannot share one login");
-
-    // The grant decides what this token can do, not the request. Google
-    // silently narrows a consent (a user can untick a service on the screen)
-    // and cannot widen it on refresh, so writing the union we ASKED for made
-    // every service believe it was covered (finding 2026-08-19). No grant
-    // reported → no claim recorded.
-    const granted = grantedScope?.trim();
-    await saveAccountToken(vaultId, record.id, {
-      clientId,
-      ...(clientSecret ? { clientSecret } : {}),
-      refreshToken,
-      ...(granted ? { scopes: granted } : {}),
-    });
-
-    await switchProviderToAccountBroker(vaultId);
-    const pimId = record.services.calendar?.pimAccountId;
-    if (pimId) {
-      const creds = await getPimCredentials(vaultId, pimId);
-      if (creds && (creds.kind === "google" || creds.kind === "microsoft")) {
-        await savePimCredentials(vaultId, pimId, { ...creds, refreshToken: "" });
+    if (!family || provider !== family) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    const services = accountOAuthServices(record);
+    const status: AccountLoginStatus = { vaultId, accountId: record.id, services: {} };
+    const bindingError = () => new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    const checkBindings = async () => {
+      if (record.services.files) {
+        const files = await getStoredProvider(vaultId);
+        if (!files || files.provider !== record.services.files.provider || (files.provider !== "drive" && files.provider !== "onedrive") || files.creds.clientId !== clientId) throw bindingError();
       }
+      if (record.services.calendar) {
+        const creds = await getPimCredentials(vaultId, record.services.calendar.pimAccountId);
+        if (creds && (creds.kind !== family || !("clientId" in creds) || (!!creds.clientId && creds.clientId !== clientId))) throw bindingError();
+      }
+      if (family === "microsoft" && record.services.mail) {
+        const mail = (await listMailAccounts(vaultId)).find((m) => m.id === record.services.mail!.mailAccountId);
+        if (!mail || mailAccountKind(mail) !== "microsoft" || (!!mail.clientId && mail.clientId !== clientId)) throw bindingError();
+      }
+    };
+    try {
+      const review = reviewAccountGrant(family, services, { clientId, ...(clientSecret !== undefined ? { clientSecret } : {}), refreshToken }, requestedScope ?? unionScopeFor(family, services), grantedScope);
+      await completeAccountGrant({
+        record, review,
+        readRecord: () => loadCloudAccounts(vaultId).then((records) => records.find((r) => r.id === record.id)),
+        beforeSave: async () => {
+          await assertAccountGrantIdentity(record, accessToken, webdavFetch);
+          await checkBindings();
+          const current = await accountLoginSources(vaultId, record);
+          if (services.some((service) => current[service] !== serviceSources[service])) throw bindingError();
+        },
+        save: (token) => saveAccountToken(vaultId, record.id, token, expectedToken),
+        bind: async (service) => {
+          await checkBindings();
+          const current = await accountLoginSources(vaultId, record);
+          if (current[service] !== serviceSources[service]) throw bindingError();
+          if (service === "files") await switchProviderToAccountBroker(vaultId, record, clientId);
+          else if (service === "calendar") {
+            const id = record.services.calendar!.pimAccountId;
+            await savePimCredentials(vaultId, id, family === "google"
+              ? { kind: "google", clientId, clientSecret: clientSecret ?? "", refreshToken: "" }
+              : { kind: "microsoft", clientId, refreshToken: "" });
+            await restartPimAccountAfterLogin(vaultId, id);
+          } else if (family === "microsoft") {
+            const id = record.services.mail!.mailAccountId;
+            const mail = (await listMailAccounts(vaultId)).find((m) => m.id === id);
+            if (!mail) throw bindingError();
+            forgetGraphMailRuntime(vaultId, id);
+            await saveMicrosoftMailAccount(vaultId, { ...mail, clientId }, "");
+          }
+          status.services[service] = i18n.t("cloudAccounts.statusConnected");
+          announceLogin(status);
+        },
+      });
+      toast.success(i18n.t("cloudAccounts.loginUnified"));
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-pim-changed"));
+    } catch (error) {
+      status.message = error instanceof AccountGrantMissingPermissionsError ? i18n.t("cloudAccounts.loginGrantIncomplete") : error instanceof Error ? error.message : String(error);
+      for (const service of services) status.services[service] = error instanceof AccountGrantMissingPermissionsError
+        ? i18n.t(error.missing.includes(service) ? "cloudAccounts.loginPermissionMissing" : "cloudAccounts.loginPermissionKept")
+        : error instanceof Error ? error.message : String(error);
+      announceLogin(status);
+      if (error instanceof AccountGrantMissingPermissionsError) error.message = i18n.t("cloudAccounts.loginGrantIncomplete");
+      throw error;
     }
-    // The mailbox too, for the same reason (desktop rule, carried over
-    // 2026-08-19): a Microsoft mail token left behind here is exactly the
-    // second copy that keeps refreshing on the side — the arrangement this
-    // action exists to end. Gmail never gets here: it runs on an app password.
-    const mailId = record.services.mail?.mailAccountId;
-    if (mailId && family === "microsoft") {
-      forgetGraphMailRuntime(vaultId, mailId);
-      await saveMailRefreshToken(vaultId, mailId, "");
-    }
-
-    toast.success(i18n.t("cloudAccounts.loginUnified"));
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-pim-changed"));
   });
 }

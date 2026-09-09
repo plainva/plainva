@@ -8,11 +8,20 @@ import {
   GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
+import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
 import type { PimStoredCredentials } from "./pimCredentials";
+import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@plainva/ui";
+
+/** Stored beside the PKCE verifier, never inferred from the current screen. */
+export interface AccountOAuthContext {
+  vaultId: string;
+  record: CloudAccountRecord;
+  expectedToken: StoredAccountToken | null;
+  serviceSources: Partial<Record<CloudServiceId, string>>;
+}
 
 /**
  * Mobile OAuth for Google / Microsoft CALENDAR accounts (PIM). Mirrors the sync
@@ -61,6 +70,7 @@ export type OAuthPurposeHandler = (result: {
   clientId: string;
   clientSecret?: string;
   refreshToken: string;
+  accessToken?: string;
   label: string;
   /**
    * The scope the provider GRANTED, when it reported one. Absent means the
@@ -68,6 +78,8 @@ export type OAuthPurposeHandler = (result: {
    * "covers what we asked for".
    */
   grantedScope?: string;
+  requestedScope?: string;
+  accountContext?: AccountOAuthContext;
 }) => Promise<void>;
 
 const purposeHandlers = new Map<string, OAuthPurposeHandler>();
@@ -95,6 +107,7 @@ interface PendingPimFlow {
    * did, so a flow that survives the update lands where it was headed.
    */
   accountId?: string;
+  accountContext?: AccountOAuthContext;
   createdAt: number;
 }
 
@@ -113,20 +126,23 @@ function randomState(): string {
 
 async function persistPending(flow: PendingPimFlow | null): Promise<void> {
   try {
-    const creds = getPlatformServices().credentials;
-    if (flow) await creds.writeSecret(PENDING_KEY, flow);
-    else await creds.removeSecret(PENDING_KEY);
+    await withAccountCredentialLock(PENDING_KEY, async () => {
+      const creds = getPlatformServices().credentials;
+      if (flow) await creds.writeSecret(PENDING_KEY, flow);
+      else await creds.removeSecret(PENDING_KEY);
+    });
   } catch {
     /* the in-memory copy still serves this session */
   }
 }
 
 async function loadPending(): Promise<PendingPimFlow | null> {
-  if (pending) return pending;
+  if (pending && Date.now() - pending.createdAt >= 0 && Date.now() - pending.createdAt < PENDING_TTL_MS) return pending;
+  pending = null;
   try {
     const stored = await getPlatformServices().credentials.readSecret<PendingPimFlow>(PENDING_KEY);
     if (stored && typeof stored.state === "string") {
-      if (Date.now() - (stored.createdAt ?? 0) < PENDING_TTL_MS) {
+      if (Date.now() - stored.createdAt >= 0 && Date.now() - stored.createdAt < PENDING_TTL_MS) {
         pending = stored;
         return stored;
       }
@@ -141,7 +157,7 @@ async function loadPending(): Promise<PendingPimFlow | null> {
 /** Opens the provider consent page for a calendar account in the system browser. */
 export async function beginPimOAuth(
   provider: PimOAuthProvider,
-  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string },
+  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext },
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
@@ -158,9 +174,21 @@ export async function beginPimOAuth(
     clientSecret: opts.clientSecret?.trim() || undefined,
     label: (opts.label ?? "").trim(),
     accountId: opts.accountId,
+    accountContext: opts.accountContext ? structuredClone(opts.accountContext) : undefined,
     createdAt: Date.now(),
   };
-  await persistPending(pending);
+  // An account reconnect must restore its target after a cold start. Do not
+  // open a consent whose durable context could not be stored.
+  if (purpose === "account") {
+    if (!pending.accountContext) { pending = null; throw new Error("Missing account sign-in context"); }
+    const flow = pending;
+    try { await withAccountCredentialLock(PENDING_KEY, async () => {
+      const creds = getPlatformServices().credentials;
+      await creds.writeSecret(PENDING_KEY, flow);
+      if (JSON.stringify(await creds.readSecret(PENDING_KEY)) !== JSON.stringify(flow)) throw new Error("Account sign-in context could not be confirmed in secure storage");
+    }); }
+    catch (error) { pending = null; throw error; }
+  } else await persistPending(pending);
   const url =
     provider === "microsoft"
       ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope })
@@ -181,15 +209,20 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
   if (params.get("state") !== flow.state) return false; // a different (e.g. sync) redirect
   // Ours — consume the single-use transaction before any await.
   pending = null;
-  void persistPending(null);
   void Browser.close().catch(() => {});
   try {
+    await withAccountCredentialLock(PENDING_KEY, async () => {
+      const creds = getPlatformServices().credentials;
+      const stored = await creds.readSecret<PendingPimFlow>(PENDING_KEY);
+      if (stored?.state === flow.state) await creds.removeSecret(PENDING_KEY);
+    });
     const error = params.get("error");
     if (error) throw new Error(params.get("error_description") || error);
     const code = params.get("code");
     if (!code) throw new Error("no authorization code");
     const purpose: PimOAuthPurpose = flow.purpose ?? "calendar";
     let refreshToken: string;
+    let accessToken: string;
     // What the provider GRANTED. Google ignores a requested scope on refresh,
     // so the grant is the only thing that says what this token can ever do —
     // recording the request instead let a Drive-only token claim the calendar
@@ -202,6 +235,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
       refreshToken = tok.refreshToken;
+      accessToken = tok.accessToken;
       grantedScope = tok.scope;
     } else {
       const tok = await exchangeCode(
@@ -210,19 +244,24 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       );
       if (!tok.refreshToken) throw new Error("provider returned no refresh token");
       refreshToken = tok.refreshToken;
+      accessToken = tok.accessToken;
       grantedScope = tok.scope;
     }
     const handler = purposeHandlers.get(purpose);
+    if (purpose === "account" && !handler) throw new Error("Account sign-in handler is not ready. Please sign in again.");
     if (handler) {
       await handler({
         provider: flow.provider,
         clientId: flow.clientId,
         clientSecret: flow.clientSecret,
         refreshToken,
+        ...(purpose === "account" ? { accessToken } : {}),
         label: flow.label,
-        ...(grantedScope ? { grantedScope } : {}),
+        ...(grantedScope !== undefined ? { grantedScope } : {}),
+        requestedScope: flow.scope,
+        accountContext: flow.accountContext,
       });
-      toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
+      if (purpose !== "account") toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
     } else {
       const creds: PimStoredCredentials =
         flow.provider === "microsoft"

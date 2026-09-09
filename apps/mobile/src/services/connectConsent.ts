@@ -1,4 +1,4 @@
-import { FAMILY_SERVICES, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { FAMILY_SERVICES, reviewAccountGrant, completeAccountGrant, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 
 import { unionScopeFor } from "./accountLogin";
 import { getAccountToken, saveAccountToken } from "./accountBroker";
@@ -21,12 +21,9 @@ import { getStoredProvider, switchProviderToAccountBroker } from "./syncService"
  * files (`switchProviderToAccountBroker`) and calendar (`pimAuth` probes it
  * before its own credentials).
  *
- * Mail is the honest exception and stays on its own consent: `graphMail` can
- * run on a broker, but no shell registers a mail token resolver — on either
- * platform. Widening the consent without a consumer would ask for permissions
- * nobody uses. A Microsoft account with all three services therefore costs two
- * consents rather than three; Google's files+calendar costs one instead of two
- * (Gmail runs on an app password and never enters an OAuth consent at all).
+ * The initial mailbox creation still has its own identity/probe step. Once
+ * bound, Microsoft mail also uses the account broker on both shells. Gmail
+ * uses an app password and never enters an OAuth consent.
  */
 
 /** Families whose services share one account token. */
@@ -40,9 +37,7 @@ export function brokerFamilyOf(family: CloudProviderFamily): BrokerFamily | null
  * The services of a run that a single OAuth consent can cover.
  *
  * Gmail is excluded for Google because it signs in with an app password;
- * Microsoft mail is excluded because nothing reads a broker token for it yet.
- * Both exclusions are about what the token would actually be USED for — asking
- * for a scope with no consumer is a broader consent for nothing.
+ * Microsoft mailbox creation uses its own probe before joining an account.
  */
 export function consentServicesOf(family: BrokerFamily, services: readonly CloudServiceId[]): CloudServiceId[] {
   const carried = FAMILY_SERVICES[family];
@@ -103,6 +98,7 @@ export async function bindRunTokenToAccount(
 
   const provider = await getStoredProvider(vaultId);
   if (!provider || (provider.provider !== "drive" && provider.provider !== "onedrive")) return null;
+  if (provider.provider !== (broker === "google" ? "drive" : "onedrive")) return null;
   const creds = provider.creds as {
     clientId?: string;
     clientSecret?: string;
@@ -112,7 +108,8 @@ export async function bindRunTokenToAccount(
   if (!creds.refreshToken || !creds.clientId) return null;
 
   const records = await loadCloudAccounts(vaultId);
-  const record = records.find((r) => r.family === family && r.services.files);
+  const matches = records.filter((r) => r.family === family && r.services.files?.provider === provider.provider);
+  const record = matches.length === 1 ? matches[0] : undefined;
   if (!record) return null;
   if ((await getAccountToken(vaultId, record.id))?.refreshToken) return null;
 
@@ -123,13 +120,18 @@ export async function bindRunTokenToAccount(
   // carries no grant, and "unknown" must read as "no": `tokenCoversService`
   // treats a Google token without scopes as not covering anything, which sends
   // the service to its own consent instead of a dead shared one.
-  const granted = creds.grantedScope?.trim();
-  await saveAccountToken(vaultId, record.id, {
-    clientId: creds.clientId,
-    ...(creds.clientSecret ? { clientSecret: creds.clientSecret } : {}),
-    refreshToken: creds.refreshToken,
-    ...(granted ? { scopes: granted } : {}),
+  const review = reviewAccountGrant(broker, covered, {
+    clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken,
+  }, unionScopeFor(broker, covered), creds.grantedScope);
+  await completeAccountGrant({
+    record, review,
+    readRecord: () => loadCloudAccounts(vaultId).then((rows) => rows.find((r) => r.id === record.id)),
+    beforeSave: async () => {
+      const current = await getStoredProvider(vaultId);
+      if (JSON.stringify(current) !== JSON.stringify(provider)) throw new Error("The file sign-in changed. Please try again.");
+    },
+    save: (token) => saveAccountToken(vaultId, record.id, token, null),
+    bind: async (service) => { if (service === "files") await switchProviderToAccountBroker(vaultId, record, creds.clientId!); },
   });
-  await switchProviderToAccountBroker(vaultId);
   return record.id;
 }

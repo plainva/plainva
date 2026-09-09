@@ -41,7 +41,7 @@ Perché Plainva usi le tue credenziali, deve essere configurata una schermata di
 
 *Importante: NON devi pubblicare l'app — nello stato "Test" funziona già pienamente. Aspettati però che Google faccia scadere l'accesso dopo **7 giorni** in questo caso, e in modo definitivo: in questa modalità scade anche il refresh token, quindi Plainva non può rinnovarlo in background. Plainva te lo dice in chiaro ("accesso scaduto"), e **Riconnetti** nei dettagli dell'account lo ripristina in un unico passaggio per ogni servizio di quell'account.*
 
-*Se non vuoi farlo ogni settimana, imposta l'app su **In produzione** ("Publish app") nella console: l'accesso resta allora valido. Per questo non ti serve una verifica da parte di Google — per un'app non verificata, l'accesso mostra una volta una schermata di avviso, che confermi come proprietario tramite "Avanzate".*
+**In produzione** elimina la scadenza fissa della modalità di test. Non garantisce un accesso permanente: Google può comunque far scadere o revocare l’accesso. I requisiti di pubblicazione e verifica dipendono dall’uso e dai permessi richiesti. [Google: scadenza dei token di aggiornamento](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Crea le credenziali (ID client e Secret)
 1. Apri **Credenziali** nel menu a sinistra.

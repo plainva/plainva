@@ -10,11 +10,12 @@ vi.mock("./services/pim/pimCredentials", () => ({
   getPimCredentials: vi.fn(async () => null),
   savePimCredentials: vi.fn(),
 }));
-vi.mock("./services/pim/pimService", () => ({ listPimAccounts: vi.fn(async () => []) }));
+vi.mock("./services/pim/pimService", () => ({ listPimAccounts: vi.fn(async () => []), restartPimAccountAfterLogin: vi.fn() }));
 vi.mock("./services/syncService", () => ({
   getStoredProvider: vi.fn(async () => null),
   switchProviderToAccountBroker: vi.fn(),
 }));
+vi.mock("./services/cloudAccountsStore", () => ({ loadCloudAccounts: vi.fn(async () => []) }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
 import { oauthServicesOf, unionScopeFor, canUnifyMobileAccount, beginAccountLogin } from "./services/accountLogin";
@@ -205,10 +206,12 @@ describe("mobile Google reconnect preserves the actual mailbox password", () => 
     const card = record("google", ["calendar", "mail"]);
     await saveMailAccount("v1", { id: "m1", label: "Gmail", host: "imap.gmail.com", port: 993, user: "person@example.invalid" }, "test-app-password");
     registerAccountLoginHandler();
+    const { loadCloudAccounts } = await import("./services/cloudAccountsStore");
+    vi.mocked(loadCloudAccounts).mockResolvedValue([card]);
     await beginAccountLogin("v1", card);
     const handlers = vi.mocked(setOAuthPurposeHandler).mock.calls;
     const handler = handlers[handlers.length - 1][1];
-    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person" });
+    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person", accountContext: vi.mocked(beginPimOAuth).mock.calls[vi.mocked(beginPimOAuth).mock.calls.length - 1][1].accountContext });
     await expect(getMailPassword("v1", "m1")).resolves.toBe("test-app-password");
     expect(secrets.get(mailSecretKey("v1", "m1"))).toEqual({ pass: "test-app-password" });
   });

@@ -16,7 +16,7 @@ import type { MobileVault } from "../vaultService";
  * turns out to have nothing new (a quiet cycle fires no `onDataChanged`).
  */
 
-const { triggered } = vi.hoisted(() => ({ triggered: { count: 0 } }));
+const { triggered, started, scopeState } = vi.hoisted(() => ({ triggered: { count: 0 }, started: vi.fn(), scopeState: vi.fn(async () => {}) }));
 
 const { rescheduleReminders } = vi.hoisted(() => ({ rescheduleReminders: vi.fn() }));
 vi.mock("../reminderScheduler", () => ({ rescheduleReminders }));
@@ -33,9 +33,10 @@ vi.mock("@plainva/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@plainva/core")>();
   class FakeCache {
     listAccounts = async () => [{ id: "a1", enabled: true }];
+    setScopeState = scopeState;
   }
   class FakeWorker {
-    start() {}
+    start() { started(); }
     stop() {}
     triggerImmediate() {
       triggered.count += 1;
@@ -60,11 +61,33 @@ beforeAll(async () => {
 
 beforeEach(() => {
   triggered.count = 0;
+  started.mockClear();
+  scopeState.mockClear();
   rescheduleReminders.mockClear();
   pim.resetPimForegroundThrottle();
 });
 
 describe("pimForegroundSync", () => {
+  it("reconnect clears the captured vault's calendar failure and starts its worker", async () => {
+    await pim.restartPimAccountAfterLogin("v1", "a1");
+    expect(scopeState).toHaveBeenCalledWith("a1", "account", { lastError: null });
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(triggered.count).toBe(1);
+  });
+
+  it("a reconnect for another vault cannot wake or clear this runtime", async () => {
+    await pim.restartPimAccountAfterLogin("other-vault", "a1");
+    expect(scopeState).not.toHaveBeenCalled();
+    expect(started).not.toHaveBeenCalled();
+    expect(triggered.count).toBe(0);
+  });
+
+  it("an unconfirmed failure reset does not report a resumed worker", async () => {
+    scopeState.mockRejectedValueOnce(new Error("cache unavailable"));
+    await expect(pim.restartPimAccountAfterLogin("v1", "a1")).rejects.toThrow("cache unavailable");
+    expect(started).not.toHaveBeenCalled();
+    expect(triggered.count).toBe(0);
+  });
   it("asks for a cycle", () => {
     pim.pimForegroundSync(1_000_000);
     expect(triggered.count).toBe(1);

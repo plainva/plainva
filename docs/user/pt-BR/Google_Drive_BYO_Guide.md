@@ -41,7 +41,7 @@ Para que o Plainva use suas credenciais, uma tela de consentimento ("OAuth Conse
 
 *Importante: você NÃO precisa publicar o app — ele funciona completamente no status "Testing". Nesse caso, espere que o Google faça o login expirar depois de **7 dias**, e definitivamente: nesse modo, o token de atualização também expira, então o Plainva não consegue renová-lo em segundo plano. O Plainva avisa isso em palavras simples ("login expirado"), e **Entrar novamente** nos detalhes da conta o restabelece em um único acesso, para todos os serviços dessa conta.*
 
-*Se preferir não fazer isso toda semana, configure o app para **Em produção** ("Publish app") no console: o login passa então a ficar válido. Você não precisa de uma verificação do Google para isso — em um app não verificado, o login mostra uma tela de aviso uma única vez, que você confirma como proprietário em **Advanced**.*
+**Em produção** remove a expiração fixa do modo de teste. Isso não garante um login permanente: o Google ainda pode expirar ou revogar o acesso. Os requisitos de publicação e verificação dependem do uso e das permissões solicitadas. [Google: expiração dos tokens de atualização](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Criar credenciais (Client ID e Secret)
 1. Abra **Credentials** no menu à esquerda.

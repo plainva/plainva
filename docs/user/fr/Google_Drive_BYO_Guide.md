@@ -41,7 +41,7 @@ Pour que Plainva puisse utiliser vos identifiants, un écran de consentement («
 
 *Important : vous n'avez PAS besoin de publier l'application — elle fonctionne pleinement en statut « Testing ». Attendez-vous alors à ce que Google fasse expirer la connexion au bout de **7 jours**, et définitivement : dans ce mode, le jeton de renouvellement expire aussi, donc Plainva ne peut pas le rafraîchir en arrière-plan. Plainva vous le dit en clair (« connexion expirée »), et **Se reconnecter** dans les détails du compte la rétablit en un aller-retour pour tous les services de ce compte.*
 
-*Si vous préférez ne pas faire cela chaque semaine, passez l'application **en production** (« Publish app ») dans la console : la connexion reste alors valide. Vous n'avez pas besoin d'une vérification par Google pour cela — pour une application non vérifiée, la connexion affiche une fois un écran d'avertissement, que vous confirmez en tant que propriétaire via « Advanced ».*
+**En production** supprime l’expiration fixe du mode test. Cela ne garantit pas une connexion permanente : Google peut toujours faire expirer ou révoquer l’accès. Les exigences de publication et de vérification dépendent de l’usage et des autorisations demandées. [Google : expiration des jetons de renouvellement](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Créer des identifiants (Client ID & Secret)
 1. Ouvrez **Credentials** dans le menu de gauche.

@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, ListChecks, Mail, RotateCw, Unlink } from "lucide-react";
 import {
   accountMonogram,
+  Banner,
+  Button,
   type CloudProviderFamily,
   type CloudServiceId,
   familyLabel,
@@ -19,7 +21,7 @@ import {
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
-import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import { beginAccountLogin, canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
 import { clearAccountToken, getAccountToken } from "../services/accountBroker";
 import { mConfirm } from "../services/mobileDialogs";
 import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
@@ -72,6 +74,8 @@ export function CloudAccountDetailScreen({
   const [unifiable, setUnifiable] = useState(false);
   const [sharedLogin, setSharedLogin] = useState(false);
   const [ready, setReady] = useState(false);
+  const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
+  const [loginStatus, setLoginStatus] = useState<AccountLoginStatus | undefined>();
 
   const reload = useCallback(() => {
     void loadAccountCards()
@@ -81,6 +85,8 @@ export function CloudAccountDetailScreen({
         setReady(true);
         if (found?.record) {
           const entry = await getActiveVaultEntry();
+          setLoginVaultId(entry.id);
+          setLoginStatus(getAccountLoginStatus(entry.id, found.record.id));
           setUnifiable(await canUnifyMobileAccount(entry.id, found.record));
           setSharedLogin(!!(await getAccountToken(entry.id, found.record.id).catch(() => null))?.refreshToken);
         } else {
@@ -93,6 +99,15 @@ export function CloudAccountDetailScreen({
         setReady(true);
       });
   }, [accountKey]);
+
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const status = (event as CustomEvent<AccountLoginStatus>).detail;
+      if (status.vaultId === loginVaultId && status.accountId === card?.record?.id) setLoginStatus(status);
+    };
+    window.addEventListener(ACCOUNT_LOGIN_STATUS_EVENT, changed);
+    return () => window.removeEventListener(ACCOUNT_LOGIN_STATUS_EVENT, changed);
+  }, [loginVaultId, card?.record?.id]);
 
   useEffect(() => {
     reload();
@@ -218,6 +233,11 @@ export function CloudAccountDetailScreen({
           )}
 
           <SectionLabel>{t("cloudAccounts.servicesGroup")}</SectionLabel>
+          {loginStatus?.message && (
+            <Banner kind="warning" rounded actions={<Button size="sm" variant="secondary" disabled={signingIn} onClick={() => signIn()}>{t("cloudAccounts.reconnect")}</Button>}>
+              {loginStatus.message}
+            </Banner>
+          )}
           <GroupCard>
             <RowList>
               {card.services.map((service) => {
@@ -228,6 +248,8 @@ export function CloudAccountDetailScreen({
                     data-testid={`cloudacct-service-${service}`}
                     icon={<Icon size={ICON.ui} />}
                     title={serviceLabel(service)}
+                    subtitle={loginStatus?.services[service]}
+                    wrap={!!loginStatus?.services[service]}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={() => openService(service)}
                   />

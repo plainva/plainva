@@ -1,6 +1,6 @@
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import type { SyncProviderId } from "@plainva/ui";
-import { brokerTokenProvider } from "./accountBroker";
+import { fileBrokerTokenProvider } from "./accountBroker";
 import {
   credentialManager,
   type DriveStoredCredentials,
@@ -45,14 +45,14 @@ export interface FileSyncAccess {
 }
 
 /** Pure decision, so both callers can be tested without a keychain. */
-export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: boolean): FileSyncAccess {
+export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive: boolean; onedrive: boolean }): FileSyncAccess {
   const { drive, onedrive, dropbox, s3, webdav } = slots;
   const ready: Record<SyncProviderId, boolean> = {
     // Broker-backed accounts keep their ONE refresh token in the account slot
     // and leave this one empty on purpose — demanding a token here declared
     // exactly those accounts "not ready".
-    drive: !!(drive && drive.clientId && drive.clientSecret && (drive.refreshToken || filesViaBroker)),
-    onedrive: !!(onedrive && onedrive.clientId && (onedrive.refreshToken || filesViaBroker)),
+    drive: !!(drive && drive.clientId && drive.clientSecret && (drive.refreshToken || filesViaBroker.drive)),
+    onedrive: !!(onedrive && onedrive.clientId && (onedrive.refreshToken || filesViaBroker.onedrive)),
     // Dropbox has no broker family: its token is always its own.
     dropbox: !!(dropbox && dropbox.appKey && dropbox.refreshToken),
     s3: !!(s3 && s3.endpoint && s3.bucket && s3.accessKeyId && s3.secretAccessKey && s3.region),
@@ -106,6 +106,9 @@ export async function loadSyncSlots(vaultPath: string): Promise<SyncSlots> {
 /** The full answer for a vault, broker included. */
 export async function readFileSyncAccess(vaultPath: string): Promise<FileSyncAccess> {
   const slots = await loadSyncSlots(vaultPath);
-  const viaBroker = !!(await brokerTokenProvider(vaultPath, "files").catch(() => undefined));
+  const viaBroker = {
+    drive: !!(slots.drive && await fileBrokerTokenProvider(vaultPath, { provider: "drive", ...slots.drive })),
+    onedrive: !!(slots.onedrive && await fileBrokerTokenProvider(vaultPath, { provider: "onedrive", ...slots.onedrive })),
+  };
   return resolveFileSyncAccess(slots, viaBroker);
 }

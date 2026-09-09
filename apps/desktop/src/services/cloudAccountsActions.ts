@@ -2,7 +2,13 @@ import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES } from "@plainva/core";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
-  accountServices,
+  accountOAuthServices,
+  tokenCoversService,
+  reviewAccountGrant,
+  requireCompleteAccountGrant,
+  completeAccountGrant,
+  assertAccountGrantIdentity,
+  AccountGrantMissingPermissionsError,
   identityKey,
   verifiedProviderIdentityOf,
   type CloudAccountRecord,
@@ -12,6 +18,7 @@ import {
   type VerifiedProviderIdentity,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
+import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { authorizeDropbox } from "./dropboxAuth";
@@ -26,7 +33,6 @@ import {
 } from "./syncTargets";
 import { checkCalDavLogin, connectCalDavAccount, connectGoogleAccount, connectMicrosoftAccount, removePimAccount } from "./pim/pimAccounts";
 import { savePimCredentials, getPimCredentials } from "./pim/pimCredentials";
-import { authorizeGooglePim, authorizeMicrosoftPim } from "./pim/pimAuth";
 import { graphMailAddress, forgetGraphMailRuntime } from "@plainva/ui/mail";
 import { authorizeMicrosoftMail } from "./mail/graphMailAuth";
 import { checkMailLogin } from "@plainva/ui/mail";
@@ -36,7 +42,6 @@ import {
   mailSecretKey,
   saveMailAccount,
   saveMicrosoftMailAccount,
-  saveMailRefreshToken,
   removeMailAccount,
   type MailAccountConfig,
 } from "@plainva/ui/mail";
@@ -44,7 +49,7 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
 import {
   brokerFamily,
-  brokerTokenProvider,
+  fileBrokerTokenProvider,
   clearAccountToken,
   getAccountToken,
   googleScopeFor,
@@ -66,6 +71,7 @@ import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 export type ServiceRunState = "idle" | "pending" | "ok" | "error";
 export interface ServiceRunStatus {
   state: ServiceRunState;
+  reason?: "permissions";
   /** i18n-ready detail: an error message, or a small success note. */
   detail?: string;
 }
@@ -343,7 +349,8 @@ export async function runConnectSequence(
       // service that was left out says so instead of binding.
       // Storing the ANSWER means the scope guard now compares against what the
       // account can really do, instead of against our own wish list.
-      grantedScope = creds.grantedScope ?? unionScope;
+      const reviewed = reviewAccountGrant("google", consented, { clientId, clientSecret, refreshToken: creds.refreshToken }, unionScope, creds.grantedScope);
+      grantedScope = requireCompleteAccountGrant(reviewed).scopes;
       // The token goes into the ACCOUNT slot and every service reads it through
       // the broker. It used to be copied into each service slot instead — and a
       // renewal then reached exactly one copy (finding 2026-07-28).
@@ -372,9 +379,10 @@ export async function runConnectSequence(
     const scope = microsoftUnionScope(consented);
     for (const service of selected) onStatus(service, { state: "pending" });
     try {
-      const { refreshToken } = await authorizeOneDrive({ clientId, scope });
+      const creds = await authorizeOneDrive({ clientId, scope });
+      const token = requireCompleteAccountGrant(reviewAccountGrant("microsoft", consented, { clientId, refreshToken: creds.refreshToken }, scope, creds.grantedScope));
       msAccountId = newId();
-      await saveAccountToken(vaultPath, msAccountId, { clientId, refreshToken, scopes: scope });
+      await saveAccountToken(vaultPath, msAccountId, token);
       setPendingBrokerAccount({ vaultPath, accountId: msAccountId, family: "microsoft" });
       result.accountId = msAccountId;
     } catch (err) {
@@ -523,16 +531,6 @@ async function microsoftClientFromSlots(vaultPath: string, record: CloudAccountR
 }
 
 /**
- * Forgets a stored calendar-account failure. Best-effort on purpose: this runs
- * after a successful repair, and a cache write that fails must not turn that
- * success into an error.
- */
-async function clearPimAccountError(runtime: PimRuntime | null, pimAccountId: string): Promise<void> {
-  if (!runtime) return;
-  await runtime.cache.setScopeState(pimAccountId, "account", { lastError: null }).catch(() => undefined);
-}
-
-/**
  * Re-authenticates every OAuth-backed service of an account IN PLACE (same
  * subsystem ids — nothing is removed or re-created). Password-backed services
  * (WebDAV/CalDAV/IMAP/S3) have nothing to re-run here.
@@ -543,78 +541,21 @@ export async function rerunAccountAuth(
   record: CloudAccountRecord,
   onStatus: ServiceStatusCb
 ): Promise<void> {
-  if (record.family !== "microsoft" && record.family !== "google" && record.family !== "dropbox") return;
-  // An account that shares one token renews it ONCE for everything. Signing in
-  // per service is what let a Google calendar keep a dead token while the file
-  // sync had a fresh one (finding 2026-07-28) — and for the user, "sign in
-  // again" and "one login for all services" were never two different wishes.
-  if (brokerFamily(record.family) && accountServices(record).filter((s) => record.family !== "google" || s !== "mail").length > 1) {
-    await unifyAccountLogin(vaultPath, runtime, record, onStatus);
+  if (brokerFamily(record.family)) {
+    if (accountOAuthServices(record).length) await unifyAccountLogin(vaultPath, runtime, record, onStatus);
     return;
   }
-  const google = record.family === "google" ? await googleByoFromSlots(vaultPath, record) : null;
-  if (record.family === "google" && !google) throw new Error("missing Google client");
-  const msClientId = await microsoftClientFromSlots(vaultPath, record);
-
-  if (record.services.files) {
-    onStatus("files", { state: "pending" });
-    try {
-      const provider = record.services.files.provider;
-      if (provider === "onedrive") {
-        const existing = await credentialManager.getOneDriveCredentials(vaultPath);
-        const creds = await authorizeOneDrive({ clientId: existing?.clientId || msClientId });
-        await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, rootFolderName: existing?.rootFolderName });
-      } else if (provider === "drive") {
-        const existing = await credentialManager.getDriveCredentials(vaultPath);
-        const creds = await authorizeDrive({ clientId: google!.clientId, clientSecret: google!.clientSecret });
-        await credentialManager.saveDriveCredentials(vaultPath, { ...creds, rootFolderName: existing?.rootFolderName });
-      } else if (provider === "dropbox") {
-        const existing = await credentialManager.getDropboxCredentials(vaultPath);
-        const creds = await authorizeDropbox({ appKey: existing?.appKey || record.byoClientId?.trim() || PLAINVA_DROPBOX_APP_KEY });
-        await credentialManager.saveDropboxCredentials(vaultPath, { ...creds, rootPath: existing?.rootPath });
-      }
-      announceCredentials(false);
-      onStatus("files", { state: "ok" });
-    } catch (err) {
-      onStatus("files", { state: "error", detail: oauthErrorText(err) });
-      throw err;
-    }
-  }
-
-  if (record.services.calendar && runtime) {
-    onStatus("calendar", { state: "pending" });
-    try {
-      const accountId = record.services.calendar.pimAccountId;
-      if (record.family === "google") {
-        const { refreshToken } = await authorizeGooglePim(google!);
-        await savePimCredentials(vaultPath, accountId, { kind: "google", ...google!, refreshToken });
-      } else {
-        const { refreshToken } = await authorizeMicrosoftPim({ clientId: msClientId });
-        await savePimCredentials(vaultPath, accountId, { kind: "microsoft", clientId: msClientId, refreshToken });
-      }
-      await clearPimAccountError(runtime, accountId);
-      void runtime.worker.triggerImmediate();
-      onStatus("calendar", { state: "ok" });
-    } catch (err) {
-      onStatus("calendar", { state: "error", detail: oauthErrorText(err) });
-      throw err;
-    }
-  }
-
-  if (record.services.mail && record.family === "microsoft") {
-    onStatus("mail", { state: "pending" });
-    try {
-      const accountId = record.services.mail.mailAccountId;
-      const accounts = await listMailAccounts(vaultPath);
-      const account = accounts.find((a) => a.id === accountId);
-      const { refreshToken } = await authorizeMicrosoftMail({ clientId: account?.clientId || msClientId });
-      forgetGraphMailRuntime(vaultPath, accountId);
-      await saveMailRefreshToken(vaultPath, accountId, refreshToken);
-      onStatus("mail", { state: "ok" });
-    } catch (err) {
-      onStatus("mail", { state: "error", detail: oauthErrorText(err) });
-      throw err;
-    }
+  if (record.family !== "dropbox" || record.services.files?.provider !== "dropbox") return;
+  onStatus("files", { state: "pending" });
+  try {
+    const existing = await credentialManager.getDropboxCredentials(vaultPath);
+    const creds = await authorizeDropbox({ appKey: existing?.appKey || record.byoClientId?.trim() || PLAINVA_DROPBOX_APP_KEY });
+    await credentialManager.saveDropboxCredentials(vaultPath, { ...creds, rootPath: existing?.rootPath });
+    announceCredentials(false);
+    onStatus("files", { state: "ok" });
+  } catch (error) {
+    onStatus("files", { state: "error", detail: oauthErrorText(error) });
+    throw error;
   }
 }
 
@@ -793,12 +734,9 @@ export async function syncTargetFromSlots(vaultPath: string, provider: SyncProvi
     if (!creds) throw noFileAccessError();
     return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true });
   }
-  const filesTokenProvider =
-    provider === "drive" || provider === "onedrive"
-      ? await brokerTokenProvider(vaultPath, "files").catch(() => undefined)
-      : undefined;
   if (provider === "drive") {
     const creds = await credentialManager.getDriveCredentials(vaultPath);
+    const filesTokenProvider = creds ? await fileBrokerTokenProvider(vaultPath, { provider: "drive", ...creds }) : undefined;
     if (!creds || !(creds.refreshToken || filesTokenProvider)) throw noFileAccessError();
     return buildDriveTarget(
       {
@@ -813,6 +751,7 @@ export async function syncTargetFromSlots(vaultPath: string, provider: SyncProvi
   }
   if (provider === "onedrive") {
     const creds = await credentialManager.getOneDriveCredentials(vaultPath);
+    const filesTokenProvider = creds ? await fileBrokerTokenProvider(vaultPath, { provider: "onedrive", ...creds }) : undefined;
     if (!creds || !(creds.refreshToken || filesTokenProvider)) throw noFileAccessError();
     return buildOneDriveTarget(
       { clientId: creds.clientId || PLAINVA_ONEDRIVE_CLIENT_ID, refreshToken: creds.refreshToken ?? "" },
@@ -880,18 +819,29 @@ export async function saveSyncRootFolder(vaultPath: string, provider: SyncProvid
 }
 
 /**
- * True for a Microsoft account that still holds one refresh token per service
- * — i.e. it was connected before stage B and can be migrated to the shared
- * broker with a single re-consent (decision E8: an offer, never a forced
- * migration).
+ * Offer one sign-in when a shared grant is absent or does not cover every
+ * OAuth service. Gmail's app password is independent of that grant.
  */
 export async function canUnifyAccountLogin(vaultPath: string, record: CloudAccountRecord): Promise<boolean> {
-  if (!brokerFamily(record.family)) return false;
-  if (accountServices(record).length < 2) return false;
-  // Gmail rides on IMAP, so a Google account with mail + calendar shares only
-  // the calendar through OAuth — one service is nothing to unify.
-  if (record.family === "google" && accountServices(record).filter((s) => s !== "mail").length < 2) return false;
-  return !(await getAccountToken(vaultPath, record.id))?.refreshToken;
+  const family = brokerFamily(record.family);
+  if (!family) return false;
+  const services = accountOAuthServices(record);
+  if (services.length < 2) return false;
+  const stored = await getAccountToken(vaultPath, record.id);
+  return !stored?.refreshToken || services.some((service) => !tokenCoversService(stored, service, family));
+}
+
+/** Capture local service sources so a late consent cannot replace newer sign-ins. */
+async function accountLoginSources(vaultPath: string, record: CloudAccountRecord): Promise<Partial<Record<CloudServiceId, string>>> {
+  const sources: Partial<Record<CloudServiceId, string>> = {};
+  if (record.services.files) sources.files = JSON.stringify(record.services.files.provider === "drive"
+    ? await credentialManager.getDriveCredentials(vaultPath) : await credentialManager.getOneDriveCredentials(vaultPath));
+  if (record.services.calendar) sources.calendar = JSON.stringify(await getPimCredentials(vaultPath, record.services.calendar.pimAccountId));
+  if (record.family === "microsoft" && record.services.mail) {
+    const id = record.services.mail.mailAccountId;
+    sources.mail = JSON.stringify({ account: (await listMailAccounts(vaultPath)).find((m) => m.id === id), credential: await credentialManager.readSecret(mailSecretKey(vaultPath, id)) });
+  }
+  return sources;
 }
 
 /**
@@ -914,67 +864,91 @@ export async function unifyAccountLogin(
   record: CloudAccountRecord,
   onStatus: ServiceStatusCb
 ): Promise<void> {
-  const services = accountServices(record).filter((service) => record.family !== "google" || service !== "mail");
-  const isGoogle = record.family === "google";
-  const google = isGoogle ? await googleByoFromSlots(vaultPath, record) : null;
-  if (isGoogle && !google) throw new Error("missing Google client");
-  const clientId = isGoogle ? google!.clientId : await microsoftClientFromSlots(vaultPath, record);
-  // Google's mail never travels through OAuth here, so it must not widen the
-  // consent either.
-  const scope = isGoogle
-    ? googleUnionScope(services.filter((s) => s !== "mail")) ?? googleScopeFor(services.includes("files") ? "files" : "calendar")
+  record = structuredClone(record);
+  const family = brokerFamily(record.family);
+  if (!family) throw new Error("This account cannot share an OAuth sign-in.");
+  const services = accountOAuthServices(record);
+  const expected = await getAccountToken(vaultPath, record.id);
+  const sources = await accountLoginSources(vaultPath, record);
+  const google = family === "google" ? await googleByoFromSlots(vaultPath, record) : null;
+  if (family === "google" && !google) throw new Error("missing Google client");
+  const clientId = google?.clientId ?? await microsoftClientFromSlots(vaultPath, record);
+  const scope = family === "google"
+    ? googleUnionScope(services) ?? googleScopeFor(services.includes("files") ? "files" : "calendar")
     : microsoftUnionScope(services);
   for (const service of services) onStatus(service, { state: "pending" });
-
-  const consent = isGoogle
-    ? authorizeDrive({ clientId, clientSecret: google!.clientSecret, scope })
-    : authorizeOneDrive({ clientId, scope });
-  const { refreshToken } = await consent.catch((err) => {
+  try {
+    const fresh = google
+      ? await authorizeDrive({ clientId, clientSecret: google.clientSecret, scope, includeAccessToken: true })
+      : await authorizeOneDrive({ clientId, scope, includeAccessToken: true });
+    const review = reviewAccountGrant(family, services, { clientId, ...(google ? { clientSecret: google.clientSecret } : {}), refreshToken: fresh.refreshToken }, scope, fresh.grantedScope);
+    await completeAccountGrant({
+      record, review,
+      readRecord: () => loadCloudAccounts(vaultPath).then((records) => records.find((r) => r.id === record.id)),
+      beforeSave: async () => {
+        await assertAccountGrantIdentity(record, fresh.accessToken, httpFetch);
+        const currentSources = await accountLoginSources(vaultPath, record);
+        if (services.some((service) => currentSources[service] !== sources[service])) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+        if (record.services.files) {
+          const provider = record.services.files.provider;
+          const files = provider === "drive" ? await credentialManager.getDriveCredentials(vaultPath) : provider === "onedrive" ? await credentialManager.getOneDriveCredentials(vaultPath) : null;
+          if (!files || files.clientId !== clientId || provider !== (family === "google" ? "drive" : "onedrive")) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+        }
+        if (record.services.calendar) {
+          const creds = await getPimCredentials(vaultPath, record.services.calendar.pimAccountId);
+          if (creds && (creds.kind !== family || !("clientId" in creds) || (!!creds.clientId && creds.clientId !== clientId))) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+        }
+        if (record.services.mail && family === "microsoft") {
+          const mail = (await listMailAccounts(vaultPath)).find((m) => m.id === record.services.mail!.mailAccountId);
+          if (!mail || mailAccountKind(mail) !== "microsoft" || (!!mail.clientId && mail.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+        }
+      },
+      save: (token) => saveAccountToken(vaultPath, record.id, token, expected),
+      bind: async (service, token) => {
+        const currentSources = await accountLoginSources(vaultPath, record);
+        if (currentSources[service] !== sources[service]) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+        if (service === "files") {
+          const provider = record.services.files?.provider;
+          const creds = provider === "drive" ? await credentialManager.getDriveCredentials(vaultPath)
+            : provider === "onedrive" ? await credentialManager.getOneDriveCredentials(vaultPath) : null;
+          if (!creds || creds.clientId !== token.clientId || (provider === "drive" && "clientSecret" in creds && creds.clientSecret !== token.clientSecret)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+          const bound = await fileBrokerTokenProvider(vaultPath, { provider: provider as "drive" | "onedrive", ...creds, accountId: record.id });
+          if (!bound) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+          if (provider === "drive") await credentialManager.saveDriveCredentials(vaultPath, { ...creds, clientSecret: token.clientSecret ?? "", refreshToken: "" });
+          else await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
+          announceCredentials(false);
+        } else if (service === "calendar") {
+          const id = record.services.calendar!.pimAccountId;
+          const creds = await getPimCredentials(vaultPath, id);
+          if (creds && (creds.kind !== family || !("clientId" in creds) || (!!creds.clientId && creds.clientId !== token.clientId))) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+          await savePimCredentials(vaultPath, id, family === "google"
+            ? { kind: "google", clientId: token.clientId, clientSecret: token.clientSecret ?? "", refreshToken: "" }
+            : { kind: "microsoft", clientId: token.clientId, refreshToken: "" });
+          if (runtime) {
+            await runtime.cache.setScopeState(id, "account", { lastError: null });
+            runtime.worker.start();
+            void runtime.worker.triggerImmediate();
+          }
+        } else if (family === "microsoft") {
+          const id = record.services.mail!.mailAccountId;
+          const mail = (await listMailAccounts(vaultPath)).find((m) => m.id === id);
+          if (!mail || mailAccountKind(mail) !== "microsoft" || (!!mail.clientId && mail.clientId !== token.clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+          forgetGraphMailRuntime(vaultPath, id);
+          await saveMicrosoftMailAccount(vaultPath, { ...mail, clientId: token.clientId }, "");
+        }
+        onStatus(service, { state: "ok" });
+      },
+    });
+  } catch (error) {
     for (const service of services) {
-      onStatus(service, { state: "error", detail: oauthErrorText(err) });
+      const detail = error instanceof AccountGrantMissingPermissionsError
+        ? i18n.t(error.missing.includes(service) ? "cloudAccounts.loginPermissionMissing" : "cloudAccounts.loginPermissionKept")
+        : oauthErrorText(error);
+      onStatus(service, { state: "error", detail, ...(error instanceof AccountGrantMissingPermissionsError ? { reason: "permissions" as const } : {}) });
     }
-    throw err;
-  });
-  if (!refreshToken) throw new Error("the provider returned no refresh token");
-
-  // Account slot first: from here on every service can resolve a token, so a
-  // failure while clearing the old ones leaves the account working.
-  await saveAccountToken(vaultPath, record.id, {
-    clientId,
-    ...(isGoogle ? { clientSecret: google!.clientSecret } : {}),
-    refreshToken,
-    scopes: scope,
-  });
-
-  if (record.services.files?.provider === "onedrive") {
-    const creds = await credentialManager.getOneDriveCredentials(vaultPath);
-    if (creds) await credentialManager.saveOneDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
-    onStatus("files", { state: "ok" });
-  } else if (record.services.files?.provider === "drive") {
-    const creds = await credentialManager.getDriveCredentials(vaultPath);
-    if (creds) await credentialManager.saveDriveCredentials(vaultPath, { ...creds, refreshToken: "" });
-    onStatus("files", { state: "ok" });
+    if (error instanceof AccountGrantMissingPermissionsError) error.message = i18n.t("cloudAccounts.loginGrantIncomplete");
+    throw error;
   }
-  const pimId = record.services.calendar?.pimAccountId;
-  if (pimId) {
-    const creds = await getPimCredentials(vaultPath, pimId);
-    if (creds?.kind === "microsoft" || creds?.kind === "google") {
-      await savePimCredentials(vaultPath, pimId, { ...creds, refreshToken: "" });
-    }
-    // The stored failure is over; leaving it on screen is what made a successful
-    // repair look like a no-op (report 2026-07-30).
-    await clearPimAccountError(runtime, pimId);
-    onStatus("calendar", { state: "ok" });
-  }
-  const mailId = record.services.mail?.mailAccountId;
-  if (mailId && record.family === "microsoft") {
-    forgetGraphMailRuntime(vaultPath, mailId);
-    await saveMailRefreshToken(vaultPath, mailId, "");
-    onStatus("mail", { state: "ok" });
-  }
-
-  announceCredentials(false);
-  if (pimId && runtime) void runtime.worker.triggerImmediate();
 }
 
 /** Turns ONE service of an account off (existing subsystem removal semantics). */

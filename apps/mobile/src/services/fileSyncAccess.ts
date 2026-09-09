@@ -1,6 +1,5 @@
 import { getPlatformServices } from "@plainva/ui";
-import { getAccountToken } from "./accountBroker";
-import { loadCloudAccounts } from "./cloudAccountsStore";
+import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
 /**
@@ -60,12 +59,9 @@ export function resolveMobileFileAccess(
 
 /** Whether the account-wide token of this vault covers the file service. */
 export async function filesViaBrokerToken(vaultId: string, provider: string): Promise<boolean> {
-  for (const account of await loadCloudAccounts(vaultId).catch(() => [])) {
-    if (account.services.files?.provider !== provider) continue;
-    const token = await getAccountToken(vaultId, account.id).catch(() => null);
-    if (token?.refreshToken) return true;
-  }
-  return false;
+  const stored = await readStoredProvider(vaultId);
+  if (!stored || stored.provider !== provider || (stored.provider !== "drive" && stored.provider !== "onedrive")) return false;
+  return !!(await fileBrokerTokenProvider(vaultId, { provider: stored.provider, ...stored.creds }));
 }
 
 /** Reads the vault's provider slot (a missing or unreadable slot counts as absent). */

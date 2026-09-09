@@ -515,7 +515,7 @@ export const CloudAccountsPage: React.FC<{
             <Button
               variant="secondary"
               icon={<RotateCw size={ICON.meta} />}
-              disabled={busy || !isActiveVault}
+              disabled={busy}
               onClick={() => void unifyLogin(detail)}
               data-testid="cloudacct-unify"
             >
@@ -532,6 +532,9 @@ export const CloudAccountsPage: React.FC<{
           </Button>
         </div>
 
+        {Object.values(reconStatus).some((status) => status.reason === "permissions") && (
+          <Banner kind="warning" rounded>{t("cloudAccounts.loginGrantIncomplete")}</Banner>
+        )}
         {Object.keys(reconStatus).length > 0 && (
           <SettingCard>
             {(Object.keys(reconStatus) as CloudServiceId[]).map((service) => {

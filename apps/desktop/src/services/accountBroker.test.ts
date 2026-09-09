@@ -46,6 +46,7 @@ import {
   accountSecretKey,
   brokerFamily,
   brokerTokenProvider,
+  fileBrokerTokenProvider,
   describeBrokerLookup,
   forgetAccountBroker,
   getAccountBroker,
@@ -174,7 +175,7 @@ describe("google account tokens are only used for the services they cover", () =
     given(googleScopeFor("files"));
     expect(await brokerTokenProvider(V, "calendar")).toBeUndefined();
     // File sync, which that consent DID cover, keeps using it.
-    expect(await brokerTokenProvider(V, "files")).toBeTypeOf("function");
+    expect(await fileBrokerTokenProvider(V, { provider: "drive", clientId: "cid" })).toBeTypeOf("function");
   });
 
   it("uses the shared sign-in once the consent covers the calendar", async () => {
@@ -399,7 +400,7 @@ describe("two vaults holding the same account", () => {
 
   it("an existing worker provider reads the new consent and an old renewal cannot overwrite it", async () => {
     given();
-    const provider = (await brokerTokenProvider(A, "files"))!;
+    const provider = (await fileBrokerTokenProvider(A, { provider: "onedrive", clientId: "cid" }))!;
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => { release = resolve; });
     vi.mocked(microsoftAuthFetch).mockImplementationOnce(async () => {

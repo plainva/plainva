@@ -12,6 +12,9 @@ import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINV
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
+import { beginAccountLogin } from "./accountLogin";
+import { getAccountToken } from "./accountBroker";
+import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getMobileVault } from "./vaultService";
 
 /**
@@ -198,6 +201,14 @@ export async function reconnectVault(vaultId: string): Promise<void> {
     toast.error(i18n.t("mobile.reconnectFailed", { defaultValue: "Kein Konto zum Neuanmelden gefunden." }));
     return;
   }
+  if (stored.provider === "drive" || stored.provider === "onedrive") {
+    const family = stored.provider === "drive" ? "google" : "microsoft";
+    const records = (await loadCloudAccounts(vaultId)).filter((r) => r.family === family && r.services.files?.provider === stored.provider);
+    if (records.length === 1 && await getAccountToken(vaultId, records[0].id)) {
+      await beginAccountLogin(vaultId, records[0], stored.creds);
+      return;
+    }
+  }
   if (stored.provider === "drive") {
     await beginOAuth("drive", {
       clientId: stored.creds.clientId,
@@ -313,7 +324,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           clientId,
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
-          ...(tok.scope ? { grantedScope: tok.scope } : {}),
+          ...(tok.scope !== undefined ? { grantedScope: tok.scope } : {}),
         },
       };
     } else {
@@ -338,7 +349,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
           refreshToken: tok.refreshToken,
           rootFolderName: flow.extras.rootFolderName || undefined,
           // The GRANT, not the request — see DriveMobileCredentials.
-          ...(tok.scope ? { grantedScope: tok.scope } : {}),
+          ...(tok.scope !== undefined ? { grantedScope: tok.scope } : {}),
         },
       };
     }

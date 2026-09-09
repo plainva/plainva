@@ -1,5 +1,7 @@
 import {
   accountServices,
+  resolveFileBrokerAccount,
+  type FileBrokerBinding,
   createTokenBroker,
   createTokenRefreshCoordinator,
   normalizeOAuthScopes,
@@ -27,7 +29,7 @@ import {
   refreshDriveAccessToken,
   refreshOneDriveAccessToken,
 } from "@plainva/core";
-import { forgetAllGraphMailRuntimes } from "@plainva/ui/mail";
+import { forgetGraphMailRuntime } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
@@ -51,6 +53,11 @@ async function readAccountTokenUnlocked(vaultPath: string, accountId: string): P
   );
 }
 
+async function forgetAccountMailRuntime(vaultPath: string, accountId: string): Promise<void> {
+  const record = (await loadCloudAccounts(vaultPath)).find((r) => r.id === accountId);
+  if (record?.family === "microsoft" && record.services.mail) forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
+}
+
 export async function getAccountToken(vaultPath: string, accountId: string): Promise<StoredAccountToken | null> {
   return withAccountCredentialLock(accountSecretKey(vaultPath, accountId), () => readAccountTokenUnlocked(vaultPath, accountId));
 }
@@ -64,15 +71,20 @@ async function writeRotatedAccountToken(vaultPath: string, accountId: string, ne
   });
 }
 
-export async function saveAccountToken(vaultPath: string, accountId: string, token: StoredAccountToken): Promise<void> {
+export async function saveAccountToken(vaultPath: string, accountId: string, token: StoredAccountToken, expected?: StoredAccountToken | null): Promise<void> {
   await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    if (expected !== undefined) {
+      const current = await readAccountTokenUnlocked(vaultPath, accountId);
+      if (expected === null ? current !== null : !sameStoredAccountToken(current, expected)) throw new Error("The account sign-in changed. Please try again.");
+    }
     forgetAccountBroker(vaultPath, accountId);
     await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), token);
+    if (!sameStoredAccountToken(await readAccountTokenUnlocked(vaultPath, accountId), token)) throw new Error("The account sign-in could not be confirmed in secure storage.");
   });
   // The Graph mail runtime resolves its token source ONCE, when it is built. A
   // runtime built before this token existed would keep using the per-service
   // slot the migration blanked (finding 2026-07-30).
-  forgetAllGraphMailRuntimes();
+  await forgetAccountMailRuntime(vaultPath, accountId);
 }
 
 /**
@@ -89,7 +101,7 @@ export async function replaceAccountClientRegistration(
     if (current && sameOAuthClient(current, next)) return false;
     forgetAccountBroker(vaultPath, accountId);
     await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), replaceOAuthClientRegistration(current, next));
-    forgetAllGraphMailRuntimes();
+    await forgetAccountMailRuntime(vaultPath, accountId);
     return true;
   });
 }
@@ -98,6 +110,7 @@ export async function clearAccountToken(vaultPath: string, accountId: string): P
   await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
     forgetAccountBroker(vaultPath, accountId);
     await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
+    await forgetAccountMailRuntime(vaultPath, accountId);
   });
 }
 
@@ -292,6 +305,7 @@ export async function brokerTokenProvider(
   /** The asking subsystem account (pim row / mail account), where there is one. */
   subsystemId?: string
 ): Promise<((force: boolean) => Promise<string>) | undefined> {
+  if (service === "files") return undefined; // Files must supply their concrete provider/client below.
   const records = await loadCloudAccounts(vaultPath);
   if (
     pendingAccount &&
@@ -331,6 +345,18 @@ export async function brokerTokenProvider(
     };
   }
   return undefined;
+}
+
+export async function fileBrokerTokenProvider(vaultPath: string, binding: FileBrokerBinding): Promise<((force: boolean) => Promise<string>) | undefined> {
+  const resolve = () => loadCloudAccounts(vaultPath).then((records) => resolveFileBrokerAccount(records, binding, (id) => getAccountToken(vaultPath, id)));
+  const record = await resolve();
+  if (!record) return undefined;
+  return async (force) => {
+    if ((await resolve())?.id !== record.id) throw new Error("The file account changed. Reconnect file sync.");
+    const broker = getAccountBroker(vaultPath, record.id, binding.provider === "drive" ? "google" : "microsoft");
+    if (force) broker.forget();
+    return broker.getAccessToken("files");
+  };
 }
 
 /**

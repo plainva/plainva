@@ -41,7 +41,7 @@ Om Plainva je credentials te laten gebruiken, moet een toestemmingsscherm ("OAut
 
 *Belangrijk: je hoeft de app NIET te publiceren — in de status "Testing" werkt ze volledig. Houd er dan wel rekening mee dat Google de aanmelding na **7 dagen** laat verlopen, en wel definitief: in deze modus verloopt ook het vernieuwingstoken, Plainva kan het op de achtergrond dus niet verversen. Plainva zegt je dat dan in gewone taal ("Aanmelding verlopen"), en **Opnieuw aanmelden** in de accountdetails herstelt haar in één doorloop voor alle diensten van dit account.*
 
-*In testmodus laat Google elke aanmelding na 7 dagen verlopen — een eigenschap van je eigen Google-project, geen intrekking, ook al lijkt het er precies op. Gebeurt dat, dan meldt Plainva dat de aanmelding van dit account is verlopen, met de optie om je opnieuw te verbinden in de accountdetails — dat herstelt de toegang in één stap.*
+**In productie** verwijdert de vaste vervaltijd van de testmodus. Dit garandeert geen blijvende aanmelding: Google kan toegang nog steeds laten verlopen of intrekken. De eisen voor publicatie en verificatie hangen af van het gebruik en de gevraagde rechten. [Google: vervallen van vernieuwingstokens](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 ### 4. Credentials (Client-ID & secret) aanmaken
 1. Ga links in het menu naar **Credentials**.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CloudAccountRecord } from "@plainva/ui";
+import { oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
 
 /**
  * Regression net for the orchestration layer (control pass 2026-07-20,
@@ -89,7 +89,7 @@ vi.mock("./pim/pimAccounts", () => ({
 vi.mock("./driveAuth", () => ({
   authorizeDrive: vi.fn(async (opts: { clientId: string; clientSecret: string; scope?: string }) => {
     consents.push({ scope: opts.scope, via: "drive", clientId: opts.clientId });
-    return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT" };
+    return { clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken: "RT", grantedScope: opts.scope ?? oauthScopeFor("google", "files")! };
   }),
 }));
 vi.mock("./oneDriveAuth", () => ({
@@ -102,7 +102,7 @@ vi.mock("./oneDriveAuth", () => ({
 /** Account-wide token slot, so the union path can be observed. */
 const accountTokens = new Map<string, unknown>();
 vi.mock("./accountBroker", () => ({
-  microsoftUnionScope: (a: string[]) => a.map((x) => `ms:${x}`).join(" "),
+  microsoftUnionScope: (a: string[]) => a.map((x) => oauthScopeFor("microsoft", x)).join(" "),
   saveAccountToken: vi.fn(async (_v: string, id: string, token: unknown) => {
     accountTokens.set(id, token);
   }),
@@ -110,10 +110,10 @@ vi.mock("./accountBroker", () => ({
     accountTokens.delete(id);
   }),
   setPendingBrokerAccount: vi.fn(),
-  brokerTokenProvider: vi.fn(async () => undefined),
+  fileBrokerTokenProvider: vi.fn(async () => async () => "access"),
   getAccountToken: vi.fn(async (_v: string, id: string) => accountTokens.get(id) ?? null),
   brokerFamily: (family: string) => (family === "microsoft" || family === "google" ? family : null),
-  googleScopeFor: (a: string) => `g:${a}`,
+  googleScopeFor: (a: string) => oauthScopeFor("google", a),
 }));
 vi.mock("./dropboxAuth", () => ({ authorizeDropbox: vi.fn() }));
 
@@ -127,13 +127,14 @@ vi.mock("./pim/pimCredentials", () => ({
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
 import i18n from "@plainva/ui/i18n";
-import { brokerTokenProvider, setPendingBrokerAccount } from "./accountBroker";
+import { fileBrokerTokenProvider, setPendingBrokerAccount } from "./accountBroker";
 import { buildDriveTarget, buildOneDriveTarget } from "./syncTargets";
 import {
   bindConnectResult,
   listSyncFoldersFromSlots,
   passwordServicesOf,
   runConnectSequence,
+  rerunAccountAuth,
   unifyAccountLogin,
   updateAccountPassword,
 } from "./cloudAccountsActions";
@@ -362,13 +363,14 @@ describe("Google union consent", () => {
       refreshToken: "",
     });
 
-    await unifyAccountLogin("/v", null, record, () => undefined);
+    registry.set("/v", [record]);
+    await expect(unifyAccountLogin("/v", null, record, () => undefined)).rejects.toThrow(i18n.t("cloudAccounts.loginBindingChanged"));
 
     expect(consents[0]).toMatchObject({ via: "drive", clientId: "desktop-local-client" });
     expect(accountTokens.get(record.id)).toMatchObject({
       clientId: "desktop-local-client",
       clientSecret: "desktop-local-secret",
-      refreshToken: "RT",
+      refreshToken: "desktop-local-refresh",
     });
   });
 });
@@ -398,7 +400,8 @@ describe("Microsoft union consent", () => {
       () => {}
     );
     expect(consents).toHaveLength(1);
-    expect(consents[0].scope).toBe("ms:files ms:calendar");
+    expect(consents[0].scope).toContain("Files.ReadWrite");
+    expect(consents[0].scope).toContain("Calendars.ReadWrite");
 
     // Account slot holds the single rotating token...
     expect(result.accountId).toBeTruthy();
@@ -535,14 +538,14 @@ describe("listSyncFoldersFromSlots", () => {
    */
   beforeEach(() => {
     slots.clear();
-    vi.mocked(brokerTokenProvider).mockReset();
+    vi.mocked(fileBrokerTokenProvider).mockReset();
     vi.mocked(buildDriveTarget).mockReset();
     vi.mocked(buildOneDriveTarget).mockReset();
   });
 
   it("browses a broker-backed Drive account although its own slot holds no token", async () => {
     slots.set("drive", { clientId: "cid", clientSecret: "sec", refreshToken: "" });
-    vi.mocked(brokerTokenProvider).mockResolvedValue(async () => "AT");
+    vi.mocked(fileBrokerTokenProvider).mockResolvedValue(async () => "AT");
     vi.mocked(buildDriveTarget).mockReturnValue({
       listFolders: async () => ["Notizen"],
     } as unknown as ReturnType<typeof buildDriveTarget>);
@@ -555,7 +558,7 @@ describe("listSyncFoldersFromSlots", () => {
 
   it("hands the rotation to the broker instead of persisting it twice (OneDrive)", async () => {
     slots.set("onedrive", { clientId: "cid", refreshToken: "" });
-    vi.mocked(brokerTokenProvider).mockResolvedValue(async () => "AT");
+    vi.mocked(fileBrokerTokenProvider).mockResolvedValue(async () => "AT");
     vi.mocked(buildOneDriveTarget).mockReturnValue({
       listFolders: async () => ["Vault"],
     } as unknown as ReturnType<typeof buildOneDriveTarget>);
@@ -568,7 +571,7 @@ describe("listSyncFoldersFromSlots", () => {
 
   it("asks for a sign-in when neither the slot nor the broker carries file access", async () => {
     slots.set("drive", { clientId: "cid", clientSecret: "sec", refreshToken: "" });
-    vi.mocked(brokerTokenProvider).mockResolvedValue(undefined);
+    vi.mocked(fileBrokerTokenProvider).mockResolvedValue(undefined);
 
     // Not the bare "not connected" of old: the sentence has to say that a
     // sign-in is missing, because that is what the person has to do.
@@ -580,6 +583,7 @@ describe("listSyncFoldersFromSlots", () => {
 
 
 describe("Google reconnect preserves the actual mailbox password", () => {
+  beforeEach(() => reject.clear());
   it("does not clear or report an OAuth success for the independent IMAP mailbox", async () => {
     const { getPlatformServices, hasPlatformServices, setPlatformServices } = await import("@plainva/ui");
     const { saveMailAccount, getMailPassword, mailSecretKey } = await import("@plainva/ui/mail");
@@ -603,6 +607,8 @@ describe("Google reconnect preserves the actual mailbox password", () => {
         services: { calendar: { pimAccountId: "P" }, mail: { mailAccountId: "gmail" } } };
       accountTokens.set(card.id, { clientId: "client", clientSecret: "test-secret", refreshToken: "old" });
       await saveMailAccount("/v", { id: "gmail", label: "Gmail", host: "imap.gmail.com", port: 993, user: "person@example.invalid" }, "test-app-password");
+      registry.set("/v", [card]);
+      slots.delete("pim");
       const status = vi.fn();
       await unifyAccountLogin("/v", null, card, status);
       await expect(getMailPassword("/v", "gmail")).resolves.toBe("test-app-password");
@@ -610,5 +616,80 @@ describe("Google reconnect preserves the actual mailbox password", () => {
       expect(status.mock.calls.every(([service]) => service !== "mail")).toBe(true);
       expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: "RT" });
     } finally { if (platform) setPlatformServices(platform); }
+  });
+});
+
+describe("account reconnect preserves every existing source until consent is complete", () => {
+  beforeEach(() => {
+    registry.clear(); slots.clear(); accountTokens.clear(); reject.clear(); consents.length = 0;
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    vi.mocked(fileBrokerTokenProvider).mockResolvedValue(async () => "access");
+  });
+
+  it.each(["google", "microsoft"] as const)("replaces the authoritative %s token for a single calendar and wakes its worker", async (family) => {
+    const card: CloudAccountRecord = { id: "single", family, label: "Person", services: { calendar: { pimAccountId: "P" } } };
+    registry.set("/v", [card]);
+    accountTokens.set(card.id, { clientId: "client", ...(family === "google" ? { clientSecret: "secret" } : {}), refreshToken: "old" });
+    slots.set("pim", { kind: family, clientId: "client", refreshToken: "" });
+    const runtime = { cache: { setScopeState: vi.fn(async () => {}) }, worker: { start: vi.fn(), triggerImmediate: vi.fn(async () => {}) } };
+    await rerunAccountAuth("/v", runtime as unknown as PimRuntime, card, () => {});
+    expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: family === "google" ? "RT" : "MS-RT", scopes: expect.any(String) });
+    expect(slots.get("pim")).toMatchObject({ kind: family, clientId: "client", refreshToken: "" });
+    expect(runtime.cache.setScopeState).toHaveBeenCalledWith("P", "account", { lastError: null });
+    expect(runtime.worker.start).toHaveBeenCalledTimes(1);
+    expect(runtime.worker.triggerImmediate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a Google partial grant leaves both old service tokens and the account token intact", async () => {
+    const { authorizeDrive } = await import("./driveAuth");
+    const card: CloudAccountRecord = { id: "partial", family: "google", label: "Person", services: { files: { provider: "drive" }, calendar: { pimAccountId: "P" } } };
+    registry.set("/v", [card]);
+    accountTokens.set(card.id, { clientId: "client", clientSecret: "secret", refreshToken: "old-account" });
+    slots.set("drive", { clientId: "client", clientSecret: "secret", refreshToken: "old-files" });
+    slots.set("pim", { kind: "google", clientId: "client", refreshToken: "old-calendar" });
+    vi.mocked(authorizeDrive).mockResolvedValueOnce({ clientId: "client", clientSecret: "secret", refreshToken: "narrow", grantedScope: oauthScopeFor("google", "files")! });
+    const status = vi.fn();
+    await expect(unifyAccountLogin("/v", null, card, status)).rejects.toThrow(i18n.t("cloudAccounts.loginGrantIncomplete"));
+    expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: "old-account" });
+    expect(slots.get("drive")).toMatchObject({ refreshToken: "old-files" });
+    expect(slots.get("pim")).toMatchObject({ refreshToken: "old-calendar" });
+    expect(status).toHaveBeenCalledWith("calendar", expect.objectContaining({ reason: "permissions", detail: i18n.t("cloudAccounts.loginPermissionMissing") }));
+    expect(status).toHaveBeenCalledWith("files", expect.objectContaining({ detail: i18n.t("cloudAccounts.loginPermissionKept") }));
+  });
+
+  it("the first-connect wizard refuses partial Google permission before storing or connecting anything", async () => {
+    const { authorizeDrive } = await import("./driveAuth");
+    vi.mocked(authorizeDrive).mockResolvedValueOnce({ clientId: "client", clientSecret: "secret", refreshToken: "narrow", grantedScope: oauthScopeFor("google", "files")! });
+    await expect(runConnectSequence("/v", null, { family: "google", services: ["files", "calendar"], byoClientId: "client", googleClientSecret: "secret" }, () => {})).rejects.toMatchObject({ name: "AccountGrantMissingPermissionsError" });
+    expect(accountTokens.size).toBe(0); expect(slots.size).toBe(0);
+  });
+
+  it("retains a service credential changed while the browser was open", async () => {
+    const { authorizeDrive } = await import("./driveAuth");
+    const card: CloudAccountRecord = { id: "changed", family: "google", label: "Person", services: { calendar: { pimAccountId: "P" } } };
+    registry.set("/v", [card]);
+    accountTokens.set(card.id, { clientId: "client", clientSecret: "secret", refreshToken: "old" });
+    slots.set("pim", { kind: "google", clientId: "client", refreshToken: "old-service" });
+    vi.mocked(authorizeDrive).mockImplementationOnce(async () => {
+      slots.set("pim", { kind: "google", clientId: "client", refreshToken: "independent" });
+      return { clientId: "client", clientSecret: "secret", refreshToken: "late", grantedScope: oauthScopeFor("google", "calendar")! };
+    });
+    await expect(unifyAccountLogin("/v", null, card, () => {})).rejects.toThrow(i18n.t("cloudAccounts.loginBindingChanged"));
+    expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: "old" });
+    expect(slots.get("pim")).toMatchObject({ refreshToken: "independent" });
+  });
+});
+
+
+describe("shared sign-in repair offer", () => {
+  it("keeps incomplete account grants repairable and excludes Gmail", async () => {
+    const { canUnifyAccountLogin } = await import("./cloudAccountsActions");
+    const record: CloudAccountRecord = { id: "repair-offer", label: "Person", family: "google", services: { files: { provider: "drive" }, calendar: { pimAccountId: "cal" }, mail: { mailAccountId: "gmail" } } };
+    const token = { clientId: "cid", refreshToken: "old", scopes: oauthScopeFor("google", "files")! };
+    accountTokens.set(record.id, token);
+    expect(await canUnifyAccountLogin("vault", record)).toBe(true);
+    accountTokens.set(record.id, { ...token, scopes: token.scopes + " " + oauthScopeFor("google", "calendar") });
+    expect(await canUnifyAccountLogin("vault", record)).toBe(false);
+    expect(await canUnifyAccountLogin("vault", { ...record, services: { calendar: record.services.calendar, mail: record.services.mail } })).toBe(false);
   });
 });
