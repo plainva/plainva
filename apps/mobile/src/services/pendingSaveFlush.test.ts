@@ -88,7 +88,7 @@ describe("the two callers that rewrite notes they do not own", () => {
     // conflict sheet, reached from the folder banner and the note's banner.
     const sheet = readFileSync(join(__dirname, "..", "components", "ConflictCompareSheet.tsx"), "utf-8");
     const adopt = sheet.slice(sheet.indexOf("const adopt = async () => {"));
-    const flush = adopt.search(/noteSaver\.flush\(originalPath\)/);
+    const flush = adopt.search(/noteSaver\.flush\(originalPath, vault\)/);
     expect(flush, "adopt must flush the original").toBeGreaterThan(-1);
     expect(flush).toBeLessThan(adopt.search(/vaultOps\.save\(/));
   });

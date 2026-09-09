@@ -68,3 +68,5 @@ Settings → **Vault** → **Backup & version history**:
 - File versions are ordinary copies under `.plainva/backups/` — if push comes to shove you can open them without Plainva in any file manager.
 - Plainva's own sync never transfers `.plainva`. If you sync the vault folder with a third-party client (e.g. the Nextcloud app), the snapshots travel along — that costs some storage but does no harm.
 - Sync conflicts are additionally protected via `.CONFLICT` files (see the [FAQ](FAQ.md)); the version history complements that with the timeline of every file.
+
+On mobile, a failed note save stops switching, reloading or removing the vault. Your input remains queued for another attempt. Notes with the same name in different vaults keep separate pending saves and drafts. A save conflict preserves the affected text; input typed afterwards is then saved separately or preserved in another conflict copy. Both shells order draft-journal writes and removals so a late completion cannot remove a newer snapshot. A failed conflict-copy write does not replace the mobile editor's text.

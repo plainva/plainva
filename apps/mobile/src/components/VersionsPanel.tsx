@@ -84,8 +84,8 @@ export function VersionsPanel({
         confirmLabel: t("compare.restoreThis"),
       });
       if (!ok) return;
-      await noteSaver.flush(path);
       try {
+        await noteSaver.flush(path, vault);
         await service.restoreVersion({
           backupPath: v.backupPath,
           targetPath: path,

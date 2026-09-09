@@ -52,6 +52,7 @@ export function onAppForeground(): void {
  * would hang the next mail action instead of failing fast (P7.3).
  */
 export function onAppBackground(): void {
+  void import("./draftJournal").then(({ flushDrafts }) => flushDrafts()).catch(() => {});
   void import("./vaultService")
     .then(({ noteSaver }) => noteSaver.flushAll())
     .catch(() => {});

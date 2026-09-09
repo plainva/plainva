@@ -62,4 +62,16 @@ describe("conflictState persistence", () => {
     noteConflict("a.md", "a.CONFLICT-1.md");
     expect(getConflict("a.md")).not.toBeNull();
   });
+
+  it("records a late conflict in its original vault without changing the active vault", () => {
+    const storage = fakeStorage();
+    bindConflictStore("old", storage);
+    bindConflictStore("current", storage);
+    noteConflict("same.md", "current-copy.md");
+    noteConflict("same.md", "old-copy.md", "old");
+    expect(getConflict("same.md")?.copyPath).toBe("current-copy.md");
+    expect(readPersistedConflicts("old", storage)).toEqual([{ path: "same.md", copyPath: "old-copy.md" }]);
+    bindConflictStore("old", storage);
+    expect(getConflict("same.md")?.copyPath).toBe("old-copy.md");
+  });
 });

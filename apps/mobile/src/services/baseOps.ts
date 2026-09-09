@@ -100,7 +100,7 @@ export async function commitCellValue(
 ): Promise<void> {
   // The note may be open in the editor — land its pending keystrokes first
   // so the frontmatter rewrite starts from the live text.
-  await noteSaver.flush(notePath);
+  await noteSaver.flush(notePath, v);
   await writeNoteProperty(
     {
       readTextFile: (p) => vaultOps.read(v, p),

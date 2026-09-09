@@ -556,7 +556,7 @@ export function EditorHost({
     // The load-time snapshot IS the persisted disk state for this path (the
     // rare draft-restore case self-corrects on the first save). Needed by the
     // external-update guard below to tell our own echo from foreign content.
-    rememberPersistedText(path, initialDoc);
+    rememberPersistedText(vault, path, initialDoc);
     // Search jump (P4): a parked jump from the search tab selects and
     // reveals the first occurrence once the session exists (rAF so the
     // first layout pass has happened before scrolling).
@@ -595,37 +595,38 @@ export function EditorHost({
     // events were dispatched but nobody listened, so the next debounced save
     // silently overwrote the foreign version, and the worker's reconcile
     // preserved a stale typing-pause snapshot as .CONFLICT instead.
-    const handleExternalUpdate = async () => {
-      const s = sessionRef.current;
-      if (!s) return;
+    const handleExternalUpdate = () => noteSaver.withWriteLock(path, vault, async () => {
+      const s = session;
+      if (sessionRef.current !== s) return;
       let disk: string;
       try {
         disk = await vaultOps.read(vault, path);
       } catch {
         return; // deleted/renamed under us; the tree refresh handles that
       }
+      if (sessionRef.current !== s) return;
       const draft = s.view.state.doc.toString();
-      const lastPersisted = getLastPersistedText(path);
+      const revision = noteSaver.getRevision(path, vault);
+      const lastPersisted = getLastPersistedText(vault, path);
       const dirty =
-        noteSaver.hasPending(path) || (lastPersisted !== null && draft !== lastPersisted);
+        noteSaver.hasPending(path, vault) || (lastPersisted !== null && draft !== lastPersisted);
       if (!dirty) {
         // Clean buffer: realign to whatever reached the disk.
         if (disk !== draft) {
           s.applyExternalText(disk);
-          rememberPersistedText(path, disk);
+          rememberPersistedText(vault, path, disk);
         }
         return;
       }
       const action = decideDirtyExternalUpdate({ disk, draft, lastPersisted });
       if (action === "realign") {
-        rememberPersistedText(path, disk);
+        rememberPersistedText(vault, path, disk);
         return;
       }
       if (action === "own-echo") return; // our own save came back; keep typing
       // preserve-conflict: a genuinely different version is on disk. Preserve
       // the draft as a .CONFLICT sibling, adopt the disk version and drop the
       // queued save (it would overwrite the foreign version right back).
-      noteSaver.discard(path);
       const copyPath = conflictCopyPath(path);
       try {
         await vault.files.writeTextFile(copyPath, draft);
@@ -633,19 +634,20 @@ export function EditorHost({
         console.error("[EditorHost] preserving conflict copy failed", e);
         // Nothing was preserved, so a banner pointing at a copy would lie.
         toast.error(t("mobile.conflictPreserveFailed"));
-        sessionRef.current?.applyExternalText(disk);
-        rememberPersistedText(path, disk);
         return;
       }
-      sessionRef.current?.applyExternalText(disk);
-      rememberPersistedText(path, disk);
+      noteConflict(path, copyPath, vault.vaultId);
+      if (sessionRef.current !== s || s.view.state.doc.toString() !== draft ||
+          noteSaver.getRevision(path, vault) !== revision) return;
+      noteSaver.discard(path, vault, revision);
+      s.applyExternalText(disk);
+      rememberPersistedText(vault, path, disk);
       // S5: the same end state as a failed save — the user's text is beside
       // the note and they need a way to it. A toast said so and then left.
-      noteConflict(path, copyPath);
-    };
+    });
     const onExternalUpdate = (ev: Event) => {
       if ((ev as CustomEvent).detail?.path !== path) return;
-      void handleExternalUpdate();
+      void handleExternalUpdate().catch((e) => console.error("[EditorHost] external update failed", e));
     };
     const onAutoMerged = (ev: Event) => {
       const d = (ev as CustomEvent).detail as { path?: string; mergedText?: string } | undefined;
@@ -653,9 +655,9 @@ export function EditorHost({
       // Our save was 3-way-merged with a concurrent disk change. A clean
       // buffer adopts the merge result; a dirty one keeps typing — its next
       // save runs through the same merge chain and converges.
-      if (!noteSaver.hasPending(path)) {
+      if (!noteSaver.hasPending(path, vault)) {
         sessionRef.current?.applyExternalText(d.mergedText);
-        rememberPersistedText(path, d.mergedText);
+        rememberPersistedText(vault, path, d.mergedText);
       }
     };
     // The screen changed the text itself (an accepted proposal, the markers of
@@ -676,7 +678,7 @@ export function EditorHost({
       window.removeEventListener("m-editor-adopt-text", onAdoptText);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
-      void noteSaver.flush(path);
+      void noteSaver.flush(path, vault).catch(() => {});
       setEditorSelectionReader(null);
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
@@ -684,9 +686,9 @@ export function EditorHost({
       sessionRef.current = null;
       session.destroy();
     };
-    // initialDoc is the load-time snapshot for THIS path — remount on path only.
+    // The same path in another vault is a different editor session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, t]);
+  }, [vault.vaultId, path, t]);
 
   // C3: the shared live-preview widgets dispatch these; only one editor is
   // ever mounted on mobile, so the events need no path guard.

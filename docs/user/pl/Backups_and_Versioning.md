@@ -68,3 +68,5 @@ Ustawienia → **Vault** → **Backup i historia wersji**:
 - Wersje plików to zwykłe kopie w `.plainva/backups/` — w razie potrzeby można je otworzyć bez Plainva w dowolnym menedżerze plików.
 - Własna synchronizacja Plainva nigdy nie przesyła `.plainva`. Jeśli synchronizujesz folder vaultu zewnętrznym klientem (np. aplikacją Nextcloud), migawki są przesyłane razem z nim — kosztuje to trochę miejsca, ale nie szkodzi.
 - Konflikty synchronizacji są dodatkowo chronione za pomocą plików `.CONFLICT` (patrz [FAQ](FAQ.md)); historia wersji uzupełnia to o oś czasu każdego pliku.
+
+Na urządzeniu mobilnym nieudany zapis notatki zatrzymuje zmianę, ponowne wczytanie lub usunięcie vaulta. Tekst pozostaje w kolejce do ponownej próby. Notatki o tej samej nazwie w różnych vaultach mają oddzielne oczekujące zapisy i szkice. Konflikt zapisu zachowuje daną wersję tekstu; późniejsze zmiany są następnie zapisywane osobno lub w kolejnej kopii konfliktowej. Oba interfejsy wykonują zapisy i usuwanie szkiców w kolejności, aby opóźnione zakończenie nie usunęło nowszej kopii. Nieudany zapis kopii konfliktowej nie zastępuje tekstu w edytorze mobilnym.

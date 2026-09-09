@@ -81,7 +81,7 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
   }
 }
 
-import { noteSaver } from "./services/vaultService";
+import { getMobileVault, noteSaver } from "./services/vaultService";
 import { mobileAppVersion } from "./services/mobileWhatsNew";
 
 setPlatformServices({
@@ -89,7 +89,7 @@ setPlatformServices({
   credentials: secureCredentialStore,
   // The phone's editor queues its saves in the coordinator; a shared write
   // path must let that land first, or it overwrites the change a second later.
-  flushPendingSave: (path) => noteSaver.flush(path),
+  flushPendingSave: async (path) => noteSaver.flush(path, await getMobileVault()),
   // Version for the `generated` stamps of import / mail capture / task sync
   // (OKF 0.2 provenance, plan P3b) — the same producer names as the desktop.
   appVersion: mobileAppVersion,

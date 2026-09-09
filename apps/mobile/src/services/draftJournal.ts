@@ -31,84 +31,114 @@ export interface NoteDraft {
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const THROTTLE_MS = 400;
 
+interface PendingDraft {
+  v: MobileVault;
+  path: string;
+  text: string;
+  revision: number;
+  generation: number;
+}
 const lastWrite = new Map<string, number>();
-const pendingText = new Map<string, string>();
-const pendingRevision = new Map<string, number>();
+const pendingDrafts = new Map<string, PendingDraft>();
+const generations = new Map<string, number>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const lanes = new Map<string, Promise<void>>();
 
 function draftFile(v: MobileVault, path: string): string {
-  // URL-safe base64 keeps arbitrary note paths inside one flat folder.
   const key = btoa(unescape(encodeURIComponent(path))).replace(/\+/g, "-").replace(/\//g, "_");
   return `drafts/${v.vaultId}/${key}.json`;
 }
 
-async function persist(v: MobileVault, path: string): Promise<void> {
-  const text = pendingText.get(path);
-  if (text === undefined) return;
-  const revision = pendingRevision.get(path) ?? 0;
-  pendingText.delete(path);
-  try {
-    await atomicWriteText(
-      draftFile(v, path),
-      JSON.stringify({ path, text, ts: Date.now(), revision } satisfies NoteDraft),
-    );
-  } catch {
-    /* best effort */
-  }
+function serial(file: string, work: () => Promise<void>): Promise<void> {
+  const run = (lanes.get(file) ?? Promise.resolve()).catch(() => {}).then(work);
+  lanes.set(file, run);
+  void run.then(() => { if (lanes.get(file) === run) lanes.delete(file); },
+    () => { if (lanes.get(file) === run) lanes.delete(file); });
+  return run;
 }
 
-/** Journals the text, throttled per note (the coordinator calls this on every schedule). */
+function cancelTimer(file: string): void {
+  const timer = timers.get(file);
+  if (timer !== undefined) clearTimeout(timer);
+  timers.delete(file);
+}
+
+function schedulePersist(file: string, delay: number): void {
+  if (timers.has(file)) return;
+  timers.set(file, setTimeout(() => {
+    timers.delete(file);
+    void persist(file);
+  }, delay));
+}
+
+function persist(file: string): Promise<void> {
+  return serial(file, async () => {
+    const pending = pendingDrafts.get(file);
+    if (!pending) return;
+    lastWrite.set(file, Date.now());
+    try {
+      const { path, text, revision } = pending;
+      await atomicWriteText(
+        file,
+        JSON.stringify({ path, text, ts: Date.now(), revision } satisfies NoteDraft),
+      );
+      // Native acknowledgement covers THIS snapshot, not keystrokes that
+      // arrived while it was writing. A failed write keeps its pending text.
+      if (pendingDrafts.get(file) === pending) pendingDrafts.delete(file);
+    } catch {
+      schedulePersist(file, 2000);
+    }
+  });
+}
+
+/** Throttled per vault/document, independently of editor lifetime. */
 export function writeDraft(v: MobileVault, path: string, text: string, revision = 0): void {
-  pendingText.set(path, text);
-  pendingRevision.set(path, revision);
-  const now = Date.now();
-  const last = lastWrite.get(path) ?? 0;
-  if (now - last >= THROTTLE_MS) {
-    lastWrite.set(path, now);
-    void persist(v, path);
-    return;
-  }
-  if (!timers.has(path)) {
-    timers.set(
-      path,
-      setTimeout(() => {
-        timers.delete(path);
-        lastWrite.set(path, Date.now());
-        void persist(v, path);
-      }, THROTTLE_MS),
-    );
+  const file = draftFile(v, path);
+  const generation = (generations.get(file) ?? 0) + 1;
+  generations.set(file, generation);
+  pendingDrafts.set(file, { v, path, text, revision, generation });
+  if (Date.now() - (lastWrite.get(file) ?? 0) >= THROTTLE_MS) {
+    cancelTimer(file);
+    void persist(file);
+  } else {
+    schedulePersist(file, THROTTLE_MS);
   }
 }
 
-/**
- * A confirmed write drops the draft — but only up to `upToRevision`.
- *
- * Typing while a save is in flight journals a NEWER text; deleting it on the
- * confirmation of the older one would throw away exactly the keystrokes the
- * journal exists for. `Infinity` forces (the "discard" button means it).
- */
-export function clearDraft(v: MobileVault, path: string, upToRevision = Infinity): void {
-  const pending = pendingRevision.get(path);
-  if (pending !== undefined && pending > upToRevision) return;
+/** Attempt all buffered journal snapshots before the OS suspends timers. */
+export async function flushDrafts(v?: MobileVault): Promise<void> {
+  const selected = [...pendingDrafts].filter(([, pending]) => !v || pending.v.vaultId === v.vaultId);
+  await Promise.all(selected.map(([file]) => { cancelTimer(file); return persist(file); }));
+}
 
-  pendingText.delete(path);
-  pendingRevision.delete(path);
-  const timer = timers.get(path);
-  if (timer) {
-    clearTimeout(timer);
-    timers.delete(path);
-  }
-  void (async () => {
+/** Clear only the confirmed revision, ordered with all writes to this file.
+ * Manual discard covers the generation present at the call, never later input. */
+export function clearDraft(v: MobileVault, path: string, upToRevision = Infinity): void {
+  const file = draftFile(v, path);
+  const generation = generations.get(file) ?? 0;
+  const stillCovered = () => {
+    const pending = pendingDrafts.get(file);
+    return (generations.get(file) ?? 0) === generation &&
+      (!pending || pending.revision <= upToRevision);
+  };
+  void serial(file, async () => {
+    if (!stillCovered()) return;
     try {
       if (upToRevision !== Infinity) {
-        const stored = await readDraftFile(v, path);
-        if (stored && typeof stored.revision === "number" && stored.revision > upToRevision) return;
+        // Do not treat a permission/read/parse failure as an empty journal.
+        const res = await Filesystem.readFile({ path: file, directory: Directory.Data, encoding: Encoding.UTF8 });
+        const stored = JSON.parse(String(res.data)) as NoteDraft;
+        if (typeof stored.revision !== "number" || stored.revision > upToRevision) return;
       }
-      await Filesystem.deleteFile({ path: draftFile(v, path), directory: Directory.Data });
+      if (!stillCovered()) return;
+      cancelTimer(file);
+      pendingDrafts.delete(file);
+      await Filesystem.deleteFile({ path: file, directory: Directory.Data });
     } catch {
-      /* nothing to drop */
+      // Keeping a recoverable draft is safer than guessing that a read failed
+      // because no newer version exists.
     }
-  })();
+  }).catch(() => {});
 }
 
 /** The journal entry as it sits on disk, without the retention sweep. */
@@ -147,10 +177,17 @@ export async function pruneDrafts(v: MobileVault): Promise<void> {
     const cutoff = Date.now() - RETENTION_MS;
     for (const f of dir.files) {
       if (f.type === "file" && typeof f.mtime === "number" && f.mtime < cutoff) {
-        await Filesystem.deleteFile({
-          path: `drafts/${v.vaultId}/${f.name}`,
-          directory: Directory.Data,
-        }).catch(() => {});
+        const file = `drafts/${v.vaultId}/${f.name}`;
+        await serial(file, async () => {
+          if (pendingDrafts.has(file)) return;
+          try {
+            // The directory snapshot can predate a fresh atomic write.
+            const res = await Filesystem.readFile({ path: file, directory: Directory.Data, encoding: Encoding.UTF8 });
+            const stored = JSON.parse(String(res.data)) as NoteDraft;
+            if (pendingDrafts.has(file) || typeof stored.ts !== "number" || stored.ts >= cutoff) return;
+            await Filesystem.deleteFile({ path: file, directory: Directory.Data });
+          } catch { /* retain unreadable snapshots */ }
+        });
       }
     }
   } catch {

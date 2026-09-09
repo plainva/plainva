@@ -73,7 +73,7 @@ export async function executeMobileCascade(
   // overwrites the cleanup and brings the link to the deleted note back. The
   // paths are only known per reference, so the whole queue lands here — with
   // nothing pending this is free.
-  await noteSaver.flushAll();
+  await noteSaver.flushAll(v);
 
   // 1. Reference cleanup first (targets still resolve while they exist).
   if (selection.cleanupRefs && v.queryService) {

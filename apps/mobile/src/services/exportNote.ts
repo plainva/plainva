@@ -68,7 +68,7 @@ export async function exportNoteAsMarkdown(
 ): Promise<boolean> {
   let text: string;
   try {
-    await noteSaver.flush(path);
+    await noteSaver.flush(path, vault);
     const raw = await vaultOps.read(vault, path);
     let records: readonly WorkspaceCommentRecord[] = [];
     let names: ReadonlyMap<string, string> = new Map();
@@ -119,7 +119,7 @@ export async function mailNoteAsAttachment(
   t: TFunction,
 ): Promise<MailAttachment | null> {
   try {
-    await noteSaver.flush(path);
+    await noteSaver.flush(path, vault);
     const text = await vaultOps.read(vault, path);
     return {
       name: `${title}.md`,

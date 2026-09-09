@@ -85,7 +85,15 @@ export function subscribeConflicts(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function noteConflict(path: string, copyPath: string): void {
+export function noteConflict(path: string, copyPath: string, vaultKey = bound?.vaultKey): void {
+  if (vaultKey && vaultKey !== bound?.vaultKey) {
+    // A late result belongs to the vault that wrote it, even after navigation.
+    const storage = bound?.storage ?? defaultStorage();
+    const list = readPersistedConflicts(vaultKey, storage).filter((c) => c.path !== path);
+    list.push({ path, copyPath });
+    try { storage?.setItem(conflictsKey(vaultKey), JSON.stringify(list)); } catch { /* best effort */ }
+    return;
+  }
   const existing = conflicts.get(path);
   // A second conflict on the same note replaces the first: the newest copy is
   // the one holding the text the user last typed.

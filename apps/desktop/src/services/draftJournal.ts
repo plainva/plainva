@@ -79,6 +79,17 @@ function relFile(vaultPath: string, notePath: string): string {
   return `${pathHash(vaultPath)}/${pathHash(notePath)}.json`;
 }
 
+// Owner-window operations share one lane per vault/document. A delayed
+// clear must finish before a later atomic snapshot replaces the same file.
+const lanes = new Map<string, Promise<void>>();
+function serial(file: string, work: () => Promise<void>): Promise<void> {
+  const run = (lanes.get(file) ?? Promise.resolve()).catch(() => {}).then(work);
+  lanes.set(file, run);
+  void run.then(() => { if (lanes.get(file) === run) lanes.delete(file); },
+    () => { if (lanes.get(file) === run) lanes.delete(file); });
+  return run;
+}
+
 export async function recordDraft(
   vaultPath: string,
   notePath: string,
@@ -94,13 +105,15 @@ export async function recordDraft(
     await bus.request("draft-record", { vaultPath, notePath, text, revision });
     return;
   }
-  const { rootId } = await draftsRoot();
-  const entry: DraftEntry = { vaultPath, notePath, text, revision, savedAt: Date.now() };
-  await invoke("write_file_atomic", {
-    rootId,
-    relPath: relFile(vaultPath, notePath),
-    contents: JSON.stringify(entry),
-    encoding: "utf8",
+  await serial(relFile(vaultPath, notePath), async () => {
+    const { rootId } = await draftsRoot();
+    const entry: DraftEntry = { vaultPath, notePath, text, revision, savedAt: Date.now() };
+    await invoke("write_file_atomic", {
+      rootId,
+      relPath: relFile(vaultPath, notePath),
+      contents: JSON.stringify(entry),
+      encoding: "utf8",
+    });
   });
 }
 
@@ -142,17 +155,19 @@ export async function clearDraft(
       });
     return;
   }
-  try {
-    const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
-    if (!(await exists(file))) return;
-    if (upToRevision !== Infinity) {
-      const entry = JSON.parse(await readTextFile(file)) as DraftEntry;
-      if (typeof entry?.revision === "number" && entry.revision > upToRevision) return;
+  await serial(relFile(vaultPath, notePath), async () => {
+    try {
+      const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
+      if (!(await exists(file))) return;
+      if (upToRevision !== Infinity) {
+        const entry = JSON.parse(await readTextFile(file)) as DraftEntry;
+        if (typeof entry?.revision === "number" && entry.revision > upToRevision) return;
+      }
+      await remove(file);
+    } catch {
+      // best-effort — a stale journal entry is annoying, not dangerous
     }
-    await remove(file);
-  } catch {
-    // best-effort — a stale journal entry is annoying, not dangerous
-  }
+  });
 }
 
 /** Removes entries older than the retention window (called on vault open). */
@@ -166,12 +181,14 @@ export async function pruneDrafts(vaultPath: string): Promise<void> {
     for (const e of entries) {
       if (e.isDirectory || !e.name) continue;
       const file = await join(vaultDir, e.name);
-      try {
-        const s = await stat(file);
-        if ((s.mtime?.getTime() ?? 0) < cutoff) await remove(file);
-      } catch {
-        /* skip unreadable entries */
-      }
+      await serial(`${pathHash(vaultPath)}/${e.name}`, async () => {
+        try {
+          const s = await stat(file);
+          if ((s.mtime?.getTime() ?? 0) < cutoff) await remove(file);
+        } catch {
+          /* skip unreadable entries */
+        }
+      });
     }
   } catch {
     /* best-effort */

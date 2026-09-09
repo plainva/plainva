@@ -1169,7 +1169,7 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 void (async () => {
-                  await noteSaver.flush(path).catch(() => {});
+                  await noteSaver.flush(path, vault).catch(() => {});
                   const saved = await saveNoteAsTemplateIn(
                     vault.adapter,
                     getMobileSettings().templateFolder,

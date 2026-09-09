@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // In-memory doubles for the tauri fs/path/ipc surface the journal touches.
 const files = new Map<string, string>();
@@ -24,9 +24,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
     if (c === undefined) throw new Error(`missing ${p}`);
     return c;
   },
-  remove: async (p: string) => {
-    files.delete(p);
-  },
+  remove: vi.fn(async (p: string) => { files.delete(p); }),
   readDir: async () => [],
   stat: async () => ({ mtime: new Date() }),
 }));
@@ -78,5 +76,65 @@ describe("draftJournal", () => {
     expect(await readDraft(VAULT, NOTE)).toBeNull();
     files.set(FILE, JSON.stringify({ nope: true }));
     expect(await readDraft(VAULT, NOTE)).toBeNull();
+  });
+});
+
+import { remove } from "@tauri-apps/plugin-fs";
+
+function gate() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+describe("ordered desktop draft writes", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("finishes an old removal before allowing the next atomic snapshot", async () => {
+    await recordDraft(VAULT, NOTE, "old", 1);
+    const entered = gate(), release = gate();
+    const removeFile = vi.mocked(remove);
+    removeFile.mockImplementationOnce(async (path) => {
+      entered.resolve();
+      await release.promise;
+      files.delete(path as string);
+    });
+    const clearing = clearDraft(VAULT, NOTE, 1);
+    await entered.promise;
+    const writing = recordDraft(VAULT, NOTE, "new typing", 2);
+    release.resolve();
+    await Promise.all([clearing, writing]);
+    expect((await readDraft(VAULT, NOTE))?.text).toBe("new typing");
+  });
+
+  it("serializes a delayed atomic write, confirmation and newer snapshot", async () => {
+    const entered = gate(), release = gate();
+    invokeMock.mockImplementationOnce(async (_cmd, args) => {
+      entered.resolve();
+      await release.promise;
+      files.set("APPDATA/drafts/" + String(args?.relPath), String(args?.contents));
+    });
+    const old = recordDraft(VAULT, NOTE, "old", 3);
+    await entered.promise;
+    const clearing = clearDraft(VAULT, NOTE, 3);
+    const newer = recordDraft(VAULT, NOTE, "new", 4);
+    release.resolve();
+    await Promise.all([old, clearing, newer]);
+    expect((await readDraft(VAULT, NOTE))?.text).toBe("new");
+  });
+
+  it("keeps unrelated vaults independent while one atomic write waits", async () => {
+    const entered = gate(), release = gate();
+    invokeMock.mockImplementationOnce(async (_cmd, args) => {
+      entered.resolve();
+      await release.promise;
+      files.set("APPDATA/drafts/" + String(args?.relPath), String(args?.contents));
+    });
+    const held = recordDraft(VAULT, NOTE, "vault A", 5);
+    await entered.promise;
+    await recordDraft("other", NOTE, "vault B", 1);
+    expect((await readDraft("other", NOTE))?.text).toBe("vault B");
+    release.resolve();
+    await held;
+    expect((await readDraft(VAULT, NOTE))?.text).toBe("vault A");
   });
 });

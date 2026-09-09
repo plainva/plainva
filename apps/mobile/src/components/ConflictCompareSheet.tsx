@@ -104,7 +104,7 @@ export function ConflictCompareSheet({
       // S2: the note may be open with unsaved keystrokes — exactly the
       // situation that produced the conflict. Land them first, otherwise the
       // queued save settles after the promotion and puts the losing version back.
-      await noteSaver.flush(originalPath);
+      await noteSaver.flush(originalPath, vault);
       await vaultOps.save(vault, originalPath, copy);
       await vaultOps.remove(vault, conflictPath);
       toast.success(t("compare.resolvedAdopted"));
