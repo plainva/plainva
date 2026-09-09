@@ -6,8 +6,7 @@ import { listBlocks, blockAt } from "@plainva/ui";
 
 function st(doc: string) {
   const s = EditorState.create({ doc, extensions: [markdown()] });
-  forceFullParse(s); // force a full parse for the test
-  return s;
+  return forceFullParse(s);
 }
 
 describe("listBlocks", () => {

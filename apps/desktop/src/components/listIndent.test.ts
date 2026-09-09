@@ -78,8 +78,7 @@ describe("listDepthAt", () => {
     // background parse can trail the deeper list lines, so listDepthAt would read
     // an incomplete tree and report 0. Force a complete parse up front to keep the
     // depth assertions deterministic (mirrors editorSession.test.ts).
-    forceFullParse(state);
-    return state;
+    return forceFullParse(state);
   };
   // First non-whitespace position of a 1-based line number.
   const firstNonWs = (state: EditorState, lineNo: number) => {

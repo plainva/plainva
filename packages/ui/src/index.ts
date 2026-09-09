@@ -299,3 +299,6 @@ export * from "./services/toastStore";
 export * from './lib/importLabels';
 export * from "./lib/accountLoginGrant";
 export * from "./lib/fileBrokerBinding";
+
+export * from "./lib/accountPasswordChange";
+export * from "./lib/passwordChangeJournal";

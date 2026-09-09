@@ -18,43 +18,7 @@ mod sync_upload;
 mod tray;
 mod unzip;
 
-// OS keychain bridge (ADR 0005, phase 5.1 A6).
-//
-// NOTE (maintainer): this native code was NOT compiled or run in the AI harness
-// (no cargo). It follows the `keyring` v3 API (Entry::new / set_password /
-// get_password / delete_credential) and Tauri v2 command conventions. Verify the
-// native build on macOS/Windows/Linux before release — in particular the Linux
-// secret-service/DBus path and the chosen keyring feature flags in Cargo.toml.
-const KEYRING_SERVICE: &str = "plainva";
-
-/// Stores a secret under the given key in the OS keychain (upsert).
-#[tauri::command]
-fn keychain_set(key: String, value: String) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, &key).map_err(|e| e.to_string())?;
-    entry.set_password(&value).map_err(|e| e.to_string())
-}
-
-/// Returns the secret for the key, or `None` if there is no such entry.
-#[tauri::command]
-fn keychain_get(key: String) -> Result<Option<String>, String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, &key).map_err(|e| e.to_string())?;
-    match entry.get_password() {
-        Ok(password) => Ok(Some(password)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.to_string()),
-    }
-}
-
-/// Deletes the secret for the key. Missing entries are treated as success.
-#[tauri::command]
-fn keychain_delete(key: String) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, &key).map_err(|e| e.to_string())?;
-    match entry.delete_credential() {
-        Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
-}
+mod secure_store;
 
 // --- Google OAuth loopback redirect listener (ADR 0006, phase 5.1 G2) ---
 //
@@ -418,9 +382,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            keychain_set,
-            keychain_get,
-            keychain_delete,
+            secure_store::keychain_set,
+            secure_store::keychain_get,
+            secure_store::keychain_delete,
+            secure_store::keychain_compare_and_set,
             oauth_loopback_start,
             oauth_loopback_wait,
             oauth_loopback_cancel,

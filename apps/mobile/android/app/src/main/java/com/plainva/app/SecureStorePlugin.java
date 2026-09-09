@@ -26,6 +26,7 @@ import javax.crypto.spec.GCMParameterSpec;
 @CapacitorPlugin(name = "SecureStore")
 public class SecureStorePlugin extends Plugin {
 
+    private static final Object STORE_LOCK = new Object();
     private static final String KEY_ALIAS = "plainva_secrets";
     private static final String PREFS = "plainva_secure";
     private static final int GCM_TAG_BITS = 128;
@@ -53,55 +54,59 @@ public class SecureStorePlugin extends Plugin {
         return generator.generateKey();
     }
 
+    private String readValue(String k) throws Exception {
+        String stored = prefs().getString(k, null);
+        if (stored == null) return null;
+        byte[] blob = Base64.decode(stored, Base64.NO_WRAP);
+        if (blob.length <= IV_LENGTH) throw new IllegalStateException("invalid encrypted value");
+        byte[] iv = new byte[IV_LENGTH];
+        byte[] ct = new byte[blob.length - IV_LENGTH];
+        System.arraycopy(blob, 0, iv, 0, IV_LENGTH);
+        System.arraycopy(blob, IV_LENGTH, ct, 0, ct.length);
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
+        return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
+    }
+
+    private void writeValue(String k, String value) throws Exception {
+        if (value == null) {
+            if (!prefs().edit().remove(k).commit()) throw new IllegalStateException("secure store remove failed");
+            return;
+        }
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, key());
+        byte[] iv = cipher.getIV();
+        byte[] ct = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+        byte[] blob = new byte[iv.length + ct.length];
+        System.arraycopy(iv, 0, blob, 0, iv.length);
+        System.arraycopy(ct, 0, blob, iv.length, ct.length);
+        // commit reports a persisted result; apply would acknowledge early.
+        if (!prefs().edit().putString(k, Base64.encodeToString(blob, Base64.NO_WRAP)).commit()) {
+            throw new IllegalStateException("secure store write failed");
+        }
+    }
+
     @PluginMethod
     public void get(PluginCall call) {
         String k = call.getString("key");
         if (k == null) { call.reject("key required"); return; }
-        String stored = prefs().getString(k, null);
-        JSObject ret = new JSObject();
-        if (stored == null) {
-            ret.put("value", JSObject.NULL);
-            call.resolve(ret);
-            return;
-        }
-        try {
-            byte[] blob = Base64.decode(stored, Base64.NO_WRAP);
-            byte[] iv = new byte[IV_LENGTH];
-            byte[] ct = new byte[blob.length - IV_LENGTH];
-            System.arraycopy(blob, 0, iv, 0, IV_LENGTH);
-            System.arraycopy(blob, IV_LENGTH, ct, 0, ct.length);
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
-            ret.put("value", new String(cipher.doFinal(ct), StandardCharsets.UTF_8));
-            call.resolve(ret);
-        } catch (Exception e) {
-            call.reject("decrypt failed: " + e.getMessage());
+        synchronized (STORE_LOCK) {
+            try {
+                String value = readValue(k);
+                JSObject ret = new JSObject();
+                ret.put("value", value == null ? JSObject.NULL : value);
+                call.resolve(ret);
+            } catch (Exception e) { call.reject("secure store read failed"); }
         }
     }
 
     @PluginMethod
     public void set(PluginCall call) {
-        String k = call.getString("key");
-        String value = call.getString("value");
+        String k = call.getString("key"), value = call.getString("value");
         if (k == null || value == null) { call.reject("key and value required"); return; }
-        try {
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, key());
-            byte[] iv = cipher.getIV();
-            byte[] ct = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
-            byte[] blob = new byte[iv.length + ct.length];
-            System.arraycopy(iv, 0, blob, 0, iv.length);
-            System.arraycopy(ct, 0, blob, iv.length, ct.length);
-            // commit(), not apply() (P3.1b, finding M7): apply() persists
-            // asynchronously and NEVER reports failure — a lost rotated
-            // OneDrive/Dropbox refresh token locks the next app start out of
-            // sync. Plugin methods run off the UI thread, so the synchronous
-            // write is safe, and the JS caller awaits a REAL result.
-            boolean persisted = prefs().edit().putString(k, Base64.encodeToString(blob, Base64.NO_WRAP)).commit();
-            if (!persisted) { call.reject("secure store write failed"); return; }
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("encrypt failed: " + e.getMessage());
+        synchronized (STORE_LOCK) {
+            try { writeValue(k, value); call.resolve(); }
+            catch (Exception e) { call.reject("secure store write failed"); }
         }
     }
 
@@ -109,8 +114,27 @@ public class SecureStorePlugin extends Plugin {
     public void remove(PluginCall call) {
         String k = call.getString("key");
         if (k == null) { call.reject("key required"); return; }
-        boolean persisted = prefs().edit().remove(k).commit();
-        if (!persisted) { call.reject("secure store remove failed"); return; }
-        call.resolve();
+        synchronized (STORE_LOCK) {
+            try { writeValue(k, null); call.resolve(); }
+            catch (Exception e) { call.reject("secure store remove failed"); }
+        }
+    }
+
+    /** Compare and persist inside the same native lane as ordinary writers. */
+    @PluginMethod
+    public void compareAndSet(PluginCall call) {
+        String k = call.getString("key");
+        if (k == null || !call.getData().has("expected") || !call.getData().has("value")) {
+            call.reject("key, expected and value required"); return;
+        }
+        synchronized (STORE_LOCK) {
+            try {
+                boolean changed = java.util.Objects.equals(readValue(k), call.getString("expected"));
+                if (changed) writeValue(k, call.getString("value"));
+                JSObject result = new JSObject();
+                result.put("changed", changed);
+                call.resolve(result);
+            } catch (Exception e) { call.reject("secure store conditional write failed"); }
+        }
     }
 }

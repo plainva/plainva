@@ -2,12 +2,7 @@ import Foundation
 import Capacitor
 import Security
 
-/**
- * Keychain-backed secret store (P7), the iOS counterpart of the Android
- * AndroidKeyStore plugin. The Keychain encrypts at rest by itself, so no
- * manual AES layer is needed here. Contract: get({key}) -> {value|null},
- * set({key, value}), remove({key}).
- */
+/** OS-protected storage. Missing entries and failed reads are distinct. */
 @objc(SecureStorePlugin)
 public class SecureStorePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "SecureStorePlugin"
@@ -16,39 +11,39 @@ public class SecureStorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "get", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "compareAndSet", returnType: CAPPluginReturnPromise),
     ]
 
+    private static let storeLock = NSLock()
     private let service = "com.plainva.app.securestore"
 
     private func baseQuery(_ key: String) -> [String: Any] {
-        return [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-        ]
+        return [kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service, kSecAttrAccount as String: key]
     }
 
-    @objc func get(_ call: CAPPluginCall) {
-        guard let key = call.getString("key") else {
-            call.reject("key required")
-            return
-        }
+    private func readValue(_ key: String) throws -> String? {
         var query = baseQuery(key)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecSuccess, let data = item as? Data,
-            let value = String(data: data, encoding: .utf8) {
-            call.resolve(["value": value])
-        } else {
-            call.resolve(["value": NSNull()])
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else {
+            throw NSError(domain: "SecureStore", code: Int(status))
         }
+        guard let data = item as? Data, let value = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "SecureStore", code: Int(errSecDecode))
+        }
+        return value
     }
 
-    @objc func set(_ call: CAPPluginCall) {
-        guard let key = call.getString("key"), let value = call.getString("value") else {
-            call.reject("key and value required")
+    private func writeValue(_ key: String, _ value: String?) throws {
+        guard let value = value else {
+            let status = SecItemDelete(baseQuery(key) as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw NSError(domain: "SecureStore", code: Int(status))
+            }
             return
         }
         let data = Data(value.utf8)
@@ -57,28 +52,53 @@ public class SecureStorePlugin: CAPPlugin, CAPBridgedPlugin {
         var status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
         if status == errSecItemNotFound {
             query[kSecValueData as String] = data
-            // Sync may touch credentials while the device is locked in the
-            // background — AfterFirstUnlock is the matching accessibility.
+            // Background sync may access secrets after the first device unlock.
             query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
             status = SecItemAdd(query as CFDictionary, nil)
         }
-        if status == errSecSuccess {
-            call.resolve()
-        } else {
-            call.reject("keychain write failed (\(status))")
+        guard status == errSecSuccess else {
+            throw NSError(domain: "SecureStore", code: Int(status))
         }
     }
 
+    @objc func get(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("key required"); return }
+        Self.storeLock.lock()
+        defer { Self.storeLock.unlock() }
+        do {
+            if let value = try readValue(key) { call.resolve(["value": value]) }
+            else { call.resolve(["value": NSNull()]) }
+        } catch { call.reject("secure store read failed") }
+    }
+
+    @objc func set(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), let value = call.getString("value") else {
+            call.reject("key and value required"); return
+        }
+        Self.storeLock.lock()
+        defer { Self.storeLock.unlock() }
+        do { try writeValue(key, value); call.resolve() }
+        catch { call.reject("secure store write failed") }
+    }
+
     @objc func remove(_ call: CAPPluginCall) {
-        guard let key = call.getString("key") else {
-            call.reject("key required")
-            return
+        guard let key = call.getString("key") else { call.reject("key required"); return }
+        Self.storeLock.lock()
+        defer { Self.storeLock.unlock() }
+        do { try writeValue(key, nil); call.resolve() }
+        catch { call.reject("secure store remove failed") }
+    }
+
+    @objc func compareAndSet(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), call.options["expected"] != nil, call.options["value"] != nil else {
+            call.reject("key, expected and value required"); return
         }
-        let status = SecItemDelete(baseQuery(key) as CFDictionary)
-        if status == errSecSuccess || status == errSecItemNotFound {
-            call.resolve()
-        } else {
-            call.reject("keychain delete failed (\(status))")
-        }
+        Self.storeLock.lock()
+        defer { Self.storeLock.unlock() }
+        do {
+            let changed = try readValue(key) == call.getString("expected")
+            if changed { try writeValue(key, call.getString("value")) }
+            call.resolve(["changed": changed])
+        } catch { call.reject("secure store conditional write failed") }
     }
 }

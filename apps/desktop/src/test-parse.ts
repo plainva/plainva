@@ -22,9 +22,8 @@ import { ensureSyntaxTree } from "@codemirror/language";
  *    without one leaves the snapshot at the init window, however long it ran.
  *    Passing a view lets this settle it with an empty dispatch.
  *
- * Pass a view whenever the caller has one. A detached state cannot be settled
- * in place; that stays sound for fixtures below the ~3000-character window the
- * initial parse covers synchronously, which is what the state callers use.
+ * Pass a view whenever the caller has one. Detached-state callers must use
+ * the returned state: even a short initial parse can yield under CPU load.
  *
  * The deadline exists only so a genuinely stuck parse fails the test instead of
  * hanging the suite.
@@ -33,7 +32,7 @@ export function forceFullParse(
   target: EditorView | EditorState,
   upto?: number,
   budgetMs = 30_000,
-): void {
+): EditorState {
   const view = "state" in target ? target : null;
   const state = view ? view.state : (target as EditorState);
   const end = upto ?? state.doc.length;
@@ -43,4 +42,5 @@ export function forceFullParse(
   } while (Date.now() < deadline);
   // Make the StateField snapshot adopt what the parser just produced.
   view?.dispatch({});
+  return view ? view.state : state.update({}).state;
 }
