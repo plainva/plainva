@@ -5,11 +5,21 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import ts from "typescript";
-import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, mergeText, containsTextChanges, type IDatabaseAdapter } from "@plainva/core";
+import { createRequire } from "node:module";
+import { CommentActionNotStartedError } from "@plainva/core";
+import type { CommentEditorSnapshot } from "@plainva/ui";
+import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, mergeEditorText, containsTextChanges, type IDatabaseAdapter } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
+
+// CodeMirror belongs to the shared UI package; load that exact installed copy.
+type TestChange = { changes: { from: number; to: number; insert: string } };
+interface TestEditorState { doc: { length: number; toString(): string }; update(spec: TestChange): { state: TestEditorState } }
+const { EditorState } = createRequire(resolve("../../packages/ui/package.json"))("@codemirror/state") as {
+  EditorState: { create(spec: { doc: string }): TestEditorState };
+};
 
 // Run the actual factory, note-save method and vault lifecycle functions.
 // Only native boot/registry/notifications are replaced; files, conflict
@@ -20,7 +30,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "reloadActiveMobileVault", "deleteVault", "rememberPersistedText", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "reloadActiveMobileVault", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -28,7 +38,7 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 5) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 6) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(vault); const lastPersistedText = new Map(); const editorBaseText = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
@@ -65,12 +75,13 @@ async function makeVault() {
   return { vault, raw, db, repo };
 }
 function harness(vault: MobileVault) {
+  const events = new EventTarget();
   const drafts = new Map<string, { text: string; revision: number }>();
   const conflicts: Array<{ path: string; copy: string; vaultId: string }> = [];
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
   const deps = {
-    vault, createSaveCoordinator, ConflictError, mergeText, containsTextChanges,
+    vault, createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
       drafts.set(JSON.stringify([v.vaultId, path]), { text, revision }),
     clearDraft: (v: MobileVault, path: string, revision: number) => {
@@ -81,24 +92,109 @@ function harness(vault: MobileVault) {
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon: () => {}, toast: { warning: () => {} }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
-    window: { dispatchEvent: () => {} }, CustomEvent: class {},
+    window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",
     console: { error: () => {} },
   };
   const result = new Function(...Object.keys(deps), compiled +
-    "\nreturn {noteSaver,switchVault,reloadActiveMobileVault,deleteVault,getLastPersistedText,rememberPersistedText};")(...Object.values(deps)) as {
+    "\nreturn {noteSaver,switchVault,reloadActiveMobileVault,deleteVault,getLastPersistedText,rememberPersistedText,rememberCommentWrite};")(...Object.values(deps)) as {
       noteSaver: SaveCoordinator<MobileVault>;
       switchVault(id: string): Promise<void>;
       reloadActiveMobileVault(): Promise<void>;
       deleteVault(id: string): Promise<void>;
       getLastPersistedText(v: MobileVault, path: string): string | null;
       rememberPersistedText(v: MobileVault, path: string, text: string): void;
+      rememberCommentWrite(v: MobileVault, path: string, text: string): void;
     };
   savers.push(result.noteSaver);
-  return { ...result, drafts, conflicts, stopped, activated };
+  return { ...result, drafts, conflicts, stopped, activated, events };
+}
+
+const hostFile = ts.createSourceFile("EditorHost.tsx", readFileSync(resolve("src/EditorHost.tsx"), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+let captureSource = "", confirmedSource = "";
+function visitHost(node: ts.Node) {
+  if (ts.isCallExpression(node) && node.expression.getText(hostFile) === "registerCommentEditor") captureSource = node.arguments[2].getText(hostFile);
+  if (ts.isVariableDeclaration(node) && node.name.getText(hostFile) === "onSaveConfirmed") confirmedSource = node.initializer!.getText(hostFile);
+  ts.forEachChild(node, visitHost);
+}
+visitHost(hostFile);
+if (!captureSource || !confirmedSource) throw new Error("actual editor confirmation callbacks missing");
+const hostCompiled = ts.transpileModule(`const capture = ${captureSource}; const confirmed = ${confirmedSource};`, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+}).outputText;
+
+function hostHarness(vault: MobileVault, h: ReturnType<typeof harness>, text: string) {
+  let state = EditorState.create({ doc: text });
+  const session = { view: { get state() { return state; }, dispatch(spec: { changes: { from: number; to: number; insert: string } }) {
+    state = state.update(spec).state;
+    h.noteSaver.schedule(vault, "Note.md", state.doc.toString());
+  } }, applyExternalText(next: string) { state = state.update({ changes: { from: 0, to: state.doc.length, insert: next } }).state; } };
+  const sessionRef: { current: typeof session | null } = { current: session };
+  const deps = { session, sessionRef, vault, path: "Note.md", noteSaver: h.noteSaver,
+    getLastPersistedText: h.getLastPersistedText, rememberPersistedText: h.rememberPersistedText, rememberCommentWrite: h.rememberCommentWrite,
+    suggestingRef: { current: false }, window: h.events, CustomEvent, CommentActionNotStartedError };
+  const callbacks = new Function(...Object.keys(deps), hostCompiled + "\nreturn {capture,confirmed};")(...Object.values(deps)) as {
+    capture(): CommentEditorSnapshot; confirmed(event: Event): void;
+  };
+  h.events.addEventListener("m-editor-save-confirmed", callbacks.confirmed);
+  return { ...callbacks, session, sessionRef };
 }
 
 describe("mobile saves through the actual adapter and lifecycle chain", () => {
+  it("adopts a confirmed comment write in its captured CodeMirror document", async () => {
+    const a = await makeVault(), h = harness(a.vault);
+    h.rememberPersistedText(a.vault, "Note.md", "The old sentence.");
+    const editor = hostHarness(a.vault, h, "The old sentence.");
+    const snapshot = editor.capture();
+    await a.raw.writeTextFile("Note.md", "The new sentence.");
+    snapshot.adopt("The new sentence.");
+    expect(editor.session.view.state.doc.toString()).toBe("The new sentence.");
+    expect(h.getLastPersistedText(a.vault, "Note.md")).toBe("The new sentence.");
+    expect(h.noteSaver.hasPending()).toBe(false);
+  });
+
+  it("keeps input typed during a comment write and confirms the combined note through the real save chain", async () => {
+    const a = await makeVault(), h = harness(a.vault);
+    const original = "Welcome to the vault!";
+    await a.raw.writeTextFile("Note.md", original); h.rememberPersistedText(a.vault, "Note.md", original);
+    const editor = hostHarness(a.vault, h, original), snapshot = editor.capture(), release = gate();
+    const operation = h.noteSaver.withWriteLock("Note.md", a.vault, async () => {
+      await release.promise;
+      await a.raw.writeTextFile("Note.md", "Welcome to the garden!");
+      snapshot.adopt("Welcome to the garden!");
+    });
+    editor.session.view.dispatch({ changes: { from: original.length, to: original.length, insert: " More writing." } });
+    const saved = h.noteSaver.flush("Note.md", a.vault);
+    release.resolve(); await operation; await saved;
+    expect(await a.raw.readTextFile("Note.md")).toBe("Welcome to the garden! More writing.");
+    expect(editor.session.view.state.doc.toString()).toBe("Welcome to the garden! More writing.");
+    expect(h.conflicts).toEqual([]);
+    expect(h.drafts.size).toBe(0);
+  });
+
+  it("a receipt after navigation cannot overwrite the replacement editor or its base", async () => {
+    const a = await makeVault(), h = harness(a.vault);
+    h.rememberPersistedText(a.vault, "Note.md", "old");
+    const editor = hostHarness(a.vault, h, "old"), snapshot = editor.capture();
+    editor.sessionRef.current = null;
+    h.rememberPersistedText(a.vault, "Note.md", "replacement session");
+    snapshot.adopt("late receipt");
+    expect(editor.session.view.state.doc.toString()).toBe("old");
+    expect(h.getLastPersistedText(a.vault, "Note.md")).toBe("replacement session");
+    expect(snapshot.current()).toBe(false);
+  });
+
+  it("a later completed save owns its base even when an older operation receipt arrives", async () => {
+    const a = await makeVault(), h = harness(a.vault);
+    await a.raw.writeTextFile("Note.md", "old"); h.rememberPersistedText(a.vault, "Note.md", "old");
+    const editor = hostHarness(a.vault, h, "old"), snapshot = editor.capture();
+    editor.session.view.dispatch({ changes: { from: 0, to: 3, insert: "newer" } });
+    await h.noteSaver.flush("Note.md", a.vault);
+    snapshot.adopt("older receipt");
+    expect(editor.session.view.state.doc.toString()).toBe("newer");
+    expect(h.getLastPersistedText(a.vault, "Note.md")).toBe("newer");
+  });
+
   it("writes two vaults with the same path to separate files and SQLite queues", async () => {
     const a = await makeVault(), b = await makeVault();
     const h = harness(a.vault);

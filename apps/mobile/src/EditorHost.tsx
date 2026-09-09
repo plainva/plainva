@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
-import { postMobileComment } from "./services/mobileComments";
+import { mobileCommentOperations } from "./services/commentOperations";
 import {
   Bold,
   Camera as CameraIcon,
@@ -28,10 +28,10 @@ import {
   Pencil,
   TextSelect,
 } from "lucide-react";
-import { applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
 import { EmojiPickSheet } from "./components/EmojiPickSheet";
@@ -41,6 +41,7 @@ import {
   getLastPersistedText,
   noteSaver,
   rememberPersistedText,
+  rememberCommentWrite,
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
@@ -189,7 +190,7 @@ export function EditorHost({
    */
   const suggestNoteRef = useRef("");
   const parkTimerRef = useRef<number | null>(null);
-  const schedulePark = () => {
+  const schedulePark = useCallback(() => {
     if (parkTimerRef.current !== null) window.clearTimeout(parkTimerRef.current);
     parkTimerRef.current = window.setTimeout(() => {
       parkTimerRef.current = null;
@@ -200,11 +201,11 @@ export function EditorHost({
       if (base === null) return;
       void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(() => {});
     }, 500);
-  };
-  const forgetPark = () => {
+  }, [path, vault]);
+  const forgetPark = useCallback(() => {
     if (parkTimerRef.current !== null) { window.clearTimeout(parkTimerRef.current); parkTimerRef.current = null; }
     if (vault.db) void clearParkedSuggestion(vault.db, path).catch(() => {});
-  };
+  }, [path, vault]);
   // The .base picker of the insert menu (S19): the slash entry existed and
   // did nothing, because it fires an event only the desktop listened to.
   const [basePick, setBasePick] = useState<{ pos: number } | null>(null);
@@ -373,9 +374,10 @@ export function EditorHost({
         // retry on failure, flushed on background/vault switch. The old
         // fire-and-forget dropped the text before the write confirmed.
         noteSaver.schedule(vault, path, view.state.doc.toString());
+        window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: view.state.doc.toString() } }));
       },
       onSuggestionChunks: (count) => {
-        window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { path, count } }));
+        window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { vaultId: vault.vaultId, path, count } }));
         schedulePark();
       },
       onSelectionToolbar: (at) => setSelectionAt(at),
@@ -614,6 +616,7 @@ export function EditorHost({
         // Clean buffer: realign to whatever reached the disk.
         if (disk !== draft) {
           s.applyExternalText(disk);
+          window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: disk } }));
           rememberPersistedText(vault, path, disk);
         }
         return;
@@ -641,12 +644,13 @@ export function EditorHost({
           noteSaver.getRevision(path, vault) !== revision) return;
       noteSaver.discard(path, vault, revision);
       s.applyExternalText(disk);
+          window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: disk } }));
       rememberPersistedText(vault, path, disk);
       // S5: the same end state as a failed save — the user's text is beside
       // the note and they need a way to it. A toast said so and then left.
     });
     const onExternalUpdate = (ev: Event) => {
-      if ((ev as CustomEvent).detail?.path !== path) return;
+      if ((ev as CustomEvent).detail?.path !== path || ((ev as CustomEvent).detail?.vaultId && (ev as CustomEvent).detail.vaultId !== vault.vaultId)) return;
       void handleExternalUpdate().catch((e) => console.error("[EditorHost] external update failed", e));
     };
     const onAutoMerged = onExternalUpdate;
@@ -656,25 +660,49 @@ export function EditorHost({
         || noteSaver.getRevision(path, vault) !== d.revision || session.view.state.doc.toString() !== d.input) return;
       session.applyExternalText(d.stored);
       rememberPersistedText(vault, path, d.stored);
+      window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: d.stored } }));
     };
-    // The screen changed the text itself (an accepted proposal, the markers of
-    // a new remark): adopt it as an external change, whatever the buffer holds
-    // - the screen is the owner of that change (finding 2026-09-09).
-    const onAdoptText = (ev: Event) => {
-      const d = (ev as CustomEvent).detail as { path?: string; text?: string } | undefined;
-      if (d?.path !== path || typeof d.text !== "string") return;
-      sessionRef.current?.applyExternalText(d.text);
-    };
+    const stopObservingRounds = observeCompletedCommentRounds(mobileCommentOperations(vault), vault.vaultId, path, (operation) => {
+      if (sessionRef.current !== session || !suggestingRef.current) return;
+      const { base, chunks } = session.suggestion();
+      if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(path, base, chunks, suggestNoteRef.current))) return;
+      suggestingRef.current = false;
+      session.setSuggesting(false);
+      forgetPark();
+      window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: operation.markers.length } }));
+    });
+    const unregisterCommentEditor = registerCommentEditor(vault.vaultId, path, () => {
+      const revision = noteSaver.getRevision(path, vault);
+      const text = session.view.state.doc.toString();
+      const persisted = getLastPersistedText(vault, path);
+      const alive = () => sessionRef.current === session;
+      const current = () => alive() && !suggestingRef.current && noteSaver.getRevision(path, vault) === revision
+        && session.view.state.doc.toString() === text;
+      return { text, alive, current, edit: (next) => {
+        if (!current()) throw new CommentActionNotStartedError();
+        session.view.dispatch({ changes: { from: 0, to: session.view.state.doc.length, insert: next } });
+      }, adopt: (confirmed) => {
+        if (!alive() || suggestingRef.current) return;
+        const latest = getLastPersistedText(vault, path);
+        if (latest !== persisted && latest !== confirmed) return;
+        rememberCommentWrite(vault, path, confirmed);
+        if (!current()) return;
+        session.applyExternalText(confirmed);
+        rememberPersistedText(vault, path, confirmed);
+        window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: confirmed } }));
+      } };
+    });
     window.addEventListener("m-external-update", onExternalUpdate);
     window.addEventListener("m-auto-merged", onAutoMerged);
     window.addEventListener("m-editor-save-confirmed", onSaveConfirmed);
-    window.addEventListener("m-editor-adopt-text", onAdoptText);
+
 
     return () => {
       window.removeEventListener("m-external-update", onExternalUpdate);
       window.removeEventListener("m-auto-merged", onAutoMerged);
       window.removeEventListener("m-editor-save-confirmed", onSaveConfirmed);
-      window.removeEventListener("m-editor-adopt-text", onAdoptText);
+      unregisterCommentEditor();
+      stopObservingRounds();
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path, vault).catch(() => {});
@@ -846,6 +874,8 @@ export function EditorHost({
 
   // Context-sheet requests (C1/C4): outline jump, mode toggle, in-note search.
   useEffect(() => {
+    let starting: Promise<void> = Promise.resolve();
+    let startGeneration = 0;
     const onSuggestNote = (e: Event) => {
       const hit = forThisNote(e);
       if (!hit) return;
@@ -859,12 +889,16 @@ export function EditorHost({
       const hit = forThisNote(e);
       if (!hit || typeof hit.detail.copy !== "string") return;
       const view = hit.view;
-      if (view.state.doc.toString() !== hit.detail.copy) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: hit.detail.copy } });
+      const copy = hit.detail.copy;
+      void starting.then(() => {
+        if (sessionRef.current?.view !== view || !suggestingRef.current) return;
+        if (view.state.doc.toString() !== copy) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: copy } });
+      }).catch(() => {});
     };
     const forThisNote = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { path?: string } | undefined;
+      const detail = (e as CustomEvent).detail as { path?: string; vaultId?: string } | undefined;
       const view = sessionRef.current?.view;
-      return view && detail?.path === path ? { view, detail: detail as Record<string, unknown> } : null;
+      return view && detail?.path === path && (!detail.vaultId || detail.vaultId === vault.vaultId) ? { view, detail: detail as Record<string, unknown> } : null;
     };
     const onGoto = (e: Event) => {
       const hit = forThisNote(e);
@@ -901,13 +935,24 @@ export function EditorHost({
     // events, the count of change blocks and the outcome go back the same way.
     const onSuggestStart = (e: Event) => {
       const hit = forThisNote(e);
-      if (!hit) return;
-      suggestingRef.current = true;
-      sessionRef.current?.setSuggesting(true);
+      const session = sessionRef.current;
+      if (!hit || !session) return;
+      const generation = ++startGeneration;
+      starting = (async () => {
+        await noteSaver.flush(path, vault);
+        if (sessionRef.current !== session || generation !== startGeneration) throw new CommentActionNotStartedError();
+        suggestingRef.current = true;
+        session.setSuggesting(true);
+      })();
+      void starting.catch((error) => {
+        toast.error(commentActionErrorKey(error) ? t(commentActionErrorKey(error)!) : errorText(error));
+        if (sessionRef.current === session && generation === startGeneration)
+          window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path } }));
+      });
     };
     const onSuggestDiscard = (e: Event) => {
-      const hit = forThisNote(e);
-      if (!hit) return;
+      if (!forThisNote(e)) return;
+      startGeneration++;
       suggestingRef.current = false;
       sessionRef.current?.setSuggesting(false);
       forgetPark();
@@ -916,28 +961,31 @@ export function EditorHost({
       const hit = forThisNote(e);
       const session = sessionRef.current;
       if (!hit || !session) return;
-      const note = typeof hit.detail.note === "string" && hit.detail.note.trim() ? hit.detail.note.trim() : null;
+      const note = typeof hit.detail.note === "string" ? hit.detail.note : "";
+      const copy = session.view.state.doc.toString();
+      const current = () => sessionRef.current === session && suggestingRef.current
+        && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
       const { base, chunks } = session.suggestion();
       void (async () => {
         try {
-          if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
+          await starting;
+          if (base === null || !chunks.length) { toast.info(t("comments.suggestNothing")); return; }
           if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
           const batchId = createWorkspaceObjectId();
-          let index = 0;
-          for (const chunk of chunks) {
-            const anchor = buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base));
-            if (!anchor.quote && !chunk.replacement) continue;
-            await postMobileComment(vault, { path, body: "", anchor, suggestion: { replacement: chunk.replacement }, suggestionBatchId: batchId, batchIndex: index, batchNote: note });
-            index += 1;
+          const markers = chunks.map((chunk, index) => ({ path, body: "", parentCommentId: null,
+            anchor: buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base)),
+            suggestion: { replacement: chunk.replacement }, batch: { batchId, index, note: note.trim() || null } }));
+          const service = mobileCommentOperations(vault);
+          await commentActionController(service).execute({ notePath: path, kind: "post", markers },
+            (operation) => runVisibleCommentOperation(service, operation, { text: copy, current, adopt: () => {} }));
+          if (current()) {
+            suggestingRef.current = false;
+            session.setSuggesting(false);
+            forgetPark();
+            window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: markers.length } }));
           }
-          suggestingRef.current = false;
-          session.setSuggesting(false);
-          forgetPark();
-          window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { path, sent: index } }));
-          toast.info(t("comments.suggestSent", { n: index }));
-        } catch (error) {
-          toast.error(errorText(error));
-        }
+          toast.info(t("comments.suggestSent", { n: markers.length }));
+        } catch (error) { toast.error(commentActionErrorKey(error) ? t(commentActionErrorKey(error)!) : errorText(error)); }
       })();
     };
     const onFind = (e: Event) => {
@@ -975,7 +1023,7 @@ export function EditorHost({
       window.removeEventListener("m-editor-pick-icon", onPickIcon);
       window.removeEventListener("m-editor-pick-color", onPickColor);
     };
-  }, [path]);
+  }, [path, vault, t, forgetPark, schedulePark]);
 
   // Read-first (M4): the editable facet keeps the live preview fully
   // rendered while blocking the keyboard; entering edit mode focuses.

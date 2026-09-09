@@ -175,7 +175,7 @@ export function CommentsScreen({
                 {root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 {root.suggestion && !root.suggestion.appliedAt && !root.suggestion.declinedAt && (
                   <span className="pv-comment-card__state">
-                    <Replace size={ICON.meta} aria-hidden="true" /> {t("comments.suggestionPending")}
+                    <Replace size={ICON.meta} aria-hidden="true" /> {t(root.suggestionDecision?.status === "conflict" ? "comments.decisionConflict" : "comments.suggestionPending")}
                   </span>
                 )}
                 <small className="pv-comment-card__meta">

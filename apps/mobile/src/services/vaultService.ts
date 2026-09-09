@@ -2,7 +2,7 @@ import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
   ConflictError,
-  mergeText,
+  mergeEditorText,
   containsTextChanges,
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
@@ -1207,6 +1207,11 @@ export function rememberPersistedText(vault: MobileVault, path: string, text: st
   editorBaseText.set(key, text);
 }
 
+/** A confirmed comment write is our echo; newer typing still needs its old merge base. */
+export function rememberCommentWrite(vault: MobileVault, path: string, text: string): void {
+  lastPersistedText.set(JSON.stringify([vault.vaultId, path]), text);
+}
+
 export function getLastPersistedText(vault: MobileVault, path: string): string | null {
   return lastPersistedText.get(JSON.stringify([vault.vaultId, path])) ?? null;
 }
@@ -1234,7 +1239,7 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
     // A pull can advance the sync index while the editor still holds its old
     // base. Preserve that ancestry through delayed saves and further typing.
     if (base !== undefined && disk !== base && disk !== text) {
-      const merged = mergeText(base, text, disk);
+      const merged = mergeEditorText(base, text, disk);
       if (merged.hasConflicts) {
         const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
         const stem = ext ? path.slice(0, -ext.length) : path;

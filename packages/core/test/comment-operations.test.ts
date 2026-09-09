@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { BundleCommentStore, createWorkspaceObjectId, commentsDevicePath, parseCommentsBundle } from "../src/index.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { createCommentOperationService } from "../src/comments/commentOperationService.js";
+import { CommentActionController, CommentActionNotStartedError, PendingCommentActionError, planCommentDecision, planCommentRound } from "../src/comments/commentActions.js";
+import { buildCommentAnchor, mintAnchorMarkerId } from "../src/workspace/commentAnchor.js";
+import type { WorkspaceCommentRecord } from "../src/workspace/state.js";
 import {
   CommentOperationRunner, FileCommentOperationJournal, prepareCommentOperation, parseCommentOperation,
   type CommentOperation, type CommentOperationDeps, type CommentOperationFiles,
@@ -55,6 +58,105 @@ async function setup() {
 }
 
 describe("durable comment operation recovery with real files", () => {
+  it("a restarted action retries the original partially stored round, including lost marker acknowledgement", async () => {
+    const f = await setup();
+    let fail = true;
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md",
+      post: async (marker) => { await f.deps.post(marker); if (fail) { fail = false; throw new Error("lost acknowledgement"); } },
+    });
+    const input = () => planCommentRound("note.md", "Old sentence.\nKeep this line.\n", [
+      { fromA: 0, toA: 3, replacement: "New" }, { fromA: 14, toA: 18, replacement: "Retain" },
+    ], "One round");
+    await expect(new CommentActionController(service).execute(input(), (op) => service.run(op))).rejects.toThrow();
+    const pending = (await service.pending())[0];
+    const ids = pending.markers.map((m) => m.identity.commentId);
+    expect(await f.markerCount()).toBe(1);
+    const done = await new CommentActionController(service).execute(input(), (op) => service.run(op));
+    expect(done.postedIds).toEqual(ids);
+    expect(await f.markerCount()).toBe(2);
+    expect(f.counts().noteWrites).toBe(0);
+    expect(await f.vault.readTextFile("note.md")).toBe("Old sentence.\nKeep this line.\n");
+  });
+
+  it("another action cannot hide an unfinished operation behind newly minted markers", async () => {
+    const f = await setup(); const op = f.proposal(); await f.journal.write(op);
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md" });
+    const action = new CommentActionController(service);
+    await expect(action.execute({ notePath: "note.md", kind: "post", markers: [{ path: "note.md", body: "Another comment" }] }, (next) => service.run(next)))
+      .rejects.toBeInstanceOf(PendingCommentActionError);
+    expect((await service.pending()).map((p) => p.operationId)).toEqual([op.operationId]);
+    expect(f.counts()).toEqual({ posts: 0, noteWrites: 0 });
+  });
+
+  it("a lost final reply acknowledges the same click, while a different new comment can proceed", async () => {
+    const f = await setup(); const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md" });
+    const action = new CommentActionController(service);
+    const input = { notePath: "note.md", kind: "post" as const, markers: [{ path: "note.md", body: "First comment" }] };
+    const loseReply = async (op: CommentOperation): Promise<CommentOperation> => { await service.run(op); throw new Error("RPC timeout"); };
+    await expect(action.execute(input, loseReply)).rejects.toThrow("RPC timeout");
+    await action.execute(input, (op) => service.run(op));
+    expect(await f.markerCount()).toBe(1);
+    await expect(action.execute(input, loseReply)).rejects.toThrow("RPC timeout");
+    await action.execute({ ...input, markers: [{ path: "note.md", body: "A different comment" }] }, (op) => service.run(op));
+    expect(await f.markerCount()).toBe(3);
+  });
+
+  it("a reused path binds a fresh target after a lost completed reply", async () => {
+    const f = await setup(); let target = createWorkspaceObjectId();
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md",
+      prepareMarkers: async (input) => input.markers.map((marker) => ({ ...marker, targetObjectId: target })),
+      post: async () => {},
+    });
+    const action = new CommentActionController(service);
+    const input = { notePath: "note.md", kind: "post" as const, markers: [{ path: "note.md", body: "Same words" }] };
+    let first: CommentOperation | undefined;
+    await expect(action.execute(input, async (op) => { first = await service.run(op); throw new Error("lost reply"); })).rejects.toThrow("lost reply");
+    target = createWorkspaceObjectId();
+    const next = await action.execute(input, (op) => service.run(op));
+    expect(next.operationId).not.toBe(first!.operationId);
+    expect(next.markers[0].targetObjectId).toBe(target);
+  });
+
+  it("a changed editor before run leaves no hidden pending identity", async () => {
+    const f = await setup(); const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md" });
+    const action = new CommentActionController(service);
+    const input = { notePath: "note.md", kind: "post" as const, markers: [{ path: "note.md", body: "Before navigation" }] };
+    await expect(action.execute(input, async () => { throw new CommentActionNotStartedError(); })).rejects.toBeInstanceOf(CommentActionNotStartedError);
+    expect(await service.pending()).toEqual([]);
+    await action.execute({ ...input, markers: [{ path: "note.md", body: "After navigation" }] }, (op) => service.run(op));
+    expect(await f.markerCount()).toBe(1);
+  });
+
+  it("decision planning resolves the original quote against the fresh flushed text", async () => {
+    const f = await setup(); const before = await f.vault.readTextFile("note.md");
+    const comment: WorkspaceCommentRecord = { commentId: createWorkspaceObjectId(), targetObjectId: "note.md", parentCommentId: null,
+      authorMemberId: "desktop", authorDeviceId: "desktop", body: "", createdAt: new Date().toISOString(),
+      anchor: buildCommentAnchor(before, 0, 3, mintAnchorMarkerId(before)), suggestion: { replacement: "New", appliedAt: null, appliedBy: null, declinedAt: null }, resolvedAt: null, resolvedCommentId: null };
+    const fresh = "A new introduction.\n" + before;
+    await f.vault.writeTextFile("note.md", fresh);
+    const input = planCommentDecision("note.md", fresh, [comment], "applied");
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md" });
+    await service.run(await service.prepare(input));
+    expect(await f.vault.readTextFile("note.md")).toBe("A new introduction.\nNew sentence.\nKeep this line.\n");
+    expect(() => planCommentDecision("note.md", fresh, [comment, comment], "applied")).toThrow();
+  });
+
+  it("a conflicting decision can only confirm the reviewed text and the observed decision IDs", async () => {
+    const f = await setup(); const before = await f.vault.readTextFile("note.md");
+    const known = [createWorkspaceObjectId(), createWorkspaceObjectId()];
+    const comment: WorkspaceCommentRecord = { commentId: createWorkspaceObjectId(), targetObjectId: "note.md", parentCommentId: null,
+      authorMemberId: "desktop", authorDeviceId: "desktop", body: "", createdAt: new Date().toISOString(), anchor: null,
+      suggestion: { replacement: "This must not be inserted again", appliedAt: null, appliedBy: null, declinedAt: null }, resolvedAt: null, resolvedCommentId: null,
+      suggestionDecision: { status: "conflict", decisions: [], knownIds: known } };
+    expect(() => planCommentDecision("note.md", before, [comment], "applied")).toThrow("comment-decision-needs-review");
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => "note.md" });
+    const op = await service.run(await service.prepare(planCommentDecision("note.md", before, [comment], "declined", true)));
+    expect(op.receipt?.confirmedText).toBe(before);
+    expect(f.counts().noteWrites).toBe(0);
+    const parsed = parseCommentsBundle(await f.vault.readTextFile(commentsDevicePath("desktop", false)));
+    expect(parsed?.comments[op.postedIds[0]].decisionProof?.supersedes).toEqual(known);
+  });
+
   it("the shared service follows a renamed target and never shows it on the reused old pathname", async () => {
     const f = await setup();
     await f.store().post({ path: "note.md", body: "Existing discussion" });

@@ -53,3 +53,11 @@ Un file di annotazioni illeggibile non viene mai sovrascritto: il file di questo
 Le risposte simultanee, i marcatori di spostamento e la sincronizzazione in corso vengono uniti durante la scrittura. Un file cloud assente, vuoto o meno recente non elimina le annotazioni già ricevute. Collegando una nuova destinazione di sincronizzazione, vengono trasferiti anche i vecchi record locali e le annotazioni ricevute da altri dispositivi, mantenendo gli identificatori originali; le copie duplicate appaiono come una sola annotazione.
 
 Prima di mettere da parte il file danneggiato di questo dispositivo, Plainva legge l’intero backup e lo confronta con l’originale. Se l’operazione non riesce, l’originale viene conservato e le nuove annotazioni non vengono salvate; Plainva segnala l’errore di backup. Controlla lo spazio libero e l’accesso al file, quindi invia di nuovo. Le fonti non cifrate vengono eliminate solo quando tutto il contenuto è presente in una copia cifrata leggibile sul dispositivo e nella destinazione di sincronizzazione. Una fonte modificata nel frattempo viene conservata fino alla successiva sincronizzazione riuscita.
+
+## Operazioni incomplete e decisioni contrastanti
+
+Plainva registra su questo dispositivo l’avanzamento di ogni operazione sui commenti. Se il testo è salvato ma il commento deve ancora essere aggiornato, un avviso offre **Riprova**. Il nuovo tentativo continua i passaggi in sospeso senza annullare il testo salvato o le modifiche successive. Un gruppo di suggerimenti inviato parzialmente prosegue con le stesse proposte; le modifiche successive alla copia di lavoro restano non inviate.
+
+Se la nota è cambiata prima della conferma del testo, apri **Confronta il testo**. Confronta la modifica prevista con il testo attuale e modifica la nota se necessario. Il nuovo tentativo verifica di nuovo; un testo diverso non viene sostituito con la vecchia versione.
+
+Se i dispositivi comunicano decisioni diverse, la scheda mostra **Decisioni in conflitto**. Usa **Rivedi la decisione** per confrontare la proposta con la nota attuale. **Conferma come applicato** o **Conferma come rifiutato** conferma questo testo e sostituisce solo le decisioni già note qui. La proposta non viene inserita di nuovo. Una decisione contraria prima sconosciuta che arriva in seguito può generare un nuovo conflitto.

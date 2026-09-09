@@ -53,3 +53,11 @@ Een opmerkingenbestand dat niet kan worden gelezen, wordt nooit overschreven: he
 Gelijktijdige antwoorden, verplaatsingsmarkeringen en een lopende synchronisatie worden bij het schrijven samengevoegd. Een ontbrekend, leeg of ouder cloudbestand verwijdert geen eerder ontvangen opmerkingen. Bij het verbinden van een nieuw synchronisatiedoel worden ook oude lokale gegevens en opmerkingen van andere apparaten met hun oorspronkelijke ID’s overgedragen; dubbele kopieën verschijnen als dezelfde opmerking.
 
 Voordat Plainva het beschadigde bestand van dit apparaat apart zet, leest het de volledige back-up en vergelijkt die met het origineel. Als dat mislukt, blijft het origineel behouden en worden nieuwe opmerkingen niet opgeslagen; Plainva meldt de back-upfout. Controleer de vrije ruimte en bestandstoegang en verstuur opnieuw. Niet-versleutelde bronnen worden pas verwijderd wanneer de volledige inhoud in een leesbare versleutelde kopie staat, zowel op dit apparaat als bij het synchronisatiedoel. Een bron die intussen verandert, blijft bewaard tot de volgende geslaagde synchronisatie.
+
+## Onvoltooide handelingen en tegenstrijdige beslissingen
+
+Plainva bewaart op dit apparaat de voortgang van elke reactiehandeling. Als de tekst is opgeslagen maar de reactie nog niet is bijgewerkt, biedt een melding **Opnieuw proberen**. Opnieuw proberen gaat verder met de resterende stappen zonder opgeslagen tekst of latere invoer ongedaan te maken. Een gedeeltelijk verzonden voorstelronde gaat verder met dezelfde voorstellen; latere wijzigingen in je werkkopie blijven onverzonden.
+
+Als de notitie vóór de tekstbevestiging is gewijzigd, open dan **Tekst vergelijken**. Vergelijk de geplande wijziging met de huidige tekst en bewerk de notitie zo nodig zelf. Opnieuw proberen controleert nogmaals; afwijkende tekst wordt nooit door de oude versie vervangen.
+
+Als apparaten verschillende beslissingen melden, toont de kaart **Tegenstrijdige beslissingen**. Gebruik **Beslissing bekijken** om het voorstel met de huidige notitie te vergelijken. **Bevestigen als toegepast** of **Bevestigen als afgewezen** bevestigt deze tekst en vervangt alleen de hier al bekende beslissingen. Het voorstel wordt niet opnieuw ingevoegd. Een later ontvangen, eerder onbekende tegenbeslissing kan opnieuw een conflict tonen.

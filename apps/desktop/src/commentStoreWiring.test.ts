@@ -106,7 +106,7 @@ describe("locked and unreadable are said, not hidden (N3)", () => {
     expect(editor).toMatch(/locked=\{commentsLocked \? \{ onUnlock: requestCommentUnlock \} : undefined\}/);
     // The suggest verb stays and leads to the explanation, never into a mode
     // whose send would fail a minute later.
-    const start = editor.slice(editor.indexOf("const startSuggesting = useCallback("), editor.indexOf("const stopSuggesting"));
+    const start = editor.slice(editor.indexOf("const startSuggesting = useStableHandler("), editor.indexOf("const stopSuggesting"));
     expect(start).toMatch(/if \(commentsLocked\) \{ setCommentColumnSession\("open"\)/);
     // Retry and discard exist only where an outbox does.
     expect(editor).toMatch(/onRetryPending=\{commentStoreState\?\.hasOutbox \?/);

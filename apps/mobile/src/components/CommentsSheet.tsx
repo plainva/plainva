@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
+import { CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -18,6 +18,7 @@ import { SheetGrip } from "./SheetGrip";
  */
 export interface CommentsSheetProps {
   comments: readonly WorkspaceCommentRecord[];
+  operationStatus?: ReactNode;
   memberNames: ReadonlyMap<string, string>;
   /** Who this device is - the member id in a workspace, the device id otherwise. */
   selfMemberId: string | null;
@@ -33,6 +34,7 @@ export interface CommentsSheetProps {
   canWrite: boolean;
   onSubmit(body: string, parentCommentId: string | null): Promise<void>;
   onResolve(commentId: string): void;
+  onReviewDecision?(comment: WorkspaceCommentRecord): void;
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   onDeclineSuggestion(comment: WorkspaceCommentRecord): void;
   /**
@@ -91,8 +93,9 @@ export interface CommentsSheetProps {
  * renamed member changes what this shows and nothing has to be migrated.
  */
 
-function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | "declined" | null {
+function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | "declined" | "conflict" | null {
   if (!comment.suggestion) return null;
+  if (comment.suggestionDecision?.status === "conflict") return "conflict";
   if (comment.suggestion.appliedAt) return "applied";
   if (comment.suggestion.declinedAt) return "declined";
   return comment.resolvedAt ? "declined" : "open";
@@ -100,6 +103,7 @@ function suggestionState(comment: WorkspaceCommentRecord): "open" | "applied" | 
 
 export function CommentsSheet({
   comments,
+  operationStatus,
   memberNames,
   selfMemberId,
   canComment,
@@ -107,6 +111,7 @@ export function CommentsSheet({
   propertyResolutions,
   onSubmit,
   onResolve,
+  onReviewDecision,
   onApplySuggestion,
   onDeclineSuggestion,
   onPromoteToTask,
@@ -273,6 +278,7 @@ export function CommentsSheet({
                     {confirmBox(reply, 0)}
                   </div>
                 ))}
+                {state === "conflict" && <CommentDecisionConflict onReview={canComment && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
                 {state === "open" && canWrite && (
                   // The decision is its own row (finding 2026-09-03, desktop
                   // parity): accept and decline side by side, never wrapped apart.
@@ -364,6 +370,7 @@ export function CommentsSheet({
             </IconButton>
           )}
         </div>
+        {operationStatus}
         {locked && (
           <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>}>
             {t("comments.commentsLocked")}
@@ -378,7 +385,7 @@ export function CommentsSheet({
                 <div className="pv-comment-round__head">
                   <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(round.authorMemberId) ?? roundAuthor(round))} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
                   <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("comments.suggestRoundCount", { n: round.blocks.length })}</p>
-                  {round.open > 1 && (
+                  {round.open > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict") && (
                     <div className="pv-comment-card__actions">
                       {canWrite && onApplyRound && <Button size="sm" onClick={() => onApplyRound(round.batchId)}>{t("comments.suggestApplyAll")}</Button>}
                       {canComment && onDeclineRound && <Button size="sm" variant="ghost" onClick={() => onDeclineRound(round.batchId)}>{t("comments.suggestDeclineAll")}</Button>}

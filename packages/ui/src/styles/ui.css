@@ -589,6 +589,7 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-modal-body--flush { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 .pv-modal-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
@@ -3027,6 +3028,7 @@ tr.is-selected > td { color: var(--on-accent-container); }
   color: var(--text-muted); font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
+pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* A suggestion is a before/after pair seen at once: the quote is struck
    through, the proposal sits under it in the success tint. Nothing in the note
    has changed yet - this is what COULD stand there. */

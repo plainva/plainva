@@ -1,5 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { mergeText } from "../src/conflict-resolver.js";
+import { mergeText, mergeEditorText } from "../src/conflict-resolver.js";
+
+describe("editor input during a confirmed write", () => {
+  it("keeps independent words and trailing input on the same line", () => {
+    expect(mergeEditorText("Welcome to the vault!", "Welcome to the vault! More writing.", "Welcome to the garden!"))
+      .toEqual({ mergedText: "Welcome to the garden! More writing.", hasConflicts: false });
+  });
+  it("does not invent a combined word from conflicting edits to the same word", () => {
+    expect(mergeEditorText("A cat.", "A bat.", "A car.").hasConflicts).toBe(true);
+  });
+  it("retains Unicode and whitespace exactly in a same-line merge", () => {
+    expect(mergeEditorText("Hier  steht ein Baum 🌳.", "Hier  steht ein Baum 🌳.\tWeiter!", "Hier  steht ein Haus 🏠."))
+      .toEqual({ mergedText: "Hier  steht ein Haus 🏠.\tWeiter!", hasConflicts: false });
+  });
+  it("keeps competing insertions at the same place as a conflict", () => {
+    expect(mergeEditorText("A B", "A X B", "A Y B").hasConflicts).toBe(true);
+  });
+  it("trims large shared context but bounds divergent fallback work", () => {
+    const prefix = "same word ".repeat(5000);
+    expect(mergeEditorText(prefix + "old end", prefix + "old end more", prefix + "new end"))
+      .toEqual({ mergedText: prefix + "new end more", hasConflicts: false });
+    const many = Array.from({ length: 1600 }, (_, i) => `word${i}`).join(" ");
+    expect(mergeEditorText(many, many.replaceAll("word", "left"), many.replaceAll("word", "right")).hasConflicts).toBe(true);
+  });
+});
 
 describe("Conflict Resolver", () => {
   it("should merge changes from different parts of the document cleanly", () => {

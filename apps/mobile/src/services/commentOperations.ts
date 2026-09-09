@@ -10,6 +10,7 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
   const existing = services.get(vault);
   if (existing) return existing;
   const store = mobileCommentStore(vault);
+  const paths = new Map<string, string>();
   const service = createCommentOperationService({
     contextKey: vault.vaultId,
     journal: mobileCommentOperationJournal(vault.vaultId),
@@ -23,12 +24,19 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
         return { ...marker, ...(targetObjectId ? { targetObjectId } : {}) };
       });
     },
-    resolvePath: (operation) => store.resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId),
+    resolvePath: async (operation) => {
+      const path = await store.resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId);
+      paths.set(operation.operationId, path);
+      return path;
+    },
     withNoteLock: (path, work) => noteSaver.withWriteLock(path, vault, work),
     readText: (path) => vault.files.readTextFile(path),
     writeText: (path, text) => vaultOps.save(vault, path, text),
     post: (marker) => store.post(marker),
-    changed: (operation) => window.dispatchEvent(new CustomEvent("plainva-comment-operation-changed", { detail: { vaultId: vault.vaultId, operation } })),
+    changed: (operation) => {
+      window.dispatchEvent(new CustomEvent("plainva-comment-operation-changed", { detail: { vaultId: vault.vaultId, path: paths.get(operation.operationId) ?? operation.notePath, operation } }));
+      if (operation.phase === "completed") paths.delete(operation.operationId);
+    },
   });
   services.set(vault, service);
   return service;

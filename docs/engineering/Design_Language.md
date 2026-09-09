@@ -100,7 +100,7 @@ Rules:
 
 ## Arrangement schemata
 
-- Modal footers: right-aligned, ghost Cancel left of the primary action (Modal's `footer` prop).
+- Modal footers: right-aligned, ghost Cancel left of the primary action (Modal's `footer` prop). Footer actions wrap at narrow widths so every translated label stays reachable.
 - Forms: label-over-field, `--space-3` row gap, one shared control height per row.
 - Search fields: one schema app-wide (the SearchField primitive; palette/popover search rows are the borderless in-surface variant with the same Escape contract).
 - Menus: thematic groups separated by `MenuSeparator` (or the `.pv-menu-sep`/`.pv-popover-label` classes in hand-anchored menus); the danger item is ALWAYS the last group behind a separator. Homogeneous list menus (move-to-folder, link bundles) stay ungrouped by design. A menu that a keyboard walks through while the caret stays somewhere else — the `@`-mention picker is the case — marks its current row with `MenuItem active` (`.pv-menu-item.is-active`, the `--accent-container` pair, same as a selected row anywhere else) and opens with `autoFocus={false}`; the row must also swallow `mousedown`, or the click blurs the field before the pick lands.

@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
-import { anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -16,6 +16,7 @@ export type PublicationCommentEntry = PublicationComment & { publicationName: st
 
 export interface WorkspaceCommentsColumnProps {
   comments: readonly WorkspaceCommentRecord[];
+  operationStatus?: ReactNode;
   /** memberId -> display name from the workspace policy. */
   memberNames: ReadonlyMap<string, string>;
   /**
@@ -73,6 +74,7 @@ export interface WorkspaceCommentsColumnProps {
   /** ...or let it go. Only the person who wrote it decides that. */
   onDiscardPending?(outboxId: string): void;
   /** Writes the proposed text into the note and closes the thread. */
+  onReviewDecision?(comment: WorkspaceCommentRecord): void;
   onApplySuggestion(comment: WorkspaceCommentRecord): void;
   /** Closes the thread without touching the note. */
   onDeclineSuggestion(comment: WorkspaceCommentRecord): void;
@@ -126,7 +128,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
-  onSelect, onSubmit, onResolve, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
+  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute, locked,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -378,6 +380,7 @@ export function WorkspaceCommentsColumn({
               <AtSign size={ICON.meta} /> {t("comments.commentMentionsYou")}
             </span>
           )}
+          {root.suggestionDecision?.status === "conflict" && <CommentDecisionConflict onReview={canComment && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
           {anchorNote(root)}
           <CommentBody comment={root} author={authorOf(root)} names={memberNames} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
           {replies.map((reply) => (
@@ -394,7 +397,7 @@ export function WorkspaceCommentsColumn({
             <div className="pv-comment-card__actions">{pendingState(root, root.authorMemberId === selfMemberId)}</div>
           ) : (
           <>
-          {root.suggestion && !root.resolvedAt && (canWrite || canComment) && (
+          {root.suggestion && !root.resolvedAt && root.suggestionDecision?.status !== "conflict" && (canWrite || canComment) && (
             // The decision on a proposal is its own row (finding 2026-09-03):
             // accept and decline side by side, always visible - the reply and
             // task row below stays quiet until the card is hovered.
@@ -516,6 +519,7 @@ export function WorkspaceCommentsColumn({
         )}
       </div>
       <div className="pv-comment-column__body">
+        {operationStatus}
       {locked && (
         <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>} >
           {t("comments.commentsLocked")}
@@ -534,7 +538,7 @@ export function WorkspaceCommentsColumn({
                 {round.note ? <em>„{round.note}“ · </em> : null}
                 {t("comments.suggestRoundCount", { n: round.blocks.length })}
               </p>
-              {open.length > 1 && (
+              {open.length > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict") && (
                 <div className="pv-comment-card__actions">
                   {canWrite && onApplyRound && (
                     <Button variant="ghost" size="sm" onClick={() => onApplyRound(round.batchId)} data-testid={`round-apply-${round.batchId}`}>

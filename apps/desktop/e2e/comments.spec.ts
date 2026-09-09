@@ -265,7 +265,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** This device's own bundle in the mock, found by its shape - the id is minted at runtime. */
-const ownFile = (page: Page) => page.evaluate(() => Object.keys((window as any).mockFs).find((p) => /^\/test-vault\/\.plainva\/sync\/comments\.[^.]+\.json$/.test(p) && !p.includes('.broken-')) as string);
+const ownFile = (page: Page) => page.evaluate(() => Object.keys((window as any).mockFs).find((p) => /^\/test-vault\/\.plainva\/sync\/comments\.[^.]+\.json$/.test(p) && !p.includes('.broken-') && !p.endsWith('/comments.phone.json')) as string);
 
 async function openWelcome(page: Page) {
   // The sideband folder exists in a real vault; the mock only knows files, and
@@ -444,4 +444,205 @@ test('a suggestion round is sent from the editor, accepted in the column, and th
   const records = Object.values(bundle.comments) as any[];
   expect(records.filter((r) => r.suggestion).map((r) => r.suggestion.replacement)).toEqual([expect.stringContaining('plus')]);
   expect(records.filter((r) => r.resolvedCommentId).map((r) => r.suggestionOutcome)).toEqual(['applied']);
+});
+
+async function seedProposal(page: Page, conflicting = false) {
+  const column = await openColumn(page);
+  await page.evaluate((conflict) => {
+    const fs = (window as any).mockFs;
+    const text = fs['/test-vault/Welcome.md'] as string;
+    const from = text.indexOf('vault');
+    const at = '2026-09-09T10:00:00.000Z';
+    const proposal = { commentId: 'ab'.repeat(16), path: 'Welcome.md', parentCommentId: null, resolvedCommentId: null,
+      suggestionOutcome: null, authorDeviceId: 'phone', body: 'Proposal for review',
+      anchor: { markerId: '7f3a', quote: 'vault', before: text.slice(0, from), after: text.slice(from + 5), approximateOffset: from },
+      suggestion: { replacement: 'garden' }, createdAt: at };
+    const comments: Record<string, unknown> = { [proposal.commentId]: proposal };
+    if (conflict) for (const [id, outcome] of [['ac'.repeat(16), 'applied'], ['ad'.repeat(16), 'declined']]) {
+      comments[id] = { ...proposal, commentId: id, body: '', anchor: null, suggestion: null, resolvedCommentId: proposal.commentId, suggestionOutcome: outcome };
+    }
+    fs['/test-vault/.plainva/sync/comments.phone.json'] = JSON.stringify({ format: 'plainva-comments', version: 1,
+      updatedAt: at, comments, authors: { phone: { name: 'Phone', updatedAt: at } } });
+    window.dispatchEvent(new CustomEvent('plainva-workspace-comments-changed', { detail: { path: '*' } }));
+  }, conflicting);
+  await page.getByTestId('comment-kind-suggestions').click();
+  await expect(column.getByText('Proposal for review', { exact: true })).toBeVisible();
+  return column;
+}
+
+test('a failed comment update keeps the confirmed text and retries only the markers after later typing', async ({ page }) => {
+  await openWelcome(page);
+  const column = await seedProposal(page);
+  await page.evaluate(() => {
+    const w = window as any; const invoke = w.__TAURI_INTERNALS__.invoke;
+    w.__failComment = true;
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'write_file_atomic' && /comments\.[^/]+\.json$/.test(args.relPath) && w.__failComment) throw new Error('comment write unavailable');
+      return invoke(cmd, args, options);
+    };
+  });
+  await column.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).click();
+  const pending = page.getByTestId('comment-operation-status');
+  await expect(pending).toHaveAttribute('data-phase', 'markers-pending');
+  await expect(page.locator('.cm-content').first()).toContainText('garden');
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Later writing.');
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('garden! Later writing.');
+  await page.evaluate(() => { (window as any).__failComment = false; });
+  await pending.getByRole('button', { name: /Try again|Erneut versuchen/ }).click();
+  await expect(pending).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('garden! Later writing.');
+  const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), await ownFile(page));
+  const decision = (Object.values(bundle.comments) as any[]).find((c) => c.resolvedCommentId);
+  expect(decision.suggestionOutcome).toBe('applied');
+  expect(decision.decisionProof.operationId).toMatch(/^[a-f0-9]{32}$/);
+});
+
+test('typing while a proposal write is delayed retains both the proposal and the new input', async ({ page }) => {
+  await openWelcome(page);
+  const column = await seedProposal(page);
+  await page.evaluate(() => {
+    const w = window as any; const invoke = w.__TAURI_INTERNALS__.invoke;
+    let first = true;
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (first && cmd === 'write_file_atomic' && args.relPath === 'Welcome.md') {
+        first = false; w.__noteWaiting = true;
+        await new Promise<void>((resolve) => { w.__releaseNote = resolve; });
+      }
+      return invoke(cmd, args, options);
+    };
+  });
+  await column.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__noteWaiting)).toBe(true);
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Typed during the write.');
+  await page.keyboard.press('Control+s');
+  await page.evaluate(() => (window as any).__releaseNote());
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('garden! Typed during the write.');
+  await expect(page.locator('.cm-content').first()).toContainText('garden! Typed during the write.');
+  expect(await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.includes('.CONFLICT-')))).toEqual([]);
+});
+
+test('a late marker failure after navigation never restores the old note over the new editor', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).mockFs['/test-vault/Other.md'] = '# Other\nKeep this note.'; });
+  await openWelcome(page);
+  const column = await seedProposal(page);
+  await page.evaluate(() => {
+    const w = window as any; const invoke = w.__TAURI_INTERNALS__.invoke;
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'write_file_atomic' && /comments\.[^/]+\.json$/.test(args.relPath)) {
+        w.__markerWaiting = true;
+        await new Promise<void>((_resolve, reject) => { w.__rejectMarker = () => reject(new Error('marker write failed')); });
+      }
+      return invoke(cmd, args, options);
+    };
+  });
+  await column.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__markerWaiting)).toBe(true);
+  await page.getByText('Other', { exact: true }).first().click();
+  await expect(page.locator('.cm-content').first()).toContainText('Keep this note.');
+  await page.evaluate(() => (window as any).__rejectMarker());
+  await expect(page.locator('.cm-content').first()).toContainText('Keep this note.');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Other.md'])).toBe('# Other\nKeep this note.');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('garden');
+});
+
+test('conflicting decisions require a comparison and an explicit current-text confirmation', async ({ page }) => {
+  await openWelcome(page);
+  const column = await seedProposal(page, true);
+  await expect(column).toContainText(/Conflicting decisions|Widersprüchliche Entscheidungen/);
+  await expect(column.getByRole('button', { name: /^(Accept|Übernehmen)$/ })).toHaveCount(0);
+  await column.getByRole('button', { name: /Review decision|Entscheidung prüfen/ }).click();
+  const comparison = page.getByTestId('comment-decision-review');
+  await expect(comparison).toContainText('Welcome to the mock vault!');
+  await comparison.getByRole('button', { name: /Confirm as applied|Als übernommen bestätigen/ }).click();
+  await expect(comparison).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
+  const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), await ownFile(page));
+  const decision = (Object.values(bundle.comments) as any[]).find((c) => c.resolvedCommentId);
+  expect(decision.decisionProof.supersedes.sort()).toEqual(['ac'.repeat(16), 'ad'.repeat(16)]);
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs; const p = '/test-vault/.plainva/sync/comments.phone.json'; const b = JSON.parse(fs[p]);
+    const id = 'ae'.repeat(16); b.comments[id] = { ...b.comments['ad'.repeat(16)], commentId: id, createdAt: '2026-09-09T11:00:00.000Z' };
+    fs[p] = JSON.stringify(b);
+    window.dispatchEvent(new CustomEvent('plainva-workspace-comments-changed', { detail: { path: '*' } }));
+  });
+  await expect(column).toContainText(/Conflicting decisions|Widersprüchliche Entscheidungen/);
+});
+
+test('a failed prepared journal prevents the note write and retries with the same identity', async ({ page }) => {
+  await openWelcome(page);
+  const column = await seedProposal(page);
+  await page.evaluate(() => {
+    const w = window as any; const invoke = w.__TAURI_INTERNALS__.invoke; w.__preparedIds = [];
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'write_file_atomic' && String(args.rootId).includes('comment-operations')) {
+        const operation = JSON.parse(args.contents);
+        if (operation.phase === 'prepared') {
+          w.__preparedIds.push(operation.operationId);
+          if (w.__preparedIds.length === 1) throw new Error('journal unavailable');
+        }
+      }
+      return invoke(cmd, args, options);
+    };
+  });
+  const accept = column.getByRole('button', { name: /^(Accept|Übernehmen)$/ });
+  await accept.click();
+  await expect.poll(() => page.evaluate(() => (window as any).__preparedIds.length)).toBe(1);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
+  await accept.click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('garden');
+  expect(await page.evaluate(() => new Set((window as any).__preparedIds).size)).toBe(1);
+});
+
+
+test('a partially sent round retries the original blocks and preserves further changes to its copy', async ({ page }) => {
+  await openWelcome(page);
+  const column = await openColumn(page);
+  await page.getByTestId('editor-suggest-mode').click();
+  await expect(page.getByTestId('suggest-band')).toBeVisible();
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+Home');
+  await page.keyboard.press('End');
+  await page.keyboard.type(' first');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' second');
+  await page.evaluate(() => {
+    const w = window as any; const invoke = w.__TAURI_INTERNALS__.invoke;
+    w.__roundIds = []; w.__failRound = true;
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'write_file_atomic' && /comments\.[^/]+\.json$/.test(args.relPath)) {
+        const records = Object.values(JSON.parse(args.contents).comments) as any[];
+        const proposals = records.filter((r) => r.suggestion);
+        if (proposals.length >= 2) {
+          w.__roundIds.push(proposals.map((r) => r.commentId).sort());
+          if (w.__failRound) throw new Error('second block unavailable');
+        }
+      }
+      return invoke(cmd, args, options);
+    };
+  });
+  await page.getByTestId('suggest-send').click();
+  await answerNamePrompt(page);
+  const pending = page.getByTestId('comment-operation-status');
+  await expect(pending).toHaveAttribute('data-phase', 'markers-pending');
+  await expect(page.getByTestId('suggest-band')).toBeVisible();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' further unsent');
+  await page.evaluate(() => { (window as any).__failRound = false; });
+  await pending.getByRole('button', { name: /Try again|Erneut versuchen/ }).click();
+  await expect(pending).toHaveCount(0);
+  await expect(page.getByTestId('suggest-band')).toBeVisible();
+  await expect(editor).toContainText('further unsent');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
+  const ids = await page.evaluate(() => (window as any).__roundIds);
+  expect(ids.length).toBeGreaterThanOrEqual(2);
+  expect(ids.every((set: string[]) => JSON.stringify(set) === JSON.stringify(ids[0]))).toBe(true);
+  const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), await ownFile(page));
+  expect((Object.values(bundle.comments) as any[]).filter((r) => r.suggestion)).toHaveLength(2);
 });

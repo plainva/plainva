@@ -53,3 +53,11 @@ Un archivo de anotaciones que no se puede leer nunca se sobrescribe: el propio a
 Las respuestas simultáneas, las marcas de traslado y la sincronización activa se combinan al guardar. Un archivo ausente, vacío o más antiguo en la nube no elimina anotaciones ya recibidas. Al conectar un nuevo destino de sincronización, también se transfieren los registros antiguos locales y las anotaciones recibidas de otros dispositivos con sus identificadores originales; las copias duplicadas aparecen como una sola anotación.
 
 Antes de apartar el archivo dañado de este dispositivo, Plainva lee la copia de seguridad completa y la compara con el original. Si falla, se conserva el original y no se guardan nuevas anotaciones; Plainva muestra el error de copia de seguridad. Comprueba el espacio libre y el acceso al archivo y vuelve a enviar. Los archivos sin cifrar solo se eliminan cuando todo su contenido está en una copia cifrada legible, tanto en este dispositivo como en el destino de sincronización. Si la fuente cambió entretanto, se conserva hasta la siguiente sincronización correcta.
+
+## Operaciones incompletas y decisiones contradictorias
+
+Plainva registra en este dispositivo el progreso de cada operación de comentarios. Si el texto está guardado pero falta actualizar el comentario, un aviso ofrece **Volver a intentar**. El reintento continúa los pasos pendientes sin deshacer el texto guardado ni lo escrito después. Una ronda de sugerencias enviada parcialmente continúa con las mismas propuestas; los cambios posteriores en tu copia de trabajo permanecen sin enviar.
+
+Si la nota cambió antes de confirmar su texto, abre **Comparar texto**. Compara el cambio previsto con el texto actual y edita la nota si hace falta. El reintento vuelve a comprobarlo; un texto diferente nunca se sustituye por la versión anterior.
+
+Si los dispositivos comunican decisiones distintas, la tarjeta muestra **Decisiones contradictorias**. Usa **Revisar decisión** para comparar la propuesta con la nota actual. **Confirmar como aplicado** o **Confirmar como rechazado** confirma ese texto y sustituye únicamente las decisiones ya conocidas aquí. No vuelve a insertar la propuesta. Una decisión contraria antes desconocida que llegue después puede mostrar otro conflicto.

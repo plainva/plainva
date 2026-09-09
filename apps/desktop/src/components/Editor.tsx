@@ -10,6 +10,7 @@ import { CustomDatePicker } from "./DatePicker";
 import { TableSizePicker } from "./TableSizePicker";
 import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./TableContextMenu";
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
+  CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
@@ -24,7 +25,7 @@ import { docIconValue } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, closeAnchorMarker, findAnchorMarker, frontmatterKeys, mintAnchorMarkerId, openAnchorMarker, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, setFrontmatterPath, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, writeParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -66,7 +67,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { mergeText, containsTextChanges, ConflictError } from "@plainva/core";
+import { mergeEditorText, containsTextChanges, ConflictError } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
@@ -112,7 +113,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState } = vaultContext;
+  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, commentOperations, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -741,7 +742,7 @@ export const Editor: React.FC<{
         // A pull may already have advanced the sync index. The editor's own
         // base still identifies changes it has not incorporated into its buffer.
         if (base !== null && disk !== base && disk !== val) {
-          const merged = mergeText(base, val, disk);
+          const merged = mergeEditorText(base, val, disk);
           if (merged.hasConflicts) {
             const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
             const stem = ext ? path.slice(0, -ext.length) : path;
@@ -1579,7 +1580,7 @@ export const Editor: React.FC<{
    * reader was pointing at. So the target is parked here and `postComment`
    * prefers it over the live selection.
    */
-  const commentTargetRef = useRef<{ from: number; to: number; display: AnchorFrameHint } | null>(null);
+  const commentTargetRef = useRef<{ from: number; to: number; display: AnchorFrameHint; anchor?: WorkspaceCommentAnchor } | null>(null);
   /** Frontmatter key a comment was started on, parked until the composer posts. */
   const propertyTargetRef = useRef<string | null>(null);
 
@@ -1635,7 +1636,8 @@ export const Editor: React.FC<{
 
   const requestWidgetComment = useCallback((req: { from: number; to: number; display: AnchorFrameHint }) => {
     const view = sessionRef.current?.view;
-    commentTargetRef.current = req;
+    const source = view?.state.doc.toString();
+    commentTargetRef.current = source === undefined ? req : { ...req, anchor: buildCommentAnchor(source, req.from, req.to, mintAnchorMarkerId(source), req.display) };
     // The column shows a quote to compose against; a widget has none of its own,
     // so it borrows the Markdown it replaces.
     if (view) setSelectionQuote(view.state.sliceDoc(req.from, Math.min(req.to, req.from + 120)));
@@ -2215,7 +2217,7 @@ export const Editor: React.FC<{
       // An open proposal is drawn in the text while the switch is on (K5):
       // struck passage, proposed wording behind it. A decided one is a plain
       // tint again - the thread is closed, the text says what it says.
-      const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
+      const open = comment.suggestion && comment.suggestionDecision?.status !== "conflict" && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
       highlights.push({
         commentId: comment.commentId, from: resolution.from, to: resolution.to, active: comment.commentId === activeCommentId,
         // A cell is drawn where the resolution FOUND it (V7): a row inserted
@@ -2331,196 +2333,152 @@ export const Editor: React.FC<{
       .catch((error) => toast.warning(error instanceof Error ? error.message : String(error)));
   }, [activePath, vaultAdapter, vaultPath, queryService, indexer, pimRuntime, triggerFileTreeUpdate, postWorkspaceComment, openNoteFromComment, t]);
 
-  const postComment = useCallback(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
+  const pendingCommentOperations = usePendingCommentOperations(commentOperations, vaultPath, activePath);
+  const [decisionReview, setDecisionReview] = useState<{ path: string; vaultPath: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
+
+  const captureCommentSnapshot = useStableHandler((): CommentEditorSnapshot => {
+    const session = sessionRef.current;
+    const revision = saveState.revision;
+    const persisted = saveState.persisted;
+    const text = session?.view.state.doc.toString() ?? contentRef.current;
+    const current = () => saveState.isActive() && sessionRef.current === session && saveState.revision === revision
+      && (session?.view.state.doc.toString() ?? contentRef.current) === text && !suggestingRef.current;
+    return { text, current, adopt: (confirmed) => {
+      if (!saveState.isActive() || sessionRef.current !== session || saveState.savedRevision > revision || suggestingRef.current
+        || (saveState.persisted !== persisted && saveState.persisted !== confirmed)) return;
+      // Later typing retains its original merge base; only our persisted echo
+      // moves forward. A newer completed save already owns its own receipt.
+      saveState.update({ persisted: confirmed });
+      if (!current()) return;
+      session?.applyExternalText(confirmed);
+      contentRef.current = confirmed;
+      setContent(confirmed);
+      saveState.update({ baseInput: confirmed, dirty: false });
+      if (activePath) dirtyStore.set(activePath, false, saveState.id);
+    } };
+  });
+  const flushCommentSnapshot = useStableHandler(async (): Promise<CommentEditorSnapshot> => {
+    if (!activePath || !vaultPath || !commentOperations || suggestingRef.current) throw new Error("comment-editor-unavailable");
+    const session = sessionRef.current;
+    await requestSaveFlush(activePath, vaultPath);
+    if (!saveState.isActive() || sessionRef.current !== session || suggestingRef.current) throw new CommentActionNotStartedError();
+    return captureCommentSnapshot();
+  });
+  const runCommentInput = useStableHandler(async (input: CommentOperationInput, snapshot: CommentEditorSnapshot) => {
+    if (!commentOperations) throw new Error("comments-unavailable");
+    try {
+      return await commentActionController(commentOperations).execute(input,
+        (operation) => runVisibleCommentOperation(commentOperations, operation, snapshot));
+    } finally { pendingCommentOperations.refresh(); }
+  });
+  const reportCommentFailure = useStableHandler((error: unknown) => {
+    toast.error(commentActionErrorKey(error) ? t(commentActionErrorKey(error)!) : errorText(error));
+  });
+  const retryCommentOperation = useStableHandler(async (operation: CommentOperation) => {
+    if (!commentOperations) return;
+    try {
+      const snapshot = operation.text && !operation.receipt ? await flushCommentSnapshot() : undefined;
+      if (!snapshot && activePath) await requestSaveFlush(activePath, vaultPath ?? undefined);
+      await commentActionController(commentOperations).resume(operation,
+        (current) => runVisibleCommentOperation(commentOperations, current, snapshot));
+    } catch (error) { reportCommentFailure(error); }
+    finally { pendingCommentOperations.refresh(); }
+  });
+  const reviewCommentDecision = useStableHandler(async (comment: WorkspaceCommentRecord) => {
+    try {
+      const snapshot = await flushCommentSnapshot();
+      if (activePath && vaultPath) setDecisionReview({ path: activePath, vaultPath, comment, snapshot });
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const confirmCommentDecision = useStableHandler(async (outcome: "applied" | "declined") => {
+    if (!decisionReview || decisionReview.path !== activePath || decisionReview.vaultPath !== vaultPath) return;
+    try {
+      await requestSaveFlush(decisionReview.path, decisionReview.vaultPath);
+      const { snapshot, comment } = decisionReview;
+      await runCommentInput(planCommentDecision(decisionReview.path, snapshot.text, [comment], outcome, true), snapshot);
+      setDecisionReview(null);
+    } catch (error) { reportCommentFailure(error); }
+  });
+
+  const postComment = useStableHandler(async (body: string, parentCommentId: string | null, suggestion: { replacement: string } | null = null) => {
     if (!activePath) return;
-    const view = sessionRef.current?.view;
+    const parent = workspaceComments.find((comment) => comment.commentId === parentCommentId);
     const parkedProperty = propertyTargetRef.current;
-    propertyTargetRef.current = null;
     const parked = commentTargetRef.current;
-    commentTargetRef.current = null;
-    // A property comment targets a KEY, and the two routes must not be folded
-    // together: the text route wraps its range in an HTML comment marker pair,
-    // and a marker inside the YAML frontmatter would corrupt exactly the block
-    // the anchor depends on. So this returns BEFORE the marker branch below.
-    // The key IS the anchor; nothing is written into the Markdown.
-    if (parkedProperty !== null && parentCommentId === null) {
-      // A proposal replaces a passage. A property has none - the protocol
-      // refuses it, and the column never offers one here.
-      if (suggestion) throw new Error("workspace-suggestion-needs-selection");
-      const source = view ? view.state.doc.toString() : contentRef.current;
-      const anchor = buildPropertyCommentAnchor(
-        parkedProperty,
-        propertyValueText(readFrontmatterPath(source, [parkedProperty])),
-        mintAnchorMarkerId(source),
-      );
-      await postWorkspaceComment(activePath, body, null, anchor);
-      return;
-    }
+    const view = sessionRef.current?.view;
+    const source = view?.state.doc.toString() ?? contentRef.current;
     const range = parked ?? view?.state.selection.main;
-    // A reply belongs to its thread, not to a place: it inherits the root anchor.
-    if (parentCommentId !== null || !view || !range || range.from === range.to) {
-      // A proposal without a passage has nothing to replace - the protocol
-      // refuses it, so the column never offers one. Fail loudly if it slips.
+    const placed = range && (parked?.display ? range : placeAnchorRange(source, range.from, range.to));
+    const selected = parentCommentId === null && parkedProperty === null && placed && placed.from !== placed.to
+      ? parked?.anchor ?? buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), parked?.display) : null;
+    const snapshot = await flushCommentSnapshot();
+    let anchor: WorkspaceCommentAnchor | null = null;
+    let intended = snapshot.text;
+    if (parentCommentId === null && parkedProperty !== null) {
       if (suggestion) throw new Error("workspace-suggestion-needs-selection");
-      await postWorkspaceComment(activePath, body, parentCommentId, null);
-      return;
+      anchor = buildPropertyCommentAnchor(parkedProperty, propertyValueText(readFrontmatterPath(snapshot.text, [parkedProperty])), mintAnchorMarkerId(snapshot.text));
+    } else if (selected) {
+      const resolved = resolveCommentAnchor(snapshot.text, selected);
+      if (resolved.status === "orphan") throw new Error("comment-suggestion-orphan");
+      anchor = buildCommentAnchor(snapshot.text, resolved.from, resolved.to, selected.markerId!, parked?.display);
+      // Properties and widgets keep soft anchors: HTML markers would corrupt
+      // YAML or the widget's block syntax. Read-only notes also stay untouched.
+      if (!workspaceReadOnly && commentAnchorsEnabled && !parked?.display)
+        intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
-    const raw = view.state.doc.toString();
-    const markerId = mintAnchorMarkerId(raw);
-    // A text range never starts inside a line's block prefix nor runs over the
-    // line break (finding 2026-09-03): a marker before the `- ` made the whole
-    // line an HTML block. A widget target keeps its range - it has no prefix.
-    const placed = parked?.display ? { from: range.from, to: range.to } : placeAnchorRange(raw, range.from, range.to);
-    const anchor = buildCommentAnchor(raw, placed.from, placed.to, markerId, parked?.display);
-    if (!anchor.quote) {
-      if (suggestion) throw new Error("workspace-suggestion-needs-selection");
-      await postWorkspaceComment(activePath, body, null, null);
-      return;
+    if (suggestion && !anchor?.quote) throw new Error("workspace-suggestion-needs-selection");
+    await runCommentInput({ notePath: activePath, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+      markers: [{ path: activePath, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor, suggestion }] }, snapshot);
+    if (snapshot.current() || (saveState.isActive() && sessionRef.current?.view === view)) {
+      if (propertyTargetRef.current === parkedProperty) propertyTargetRef.current = null;
+      if (commentTargetRef.current === parked) commentTargetRef.current = null;
     }
-    // Read-only means we may not write the note at all; the vault switch means
-    // this vault has asked us not to. Both fall back to the quote, which still
-    // resolves - the comment is never refused because of it.
-    // A widget target (table cell, picture, diagram) gets NO marker pair
-    // (finding 2026-09-03, maintainer's test): the pair wrapped the widget's
-    // whole source range, and an HTML comment glued to the first `|` turns a
-    // table into a paragraph in every view. The handbook always said these
-    // anchors write nothing - the display hint plus the quote is the anchor.
-    const marked = !workspaceReadOnly && commentAnchorsEnabled && !parked?.display;
-    if (marked) view.dispatch({ changes: [{ from: placed.from, insert: openAnchorMarker(markerId) }, { from: placed.to, insert: closeAnchorMarker(markerId) }] });
+  });
+  const decideComments = useStableHandler(async (comments: WorkspaceCommentRecord[], outcome: "applied" | "declined") => {
+    if (!activePath || !comments.length) return;
+    const conflict = comments.find((c) => c.suggestionDecision?.status === "conflict");
+    if (conflict) { await reviewCommentDecision(conflict); return; }
     try {
-      await postWorkspaceComment(activePath, body, null, anchor, suggestion);
-    } catch (error) {
-      // The markers were an act of writing. If the comment never reached the
-      // workspace, the note must not keep a pair nothing points at.
-      if (marked) {
-        const current = sessionRef.current?.view;
-        const found = current ? findAnchorMarker(current.state.doc.toString(), markerId) : null;
-        if (current && found) current.dispatch({ changes: [{ from: found.from - openAnchorMarker(markerId).length, to: found.from }, { from: found.to, to: found.to + closeAnchorMarker(markerId).length }] });
-      }
-      throw error;
-    }
-  }, [activePath, postWorkspaceComment, workspaceReadOnly, commentAnchorsEnabled]);
-
-  /**
-   * Writes the proposed text into the note, then closes the thread.
-   *
-   * This is an ORDINARY edit: it goes through the editor and therefore through
-   * the normal save path, so the version history covers the undo the same way
-   * it covers anything else typed here. The anchor markers stay where they are -
-   * accepting is a write plus a resolve, nothing more.
-   */
-  const applySuggestion = useCallback(async (comment: WorkspaceCommentRecord) => {
-    if (!activePath || !comment.suggestion) return;
-    const view = sessionRef.current?.view;
-    const resolution = anchorResolutions.get(comment.commentId);
-    // An orphan has no passage left to replace. Guessing a spot would write the
-    // proposal into a place nobody proposed it for.
-    if (!view || !resolution || resolution.status === "orphan") {
-      toast.error(t("comments.suggestionOrphan"));
-      return;
-    }
-    const previous = view.state.doc.sliceString(resolution.from, resolution.to);
-    const replacement = comment.suggestion.replacement;
-    view.dispatch({ changes: { from: resolution.from, to: resolution.to, insert: replacement } });
-    try {
-      await resolveWorkspaceComment(activePath, comment.commentId, "applied");
-    } catch (error) {
-      // The swap already happened in the buffer. If the workspace never learned
-      // of it, the note must not silently keep a change nobody agreed to.
-      const current = sessionRef.current?.view;
-      if (current) current.dispatch({ changes: { from: resolution.from, to: resolution.from + replacement.length, insert: previous } });
-      toast.error(errorText(error));
-    }
-  }, [activePath, anchorResolutions, resolveWorkspaceComment, t]);
-
-  /**
-   * A whole round in ONE write (Vorschlagsmodus, V3): every open block of the
-   * round is resolved against the text as it stands, the changes are applied
-   * back to front in a single transaction (so no position shifts under a
-   * later block), and then each block is closed as applied. One block that
-   * no longer fits stops the round before anything is written - a half-applied
-   * round would be worse than none.
-   */
-  const applyRound = useCallback(async (batchId: string) => {
-    if (!activePath) return;
-    const view = sessionRef.current?.view;
-    if (!view) return;
-    const blocks = workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
-    if (blocks.length === 0) return;
-    const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
-    for (const comment of blocks) {
-      const resolution = anchorResolutions.get(comment.commentId);
-      if (!resolution || resolution.status === "orphan") { toast.error(t("comments.suggestRoundOrphan")); return; }
-      spans.push({ comment, from: resolution.from, to: resolution.to });
-    }
-    spans.sort((a, b) => b.from - a.from || b.to - a.to);
-    for (let i = 1; i < spans.length; i += 1) {
-      if (spans[i].to > spans[i - 1].from) { toast.error(t("comments.suggestRoundOrphan")); return; }
-    }
-    const before = view.state.doc.toString();
-    view.dispatch({ changes: spans.map((span) => ({ from: span.from, to: span.to, insert: span.comment.suggestion!.replacement })) });
-    try {
-      for (const span of spans) await resolveWorkspaceComment(activePath, span.comment.commentId, "applied");
-    } catch (error) {
-      const current = sessionRef.current?.view;
-      if (current) current.dispatch({ changes: { from: 0, to: current.state.doc.length, insert: before } });
-      toast.error(errorText(error));
-      return;
-    }
-    toast.info(t("comments.suggestRoundApplied", { n: spans.length }));
-  }, [activePath, workspaceComments, anchorResolutions, resolveWorkspaceComment, t]);
-
-  const declineRound = useCallback(async (batchId: string) => {
-    if (!activePath) return;
-    const blocks = workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
-    try {
-      for (const comment of blocks) await resolveWorkspaceComment(activePath, comment.commentId, "declined");
-    } catch (error) {
-      toast.error(errorText(error));
-    }
-  }, [activePath, workspaceComments, resolveWorkspaceComment]);
-
-  /**
-   * Deleting a remark (K7): a retraction marker, plus the marker pair in the
-   * text where this window may write. The pair is that comment's alone, so
-   * with the comment gone it would only clutter the source; where the note is
-   * read-only it stays - hidden in live preview (K1), stripped in the reader.
-   */
-  const deleteComment = useCallback(async (comment: WorkspaceCommentRecord) => {
+      const snapshot = await flushCommentSnapshot();
+      await runCommentInput(planCommentDecision(activePath, snapshot.text, comments, outcome), snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const applySuggestion = useStableHandler((comment: WorkspaceCommentRecord) => decideComments([comment], "applied"));
+  const declineSuggestion = useStableHandler((comment: WorkspaceCommentRecord) => decideComments([comment], "declined"));
+  const applyRound = useStableHandler((batchId: string) => decideComments(workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && isCommentThreadOpen(c)), "applied"));
+  const declineRound = useStableHandler((batchId: string) => decideComments(workspaceComments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && isCommentThreadOpen(c)), "declined"));
+  const deleteComment = useStableHandler(async (comment: WorkspaceCommentRecord) => {
     if (!activePath) return;
     try {
-      await retractWorkspaceComment(activePath, comment.commentId);
-      const markerId = comment.anchor?.markerId;
-      const view = sessionRef.current?.view;
-      if (markerId && view && !workspaceReadOnly && !comment.parentCommentId) {
-        const found = findAnchorMarker(view.state.doc.toString(), markerId);
-        if (found) view.dispatch({ changes: [{ from: found.from - openAnchorMarker(markerId).length, to: found.from }, { from: found.to, to: found.to + closeAnchorMarker(markerId).length }] });
-      }
-    } catch (error) {
-      toast.error(errorText(error));
-    }
-  }, [activePath, retractWorkspaceComment, workspaceReadOnly]);
-
-  const declineSuggestion = useCallback(async (comment: WorkspaceCommentRecord) => {
+      const snapshot = await flushCommentSnapshot();
+      const intended = comment.anchor?.markerId && !workspaceReadOnly && !comment.parentCommentId
+        ? removeAnchorMarkers(snapshot.text, comment.anchor.markerId) : snapshot.text;
+      await runCommentInput({ notePath: activePath, kind: "retract", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+        markers: [{ path: activePath, body: "", retractsCommentId: comment.commentId, ...(comment.targetRevisionId ? { targetObjectId: comment.targetObjectId } : {}) }] }, snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const resolveComment = useStableHandler(async (commentId: string) => {
     if (!activePath) return;
+    const target = workspaceComments.find((c) => c.commentId === commentId);
     try {
-      await resolveWorkspaceComment(activePath, comment.commentId, "declined");
-    } catch (error) {
-      toast.error(errorText(error));
-    }
-  }, [activePath, resolveWorkspaceComment]);
+      const snapshot = await flushCommentSnapshot();
+      await runCommentInput({ notePath: activePath, kind: "resolve", markers: [{ path: activePath, body: "", resolvedCommentId: commentId, ...(target?.targetRevisionId ? { targetObjectId: target.targetObjectId } : {}) }] }, snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
 
   useLayoutEffect(() => {
     suggestionActionsRef.current = { apply: (comment) => { void applySuggestion(comment); }, decline: (comment) => { void declineSuggestion(comment); } };
   });
 
-  const startSuggesting = useCallback(() => {
+  const startSuggesting = useStableHandler(async () => {
     const session = sessionRef.current;
     if (!session || !activePath) return;
     // Locked (N3): the verb stays and leads to the explanation - the column
     // opens and says what to do - rather than into a mode whose send would
     // fail a minute later.
     if (commentsLocked) { setCommentColumnSession("open"); toast.info(t("comments.commentsLockedToast")); return; }
+    try { await flushCommentSnapshot(); }
+    catch (error) { reportCommentFailure(error); return; }
     if (viewMode === "source") { setViewMode("live"); rememberSessionViewMode(activePath, "live"); }
     suggestingRef.current = true;
     setSuggesting(true);
@@ -2531,7 +2489,7 @@ export const Editor: React.FC<{
       if (parked.copy !== view.state.doc.toString()) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: parked.copy } });
       setSuggestNote(parked.note);
     }
-  }, [activePath, viewMode, commentsLocked, t]);
+  });
 
   const stopSuggesting = useCallback(() => {
     suggestingRef.current = false;
@@ -2560,33 +2518,47 @@ export const Editor: React.FC<{
    * insertion point), the copy's text its replacement. Nothing is written
    * into the note - not even a marker pair - until somebody accepts.
    */
-  const sendSuggestions = useCallback(async () => {
+  const currentSuggestNote = useRef(suggestNote);
+  useLayoutEffect(() => { currentSuggestNote.current = suggestNote; });
+  const finishCommentRound = useStableHandler((operation: CommentOperation) => {
     const session = sessionRef.current;
-    if (!session || !activePath) return;
+    if (!session || !activePath || !suggestingRef.current || !saveState.isActive()) return;
     const { base, chunks } = session.suggestion();
-    if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
-    const tooLarge = chunks.find((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES);
-    if (tooLarge) { toast.warning(t("comments.suggestTooLarge")); return; }
-    const batchId = createWorkspaceObjectId();
-    const note = suggestNote.trim() || null;
-    let index = 0;
-    try {
-      for (const chunk of chunks) {
-        const anchor = buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base));
-        if (!anchor.quote && !chunk.replacement) continue;
-        await postWorkspaceComment(activePath, "", null, anchor, { replacement: chunk.replacement }, { batchId, index, note });
-        index += 1;
-      }
-    } catch (error) {
-      toast.error(errorText(error));
-      return;
-    }
+    if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(activePath, base, chunks, currentSuggestNote.current))) return;
     suggestParkRef.current.delete(activePath);
     forgetPark(activePath);
     stopSuggesting();
-    toast.info(t("comments.suggestSent", { n: index }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePath, suggestNote, postWorkspaceComment, stopSuggesting, t]);
+  });
+  useEffect(() => {
+    if (!commentOperations || !vaultPath || !activePath) return;
+    return observeCompletedCommentRounds(commentOperations, vaultPath, activePath, finishCommentRound);
+  }, [commentOperations, vaultPath, activePath, finishCommentRound]);
+  const sendSuggestions = useStableHandler(async () => {
+    const session = sessionRef.current;
+    if (!session || !activePath || !commentOperations) return;
+    const { base, chunks } = session.suggestion();
+    if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
+    if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
+    const copy = session.view.state.doc.toString();
+    const capturedNote = suggestNote;
+    const current = () => saveState.isActive() && sessionRef.current === session && suggestingRef.current
+      && session.view.state.doc.toString() === copy && currentSuggestNote.current === capturedNote;
+    const batchId = createWorkspaceObjectId();
+    const markers = chunks.map((chunk, index) => ({ path: activePath, body: "", parentCommentId: null,
+      anchor: buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base)),
+      suggestion: { replacement: chunk.replacement }, batch: { batchId, index, note: capturedNote.trim() || null } }));
+    try {
+      await commentActionController(commentOperations).execute({ notePath: activePath, kind: "post", markers },
+        (operation) => runVisibleCommentOperation(commentOperations, operation, { text: copy, current, adopt: () => {} }));
+      if (current()) {
+        suggestParkRef.current.delete(activePath);
+        forgetPark(activePath);
+        stopSuggesting();
+      }
+      toast.info(t("comments.suggestSent", { n: markers.length }));
+    } catch (error) { reportCommentFailure(error); }
+    finally { pendingCommentOperations.refresh(); }
+  });
 
   // A note left in the mode keeps its copy parked (F5); a note opened with a
   // parked copy comes back in the mode. The session is rebuilt per note, so
@@ -2671,6 +2643,8 @@ export const Editor: React.FC<{
           {openCommentThreads > 0 && <span className="pv-badge pv-badge--accent pv-comment-toggle__badge">{openCommentThreads}</span>}
         </IconButton>
       )}
+      {!commentColumnOpen && <CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
+      {decisionReview && decisionReview.path === activePath && decisionReview.vaultPath === vaultPath && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
       {workspaceReadOnly && <div className="pv-banner pv-banner--info">{workspaceCanComment ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
       {!peek && (
       <div className="pv-appbar pv-appbar--split" data-testid="editor-toolbar">
@@ -3094,6 +3068,7 @@ export const Editor: React.FC<{
       </div>
       {commentColumnOpen && (
         <WorkspaceCommentsColumn
+          operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
           onClose={toggleCommentColumn}
           onOpenNote={openNoteFromComment}
           onOpenUrl={(url) => { void openExternalUrl(url); }}
@@ -3115,10 +3090,11 @@ export const Editor: React.FC<{
           onToggleInlineSuggestions={toggleSuggestionsInline}
           onApplyRound={(batchId) => { void applyRound(batchId); }}
           onDeclineRound={(batchId) => { void declineRound(batchId); }}
+          onReviewDecision={(comment) => { void reviewCommentDecision(comment); }}
           onApplySuggestion={(comment) => { void applySuggestion(comment); }}
           onDeclineSuggestion={(comment) => { void declineSuggestion(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
-          onResolve={(commentId) => { if (activePath) void resolveWorkspaceComment(activePath, commentId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); }}
+          onResolve={(commentId) => { void resolveComment(commentId); }}
           onRetryPending={commentStoreState?.hasOutbox ? (outboxId) => { void retryWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
           onDiscardPending={commentStoreState?.hasOutbox ? (outboxId) => { void discardWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
           locked={commentsLocked ? { onUnlock: requestCommentUnlock } : undefined}

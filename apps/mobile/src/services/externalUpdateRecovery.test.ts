@@ -52,6 +52,9 @@ function createHandler() {
   const session = editor("my draft");
   const sessionRef = { current: session };
   const errors = vi.fn(), conflicts = vi.fn();
+  const events = new EventTarget();
+  const documents: unknown[] = [];
+  events.addEventListener("m-editor-document", (event) => documents.push((event as CustomEvent).detail));
   const deps = {
     noteSaver: saver, path: "Note.md", vault, session, sessionRef,
     vaultOps: { read: (v: MobileVault, path: string) => v.files.readTextFile(path) },
@@ -60,11 +63,11 @@ function createHandler() {
     decideDirtyExternalUpdate: () => "preserve-conflict",
     conflictCopyPath: () => "Note.CONFLICT-test.md",
     toast: { error: errors }, t: (s: string) => s, noteConflict: conflicts,
-    console: { error: () => {} },
+    console: { error: () => {} }, window: events, CustomEvent,
   };
   const handle = new Function(...Object.keys(deps), compiled + "\nreturn handle;")(...Object.values(deps)) as () => Promise<void>;
   saver.schedule(vault, "Note.md", "my draft");
-  return { handle, session, sessionRef, errors, conflicts };
+  return { handle, session, sessionRef, errors, conflicts, documents };
 }
 describe("original mobile external-update callback with real recovery files", () => {
   it("keeps the buffer and pending save when writing the conflict copy fails", async () => {
@@ -73,6 +76,7 @@ describe("original mobile external-update callback with real recovery files", ()
     await h.handle();
     expect(h.session.text).toBe("my draft");
     expect(saver.hasPending("Note.md", vault)).toBe(true);
+    expect(h.documents).toEqual([]);
     expect(await raw.readTextFile("Note.md")).toBe("foreign disk");
     expect(h.errors).toHaveBeenCalledOnce();
     expect(h.conflicts).not.toHaveBeenCalled();
@@ -83,6 +87,7 @@ describe("original mobile external-update callback with real recovery files", ()
     await h.handle();
     expect(await raw.readTextFile("Note.CONFLICT-test.md")).toBe("my draft");
     expect(h.session.text).toBe("foreign disk");
+    expect(h.documents).toEqual([{ vaultId: vault.vaultId, path: "Note.md", text: "foreign disk" }]);
     expect(saver.hasPending("Note.md", vault)).toBe(false);
     expect(h.conflicts).toHaveBeenCalledWith("Note.md", "Note.CONFLICT-test.md", vault.vaultId);
   });

@@ -1,4 +1,7 @@
-import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
+// jsdom runs through Vite's client resolver, which does not recognize the
+// experimental SQLite builtin on Node 22. Load it through Node itself.
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 import type { IDatabaseAdapter } from "../../src/db/IDatabaseAdapter.js";
 import { initializeSchema } from "../../src/db/Schema.js";
 

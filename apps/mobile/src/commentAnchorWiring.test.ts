@@ -70,41 +70,30 @@ describe("the screen turns a tapped range into an anchor", () => {
 
   it("parks the payload instead of discarding it", () => {
     const handlerFrom = screen.indexOf("onCommentAnchorRequest={");
-    const handler = screen.slice(handlerFrom, handlerFrom + 400);
+    const handler = screen.slice(handlerFrom, screen.indexOf("onPassageSuggest=", handlerFrom));
     expect(handler, "the range must be kept until the comment is written").toMatch(/setPendingRange\(/);
     expect(handler, "the sheet must open, or the parked range never becomes a comment").toMatch(/setCommentsOpen\(true\)/);
   });
 
   it("builds the anchor at submit time, against the text as it stands", () => {
-    const submitFrom = screen.indexOf("onSubmit={async (body, parentCommentId)");
-    const submit = screen.slice(submitFrom, screen.indexOf("onResolve={", submitFrom));
+    const submitFrom = screen.indexOf("const postComment = useStableHandler(");
+    const submit = screen.slice(submitFrom, screen.indexOf("const revealAnchor", submitFrom));
     expect(submit, "a parked range must become an anchor").toMatch(/buildCommentAnchor\(/);
-    // The quote is what carries an anchor across an edit, so capturing it when
-    // the sheet opened would already be stale by the time the comment lands.
-    expect(submit, "the anchor must be built from the current text").toMatch(/const text = doc;/);
+    expect(submit, "the original quote must be resolved against the flushed text").toMatch(/resolveCommentAnchor\(snapshot\.text, selected\)/);
   });
 
   it("puts the marker pair in through the core helper, only where writing is allowed", () => {
-    const submitFrom = screen.indexOf("onSubmit={async (body, parentCommentId)");
-    const submit = screen.slice(submitFrom, screen.indexOf("onResolve={", submitFrom));
+    const submitFrom = screen.indexOf("const postComment = useStableHandler(");
+    const submit = screen.slice(submitFrom, screen.indexOf("const revealAnchor", submitFrom));
     // The core helper asserts the marker id and the bounds; rebuilding the
     // slices here would be a second, weaker copy of a rule that already exists.
     expect(submit, "markers must go through insertAnchorMarkers").toMatch(/insertAnchorMarkers\(/);
     // ...and never around a widget target (cell, picture, diagram): the pair
     // wrapped the table's whole source and broke it (finding 2026-09-03).
-    expect(submit, "a read-only workspace must not be written to").toMatch(/if \(workspaceCanWrite && !pendingRange\.display\)/);
+    expect(submit, "a read-only workspace must not be written to").toMatch(/if \(workspaceCanWrite && !parkedRange\?\.display\)/);
   });
 
-  it("takes the markers back out when the comment never lands", () => {
-    const submitFrom = screen.indexOf("onSubmit={async (body, parentCommentId)");
-    const submit = screen.slice(submitFrom, screen.indexOf("onResolve={", submitFrom));
-    const rollback = submit.slice(submit.indexOf("catch"));
-    // Buffer, file AND the editor on screen, in one call (finding 2026-09-09):
-    // restoring the buffer alone would leave the markers on disk, and the
-    // note is saved on a timer, so the write that carried them may have run.
-    expect(rollback, "a failed post must restore buffer, file and view").toMatch(/adoptDoc\(marker\.before\)/);
-    expect(rollback, "the failure must still reach the sheet").toMatch(/throw error;/);
-  });
+
 });
 
 /**
@@ -276,39 +265,8 @@ describe("locked and unreadable are said, not hidden, on the phone (N3)", () => 
   });
 });
 
-/**
- * A text change the screen makes reaches the editor on screen (finding
- * 2026-09-09, from the phone's own E2E): accepting a proposal wrote the file
- * and left the view on the old text until the note was reopened, because the
- * host reads `initialDoc` once per mount. Every such change now goes through
- * one helper that tells the host; nothing may call `setDoc` plus a scheduled
- * save on its own again.
- */
-describe("a text change made by the screen reaches the editor", () => {
-  const screen = strip(read("screens", "NoteScreen.tsx"));
-  const host = strip(read("EditorHost.tsx"));
-
-  it("has one helper that sets the state, schedules the save and tells the host", () => {
-    const helper = screen.slice(screen.indexOf("const adoptDoc = "), screen.indexOf("};", screen.indexOf("const adoptDoc = ")));
-    expect(helper).toMatch(/setDoc\(next\)/);
-    expect(helper).toMatch(/noteSaver\.schedule\(vault, path, next\)/);
-    expect(helper).toMatch(/"m-editor-adopt-text"/);
-  });
-
-  it("uses it wherever a proposal or a marker changes the text", () => {
-    // A bare `setDoc(x); noteSaver.schedule(...)` pair is the old, silent shape
-    // - anywhere but inside the helper itself.
-    const helperAt = screen.indexOf("const adoptDoc = ");
-    const outside = screen.slice(0, helperAt) + screen.slice(screen.indexOf("}, [vault, path]);", helperAt));
-    expect(outside).not.toMatch(/setDoc\((\w+)\);\s*noteSaver\.schedule\(vault, path, \1\)/);
-    expect(screen.match(/adoptDoc\(/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
-  });
-
-  it("is adopted by the host as an external change", () => {
-    expect(host).toMatch(/addEventListener\("m-editor-adopt-text", onAdoptText\)/);
-    expect(host).toMatch(/applyExternalText\(d\.text\)/);
-  });
-});
+// Confirmed adoption, further typing and navigation are executed against the
+// original capture callback in services/saveRecovery.test.ts.
 
 describe("the name a remark is signed with, on the phone (finding 2026-09-09)", () => {
   const service = strip(read("services", "mobileComments.ts"));

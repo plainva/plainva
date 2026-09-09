@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
-import { ConflictError, containsTextChanges, mergeText } from "@plainva/core";
+import { ConflictError, containsTextChanges, mergeEditorText } from "@plainva/core";
 import { applyTextShape, readTextShape } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { EditorSaveLifetime } from "./editorSaveLifetime";
@@ -61,7 +61,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   const ui = { saving: vi.fn(), error: vi.fn(), content: vi.fn(), conflict: vi.fn() };
   const deps = {
     activePath: path, vaultPath: root, vaultAdapter: raw, saveState: lifetime, sessionRef, contentRef,
-    withPendingWrite, mergeText, containsTextChanges, ConflictError, applyTextShape, readTextShape, dirtyStore,
+    withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, applyTextShape, readTextShape, dirtyStore,
     loadJournal: async () => ({ recordDraft, clearDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict,
     indexer: null, triggerFileTreeUpdate: vi.fn(), window, CustomEvent, crypto,

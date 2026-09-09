@@ -53,3 +53,11 @@ Lässt sich eine Anmerkungsdatei nicht lesen, wird sie nie überschrieben: Die e
 Gleichzeitige Antworten, Verschiebemarkierungen und der laufende Sync werden beim Schreiben zusammengeführt. Eine fehlende, leere oder ältere Cloud-Datei entfernt keine bereits empfangenen Anmerkungen. Beim Einrichten eines neuen Sync-Ziels werden auch lokale Altbestände und empfangene Beiträge anderer Geräte mit ihren ursprünglichen Kennungen übertragen; doppelte Kopien erscheinen als derselbe Beitrag.
 
 Vor dem Beiseitelegen einer beschädigten eigenen Datei wird die Sicherung vollständig gelesen und mit dem Original verglichen. Scheitert das, bleibt das Original erhalten und neue Anmerkungen werden nicht gespeichert; Plainva zeigt den Sicherungsfehler. Prüfe Speicherplatz und Dateizugriff und sende anschließend erneut. Klartextbestände werden erst entfernt, wenn ihr Inhalt vollständig in einer lesbaren verschlüsselten Kopie auf diesem Gerät und am Sync-Ziel enthalten ist. Hat sich die Quelle inzwischen geändert, bleibt sie bis zum nächsten erfolgreichen Abgleich erhalten.
+
+## Unvollständige Vorgänge und widersprüchliche Entscheidungen
+
+Plainva hält den Abschluss eines Kommentarvorgangs auf diesem Gerät fest. Ist der Text schon gespeichert, aber die Anmerkung noch nicht, erscheint ein Hinweis mit **Erneut versuchen**. Die Wiederholung setzt die ausstehenden Schritte fort und nimmt weder den gespeicherten Text noch spätere Eingaben zurück. Bei einer nur teilweise gesendeten Korrekturrunde werden dieselben Vorschläge weitergesendet; weitere Änderungen Deiner Arbeitskopie bleiben ungesendet erhalten.
+
+Hat sich die Notiz vor der Textbestätigung geändert, öffne **Text vergleichen**. Vergleiche die geplante Änderung mit dem aktuellen Text und bearbeite die Notiz bei Bedarf selbst. Eine Wiederholung prüft erneut; abweichender Text wird nicht durch die alte Fassung ersetzt.
+
+Melden Geräte unterschiedliche Entscheidungen, zeigt die Karte **Widersprüchliche Entscheidungen**. Über **Entscheidung prüfen** vergleichst Du den Vorschlag mit der aktuellen Notiz. **Als übernommen bestätigen** oder **Als abgelehnt bestätigen** bestätigt diesen Text und ersetzt nur die hier bereits bekannten Entscheidungen. Der Vorschlag wird dabei nicht nochmals eingefügt. Eine später eintreffende unbekannte Gegenentscheidung kann erneut einen Konflikt anzeigen.

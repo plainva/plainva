@@ -27,12 +27,12 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks } from "@plainva/ui";
+import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks } from "@plainva/ui";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -45,6 +45,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
+import { mobileCommentOperations } from "../services/commentOperations";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 
@@ -116,21 +117,14 @@ export function NoteScreen({
   const [menu, setMenu] = useState(false);
   const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
-  /**
-   * A text change the SCREEN makes - accepting a proposal, a whole round, the
-   * anchor markers of a new remark, and the roll-backs of those - has to reach
-   * the editor that is on screen. The host reads `initialDoc` once per mount,
-   * so `setDoc` alone left the view on the old text until the note was
-   * reopened (finding 2026-09-09, from the phone's E2E: an accepted proposal
-   * was in the file and not in the view). The desktop dispatches on its view
-   * directly; this is the phone's equivalent - the host adopts the text as an
-   * external change, without touching the undo history.
-   */
-  const adoptDoc = useCallback((next: string) => {
-    setDoc(next);
-    noteSaver.schedule(vault, path, next);
-    window.dispatchEvent(new CustomEvent("m-editor-adopt-text", { detail: { path, text: next } }));
-  }, [vault, path]);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const d = (event as CustomEvent<{ vaultId: string; path: string; text: string }>).detail;
+      if (d.vaultId === vault.vaultId && d.path === path) setDoc(d.text);
+    };
+    window.addEventListener("m-editor-document", changed);
+    return () => window.removeEventListener("m-editor-document", changed);
+  }, [vault.vaultId, path]);
   // C4: live preview <-> raw markdown source (session mode, per note session).
   const [source, setSource] = useState(false);
   // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
@@ -202,8 +196,8 @@ export function NoteScreen({
     apply();
     window.addEventListener(COMMENT_JUMP_EVENT, apply);
     // The editor reports the suggestion mode's change count and its outcome (V5).
-    const onChunks = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path) setSuggestCount(Number(d.count) || 0); };
-    const onDone = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path) { setSuggesting(false); setSuggestCount(0); setSuggestNote(""); setCommentTick((n) => n + 1); } };
+    const onChunks = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path && d.vaultId === vault.vaultId) setSuggestCount(Number(d.count) || 0); };
+    const onDone = (e: Event) => { const d = (e as CustomEvent).detail; if (d?.path === path && d.vaultId === vault.vaultId) { setSuggesting(false); setSuggestCount(0); setSuggestNote(""); setCommentTick((n) => n + 1); } };
     window.addEventListener("m-editor-suggest-chunks", onChunks);
     window.addEventListener("m-editor-suggest-done", onDone);
     return () => {
@@ -211,7 +205,7 @@ export function NoteScreen({
       window.removeEventListener("m-editor-suggest-chunks", onChunks);
       window.removeEventListener("m-editor-suggest-done", onDone);
     };
-  }, [path]);
+  }, [path, vault.vaultId]);
   // Read once and kept: the device id does not change while a screen is open,
   // and null until it is here means nothing counts as addressed to you.
   const [commentSelfId, setCommentSelfId] = useState<string | null>(null);
@@ -277,7 +271,7 @@ export function NoteScreen({
    * while a text anchor has to be built against the text as it stands at SUBMIT
    * time — the quote it carries is what makes it survive an edit.
    */
-  const [pendingRange, setPendingRange] = useState<{ from: number; to: number; display?: AnchorFrameHint } | null>(null);
+  const [pendingRange, setPendingRange] = useState<{ from: number; to: number; display?: AnchorFrameHint; anchor?: WorkspaceCommentAnchor } | null>(null);
   const [propertyAliasColumns, setPropertyAliasColumns] = useState<Record<string, unknown> | null>(null);
   const propertyAnchorKeys = useMemo(
     () => comments.map((c) => (c.anchor ? propertyAnchorKey(c.anchor) : null)),
@@ -345,18 +339,21 @@ export function NoteScreen({
   const widgetMarkerCleanupRef = useRef<string | null>(null);
   useEffect(() => {
     if (doc === null || comments.length === 0 || !workspaceCanWrite || suggesting) return;
-    if (widgetMarkerCleanupRef.current === path) return;
-    widgetMarkerCleanupRef.current = path;
-    const stripped = stripWidgetAnchorMarkers(doc, comments.map((comment) => comment.anchor));
+    const key = JSON.stringify([vault.vaultId, path]);
+    if (widgetMarkerCleanupRef.current === key) return;
+    let snapshot: CommentEditorSnapshot;
+    try { snapshot = captureCommentEditor(vault.vaultId, path); } catch { return; }
+    if (!snapshot.current() || !snapshot.edit) return;
+    widgetMarkerCleanupRef.current = key;
+    const stripped = stripWidgetAnchorMarkers(snapshot.text, comments.map((comment) => comment.anchor));
     /* Markers written before `placeAnchorRange` (finding 2026-09-03) move out
        of the block prefix - same repair as the desktop. */
     const repaired = repairAnchorMarkerPlacement(stripped.text);
     if (stripped.removed.length === 0 && repaired.edits.length === 0) return;
     const text = repaired.text;
-    // Through the helper, not a remount: the editor adopts the stripped text
-    // in place and keeps its scroll and cursor (finding 2026-09-09).
-    adoptDoc(text);
-  }, [doc, comments, path, vault, workspaceCanWrite, suggesting, adoptDoc]);
+    // An ordinary edit in the captured session, with its own save and draft.
+    snapshot.edit(text);
+  }, [doc, comments, path, vault, workspaceCanWrite, suggesting]);
   const toggleSuggestionsInline = () => {
     const next = !suggestionsInline;
     setSuggestionsInline(next);
@@ -369,7 +366,7 @@ export function NoteScreen({
       if (comment.resolvedAt || !comment.anchor) continue;
       const resolution = resolveCommentAnchor(doc, comment.anchor);
       if (resolution.status === "orphan") continue;
-      const open = comment.suggestion && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
+      const open = comment.suggestion && comment.suggestionDecision?.status !== "conflict" && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
       out.push({
         commentId: comment.commentId, from: resolution.from, to: resolution.to,
         // The named card's range is drawn stronger (desktop parity, finding 2026-09-03).
@@ -480,7 +477,7 @@ export function NoteScreen({
     })();
   };
 
-  const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { path } }));
+  const editorEvent = (name: string) => window.dispatchEvent(new CustomEvent(name, { detail: { vaultId: vault.vaultId, path } }));
 
   useEffect(() => {
     setParked(null);
@@ -507,8 +504,8 @@ export function NoteScreen({
     setSuggestCount(0);
     window.setTimeout(() => {
       editorEvent("m-editor-suggest-start");
-      window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note } }));
-      window.dispatchEvent(new CustomEvent("m-editor-suggest-restore", { detail: { path, copy: reconciled.copy } }));
+      window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { vaultId: vault.vaultId, path, note } }));
+      window.dispatchEvent(new CustomEvent("m-editor-suggest-restore", { detail: { vaultId: vault.vaultId, path, copy: reconciled.copy } }));
     }, 0);
     if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length }));
   };
@@ -638,91 +635,103 @@ export function NoteScreen({
       .catch((e) => toast.warning(errorText(e)));
   };
 
-  /**
-   * A whole round in one write (V5, desktop parity): every open block resolved
-   * against the text as it stands, applied back to front, then closed.
-   */
-  const applyRound = async (batchId: string) => {
-    const text = doc;
-    if (text === null) return;
-    const blocks = comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt);
-    const spans: Array<{ comment: WorkspaceCommentRecord; from: number; to: number }> = [];
-    for (const comment of blocks) {
-      if (!comment.anchor) { toast.error(t("comments.suggestRoundOrphan")); return; }
-      const resolution = resolveCommentAnchor(text, comment.anchor);
-      if (resolution.status === "orphan") { toast.error(t("comments.suggestRoundOrphan")); return; }
-      spans.push({ comment, from: resolution.from, to: resolution.to });
-    }
-    spans.sort((a, b) => b.from - a.from || b.to - a.to);
-    for (let i = 1; i < spans.length; i += 1) if (spans[i].to > spans[i - 1].from) { toast.error(t("comments.suggestRoundOrphan")); return; }
-    let next = text;
-    for (const span of spans) next = next.slice(0, span.from) + span.comment.suggestion!.replacement + next.slice(span.to);
-    adoptDoc(next);
+  const commentOperations = useMemo(() => mobileCommentOperations(vault), [vault]);
+  const pendingCommentOperations = usePendingCommentOperations(commentOperations, vault.vaultId, path);
+  const [decisionReview, setDecisionReview] = useState<{ path: string; vaultId: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
+  const reportCommentFailure = useStableHandler((error: unknown) => {
+    toast.error(commentActionErrorKey(error) ? t(commentActionErrorKey(error)!) : errorText(error));
+  });
+  const flushCommentSnapshot = useStableHandler(async () => {
+    const initial = captureCommentEditor(vault.vaultId, path);
+    await noteSaver.flush(path, vault);
+    if (!(initial.alive?.() ?? initial.current())) throw new CommentActionNotStartedError();
+    return captureCommentEditor(vault.vaultId, path);
+  });
+  const runCommentInput = useStableHandler(async (input: CommentOperationInput, snapshot: CommentEditorSnapshot) => {
+    try { return await commentActionController(commentOperations).execute(input,
+      (operation) => runVisibleCommentOperation(commentOperations, operation, snapshot)); }
+    finally { pendingCommentOperations.refresh(); setCommentTick((n) => n + 1); }
+  });
+  const retryCommentOperation = useStableHandler(async (operation: CommentOperation) => {
     try {
-      for (const span of spans) await postMobileComment(vault, { path, body: "", resolvedCommentId: span.comment.commentId, suggestionOutcome: "applied" });
-    } catch (error) {
-      adoptDoc(text);
-      throw error;
-    }
-    setCommentTick((n) => n + 1);
-    toast.info(t("comments.suggestRoundApplied", { n: spans.length }));
-  };
-
-  const declineRound = async (batchId: string) => {
-    for (const comment of comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && !c.suggestion.appliedAt && !c.suggestion.declinedAt && !c.resolvedAt)) {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined" });
-    }
-    setCommentTick((n) => n + 1);
-  };
-
-  /**
-   * Deleting a remark (K7): a retraction marker, and the marker pair out of
-   * the text where this device may write - the desktop does the same.
-   */
-  const deleteComment = async (comment: WorkspaceCommentRecord) => {
-    await postMobileComment(vault, { path, body: "", retractsCommentId: comment.commentId });
-    const markerId = comment.anchor?.markerId;
-    const text = doc;
-    if (markerId && text !== null && workspaceCanWrite && !comment.parentCommentId) {
-      const next = removeAnchorMarkers(text, markerId);
-      if (next !== text) adoptDoc(next);
-    }
-    setCommentTick((n) => n + 1);
-  };
-
-  /**
-   * Accepting a proposal is an ORDINARY edit plus a resolve (desktop parity).
-   *
-   * The passage is found by resolving the anchor against the text as it stands
-   * right now, never by trusting stored offsets: the note may have been edited
-   * on another device since. An orphaned anchor is refused rather than guessed -
-   * writing a proposal into a spot nobody proposed it for is the worse failure.
-   */
-  const applySuggestion = async (comment: WorkspaceCommentRecord, outcome: "applied" | "declined") => {
-    if (outcome === "declined") {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "declined" });
-      setCommentTick((n) => n + 1);
-      return;
-    }
-    const text = doc;
-    if (!comment.suggestion || !comment.anchor || text === null) return;
-    const resolution = resolveCommentAnchor(text, comment.anchor);
-    if (resolution.status === "orphan") {
-      toast.error(t("comments.suggestionOrphan"));
-      return;
-    }
-    const next = text.slice(0, resolution.from) + comment.suggestion.replacement + text.slice(resolution.to);
-    adoptDoc(next);
+      const snapshot = operation.text && !operation.receipt ? await flushCommentSnapshot() : undefined;
+      if (!snapshot) await noteSaver.flush(path, vault);
+      await commentActionController(commentOperations).resume(operation,
+        (current) => runVisibleCommentOperation(commentOperations, current, snapshot));
+    } catch (error) { reportCommentFailure(error); }
+    finally { pendingCommentOperations.refresh(); setCommentTick((n) => n + 1); }
+  });
+  const reviewCommentDecision = useStableHandler(async (comment: WorkspaceCommentRecord) => {
     try {
-      await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "applied" });
-    } catch (error) {
-      // The swap is already in the buffer. If the record never landed, the note
-      // must not silently keep a change nobody agreed to.
-      adoptDoc(text);
-      throw error;
+      const snapshot = await flushCommentSnapshot();
+      setDecisionReview({ path, vaultId: vault.vaultId, comment, snapshot });
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const confirmCommentDecision = useStableHandler(async (outcome: "applied" | "declined") => {
+    if (!decisionReview || decisionReview.path !== path || decisionReview.vaultId !== vault.vaultId) return;
+    try {
+      await noteSaver.flush(path, vault);
+      const { snapshot, comment } = decisionReview;
+      await runCommentInput(planCommentDecision(path, snapshot.text, [comment], outcome, true), snapshot);
+      setDecisionReview(null);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const decideComments = useStableHandler(async (records: WorkspaceCommentRecord[], outcome: "applied" | "declined") => {
+    if (!records.length) return;
+    const conflict = records.find((c) => c.suggestionDecision?.status === "conflict");
+    if (conflict) { await reviewCommentDecision(conflict); return; }
+    try {
+      const snapshot = await flushCommentSnapshot();
+      await runCommentInput(planCommentDecision(path, snapshot.text, records, outcome), snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const applySuggestion = useStableHandler((comment: WorkspaceCommentRecord, outcome: "applied" | "declined") => decideComments([comment], outcome));
+  const applyRound = useStableHandler((batchId: string) => decideComments(comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && isCommentThreadOpen(c)), "applied"));
+  const declineRound = useStableHandler((batchId: string) => decideComments(comments.filter((c) => c.suggestionBatchId === batchId && c.suggestion && isCommentThreadOpen(c)), "declined"));
+  const deleteComment = useStableHandler(async (comment: WorkspaceCommentRecord) => {
+    try {
+      const snapshot = await flushCommentSnapshot();
+      const intended = comment.anchor?.markerId && workspaceCanWrite && !comment.parentCommentId
+        ? removeAnchorMarkers(snapshot.text, comment.anchor.markerId) : snapshot.text;
+      await runCommentInput({ notePath: path, kind: "retract", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+        markers: [{ path, body: "", retractsCommentId: comment.commentId, ...(comment.targetRevisionId ? { targetObjectId: comment.targetObjectId } : {}) }] }, snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const resolveComment = useStableHandler(async (commentId: string) => {
+    const target = comments.find((c) => c.commentId === commentId);
+    try {
+      const snapshot = await flushCommentSnapshot();
+      await runCommentInput({ notePath: path, kind: "resolve", markers: [{ path, body: "", resolvedCommentId: commentId, ...(target?.targetRevisionId ? { targetObjectId: target.targetObjectId } : {}) }] }, snapshot);
+    } catch (error) { reportCommentFailure(error); }
+  });
+  const postComment = useStableHandler(async (body: string, parentCommentId: string | null) => {
+    const parkedRange = pendingRange;
+    const parent = comments.find((comment) => comment.commentId === parentCommentId);
+    const parkedProperty = pendingPropertyAnchor;
+    const source = captureCommentEditor(vault.vaultId, path).text;
+    const placed = parkedRange && (parkedRange.display ? parkedRange : placeAnchorRange(source, parkedRange.from, parkedRange.to));
+    const selected = parentCommentId === null && placed
+      ? parkedRange?.anchor ?? buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), parkedRange?.display) : null;
+    const snapshot = await flushCommentSnapshot();
+    let anchor: WorkspaceCommentAnchor | null = null;
+    let intended = snapshot.text;
+    const property = parkedProperty && propertyAnchorKey(parkedProperty);
+    if (parentCommentId === null && property) {
+      anchor = buildPropertyCommentAnchor(property, propertyValueText(readFrontmatterPath(snapshot.text, [property])), mintAnchorMarkerId(snapshot.text));
+    } else if (selected) {
+      const resolved = resolveCommentAnchor(snapshot.text, selected);
+      if (resolved.status === "orphan") throw new Error("comment-suggestion-orphan");
+      anchor = buildCommentAnchor(snapshot.text, resolved.from, resolved.to, selected.markerId!, parkedRange?.display);
+      if (workspaceCanWrite && !parkedRange?.display)
+        intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
-    setCommentTick((n) => n + 1);
-  };
+    await runCommentInput({ notePath: path, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+      markers: [{ path, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor }] }, snapshot);
+    if (snapshot.alive?.()) {
+      setPendingPropertyAnchor((value) => value === parkedProperty ? null : value);
+      setPendingRange((value) => value === parkedRange ? null : value);
+    }
+  });
 
   /**
    * Tapping a quote reveals its passage in the note (D6).
@@ -741,12 +750,14 @@ export function NoteScreen({
     }
     setCommentsOpen(false);
     window.dispatchEvent(new CustomEvent("m-editor-goto-range", {
-      detail: { path, from: resolution.from, to: resolution.to },
+      detail: { vaultId: vault.vaultId, path, from: resolution.from, to: resolution.to },
     }));
   };
 
   const page = (
     <div className="m-page m-page--note">
+      {!commentsOpen && <CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
+      {decisionReview && decisionReview.path === path && decisionReview.vaultId === vault.vaultId && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
       <AppBar onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
             <IconButton
               label={t("mobile.toggleBookmark")}
@@ -864,9 +875,9 @@ export function NoteScreen({
             <span className="pv-suggest-band__text">
               <strong>{t("comments.suggestBandTitle")}</strong> {t("comments.suggestCount", { n: suggestCount })}
             </span>
-            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { path, note: event.target.value } })); }} />
+            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { vaultId: vault.vaultId, path, note: event.target.value } })); }} />
             <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("comments.suggestDiscard")}</Button>
-            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { path, note: suggestNote } })); }}>{t("comments.suggestSend", { n: suggestCount })}</Button>
+            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { vaultId: vault.vaultId, path, note: suggestNote } })); }}>{t("comments.suggestSend", { n: suggestCount })}</Button>
           </div>
         )}
       {doc !== null && (
@@ -876,7 +887,12 @@ export function NoteScreen({
           key={`${path}#${reloadTick}`}
           canComment={canComment}
           anchorHighlights={anchorHighlights}
-          onCommentAnchorRequest={(req) => { setPendingRange(req); setPendingPropertyAnchor(null); setCommentsOpen(true); }}
+          onCommentAnchorRequest={(req) => {
+            const source = captureCommentEditor(vault.vaultId, path).text;
+            const placed = req.display ? req : placeAnchorRange(source, req.from, req.to);
+            setPendingRange({ ...req, anchor: buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), req.display) });
+            setPendingPropertyAnchor(null); setCommentsOpen(true);
+          }}
           onPassageSuggest={canComment && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
             // Locked (N3): the verb leads to the explanation, not into a mode
             // whose send would fail a minute later.
@@ -894,7 +910,7 @@ export function NoteScreen({
             // the finger marked — the editor exists in edit shape a tick later.
             setEditing(true);
             window.setTimeout(() => {
-              window.dispatchEvent(new CustomEvent("m-editor-goto-range", { detail: { path, from: range.from, to: range.to } }));
+              window.dispatchEvent(new CustomEvent("m-editor-goto-range", { detail: { vaultId: vault.vaultId, path, from: range.from, to: range.to } }));
             }, 0);
           } : undefined}
           onAnchorActivate={(commentId) => { setActiveCommentId(commentId); setCommentsOpen(true); }}
@@ -933,6 +949,7 @@ export function NoteScreen({
 
       {commentsOpen && (
         <CommentsSheet
+          operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
           comments={comments}
@@ -942,53 +959,9 @@ export function NoteScreen({
           canComment={canComment}
           canWrite={workspaceCanWrite}
           onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); }}
-          onSubmit={async (body, parentCommentId) => {
-            /* A reply inherits its thread's anchor, so a parked anchor belongs
-               to a ROOT only - otherwise the reply would claim a second anchor
-               of its own. */
-            const root = parentCommentId === null;
-            const text = doc;
-            let anchor = root ? pendingPropertyAnchor : null;
-            /* Stufe E (E4): a parked RANGE becomes its anchor here, against the
-               text as it stands - the quote is what carries it across an edit,
-               so capturing it when the sheet opened would already be stale. */
-            let marker: { before: string } | null = null;
-            if (root && anchor === null && pendingRange && text !== null) {
-              const id = mintAnchorMarkerId(text);
-              /* Never inside a line's block prefix, never over the line break
-                 (finding 2026-09-03) - same rule as the desktop; a widget
-                 target keeps its range. */
-              const placed = pendingRange.display ? { from: pendingRange.from, to: pendingRange.to } : placeAnchorRange(text, pendingRange.from, pendingRange.to);
-              anchor = buildCommentAnchor(text, placed.from, placed.to, id, pendingRange.display);
-              /* The marker only goes in where writing is allowed. Without it
-                 the anchor still resolves - quote first, then context - it is
-                 just less precise after a heavy edit. */
-              /* Never around a widget (table cell, picture, diagram): the pair
-                 would wrap the whole source range and break the table in every
-                 view (finding 2026-09-03) - same rule as the desktop. */
-              if (workspaceCanWrite && !pendingRange.display) {
-                const next = insertAnchorMarkers(text, placed.from, placed.to, id);
-                marker = { before: text };
-                adoptDoc(next);
-              }
-            }
-            try {
-              await postMobileComment(vault, { path, body, parentCommentId, anchor });
-            } catch (error) {
-              /* The markers are already in the buffer. If the record never
-                 landed, the note must not keep a pair pointing at a comment
-                 that does not exist. */
-              if (marker) adoptDoc(marker.before);
-              throw error;
-            }
-            setPendingPropertyAnchor(null);
-            setPendingRange(null);
-            setCommentTick((n) => n + 1);
-          }}
-          onResolve={(commentId) => {
-            void postMobileComment(vault, { path, body: "", resolvedCommentId: commentId })
-              .then(() => setCommentTick((n) => n + 1));
-          }}
+          onSubmit={postComment}
+          onResolve={(commentId) => { void resolveComment(commentId); }}
+          onReviewDecision={(comment) => { void reviewCommentDecision(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
           canModerate={commentCaps.includes("workspace.manage")}
           onDelete={(comment) => { void deleteComment(comment).catch((e) => toast.error(errorText(e))); }}
@@ -1047,7 +1020,7 @@ export function NoteScreen({
                 setMenu(false);
                 setSource((s) => {
                   window.dispatchEvent(
-                    new CustomEvent("m-editor-set-mode", { detail: { path, mode: s ? "live" : "source" } }),
+                    new CustomEvent("m-editor-set-mode", { detail: { vaultId: vault.vaultId, path, mode: s ? "live" : "source" } }),
                   );
                   return !s;
                 });
@@ -1238,7 +1211,7 @@ export function NoteScreen({
             });
           }}
           onJumpToLine={(line) =>
-            window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
+            window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
           }
           onOpenNote={onOpenNote}
           onRestored={() => {
@@ -1277,7 +1250,7 @@ export function NoteScreen({
           });
         }}
         onJumpToLine={(line) =>
-          window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { path, line } }))
+          window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
         }
         onOpenNote={onOpenNote}
         onRestored={() => {

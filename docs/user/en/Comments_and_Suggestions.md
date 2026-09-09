@@ -53,3 +53,11 @@ A remarks file that cannot be read is never overwritten: this device's own file 
 Concurrent replies, move markers and an active sync are merged when writing. A missing, empty or older cloud file does not remove remarks already received. When connecting a new sync target, local legacy records and remarks received from other devices are transferred with their original IDs; duplicate copies appear as the same remark.
 
 Before setting aside this device’s damaged file, Plainva reads the complete backup and compares it with the original. If that fails, the original stays and new remarks are not saved; Plainva reports the backup failure. Check free space and file access, then send again. Plaintext sources are removed only when all their content is present in a readable encrypted copy both on this device and at the sync target. A source changed in the meantime stays until the next successful sync.
+
+## Incomplete operations and conflicting decisions
+
+Plainva records progress for each comment operation on this device. If the text is saved but the comment update is pending, a notice offers **Try again**. Retrying continues the unfinished steps without undoing the saved text or later typing. A partially sent suggestion round continues with the same proposals; further changes to your working copy remain unsent.
+
+If the note changed before its text was confirmed, open **Compare text**. Compare the planned change with the current text and edit the note yourself if needed. Retrying checks again; different text is never replaced with the old version.
+
+If devices report different decisions, the card shows **Conflicting decisions**. Use **Review decision** to compare the proposal with the current note. **Confirm as applied** or **Confirm as declined** confirms this text and replaces only decisions already known here. It does not insert the proposal again. A previously unknown opposing decision arriving later can show a conflict again.

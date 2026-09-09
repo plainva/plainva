@@ -170,7 +170,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                 {root.anchor && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
                 {root.suggestion && (
                   <span className="pv-comment-card__state">
-                    <Replace size={ICON.meta} aria-hidden="true" /> {t("comments.suggestionPending")}
+                    <Replace size={ICON.meta} aria-hidden="true" /> {t(root.suggestionDecision?.status === "conflict" ? "comments.decisionConflict" : "comments.suggestionPending")}
                   </span>
                 )}
                 <small className="pv-comment-card__meta" data-tip={root.authorMemberId}>

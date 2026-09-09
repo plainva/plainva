@@ -53,3 +53,11 @@ Um arquivo de anotações que não pode ser lido nunca é sobrescrito: o própri
 Respostas simultâneas, marcadores de movimentação e a sincronização em andamento são mesclados ao gravar. Um arquivo ausente, vazio ou mais antigo na nuvem não remove observações já recebidas. Ao conectar um novo destino de sincronização, registros locais antigos e observações recebidas de outros dispositivos também são transferidos com os identificadores originais; cópias duplicadas aparecem como a mesma observação.
 
 Antes de separar o arquivo danificado deste dispositivo, o Plainva lê o backup completo e o compara com o original. Se isso falhar, o original é preservado e novas observações não são salvas; o Plainva informa a falha no backup. Verifique o espaço livre e o acesso ao arquivo e envie novamente. Fontes sem criptografia só são removidas quando todo o conteúdo está em uma cópia criptografada legível neste dispositivo e no destino de sincronização. Uma fonte alterada nesse intervalo permanece até a próxima sincronização bem-sucedida.
+
+## Operações incompletas e decisões conflitantes
+
+O Plainva registra neste dispositivo o progresso de cada operação de comentários. Se o texto está salvo, mas falta atualizar o comentário, um aviso oferece **Tentar novamente**. A nova tentativa continua as etapas pendentes sem desfazer o texto salvo nem a digitação posterior. Uma rodada de sugestões parcialmente enviada continua com as mesmas propostas; alterações posteriores na sua cópia de trabalho permanecem sem envio.
+
+Se a nota mudou antes da confirmação do texto, abra **Comparar texto**. Compare a alteração planejada com o texto atual e edite a nota se necessário. A nova tentativa verifica novamente; um texto diferente nunca é substituído pela versão antiga.
+
+Se dispositivos informarem decisões diferentes, o cartão mostra **Decisões conflitantes**. Use **Revisar decisão** para comparar a proposta com a nota atual. **Confirmar como aplicado** ou **Confirmar como rejeitado** confirma esse texto e substitui apenas as decisões já conhecidas aqui. A proposta não é inserida novamente. Uma decisão contrária antes desconhecida que chegar depois pode exibir um novo conflito.

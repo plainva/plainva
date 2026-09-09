@@ -85,6 +85,21 @@ function props(over: Partial<React.ComponentProps<typeof WorkspaceCommentsColumn
 }
 
 describe("workspace comment column", () => {
+  it("keeps conflicting decisions open and offers a review instead of a direct verdict", () => {
+    const proposal = comment({ commentId: "ab".repeat(16), anchor: ANCHOR, suggestion: SUGGESTION,
+      suggestionDecision: { status: "conflict", decisions: [], knownIds: ["ac".repeat(16), "ad".repeat(16)] } });
+    const onReviewDecision = vi.fn();
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [proposal], onReviewDecision })} />);
+    act(() => { (host.querySelector('[data-testid="comment-kind-suggestions"]') as HTMLButtonElement).click(); });
+    expect(host.textContent).toContain(tr("comments.decisionConflict"));
+    const buttons = [...host.querySelectorAll("button")];
+    expect(buttons.some((b) => b.textContent?.trim() === tr("comments.suggestionApply"))).toBe(false);
+    expect(buttons.some((b) => b.textContent?.trim() === tr("comments.suggestionDecline"))).toBe(false);
+    act(() => { buttons.find((b) => b.textContent?.trim() === tr("comments.decisionReview"))!.click(); });
+    expect(onReviewDecision).toHaveBeenCalledWith(proposal);
+    unmount();
+  });
+
   it("hangs a reply off its thread instead of showing it as its own card", () => {
     const root = comment({ commentId: "aa".repeat(16), body: "Welches Jahr?" });
     const reply = comment({ commentId: "bb".repeat(16), parentCommentId: root.commentId, body: "2027." });

@@ -53,3 +53,11 @@ Plik uwag, którego nie da się odczytać, nigdy nie jest nadpisywany: własny p
 Równoczesne odpowiedzi, znaczniki przeniesienia i trwająca synchronizacja są scalane podczas zapisu. Brakujący, pusty lub starszy plik w chmurze nie usuwa już odebranych uwag. Przy podłączaniu nowego miejsca synchronizacji przenoszone są także stare lokalne rekordy i uwagi odebrane z innych urządzeń, z zachowaniem pierwotnych identyfikatorów; powielone kopie są wyświetlane jako ta sama uwaga.
 
 Przed odłożeniem uszkodzonego pliku tego urządzenia Plainva odczytuje całą kopię zapasową i porównuje ją z oryginałem. Jeśli się to nie uda, oryginał pozostaje zachowany, a nowe uwagi nie są zapisywane; Plainva zgłasza błąd kopii zapasowej. Sprawdź wolne miejsce i dostęp do pliku, a następnie wyślij ponownie. Niezaszyfrowane źródła są usuwane dopiero wtedy, gdy cała ich zawartość znajduje się w czytelnej zaszyfrowanej kopii na tym urządzeniu i w miejscu synchronizacji. Źródło zmienione w międzyczasie pozostaje do następnej udanej synchronizacji.
+
+## Nieukończone operacje i sprzeczne decyzje
+
+Plainva zapisuje na tym urządzeniu postęp każdej operacji dotyczącej komentarzy. Jeśli tekst jest zapisany, ale komentarz nadal wymaga aktualizacji, komunikat oferuje **Spróbuj ponownie**. Ponowienie kontynuuje oczekujące kroki bez cofania zapisanego tekstu ani późniejszych zmian. Częściowo wysłana runda sugestii jest kontynuowana z tymi samymi propozycjami; późniejsze zmiany w kopii roboczej pozostają niewysłane.
+
+Jeśli notatka zmieniła się przed potwierdzeniem tekstu, otwórz **Porównaj tekst**. Porównaj planowaną zmianę z aktualnym tekstem i w razie potrzeby samodzielnie edytuj notatkę. Ponowienie sprawdza ponownie; inny tekst nigdy nie jest zastępowany starą wersją.
+
+Jeśli urządzenia zgłaszają różne decyzje, karta pokazuje **Sprzeczne decyzje**. Użyj **Sprawdź decyzję**, aby porównać propozycję z aktualną notatką. **Potwierdź jako zastosowane** lub **Potwierdź jako odrzucone** potwierdza ten tekst i zastępuje tylko decyzje już tutaj znane. Nie wstawia propozycji ponownie. Nieznana wcześniej przeciwna decyzja otrzymana później może ponownie wywołać konflikt.
