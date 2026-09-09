@@ -2528,6 +2528,7 @@
     "backupZipOff": "Brak automatycznej kopii",
     "backupZipNever": "Jeszcze bez kopii zapasowej",
     "backupZipDone": "Utworzono kopię: {{name}}",
+    "backupZipFailed": "Nie udało się utworzyć kopii zapasowej „{{name}}”. Poprzednie archiwa zostały zachowane. Możesz ponowić próbę w ustawieniach vaulta.",
     "backupUnreadableTitle": "Starszych kopii zapasowych nie można odczytać",
     "backupUnreadableBody": "Folder {{folder}} zawiera pliki, do których ta instalacja nie ma dostępu — tak dzieje się po ponownej instalacji. Nie są tu liczone ani porządkowane; aplikacja Pliki nadal może je otworzyć.",
     "liftEncryptionRunning_one": "Zdejmowanie szyfrowania · jeszcze {{count}} plik czeka na wysłanie jako zwykły tekst. Wysyłka trwa przez kolejkę synchronizacji, także po zmianie aplikacji.",

@@ -8,10 +8,10 @@ vi.mock("@tauri-apps/api/path", () => ({
   appDataDir: async () => "/appdata",
 }));
 vi.mock("@tauri-apps/plugin-fs", () => ({
-  exists: async () => true,
+  exists: async (path: string) => !path.endsWith(".zip"),
   mkdir: async () => {},
   readDir: async () => [],
-  remove: async () => {},
+  remove: vi.fn(async () => {}),
 }));
 
 import { isZipRunning, runVaultZipBackup } from "./vaultZipBackup";
@@ -80,5 +80,27 @@ describe("the ZIP guard across open vaults", () => {
     finish();
     await run;
     expect(isZipRunning("/work")).toBe(false);
+  });
+});
+
+import { remove } from "@tauri-apps/plugin-fs";
+import type { ISettingsStore } from "@plainva/ui";
+
+describe("complete native backup result required before retention", () => {
+  beforeEach(() => { invoke.mockReset(); vi.mocked(remove).mockClear(); });
+  it.each(["read failure", "incomplete result"])("keeps older archives and lastRun after %s", async (kind) => {
+    const saved = vi.fn(), persisted = vi.fn();
+    const settings = { get: async () => undefined, set: saved, save: persisted } as unknown as ISettingsStore;
+    if (kind === "read failure") invoke.mockRejectedValueOnce(new Error("read Note.md failed"));
+    else invoke.mockResolvedValueOnce({ zip_path: "/partial.zip", file_count: 1, skipped: ["Note.md"] });
+    const result = await runVaultZipBackup({ vaultPath: "/Vault", store: settings });
+    expect(result.ok).toBe(false);
+    expect(remove).not.toHaveBeenCalled();
+    expect(saved).not.toHaveBeenCalled();
+    expect(persisted).not.toHaveBeenCalled();
+    invoke.mockResolvedValueOnce({ zip_path: "/complete.zip", file_count: 2, skipped: [] });
+    expect((await runVaultZipBackup({ vaultPath: "/Vault", store: settings })).ok).toBe(true);
+    expect(saved).toHaveBeenCalledOnce();
+    expect(persisted).toHaveBeenCalledOnce();
   });
 });

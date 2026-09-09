@@ -2510,6 +2510,7 @@
     "backupZipOff": "Sin copia automática",
     "backupZipNever": "Aún sin copia de seguridad",
     "backupZipDone": "Copia creada: {{name}}",
+    "backupZipFailed": "No se pudo crear la copia de seguridad de «{{name}}». Se conservan los archivos anteriores. Puedes volver a intentarlo desde los ajustes del vault.",
     "backupUnreadableTitle": "Las copias de seguridad antiguas no se pueden leer",
     "backupUnreadableBody": "La carpeta {{folder}} contiene archivos a los que esta instalación no tiene acceso; ocurre tras una reinstalación. Aquí no se cuentan ni se limpian; la app Archivos sigue pudiendo abrirlos.",
     "liftEncryptionRunning_one": "Quitando el cifrado · {{count}} archivo aún espera su subida en texto plano. La subida continúa por la cola de sincronización, incluso si cambias de app.",

@@ -2492,6 +2492,7 @@
     "backupZipOff": "Keine automatische Sicherung",
     "backupZipNever": "Noch keine Sicherung",
     "backupZipDone": "Sicherung erstellt: {{name}}",
+    "backupZipFailed": "Die Sicherung für „{{name}}“ konnte nicht erstellt werden. Bisherige Archive bleiben erhalten. Du kannst die Sicherung in den Vault-Einstellungen erneut starten.",
     "backupUnreadableTitle": "Ältere Sicherungen sind nicht lesbar",
     "backupUnreadableBody": "Im Ordner {{folder}} liegen Dateien, auf die diese Installation keinen Zugriff hat — das passiert nach einer Neuinstallation. Sie werden hier weder gezählt noch aufgeräumt; in der Dateien-App bleiben sie erreichbar.",
     "liftEncryptionRunning_one": "Verschlüsselung wird aufgehoben · noch {{count}} Datei wartet auf den Klartext-Upload. Der Upload läuft über die Sync-Warteschlange weiter, auch nach einem App-Wechsel.",

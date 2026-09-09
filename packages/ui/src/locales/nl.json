@@ -2492,6 +2492,7 @@
     "backupZipOff": "Geen automatische back-up",
     "backupZipNever": "Nog geen back-up",
     "backupZipDone": "Back-up gemaakt: {{name}}",
+    "backupZipFailed": "De back-up van ‘{{name}}’ kon niet worden gemaakt. Eerdere archieven blijven bewaard. Je kunt het opnieuw proberen via de vaultinstellingen.",
     "backupUnreadableTitle": "Oudere back-ups zijn niet leesbaar",
     "backupUnreadableBody": "De map {{folder}} bevat bestanden waar deze installatie geen toegang toe heeft — dat gebeurt na een herinstallatie. Ze worden hier niet meegeteld en niet opgeruimd; de app Bestanden kan ze nog openen.",
     "liftEncryptionRunning_one": "Versleuteling wordt opgeheven · nog {{count}} bestand wacht op de upload als platte tekst. De upload gaat via de synchronisatiewachtrij door, ook na het wisselen van app.",

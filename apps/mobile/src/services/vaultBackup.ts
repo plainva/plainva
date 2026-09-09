@@ -1,6 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
-import { buildZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZip } from "@plainva/ui";
+import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZip, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
 import { buildVaultZip } from "./vaultExport";
 import type { MobileVault } from "./vaultService";
@@ -96,9 +98,28 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
   running = true;
   try {
     const folder = backupFolderFor(name);
-    const fileName = buildZipFileName(name, new Date());
     const zip = await buildVaultZip(vault);
-    await Filesystem.writeFile({ path: `${folder}/${fileName}`, directory: DIR, data: zip, recursive: true });
+    const present = async (file: string): Promise<boolean> => {
+      try { await Filesystem.stat({ path: file, directory: DIR }); return true; }
+      catch (error) { if (isMissingFile(error)) return false; throw error; }
+    };
+    const fileName = await availableZipFileName(name, new Date(), (file) => present(folder + "/" + file));
+    const destination = folder + "/" + fileName;
+    const partial = destination + "." + crypto.randomUUID() + ".part";
+    try {
+      await Filesystem.writeFile({ path: partial, directory: DIR, data: zip, recursive: true });
+      // Check the actual bytes before publication or retention. A resolved
+      // native write alone must not turn a truncated archive into a success.
+      const checked = await Filesystem.readFile({ path: partial, directory: DIR });
+      if (typeof checked.data !== "string" || checked.data.replace(/\s/g, "") !== zip) {
+        throw new Error("Backup verification failed");
+      }
+      if (await present(destination)) throw new Error("Backup destination already exists");
+      await Filesystem.rename({ from: partial, to: destination, directory: DIR, toDirectory: DIR });
+    } catch (error) {
+      await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(() => {});
+      throw error;
+    }
 
     // Prune only AFTER the new archive exists: deleting first would leave a
     // window in which a failed write means one fewer backup than promised.
@@ -121,9 +142,8 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
 
 /**
  * Catch-up check: runs an archive if one is due. Called on vault open and on
- * return to the foreground. Failures stay silent — a missed archive must never
- * interrupt what someone opened the app to do; the vault detail screen shows
- * when the last one succeeded, which is where an absence becomes visible.
+ * return to the foreground. A failed automatic run reports the vault by name;
+ * the previous successful timestamp remains unchanged so the next check retries.
  */
 export async function backupIfDue(vault: MobileVault, name: string): Promise<void> {
   const { enabled, lastRun } = backupState(vault.vaultId);
@@ -131,7 +151,7 @@ export async function backupIfDue(vault: MobileVault, name: string): Promise<voi
   try {
     await runVaultBackup(vault, name);
   } catch {
-    /* see above */
+    toast.warning(i18n.t("mobile.backupZipFailed", { name }));
   }
 }
 

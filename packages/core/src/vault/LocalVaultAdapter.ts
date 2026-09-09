@@ -245,6 +245,28 @@ export class LocalVaultAdapter implements IVaultAdapter {
     return results;
   }
 
+  async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
+    const result: VaultFileInfo[] = [];
+    const walk = async (directory: string): Promise<void> => {
+      const absolute = this.resolvePath(directory);
+      try {
+        const entries = await fs.readdir(absolute, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isSymbolicLink()) continue;
+          if (entry.isDirectory() && excludeDirNames.includes(entry.name)) continue;
+          const rel = directory ? directory + "/" + entry.name : entry.name;
+          const info = await this.getFileInfo(rel);
+          result.push(info);
+          if (info.isDirectory) await walk(rel);
+        }
+      } catch (error) {
+        this.handleError(error, directory);
+      }
+    };
+    await walk("");
+    return result;
+  }
+
   async createDir(vaultPath: string): Promise<void> {
     const absolutePath = this.resolvePath(vaultPath);
     try {

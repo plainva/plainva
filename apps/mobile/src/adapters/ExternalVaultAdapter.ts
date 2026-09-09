@@ -152,6 +152,12 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     return out;
   }
 
+  async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
+    const out: VaultFileInfo[] = [];
+    await this.walk("", true, out, true, excludeDirNames);
+    return out;
+  }
+
   async createDir(path: string): Promise<void> {
     await this.plugin.mkdir({ handle: this.handle, path: norm(path) });
   }
@@ -166,16 +172,19 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[]): Promise<void> {
+  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0): Promise<void> {
+    if (includeHidden && depth > 256) throw new Error("Backup directory depth exceeded at " + rel);
     const res = await this.plugin.list({ handle: this.handle, path: rel });
     for (const e of res.entries) {
       // Desktop and container parity: dot-prefixed children stay out of the
       // tree and the index — here that also covers the OTHER app's markers
       // (`.stfolder`, `.obsidian`) that share the folder with us.
-      if (!e.name || e.name.startsWith(".")) continue;
+      if (!e.name) { if (includeHidden) throw new Error("Invalid backup entry at " + rel); continue; }
+      if (!includeHidden && e.name.startsWith(".")) continue;
+      if (e.isDirectory && excludeDirNames.includes(e.name)) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       out.push(toInfo(childRel, e));
-      if (e.isDirectory && recursive) await this.walk(childRel, true, out);
+      if (e.isDirectory && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1);
     }
   }
 }

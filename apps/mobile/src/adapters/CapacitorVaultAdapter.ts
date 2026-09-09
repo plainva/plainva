@@ -136,6 +136,12 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return out;
   }
 
+  async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
+    const out: VaultFileInfo[] = [];
+    await this.walk("", true, out, true, excludeDirNames);
+    return out;
+  }
+
   async createDir(path: string): Promise<void> {
     try {
       await Filesystem.mkdir({ path: this.full(path), directory: Directory.Data, recursive: true });
@@ -162,14 +168,18 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     }
   }
 
-  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[]): Promise<void> {
+  private async walk(rel: string, recursive: boolean, out: VaultFileInfo[], includeHidden = false, excludeDirNames: readonly string[] = [], depth = 0): Promise<void> {
+    if (includeHidden && depth > 256) throw new Error("Backup directory depth exceeded at " + rel);
     const res = await Filesystem.readdir({ path: this.full(rel), directory: Directory.Data });
     for (const f of res.files) {
       // Desktop parity: dot-prefixed children (.plainva internals, atomic
       // .plainva-tmp-* leftovers after a hard kill) never reach tree/index.
       // Direct listDir(".plainva/…") calls still work — only CHILD names of
       // a walked folder are filtered, not the entry path itself.
-      if (!f.name || f.name.startsWith(".")) continue;
+      if (!f.name) { if (includeHidden) throw new Error("Invalid backup entry at " + rel); continue; }
+      if (!includeHidden && f.name.startsWith(".")) continue;
+      if (f.type === "directory" && excludeDirNames.includes(f.name)) continue;
+      if (includeHidden && f.type !== "directory" && f.type !== "file") throw new Error("Unknown backup entry type at " + rel + "/" + f.name);
       const childRel = rel ? `${rel}/${f.name}` : f.name;
       const isDir = f.type === "directory";
       out.push({
@@ -180,7 +190,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
         mtime: f.mtime,
         ctime: f.ctime ?? undefined,
       });
-      if (isDir && recursive) await this.walk(childRel, true, out);
+      if (isDir && recursive) await this.walk(childRel, true, out, includeHidden, excludeDirNames, depth + 1);
     }
   }
 }

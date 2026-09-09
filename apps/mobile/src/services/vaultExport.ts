@@ -1,4 +1,5 @@
-import { zipSync } from "fflate";
+import { Zip, ZipDeflate } from "fflate";
+import { ZIP_EXCLUDED_DIR_NAMES } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -12,7 +13,6 @@ import type { MobileVault } from "./vaultService";
  * matching the desktop's exclude list.
  */
 
-const EXCLUDES = /^(\.plainva|\.git|\.trash|\.obsidian|node_modules)(\/|$)/;
 
 /** Uint8Array → base64 without blowing the call stack on big files. */
 function toBase64(bytes: Uint8Array): string {
@@ -31,17 +31,38 @@ function toBase64(bytes: Uint8Array): string {
  * "the vault".
  */
 export async function buildVaultZipBytes(v: MobileVault): Promise<Uint8Array> {
-  const entries = await v.adapter.listDir("", true);
-  const files: Record<string, Uint8Array> = {};
-  for (const e of entries) {
-    if (e.isDirectory || EXCLUDES.test(e.path)) continue;
-    try {
-      files[e.path] = await v.adapter.readBinaryFile(e.path);
-    } catch {
-      /* unreadable entries stay out; the export still carries the rest */
+  if (!v.adapter.listDirForBackup) throw new Error("Complete backup listing is unavailable");
+  const entries = await v.adapter.listDirForBackup(ZIP_EXCLUDED_DIR_NAMES);
+  const chunks: Uint8Array[] = [];
+  let failure: Error | null = null;
+  let finished = false;
+  const zip = new Zip((error, chunk, final) => {
+    if (error) { failure = error; return; }
+    chunks.push(chunk);
+    if (final) finished = true;
+  });
+  try {
+    // Explicit entries avoid the object-key flattening of zipSync, where a
+    // legitimate root filename such as __proto__ can be omitted or misread.
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+      const bytes = await v.adapter.readBinaryFile(entry.path);
+      const file = new ZipDeflate(entry.path, { level: 6 });
+      zip.add(file);
+      file.push(bytes, true);
+      if (failure) throw failure;
     }
+    zip.end();
+    if (failure) throw failure;
+    if (!finished) throw new Error("Backup ZIP did not finish");
+    const result = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+    let offset = 0;
+    for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
+    return result;
+  } catch (error) {
+    zip.terminate();
+    throw error;
   }
-  return zipSync(files, { level: 6 });
 }
 
 /** Same ZIP, base64 — what the Capacitor filesystem writes. */

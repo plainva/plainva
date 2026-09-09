@@ -2237,7 +2237,7 @@ describe("the scheduled vault archive", () => {
     const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
     expect(svc).toMatch(/from "@plainva\/ui"/);
     expect(svc).toMatch(/selectZipsToDelete\(/);
-    expect(svc).toMatch(/buildZipFileName\(/);
+    expect(svc).toMatch(/availableZipFileName\(/);
     expect(svc).toMatch(/shouldRunZip\(/);
   });
 

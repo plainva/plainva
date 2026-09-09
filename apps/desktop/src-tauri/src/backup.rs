@@ -2,11 +2,11 @@
 //
 // The frontend owns filename, destination resolution, rotation and lastRun
 // bookkeeping; this command only walks the vault and writes one archive.
-// Work runs on a blocking thread; per-file read errors (locked/vanished
-// files) are collected in `skipped` instead of failing the run.
+// Work runs on a blocking thread. Any selected file or directory read error
+// fails the run before a completed archive is published.
 
 use std::fs::{self, File};
-use std::io::{self, BufWriter};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -63,14 +63,14 @@ fn collect_files(
     for entry in walker {
         let entry = match entry {
             Ok(e) => e,
-            Err(_) => continue, // vanished during the walk
+            Err(e) => return Err(format!("walk vault: {e}")),
         };
         if !entry.file_type().is_file() {
             continue;
         }
         let rel = match entry.path().strip_prefix(root) {
             Ok(r) => r,
-            Err(_) => continue,
+            Err(e) => return Err(format!("relative backup path: {e}")),
         };
         let name = rel
             .components()
@@ -82,54 +82,36 @@ fn collect_files(
         }
         out.push((entry.path().to_path_buf(), name));
     }
+    out.sort_by(|a, b| a.1.cmp(&b.1));
     Ok(out)
 }
 
-/// Streams the collected files into a zip at `out_path`. Returns
-/// (file_count, total_input_bytes, skipped_entry_names).
+/// Streams every selected file; a missing or unreadable entry fails the backup.
 fn zip_files(
     files: &[(PathBuf, String)],
-    out_path: &Path,
+    output: &mut File,
     mut on_progress: impl FnMut(u64, u64),
-) -> Result<(u64, u64, Vec<String>), String> {
-    let file = File::create(out_path).map_err(|e| format!("create {}: {e}", out_path.display()))?;
-    let mut zip = zip::ZipWriter::new(BufWriter::new(file));
+) -> Result<(u64, u64), String> {
+    let mut zip = zip::ZipWriter::new(BufWriter::new(output));
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .large_file(true);
-
     let total = files.len() as u64;
-    let mut file_count = 0u64;
     let mut total_bytes = 0u64;
-    let mut skipped: Vec<String> = Vec::new();
-
-    for (abs, name) in files {
-        let mut src = match File::open(abs) {
-            Ok(f) => f,
-            Err(_) => {
-                skipped.push(name.clone());
-                on_progress(file_count + skipped.len() as u64, total);
-                continue;
-            }
-        };
+    for (index, (abs, name)) in files.iter().enumerate() {
+        let mut src = File::open(abs).map_err(|e| format!("read {name}: {e}"))?;
         zip.start_file(name.as_str(), options)
             .map_err(|e| format!("zip entry {name}: {e}"))?;
-        match io::copy(&mut src, &mut zip) {
-            Ok(n) => {
-                total_bytes += n;
-                file_count += 1;
-            }
-            Err(_) => {
-                // Discard the partially written entry; the archive stays valid.
-                let _ = zip.abort_file();
-                skipped.push(name.clone());
-            }
-        }
-        on_progress(file_count + skipped.len() as u64, total);
+        total_bytes += io::copy(&mut src, &mut zip).map_err(|e| format!("read {name}: {e}"))?;
+        on_progress(index as u64 + 1, total);
     }
-
-    zip.finish().map_err(|e| format!("finish zip: {e}"))?;
-    Ok((file_count, total_bytes, skipped))
+    let mut writer = zip.finish().map_err(|e| format!("finish zip: {e}"))?;
+    writer.flush().map_err(|e| format!("flush zip: {e}"))?;
+    writer
+        .get_ref()
+        .sync_all()
+        .map_err(|e| format!("sync zip: {e}"))?;
+    Ok((total, total_bytes))
 }
 
 fn create_vault_zip_sync(
@@ -138,9 +120,10 @@ fn create_vault_zip_sync(
     exclude_dir_names: &[String],
     mut on_progress: impl FnMut(u64, u64),
 ) -> Result<ZipBackupResult, String> {
-    // canonicalize yields the \\?\ extended-length form on Windows, lifting the
-    // 260-char path limit for the whole walk (also covers UNC shares).
     let root = fs::canonicalize(vault_path).map_err(|e| format!("vault path: {e}"))?;
+    if !root.is_dir() {
+        return Err("vault path is not a directory".into());
+    }
     let dest = PathBuf::from(dest_path);
     let dest_parent = dest
         .parent()
@@ -150,31 +133,27 @@ fn create_vault_zip_sync(
         .file_name()
         .ok_or_else(|| "destination has no file name".to_string())?;
     let final_path = dest_parent.join(file_name);
-    let part_path = dest_parent.join(format!("{}.part", file_name.to_string_lossy()));
-
-    let skip_subtree = dest_parent.starts_with(&root).then_some(dest_parent.as_path());
+    let skip_subtree = dest_parent
+        .starts_with(&root)
+        .then_some(dest_parent.as_path());
     let files = collect_files(&root, exclude_dir_names, skip_subtree)?;
-
-    let result = zip_files(&files, &part_path, &mut on_progress);
-    match result {
-        Ok((file_count, total_bytes, skipped)) => {
-            if final_path.exists() {
-                let _ = fs::remove_file(&final_path);
-            }
-            fs::rename(&part_path, &final_path)
-                .map_err(|e| format!("finalize {}: {e}", final_path.display()))?;
-            Ok(ZipBackupResult {
-                zip_path: dest_path.to_string(),
-                file_count,
-                total_bytes,
-                skipped,
-            })
-        }
-        Err(e) => {
-            let _ = fs::remove_file(&part_path);
-            Err(e)
-        }
-    }
+    // Unique temporary files clean themselves up on every error, including
+    // failed finalization. Publishing never replaces an existing archive.
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".plainva-backup-")
+        .suffix(".part")
+        .tempfile_in(&dest_parent)
+        .map_err(|e| format!("create temporary archive: {e}"))?;
+    let (file_count, total_bytes) = zip_files(&files, temporary.as_file_mut(), &mut on_progress)?;
+    temporary
+        .persist_noclobber(&final_path)
+        .map_err(|e| format!("finalize {}: {}", final_path.display(), e.error))?;
+    Ok(ZipBackupResult {
+        zip_path: dest_path.to_string(),
+        file_count,
+        total_bytes,
+        skipped: Vec::new(),
+    })
 }
 
 /// Creates a ZIP backup of the vault at `dest_path` (full path incl. filename;
@@ -190,13 +169,21 @@ pub async fn create_vault_zip(
     tauri::async_runtime::spawn_blocking(move || {
         let mut last_emit = Instant::now();
         let mut last_done = 0u64;
-        create_vault_zip_sync(&vault_path, &dest_path, &exclude_dir_names, |done, total| {
-            if done == total || done - last_done >= 100 || last_emit.elapsed() >= Duration::from_millis(500) {
-                last_done = done;
-                last_emit = Instant::now();
-                let _ = app.emit("plainva-backup-zip-progress", ZipProgress { done, total });
-            }
-        })
+        create_vault_zip_sync(
+            &vault_path,
+            &dest_path,
+            &exclude_dir_names,
+            |done, total| {
+                if done == total
+                    || done - last_done >= 100
+                    || last_emit.elapsed() >= Duration::from_millis(500)
+                {
+                    last_done = done;
+                    last_emit = Instant::now();
+                    let _ = app.emit("plainva-backup-zip-progress", ZipProgress { done, total });
+                }
+            },
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -241,7 +228,10 @@ mod tests {
             .map(|(_, n)| n)
             .collect();
         names.sort();
-        assert_eq!(names, vec![".obsidian/app.json", "a.md", "deep/keep.md", "sub/b.md"]);
+        assert_eq!(
+            names,
+            vec![".obsidian/app.json", "a.md", "deep/keep.md", "sub/b.md"]
+        );
     }
 
     #[test]
@@ -280,7 +270,10 @@ mod tests {
         assert_eq!(result.file_count, 2);
         assert!(result.skipped.is_empty());
         assert!(dest.exists());
-        assert!(!out_dir.path().join("Vault_2026-07-05_10-00-00.zip.part").exists());
+        assert!(!out_dir
+            .path()
+            .join("Vault_2026-07-05_10-00-00.zip.part")
+            .exists());
 
         let mut archive = zip::ZipArchive::new(File::open(&dest).unwrap()).unwrap();
         let mut names: Vec<String> = (0..archive.len())
@@ -289,7 +282,11 @@ mod tests {
         names.sort();
         assert_eq!(names, vec!["Notizen/Übung äöü.md", "a.md"]);
         let mut content = String::new();
-        archive.by_name("a.md").unwrap().read_to_string(&mut content).unwrap();
+        archive
+            .by_name("a.md")
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
         assert_eq!(content, "hello");
     }
 
@@ -318,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn unreadable_files_land_in_skipped() {
+    fn unreadable_files_fail_the_archive() {
         let tmp = tempfile::tempdir().unwrap();
         let root = fs::canonicalize(tmp.path()).unwrap();
         write(&root, "ok.md", "ok");
@@ -330,9 +327,11 @@ mod tests {
             (root.join("ok.md"), "ok.md".to_string()),
             (root.join("missing.md"), "missing.md".to_string()),
         ];
-        let (count, _, skipped) = zip_files(&files, &dest, |_, _| {}).unwrap();
-        assert_eq!(count, 1);
-        assert_eq!(skipped, vec!["missing.md".to_string()]);
+        let mut output = File::create(&dest).unwrap();
+        assert!(zip_files(&files, &mut output, |_, _| {})
+            .err()
+            .unwrap()
+            .contains("missing.md"));
     }
 
     #[test]
@@ -353,5 +352,66 @@ mod tests {
         )
         .unwrap();
         assert_eq!(seen.last(), Some(&(2, 2)));
+    }
+    #[test]
+    fn failed_selected_file_does_not_publish_or_replace_a_previous_archive() {
+        let vault = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        write(vault.path(), "a.md", "a");
+        write(vault.path(), "b.md", "b");
+        let previous = out.path().join("previous.zip");
+        fs::write(&previous, b"previous complete archive").unwrap();
+        let dest = out.path().join("new.zip");
+        let result = create_vault_zip_sync(
+            vault.path().to_str().unwrap(),
+            dest.to_str().unwrap(),
+            &default_excludes(),
+            |done, _| {
+                if done == 1 {
+                    fs::remove_file(vault.path().join("b.md")).unwrap();
+                }
+            },
+        );
+        assert!(result.err().unwrap().contains("b.md"));
+        assert!(!dest.exists());
+        assert_eq!(fs::read(&previous).unwrap(), b"previous complete archive");
+        assert_eq!(fs::read_dir(out.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn finalization_does_not_overwrite_an_existing_archive() {
+        let vault = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        write(vault.path(), "a.md", "a");
+        let dest = out.path().join("same.zip");
+        fs::write(&dest, b"earlier complete archive").unwrap();
+        let result = create_vault_zip_sync(
+            vault.path().to_str().unwrap(),
+            dest.to_str().unwrap(),
+            &default_excludes(),
+            |_, _| {},
+        );
+        assert!(result.is_err());
+        assert_eq!(fs::read(&dest).unwrap(), b"earlier complete archive");
+        assert_eq!(fs::read_dir(out.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn a_failed_walk_is_not_an_empty_success() {
+        let vault = tempfile::tempdir().unwrap();
+        let missing = vault.path().join("missing");
+        assert!(collect_files(&missing, &default_excludes(), None).is_err());
+        let file = vault.path().join("file.md");
+        fs::write(&file, b"text").unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let dest = out.path().join("bad.zip");
+        assert!(create_vault_zip_sync(
+            file.to_str().unwrap(),
+            dest.to_str().unwrap(),
+            &default_excludes(),
+            |_, _| {}
+        )
+        .is_err());
+        assert!(!dest.exists());
     }
 }

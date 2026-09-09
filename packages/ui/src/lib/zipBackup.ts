@@ -41,11 +41,25 @@ export function buildZipFileName(vaultName: string, when: Date): string {
   return `${sanitizeFileName(vaultName)}_${stamp}.zip`;
 }
 
+/** Allocates an unused archive name without treating access errors as absence. */
+export async function availableZipFileName(
+  vaultName: string,
+  when: Date,
+  exists: (name: string) => Promise<boolean>,
+): Promise<string> {
+  const base = buildZipFileName(vaultName, when);
+  for (let index = 0; index < 1000; index++) {
+    const candidate = index === 0 ? base : base.slice(0, -4) + "_" + String(index).padStart(3, "0") + ".zip";
+    if (!(await exists(candidate))) return candidate;
+  }
+  throw new Error("No free backup name for this timestamp");
+}
+
 /** Strict name pattern of OUR zips for a vault — protects foreign files in a
  *  user-chosen destination (rotation + the forget-vault cleanup share it). */
 export function zipNamePattern(vaultName: string): RegExp {
   const esc = sanitizeFileName(vaultName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${esc}_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.zip$`);
+  return new RegExp(`^${esc}_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}(?:_\\d{3})?\\.zip$`);
 }
 
 /**

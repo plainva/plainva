@@ -143,6 +143,12 @@ export interface IVaultAdapter {
    */
   listDirReport?(path?: string, recursive?: boolean): Promise<VaultListing>;
 
+  /** Complete backup inventory, including hidden files. Excluded DIRECTORY
+   * names are pruned at every depth; symbolic links are not followed.
+   * Any unreadable selected entry rejects instead of returning a partial list.
+   * Kept separate from the filtered tree/index view returned by listDir. */
+  listDirForBackup?(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]>;
+
   /**
    * Creates a directory and any necessary parent directories.
    * Does not throw if directory already exists.

@@ -70,3 +70,24 @@ describe("vaultZipBackup", () => {
     });
   });
 });
+
+import { availableZipFileName } from "@plainva/ui";
+
+describe("archive names at the same timestamp", () => {
+  const date = new Date(2026, 8, 9, 15, 0, 0);
+  it("allocates a free suffix and retains newer suffixes after the original", async () => {
+    const base = buildZipFileName("Vault", date);
+    const one = base.slice(0, -4) + "_001.zip";
+    const two = await availableZipFileName("Vault", date, async (name) => [base, one].includes(name));
+    expect(two).toBe(base.slice(0, -4) + "_002.zip");
+    expect(selectZipsToDelete([two, base, one, base + ".part"], "Vault", 1)).toEqual([base, one]);
+  });
+  it("preserves an access failure instead of selecting that filename", async () => {
+    await expect(availableZipFileName("Vault", date, async () => { throw new Error("denied"); })).rejects.toThrow("denied");
+  });
+  it("stops safely when every permitted suffix is occupied", async () => {
+    let reads = 0;
+    await expect(availableZipFileName("Vault", date, async () => { reads++; return true; })).rejects.toThrow("No free backup name");
+    expect(reads).toBe(1000);
+  });
+});

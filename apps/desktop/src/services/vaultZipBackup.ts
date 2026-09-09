@@ -29,7 +29,7 @@ interface RustZipResult {
 
 /* Naming and pruning are shared with the phone since S36 (see @plainva/ui). */
 export { buildZipFileName, selectZipsToDelete, zipNamePattern } from "@plainva/ui";
-import { buildZipFileName, selectZipsToDelete } from "@plainva/ui";
+import { availableZipFileName, selectZipsToDelete } from "@plainva/ui";
 
 /**
  * Which vaults are archiving right now (stage D).
@@ -74,7 +74,8 @@ export async function runVaultZipBackup(opts: { vaultPath: string; store: ISetti
     }
 
     const vaultName = vaultFolderName(vaultPath);
-    const destPath = await join(destDir, buildZipFileName(vaultName, new Date()));
+    const fileName = await availableZipFileName(vaultName, new Date(), async (name) => exists(await join(destDir, name)));
+    const destPath = await join(destDir, fileName);
     emitStatus(vaultPath, { state: "running" });
 
     const result = await invoke<RustZipResult>("create_vault_zip", {
@@ -82,6 +83,8 @@ export async function runVaultZipBackup(opts: { vaultPath: string; store: ISetti
       destPath,
       excludeDirNames: ZIP_EXCLUDED_DIR_NAMES,
     });
+
+    if (result.skipped.length > 0) throw new Error("Incomplete backup: " + result.skipped.join(", "));
 
     const keep = (await store.get<number>(backupZipKeepKey(vaultPath))) ?? DEFAULT_ZIP_KEEP;
     try {

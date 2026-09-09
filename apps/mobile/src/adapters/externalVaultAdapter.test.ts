@@ -127,3 +127,32 @@ describe("ExternalVaultAdapter", () => {
     expect(await a.exists("New")).toBe(true);
   });
 });
+
+describe("external-folder backup inventory", () => {
+  it("includes hidden configuration without exposing it in the normal tree", async () => {
+    const files = new Map<string, string | Uint8Array>([
+      [".obsidian/app.json", "{}"], ["deep/.obsidian/theme.json", "theme"],
+      ["deep/.git/config", "excluded"], ["Note.md", "body"], [".hidden.md", "hidden"],
+    ]);
+    const { plugin, dirs, calls } = fakePlugin(files);
+    for (const path of [".obsidian", "deep", "deep/.obsidian", "deep/.git"]) dirs.add(path);
+    const adapter = new ExternalVaultAdapter(plugin, "folder");
+    const backup = await adapter.listDirForBackup([".plainva", ".git", ".trash", "node_modules"]);
+    expect(backup.filter((e) => !e.isDirectory).map((e) => e.path).sort()).toEqual([
+      ".hidden.md", ".obsidian/app.json", "Note.md", "deep/.obsidian/theme.json",
+    ].sort());
+    expect(calls).not.toContain("list:deep/.git");
+    expect((await adapter.listDir("", true)).filter((e) => !e.isDirectory).map((e) => e.path)).toEqual(["Note.md"]);
+  });
+
+  it("rejects an inaccessible selected folder instead of returning a partial inventory", async () => {
+    const { plugin, dirs } = fakePlugin(new Map([["Note.md", "body"]]));
+    dirs.add("blocked");
+    const list = plugin.list.bind(plugin);
+    plugin.list = async (args) => {
+      if (args.path === "blocked") throw new Error("folder access denied");
+      return list(args);
+    };
+    await expect(new ExternalVaultAdapter(plugin, "folder").listDirForBackup([])).rejects.toThrow("folder access denied");
+  });
+});

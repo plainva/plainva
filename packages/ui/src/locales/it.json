@@ -2510,6 +2510,7 @@
     "backupZipOff": "Nessun backup automatico",
     "backupZipNever": "Nessun backup finora",
     "backupZipDone": "Backup creato: {{name}}",
+    "backupZipFailed": "Non è stato possibile creare il backup di «{{name}}». Gli archivi precedenti restano disponibili. Puoi riprovare dalle impostazioni del vault.",
     "backupUnreadableTitle": "I backup precedenti non sono leggibili",
     "backupUnreadableBody": "La cartella {{folder}} contiene file a cui questa installazione non ha accesso: succede dopo una reinstallazione. Qui non vengono contati né ripuliti; l'app File può ancora aprirli.",
     "liftEncryptionRunning_one": "Rimozione della crittografia · {{count}} file attende ancora il caricamento in chiaro. Il caricamento continua tramite la coda di sincronizzazione, anche dopo un cambio di app.",
