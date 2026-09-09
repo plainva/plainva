@@ -67,6 +67,8 @@ De wizard neemt de gekozen aanbieder **naar elke stap** mee: stap 2 en 3 openen 
 
 Als je opnieuw inlogt bij Google, blijft het app-wachtwoord van je Gmail-postvak behouden. De aanmelding in de browser vernieuwt alleen de OAuth-diensten van het account; je IMAP-postvak heeft hiervoor geen nieuw wachtwoord nodig. Outlook houdt opgeslagen aanmeldingen en actieve verbindingen per vault gescheiden, ook als hetzelfde accountprofiel in meerdere vaults staat. Dit geldt op desktop en mobiel.
 
+Bestanden, agenda en Outlook-mail hebben elk hun eigen machtigingen nodig. Werkende bestandssynchronisatie betekent dus niet dat ook de agenda of het postvak toegang heeft. Plainva controleert de rechten per dienst; ontbreekt een machtiging, log dan opnieuw in en verleen de benodigde toegang. Gelijkwaardige Google-machtigingsnamen worden herkend.
+
 ## Dropbox
 
 Plainva levert een eigen Dropbox-app mee — **geen eigen app nodig**:

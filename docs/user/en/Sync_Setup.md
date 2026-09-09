@@ -67,6 +67,8 @@ Accounts that still sign in per service are marked **Old sign-in** in the accoun
 
 Signing in to Google again preserves your Gmail mailbox’s app password. The browser sign-in renews only the account’s OAuth services; your IMAP mailbox does not need a new password for this. Outlook keeps stored sign-ins and running connections separate for each vault, even when the same account profile exists in several vaults. This applies on desktop and mobile.
 
+Files, calendar and Outlook mail each need their own permissions. Working file sync therefore does not mean that the calendar or mailbox is also authorized. Plainva checks the permissions for each service; if a permission is missing, sign in again and grant the required access. Equivalent Google permission names are recognized.
+
 ## Dropbox
 
 Plainva ships its own Dropbox app — **no own app needed**:

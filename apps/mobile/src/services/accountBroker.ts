@@ -1,6 +1,9 @@
 import {
   accountServices,
   createTokenBroker,
+  oauthScopeFor,
+  sameStoredAccountToken,
+  withAccountCredentialLock,
   replaceOAuthClientRegistration,
   sameOAuthClient,
   type CloudProviderFamily,
@@ -12,12 +15,9 @@ import {
   type StoredAccountToken,
 } from "@plainva/ui";
 import {
-  GRAPH_CALENDAR_SCOPES,
-  ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
   refreshOneDriveAccessToken,
 } from "@plainva/core";
-import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
 import { secureCredentialStore } from "../platform/secureStore";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
@@ -37,12 +37,14 @@ export function accountSecretKey(vaultId: string, accountId: string): string {
 }
 
 export async function getAccountToken(vaultId: string, accountId: string): Promise<StoredAccountToken | null> {
-  return secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId));
+  return withAccountCredentialLock(accountSecretKey(vaultId, accountId), () => secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId)));
 }
 
 export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken): Promise<void> {
-  await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), token);
-  brokers.delete(accountSecretKey(vaultId, accountId));
+  await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    forgetAccountBroker(vaultId, accountId);
+    await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), token);
+  });
 }
 
 /** Mobile equivalent of the desktop's atomic local client switch. */
@@ -51,22 +53,26 @@ export async function replaceAccountClientRegistration(
   accountId: string,
   next: OAuthClientRegistration,
 ): Promise<boolean> {
-  const current = await getAccountToken(vaultId, accountId);
-  if (current && sameOAuthClient(current, next)) return false;
-  await saveAccountToken(vaultId, accountId, replaceOAuthClientRegistration(current, next));
-  return true;
+  return withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    const current = await secureCredentialStore.readSecret<StoredAccountToken>(accountSecretKey(vaultId, accountId));
+    if (current && sameOAuthClient(current, next)) return false;
+    forgetAccountBroker(vaultId, accountId);
+    await secureCredentialStore.writeSecret(accountSecretKey(vaultId, accountId), replaceOAuthClientRegistration(current, next));
+    return true;
+  });
 }
 
 export async function clearAccountToken(vaultId: string, accountId: string): Promise<void> {
-  await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));
-  brokers.delete(accountSecretKey(vaultId, accountId));
+  await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    forgetAccountBroker(vaultId, accountId);
+    await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));
+  });
 }
 
 export function microsoftScopeFor(audience: string): string {
-  if (audience === "files") return ONEDRIVE_DEFAULT_SCOPE;
-  if (audience === "calendar") return GRAPH_CALENDAR_SCOPES;
-  if (audience === "mail") return GRAPH_MAIL_SCOPES;
-  throw new Error(`unknown audience: ${audience}`);
+  const scope = oauthScopeFor("microsoft", audience);
+  if (!scope) throw new Error(`unknown audience: ${audience}`);
+  return scope;
 }
 
 /** Google scopes per audience; Gmail is IMAP, so it is not one of them. */
@@ -85,27 +91,41 @@ export function brokerFamily(family: CloudProviderFamily): "microsoft" | "google
 const brokers = new Map<string, TokenBroker>();
 
 export function getAccountBroker(vaultId: string, accountId: string, family: "microsoft" | "google" = "microsoft"): TokenBroker {
-  const key = accountSecretKey(vaultId, accountId);
+  const slotKey = accountSecretKey(vaultId, accountId);
+  const key = JSON.stringify([slotKey, family]);
   const existing = brokers.get(key);
   if (existing) return existing;
 
   const broker = createTokenBroker({
+    family,
     store: {
       read: () => getAccountToken(vaultId, accountId),
-      write: (next) => secureCredentialStore.writeSecret(key, next),
+      write: (next, expected) => withAccountCredentialLock(slotKey, async () => {
+        const current = await secureCredentialStore.readSecret<StoredAccountToken>(slotKey);
+        if (!sameStoredAccountToken(current, expected)) throw new Error("account sign-in changed before rotation could be saved");
+        await secureCredentialStore.writeSecret(slotKey, next);
+      }),
     },
     refresh: async ({ clientId, clientSecret, refreshToken, scope }) => {
       if (family === "google") {
         const tokens = await refreshDriveAccessToken({ clientId, clientSecret: clientSecret ?? "", refreshToken }, webdavFetch);
-        return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
+        return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn, scope: tokens.scope };
       }
       const tokens = await refreshOneDriveAccessToken({ clientId, refreshToken, scope }, webdavFetch);
-      return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn };
+      return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresIn: tokens.expiresIn, scope: tokens.scope };
     },
     scopeFor: family === "google" ? googleScopeFor : microsoftScopeFor,
   });
   brokers.set(key, broker);
   return broker;
+}
+
+export function forgetAccountBroker(vaultId: string, accountId: string): void {
+  for (const family of ["google", "microsoft"]) {
+    const key = JSON.stringify([accountSecretKey(vaultId, accountId), family]);
+    brokers.get(key)?.forget();
+    brokers.delete(key);
+  }
 }
 
 /**
@@ -133,8 +153,8 @@ export async function brokerTokenProvider(
     const stored = await getAccountToken(vaultId, record.id);
     if (!stored?.refreshToken) continue;
     if (!tokenCoversService(stored, service, family)) continue;
-    const broker = getAccountBroker(vaultId, record.id, family);
     return async (force: boolean) => {
+      const broker = getAccountBroker(vaultId, record.id, family);
       if (force) broker.forget();
       return broker.getAccessToken(service);
     };
@@ -142,17 +162,8 @@ export async function brokerTokenProvider(
   return undefined;
 }
 
-/**
- * Does the shared account token really carry this service?
- *
- * Asked wherever the app was ABOUT to assume it does: skipping a consent,
- * creating a calendar row without one, hiding the unify action. The assumption
- * is what stranded an account — a Drive-only grant was recorded as covering the
- * calendar, and every path that could have corrected it read the same claim
- * back (finding 2026-08-19). Google is the strict case because it cannot widen
- * a grant on refresh; Microsoft keeps the historical rule (a token is enough),
- * since its refresh asks for the service scope and rotation is handled.
- */
+/** The same recorded-grant rule as desktop. Older Microsoft slots without
+ * recorded scopes must still pass the actual access-token response check. */
 export function tokenCoversService(
   token: StoredAccountToken | null,
   service: CloudServiceId,

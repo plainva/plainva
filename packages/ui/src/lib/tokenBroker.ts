@@ -1,21 +1,8 @@
-import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES } from "@plainva/core";
+import { oauthScopeFor, oauthScopesCover, normalizeOAuthScopes, type OAuthFamily } from "./oauthScopes";
+import { createTokenRefreshCoordinator } from "./tokenRefreshCoordinator";
 
-/**
- * One refresh token per cloud ACCOUNT, shared by every service that account
- * carries (cloud accounts stage B / B0).
- *
- * Microsoft is the reason this exists: its refresh tokens ROTATE, so the
- * previous shape — one token copy per subsystem (file sync, calendar, mail),
- * each refreshing on its own — meant three consumers invalidating each other's
- * copy. The broker keeps exactly one copy, serialises the refresh, and
- * persists a rotated token BEFORE any caller proceeds.
- *
- * It is audience-scoped on purpose: callers ask for an access token for one
- * purpose ("files" / "calendar" / "mail") and receive a token limited to that
- * purpose's scopes. The refresh token itself never leaves the broker, which is
- * also what lets a later MCP token exchange reuse this instead of a second
- * broker (see the AI harness plan).
- */
+/** One stored OAuth grant per account, with separate access tokens for its
+ * services. Refreshes include confirmed persistence, not just the network call. */
 
 export interface StoredAccountToken {
   clientId: string;
@@ -66,10 +53,12 @@ export function replaceOAuthClientRegistration(
 export interface AccountTokenStore {
   read(): Promise<StoredAccountToken | null>;
   /** Must have completed before the broker hands the access token out. */
-  write(next: StoredAccountToken): Promise<void>;
+  write(next: StoredAccountToken, expected: StoredAccountToken): Promise<void>;
 }
 
 export interface RefreshResult {
+  /** Actual permissions returned by the provider; absence follows its protocol. */
+  scope?: string;
   accessToken: string;
   /** Present when the provider rotated the refresh token. */
   refreshToken?: string;
@@ -78,6 +67,11 @@ export interface RefreshResult {
 }
 
 export interface TokenBrokerDeps {
+  family?: OAuthFamily;
+  /** Detach new callers from older shared work after reconnect or forced refresh. */
+  onForget?(): void;
+  /** Optional cross-vault coordinator; execute includes reading and persistence. */
+  coordinateRefresh?(stored: StoredAccountToken, scope: string, execute: () => Promise<RefreshResult>): Promise<RefreshResult>;
   store: AccountTokenStore;
   /** Provider call; the broker never talks to the network itself. */
   refresh(opts: { clientId: string; clientSecret?: string; refreshToken: string; scope: string }): Promise<RefreshResult>;
@@ -90,7 +84,7 @@ export interface TokenBrokerDeps {
 export interface TokenBroker {
   /** Cached access token for one audience, refreshing (once) when needed. */
   getAccessToken(audience: string): Promise<string>;
-  /** Drops cached access tokens; the refresh token in the store is untouched. */
+  /** Invalidates cached and in-flight answers; stored credentials are untouched. */
   forget(): void;
 }
 
@@ -99,43 +93,68 @@ const EXPIRY_MARGIN_MS = 60_000;
 /** Fallback lifetime when the provider does not state one. */
 const DEFAULT_LIFETIME_MS = 55 * 60_000;
 
+export function sameStoredAccountToken(a: StoredAccountToken | null, b: StoredAccountToken): boolean {
+  return !!a && a.clientId === b.clientId && (a.clientSecret ?? "") === (b.clientSecret ?? "")
+    && a.refreshToken === b.refreshToken && a.scopes === b.scopes;
+}
+
 export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
   const now = deps.now ?? (() => Date.now());
   const cache = new Map<string, { token: string; expiresAt: number }>();
-  /**
-   * Single-flight per audience. Keyed by audience rather than globally so two
-   * different services do not serialise behind each other, while two calls for
-   * the SAME audience share one round trip — and because every refresh writes
-   * the rotated token through the same store, a concurrent pair cannot end up
-   * with divergent refresh tokens.
-   */
   const inFlight = new Map<string, Promise<string>>();
+  const coordinator = createTokenRefreshCoordinator<RefreshResult>();
+  let generation = 0;
 
-  async function refreshFor(audience: string): Promise<string> {
-    const stored = await deps.store.read();
-    if (!stored?.refreshToken) throw new Error("account is not connected");
-
-    const result = await deps.refresh({
-      clientId: stored.clientId,
-      ...(stored.clientSecret ? { clientSecret: stored.clientSecret } : {}),
-      refreshToken: stored.refreshToken,
-      scope: deps.scopeFor(audience),
-    });
-
-    // Persist a rotated refresh token BEFORE the access token is used: a lost
-    // rotation locks the whole account out of every service at once.
-    if (result.refreshToken && result.refreshToken !== stored.refreshToken) {
-      await deps.store.write({ ...stored, refreshToken: result.refreshToken });
-    }
-
-    // Never hand out — or cache — something that is not a token. An empty one
-    // travels to the API as "Bearer undefined" and comes back as a 401 that
-    // blames the sign-in, and the cache would repeat that for the token's whole
-    // supposed lifetime while re-authorising changes nothing (finding
-    // 2026-07-30). The refresh helpers guard this too; the broker is the last
-    // gate before three subsystems trust the value.
-    if (!result.accessToken) throw new Error(`the ${audience} token request returned no access token`);
-
+  async function refreshFor(audience: string, capturedGeneration: number): Promise<string> {
+    const assertCurrent = () => {
+      if (generation !== capturedGeneration) throw new Error("account sign-in changed during token renewal");
+    };
+    const initial = await deps.store.read();
+    if (!initial?.refreshToken) throw new Error("account is not connected");
+    assertCurrent();
+    const scope = deps.scopeFor(audience);
+    const execute = async (): Promise<RefreshResult> => {
+      assertCurrent();
+      // A previous audience may have rotated the grant while this one waited.
+      const stored = await deps.store.read();
+      if (!stored?.refreshToken) throw new Error("account is not connected");
+      assertCurrent();
+      if (!sameOAuthClient(stored, initial)) throw new Error("account client changed during token renewal");
+      const result = await deps.refresh({
+        clientId: stored.clientId,
+        ...(stored.clientSecret ? { clientSecret: stored.clientSecret } : {}),
+        refreshToken: stored.refreshToken,
+        scope,
+      });
+      assertCurrent();
+      if (typeof result.accessToken !== "string" || !result.accessToken.trim()) {
+        throw new Error(`the ${audience} token request returned no access token`);
+      }
+      if ((result.scope !== undefined && typeof result.scope !== "string")
+        || (result.refreshToken !== undefined && typeof result.refreshToken !== "string")) {
+        throw new Error(`the ${audience} token request returned an invalid grant`);
+      }
+      // An explicit narrowed answer is authoritative. If omitted, Google uses
+      // its original consent; Microsoft's scope-specific refresh uses its request.
+      const granted = result.scope ?? (deps.family === "google" ? stored.scopes : scope);
+      const covered = oauthScopesCover(granted, scope, deps.family);
+      if (!sameStoredAccountToken(await deps.store.read(), stored)) {
+        throw new Error("account sign-in changed during token renewal");
+      }
+      assertCurrent();
+      if (result.refreshToken && result.refreshToken !== stored.refreshToken) {
+        await deps.store.write({ ...stored, refreshToken: result.refreshToken }, stored);
+      }
+      assertCurrent();
+      // Retain a returned rotation even if this particular access token lacks
+      // rights; never use or cache that access token for the requested service.
+      if (!covered) throw new Error(`the ${audience} token does not grant its required permissions`);
+      return result;
+    };
+    const result = await (deps.coordinateRefresh
+      ? deps.coordinateRefresh(initial, scope, execute)
+      : coordinator.run("account", JSON.stringify([normalizeOAuthScopes(scope, deps.family), initial.refreshToken]), execute));
+    assertCurrent();
     const lifetime = result.expiresIn ? result.expiresIn * 1000 : DEFAULT_LIFETIME_MS;
     cache.set(audience, { token: result.accessToken, expiresAt: now() + Math.max(lifetime - EXPIRY_MARGIN_MS, 0) });
     return result.accessToken;
@@ -145,62 +164,39 @@ export function createTokenBroker(deps: TokenBrokerDeps): TokenBroker {
     async getAccessToken(audience: string): Promise<string> {
       const hit = cache.get(audience);
       if (hit && hit.expiresAt > now()) return hit.token;
-
-      const running = inFlight.get(audience);
-      if (running) return running;
-
-      const p = refreshFor(audience).finally(() => inFlight.delete(audience));
-      inFlight.set(audience, p);
-      return p;
+      const existing = inFlight.get(audience);
+      if (existing) return existing;
+      const pending = refreshFor(audience, generation).finally(() => {
+        if (inFlight.get(audience) === pending) inFlight.delete(audience);
+      });
+      inFlight.set(audience, pending);
+      return pending;
     },
     forget(): void {
+      generation += 1;
       cache.clear();
+      inFlight.clear();
+      coordinator.forget("account");
+      deps.onForget?.();
     },
   };
 }
 
-/**
- * Does a stored account token really carry this service?
- *
- * Both shells asked this, and both answered it with their own copy of the same
- * rule (`googleTokenCovers`, desktop and mobile). The rule is a DECISION about
- * an account, not a platform detail, so it belongs where the broker itself
- * lives — and a second copy is how the two devices came to judge the same
- * account differently in the first place.
- *
- * Google is strict: a refresh cannot widen a grant, so a slot that does not
- * PROVE the scope does not get to claim the service — the fallback is the
- * service's own sign-in, which is what worked before any of this existed.
- * Recording the request instead of the answer is what let a Drive-only grant
- * pass as a calendar sign-in and produce a 401 no re-authorisation could clear
- * (findings 2026-07-30 and 2026-08-19).
- *
- * Microsoft keeps the historical rule — a token is enough — because its
- * refresh asks for the service scope explicitly and its rotation is handled
- * here.
- */
+/** Only an evidenced service grant may replace that service's own sign-in.
+ * Older Microsoft slots without recorded scopes still refresh explicitly for
+ * the audience; their actual access-token answer is checked before use. */
 export function tokenCoversService(
   token: StoredAccountToken | null | undefined,
   service: string,
-  family: "google" | "microsoft",
+  family: OAuthFamily,
 ): boolean {
   if (!token?.refreshToken) return false;
-  if (family !== "google") return true;
-  if (!token.scopes) return false;
-  const needed = googleScopeFor(service);
-  if (!needed) return false; // no Google audience for this service (Gmail is IMAP)
-  const granted = new Set(token.scopes.split(/\s+/).filter(Boolean));
-  return needed.split(/\s+/).filter(Boolean).every((scope) => granted.has(scope));
+  const requested = oauthScopeFor(family, service);
+  if (!requested) return false;
+  if (family === "microsoft" && token.scopes === undefined) return true;
+  return oauthScopesCover(token.scopes, requested, family);
 }
 
-/**
- * The Google scopes an audience needs, or null when Google has none for it.
- *
- * Both shells carried this list; it decides what a consent asks for AND what a
- * stored grant is measured against, so the two have to be the same list.
- */
 export function googleScopeFor(service: string): string | null {
-  if (service === "files") return DRIVE_DEFAULT_SCOPE;
-  if (service === "calendar") return GOOGLE_CALENDAR_SCOPES;
-  return null;
+  return oauthScopeFor("google", service);
 }

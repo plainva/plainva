@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GOOGLE_CALENDAR_SCOPES,
+  refreshOneDriveAccessToken,
 } from "@plainva/core";
 import type { CloudAccountRecord } from "@plainva/ui";
 
@@ -35,6 +36,10 @@ import {
   accountSecretKey,
   brokerTokenProvider,
   replaceAccountClientRegistration,
+  saveAccountToken,
+  getAccountBroker,
+  forgetAccountBroker,
+  microsoftScopeFor,
 } from "./accountBroker";
 
 const google = (id: string, pimId: string): CloudAccountRecord => ({
@@ -98,5 +103,56 @@ describe("mobile account broker local OAuth boundary", () => {
       clientSecret: "new-secret",
       refreshToken: "",
     });
+  });
+});
+
+describe("mobile scoped token renewal through the secure store", () => {
+  beforeEach(() => {
+    state.secrets.clear();
+    state.records = [{ id: "ms", family: "microsoft", label: "Person", services: {
+      files: { provider: "onedrive" }, calendar: { pimAccountId: "calendar" }, mail: { mailAccountId: "mail" },
+    } }];
+    forgetAccountBroker("v1", "ms");
+    vi.mocked(refreshOneDriveAccessToken).mockReset();
+    state.secrets.set(accountSecretKey("v1", "ms"), { clientId: "client", refreshToken: "first" });
+  });
+
+  it("uses distinct service permissions and the latest persisted rotation", async () => {
+    const requests: string[] = [];
+    vi.mocked(refreshOneDriveAccessToken).mockImplementation(async ({ scope, refreshToken }) => {
+      requests.push(refreshToken);
+      return { accessToken: `access-${scope}`, refreshToken: `rotation-${requests.length}`, expiresIn: 3600, scope };
+    });
+    const broker = getAccountBroker("v1", "ms");
+    await expect(Promise.all(["files", "calendar", "mail"].map((service) => broker.getAccessToken(service))))
+      .resolves.toEqual(["files", "calendar", "mail"].map((service) => `access-${microsoftScopeFor(service)}`));
+    expect(requests).toEqual(["first", "rotation-1", "rotation-2"]);
+    expect(state.secrets.get(accountSecretKey("v1", "ms"))).toMatchObject({ refreshToken: "rotation-3" });
+  });
+
+  it("rejects a narrowed response and retries instead of caching it", async () => {
+    vi.mocked(refreshOneDriveAccessToken).mockResolvedValueOnce({ accessToken: "wrong", scope: microsoftScopeFor("files") })
+      .mockResolvedValue({ accessToken: "correct", scope: microsoftScopeFor("calendar") });
+    const broker = getAccountBroker("v1", "ms");
+    await expect(broker.getAccessToken("calendar")).rejects.toThrow(/required permissions/);
+    await expect(broker.getAccessToken("calendar")).resolves.toBe("correct");
+    expect(refreshOneDriveAccessToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("reconnect reaches an existing provider and blocks a late write from its old refresh", async () => {
+    const provider = (await brokerTokenProvider("v1", "calendar", "calendar"))!;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    vi.mocked(refreshOneDriveAccessToken).mockImplementationOnce(async () => {
+      await waiting;
+      return { accessToken: "old", refreshToken: "old-rotation" };
+    }).mockResolvedValue({ accessToken: "fresh", scope: microsoftScopeFor("calendar") });
+    const first = provider(false);
+    const failure = expect(first).rejects.toThrow(/sign-in changed/);
+    await vi.waitFor(() => expect(refreshOneDriveAccessToken).toHaveBeenCalledTimes(1));
+    await saveAccountToken("v1", "ms", { clientId: "client", refreshToken: "new-consent", scopes: microsoftScopeFor("calendar") });
+    release(); await failure;
+    await expect(provider(false)).resolves.toBe("fresh");
+    expect(state.secrets.get(accountSecretKey("v1", "ms"))).toMatchObject({ refreshToken: "new-consent" });
   });
 });

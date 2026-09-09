@@ -67,6 +67,8 @@ Les comptes encore connectés service par service portent la mention **Ancienne 
 
 Une nouvelle connexion à Google conserve le mot de passe d’application de ta boîte Gmail. La connexion dans le navigateur renouvelle uniquement les services OAuth du compte ; ta boîte IMAP n’a pas besoin d’un nouveau mot de passe pour cela. Outlook sépare les accès enregistrés et les connexions de chaque vault, même si le même profil de compte existe dans plusieurs vaults. Cela vaut sur ordinateur et sur mobile.
 
+Les fichiers, le calendrier et la messagerie Outlook nécessitent chacun leurs propres autorisations. Une synchronisation de fichiers qui fonctionne ne signifie donc pas que le calendrier ou la boîte mail sont également autorisés. Plainva vérifie les droits de chaque service ; si une autorisation manque, reconnecte-toi et accorde l’accès nécessaire. Les noms équivalents des autorisations Google sont reconnus.
+
 ## Dropbox
 
 Plainva fournit sa propre application Dropbox — **aucune application personnelle nécessaire** :

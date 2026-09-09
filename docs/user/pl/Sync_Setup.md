@@ -67,6 +67,8 @@ Konta, które wciąż logują się osobno dla każdej usługi, są oznaczone na 
 
 Ponowne logowanie do Google zachowuje hasło aplikacji Twojej skrzynki Gmail. Logowanie w przeglądarce odnawia tylko usługi OAuth konta; skrzynka IMAP nie wymaga w tym celu nowego hasła. Outlook przechowuje dane logowania i aktywne połączenia oddzielnie dla każdego vaulta, nawet jeśli ten sam profil konta znajduje się w kilku vaultach. Dotyczy to komputerów i urządzeń mobilnych.
 
+Pliki, kalendarz i poczta Outlook wymagają osobnych uprawnień. Działająca synchronizacja plików nie oznacza więc, że kalendarz lub skrzynka pocztowa również mają dostęp. Plainva sprawdza uprawnienia każdej usługi; jeśli jakiegoś brakuje, zaloguj się ponownie i przyznaj wymagany dostęp. Równoważne nazwy uprawnień Google są rozpoznawane.
+
 ## Dropbox
 
 Plainva dostarcza własną aplikację Dropbox — **nie potrzebujesz własnej aplikacji**:

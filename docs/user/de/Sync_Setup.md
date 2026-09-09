@@ -67,6 +67,8 @@ Bestehende Konten, die noch je Dienst getrennt angemeldet sind, tragen in der Ko
 
 Wenn Du Dich erneut bei Google anmeldest, bleibt das App-Passwort Deines Gmail-Postfachs erhalten. Die Browser-Anmeldung erneuert nur die OAuth-Dienste des Kontos; Dein IMAP-Postfach braucht dafür kein neues Passwort. Bei Outlook werden gespeicherte Zugänge und laufende Verbindungen je Vault getrennt, auch wenn dasselbe Kontenprofil in mehreren Vaults liegt. Das gilt auf Desktop und Mobilgeräten.
 
+Dateien, Kalender und Outlook-Mail benötigen jeweils ihre eigenen Freigaben. Eine funktionierende Dateisynchronisation bedeutet daher nicht, dass der Kalender oder das Postfach ebenfalls freigegeben ist. Plainva prüft die Rechte für den jeweiligen Dienst; fehlt eine Freigabe, melde Dich erneut an und erteile die benötigten Rechte. Gleichwertige Berechtigungsnamen von Google werden dabei erkannt.
+
 ## Dropbox
 
 Plainva liefert eine eigene Dropbox-App mit — **keine eigene App nötig**:

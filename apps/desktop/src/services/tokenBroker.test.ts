@@ -64,6 +64,104 @@ function setup(opts: { expiresIn?: number; rotate?: boolean } = {}) {
 }
 
 describe("createTokenBroker", () => {
+  it.each([{ scope: null }, { scope: 42 }, { scope: {} }, { accessToken: 42 }, { refreshToken: null }])(
+    "does not interpret malformed response fields as omitted permission data: %j", async (invalid) => {
+      const write = vi.fn();
+      const broker = createTokenBroker({
+        family: "microsoft",
+        store: { read: async () => ({ clientId: "client", refreshToken: "stored" }), write },
+        scopeFor: () => "Files.ReadWrite",
+        refresh: async () => ({ accessToken: "access", ...invalid }) as never,
+      });
+      await expect(broker.getAccessToken("files")).rejects.toThrow(/invalid grant|no access token/);
+      expect(write).not.toHaveBeenCalled();
+    },
+  );
+
+  it("serializes different audiences through confirmed rotation and returns distinct scoped tokens", async () => {
+    let stored: StoredAccountToken = { clientId: "client", refreshToken: "first" };
+    const requests: string[] = [];
+    const broker = createTokenBroker({
+      store: { read: async () => stored, write: async (next) => { stored = next; } },
+      scopeFor: (audience) => audience,
+      refresh: async ({ refreshToken, scope }) => {
+        requests.push(`${scope}:${refreshToken}`);
+        return { accessToken: `access-${scope}`, refreshToken: `refresh-${scope}`, scope };
+      },
+    });
+    await expect(Promise.all(["files", "calendar", "mail"].map((audience) => broker.getAccessToken(audience))))
+      .resolves.toEqual(["access-files", "access-calendar", "access-mail"]);
+    expect(requests).toEqual(["files:first", "calendar:refresh-files", "mail:refresh-calendar"]);
+  });
+
+  it("does not use or cache an explicitly narrowed access token but retains its rotation", async () => {
+    let stored: StoredAccountToken = { clientId: "client", refreshToken: "first" };
+    const refresh = vi.fn().mockResolvedValueOnce({ accessToken: "wrong", refreshToken: "rotated", scope: "files" })
+      .mockResolvedValue({ accessToken: "correct", scope: "calendar" });
+    const broker = createTokenBroker({
+      store: { read: async () => stored, write: async (next) => { stored = next; } },
+      scopeFor: (audience) => audience, refresh,
+    });
+    await expect(broker.getAccessToken("calendar")).rejects.toThrow(/required permissions/);
+    expect(stored.refreshToken).toBe("rotated");
+    await expect(broker.getAccessToken("calendar")).resolves.toBe("correct");
+    expect(refresh).toHaveBeenLastCalledWith(expect.objectContaining({ refreshToken: "rotated" }));
+  });
+
+  it("forget prevents an old response from caching or persisting and lets the new attempt finish", async () => {
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    let stored: StoredAccountToken = { clientId: "client", refreshToken: "first" };
+    const writes = vi.fn(async (next: StoredAccountToken) => { stored = next; });
+    const refresh = vi.fn().mockImplementationOnce(async () => { await waiting; return { accessToken: "old", refreshToken: "old-rotation" }; })
+      .mockResolvedValue({ accessToken: "new", refreshToken: "new-rotation" });
+    const broker = createTokenBroker({ store: { read: async () => stored, write: writes }, scopeFor: () => "files", refresh });
+    const first = broker.getAccessToken("files");
+    const failure = expect(first).rejects.toThrow(/sign-in changed/);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    broker.forget();
+    const second = broker.getAccessToken("files");
+    release(); await failure;
+    await expect(second).resolves.toBe("new");
+    await expect(broker.getAccessToken("files")).resolves.toBe("new");
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(stored.refreshToken).toBe("new-rotation");
+  });
+
+  it("a new stored consent cannot be overwritten by an old in-flight rotation", async () => {
+    let stored: StoredAccountToken = { clientId: "client", refreshToken: "first" };
+    const write = vi.fn();
+    const broker = createTokenBroker({
+      store: { read: async () => stored, write }, scopeFor: () => "files",
+      refresh: async () => {
+        stored = { clientId: "client", refreshToken: "new-consent" };
+        return { accessToken: "old", refreshToken: "old-rotation" };
+      },
+    });
+    await expect(broker.getAccessToken("files")).rejects.toThrow(/sign-in changed/);
+    expect(write).not.toHaveBeenCalled();
+    expect(stored.refreshToken).toBe("new-consent");
+  });
+
+  it("never converts a repeated storage failure into a cached success", async () => {
+    let fail = true;
+    let stored: StoredAccountToken = { clientId: "client", refreshToken: "first" };
+    const broker = createTokenBroker({
+      store: { read: async () => stored, write: async (next) => {
+        if (fail) throw new Error("secure storage unavailable");
+        stored = next;
+      } }, scopeFor: () => "files",
+      refresh: async () => ({ accessToken: "access", refreshToken: "rotated" }),
+    });
+    await expect(broker.getAccessToken("files")).rejects.toThrow(/secure storage/);
+    await expect(broker.getAccessToken("files")).rejects.toThrow(/secure storage/);
+    expect(stored.refreshToken).toBe("first");
+    fail = false;
+    await expect(broker.getAccessToken("files")).resolves.toBe("access");
+    expect(stored.refreshToken).toBe("rotated");
+  });
+
   it("T6 invalidates the old grant when either half of the local client changes", () => {
     const current: StoredAccountToken = {
       clientId: "desktop-client",

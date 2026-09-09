@@ -1,6 +1,11 @@
 import {
   accountServices,
   createTokenBroker,
+  createTokenRefreshCoordinator,
+  normalizeOAuthScopes,
+  oauthScopeFor,
+  sameStoredAccountToken,
+  withAccountCredentialLock,
   replaceOAuthClientRegistration,
   sameOAuthClient,
   googleScopeFor as sharedGoogleScopeFor,
@@ -19,41 +24,26 @@ import {
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
 import {
-  GRAPH_CALENDAR_SCOPES,
-  ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
   refreshOneDriveAccessToken,
 } from "@plainva/core";
-import { GRAPH_MAIL_SCOPES, forgetAllGraphMailRuntimes } from "@plainva/ui/mail";
+import { forgetAllGraphMailRuntimes } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
 import { readSlot, removeSlot } from "@plainva/ui";
 import { legacySlot, slot } from "./keychainSlots";
 
-/**
- * Desktop wiring of the shared token broker (cloud accounts stage B / B3).
- *
- * A Microsoft or Google account connected through the wizard's union consent
- * keeps ONE refresh token in an account slot; file sync, calendar and mail all
- * draw their access tokens from here instead of holding a copy each. Accounts
- * connected before this existed keep their per-service slots and their old
- * refresh paths — nothing is migrated behind the user's back (decision E8).
- *
- * Google was added on 2026-07-28. Its consent had covered the whole account
- * from the start, but the resulting token was COPIED into each service's slot,
- * on the reasoning that Google tokens do not rotate. They do not — yet the
- * copies still drifted: renewing one service wrote one slot and left the others
- * holding a dead token, which is how a vault ended up syncing files happily
- * while its calendar reported invalid_grant.
- */
+/** Desktop storage and transport for the shared account broker. Accounts
+ * connected through union consent use one stored grant; older per-service
+ * connections keep their own source until explicitly reconnected. */
 
 /** Keychain slot for the account-wide token, per vault (ADR 0005 shape). */
 export function accountSecretKey(vaultPath: string, accountId: string): string {
   return slot.account(vaultPath, accountId);
 }
 
-export async function getAccountToken(vaultPath: string, accountId: string): Promise<StoredAccountToken | null> {
+async function readAccountTokenUnlocked(vaultPath: string, accountId: string): Promise<StoredAccountToken | null> {
   return readSlot<StoredAccountToken>(
     credentialManager,
     slot.account(vaultPath, accountId),
@@ -61,9 +51,24 @@ export async function getAccountToken(vaultPath: string, accountId: string): Pro
   );
 }
 
+export async function getAccountToken(vaultPath: string, accountId: string): Promise<StoredAccountToken | null> {
+  return withAccountCredentialLock(accountSecretKey(vaultPath, accountId), () => readAccountTokenUnlocked(vaultPath, accountId));
+}
+
+async function writeRotatedAccountToken(vaultPath: string, accountId: string, next: StoredAccountToken, expected: StoredAccountToken): Promise<void> {
+  await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    if (!sameStoredAccountToken(await readAccountTokenUnlocked(vaultPath, accountId), expected)) {
+      throw new Error("account sign-in changed before rotation could be saved");
+    }
+    await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), next);
+  });
+}
+
 export async function saveAccountToken(vaultPath: string, accountId: string, token: StoredAccountToken): Promise<void> {
-  await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), token);
-  forgetAccountBroker(vaultPath, accountId);
+  await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    forgetAccountBroker(vaultPath, accountId);
+    await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), token);
+  });
   // The Graph mail runtime resolves its token source ONCE, when it is built. A
   // runtime built before this token existed would keep using the per-service
   // slot the migration blanked (finding 2026-07-30).
@@ -79,23 +84,28 @@ export async function replaceAccountClientRegistration(
   accountId: string,
   next: OAuthClientRegistration,
 ): Promise<boolean> {
-  const current = await getAccountToken(vaultPath, accountId);
-  if (current && sameOAuthClient(current, next)) return false;
-  await saveAccountToken(vaultPath, accountId, replaceOAuthClientRegistration(current, next));
-  return true;
+  return withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    const current = await readAccountTokenUnlocked(vaultPath, accountId);
+    if (current && sameOAuthClient(current, next)) return false;
+    forgetAccountBroker(vaultPath, accountId);
+    await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), replaceOAuthClientRegistration(current, next));
+    forgetAllGraphMailRuntimes();
+    return true;
+  });
 }
 
 export async function clearAccountToken(vaultPath: string, accountId: string): Promise<void> {
-  await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
-  forgetAccountBroker(vaultPath, accountId);
+  await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    forgetAccountBroker(vaultPath, accountId);
+    await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
+  });
 }
 
 /** Delegated Graph scopes per audience — the union of what the account uses. */
 export function microsoftScopeFor(audience: string): string {
-  if (audience === "files") return ONEDRIVE_DEFAULT_SCOPE;
-  if (audience === "calendar") return GRAPH_CALENDAR_SCOPES;
-  if (audience === "mail") return GRAPH_MAIL_SCOPES;
-  throw new Error(`unknown audience: ${audience}`);
+  const scope = oauthScopeFor("microsoft", audience);
+  if (!scope) throw new Error(`unknown audience: ${audience}`);
+  return scope;
 }
 
 /**
@@ -123,30 +133,11 @@ export function microsoftUnionScope(audiences: readonly string[]): string {
   return [...parts].join(" ");
 }
 
-/**
- * ONE GRANT, SEVERAL VAULTS (multi-window stage D, plan § 5.5).
- *
- * A refresh token does not belong to a vault. It belongs to a GRANT — the
- * identity the provider confirmed, plus the local OAuth client that minted it —
- * and the same account connected in two vaults holds that one grant in two
- * keychain slots. Microsoft and Dropbox rotate the refresh token on every
- * renewal, so the second vault's renewal invalidates the first vault's copy.
- * Until stage D only one vault was ever open, so the case could not arise.
- *
- * Two halves, and neither can replace the other:
- *
- * - the **gate** below covers the concurrent case (two windows renew in the
- *   same second — they share one round trip and one answer);
- * - the **write-through** in `getAccountBroker`'s store covers the sequential
- *   one (an hour later, another vault renews from a token that has since been
- *   rotated away) — and it also heals a vault that is closed right now.
- *
- * A label is not an identity: two people in one company are easily called the
- * same thing, which is why the settings sync refuses to merge on a label. And
- * the client id must match too, because a refresh token is bound to the client
- * that issued it — the same person under a different registration is a
- * different grant.
- */
+/** A verified identity and local client identify a coordination lane. They
+ * do not prove two independently issued grants are the same: request sharing
+ * and rotation propagation also compare the actual predecessor credential.
+ * Microsoft does not immediately revoke the previous token on rotation. The
+ * coordinator preserves ordering and permissions without assuming it does. */
 function grantKeyOf(identity: unknown, clientId: string): string | null {
   const verified = normalizeVerifiedProviderIdentity(identity);
   if (!verified || !clientId) return null;
@@ -162,20 +153,10 @@ async function grantKeyFor(vaultPath: string, accountId: string, clientId: strin
   }
 }
 
-/** Renewals in flight, keyed by grant rather than by vault. */
-const refreshInFlight = new Map<string, Promise<RefreshResult>>();
-
-async function sharedRefresh(key: string | null, run: () => Promise<RefreshResult>): Promise<RefreshResult> {
-  // No provable grant: no sharing. Renewing on its own is the behaviour that
-  // existed before, and it is the safe side of this decision.
-  if (!key) return run();
-  const running = refreshInFlight.get(key);
-  if (running) return running;
-  const started = run().finally(() => {
-    refreshInFlight.delete(key);
-  });
-  refreshInFlight.set(key, started);
-  return started;
+/** Sharing includes persistence and is specific to the requested rights. */
+let grantRefreshCoordinator: ReturnType<typeof createTokenRefreshCoordinator<RefreshResult>> | undefined;
+function getGrantRefreshCoordinator() {
+  return grantRefreshCoordinator ??= createTokenRefreshCoordinator<RefreshResult>();
 }
 
 /** Every vault this installation knows about — open ones first. */
@@ -186,20 +167,10 @@ async function knownVaultPaths(): Promise<string[]> {
   return [...new Set([...open, ...recents])];
 }
 
-/**
- * Carries a rotated refresh token into every other slot that holds the same
- * grant.
- *
- * Best effort on purpose: the home slot is written (and awaited) by the broker
- * itself, and losing THAT is what locks an account out. A vault whose registry
- * cannot be read — one on a drive that is not plugged in — must not take the
- * renewal down with it; it is simply healed the next time it is reachable.
- *
- * `credentialManager.writeSecret` rather than `saveAccountToken`: the latter
- * also drops the Graph mail runtimes app-wide, which is right after a reconnect
- * and pure noise for an hourly rotation.
- */
-async function shareRotatedToken(homeVault: string, accountId: string, next: StoredAccountToken): Promise<void> {
+/** Carries a confirmed rotation to matching predecessor slots. An unavailable
+ * vault is reported and left alone; no claim is made that it received the new
+ * credential. Independent or newer consents are never replaced. */
+async function shareRotatedToken(homeVault: string, accountId: string, next: StoredAccountToken, expected: StoredAccountToken): Promise<void> {
   if (!next.refreshToken) return;
   const key = await grantKeyFor(homeVault, accountId, next.clientId);
   if (!key) return;
@@ -210,12 +181,9 @@ async function shareRotatedToken(homeVault: string, accountId: string, next: Sto
       for (const record of await loadCloudAccounts(vaultPath)) {
         if (grantKeyOf(record.verifiedProviderIdentity, next.clientId) !== key) continue;
         const stored = await getAccountToken(vaultPath, record.id);
-        if (!stored?.refreshToken || stored.clientId !== next.clientId) continue;
+        if (!stored?.refreshToken || !sameOAuthClient(stored, expected) || stored.refreshToken !== expected.refreshToken) continue;
         if (stored.refreshToken === next.refreshToken) continue;
-        await credentialManager.writeSecret(accountSecretKey(vaultPath, record.id), {
-          ...stored,
-          refreshToken: next.refreshToken,
-        });
+        await writeRotatedAccountToken(vaultPath, record.id, { ...stored, refreshToken: next.refreshToken }, stored);
       }
     } catch (err) {
       logDiagnostic(
@@ -226,18 +194,9 @@ async function shareRotatedToken(homeVault: string, accountId: string, next: Sto
   }
 }
 
-async function sharedRefreshFor(
-  vaultPath: string,
-  accountId: string,
-  clientId: string,
-  run: () => Promise<RefreshResult>,
-): Promise<RefreshResult> {
-  return sharedRefresh(await grantKeyFor(vaultPath, accountId, clientId), run);
-}
-
-/** Test seam: forgets which renewals are in flight. */
+/** Test seam: no production invalidation discards pending storage work. */
 export function resetGrantSharingForTests(): void {
-  refreshInFlight.clear();
+  grantRefreshCoordinator = undefined;
 }
 
 /**
@@ -248,36 +207,46 @@ export function resetGrantSharingForTests(): void {
 const brokers = new Map<string, TokenBroker>();
 
 export function getAccountBroker(vaultPath: string, accountId: string, family: "microsoft" | "google" = "microsoft"): TokenBroker {
-  const key = accountSecretKey(vaultPath, accountId);
+  const key = JSON.stringify([accountSecretKey(vaultPath, accountId), family]);
   const existing = brokers.get(key);
   if (existing) return existing;
 
+  const coordinator = getGrantRefreshCoordinator();
+  const grants = new Set<string>();
   const broker = createTokenBroker({
+    family,
+    onForget: () => { for (const grant of grants) coordinator.forget(grant); },
+    coordinateRefresh: async (stored, scope, execute) => {
+      const identity = await grantKeyFor(vaultPath, accountId, stored.clientId);
+      const grant = identity ? JSON.stringify([identity, stored.clientSecret ?? ""]) : key;
+      grants.add(grant);
+      const request = JSON.stringify([stored.clientId, stored.clientSecret ?? "", stored.refreshToken, normalizeOAuthScopes(scope, family)]);
+      return coordinator.run(grant, request, execute);
+    },
     store: {
       read: () => getAccountToken(vaultPath, accountId),
-      write: async (next) => {
-        await credentialManager.writeSecret(accountSecretKey(vaultPath, accountId), next);
-        await shareRotatedToken(vaultPath, accountId, next);
+      write: async (next, expected) => {
+        await writeRotatedAccountToken(vaultPath, accountId, next, expected);
+        await shareRotatedToken(vaultPath, accountId, next, expected);
       },
     },
-    refresh: ({ clientId, clientSecret, refreshToken, scope }) => sharedRefreshFor(vaultPath, accountId, clientId, async () => {
+    refresh: async ({ clientId, clientSecret, refreshToken, scope }) => {
       if (family === "google") {
-        // Google does not rotate refresh tokens, so nothing comes back to
-        // persist — but the single-flight and the one shared copy are what
-        // this is about, not rotation.
+        // Preserve the actual scope returned by the refresh endpoint.
         const tokens = await refreshDriveAccessToken(
           { clientId, clientSecret: clientSecret ?? "", refreshToken },
           httpFetch
         );
-        return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn };
+        return { accessToken: tokens.accessToken, expiresIn: tokens.expiresIn, scope: tokens.scope };
       }
       const tokens = await refreshOneDriveAccessToken({ clientId, refreshToken, scope }, microsoftAuthFetch);
       return {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         expiresIn: tokens.expiresIn,
+        scope: tokens.scope,
       };
-    }),
+    },
     scopeFor: family === "google" ? googleScopeFor : microsoftScopeFor,
   });
   brokers.set(key, broker);
@@ -285,7 +254,11 @@ export function getAccountBroker(vaultPath: string, accountId: string, family: "
 }
 
 export function forgetAccountBroker(vaultPath: string, accountId: string): void {
-  brokers.delete(accountSecretKey(vaultPath, accountId));
+  for (const family of ["google", "microsoft"]) {
+    const key = JSON.stringify([accountSecretKey(vaultPath, accountId), family]);
+    brokers.get(key)?.forget();
+    brokers.delete(key);
+  }
 }
 
 /**
@@ -310,38 +283,9 @@ export function setPendingBrokerAccount(next: { vaultPath: string; accountId: st
   pendingAccount = next;
 }
 
-/**
- * Whether a Google account token can serve this service AT ALL.
- *
- * Google ignores the `scope` parameter of a refresh_token grant: the access
- * token carries exactly what the CONSENT granted, and no later request widens
- * it. Drive and calendar/tasks are disjoint scope sets, so an account slot
- * minted by a Drive-only consent can never serve the calendar — it hands over a
- * Drive token, and Google answers with 401 UNAUTHENTICATED, which reads like an
- * expired sign-in and cannot be fixed by signing in again.
- *
- * That is what broke the calendar of an account whose file sync kept working
- * (finding 2026-07-30): stage B made the calendar PREFER the shared slot over
- * its own, perfectly good, per-service token. Microsoft is the opposite case —
- * it honours the requested scope on every refresh — which is why this guards
- * Google alone.
- *
- * A slot without recorded scopes cannot PROVE coverage, so it does not get to
- * claim the service: the fallback is the service's own sign-in, which is what
- * worked before any of this existed. Every writer of a Google account slot has
- * recorded its scopes from the start, so this costs nothing real — while
- * trusting an unprovable slot costs a 401 that no re-authorisation can clear.
- */
-/**
- * Does this slot prove it carries the service? The rule itself now lives once
- * in `@plainva/ui` — the phone answered the same question with its own copy,
- * and two copies of a decision are how one account came to be judged
- * differently on two devices (finding 2026-08-19).
- */
-function googleTokenCovers(token: StoredAccountToken, service: CloudServiceId): boolean {
-  return tokenCoversService(token, service, "google");
-}
-
+/** Resolve only a service whose stored grant covers it. Both shells use the
+ * same permission rule; each invocation looks up the current broker so a
+ * reconnect also reaches providers captured by an already-running worker. */
 export async function brokerTokenProvider(
   vaultPath: string,
   service: CloudServiceId,
@@ -357,9 +301,10 @@ export async function brokerTokenProvider(
     const minted = await getAccountToken(vaultPath, pendingAccount.accountId);
     // The same scope rule as below: a consent that just covered file sync must
     // not be handed to the calendar mid-connect either.
-    if (minted && (pendingAccount.family !== "google" || googleTokenCovers(minted, service))) {
-      const broker = getAccountBroker(vaultPath, pendingAccount.accountId, pendingAccount.family);
+    if (minted && tokenCoversService(minted, service, pendingAccount.family)) {
+      const { accountId, family } = pendingAccount;
       return async (force: boolean) => {
+        const broker = getAccountBroker(vaultPath, accountId, family);
         if (force) broker.forget();
         return broker.getAccessToken(service);
       };
@@ -378,9 +323,9 @@ export async function brokerTokenProvider(
     if (!family) continue;
     const stored = await getAccountToken(vaultPath, record.id);
     if (!stored?.refreshToken) continue;
-    if (family === "google" && !googleTokenCovers(stored, service)) continue;
-    const broker = getAccountBroker(vaultPath, record.id, family);
+    if (!tokenCoversService(stored, service, family)) continue;
     return async (force: boolean) => {
+      const broker = getAccountBroker(vaultPath, record.id, family);
       if (force) broker.forget();
       return broker.getAccessToken(service);
     };
@@ -461,7 +406,8 @@ export async function describeBrokerLookup(vaultPath: string, service: CloudServ
       const stored = await getAccountToken(vaultPath, record.id);
       if (!stored) continue;
       withToken++;
-      if (brokerFamily(record.family) === "google" && !googleTokenCovers(stored, service)) outOfScope++;
+      const family = brokerFamily(record.family);
+      if (family && !tokenCoversService(stored, service, family)) outOfScope++;
     }
     if (withToken === 0) {
       return `${candidates.length} cloud account(s) carry this service, but none holds the shared sign-in — reconnect the account with "one login for all services".`;
@@ -469,7 +415,7 @@ export async function describeBrokerLookup(vaultPath: string, service: CloudServ
     // The precise case, and the one nobody could have guessed from a 401: the
     // shared sign-in exists but was granted for other services only.
     if (outOfScope === withToken) {
-      return `the shared sign-in of this Google account was granted for its other services only and cannot cover this one — sign in again, which now asks for the whole account.`;
+      return `the shared sign-in of this account was granted for its other services only and cannot cover this one — sign in again, which now asks for the whole account.`;
     }
     return `a shared sign-in is stored (${withToken}/${candidates.length}) but could not be used for this service — reconnect the account with "one login for all services".`;
   } catch (err) {

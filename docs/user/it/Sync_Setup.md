@@ -67,6 +67,8 @@ Gli account che accedono ancora servizio per servizio sono contrassegnati come *
 
 Accedere di nuovo a Google conserva la password per le app della tua casella Gmail. L’accesso nel browser rinnova solo i servizi OAuth dell’account; la casella IMAP non richiede una nuova password per questa operazione. Outlook mantiene separati gli accessi salvati e le connessioni di ogni vault, anche quando lo stesso profilo account è presente in più vault. Vale sia su desktop sia su dispositivi mobili.
 
+File, calendario e posta di Outlook richiedono ciascuno le proprie autorizzazioni. Una sincronizzazione dei file funzionante non significa quindi che anche il calendario o la casella di posta siano autorizzati. Plainva controlla i permessi di ogni servizio; se ne manca uno, accedi di nuovo e concedi l’accesso necessario. I nomi equivalenti delle autorizzazioni Google vengono riconosciuti.
+
 ## Dropbox
 
 Plainva fornisce una propria app Dropbox — **non serve un'app tua**:

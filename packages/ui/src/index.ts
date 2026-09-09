@@ -63,6 +63,8 @@ export * from "./lib/iconPickerModel";
 export * from "./lib/authErrors";
 export * from "./lib/secretsPort";
 export * from "./lib/tokenBroker";
+export * from "./lib/oauthScopes";
+export * from "./lib/tokenRefreshCoordinator";
 export * from "./lib/whatsNew";
 export * from "./lib/docsLinks";
 export { WhatsNewIcon } from "./components/WhatsNewIcon";

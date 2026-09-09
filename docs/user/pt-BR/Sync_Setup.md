@@ -67,6 +67,8 @@ Contas que ainda entram serviço a serviço estão marcadas como **Login antigo*
 
 Entrar novamente no Google preserva a senha de app da sua caixa do Gmail. O login no navegador renova apenas os serviços OAuth da conta; a caixa IMAP não precisa de uma nova senha para isso. O Outlook mantém os logins salvos e as conexões separados por vault, mesmo quando o mesmo perfil de conta está presente em vários vaults. Isso vale no desktop e no celular.
 
+Arquivos, calendário e email do Outlook precisam de suas próprias permissões. Portanto, a sincronização de arquivos funcionar não significa que o calendário ou a caixa de email também estejam autorizados. O Plainva verifica as permissões de cada serviço; se alguma estiver faltando, entre novamente e conceda o acesso necessário. Nomes equivalentes de permissões do Google são reconhecidos.
+
 ## Dropbox
 
 O Plainva já vem com seu próprio app do Dropbox — **nenhum app próprio é necessário**:

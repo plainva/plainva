@@ -53,6 +53,7 @@ import {
   microsoftScopeFor,
   microsoftUnionScope,
   replaceAccountClientRegistration,
+  saveAccountToken,
   resetGrantSharingForTests,
   setPendingBrokerAccount,
 } from "./accountBroker";
@@ -227,7 +228,7 @@ describe("the broker answers for the account that is asking", () => {
       refreshToken: "RT-G",
       scopes: `${googleScopeFor("files")} ${googleScopeFor("calendar")}`,
     });
-    secrets.set(accountSecretKey(V, "m1"), { clientId: "mid", refreshToken: "RT-M", scopes: "Calendars.ReadWrite" });
+    secrets.set(accountSecretKey(V, "m1"), { clientId: "mid", refreshToken: "RT-M", scopes: microsoftScopeFor("calendar") });
   });
 
   it("gives each calendar its own account, not whichever card comes first", async () => {
@@ -355,6 +356,76 @@ describe("two vaults holding the same account", () => {
     // One round trip: the second window waits for the first one's answer
     // instead of asking Microsoft for a grant that is being rotated right now.
     expect(vi.mocked(microsoftAuthFetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("three concurrent services receive their own rights and each reads the previous confirmed rotation", async () => {
+    given();
+    const requests: Array<{ scope: string; refreshToken: string }> = [];
+    vi.mocked(microsoftAuthFetch).mockImplementation(async (_url, init) => {
+      const body = new URLSearchParams(String(init?.body));
+      const scope = body.get("scope")!;
+      requests.push({ scope, refreshToken: body.get("refresh_token")! });
+      return { ok: true, json: async () => ({ access_token: `access-${scope}`, refresh_token: `rotation-${requests.length}`, expires_in: 3600, scope }) } as never;
+    });
+    const fileBroker = getAccountBroker(A, "a1");
+    const otherBroker = getAccountBroker(B, "b1");
+    const tokens = await Promise.all([
+      fileBroker.getAccessToken("files"), otherBroker.getAccessToken("calendar"), otherBroker.getAccessToken("mail"),
+    ]);
+    expect(tokens).toEqual(["files", "calendar", "mail"].map((audience) => `access-${microsoftScopeFor(audience)}`));
+    expect(requests.map((r) => r.refreshToken)).toEqual(["RT-1", "rotation-1", "rotation-2"]);
+    await expect(otherBroker.getAccessToken("mail")).resolves.toBe(tokens[2]);
+    expect(requests).toHaveLength(3);
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("rotation-3");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("rotation-3");
+  });
+
+  it("does not share or replace independent grants for the same verified identity and client", async () => {
+    given();
+    secrets.set(accountSecretKey(B, "b1"), { clientId: "cid", refreshToken: "independent-consent" });
+    const requested: string[] = [];
+    vi.mocked(microsoftAuthFetch).mockImplementation(async (_url, init) => {
+      const body = new URLSearchParams(String(init?.body));
+      const previous = body.get("refresh_token")!;
+      requested.push(previous);
+      return { ok: true, json: async () => ({ access_token: `access-${previous}`, refresh_token: `next-${previous}`, expires_in: 3600, scope: body.get("scope") }) } as never;
+    });
+    await expect(Promise.all([getAccountBroker(A, "a1").getAccessToken("files"), getAccountBroker(B, "b1").getAccessToken("files")]))
+      .resolves.toEqual(["access-RT-1", "access-independent-consent"]);
+    expect(requested).toEqual(["RT-1", "independent-consent"]);
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("next-RT-1");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("next-independent-consent");
+  });
+
+  it("an existing worker provider reads the new consent and an old renewal cannot overwrite it", async () => {
+    given();
+    const provider = (await brokerTokenProvider(A, "files"))!;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    vi.mocked(microsoftAuthFetch).mockImplementationOnce(async () => {
+      await waiting;
+      return { ok: true, json: async () => ({ access_token: "old-access", refresh_token: "old-rotation", expires_in: 3600 }) } as never;
+    });
+    const first = provider(false);
+    const failure = expect(first).rejects.toThrow(/sign-in changed/);
+    await vi.waitFor(() => expect(microsoftAuthFetch).toHaveBeenCalledTimes(1));
+    await saveAccountToken(A, "a1", { clientId: "cid", refreshToken: "new-consent", scopes: microsoftScopeFor("files") });
+    release(); await failure;
+    await expect(provider(false)).resolves.toBe("AT-MICROSOFT");
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("new-consent");
+    expect(secrets.get(accountSecretKey(B, "b1"))?.refreshToken).toBe("RT-1");
+  });
+
+  it("never caches a file-only response as a calendar access token", async () => {
+    given();
+    vi.mocked(microsoftAuthFetch).mockResolvedValueOnce({ ok: true, json: async () => ({
+      access_token: "file-only", refresh_token: "RT-2", expires_in: 3600, scope: microsoftScopeFor("files"),
+    }) } as never);
+    const broker = getAccountBroker(A, "a1");
+    await expect(broker.getAccessToken("calendar")).rejects.toThrow(/required permissions/);
+    expect(secrets.get(accountSecretKey(A, "a1"))?.refreshToken).toBe("RT-2");
+    await expect(broker.getAccessToken("calendar")).resolves.toBe("AT-MICROSOFT");
+    expect(microsoftAuthFetch).toHaveBeenCalledTimes(2);
   });
 
   it("carries a rotated sign-in into the other vault's slot", async () => {

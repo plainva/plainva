@@ -1,4 +1,6 @@
 import { refreshOneDriveAccessToken } from "@plainva/core";
+import { GRAPH_MAIL_SCOPES } from "../lib/oauthScopes";
+export { GRAPH_MAIL_SCOPES } from "../lib/oauthScopes";
 import type { MailAccountConfig } from "./mailAccounts";
 import { getMailRefreshToken, listMailAccounts, saveMailRefreshToken } from "./mailAccounts";
 import { mailHttp } from "./transport";
@@ -21,7 +23,6 @@ import type { SkipReason } from "./sieveRules";
  * a role name, which resolves to Graph's language-independent well-known folder.
  */
 
-export const GRAPH_MAIL_SCOPES = "User.Read Mail.ReadWrite Mail.Send offline_access";
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
 /* The consent flow itself is shell-specific (desktop: loopback listener,

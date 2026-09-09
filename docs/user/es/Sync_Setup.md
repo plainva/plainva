@@ -67,6 +67,8 @@ Las cuentas que todavía inician sesión por separado en cada servicio llevan la
 
 Volver a iniciar sesión en Google conserva la contraseña de aplicación de tu buzón de Gmail. El inicio de sesión en el navegador solo renueva los servicios OAuth de la cuenta; tu buzón IMAP no necesita una nueva contraseña para ello. Outlook mantiene separados los accesos guardados y las conexiones de cada vault, incluso si el mismo perfil de cuenta existe en varios vaults. Esto se aplica en escritorio y móvil.
 
+Los archivos, el calendario y el correo de Outlook necesitan sus propios permisos. Que la sincronización de archivos funcione no significa que el calendario o el buzón también estén autorizados. Plainva comprueba los permisos de cada servicio; si falta alguno, vuelve a iniciar sesión y concede el acceso necesario. Se reconocen los nombres equivalentes de permisos de Google.
+
 ## Dropbox
 
 Plainva incluye su propia app de Dropbox — **no hace falta ninguna app propia**:
