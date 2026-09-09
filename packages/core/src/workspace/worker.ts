@@ -59,6 +59,7 @@ import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceS
 import { quarantineReasonCode } from "./quarantineReasons.js";
 import { splitDeviceChains } from "./deviceChains.js";
 import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
+import { recoverWorkspaceCommentDecisions } from "./commentDecisionRecovery.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractLinksAndTags } from "../ast-scanner.js";
@@ -312,6 +313,11 @@ export class EncryptedWorkspaceWorker {
     }
     const changed = await this.pull(signal);
     if (changed.length) this.onFilesChanged?.(changed);
+    const recovered = await recoverWorkspaceCommentDecisions({ state: this.state, store: this.objectStore, runtime: this.runtime, signal });
+    for (const objectId of recovered.recoveredObjectIds) {
+      const object = await this.state.getObjectById(objectId);
+      if (object && !object.deleted) this.commentPathsChanged.add(object.path);
+    }
     this.flushCommentsChanged();
     await this.push(signal);
     await resumeWorkspaceRekey(this.state);

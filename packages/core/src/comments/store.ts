@@ -1,3 +1,4 @@
+import type { CommentDecisionProof } from "./commentDecisions.js";
 /**
  * The one contract every comment surface talks to (Nachschaerfung, N0).
  *
@@ -58,6 +59,9 @@ export interface CommentAuthor {
 export interface CommentPostInput {
   /** Present for a durable operation; repeating it cannot append a second marker. */
   identity?: CommentWriteIdentity;
+  /** Captured workspace identity; remains valid when the note changes its path. */
+  targetObjectId?: string;
+  decisionProof?: CommentDecisionProof | null;
   path: string;
   body: string;
   parentCommentId?: string | null;
@@ -273,6 +277,7 @@ export class BundleCommentStore implements CommentStore {
       parentCommentId: input.parentCommentId ?? null,
       resolvedCommentId: input.resolvedCommentId ?? null,
       suggestionOutcome: input.suggestionOutcome ?? null,
+      ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}),
       retractsCommentId: input.retractsCommentId ?? null,
       suggestionBatchId: input.batch?.batchId ?? null,
       batchIndex: input.batch?.index ?? null,

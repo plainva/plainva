@@ -164,6 +164,37 @@ describe("durable comment operation recovery with real files", () => {
     expect(f.counts()).toEqual({ noteWrites: 1, posts: 3 });
   });
 
+  it("derives exactly the same decision proof from the durable receipt after a lost acknowledgement", async () => {
+    const f = await setup(); const op = f.proposal(); const post = f.deps.post;
+    const reviewed = [createWorkspaceObjectId(), `legacy:${"a".repeat(64)}`];
+    op.markers[0].reviewedDecisionIds = reviewed;
+    const sent: unknown[] = [];
+    f.deps.post = async (marker) => {
+      sent.push(structuredClone(marker)); await post(marker); throw new Error("acknowledgement lost");
+    };
+    await expect(f.runner().run(op)).rejects.toMatchObject({ phase: "markers-pending" });
+    const saved = (await f.journal.read(op.operationId))!;
+    expect(saved.markers).toEqual(op.markers);
+    expect(saved.markers[0].decisionProof).toBeUndefined();
+    f.deps.post = async (marker) => { sent.push(structuredClone(marker)); await post(marker); };
+    await f.runner().run(op);
+    expect(sent[1]).toEqual(sent[0]);
+    expect(sent[0]).not.toHaveProperty("reviewedDecisionIds");
+    expect(sent[0]).toMatchObject({ decisionProof: { operationId: op.operationId, supersedes: reviewed,
+      text: { beforeHash: saved.receipt!.beforeHash, intendedHash: saved.receipt!.intendedHash,
+        confirmedHash: saved.receipt!.confirmedHash, confirmedAt: saved.receipt!.confirmedAt } } });
+    expect(await f.markerCount()).toBe(2);
+  });
+
+  it("cannot claim a reviewed decision without text confirmation or accept a caller-supplied proof", async () => {
+    const f = await setup(); const op = f.proposal();
+    op.kind = "decline"; op.markers = [{ ...op.markers[0], suggestionOutcome: "declined", reviewedDecisionIds: [createWorkspaceObjectId()] }];
+    expect(() => parseCommentOperation(JSON.stringify({ ...op, text: null }))).toThrow();
+    expect(() => parseCommentOperation(JSON.stringify({ ...op, markers: [{ ...op.markers[0], reviewedDecisionIds: ["guessed"] }] }))).toThrow();
+    expect(() => parseCommentOperation(JSON.stringify({ ...op, markers: [{ ...op.markers[0], decisionProof: {} }] }))).toThrow();
+    expect(() => parseCommentOperation(JSON.stringify({ ...op, markers: [{ ...op.markers[0], targetObjectId: "../wrong" }] }))).toThrow();
+  });
+
   it.each(["marker-progress", "completed"])("recovers a failed %s journal update without duplicating comments", async (stage) => {
     const f = await setup(); const op = f.proposal(); const write = f.files.writeAtomic;
     f.files.writeAtomic = async (file, text) => {

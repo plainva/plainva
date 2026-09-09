@@ -1,3 +1,4 @@
+import { isCommentDecisionProof, type CommentDecisionProof } from "../comments/commentDecisions.js";
 import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
 import { createWorkspaceObjectId, createWorkspaceRevisionId, type WorkspaceGroupKeyEpoch } from "./identity.js";
@@ -52,6 +53,7 @@ export interface WorkspaceCommentBody {
    * it that points back here.
    */
   suggestionOutcome?: "applied" | "declined" | null;
+  decisionProof?: CommentDecisionProof | null;
   resolvedCommentId: string | null;
   /**
    * A retraction marker (K7, finding 2026-09-03): this record deletes the
@@ -128,6 +130,7 @@ export async function prepareWorkspaceComment(input: {
   anchor?: WorkspaceCommentAnchor | null;
   suggestion?: { replacement: string } | null;
   suggestionOutcome?: "applied" | "declined" | null;
+  decisionProof?: CommentDecisionProof | null;
   resolvedCommentId?: string | null;
   retractsCommentId?: string | null;
   suggestionBatchId?: string | null;
@@ -154,12 +157,13 @@ export async function prepareWorkspaceComment(input: {
   protocolAssert(bodyBytes <= 64 * 1024 && (bodyBytes >= 1 || resolvedCommentId !== null || suggestion !== null || retractsCommentId !== null), "bounds", "comment body size is invalid");
   if (input.anchor) assertWorkspaceCommentAnchor(input.anchor);
   assertWorkspaceSuggestion(suggestion, input.anchor, input.suggestionOutcome, resolvedCommentId);
+  protocolAssert(input.decisionProof == null || (isCommentDecisionProof(input.decisionProof) && resolvedCommentId !== null && input.suggestionOutcome != null), "format", "comment decision proof is invalid");
   const batch = input.suggestionBatchId ? { suggestionBatchId: input.suggestionBatchId, batchIndex: input.batchIndex ?? 0, batchNote: input.batchNote ?? null } : null;
   assertWorkspaceSuggestionBatch(batch ?? {}, suggestion);
   protocolAssert(input.sequence >= 1 && (input.sequence === 1 ? input.previousDeviceOperationHash === null : input.previousDeviceOperationHash !== null), "integrity", "comment device sequence is invalid");
   const commentId = input.commentId ?? createWorkspaceObjectId();
   const revisionId = createWorkspaceRevisionId();
-  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, resolvedCommentId, retractsCommentId, ...(batch ?? {}), createdAt: now };
+  const comment: WorkspaceCommentBody = { version: 1, commentId, targetObjectId: input.targetObjectId, targetRevisionId: input.targetRevisionId, parentCommentId: input.parentCommentId ?? null, body: input.body, anchor: input.anchor ?? null, suggestion, suggestionOutcome: input.suggestionOutcome ?? null, ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}), resolvedCommentId, retractsCommentId, ...(batch ?? {}), createdAt: now };
   const plaintext = utf8Encode(canonicalJson(comment));
   const objectBytes = await sealInlinePvo1({
     workspaceId: input.runtime.workspaceId,
@@ -229,6 +233,7 @@ export async function publishQueuedWorkspaceComment(input: {
     anchor: entry.anchor,
     suggestion: entry.suggestion,
     suggestionOutcome: entry.suggestionOutcome,
+    decisionProof: entry.decisionProof,
     retractsCommentId: entry.retractsCommentId ?? null,
     suggestionBatchId: entry.suggestionBatchId ?? null,
     batchIndex: entry.batchIndex ?? null,
@@ -267,13 +272,14 @@ export async function openWorkspaceComment(input: {
   protocolAssert(typeof body.body === "string" && utf8Encode(body.body).length <= 64 * 1024, "bounds", "comment body is too large");
   if (body.anchor !== undefined && body.anchor !== null) assertWorkspaceCommentAnchor(body.anchor);
   assertWorkspaceSuggestion(body.suggestion, body.anchor, body.suggestionOutcome, body.resolvedCommentId);
+  protocolAssert(body.decisionProof == null || (isCommentDecisionProof(body.decisionProof) && body.resolvedCommentId !== null && body.suggestionOutcome != null), "format", "comment decision proof is invalid");
   assertWorkspaceSuggestionBatch(body, body.suggestion);
   protocolAssert(body.retractsCommentId === undefined || body.retractsCommentId === null || (typeof body.retractsCommentId === "string" && /^[0-9a-f]{32}$/.test(body.retractsCommentId)), "format", "comment retraction target is malformed");
   return body;
 }
 
 export function workspaceCommentRecord(body: WorkspaceCommentBody, operation: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>, operationHash: string): WorkspaceCommentRecord {
-  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, suggestionBatchId: body.suggestionBatchId ?? null, batchIndex: body.batchIndex ?? null, batchNote: body.batchNote ?? null, resolvedAt: null };
+  return { commentId: body.commentId, targetObjectId: body.targetObjectId, targetRevisionId: body.targetRevisionId, parentCommentId: body.parentCommentId, authorMemberId: operation.payload.memberId, authorDeviceId: operation.payload.deviceId, operationHash, payloadHash: operation.payload.payloadHash!, body: body.body, anchor: body.anchor ?? null, suggestion: body.suggestion ? { replacement: body.suggestion.replacement, appliedAt: null, appliedBy: null, declinedAt: null } : null, suggestionOutcome: body.suggestionOutcome ?? null, ...(body.decisionProof ? { decisionProof: body.decisionProof } : {}), createdAt: body.createdAt, resolvedCommentId: body.resolvedCommentId, retractsCommentId: body.retractsCommentId ?? null, suggestionBatchId: body.suggestionBatchId ?? null, batchIndex: body.batchIndex ?? null, batchNote: body.batchNote ?? null, resolvedAt: null };
 }
 
 export class WorkspaceRevisionHistoryService {

@@ -1,3 +1,5 @@
+import { projectCommentRecords } from "./commentProjection.js";
+import { isCommentDecisionProof, type CommentDecisionProof } from "./commentDecisions.js";
 /**
  * The comment bundle for a vault WITHOUT an encrypted workspace (Stufe D, D4).
  *
@@ -29,6 +31,7 @@ export interface LocalCommentRecord {
   parentCommentId: string | null;
   resolvedCommentId: string | null;
   suggestionOutcome: "applied" | "declined" | null;
+  decisionProof?: CommentDecisionProof | null;
   /**
    * A retraction marker (K7): deletes the record it names, if this device is
    * that record's author - a plain vault has no roles, so nobody else's marker
@@ -186,6 +189,7 @@ export function assertCommentsBundleStructure(value: unknown): asserts value is 
     if (raw.resolvedCommentId !== null && !isHexId(raw.resolvedCommentId)) throw new CommentBundleError("comment resolution target is malformed");
     if (raw.retractsCommentId !== undefined && raw.retractsCommentId !== null && !isHexId(raw.retractsCommentId)) throw new CommentBundleError("comment retraction target is malformed");
     if (raw.suggestionOutcome !== null && raw.suggestionOutcome !== "applied" && raw.suggestionOutcome !== "declined") throw new CommentBundleError("comment suggestion outcome is malformed");
+    if (raw.decisionProof != null && (!isCommentDecisionProof(raw.decisionProof) || !raw.resolvedCommentId || !raw.suggestionOutcome)) throw new CommentBundleError("comment decision proof is malformed");
     if (raw.anchor !== null) {
       // Same bounds the sealed path enforces - an anchor that arrives from
       // another device is never trusted just because it is well-formed JSON.
@@ -382,70 +386,33 @@ export function localCommentsByPath(bundle: CommentsBundle | null, missing?: Rea
   if (!bundle) return byPath;
   const all = Object.values(bundle.comments);
   const moves = sortedCommentMoves(bundle);
-  // A reply inherits its thread's place: it is resolved from the ROOT's path
-  // and time, so a rename between the root and the reply cannot split a
-  // thread across two notes.
-  const roots = new Map(all.filter((record) => !record.parentCommentId).map((record) => [record.commentId, record]));
+  const byId = new Map(all.map((record) => [record.commentId, record]));
+  // Replies and decisions travel with their original thread, even when a
+  // rename happened between the original comment and the new marker.
   const placeOf = (record: LocalCommentRecord): string => {
-    const root = (record.parentCommentId && roots.get(record.parentCommentId)) || record;
+    let root = record;
+    const visited = new Set<string>();
+    while (!visited.has(root.commentId)) {
+      visited.add(root.commentId);
+      const parentId = root.parentCommentId ?? root.resolvedCommentId ?? root.retractsCommentId;
+      const parent = parentId ? byId.get(parentId) : undefined;
+      if (!parent) break;
+      root = parent;
+    }
     return moves.length === 0 ? root.path : resolveCommentPath(moves, root.path, root.createdAt, missing);
   };
-  // A retraction counts only from the record's own author (K7): a plain vault
-  // has no roles, so nothing else could vouch for a stranger's marker. What it
-  // retracts disappears with every reply under it.
-  const byId = new Map(all.map((record) => [record.commentId, record]));
-  const retracted = new Set<string>();
-  for (const record of all) {
-    if (!record.retractsCommentId) continue;
-    const target = byId.get(record.retractsCommentId);
-    if (target && target.authorDeviceId === record.authorDeviceId) retracted.add(target.commentId);
-  }
-  const closedBy = new Map<string, { at: string; outcome: "applied" | "declined" | null; by: string }>();
-  for (const record of all) {
-    if (!record.resolvedCommentId) continue;
-    closedBy.set(record.resolvedCommentId, {
-      at: record.createdAt,
-      outcome: record.suggestionOutcome,
-      by: record.authorDeviceId,
-    });
-  }
-  const records = all
-    .filter((record) => !record.resolvedCommentId && !record.retractsCommentId && !retracted.has(record.commentId) && !(record.parentCommentId && retracted.has(record.parentCommentId)))
-    .sort((a, b) => (a.createdAt === b.createdAt ? a.commentId.localeCompare(b.commentId) : a.createdAt.localeCompare(b.createdAt)))
-    .map((record) => {
-      const closed = closedBy.get(record.commentId);
-      return {
-        commentId: record.commentId,
-        // No object id without a workspace; the path IS the identity here -
-        // followed through the move markers (N1) to where the note is today.
-        // No revision and no hashes either: those are the sealed path's facts,
-        // and the record type marks them optional for exactly this reason.
-        targetObjectId: placeOf(record),
-        parentCommentId: record.parentCommentId,
-        // A device is the author in a plain vault: there are no members, and the
-        // surface keys its name map by exactly this field. A named author (N0)
-        // stands in front of the device that wrote for it.
-        authorMemberId: record.authorId ?? record.authorDeviceId,
-        authorDeviceId: record.authorDeviceId,
-        body: record.body,
-        anchor: record.anchor,
-        suggestion: record.suggestion
-          ? {
-              replacement: record.suggestion.replacement,
-              appliedAt: closed?.outcome === "applied" ? closed.at : null,
-              appliedBy: closed?.outcome === "applied" ? closed.by : null,
-              declinedAt: closed?.outcome === "declined" ? closed.at : null,
-            }
-          : null,
-        suggestionOutcome: record.suggestionOutcome,
-        suggestionBatchId: record.suggestionBatchId ?? null,
-        batchIndex: record.batchIndex ?? null,
-        batchNote: record.batchNote ?? null,
-        createdAt: record.createdAt,
-        resolvedCommentId: record.resolvedCommentId,
-        resolvedAt: closed?.at ?? null,
-      } satisfies WorkspaceCommentRecord;
-    });
+  const records = projectCommentRecords(all.map((record): WorkspaceCommentRecord => ({
+    commentId: record.commentId, targetObjectId: placeOf(record), parentCommentId: record.parentCommentId,
+    authorMemberId: record.authorId ?? record.authorDeviceId, authorDeviceId: record.authorDeviceId,
+    body: record.body, anchor: record.anchor,
+    suggestion: record.suggestion ? { replacement: record.suggestion.replacement,
+      appliedAt: null, appliedBy: null, declinedAt: null } : null,
+    suggestionOutcome: record.suggestionOutcome,
+    ...(record.decisionProof ? { decisionProof: record.decisionProof } : {}),
+    suggestionBatchId: record.suggestionBatchId ?? null, batchIndex: record.batchIndex ?? null, batchNote: record.batchNote ?? null,
+    createdAt: record.createdAt, resolvedCommentId: record.resolvedCommentId, resolvedAt: null,
+    retractsCommentId: record.retractsCommentId ?? null,
+  })), "device");
   for (const record of records) {
     // targetObjectId IS the path on this side, so the grouping key travels with
     // the mapped record and nothing has to be zipped back together.

@@ -5,8 +5,10 @@ import { assertWorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
 import { assertWorkspaceSuggestion, assertWorkspaceSuggestionBatch } from "../workspace/collaboration.js";
 import { commentWriteIdentity, sameCommentContent } from "./commentIdentity.js";
 import type { CommentPostInput } from "./store.js";
+import { isCommentDecisionReference } from "./commentDecisions.js";
 
 export type DurableCommentPost = CommentPostInput & { identity: { commentId: string; createdAt: string } };
+export type CommentOperationMarker = DurableCommentPost & { reviewedDecisionIds?: string[] };
 export type CommentOperationPhase = "prepared" | "text-confirmed" | "markers-pending" | "completed" | "needs-review";
 export interface CommentTextReceipt {
   beforeHash: string;
@@ -26,7 +28,7 @@ export interface CommentOperation {
   createdAt: string;
   /** Null for a pure comment operation which does not edit the note. */
   text: { before: string; intended: string } | null;
-  markers: DurableCommentPost[];
+  markers: CommentOperationMarker[];
   phase: CommentOperationPhase;
   receipt: CommentTextReceipt | null;
   postedIds: string[];
@@ -77,6 +79,13 @@ export function parseCommentOperation(text: string): CommentOperation {
   const ids = new Set<string>();
   for (const marker of op.markers) {
     requireRecord(marker && marker.path === op.notePath && typeof marker.body === "string" && marker.identity);
+    requireRecord(marker.targetObjectId == null || validId(marker.targetObjectId));
+    // The runner derives proof from its durable receipt, never from a caller's
+    // unconfirmed assertion. The planned markers remain immutable on retries.
+    requireRecord(marker.decisionProof == null);
+    requireRecord(marker.reviewedDecisionIds === undefined || (op.text !== null && marker.suggestionOutcome
+      && Array.isArray(marker.reviewedDecisionIds) && marker.reviewedDecisionIds.every(isCommentDecisionReference)
+      && new Set(marker.reviewedDecisionIds).size === marker.reviewedDecisionIds.length));
     commentWriteIdentity(marker.identity);
     requireRecord(utf8Encode(marker.body).length <= 64 * 1024 && (marker.body.length > 0
       || marker.resolvedCommentId || marker.retractsCommentId || marker.suggestion));
@@ -139,7 +148,7 @@ export class FileCommentOperationJournal implements CommentOperationJournal {
 
 export function prepareCommentOperation(input: {
   contextKey: string; authorKey: string; notePath: string; kind: CommentOperation["kind"];
-  text?: CommentOperation["text"]; markers: CommentPostInput[]; now?: string;
+  text?: CommentOperation["text"]; markers: Array<CommentPostInput & { reviewedDecisionIds?: string[] }>; now?: string;
 }): CommentOperation {
   const createdAt = input.now ?? new Date().toISOString();
   const op: CommentOperation = {
@@ -250,7 +259,13 @@ export class CommentOperationRunner {
           for (const marker of op.markers) {
             if (op.postedIds.includes(marker.identity.commentId)) continue;
             await checkContext();
-            await this.deps.post(marker);
+            const { reviewedDecisionIds, ...posted } = marker;
+            if (marker.suggestionOutcome && op.receipt) {
+              const { beforeHash, intendedHash, confirmedHash, confirmedAt } = op.receipt;
+              posted.decisionProof = { operationId: op.operationId, supersedes: reviewedDecisionIds ?? [],
+                text: { beforeHash, intendedHash, confirmedHash, confirmedAt } };
+            }
+            await this.deps.post(posted);
             op = { ...op, postedIds: [...op.postedIds, marker.identity.commentId] };
             await save();
           }

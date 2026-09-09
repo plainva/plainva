@@ -62,6 +62,7 @@ export * from "./comments/commentsBundle.js";
 export * from "./comments/CommentsSyncStep.js";
 export * from "./comments/store.js";
 export * from "./comments/commentIdentity.js";
+export * from "./comments/commentDecisions.js";
 export * from "./comments/commentOperations.js";
 export * from "./comments/WorkspaceCommentStore.js";
 export * from "./settingsSync/KeyfileSyncStep.js";
@@ -86,3 +87,5 @@ export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
 export * from "./import/index.js";
 export { foldPathNormalization } from "./sync/pathIdentity.js";
+
+export { projectCommentRecords } from "./comments/commentProjection.js";

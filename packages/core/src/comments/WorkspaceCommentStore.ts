@@ -1,3 +1,4 @@
+import { projectCommentRecords } from "./commentProjection.js";
 /** Shared sealed comment store. The shell supplies its captured runtime and worker. */
 import { createWorkspaceObjectId } from "../workspace/identity.js";
 import { effectiveWorkspaceCapabilities, evaluateWorkspaceAccess } from "../workspace/authorization.js";
@@ -35,7 +36,7 @@ function immutableFields(record: WorkspaceCommentOutboxEntry | WorkspaceCommentR
     commentId: record.commentId, targetObjectId: record.targetObjectId, body: record.body,
     parentCommentId: record.parentCommentId, resolvedCommentId: record.resolvedCommentId,
     anchor: record.anchor, suggestion: record.suggestion ? { replacement: record.suggestion.replacement } : null,
-    suggestionOutcome: record.suggestionOutcome, retractsCommentId: record.retractsCommentId,
+    suggestionOutcome: record.suggestionOutcome, decisionProof: record.decisionProof, retractsCommentId: record.retractsCommentId,
     suggestionBatchId: record.suggestionBatchId, batchIndex: record.batchIndex, batchNote: record.batchNote,
     createdAt: record.createdAt,
   };
@@ -49,24 +50,12 @@ type RuntimeIdentity = { memberId: string; device: { publicIdentity: { deviceId:
  * thread somebody just resolved must not stay open until the upload lands.
  */
 export function mergeCommentOutbox(stored: WorkspaceCommentRecord[], queued: WorkspaceCommentOutboxEntry[], runtime: RuntimeIdentity): WorkspaceCommentRecord[] {
-  if (queued.length === 0) return stored;
-  const byId = new Map(stored.map((record) => [record.commentId, { ...record }]));
-  for (const entry of queued) {
-    // A queued deletion takes the remark off the screen now, with every reply
-    // under it (K7) - the marker itself is never a card.
-    if (entry.retractsCommentId) {
-      byId.delete(entry.retractsCommentId);
-      for (const [id, record] of [...byId]) if (record.parentCommentId === entry.retractsCommentId) byId.delete(id);
-      continue;
-    }
-    if (!entry.resolvedCommentId) { byId.set(entry.commentId, outboxEntryAsCommentRecord(entry, runtime.memberId, runtime.device.publicIdentity.deviceId)); continue; }
-    const target = byId.get(entry.resolvedCommentId);
-    if (!target) continue;
-    target.resolvedAt = entry.createdAt;
-    if (target.suggestion && entry.suggestionOutcome === "applied") target.suggestion = { ...target.suggestion, appliedAt: entry.createdAt, appliedBy: runtime.memberId };
-    if (target.suggestion && entry.suggestionOutcome === "declined") target.suggestion = { ...target.suggestion, declinedAt: entry.createdAt };
-  }
-  return [...byId.values()];
+  const byId = new Map(queued.map((entry) => [entry.commentId,
+    outboxEntryAsCommentRecord(entry, runtime.memberId, runtime.device.publicIdentity.deviceId)]));
+  // Publication saves the signed record before retiring its outbox entry.
+  // The same ID is one fact, with the confirmed record taking precedence.
+  for (const record of stored) byId.set(record.commentId, record);
+  return projectCommentRecords([...byId.values()]);
 }
 
 export class WorkspaceCommentStore implements CommentStore {
@@ -88,7 +77,7 @@ export class WorkspaceCommentStore implements CommentStore {
     const { runtime, workspaceState } = this.deps.plane();
     const object = await workspaceState.getObjectByPath(path);
     if (!object) return [];
-    const stored = await workspaceState.listComments(object.objectId);
+    const stored = await workspaceState.listRawComments(object.objectId);
     const queued = (await workspaceState.listCommentOutbox()).filter((entry) => entry.targetObjectId === object.objectId);
     return mergeCommentOutbox(stored, queued, runtime);
   }
@@ -115,19 +104,13 @@ export class WorkspaceCommentStore implements CommentStore {
       if (caps.includes("comment.read")) paths.set(object.objectId, object.path);
     }
     const byPath = new Map<string, WorkspaceCommentRecord[]>();
-    for (const comment of await workspaceState.listAllComments()) {
+    const records = mergeCommentOutbox(await workspaceState.listRawComments(), await workspaceState.listCommentOutbox(), runtime);
+    for (const comment of records) {
       const path = paths.get(comment.targetObjectId);
       if (!path) continue;
       const list = byPath.get(path);
       if (list) list.push(comment);
       else byPath.set(path, [comment]);
-    }
-    // The queued ones too (K6): the overview must not miss what was just sent.
-    const queued = await workspaceState.listCommentOutbox();
-    for (const [path, list] of byPath) byPath.set(path, mergeCommentOutbox(list, queued.filter((entry) => entry.path === path), runtime));
-    for (const entry of queued) {
-      if (byPath.has(entry.path) || entry.resolvedCommentId || entry.retractsCommentId) continue;
-      byPath.set(entry.path, mergeCommentOutbox([], queued.filter((candidate) => candidate.path === entry.path), runtime));
     }
     return byPath;
   }
@@ -145,8 +128,8 @@ export class WorkspaceCommentStore implements CommentStore {
     const { runtime, workspaceState } = this.deps.plane();
     const identity = commentWriteIdentity(input.identity);
     await withIdentityWrite(workspaceState, identity.commentId, async () => {
-      const object = await workspaceState.getObjectByPath(input.path);
-      if (!object?.currentRevisionId) throw new Error("workspace-object-not-synced");
+      const object = input.targetObjectId ? await workspaceState.getObjectById(input.targetObjectId) : await workspaceState.getObjectByPath(input.path);
+      if (!object?.currentRevisionId || object.deleted) throw new Error("workspace-object-not-synced");
       // The right is checked HERE, before anything is queued: a refusal must be
       // immediate and its own, not a "not sent" card a cycle later.
       const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
@@ -156,9 +139,10 @@ export class WorkspaceCommentStore implements CommentStore {
       // triggered right away; the column shows the card now, with a "sending"
       // state, and a failure comes back as a reason on that card.
       const entry: WorkspaceCommentOutboxEntry = {
-        outboxId: createWorkspaceObjectId(), commentId: identity.commentId, path: input.path, targetObjectId: object.objectId,
+        outboxId: createWorkspaceObjectId(), commentId: identity.commentId, path: object.path, targetObjectId: object.objectId,
         body: input.body, parentCommentId: input.parentCommentId ?? null, resolvedCommentId: input.resolvedCommentId ?? null,
         anchor: input.anchor ?? null, suggestion: input.suggestion ?? null, suggestionOutcome: input.suggestionOutcome ?? null,
+        ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}),
         retractsCommentId: input.retractsCommentId ?? null,
         suggestionBatchId: input.batch?.batchId ?? null, batchIndex: input.batch?.index ?? null, batchNote: input.batch?.note ?? null,
         createdAt: identity.createdAt, attempts: 0, lastError: null,
@@ -182,7 +166,7 @@ export class WorkspaceCommentStore implements CommentStore {
       if (live.workspaceState !== workspaceState || live.runtime !== runtime) throw new Error("workspace-comment-runtime-changed");
       await workspaceState.enqueueCommentOutbox(entry);
       this.publish();
-      this.deps.changed(input.path);
+      this.deps.changed(entry.path);
     });
   }
 
