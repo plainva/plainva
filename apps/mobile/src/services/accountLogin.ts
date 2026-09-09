@@ -207,8 +207,8 @@ export function registerAccountLoginHandler(): void {
     // second copy that keeps refreshing on the side — the arrangement this
     // action exists to end. Gmail never gets here: it runs on an app password.
     const mailId = record.services.mail?.mailAccountId;
-    if (mailId) {
-      forgetGraphMailRuntime(mailId);
+    if (mailId && family === "microsoft") {
+      forgetGraphMailRuntime(vaultId, mailId);
       await saveMailRefreshToken(vaultId, mailId, "");
     }
 

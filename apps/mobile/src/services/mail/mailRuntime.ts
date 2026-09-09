@@ -42,7 +42,7 @@ export async function listMobileMailAccounts(): Promise<MailAccountConfig[]> {
 
 export async function removeMobileMailAccount(accountId: string): Promise<void> {
   if (!vaultId) return;
-  forgetGraphMailRuntime(accountId);
+  forgetGraphMailRuntime(vaultId, accountId);
   await removeMailAccount(vaultId, accountId);
   notifyMailChanged();
 }
@@ -79,7 +79,7 @@ async function bindMicrosoftMailAccount(vault: string, clientId: string, refresh
     const address = await graphMailAddress(vault, account);
     await saveMicrosoftMailAccount(vault, { ...account, label: address, user: address }, refreshToken);
   } catch (err) {
-    forgetGraphMailRuntime(id);
+    forgetGraphMailRuntime(vault, id);
     await removeMailAccount(vault, id).catch(() => undefined);
     throw err;
   }

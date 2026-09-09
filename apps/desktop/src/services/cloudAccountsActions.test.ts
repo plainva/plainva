@@ -577,3 +577,38 @@ describe("listSyncFoldersFromSlots", () => {
     );
   });
 });
+
+
+describe("Google reconnect preserves the actual mailbox password", () => {
+  it("does not clear or report an OAuth success for the independent IMAP mailbox", async () => {
+    const { getPlatformServices, hasPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    const { saveMailAccount, getMailPassword, mailSecretKey } = await import("@plainva/ui/mail");
+    const platform = hasPlatformServices() ? getPlatformServices() : undefined;
+    const metadata = new Map<string, unknown>();
+    const actualSecrets = new Map<string, unknown>();
+    setPlatformServices({ ...platform, openExternal: async () => {},
+      loadSettings: async () => ({
+        get: async <T,>(key: string) => metadata.get(key) as T | undefined,
+        set: async (key: string, value: unknown) => { metadata.set(key, value); },
+        delete: async (key: string) => metadata.delete(key), keys: async () => [...metadata.keys()], save: async () => {},
+      }),
+      credentials: {
+        readSecret: async <T,>(key: string) => (actualSecrets.get(key) as T) ?? null,
+        writeSecret: async <T,>(key: string, value: T) => { actualSecrets.set(key, value); },
+        removeSecret: async (key: string) => { actualSecrets.delete(key); },
+      },
+    });
+    try {
+      const card: CloudAccountRecord = { id: "google-gmail", family: "google", label: "Person",
+        services: { calendar: { pimAccountId: "P" }, mail: { mailAccountId: "gmail" } } };
+      accountTokens.set(card.id, { clientId: "client", clientSecret: "test-secret", refreshToken: "old" });
+      await saveMailAccount("/v", { id: "gmail", label: "Gmail", host: "imap.gmail.com", port: 993, user: "person@example.invalid" }, "test-app-password");
+      const status = vi.fn();
+      await unifyAccountLogin("/v", null, card, status);
+      await expect(getMailPassword("/v", "gmail")).resolves.toBe("test-app-password");
+      expect(actualSecrets.get(mailSecretKey("/v", "gmail"))).toEqual({ pass: "test-app-password" });
+      expect(status.mock.calls.every(([service]) => service !== "mail")).toBe(true);
+      expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: "RT" });
+    } finally { if (platform) setPlatformServices(platform); }
+  });
+});

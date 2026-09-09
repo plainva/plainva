@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-09
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -64,6 +64,8 @@ Se colleghi più servizi di un account insieme — ad esempio **File** e **Calen
 La procedura porta con sé il provider scelto **in ogni passo**: i passi 2 e 3 aprono subito il modulo giusto (il modulo del calendario Google invece di una scelta del provider, Gmail invece di un modulo IMAP generico) e non chiedono mai di nuovo chi volevi collegare. Ciò che un passo ha già raccolto è già presente nel successivo: con Nextcloud, Plainva ricava l'indirizzo CalDAV dall'indirizzo del server del passo 1, e una password di suite si digita una volta invece di tre. Questi dati vivono in memoria solo per la durata della procedura; non vengono salvati da nessuna parte e spariscono quando finisce — anche se la chiudi con **Esci dalla procedura**.
 
 Gli account che accedono ancora servizio per servizio sono contrassegnati come **Accesso vecchio** nell'elenco degli account e offrono **Un accesso per tutti i servizi** — nell'elenco degli account e nei dettagli dell'account, sul desktop come nell'[app mobile](Mobile_App.md). Un unico passaggio, e da quel momento tutti i servizi condividono lo stesso accesso. Non è solo comodità: accessi separati potevano disallinearsi tra loro, lasciando un servizio in funzione mentre un altro dello stesso account era già scaduto in silenzio. Per questi account **Riconnetti** ora rinnova l'intero account invece di un solo servizio. L'offerta resta valida anche quando esiste già un accesso condiviso che però non copre tutti i servizi dell'account — perché per esempio hai lasciato una spunta scoperta nella schermata di consenso; Google non può ampliare un consenso già concesso.
+
+Accedere di nuovo a Google conserva la password per le app della tua casella Gmail. L’accesso nel browser rinnova solo i servizi OAuth dell’account; la casella IMAP non richiede una nuova password per questa operazione. Outlook mantiene separati gli accessi salvati e le connessioni di ogni vault, anche quando lo stesso profilo account è presente in più vault. Vale sia su desktop sia su dispositivi mobili.
 
 ## Dropbox
 

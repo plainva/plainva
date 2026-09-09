@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-09
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -64,6 +64,8 @@ Verbind je meerdere Microsoft-diensten tegelijk — bijvoorbeeld **Bestanden** e
 Hetzelfde geldt inmiddels voor **Google**: een account dat nog los per dienst is aangemeld (Bestanden, Agenda, Taken) biedt net als bij Microsoft **Een login voor alle diensten** in de accountgegevens aan, en een nieuwe aanmelding vernieuwt voortaan meteen het hele account in plaats van maar één dienst. Gmail blijft hierbuiten — dat verbindt via IMAP met een app-wachtwoord, waar niets samen te voegen valt. Het aanbod blijft ook staan wanneer er al een gedeelde aanmelding bestaat die niet alle diensten van het account dekt — omdat je bijvoorbeeld een vinkje op het toestemmingsscherm hebt laten staan; Google kan een toestemming die het al heeft gegeven niet verruimen.
 
 De wizard neemt de gekozen aanbieder **naar elke stap** mee: stap 2 en 3 openen meteen het juiste formulier (het Google-agendaformulier in plaats van een aanbiederskeuze, Gmail in plaats van een algemeen IMAP-formulier) en vragen nooit opnieuw wie je wilde verbinden. Wat één stap al verzamelde, staat in de volgende al klaar: bij Nextcloud leidt Plainva het CalDAV-adres af uit het serveradres van stap 1, en een suite-wachtwoord typ je één keer in plaats van drie keer. Die gegevens leven alleen in het geheugen zolang de wizard duurt; ze worden nergens opgeslagen en zijn weg zodra hij eindigt — ook wanneer je hem afsluit met **Wizard verlaten**.
+
+Als je opnieuw inlogt bij Google, blijft het app-wachtwoord van je Gmail-postvak behouden. De aanmelding in de browser vernieuwt alleen de OAuth-diensten van het account; je IMAP-postvak heeft hiervoor geen nieuw wachtwoord nodig. Outlook houdt opgeslagen aanmeldingen en actieve verbindingen per vault gescheiden, ook als hetzelfde accountprofiel in meerdere vaults staat. Dit geldt op desktop en mobiel.
 
 ## Dropbox
 

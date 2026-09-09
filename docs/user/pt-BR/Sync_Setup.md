@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-09-03
+Última revisão: 2026-09-09
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -64,6 +64,8 @@ Ao conectar vários serviços de uma mesma conta juntos — por exemplo **Arquiv
 O assistente mantém o provedor escolhido **em cada passo**: os passos 2 e 3 já abrem o formulário certo (o formulário de calendário do Google em vez de um seletor de provedor, o Gmail em vez de um formulário IMAP genérico) e nunca perguntam de novo quem você queria conectar. O que um passo já coletou aparece no seguinte: no Nextcloud, o Plainva deduz o endereço CalDAV do endereço do servidor do passo 1, e uma senha de suíte é digitada uma vez em vez de três. Esses dados vivem apenas na memória enquanto o percurso dura; não são gravados em lugar nenhum e somem quando ele termina — inclusive quando você o encerra com **Sair do assistente**.
 
 Contas que ainda entram serviço a serviço estão marcadas como **Login antigo** na lista de contas e oferecem **Um login para todos os serviços** — na lista de contas e nos detalhes da conta, tanto no desktop quanto no [app mobile](Mobile_App.md). Um único acesso, e depois todos os serviços passam a compartilhar o mesmo login. Isso é mais do que conveniência: logins separados podiam se distanciar um do outro, deixando um serviço funcionando enquanto outro da mesma conta expirava silenciosamente. Para essas contas, **Entrar novamente** agora renova a conta inteira em vez de apenas um serviço. A oferta também permanece quando já existe um login compartilhado, mas ele não cobre todos os serviços da conta — porque, por exemplo, ficou uma marcação sem assinalar na tela de consentimento; o Google não consegue ampliar um consentimento que já concedeu.
+
+Entrar novamente no Google preserva a senha de app da sua caixa do Gmail. O login no navegador renova apenas os serviços OAuth da conta; a caixa IMAP não precisa de uma nova senha para isso. O Outlook mantém os logins salvos e as conexões separados por vault, mesmo quando o mesmo perfil de conta está presente em vários vaults. Isso vale no desktop e no celular.
 
 ## Dropbox
 

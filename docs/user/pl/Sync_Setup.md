@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-03
+Stan na: 2026-09-09
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -64,6 +64,8 @@ Jeśli połączysz kilka usług jednego konta naraz — na przykład **Pliki** i
 Kreator niesie wybranego dostawcę **przez każdy krok**: kroki 2 i 3 od razu otwierają właściwy formularz (formularz kalendarza Google zamiast wyboru dostawcy, Gmail zamiast ogólnego formularza IMAP) i nigdy nie pytają ponownie, kogo chciałeś podłączyć. To, co zebrał jeden krok, jest już w następnym: przy Nextcloud Plainva wyprowadza adres CalDAV z adresu serwera z kroku 1, a hasło pakietu wpisujesz raz zamiast trzy razy. Te dane żyją w pamięci tylko na czas przebiegu; nie są nigdzie zapisywane i znikają, gdy przebieg się kończy — także wtedy, gdy zakończysz go przez **Zakończ kreatora**.
 
 Konta, które wciąż logują się osobno dla każdej usługi, są oznaczone na liście kont jako **Stare logowanie** i oferują **Jedno logowanie dla wszystkich usług** — na liście kont i w szczegółach konta, zarówno na komputerze, jak i w [aplikacji mobilnej](Mobile_App.md). Jeden przebieg, a potem wszystkie usługi korzystają z tego samego logowania. To więcej niż wygoda: osobne logowania mogły rozjechać się w czasie, więc jedna usługa działała dalej, podczas gdy inna tego samego konta po cichu wygasła. Dla takich kont **Zaloguj się ponownie** odnawia teraz całe konto zamiast pojedynczej usługi. Oferta pozostaje widoczna też wtedy, gdy wspólne logowanie już istnieje, ale nie obejmuje wszystkich usług konta — na przykład dlatego, że na ekranie zgody nie zaznaczono jednej z usług; Google nie może rozszerzyć zgody, którą już wcześniej przyznał.
+
+Ponowne logowanie do Google zachowuje hasło aplikacji Twojej skrzynki Gmail. Logowanie w przeglądarce odnawia tylko usługi OAuth konta; skrzynka IMAP nie wymaga w tym celu nowego hasła. Outlook przechowuje dane logowania i aktywne połączenia oddzielnie dla każdego vaulta, nawet jeśli ten sam profil konta znajduje się w kilku vaultach. Dotyczy to komputerów i urządzeń mobilnych.
 
 ## Dropbox
 

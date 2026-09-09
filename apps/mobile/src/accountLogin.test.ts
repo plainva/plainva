@@ -177,3 +177,39 @@ describe("finding the client to sign in with", () => {
     await expect(beginAccountLogin("v1", record("microsoft", ["files", "calendar"]))).resolves.toEqual({ kind: "started" });
   });
 });
+
+
+describe("mobile Google reconnect preserves the actual mailbox password", () => {
+  it("keeps Gmail's IMAP credential through the registered OAuth completion", async () => {
+    const { setPlatformServices, toast } = await import("@plainva/ui");
+    const { saveMailAccount, getMailPassword, mailSecretKey } = await import("@plainva/ui/mail");
+    const { registerAccountLoginHandler } = await import("./services/accountLogin");
+    const { setOAuthPurposeHandler } = await import("./services/pim/pimOAuth");
+    const metadata = new Map<string, unknown>();
+    const secrets = new Map<string, unknown>();
+    setPlatformServices({
+      loadSettings: async () => ({
+        get: async <T,>(key: string) => metadata.get(key) as T | undefined,
+        set: async (key: string, value: unknown) => { metadata.set(key, value); },
+        delete: async (key: string) => metadata.delete(key), keys: async () => [...metadata.keys()], save: async () => {},
+      }),
+      credentials: {
+        readSecret: async <T,>(key: string) => (secrets.get(key) as T) ?? null,
+        writeSecret: async <T,>(key: string, value: T) => { secrets.set(key, value); },
+        removeSecret: async (key: string) => { secrets.delete(key); },
+      }, openExternal: async () => {},
+    });
+    vi.spyOn(toast, "success").mockImplementation(() => 1);
+    vi.mocked(getAccountToken).mockResolvedValue({ clientId: "client", clientSecret: "test-secret", refreshToken: "old" });
+    vi.mocked(getPimCredentials).mockResolvedValue(null);
+    const card = record("google", ["calendar", "mail"]);
+    await saveMailAccount("v1", { id: "m1", label: "Gmail", host: "imap.gmail.com", port: 993, user: "person@example.invalid" }, "test-app-password");
+    registerAccountLoginHandler();
+    await beginAccountLogin("v1", card);
+    const handlers = vi.mocked(setOAuthPurposeHandler).mock.calls;
+    const handler = handlers[handlers.length - 1][1];
+    await handler({ clientId: "client", clientSecret: "test-secret", refreshToken: "new", grantedScope: unionScopeFor("google", ["calendar"]), provider: "google", label: "Person" });
+    await expect(getMailPassword("v1", "m1")).resolves.toBe("test-app-password");
+    expect(secrets.get(mailSecretKey("v1", "m1"))).toEqual({ pass: "test-app-password" });
+  });
+});

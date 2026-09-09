@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-09-03
+Última actualización: 2026-09-09
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -64,6 +64,8 @@ Cuando conectas varios servicios de una misma cuenta juntos —por ejemplo **Arc
 El asistente mantiene el proveedor elegido **en cada paso**: los pasos 2 y 3 abren directamente el formulario adecuado (el formulario de calendario de Google en lugar de un selector de proveedor, Gmail en lugar de un formulario IMAP genérico) y nunca vuelven a preguntar a quién querías conectar. Lo que un paso ya recogió está en el siguiente: en Nextcloud, Plainva deduce la dirección CalDAV de la dirección del servidor del paso 1, y una contraseña de suite se escribe una vez en lugar de tres. Esos datos solo viven en memoria mientras dura el recorrido; no se guardan en ninguna parte y desaparecen cuando termina, también si lo terminas con **Salir del asistente**.
 
 Las cuentas que todavía inician sesión por separado en cada servicio llevan la etiqueta **Inicio antiguo** en la lista de cuentas y ofrecen **Un inicio de sesión para todos los servicios** — en la lista de cuentas y en los detalles de la cuenta, tanto en el escritorio como en la [app móvil](Mobile_App.md). Una sola ronda y, después, todos los servicios comparten el mismo inicio de sesión. Eso es más que comodidad: los inicios de sesión por separado podían desincronizarse, dejando un servicio en marcha mientras otro de la misma cuenta había caducado en silencio. En esas cuentas, **Volver a conectar** ahora renueva la cuenta entera en lugar de un solo servicio. La oferta también se mantiene cuando ya existe un inicio de sesión compartido pero no cubre todos los servicios de la cuenta — por ejemplo, porque dejaste una casilla sin marcar en la pantalla de consentimiento; Google no puede ampliar un consentimiento que ya ha concedido.
+
+Volver a iniciar sesión en Google conserva la contraseña de aplicación de tu buzón de Gmail. El inicio de sesión en el navegador solo renueva los servicios OAuth de la cuenta; tu buzón IMAP no necesita una nueva contraseña para ello. Outlook mantiene separados los accesos guardados y las conexiones de cada vault, incluso si el mismo perfil de cuenta existe en varios vaults. Esto se aplica en escritorio y móvil.
 
 ## Dropbox
 

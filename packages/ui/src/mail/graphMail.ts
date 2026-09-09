@@ -38,7 +38,8 @@ interface GraphMailRuntime {
   roleByFolderId?: Map<string, MailFolderRole>;
 }
 
-const runtimes = new Map<string, GraphMailRuntime>();
+const runtimes = new Map<string, Promise<GraphMailRuntime>>();
+const runtimeKey = (vaultPath: string, accountId: string) => JSON.stringify([vaultPath, accountId]);
 
 /** Access-token provider with single-flight refresh + rotated-token persistence
  * (mirrors buildPimAuthProvider — Microsoft rotates the refresh token). */
@@ -82,12 +83,14 @@ function buildRuntime(
 
   const refresh = async (): Promise<string> => {
     const res = await refreshOneDriveAccessToken({ clientId, refreshToken: currentRefreshToken, scope: GRAPH_MAIL_SCOPES }, mailHttp().token);
+    // A storage failure must remain a failure on the next request too.
+    // Cache neither half of the new credential until its write has completed.
+    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
+      await saveMailRefreshToken(vaultPath, account.id, res.refreshToken);
+      currentRefreshToken = res.refreshToken;
+    }
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
-    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
-      currentRefreshToken = res.refreshToken;
-      await saveMailRefreshToken(vaultPath, account.id, res.refreshToken);
-    }
     return accessToken;
   };
 
@@ -105,23 +108,28 @@ function buildRuntime(
 }
 
 async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promise<GraphMailRuntime> {
-  const existing = runtimes.get(account.id);
+  const key = runtimeKey(vaultPath, account.id);
+  const existing = runtimes.get(key);
   if (existing) return existing;
-  const refreshToken = await getMailRefreshToken(vaultPath, account.id);
-  // A broker-backed account carries no mail-side refresh token by design.
-  const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath, account.id).catch(() => undefined) : undefined;
-  if (!refreshToken && !viaBroker) {
-    // Two very different situations used to share this sentence: a mailbox that
-    // was never connected, and one whose per-service token the account-wide
-    // migration blanked while the shared sign-in cannot be read (finding
-    // 2026-07-30). The resolver's own account for that goes into the message,
-    // and the marker routes it to "sign in again" rather than a retry.
-    const why = mailLookupNote ? await mailLookupNote(vaultPath).catch(() => "") : "";
-    throw new Error(`${NO_STORED_SIGN_IN}: this mailbox has no stored sign-in${why ? ` — ${why}` : "."}`);
+  const pending = (async () => {
+    const refreshToken = await getMailRefreshToken(vaultPath, account.id);
+    // A broker-backed account carries no mail-side refresh token by design.
+    const viaBroker = mailTokenResolver ? await mailTokenResolver(vaultPath, account.id).catch(() => undefined) : undefined;
+    if (!refreshToken && !viaBroker) {
+      // Distinguish a never-connected mailbox from one whose per-service
+      // credential was cleared but whose account sign-in cannot be read.
+      const why = mailLookupNote ? await mailLookupNote(vaultPath).catch(() => "") : "";
+      throw new Error(`${NO_STORED_SIGN_IN}: this mailbox has no stored sign-in${why ? ` — ${why}` : "."}`);
+    }
+    return buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
+  })();
+  runtimes.set(key, pending);
+  try {
+    return await pending;
+  } catch (error) {
+    if (runtimes.get(key) === pending) runtimes.delete(key);
+    throw error;
   }
-  const rt = buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);
-  runtimes.set(account.id, rt);
-  return rt;
 }
 
 /**
@@ -142,8 +150,8 @@ export async function mailAccessTokenFor(vaultPath: string, accountId: string, f
 }
 
 /** Drops the cached runtime (token + folder map) when an account is removed. */
-export function forgetGraphMailRuntime(accountId: string): void {
-  runtimes.delete(accountId);
+export function forgetGraphMailRuntime(vaultPath: string, accountId: string): void {
+  runtimes.delete(runtimeKey(vaultPath, accountId));
 }
 
 /**

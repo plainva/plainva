@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-09-03
+Stand: 2026-09-09
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -64,6 +64,8 @@ Verbindest Du mehrere Dienste eines Kontos zusammen — etwa **Dateien** und **K
 Der Assistent trägt den gewählten Anbieter **durch jeden Schritt**: Schritt 2 und 3 öffnen gleich das passende Formular (Google-Kalender statt Anbieter-Auswahl, Gmail statt allgemeinem IMAP) und fragen nicht erneut, wen Du verbinden wolltest. Was ein Schritt schon erfragt hat, steht im nächsten bereits — bei Nextcloud leitet Plainva die CalDAV-Adresse aus der Server-Adresse von Schritt 1 ab, und ein Suiten-Passwort tippst Du einmal statt dreimal. Diese Angaben leben nur für die Dauer des Laufs im Arbeitsspeicher; sie werden nirgends gespeichert und sind nach dem Ende des Laufs — auch nach einem Abbruch über **Assistent beenden** — wieder weg.
 
 Bestehende Konten, die noch je Dienst getrennt angemeldet sind, tragen in der Konten-Liste den Hinweis **Alte Anmeldung** und bieten **Ein Login für alle Dienste** an — in der Liste und in den Konto-Details, am Rechner wie in der [mobilen App](Mobile_App.md). Ein Durchgang, danach hängen alle Dienste an derselben Anmeldung. Das ist mehr als Bequemlichkeit: getrennte Anmeldungen konnten auseinanderlaufen, sodass ein Dienst weiterlief, während ein anderer desselben Kontos still abgelaufen war. **Erneut anmelden** erneuert bei solchen Konten ebenfalls das ganze Konto statt nur einen Dienst. Das Angebot bleibt auch dann stehen, wenn schon eine gemeinsame Anmeldung existiert, sie aber nicht alle Dienste des Kontos abdeckt — etwa weil Du bei der Zustimmung einen Haken weggelassen hast; Google kann eine einmal erteilte Zustimmung später nicht nachträglich erweitern.
+
+Wenn Du Dich erneut bei Google anmeldest, bleibt das App-Passwort Deines Gmail-Postfachs erhalten. Die Browser-Anmeldung erneuert nur die OAuth-Dienste des Kontos; Dein IMAP-Postfach braucht dafür kein neues Passwort. Bei Outlook werden gespeicherte Zugänge und laufende Verbindungen je Vault getrennt, auch wenn dasselbe Kontenprofil in mehreren Vaults liegt. Das gilt auf Desktop und Mobilgeräten.
 
 ## Dropbox
 

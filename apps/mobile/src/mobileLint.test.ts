@@ -3099,7 +3099,7 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
     // Otherwise the mail token is exactly the second copy that keeps
     // refreshing on the side — the arrangement stage B exists to end.
     const login = read("src/services/accountLogin.ts");
-    expect(login).toMatch(/forgetGraphMailRuntime\(mailId\)/);
+    expect(login).toMatch(/forgetGraphMailRuntime\(vaultId, mailId\)/);
     expect(login).toMatch(/saveMailRefreshToken\(vaultId, mailId, ""\)/);
   });
 

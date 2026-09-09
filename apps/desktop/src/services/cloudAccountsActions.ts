@@ -276,7 +276,7 @@ async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, 
     return { id, address };
   } catch (err) {
     // The token cannot read the mailbox: undo the half-connected account.
-    forgetGraphMailRuntime(id);
+    forgetGraphMailRuntime(vaultPath, id);
     await removeMailAccount(vaultPath, id).catch(() => undefined);
     throw err;
   }
@@ -608,7 +608,7 @@ export async function rerunAccountAuth(
       const accounts = await listMailAccounts(vaultPath);
       const account = accounts.find((a) => a.id === accountId);
       const { refreshToken } = await authorizeMicrosoftMail({ clientId: account?.clientId || msClientId });
-      forgetGraphMailRuntime(accountId);
+      forgetGraphMailRuntime(vaultPath, accountId);
       await saveMailRefreshToken(vaultPath, accountId, refreshToken);
       onStatus("mail", { state: "ok" });
     } catch (err) {
@@ -914,7 +914,7 @@ export async function unifyAccountLogin(
   record: CloudAccountRecord,
   onStatus: ServiceStatusCb
 ): Promise<void> {
-  const services = accountServices(record);
+  const services = accountServices(record).filter((service) => record.family !== "google" || service !== "mail");
   const isGoogle = record.family === "google";
   const google = isGoogle ? await googleByoFromSlots(vaultPath, record) : null;
   if (isGoogle && !google) throw new Error("missing Google client");
@@ -967,8 +967,8 @@ export async function unifyAccountLogin(
     onStatus("calendar", { state: "ok" });
   }
   const mailId = record.services.mail?.mailAccountId;
-  if (mailId) {
-    forgetGraphMailRuntime(mailId);
+  if (mailId && record.family === "microsoft") {
+    forgetGraphMailRuntime(vaultPath, mailId);
     await saveMailRefreshToken(vaultPath, mailId, "");
     onStatus("mail", { state: "ok" });
   }
@@ -990,7 +990,7 @@ export async function disableAccountService(
   } else if (service === "calendar" && record.services.calendar && runtime) {
     await removePimAccount(runtime, vaultPath, record.services.calendar.pimAccountId);
   } else if (service === "mail" && record.services.mail) {
-    forgetGraphMailRuntime(record.services.mail.mailAccountId);
+    forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
     await removeMailAccount(vaultPath, record.services.mail.mailAccountId);
   }
   return refreshCloudAccounts(vaultPath, runtime);

@@ -95,7 +95,7 @@ const secrets = new Map<string, unknown>();
 
 beforeEach(() => {
   calls.length = 0;
-  forgetGraphMailRuntime("acc1");
+  forgetGraphMailRuntime("/vault", "acc1");
   secrets.clear();
   secrets.set(mailSecretKey("/vault", "acc1"), { refreshToken: "REFRESH" });
   setPlatformServices({

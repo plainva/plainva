@@ -306,8 +306,12 @@ export async function getMailRefreshToken(vaultPath: string, accountId: string):
   return secret?.refreshToken ?? null;
 }
 
-/** Persists a rotated refresh token (Microsoft rotates on every refresh — a
- * dropped rotation kills the account; see the sync flow's hard-won lesson). */
+/** Persists an OAuth credential only for an existing Microsoft mailbox.
+ * A password-backed mailbox must never be cleared by an OAuth reconnect. */
 export async function saveMailRefreshToken(vaultPath: string, accountId: string, refreshToken: string): Promise<void> {
+  const account = (await listMailAccounts(vaultPath)).find((entry) => entry.id === accountId);
+  if (!account || mailAccountKind(account) !== "microsoft") {
+    throw new Error("An OAuth token cannot replace this mailbox’s password");
+  }
   await getPlatformServices().credentials.writeSecret(mailSecretKey(vaultPath, accountId), { refreshToken });
 }
