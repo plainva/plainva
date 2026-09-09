@@ -6,6 +6,8 @@ Se un servizio WebDAV, CalDAV o S3 restituisce una pagina di accesso o un invent
 
 Se un file locale non può essere caricato per un errore di autorizzazione o lettura, il tentativo e il relativo errore restano in coda. Ripristina l’accesso al file e riprova la sincronizzazione. Solo un file realmente mancante viene considerato assente; un errore di accesso non viene registrato come caricamento riuscito.
 
+Le modifiche offline vengono conservate anche dopo più rinominazioni. Plainva completa gli spostamenti collegati prima di caricare il contenuto attuale; un errore trattiene le operazioni dipendenti. Se manca la sorgente remota, Plainva carica il file locale o il contenuto della cartella nella nuova posizione. I contenuti illeggibili restano in coda con un errore per un nuovo tentativo.
+
 Plainva sincronizza i vault tramite adattatori di sincronizzazione intercambiabili. Questa pagina mostra quali servizi puoi usare oggi — direttamente integrati, tramite il protocollo WebDAV, o tramite il client di sincronizzazione desktop del provider stesso.
 
 ## Integrati direttamente

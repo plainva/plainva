@@ -6,6 +6,8 @@ If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete invent
 
 If a local file cannot be uploaded because of a permission or read error, its task and error stay in the queue. Restore file access and retry sync. Only a genuinely missing file counts as absent; an access failure is not recorded as a successful upload.
 
+Offline edits are preserved across repeated renames. Plainva completes related moves before uploading the current content; a failed operation holds back dependent tasks. If a remote rename source is missing, Plainva uploads the remaining local file or folder contents at the new location. Unreadable content stays queued with an error for retry.
+
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 
 ## Directly integrated

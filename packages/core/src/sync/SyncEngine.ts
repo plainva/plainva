@@ -193,6 +193,34 @@ export class SyncEngine {
           // Treating that as success would leave the file under NO remote path;
           // upload the local content at the new path instead.
           console.warn(`[SyncEngine] rename source missing remotely, uploading ${op.new_path} instead`);
+          let directory = false;
+          try {
+            directory = (await this.vault.getFileInfo?.(op.new_path))?.isDirectory ?? false;
+          } catch (err: any) {
+            if (err.name !== 'VaultFileNotFoundError') throw err;
+            // A later rename/delete may already have removed this local path.
+            await this.queue.markSynced(op.id, op.file_path, op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          if (directory) {
+            if (!this.target.createFolder) throw new Error("Sync target cannot recover a missing rename source folder");
+            // A partial walk must not masquerade as a complete recovery.
+            const report = this.vault.listDirReport ? await this.vault.listDirReport(op.new_path, true) : null;
+            if (report?.skipped.length) throw new Error("Cannot recover renamed folder: local entries could not be read");
+            const entries = report?.files ?? await this.vault.listDir(op.new_path, true);
+            await this.target.createFolder(op.new_path);
+            for (const entry of entries) {
+              if (entry.path.startsWith(".plainva") || entry.path.includes(".CONFLICT")) continue;
+              if (entry.isDirectory) await this.queue.queueMkdir(entry.path);
+              else await this.queue.queueWrite(entry.path, { force: true });
+            }
+            // Children are durable queue entries before the parent MOVE retires;
+            // a restart or failed child upload can resume without losing them.
+            await this.queue.markSynced(op.id, op.file_path, op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
           let content: Uint8Array;
           try {
             content = await this.vault.readBinaryFile(op.new_path);

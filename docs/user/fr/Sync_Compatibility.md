@@ -6,6 +6,8 @@ Si un service WebDAV, CalDAV ou S3 renvoie une page de connexion ou un inventair
 
 Si un fichier local ne peut pas être envoyé à cause des permissions ou d’une erreur de lecture, la tâche et son erreur restent dans la file. Rétablissez l’accès au fichier et relancez la synchronisation. Seul un fichier réellement manquant est considéré comme absent ; un échec d’accès ne compte pas comme un envoi réussi.
 
+Les modifications hors ligne sont conservées même après plusieurs changements de nom. Plainva termine les déplacements liés avant de téléverser le contenu actuel ; une opération échouée retient les tâches qui en dépendent. Si la source distante manque, Plainva téléverse le fichier local ou le contenu du dossier au nouvel emplacement. Le contenu illisible reste en attente avec une erreur pour permettre une nouvelle tentative.
+
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 
 ## Directement intégrés

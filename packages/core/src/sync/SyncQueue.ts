@@ -1,6 +1,17 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { escapeLikePrefix } from "../db/likeEscape.js";
 import { SyncOperation } from "./ISyncTarget.js";
+
+function containsPath(parent: string, path: string): boolean {
+  return path === parent || path.startsWith(parent + "/");
+}
+
+function overlaps(a: string, b: string): boolean {
+  return containsPath(a, b) || containsPath(b, a);
+}
+
+function endpoints(op: SyncOperation): string[] {
+  return op.new_path ? [op.file_path, op.new_path] : [op.file_path];
+}
 
 /**
  * Manages the offline queue and basic synchronization state.
@@ -14,7 +25,7 @@ export class SyncQueue {
    * Queues a write operation.
    * This is called AFTER the file was written locally.
    */
-  async queueWrite(path: string): Promise<void> {
+  async queueWrite(path: string, options?: { force?: boolean }): Promise<void> {
     await this.db.transaction(async () => {
       // Coalesce: a newer write supersedes earlier still-pending writes of the same
       // file, so the queue does not grow unbounded with redundant full-content rows
@@ -38,8 +49,8 @@ export class SyncQueue {
 
       // Add to offline_queue
       await this.db.execute(
-        `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
-        [path, "write", Date.now()]
+        `INSERT INTO offline_queue (file_path, operation, queued_at, force) VALUES (?, ?, ?, ?)`,
+        [path, "write", Date.now(), options?.force ? 1 : 0]
       );
 
       // Update sync_state in files table
@@ -104,42 +115,42 @@ export class SyncQueue {
       const newPrefix = newPath + "/";
       const oldLen = oldPath.length;
 
-      // 1. Update pending operations in offline_queue (so they point to the new paths)
-      // This ensures that pending writes/deletes for children of a renamed folder are not lost.
-      const ops = await this.db.query<{id: number, file_path: string, new_path: string | null}>(
-        `SELECT id, file_path, new_path FROM offline_queue`
-      );
-      for (const op of ops) {
-         let changed = false;
-         let fp = op.file_path;
-         let np = op.new_path;
-         
-         if (fp === oldPath) { fp = newPath; changed = true; }
-         else if (fp.startsWith(oldPrefix)) { fp = newPrefix + fp.substring(oldPrefix.length); changed = true; }
-
-         if (np === oldPath) { np = newPath; changed = true; }
-         else if (np && np.startsWith(oldPrefix)) { np = newPrefix + np.substring(oldPrefix.length); changed = true; }
-
-         if (changed) {
-           await this.db.execute(`UPDATE offline_queue SET file_path = ?, new_path = ? WHERE id = ?`, [fp, np, op.id]);
-         }
-      }
-
-      // 2. Insert the rename operation itself
+      // Structural operations describe remote history: never rewrite their
+      // original source or destination. The MOVE must precede writes of the
+      // local content now living at its destination.
       await this.db.execute(
         `INSERT INTO offline_queue (file_path, operation, new_path, queued_at) VALUES (?, ?, ?, ?)`,
         [oldPath, "rename", newPath, Date.now()]
       );
 
+      const writes = await this.db.query<{ id: number; file_path: string }>(
+        `SELECT id, file_path FROM offline_queue WHERE operation = 'write' ORDER BY id`
+      );
+      for (const op of writes) {
+        if (!containsPath(oldPath, op.file_path)) continue;
+        const path = op.file_path === oldPath ? newPath : newPrefix + op.file_path.substring(oldPrefix.length);
+        // New identity also protects against an upload already in flight: its
+        // completion/retry refers to the retired ID, never this follow-up write.
+        // Preserve age, forced encryption and unresolved failure information.
+        await this.db.execute(
+          `INSERT INTO offline_queue
+            (file_path, operation, content, queued_at, retry_count, next_retry_at,
+             priority, last_error, requires_manual_intervention, force)
+           SELECT ?, operation, content, queued_at, retry_count, next_retry_at,
+                  priority, last_error, requires_manual_intervention, force
+           FROM offline_queue WHERE id = ?`,
+          [path, op.id]
+        );
+        await this.db.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
+      }
+
       // 3. Update files table: exact match AND all children (if it was a folder)
       // Setting mtime_local = 0 forces the indexer to re-read the file to update title/FTS properly.
-      // The prefix is escaped: a folder named "50%_done" would otherwise make
-      // `%` and `_` act as wildcards and rewrite unrelated rows. LIKE is also
-      // case-insensitive for ASCII, so the ESCAPE clause is the only thing
-      // keeping this from reaching beyond the folder being renamed.
+      // Literal, case-sensitive prefix matching. SQL length counts characters
+      // consistently with substr, including names containing non-BMP symbols.
       const files = await this.db.query<{path: string}>(
-        `SELECT path FROM files WHERE path = ? OR path LIKE ? ESCAPE '\\'`,
-        [oldPath, escapeLikePrefix(oldPrefix) + '%']
+        `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+        [oldPath, oldPrefix, oldPrefix]
       );
 
       for (const f of files) {
@@ -160,10 +171,10 @@ export class SyncQueue {
       // new path looked like a brand-new file to the indexer, which recorded
       // local content with NO base. The next divergence then had no common
       // ancestor to merge against and was preserved as a .CONFLICT copy instead
-      // (issue #48). Same escaped prefix as step 3, for the same reason.
+      // (issue #48). Same literal prefix as step 3.
       const states = await this.db.query<{path: string}>(
-        `SELECT path FROM sync_state WHERE path = ? OR path LIKE ? ESCAPE '\\'`,
-        [oldPath, escapeLikePrefix(oldPrefix) + '%']
+        `SELECT path FROM sync_state WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+        [oldPath, oldPrefix, oldPrefix]
       );
 
       for (const s of states) {
@@ -294,9 +305,12 @@ export class SyncQueue {
   async hasPendingStructuralOp(path: string): Promise<boolean> {
     const row = await this.db.queryOne<{ id: number }>(
       `SELECT id FROM offline_queue
-       WHERE (file_path = ? OR new_path = ?) AND operation IN ('rename', 'delete')
+       WHERE (file_path = ? OR new_path = ?
+          OR substr(?, 1, length(file_path) + 1) = file_path || '/'
+          OR substr(?, 1, length(new_path) + 1) = new_path || '/')
+         AND operation IN ('rename', 'delete')
        LIMIT 1`,
-      [path, path]
+      [path, path, path, path]
     );
     return !!row;
   }
@@ -315,10 +329,10 @@ export class SyncQueue {
    * is deleting/renaming — reconcile skips them anyway (no resurrection).
    */
   async getPendingStructuralPaths(): Promise<string[]> {
-    const rows = await this.db.query<{ file_path: string }>(
-      `SELECT file_path FROM offline_queue WHERE operation IN ('delete', 'rename')`
+    const rows = await this.db.query<{ file_path: string; new_path: string | null }>(
+      `SELECT file_path, new_path FROM offline_queue WHERE operation IN ('delete', 'rename')`
     );
-    return rows.map((r) => r.file_path);
+    return rows.flatMap((r) => r.new_path ? [r.file_path, r.new_path] : [r.file_path]);
   }
 
   /**
@@ -390,46 +404,51 @@ export class SyncQueue {
   }
 
   /**
-   * Retrieves the operations that are ready to be synced now.
-   *
-   * Per-file FIFO across replay passes: only the earliest queued operation of each
-   * file is eligible, and only if it is ready (not in backoff) and not flagged for
-   * manual intervention. Later operations of the same file stay blocked until that
-   * head operation is synced or resolved. This prevents a backed-off or blocked head
-   * from letting a later operation of the same file leapfrog it between passes
-   * (e.g. a rename overtaking a not-yet-synced write). Operations of different files
-   * remain independent.
-   *
-   * Note: we deliberately fetch all rows and apply the per-file gating in TS rather
-   * than filtering blocked rows in SQL — filtering them out in SQL would surface a
-   * later same-file operation as if it were the head.
+   * Structural operations gate both endpoints and their descendants. A backed
+   * off/manual operation remains a dependency. IDs preserve enqueue order even
+   * across clock changes; mtime only prioritizes independent ready operations.
    */
   async getPendingOperations(now: number = Date.now()): Promise<SyncOperation[]> {
-    // Prefer the most-recently-modified files first (newest mtime → oldest) so
-    // recent edits sync first; the per-file FIFO gate below is preserved because
-    // all ops of one file share the same files.mtime_local, so the queued_at/id
-    // tiebreak keeps that file's ops in enqueue order (its head stays first).
     const rows = await this.db.query<SyncOperation & { requires_manual_intervention?: number | null; _mtime?: number | null }>(
       `SELECT offline_queue.*, files.mtime_local AS _mtime
          FROM offline_queue
          LEFT JOIN files ON files.path = offline_queue.file_path
-        ORDER BY files.mtime_local DESC, offline_queue.queued_at ASC, offline_queue.id ASC`
+        ORDER BY offline_queue.id ASC`
     );
-    // Defensive ordering so head detection holds regardless of row source order.
-    const ordered = [...rows].sort((a, b) => ((b._mtime ?? 0) - (a._mtime ?? 0)) || (a.queued_at - b.queued_at) || (a.id - b.id));
-
-    const eligible: SyncOperation[] = [];
-    const seenFiles = new Set<string>();
+    const ordered = [...rows].sort((a, b) => a.id - b.id);
+    const renames = ordered.filter((op) => op.operation === "rename" && op.new_path);
+    const structures = ordered.filter((op) => op.operation !== "write");
+    const followsRename = (write: SyncOperation, rename: SyncOperation): boolean =>
+      !!rename.new_path && containsPath(rename.new_path, write.file_path)
+      && (write.id > rename.id || !structures.some((between) =>
+        between.id > write.id && between.id < rename.id
+        && endpoints(between).some((p) => overlaps(p, write.file_path))));
+    const earlierStructures: SyncOperation[] = [];
+    const earlierWrites = new Set<string>();
+    const earlierWriteOps: SyncOperation[] = [];
+    const eligible: typeof rows = [];
     for (const op of ordered) {
-      if (seenFiles.has(op.file_path)) continue; // a later op of a file we already gated on
-      seenFiles.add(op.file_path);
-      if (op.requires_manual_intervention) continue; // head needs manual fix -> whole file blocked
-      if (op.next_retry_at > now) continue;          // head in backoff -> whole file waits
-      eligible.push(op);
+      let blocked: boolean;
+      if (op.operation === "write") {
+        // Old versions rewrote writes in place BEFORE inserting the MOVE.
+        // Such persisted rows must also wait for their destination's MOVE.
+        blocked = earlierWrites.has(op.file_path)
+          || earlierStructures.some((prior) => endpoints(prior).some((p) => overlaps(p, op.file_path)))
+          || renames.some((rename) => followsRename(op, rename));
+        earlierWrites.add(op.file_path);
+        earlierWriteOps.push(op);
+      } else {
+        blocked = earlierStructures.some((prior) => endpoints(prior).some((p) => endpoints(op).some((q) => overlaps(p, q))))
+          || earlierWriteOps.some((write) =>
+            !(op.operation === "rename" && followsRename(write, op))
+            && endpoints(op).some((q) => overlaps(write.file_path, q)));
+        earlierStructures.push(op);
+      }
+      if (!blocked && !op.requires_manual_intervention && !(op.next_retry_at > now)) eligible.push(op);
     }
+    eligible.sort((a, b) => ((b._mtime ?? 0) - (a._mtime ?? 0)) || a.id - b.id);
     if (rows.length > 0) {
-      const blocked = rows.length - eligible.length;
-      console.log(`[SyncQueue] ${eligible.length} eligible / ${rows.length} queued op(s)` + (blocked > 0 ? ` (${blocked} blocked by backoff or manual intervention)` : ""));
+      console.log(`[SyncQueue] ${eligible.length} eligible / ${rows.length} queued op(s)`);
     }
     return eligible;
   }

@@ -6,6 +6,8 @@ Antwortet ein WebDAV-, CalDAV- oder S3-Dienst mit einer Anmeldeseite oder einer 
 
 Kann eine lokale Datei wegen fehlender Rechte oder eines Lesefehlers nicht hochgeladen werden, bleibt der Auftrag mit seinem Fehler in der Warteschlange. Stelle den Dateizugriff wieder her und starte den Abgleich erneut. Nur eine tatsächlich fehlende Datei gilt als nicht mehr vorhanden; ein Zugriffsfehler wird nicht als erfolgreicher Upload verbucht.
 
+Offline vorgenommene Änderungen bleiben auch bei mehreren Umbenennungen erhalten. Plainva führt zusammengehörige Verschiebungen vor dem Upload des aktuellen Inhalts aus; ein fehlgeschlagener Vorgang hält die davon abhängigen Aufträge zurück. Fehlt die entfernte Quelle beim Umbenennen, lädt Plainva die noch vorhandene lokale Datei oder den Ordnerinhalt am neuen Ort hoch. Unlesbare Inhalte bleiben als Fehler zur Wiederholung vorgemerkt.
+
 Plainva synchronisiert Vaults über austauschbare Sync-Adapter. Diese Seite zeigt, welche Dienste Du heute schon nutzen kannst — direkt integriert, über das WebDAV-Protokoll oder über den Desktop-Sync-Client des jeweiligen Anbieters.
 
 ## Direkt integriert

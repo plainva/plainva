@@ -1194,6 +1194,9 @@ export class SyncWorker {
         : await this.target.pull(this.cursor);
       const now = Date.now();
       const remotePaths = new Set(pullResult.etagMap.keys());
+      const structuralPending = await this.queue.getPendingStructuralPaths();
+      const awaitingStructure = (path: string): boolean =>
+        structuralPending.some((p) => path === p || path.startsWith(p + "/"));
 
       // Empty-folder sync (2026-07-17): full listings report the remote FOLDER
       // paths; create locally missing ones so an empty remote folder appears
@@ -1214,7 +1217,7 @@ export class SyncWorker {
 
       for (const folder of pullResult.folders ?? []) {
         if (!folder || isLocalOnlyPath(folder)) continue;
-        if (awaitingDeletion(folder)) continue;
+        if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
         try {
           if (!(await this.vault.exists(folder))) {
             await this.vault.createDir(folder);
@@ -1240,14 +1243,13 @@ export class SyncWorker {
       // Overlap the network downloads for the files this cycle will actually
       // reconcile (P3.3): everything AFTER the download — merge, writes,
       // sync_state, the failure counters — stays strictly sequential below.
-      const structuralPending = new Set(await this.queue.getPendingStructuralPaths());
       const reconcileOrder: string[] = [];
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
         if (isLocalOnlyPath(path)) continue;
         // No speculative download for a file with a queued delete/rename —
         // reconcile skips those (live-checked below), so downloading would be
         // wasted bandwidth at best and a resurrection vector at worst.
-        if (structuralPending.has(path)) continue;
+        if (awaitingStructure(path)) continue;
         const s = stateMap.get(path) ?? null;
         if (s && s.remote_etag === remoteEtag) continue;
         reconcileOrder.push(path);

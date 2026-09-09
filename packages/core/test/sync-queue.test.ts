@@ -174,7 +174,7 @@ describe("SyncQueue", () => {
 
     const q = db.queries.find(qq => qq.query.includes("operation IN ('rename', 'delete')"));
     expect(q).toBeDefined();
-    expect(q?.params).toEqual(["a.md", "a.md"]);
+    expect(q?.params).toEqual(["a.md", "a.md", "a.md", "a.md"]);
 
     db.mockedOneResults.push(null);
     expect(await queue.hasPendingStructuralOp("b.md")).toBe(false);

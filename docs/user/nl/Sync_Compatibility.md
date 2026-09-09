@@ -6,6 +6,8 @@ Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inven
 
 Als een lokaal bestand door een toegangs- of leesfout niet kan worden geüpload, blijven de opdracht en de fout in de wachtrij staan. Herstel de bestandstoegang en probeer opnieuw te synchroniseren. Alleen een bestand dat echt ontbreekt, geldt als afwezig; een toegangsfout wordt niet als geslaagde upload geregistreerd.
 
+Offline wijzigingen blijven behouden, ook na meerdere naamswijzigingen. Plainva voltooit de bijbehorende verplaatsingen voordat de huidige inhoud wordt geüpload; bij een fout wachten afhankelijke taken. Ontbreekt de externe bron, dan uploadt Plainva het nog aanwezige lokale bestand of de mapinhoud naar de nieuwe locatie. Onleesbare inhoud blijft met een fout in de wachtrij staan om opnieuw te proberen.
+
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 
 ## Rechtstreeks geïntegreerd

@@ -233,6 +233,7 @@ export class WebDavSyncTarget implements ISyncTarget {
           "Destination": destUrl
         }
       });
+      if (res.status === 404) return { renameSourceMissing: true };
       if (!res.ok && res.status !== 404) {
         throw new Error(`WebDAV MOVE failed: ${res.status} ${res.statusText}`);
       } else if (res.ok) {

@@ -6,6 +6,8 @@ Si un servicio WebDAV, CalDAV o S3 devuelve una página de inicio de sesión o u
 
 Si un archivo local no se puede subir por un error de permisos o de lectura, la tarea y su error permanecen en la cola. Restablece el acceso al archivo y vuelve a sincronizar. Solo un archivo que realmente falta se considera ausente; un fallo de acceso no se registra como una subida correcta.
 
+Los cambios realizados sin conexión se conservan incluso tras varios cambios de nombre. Plainva completa los movimientos relacionados antes de subir el contenido actual; una operación fallida retiene las tareas que dependen de ella. Si falta el origen remoto, Plainva sube el archivo local o el contenido de la carpeta a la nueva ubicación. El contenido que no se puede leer permanece en la cola con un error para volver a intentarlo.
+
 Plainva sincroniza vaults mediante adaptadores de sincronización intercambiables. Esta página muestra qué servicios puedes usar hoy — integrados directamente, mediante el protocolo WebDAV, o mediante el propio cliente de escritorio de sincronización del proveedor.
 
 ## Integrados directamente
