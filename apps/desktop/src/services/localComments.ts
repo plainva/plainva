@@ -8,6 +8,7 @@
  * which settings store holds its id and the reviewer name.
  */
 import { BundleCommentStore, type BundleCommentsMode, type CommentStore, type IVaultAdapter } from "@plainva/core";
+import i18n from "@plainva/ui/i18n";
 import { hasLocalKeyfile, loadCachedMasterKey } from "./encryptionSession";
 import { commentsCryptoFor, getDeviceId } from "./settingsProfile";
 import { getSettingsStore } from "./settingsStore";
@@ -17,6 +18,19 @@ export async function localCommentsMode(vaultPath: string, raw: IVaultAdapter): 
   const mk = await loadCachedMasterKey(vaultPath);
   if (mk) return { kind: "sealed", crypto: commentsCryptoFor(mk) };
   return (await hasLocalKeyfile(raw)) ? { kind: "locked" } : { kind: "plain" };
+}
+
+/**
+ * What this device calls itself when nobody typed a name (finding 2026-09-09):
+ * the platform and the first four characters of the device id - "Windows
+ * device 4f3a". Honest, because in a plain vault the device IS the author,
+ * and stable across every other device that reads the bundle. Without this a
+ * remark from a device with an empty name field read "Unknown member".
+ */
+export function commentDeviceFallbackName(deviceId: string): string {
+  const raw = ((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform ?? "").toLowerCase();
+  const platform = raw.includes("win") ? "Windows" : raw.includes("mac") ? "macOS" : raw.includes("linux") ? "Linux" : "Desktop";
+  return i18n.t("comments.commentDeviceName", { platform, id: deviceId.slice(0, 4) });
 }
 
 /**
@@ -46,7 +60,8 @@ export function createLocalCommentStore(
     vault: raw,
     deviceId: async () => getDeviceId(await getSettingsStore()),
     mode: () => localCommentsMode(vaultPath, raw),
-    authorName,
+    // The name the person gave, else the device's own label - never nothing.
+    authorName: async () => (await authorName())?.trim() || commentDeviceFallbackName(await getDeviceId(await getSettingsStore())),
     written,
     // A comment file that could not be read (N3): the shell shows it once,
     // with the reason and a way to export the diagnosis.

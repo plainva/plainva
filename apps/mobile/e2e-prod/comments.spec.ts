@@ -31,6 +31,15 @@ async function pastTheFirstStart(page: Page) {
   await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
 }
 
+/** The first remark asks once how it should be signed; the answer lands in the settings (finding 2026-09-09). */
+async function answerNamePrompt(page: Page) {
+  const input = page.getByPlaceholder(/^Your name$/);
+  if (await input.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await input.fill("Marco");
+    await page.getByRole("button", { name: /^OK$/ }).click();
+  }
+}
+
 /** Into the first note. The welcome vault seeds folders and notes; every row is a swipe row, and the first may be a folder. */
 async function openFirstNote(page: Page) {
   const menu = page.getByTestId("note-menu");
@@ -57,7 +66,10 @@ test("a plain vault has the sheet: a remark is posted from the note menu and lis
   // Post, and see it - with no name set the byline falls back honestly.
   await sheet.locator(".pv-comment-compose textarea").fill("a remark from the phone");
   await sheet.locator(".pv-comment-compose button", { hasText: /^Send$/ }).click();
+  await answerNamePrompt(page);
   await expect(sheet.locator(".pv-comment-card__body", { hasText: "a remark from the phone" })).toBeVisible({ timeout: 10000 });
+  // The reader's own card says "you" (finding 2026-09-09).
+  await expect(sheet.locator(".pv-comment-card__name").first()).toHaveText(/^You$/);
   await expect(sheet.getByText(/No comments yet/)).toHaveCount(0);
 });
 
@@ -76,6 +88,7 @@ test("a suggestion made in suggest mode is accepted from the sheet and lands in 
   const send = page.getByRole("button", { name: /^Send suggestions/ });
   await expect(send).toBeEnabled({ timeout: 10000 });
   await send.click();
+  await answerNamePrompt(page);
   await expect(send).toHaveCount(0, { timeout: 10000 });
   // Sending leaves the editor in writing mode, whose bar has no note menu:
   // "Done" first, then the menu is back.

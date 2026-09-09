@@ -3376,6 +3376,12 @@
     "commentFileUnreadable": "Un fichier d’annotations n’a pas pu être lu : {{file}} ({{reason}}). Il n’a pas été modifié.",
     "commentFileSetAside": "Le fichier d’annotations de cet appareil n’a pas pu être lu ({{reason}}) ; il a été mis de côté sous {{file}}. Un nouveau est écrit.",
     "commentFaultExport": "Exporter le diagnostic",
+    "commentAuthorYou": "Vous",
+    "commentUnnamedDevice": "Appareil sans nom",
+    "commentDeviceName": "Appareil {{platform}} {{id}}",
+    "authorNamePromptTitle": "Comment signer vos annotations ?",
+    "authorNamePromptBody": "Le nom figure sur chaque commentaire et suggestion de cet appareil et reste enregistré ici ; modifiable sous « Votre nom (annotations et relectures) ». Sans nom, l’appareil signe avec sa propre étiquette.",
+    "authorNamePlaceholder": "Votre nom",
     "commentFaultReason": {
       "bundle-json": "JSON invalide",
       "bundle-schema": "structure inattendue",

@@ -3412,6 +3412,12 @@
     "commentFileUnreadable": "Nie udało się odczytać pliku uwag: {{file}} ({{reason}}). Plik pozostał nietknięty.",
     "commentFileSetAside": "Nie udało się odczytać pliku uwag tego urządzenia ({{reason}}); odłożono go jako {{file}}. Zapisywany jest nowy.",
     "commentFaultExport": "Eksportuj diagnostykę",
+    "commentAuthorYou": "Ty",
+    "commentUnnamedDevice": "Urządzenie bez nazwy",
+    "commentDeviceName": "Urządzenie {{platform}} {{id}}",
+    "authorNamePromptTitle": "Jak podpisywać Twoje uwagi?",
+    "authorNamePromptBody": "Imię widnieje przy każdym komentarzu i propozycji z tego urządzenia i zostaje tu zapisane — do zmiany w „Twoje imię (uwagi i przeglądy)”. Bez imienia urządzenie podpisuje własną etykietą.",
+    "authorNamePlaceholder": "Twoje imię",
     "commentFaultReason": {
       "bundle-json": "nieprawidłowy JSON",
       "bundle-schema": "nieoczekiwana struktura",

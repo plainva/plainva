@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState } from "@plainva/ui";
+import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -168,7 +168,9 @@ export function CommentsSheet({
     if (!activeCommentId || !card || typeof card.scrollIntoView !== "function") return;
     card.scrollIntoView({ block: "nearest" });
   }, [activeCommentId, kind, filter]);
-  const nameOf = (id: string) => memberNames.get(id) ?? t("comments.commentUnknownAuthor");
+  const nameOf = (ref: { authorMemberId: string; targetRevisionId?: string }) => commentAuthorLabel(ref, memberNames, selfMemberId, t);
+  const roundAuthor = (round: { authorMemberId: string; blocks: Array<{ root: WorkspaceCommentRecord }> }) =>
+    nameOf({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId });
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
@@ -241,7 +243,7 @@ export function CommentsSheet({
             const state = suggestionState(root);
             return (
               <div key={root.commentId} ref={activeCommentId === root.commentId ? activeCardRef : undefined} className={`pv-comment-card${activeCommentId === root.commentId ? " is-active" : ""}`}>
-                <CommentCardHead name={nameOf(root.authorMemberId)} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
+                <CommentCardHead name={nameOf(root)} initials={authorInitials(memberNames.get(root.authorMemberId) ?? nameOf(root))} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
                 {addressed && (
                   <span className="pv-comment-card__state">
                     <AtSign size={ICON.meta} aria-hidden="true" /> {t("comments.commentMentionsYou")}
@@ -265,7 +267,7 @@ export function CommentsSheet({
                 )}
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentCardHead name={nameOf(reply.authorMemberId)} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
+                    <CommentCardHead name={nameOf(reply)} initials={authorInitials(memberNames.get(reply.authorMemberId) ?? nameOf(reply))} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
                     <CommentBody body={reply.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                     {mayDelete(reply) && <div className="pv-comment-card__actions">{deleteControl(reply)}</div>}
                     {confirmBox(reply, 0)}
@@ -374,7 +376,7 @@ export function CommentsSheet({
             <section key={round.batchId} className="pv-comment-round">
               {!round.batchId.startsWith("single:") && (
                 <div className="pv-comment-round__head">
-                  <CommentCardHead name={nameOf(round.authorMemberId)} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+                  <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(round.authorMemberId) ?? roundAuthor(round))} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
                   <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("comments.suggestRoundCount", { n: round.blocks.length })}</p>
                   {round.open > 1 && (
                     <div className="pv-comment-card__actions">

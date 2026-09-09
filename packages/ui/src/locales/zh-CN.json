@@ -3304,6 +3304,12 @@
     "commentFileUnreadable": "无法读取批注文件：{{file}}（{{reason}}）。该文件未被改动。",
     "commentFileSetAside": "无法读取此设备的批注文件（{{reason}}），已将其移至 {{file}}。将写入新文件。",
     "commentFaultExport": "导出诊断",
+    "commentAuthorYou": "你",
+    "commentUnnamedDevice": "未命名设备",
+    "commentDeviceName": "{{platform}} 设备 {{id}}",
+    "authorNamePromptTitle": "你的批注应如何署名？",
+    "authorNamePromptBody": "该名字会出现在此设备的每条评论和建议上，并保存在这里；可在“你的名字（批注与审阅）”中更改。没有名字时，设备将以自身标签署名。",
+    "authorNamePlaceholder": "你的名字",
     "commentFaultReason": {
       "bundle-json": "不是有效的 JSON",
       "bundle-schema": "结构异常",

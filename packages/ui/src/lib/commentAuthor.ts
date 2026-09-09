@@ -21,3 +21,33 @@ export function authorHue(memberId: string): number {
   for (let i = 0; i < memberId.length; i += 1) hash = (hash * 31 + memberId.charCodeAt(i)) >>> 0;
   return hash % AUTHOR_HUES;
 }
+
+/** The two facts a byline needs: who wrote it, and whether the record comes from the sealed path (which carries a revision) or the open one. */
+export interface CommentAuthorRef {
+  authorMemberId: string;
+  targetRevisionId?: string;
+}
+
+/**
+ * What a card, a round or an overview row writes as the author (finding
+ * 2026-09-09: "Unknown member" on every own remark in a plain vault).
+ *
+ * Three answers, in this order: "you" for the reader's own remarks - the id
+ * is known, and a name is what the OTHERS need; the name the author's device
+ * (or a workspace policy) stated; and, failing that, an honest fallback that
+ * fits the store the record came from. In a plain vault the author is a
+ * DEVICE, so a missing name means "a device that has not said its name yet",
+ * never an unknown member - a workspace record always carries a revision,
+ * an open one never does, and that is what tells the two apart.
+ */
+export function commentAuthorLabel(
+  ref: CommentAuthorRef,
+  names: ReadonlyMap<string, string>,
+  selfId: string | null,
+  t: (key: string) => string,
+): string {
+  if (selfId && ref.authorMemberId === selfId) return t("comments.commentAuthorYou");
+  const name = names.get(ref.authorMemberId);
+  if (name) return name;
+  return t(ref.targetRevisionId === undefined ? "comments.commentUnnamedDevice" : "comments.commentUnknownAuthor");
+}

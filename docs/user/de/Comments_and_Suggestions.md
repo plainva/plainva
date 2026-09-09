@@ -1,8 +1,8 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt.
+Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
 ## Kommentare an einer Notiz
 

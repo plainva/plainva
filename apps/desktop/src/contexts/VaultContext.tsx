@@ -14,7 +14,7 @@ import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createLimiter, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
-import { appConfirm } from "../services/appDialogs";
+import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
@@ -3118,9 +3118,38 @@ export const VaultProvider: React.FC<{
   // workspace signs with the member id, the plain vault writes the device id.
   const getCommentSelfId = async (): Promise<string | null> => (await commentStore()?.selfId()) ?? null;
 
+  /**
+   * The name a remark is signed with, asked for ONCE where it is first needed
+   * (finding 2026-09-09: every own remark read "Unknown member" because the
+   * field was empty). Only in a vault without a workspace - a workspace signs
+   * with the member -, only for a remark or a proposal (never for a resolve or
+   * retract marker), and only until the person answered or declined: a
+   * declined question is not asked again this session, and the device then
+   * signs with its own label. The answer lands in the one field the app has,
+   * "Your name (remarks and reviews)" - the same field "mark as reviewed"
+   * fills the same way.
+   */
+  const commentNameAskedRef = useRef(new Set<string>());
+  const ensureCommentAuthorName = async (store: CommentStore, vaultPath: string): Promise<void> => {
+    if (commentNameAskedRef.current.has(vaultPath)) return;
+    if ((await store.state()).mode === "workspace") return;
+    const settings = await getSettingsStore();
+    if ((await settings.get<string>(verifierNameKey(vaultPath)))?.trim()) return;
+    commentNameAskedRef.current.add(vaultPath);
+    const answer = await appPrompt({
+      title: i18n.t("comments.authorNamePromptTitle"),
+      message: i18n.t("comments.authorNamePromptBody"),
+      placeholder: i18n.t("comments.authorNamePlaceholder"),
+    });
+    if (!answer?.trim()) return;
+    await settings.set(verifierNameKey(vaultPath), answer.trim());
+    await settings.save();
+  };
+
   const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null, batch: { batchId: string; index: number; note: string | null } | null = null): Promise<void> => {
     const store = commentStore();
     if (!store) throw new Error("comments-unavailable");
+    if (state.vaultPath && !resolvedCommentId && !retractsCommentId && (body.trim() || suggestion)) await ensureCommentAuthorName(store, state.vaultPath);
     await store.post({ path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, batch });
   };
 

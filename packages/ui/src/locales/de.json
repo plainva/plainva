@@ -3340,6 +3340,12 @@
     "commentFileUnreadable": "Eine Anmerkungsdatei konnte nicht gelesen werden: {{file}} ({{reason}}). Sie wurde nicht angetastet.",
     "commentFileSetAside": "Die Anmerkungsdatei dieses Geräts konnte nicht gelesen werden ({{reason}}) und liegt jetzt unter {{file}}. Eine neue wird geschrieben.",
     "commentFaultExport": "Diagnose exportieren",
+    "commentAuthorYou": "Du",
+    "commentUnnamedDevice": "Gerät ohne Namen",
+    "commentDeviceName": "{{platform}}-Gerät {{id}}",
+    "authorNamePromptTitle": "Wie sollen Deine Anmerkungen gezeichnet sein?",
+    "authorNamePromptBody": "Der Name steht bei jedem Kommentar und Vorschlag von diesem Gerät und bleibt hier gespeichert — änderbar unter „Dein Name (Anmerkungen und Prüfungen)“. Ohne Namen zeichnet das Gerät mit seiner Bezeichnung.",
+    "authorNamePlaceholder": "Dein Name",
     "commentFaultReason": {
       "bundle-json": "kein gültiges JSON",
       "bundle-schema": "unerwartete Struktur",

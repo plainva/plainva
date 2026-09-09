@@ -4,7 +4,7 @@ import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks,
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
-import { anchorDisplayLabel, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -212,8 +212,10 @@ export function WorkspaceCommentsColumn({
     card.scrollIntoView({ block: "nearest" });
   }, [activeCommentId, kind, filter]);
 
-  const authorOf = (comment: WorkspaceCommentRecord): string =>
-    memberNames.get(comment.authorMemberId) ?? t("comments.commentUnknownAuthor");
+  const authorOf = (comment: WorkspaceCommentRecord): string => commentAuthorLabel(comment, memberNames, selfMemberId, t);
+  /** A round is named by its first block: the record knows which store it came from. */
+  const roundAuthor = (round: { authorMemberId: string; blocks: Array<{ root: WorkspaceCommentRecord }> }): string =>
+    commentAuthorLabel({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId }, memberNames, selfMemberId, t);
 
   /**
    * The returns, grouped by the publication they arrived through.
@@ -524,10 +526,10 @@ export function WorkspaceCommentsColumn({
       {kind === "suggestions" && grouped.rounds.map((round) => {
         const open = round.blocks.filter((block) => isCommentThreadOpen(block.root));
         return (
-          <section key={round.batchId} className="pv-comment-round" aria-label={t("comments.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor") })}>
+          <section key={round.batchId} className="pv-comment-round" aria-label={t("comments.suggestRound", { name: roundAuthor(round) })}>
             {!round.batchId.startsWith("single:") && (
             <div className="pv-comment-round__head">
-              <CommentCardHead name={memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor")} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+              <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(round.authorMemberId) ?? roundAuthor(round))} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
               <p className="pv-comment-round__meta">
                 {round.note ? <em>„{round.note}“ · </em> : null}
                 {t("comments.suggestRoundCount", { n: round.blocks.length })}
@@ -643,7 +645,7 @@ function CommentBody({
 }) {
   return (
     <>
-      <CommentCardHead name={author} memberId={comment.authorMemberId} createdAt={comment.createdAt} locale={locale} />
+      <CommentCardHead name={author} initials={authorInitials(names.get(comment.authorMemberId) ?? author)} memberId={comment.authorMemberId} createdAt={comment.createdAt} locale={locale} />
       <SharedCommentBody body={comment.body} names={names} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
     </>
   );

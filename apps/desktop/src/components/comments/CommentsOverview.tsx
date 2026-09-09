@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, Lock, MessageSquare, RefreshCw, Replace } from "lucide-react";
 import type { CommentStoreState, WorkspaceCommentRecord } from "@plainva/core";
-import { buildCommentOverview, Button, COMMENT_OVERVIEW_FOCUS_EVENT, EmptyState, groupSuggestionRounds, ICON, noteDisplayName, parseCommentMentions, requestCommentJump, Segmented, takeCommentOverviewFocus } from "@plainva/ui";
+import { buildCommentOverview, Button, COMMENT_OVERVIEW_FOCUS_EVENT, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, noteDisplayName, parseCommentMentions, requestCommentJump, Segmented, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 
 /**
@@ -143,7 +143,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                 }}
               >
                 <p className="pv-comment-round__meta">
-                  <strong>{t("comments.suggestRound", { name: memberNames.get(round.authorMemberId) ?? t("comments.commentUnknownAuthor") })}</strong>
+                  <strong>{t("comments.suggestRound", { name: commentAuthorLabel({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId }, memberNames, selfMemberId, t) })}</strong>
                   {" · "}{t("comments.suggestRoundCount", { n: round.open })}
                   {round.note ? <em> · „{round.note}“</em> : null}
                 </p>
@@ -174,7 +174,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                   </span>
                 )}
                 <small className="pv-comment-card__meta" data-tip={root.authorMemberId}>
-                  {memberNames.get(root.authorMemberId) ?? t("comments.commentUnknownAuthor")}
+                  {commentAuthorLabel(root, memberNames, selfMemberId, t)}
                   {" · "}
                   {new Date(root.createdAt).toLocaleString()}
                 </small>

@@ -309,3 +309,19 @@ describe("a text change made by the screen reaches the editor", () => {
     expect(host).toMatch(/applyExternalText\(d\.text\)/);
   });
 });
+
+describe("the name a remark is signed with, on the phone (finding 2026-09-09)", () => {
+  const service = strip(read("services", "mobileComments.ts"));
+
+  it("is asked for once, in the post funnel, for remarks and proposals only", () => {
+    const post = service.slice(service.indexOf("export async function postMobileComment"));
+    expect(post).toMatch(/if \(!input\.resolvedCommentId && !input\.retractsCommentId && \(input\.body\.trim\(\) \|\| input\.suggestion\)\) await ensureAuthorName\(vault\)/);
+    const ask = service.slice(service.indexOf("async function ensureAuthorName"), service.indexOf("export function mobileCommentStore"));
+    expect(ask).toMatch(/nameAsked\.add\(vault\.vaultId\)/);
+    expect(ask).toMatch(/updateMobileSettings\(\{ verifierName: res\.value\.trim\(\) \}\)/);
+  });
+
+  it("falls back to the phone's own label, never to nothing", () => {
+    expect(service).toMatch(/getMobileSettings\(\)\.verifierName\.trim\(\) \|\| commentDeviceFallbackName\(/);
+  });
+});

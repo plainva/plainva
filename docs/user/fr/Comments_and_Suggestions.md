@@ -1,8 +1,8 @@
 # Commentaires et suggestions
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille.
+Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
 ## Commentaires sur une note
 

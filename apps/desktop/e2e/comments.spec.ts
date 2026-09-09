@@ -272,10 +272,20 @@ async function openColumn(page: Page) {
   return column;
 }
 
+/** The first remark asks once how it should be signed; the answer lands in the settings (finding 2026-09-09). */
+async function answerNamePrompt(page: Page) {
+  const input = page.getByPlaceholder(/^(Your name|Dein Name)$/);
+  if (await input.isVisible({ timeout: 1500 }).catch(() => false)) {
+    await input.fill('Marco');
+    await input.press('Enter');
+  }
+}
+
 async function postComment(page: Page, column: ReturnType<Page['locator']>, text: string) {
   const box = column.locator('.pv-comment-compose--new textarea');
   await box.fill(text);
   await column.locator('.pv-comment-compose--new button', { hasText: /Send|Senden/ }).click();
+  await answerNamePrompt(page);
   await expect(column.locator('.pv-comment-card__body', { hasText: text })).toBeVisible();
 }
 
@@ -290,6 +300,10 @@ test('a plain vault has the column: a comment is written, answered and resolved,
   const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), own);
   expect(Object.values(bundle.comments).map((c: any) => c.body)).toEqual(['so far so good']);
   expect(Object.values(bundle.comments).map((c: any) => c.path)).toEqual(['Welcome.md']);
+  // The name the prompt took is in the bundle for the other devices; this
+  // device's own card says "you" (finding 2026-09-09).
+  expect(Object.values(bundle.authors).map((a: any) => a.name)).toEqual(['Marco']);
+  await expect(column.locator('.pv-comment-card__name').first()).toHaveText(/^(You|Du)$/);
   // The legacy single file is never written again.
   const legacy = await page.evaluate(() => (window as any).mockFs['/test-vault/.plainva/sync/comments.json']);
   expect(legacy).toBeUndefined();
@@ -395,6 +409,7 @@ test('a suggestion round is sent from the editor, accepted in the column, and th
   // The file itself is untouched while the mode is on.
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe("# Hello\nWelcome to the mock vault!");
   await send.click();
+  await answerNamePrompt(page);
   await expect(page.getByTestId('suggest-band')).toHaveCount(0);
 
   // The round lands under "Suggestions"; accepting writes the passage.

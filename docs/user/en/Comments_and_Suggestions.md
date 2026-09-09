@@ -1,8 +1,8 @@
 # Comments & Suggestions
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet.
+Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
 ## Comments on a note
 

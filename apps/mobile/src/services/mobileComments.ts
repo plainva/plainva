@@ -26,7 +26,10 @@ import {
   type WorkspaceCommentAnchor,
   type WorkspaceCommentRecord,
 } from "@plainva/core";
-import { getMobileSettings } from "./mobileSettings";
+import { Capacitor } from "@capacitor/core";
+import i18n from "@plainva/ui/i18n";
+import { mPrompt } from "./mobileDialogs";
+import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
 import { mobileCommentsMode, mobileSyncDeviceId } from "./mobileSettingsSync";
 import type { MobileVault } from "./vaultService";
 
@@ -61,6 +64,41 @@ export async function canCommentOnNote(vault: MobileVault, path: string): Promis
 const stores = new WeakMap<MobileVault, CommentStore>();
 
 /**
+ * What this phone calls itself when nobody typed a name (finding 2026-09-09):
+ * the platform and the first four characters of the device id - "iOS device
+ * 4f3a". Honest, because in a plain vault the device IS the author, and the
+ * same shape the desktop signs with. Without this a remark from a phone with
+ * an empty name field read "Unknown member".
+ */
+export function commentDeviceFallbackName(deviceId: string): string {
+  const raw = Capacitor.getPlatform();
+  const platform = raw === "ios" ? "iOS" : raw === "android" ? "Android" : "Web";
+  return i18n.t("comments.commentDeviceName", { platform, id: deviceId.slice(0, 4) });
+}
+
+const nameAsked = new Set<string>();
+
+/**
+ * The name a remark is signed with, asked for ONCE where it is first needed -
+ * the same question, the same field and the same rules as the desktop: only
+ * for a remark or a proposal, never for a marker; a declined question is not
+ * asked again this session, and the phone then signs with its own label.
+ * "Mark as reviewed" fills the same field the same way.
+ */
+async function ensureAuthorName(vault: MobileVault): Promise<void> {
+  if (nameAsked.has(vault.vaultId)) return;
+  if (getMobileSettings().verifierName.trim()) return;
+  nameAsked.add(vault.vaultId);
+  const res = await mPrompt({
+    title: i18n.t("comments.authorNamePromptTitle"),
+    message: i18n.t("comments.authorNamePromptBody"),
+    placeholder: i18n.t("comments.authorNamePlaceholder"),
+  });
+  if (res.cancelled || !res.value.trim()) return;
+  updateMobileSettings({ verifierName: res.value.trim() });
+}
+
+/**
  * The one store of a vault, chosen once (N0).
  *
  * Reads and writes through the RAW sandbox adapter, like the sideband step
@@ -77,8 +115,9 @@ export function mobileCommentStore(vault: MobileVault): CommentStore {
       deviceId: mobileSyncDeviceId,
       mode: () => mobileCommentsMode(vault),
       // The reviewer name this vault already carries (D1), the person at this
-      // phone - rather than a second name field asking the same question.
-      authorName: async () => getMobileSettings().verifierName,
+      // phone - rather than a second name field asking the same question -
+      // else the phone's own label, never nothing.
+      authorName: async () => getMobileSettings().verifierName.trim() || commentDeviceFallbackName(await mobileSyncDeviceId()),
       written: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
       // A comment file that could not be read (N3): the shell shows it once,
       // with the reason and a way to export the diagnosis.
@@ -140,6 +179,7 @@ export interface PostMobileCommentInput {
  * must appear now, and the union merge makes an early local write safe.
  */
 export async function postMobileComment(vault: MobileVault, input: PostMobileCommentInput): Promise<void> {
+  if (!input.resolvedCommentId && !input.retractsCommentId && (input.body.trim() || input.suggestion)) await ensureAuthorName(vault);
   await mobileCommentStore(vault).post({
     path: input.path,
     body: input.body,

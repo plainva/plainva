@@ -149,3 +149,22 @@ describe("the comment texts live in their own namespace (N4)", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("the name a remark is signed with (finding 2026-09-09)", () => {
+  it("is asked for once, in the post funnel, for remarks and proposals only", () => {
+    const context = strip(read("contexts", "VaultContext.tsx"));
+    const funnel = context.slice(context.indexOf("const postWorkspaceCommentRecord = async"), context.indexOf("const retryWorkspaceComment"));
+    expect(funnel).toMatch(/if \(state\.vaultPath && !resolvedCommentId && !retractsCommentId && \(body\.trim\(\) \|\| suggestion\)\) await ensureCommentAuthorName\(store, state\.vaultPath\)/);
+    const ask = context.slice(context.indexOf("const ensureCommentAuthorName = async"), context.indexOf("const postWorkspaceCommentRecord"));
+    // Never in a workspace (the member signs), never twice a session, and the
+    // answer lands in the one field the app has.
+    expect(ask).toMatch(/mode === "workspace"\) return/);
+    expect(ask).toMatch(/commentNameAskedRef\.current\.add\(vaultPath\)/);
+    expect(ask).toMatch(/settings\.set\(verifierNameKey\(vaultPath\), answer\.trim\(\)\)/);
+  });
+
+  it("falls back to the device's own label, never to nothing", () => {
+    const local = strip(read("services", "localComments.ts"));
+    expect(local).toMatch(/\(await authorName\(\)\)\?\.trim\(\) \|\| commentDeviceFallbackName\(/);
+  });
+});

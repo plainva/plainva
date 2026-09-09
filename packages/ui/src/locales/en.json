@@ -3340,6 +3340,12 @@
     "commentFileUnreadable": "A remarks file could not be read: {{file}} ({{reason}}). It was left untouched.",
     "commentFileSetAside": "This device's remarks file could not be read ({{reason}}) and was set aside as {{file}}. A new one is written.",
     "commentFaultExport": "Export diagnosis",
+    "commentAuthorYou": "You",
+    "commentUnnamedDevice": "Unnamed device",
+    "commentDeviceName": "{{platform}} device {{id}}",
+    "authorNamePromptTitle": "How should your remarks be signed?",
+    "authorNamePromptBody": "The name appears on every comment and suggestion from this device and stays here — changeable under “Your name (remarks and reviews)”. Without a name, the device signs with its own label.",
+    "authorNamePlaceholder": "Your name",
     "commentFaultReason": {
       "bundle-json": "not valid JSON",
       "bundle-schema": "unexpected structure",

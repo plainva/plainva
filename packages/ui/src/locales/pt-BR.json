@@ -3376,6 +3376,12 @@
     "commentFileUnreadable": "Um arquivo de anotações não pôde ser lido: {{file}} ({{reason}}). Ele não foi alterado.",
     "commentFileSetAside": "O arquivo de anotações deste dispositivo não pôde ser lido ({{reason}}) e foi posto de lado como {{file}}. Um novo será gravado.",
     "commentFaultExport": "Exportar diagnóstico",
+    "commentAuthorYou": "Você",
+    "commentUnnamedDevice": "Dispositivo sem nome",
+    "commentDeviceName": "Dispositivo {{platform}} {{id}}",
+    "authorNamePromptTitle": "Como suas anotações devem ser assinadas?",
+    "authorNamePromptBody": "O nome aparece em todo comentário e sugestão deste dispositivo e fica salvo aqui — alterável em “Seu nome (anotações e revisões)”. Sem nome, o dispositivo assina com o próprio rótulo.",
+    "authorNamePlaceholder": "Seu nome",
     "commentFaultReason": {
       "bundle-json": "JSON inválido",
       "bundle-schema": "estrutura inesperada",

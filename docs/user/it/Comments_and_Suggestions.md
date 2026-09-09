@@ -1,8 +1,8 @@
 # Commenti e suggerimenti
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio.
+Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
 ## Commenti su una nota
 

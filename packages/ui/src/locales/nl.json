@@ -3340,6 +3340,12 @@
     "commentFileUnreadable": "Een opmerkingenbestand kon niet worden gelezen: {{file}} ({{reason}}). Het is ongemoeid gelaten.",
     "commentFileSetAside": "Het opmerkingenbestand van dit apparaat kon niet worden gelezen ({{reason}}) en is opzijgezet als {{file}}. Er wordt een nieuw bestand geschreven.",
     "commentFaultExport": "Diagnose exporteren",
+    "commentAuthorYou": "Jij",
+    "commentUnnamedDevice": "Apparaat zonder naam",
+    "commentDeviceName": "{{platform}}-apparaat {{id}}",
+    "authorNamePromptTitle": "Hoe moeten je opmerkingen ondertekend worden?",
+    "authorNamePromptBody": "De naam staat bij elke opmerking en elk voorstel van dit apparaat en blijft hier bewaard — te wijzigen onder „Je naam (opmerkingen en controles)”. Zonder naam ondertekent het apparaat met zijn eigen label.",
+    "authorNamePlaceholder": "Je naam",
     "commentFaultReason": {
       "bundle-json": "geen geldige JSON",
       "bundle-schema": "onverwachte structuur",

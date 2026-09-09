@@ -1,8 +1,8 @@
 # Comentários e sugestões
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha.
+Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
 ## Comentários em uma nota
 

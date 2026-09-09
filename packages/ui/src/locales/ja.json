@@ -3304,6 +3304,12 @@
     "commentFileUnreadable": "注釈ファイルを読み取れませんでした: {{file}}（{{reason}}）。ファイルには手を加えていません。",
     "commentFileSetAside": "この端末の注釈ファイルを読み取れなかったため（{{reason}}）、{{file}} として退避しました。新しいファイルを書き込みます。",
     "commentFaultExport": "診断をエクスポート",
+    "commentAuthorYou": "あなた",
+    "commentUnnamedDevice": "名前のない端末",
+    "commentDeviceName": "{{platform}} 端末 {{id}}",
+    "authorNamePromptTitle": "注釈にどの名前を付けますか？",
+    "authorNamePromptBody": "この名前はこの端末からのすべてのコメントと提案に表示され、ここに保存されます。「あなたの名前（注釈とレビュー）」で変更できます。名前がない場合、端末は自身のラベルで署名します。",
+    "authorNamePlaceholder": "あなたの名前",
     "commentFaultReason": {
       "bundle-json": "有効な JSON ではありません",
       "bundle-schema": "想定外の構造です",

@@ -3376,6 +3376,12 @@
     "commentFileUnreadable": "Un file di annotazioni non è stato letto: {{file}} ({{reason}}). Non è stato toccato.",
     "commentFileSetAside": "Il file di annotazioni di questo dispositivo non è stato letto ({{reason}}) ed è stato messo da parte come {{file}}. Ne viene scritto uno nuovo.",
     "commentFaultExport": "Esporta diagnosi",
+    "commentAuthorYou": "Tu",
+    "commentUnnamedDevice": "Dispositivo senza nome",
+    "commentDeviceName": "Dispositivo {{platform}} {{id}}",
+    "authorNamePromptTitle": "Come vanno firmate le tue annotazioni?",
+    "authorNamePromptBody": "Il nome compare su ogni commento e suggerimento di questo dispositivo e resta salvato qui; si cambia in «Il tuo nome (annotazioni e revisioni)». Senza nome, il dispositivo firma con la propria etichetta.",
+    "authorNamePlaceholder": "Il tuo nome",
     "commentFaultReason": {
       "bundle-json": "JSON non valido",
       "bundle-schema": "struttura inattesa",

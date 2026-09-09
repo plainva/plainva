@@ -1,8 +1,8 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-09-07
+Stand: 2026-09-09
 
-Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad.
+Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
 ## Opmerkingen bij een notitie
 

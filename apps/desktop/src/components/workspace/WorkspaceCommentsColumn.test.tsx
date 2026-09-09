@@ -676,3 +676,33 @@ describe("locked on this device (N3)", () => {
     unmount();
   });
 });
+
+describe("the byline (finding 2026-09-09)", () => {
+  it("says 'you' for the reader's own remark and names an unnamed device honestly", () => {
+    const own = comment({ commentId: "01".repeat(16), authorMemberId: "laptop", body: "mine" });
+    // An open-path record carries no revision.
+    const theirs = { ...comment({ commentId: "02".repeat(16), authorMemberId: "phone", body: "theirs" }), targetRevisionId: undefined } as WorkspaceCommentRecord;
+    const { host, unmount } = render(
+      <WorkspaceCommentsColumn
+        comments={[own, theirs]}
+        memberNames={new Map()}
+        selfMemberId="laptop"
+        resolutions={NO_RESOLUTIONS}
+        canComment
+        canWrite
+        activeCommentId={null}
+        selectionQuote={null}
+        onSelect={() => {}}
+        onSubmit={async () => {}}
+        onResolve={() => {}}
+        onApplySuggestion={() => {}}
+        onDeclineSuggestion={() => {}}
+        onPromoteToTask={() => {}}
+      />,
+    );
+    expect(host.textContent).toContain(tr("comments.commentAuthorYou"));
+    expect(host.textContent).toContain(tr("comments.commentUnnamedDevice"));
+    expect(host.textContent).not.toContain(tr("comments.commentUnknownAuthor"));
+    unmount();
+  });
+});

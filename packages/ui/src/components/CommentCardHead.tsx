@@ -10,8 +10,14 @@ import { absoluteTimeLabel, relativeTimeLabel } from "../lib/relativeTime";
  * tooltips - a name is a claim the policy carries, not a verified identity,
  * and a relative phrase is a label, not the record.
  */
-export function CommentCardHead({ name, memberId, createdAt, locale, now }: {
+export function CommentCardHead({ name, initials, memberId, createdAt, locale, now }: {
   name: string;
+  /**
+   * The chip's letters, when they should not come from `name`: the reader's
+   * own card says "you", and a chip reading "YO" names nobody - the letters
+   * come from the stated name instead (finding 2026-09-09).
+   */
+  initials?: string;
   memberId: string;
   createdAt: string;
   locale: string;
@@ -20,7 +26,7 @@ export function CommentCardHead({ name, memberId, createdAt, locale, now }: {
 }) {
   return (
     <div className="pv-comment-card__who">
-      <span className="pv-comment-card__avatar" data-hue={authorHue(memberId)} aria-hidden="true">{authorInitials(name)}</span>
+      <span className="pv-comment-card__avatar" data-hue={authorHue(memberId)} aria-hidden="true">{initials ?? authorInitials(name)}</span>
       <span className="pv-comment-card__name" data-tip={memberId}>{name}</span>
       <time className="pv-comment-card__when" dateTime={createdAt} data-tip={absoluteTimeLabel(createdAt, locale)}>
         {relativeTimeLabel(createdAt, locale, now)}

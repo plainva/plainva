@@ -5,6 +5,7 @@ import type { WorkspaceCommentRecord } from "@plainva/core";
 import {
   buildCommentOverview,
   Button,
+  commentAuthorLabel,
   EmptyState,
   ICON,
   noteDisplayName,
@@ -115,7 +116,7 @@ export function CommentsScreen({
     [byPath, names, selfId, onlyMine, filter, focus],
   );
 
-  const nameOf = (id: string) => names.get(id) ?? t("comments.commentUnknownAuthor");
+  const nameOf = (ref: { authorMemberId: string; targetRevisionId?: string }) => commentAuthorLabel(ref, names, selfId, t);
 
   return (
     <div className="m-page" ref={ptrRef}>
@@ -178,7 +179,7 @@ export function CommentsScreen({
                   </span>
                 )}
                 <small className="pv-comment-card__meta">
-                  {nameOf(root.authorMemberId)} · {new Date(root.createdAt).toLocaleDateString()}
+                  {nameOf(root)} · {new Date(root.createdAt).toLocaleDateString()}
                 </small>
                 <span className="pv-comment-card__body">
                   {parseCommentMentions(root.body, names).map((segment, index) =>
