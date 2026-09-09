@@ -39,6 +39,8 @@ export type CommentStoreMode = "plain" | "sealed" | "locked" | "workspace";
 
 export interface CommentStoreState {
   mode: CommentStoreMode;
+  /** An unlocked workspace can still have an older, separately sealed history. */
+  legacyLocked?: boolean;
   /**
    * Whether this store queues outgoing remarks. Only such a store ever lists a
    * `pending` record, so only there do retry/discard mean anything - the cards
@@ -269,6 +271,12 @@ export class BundleCommentStore implements CommentStore {
       if (!(await this.deps.vault.exists(path))) missing.add(path);
     }
     return missing;
+  }
+
+  /** Raw immutable history, including decision markers, for a signed import. */
+  async legacySnapshot(): Promise<{ bundle: CommentsBundle; missing: Set<string> } | null> {
+    const bundle = await this.bundle();
+    return bundle ? { bundle, missing: await this.missingPlaces(bundle) } : null;
   }
 
   async list(path: string): Promise<WorkspaceCommentRecord[]> {

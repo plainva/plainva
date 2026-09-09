@@ -167,12 +167,12 @@ export interface CommentOperationDeps {
   contextKey: string;
   journal: CommentOperationJournal;
   /** Must include the actual writer/device and workspace (where present). */
-  authorKey(): Promise<string>;
+  authorKey(operation?: CommentOperation): Promise<string>;
   /** Captures the note's adapter and includes pending writes in teardown. */
   withNoteLock(path: string, work: () => Promise<void>): Promise<void>;
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
-  post(marker: DurableCommentPost): Promise<void>;
+  post(marker: DurableCommentPost, operation?: CommentOperation): Promise<void>;
   changed?(operation: CommentOperation): void;
   now?(): string;
 }
@@ -198,6 +198,10 @@ function immutablePlan(op: CommentOperation) {
   return { version, operationId, contextKey, authorKey, notePath, kind, createdAt, text, markers };
 }
 
+export function sameCommentOperationPlan(a: CommentOperation, b: CommentOperation): boolean {
+  return sameCommentContent(immutablePlan(a), immutablePlan(b));
+}
+
 /**
  * Text first, durable receipt second, immutable markers last. Recovery after
  * the receipt never replays text, even when the note has since been edited.
@@ -213,7 +217,7 @@ export class CommentOperationRunner {
       const publishState = () => this.deps.changed?.(parseCommentOperation(JSON.stringify(op)));
       const save = async () => { await this.deps.journal.write(op); publishState(); };
       const checkContext = async () => {
-        if (op.contextKey !== this.deps.contextKey || await this.deps.authorKey() !== op.authorKey)
+        if (op.contextKey !== this.deps.contextKey || await this.deps.authorKey(op) !== op.authorKey)
           throw new CommentOperationError(op.operationId, op.phase, "context");
       };
       try {
@@ -266,7 +270,7 @@ export class CommentOperationRunner {
               posted.decisionProof = { operationId: op.operationId, supersedes: reviewedDecisionIds ?? [],
                 text: { beforeHash, intendedHash, confirmedHash, confirmedAt } };
             }
-            await this.deps.post(posted);
+            await this.deps.post(posted, op);
             op = { ...op, postedIds: [...op.postedIds, marker.identity.commentId] };
             await save();
           }

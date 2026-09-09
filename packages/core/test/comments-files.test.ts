@@ -205,6 +205,23 @@ describe("CommentsSyncStep (one file per device)", () => {
   const now = () => NOW;
   const step = (deviceId: string, crypto?: CommentsCrypto, onFaults?: (f: CommentBundleFault[]) => void) => new CommentsSyncStep({ deviceId, crypto, now, onFaults });
 
+  it.each([false, true])("workspace receive-only mode preserves old sources and never publishes sideband text (sealed: %s)", async sealed => {
+    const vault = new FakeVault(), target = new FakeTarget();
+    await appendLocalComment(vault.as(), rec(), { deviceId: "laptop", now: NOW });
+    const oldLocal = vault.files.get(LAPTOP);
+    target.remote.set(COMMENTS_SYNC_PATH, text(bundle([rec({ commentId: ID(2), authorDeviceId: "old-phone", body: "Late historical reply" })])));
+    const remoteBefore = new Map(target.remote);
+    const crypto = sealed ? xorCrypto : undefined;
+    const receiver = new CommentsSyncStep({ deviceId: "laptop", crypto, now, downloadOnly: true });
+    await receiver.run(target.as(), vault.as()); await receiver.run(target.as(), vault.as());
+    expect(Object.keys((await readAllComments(vault.as(), "laptop", crypto))!.comments).sort()).toEqual([ID(1), ID(2)]);
+    expect(target.writes).toEqual([]); expect(target.deletes).toEqual([]); expect(target.remote).toEqual(remoteBefore);
+    // Even when a sealed local copy is available, source cleanup belongs to
+    // neither this receiver nor the signed migration's acknowledgement.
+    if (sealed) expect(vault.files.get(LAPTOP)).toBe(oldLocal);
+    else expect(parseCommentsBundle(vault.files.get(LAPTOP)!)?.comments[ID(1)].body).toBe("so far so good");
+  });
+
   it("does nothing at all for a vault without comments, here or there", async () => {
     const vault = new FakeVault();
     const target = new FakeTarget();

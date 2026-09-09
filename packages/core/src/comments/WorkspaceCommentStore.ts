@@ -4,10 +4,11 @@ import { createWorkspaceObjectId } from "../workspace/identity.js";
 import { effectiveWorkspaceCapabilities, evaluateWorkspaceAccess } from "../workspace/authorization.js";
 import { outboxEntryAsCommentRecord, type WorkspaceCommentOutboxEntry, type WorkspaceCommentRecord, type WorkspaceStateStore } from "../workspace/state.js";
 import { workspaceSliceIdsForObject } from "../workspace/slices.js";
-import type { CommentPostInput, CommentStore, CommentStoreState } from "./store.js";
+import { CommentStoreLockedError, type CommentPostInput, type CommentStore, type CommentStoreState } from "./store.js";
 import type { PersonalWorkspaceRuntime } from "../workspace/personal.js";
 import type { WorkspaceCapability } from "../workspace/documents.js";
 import { commentWriteIdentity, CommentIdentityConflictError, sameCommentContent } from "./commentIdentity.js";
+import { importedCommentFields, sameLegacyComment, type LegacyCommentOrigin } from "./legacyCommentImport.js";
 
 export interface WorkspaceCommentStoreDeps {
   /** The unlocked runtime and state store; throws while the workspace is locked or absent. */
@@ -59,7 +60,7 @@ export function mergeCommentOutbox(stored: WorkspaceCommentRecord[], queued: Wor
 }
 
 export class WorkspaceCommentStore implements CommentStore {
-  constructor(private readonly deps: WorkspaceCommentStoreDeps) {}
+  constructor(protected readonly deps: WorkspaceCommentStoreDeps) {}
 
   async writerKey(): Promise<string> {
     const { runtime } = this.deps.plane();
@@ -81,10 +82,13 @@ export class WorkspaceCommentStore implements CommentStore {
   }
 
   async state(): Promise<CommentStoreState> {
+    try { this.deps.plane(); }
+    catch (error) { if (error instanceof CommentStoreLockedError) return { mode: "locked", hasOutbox: true }; throw error; }
     return { mode: "workspace", hasOutbox: true };
   }
 
   async capabilities(path: string): Promise<WorkspaceCapability[] | null> {
+    if ((await this.state()).mode === "locked") return [];
     const { runtime, workspaceState } = this.deps.plane();
     const object = await workspaceState.getObjectByPath(path);
     const objectId = object?.objectId ?? createWorkspaceObjectId();
@@ -93,15 +97,17 @@ export class WorkspaceCommentStore implements CommentStore {
   }
 
   async list(path: string): Promise<WorkspaceCommentRecord[]> {
+    if ((await this.state()).mode === "locked") return [];
     const { runtime, workspaceState } = this.deps.plane();
     const object = await workspaceState.getObjectByPath(path);
-    if (!object) return [];
-    const stored = await workspaceState.listRawComments(object.objectId);
+    if (!object || object.deleted || !(await this.capabilities(path))?.includes("comment.read")) return [];
     const queued = (await workspaceState.listCommentOutbox()).filter((entry) => entry.targetObjectId === object.objectId);
+    const stored = await workspaceState.listRawComments(object.objectId);
     return mergeCommentOutbox(stored, queued, runtime);
   }
 
   async listAll(): Promise<Map<string, WorkspaceCommentRecord[]>> {
+    if ((await this.state()).mode === "locked") return new Map();
     const { runtime, workspaceState } = this.deps.plane();
     // A comment names the object it hangs on, never the path - a renamed note
     // keeps its object and its thread. So the paths come from the objects, and
@@ -113,6 +119,7 @@ export class WorkspaceCommentStore implements CommentStore {
     // the note itself does.
     const paths = new Map<string, string>();
     for (const object of await workspaceState.listObjects()) {
+      if (object.deleted) continue;
       const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, object);
       const caps = effectiveWorkspaceCapabilities(runtime.policy.payload, {
         memberId: runtime.memberId,
@@ -123,7 +130,8 @@ export class WorkspaceCommentStore implements CommentStore {
       if (caps.includes("comment.read")) paths.set(object.objectId, object.path);
     }
     const byPath = new Map<string, WorkspaceCommentRecord[]>();
-    const records = mergeCommentOutbox(await workspaceState.listRawComments(), await workspaceState.listCommentOutbox(), runtime);
+    const queued = await workspaceState.listCommentOutbox();
+    const records = mergeCommentOutbox(await workspaceState.listRawComments(), queued, runtime);
     for (const comment of records) {
       const path = paths.get(comment.targetObjectId);
       if (!path) continue;
@@ -135,16 +143,32 @@ export class WorkspaceCommentStore implements CommentStore {
   }
 
   async authors(): Promise<Map<string, string>> {
+    if ((await this.state()).mode === "locked") return new Map();
     return new Map(this.deps.plane().runtime.policy.payload.members.map((member) => [member.memberId, member.displayName]));
   }
 
   /** The workspace signs with the member id; that is what "mine" means here. */
-  async selfId(): Promise<string> {
+  async selfId(): Promise<string | null> {
+    if ((await this.state()).mode === "locked") return null;
     return this.deps.plane().runtime.memberId;
   }
 
   async post(input: CommentPostInput): Promise<void> {
+    return this.enqueue(input);
+  }
+
+  /** Only this separate entry point can attach unsigned historical provenance. */
+  async importLegacy(path: string, origin: LegacyCommentOrigin, targetObjectId?: string): Promise<void> {
+    const fields = importedCommentFields(origin);
+    return this.enqueue({ ...fields, path, targetObjectId,
+      identity: { commentId: fields.commentId, createdAt: new Date().toISOString() },
+      batch: fields.suggestionBatchId ? { batchId: fields.suggestionBatchId, index: fields.batchIndex ?? 0, note: fields.batchNote } : null,
+    }, origin);
+  }
+
+  private async enqueue(input: CommentPostInput, legacyOrigin?: LegacyCommentOrigin): Promise<void> {
     const { runtime, workspaceState } = this.deps.plane();
+    if (legacyOrigin && legacyOrigin.workspaceId !== runtime.workspaceId) throw new Error("Legacy comment workspace changed");
     const identity = commentWriteIdentity(input.identity);
     await withIdentityWrite(workspaceState, identity.commentId, async () => {
       const object = input.targetObjectId ? await workspaceState.getObjectById(input.targetObjectId) : await workspaceState.getObjectByPath(input.path);
@@ -153,6 +177,8 @@ export class WorkspaceCommentStore implements CommentStore {
       // immediate and its own, not a "not sent" card a cycle later.
       const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId: object.objectId, path: object.path, contentKind: object.contentKind });
       if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "comment.create", objectId: object.objectId, sliceIds }).allowed) throw new Error("workspace-comment-not-permitted");
+      if (legacyOrigin && !evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "workspace.manage" }).allowed)
+        throw new Error("workspace-comment-import-not-permitted");
       // Into the outbox, not onto the network (K6, finding 2026-09-03). Sealing
       // and the two verified uploads happen in the worker's next cycle, which is
       // triggered right away; the column shows the card now, with a "sending"
@@ -162,6 +188,7 @@ export class WorkspaceCommentStore implements CommentStore {
         body: input.body, parentCommentId: input.parentCommentId ?? null, resolvedCommentId: input.resolvedCommentId ?? null,
         anchor: input.anchor ?? null, suggestion: input.suggestion ?? null, suggestionOutcome: input.suggestionOutcome ?? null,
         ...(input.decisionProof ? { decisionProof: input.decisionProof } : {}),
+        ...(legacyOrigin ? { legacyOrigin: structuredClone(legacyOrigin) } : {}),
         retractsCommentId: input.retractsCommentId ?? null,
         suggestionBatchId: input.batch?.batchId ?? null, batchIndex: input.batch?.index ?? null, batchNote: input.batch?.note ?? null,
         createdAt: identity.createdAt, attempts: 0, lastError: null,
@@ -171,13 +198,15 @@ export class WorkspaceCommentStore implements CommentStore {
       // a gap between these two reads and become another queued publication.
       const queued = (await workspaceState.listCommentOutbox()).find((candidate) => candidate.commentId === entry.commentId);
       if (queued) {
-        if (!sameCommentContent(immutableFields(queued), immutableFields(entry))) throw new CommentIdentityConflictError(entry.commentId);
+        if (legacyOrigin || queued.legacyOrigin ? !sameLegacyComment(queued, entry)
+          : !sameCommentContent(immutableFields(queued), immutableFields(entry))) throw new CommentIdentityConflictError(entry.commentId);
         this.publish();
         return;
       }
       const stored = await workspaceState.getComment(entry.commentId);
       if (stored) {
-        if (stored.authorMemberId !== runtime.memberId || stored.authorDeviceId !== runtime.device.publicIdentity.deviceId
+        if (legacyOrigin || stored.legacyOrigin ? !sameLegacyComment(stored, entry)
+          : stored.authorMemberId !== runtime.memberId || stored.authorDeviceId !== runtime.device.publicIdentity.deviceId
           || !sameCommentContent(immutableFields(stored), immutableFields(entry))) throw new CommentIdentityConflictError(entry.commentId);
         return;
       }

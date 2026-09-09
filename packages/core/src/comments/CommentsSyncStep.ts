@@ -481,6 +481,8 @@ function sameRoster(a: CommentDevicesRoster | null, b: CommentDevicesRoster | nu
 /* The sideband step                                                   */
 
 export interface CommentsSyncOptions {
+  /** Workspace upgrades receive old clients' history, but publish via signed objects. */
+  downloadOnly?: boolean;
   /** Same stable vault identity as the shell store, independent of adapter instances. */
   vaultKey?: string;
   /** This device's stable id - the same one the store writes as the author. */
@@ -566,7 +568,7 @@ export class CommentsSyncStep {
       const plainFiles = sealed ? (await listCommentsFiles(vault, faults)).filter((file) => !file.sealed).map((file) => file.path) : [];
       return { merged, roster, plainFiles };
     });
-    if (!saved) return;
+    if (!saved || this.options.downloadOnly) return;
     if (saved.merged && !ownRemoteUnreadable && (!ownRemote.bundle || !sameBundle(saved.merged, ownRemote.bundle))) {
       await target.push(writeOp(ownPath, encode(saved.merged, crypto)));
     }

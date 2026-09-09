@@ -21,7 +21,7 @@ export function assertLegacyCommentOrigin(value: unknown): asserts value is Lega
   const origin = value as LegacyCommentOrigin | null;
   if (!origin || origin.format !== "plainva-comments" || origin.version !== 1
     || typeof origin.workspaceId !== "string" || !/^[a-f0-9]{32}$/.test(origin.workspaceId)
-    || !origin.record || (origin.authorName !== null && (typeof origin.authorName !== "string" || origin.authorName.length > 1024)))
+    || !origin.record || (origin.authorName !== null && typeof origin.authorName !== "string"))
     throw new Error("Invalid legacy comment origin");
   // Apply the original format's complete validator, including anchors and
   // decisions. Keeping the source record makes this receipt independently readable.
