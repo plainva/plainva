@@ -94,7 +94,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
       if (!vaultAdapter) return;
       // Unified with every other delete entry (plan Kaskadenloeschung): the
       // cascade host adds the cloud note, the large-deletion prompt and
-      // noteUserInitiatedDeletion — all of which this panel used to skip.
+      // operation-specific deletion confirmation — all of which this panel used to skip.
       const done = await requestCascadeDelete({ paths: [path] });
       if (done) setOrphans((prev) => prev.filter((o) => o.path !== path));
     },

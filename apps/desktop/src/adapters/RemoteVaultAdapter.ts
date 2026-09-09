@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultFileInfo, VaultListing, WatchEvent } from "@plainva/core";
+import type { IVaultAdapter, DeletionConfirmation, VaultFileInfo, VaultListing, WatchEvent } from "@plainva/core";
 import { bytesToBase64 } from "./TauriVaultAdapter";
 import type { WindowBus } from "../services/windowBus";
 
@@ -73,8 +73,8 @@ export class RemoteVaultAdapter implements IVaultAdapter {
     await this.bus.request("write-binary", { path, base64: bytesToBase64(content) });
   }
 
-  async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    await this.bus.request("delete", { path, recursive });
+  async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
+    await this.bus.request("delete", { path, recursive, ...(confirmation ? { confirmation } : {}) });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

@@ -19,6 +19,7 @@ import {
   VaultQueryService,
   type IDatabaseAdapter,
   type IVaultAdapter,
+  type DeletionConfirmation,
   type SearchResult,
   type PersonalWorkspaceRuntime,
   type VaultFileInfo,
@@ -782,12 +783,12 @@ export const vaultOps = {
   },
 
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
-  async remove(v: MobileVault, path: string): Promise<void> {
+  async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
     // S2: a queued save landing after the delete resurrects the note. Flushing
     // (rather than discarding) also awaits a write already in flight, which
     // `discard` cannot recall — and it leaves a snapshot of the last state.
     await noteSaver.flush(path);
-    await v.files.deleteItem(path);
+    await v.files.deleteItem(path, undefined, confirmation);
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
     // Without a sync target nobody ever cleans the sync_state row — the sync
     // layer owns it and does not exist here — and a new note reusing the name
@@ -827,11 +828,11 @@ export const vaultOps = {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
-  async removeFolder(v: MobileVault, path: string): Promise<void> {
+  async removeFolder(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
     // S2: same reasoning as renameFolder — a queued save for any note inside
     // would recreate it after the folder is gone.
     await noteSaver.flushAll();
-    await v.files.deleteItem(path, true);
+    await v.files.deleteItem(path, true, confirmation);
     if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
     notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));

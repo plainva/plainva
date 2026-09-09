@@ -285,11 +285,6 @@ export class EncryptedWorkspaceWorker {
     await this.syncing;
   }
 
-  noteUserInitiatedDeletion(_paths: string[]): void {
-    // Deletes are signed tombstones and only enter this queue after the app's
-    // existing deletion confirmation; no second mass-delete inference is used.
-  }
-
   async listPendingOperations(limit = 20): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }> {
     const all = await this.state.listQueue(100_000);
     return {

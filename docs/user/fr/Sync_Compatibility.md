@@ -8,6 +8,8 @@ Si un fichier local ne peut pas être envoyé à cause des permissions ou d’un
 
 Les modifications hors ligne sont conservées même après plusieurs changements de nom. Plainva termine les déplacements liés avant de téléverser le contenu actuel ; une opération échouée retient les tâches qui en dépendent. Si la source distante manque, Plainva téléverse le fichier local ou le contenu du dossier au nouvel emplacement. Le contenu illisible reste en attente avec une erreur pour permettre une nouvelle tentative.
 
+Une confirmation ne vaut que pour la suppression effectuée. Elle est conservée lors des nouvelles tentatives après une erreur de connexion ou un redémarrage ; les nouveaux fichiers au même emplacement ne l’héritent pas. La confirmation supplémentaire d’une suppression massive suspendue et son option de restauration concernent uniquement les opérations affichées. Les suppressions importantes déjà en attente avant cette mise à jour peuvent demander une nouvelle confirmation.
+
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 
 ## Directement intégrés

@@ -57,7 +57,7 @@ export async function confirmDeleteFile(
     const result = await executeMobileCascade(vault, plan, initialSelection(plan));
     return result.deleted.length > 0;
   }
-  await vaultOps.remove(vault, path);
+  await vaultOps.remove(vault, path, { confirmed: true });
   return true;
 }
 
@@ -117,6 +117,6 @@ export async function confirmDeleteFiles(
     const result = await executeMobileCascade(vault, plan, initialSelection(plan));
     return result.deleted;
   }
-  for (const p of paths) await vaultOps.remove(vault, p);
+  for (const p of paths) await vaultOps.remove(vault, p, { confirmed: true });
   return [...paths];
 }

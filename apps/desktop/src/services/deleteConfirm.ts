@@ -12,9 +12,8 @@ export { countAffectedFiles, isLargeDeletion };
  * target is connected), plus a SECOND, sharper prompt for large deletions —
  * maintainer decision E2 (2026-07-09): more than 10 affected files OR more
  * than 20% of the vault. Cancelling either prompt deletes nothing. After a
- * fully confirmed deletion the caller reports the paths to the sync worker
- * (noteUserInitiatedDeletion) so the mass-deletion guard does not hold — and
- * on "restore" resurrect — a deliberate deletion.
+ * fully confirmed choice the caller passes a confirmation context with the
+ * actual delete; only the resulting successful queue operation is confirmed.
  */
 
 type Translate = (key: string, opts?: Record<string, unknown>) => string;

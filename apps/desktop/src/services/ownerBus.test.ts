@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { PimConflictError, type IVaultAdapter } from "@plainva/core";
+import { PimConflictError, type DeletionConfirmation, type IVaultAdapter } from "@plainva/core";
 
 /**
  * What happens to a mutation an auxiliary window hands over (multi-window P0/P1).
@@ -11,6 +11,8 @@ import { PimConflictError, type IVaultAdapter } from "@plainva/core";
  * window writing past that chain would quietly undo the July 2026 sync
  * hardening, and nobody would notice until a file came back wrong.
  */
+
+import { RemoteVaultAdapter } from "../adapters/RemoteVaultAdapter";
 
 const focusedWindows: string[] = [];
 vi.mock("@tauri-apps/api/window", () => ({
@@ -116,7 +118,8 @@ function createAdapter(calls: string[]): IVaultAdapter {
     writeBinaryFile: async (path: string) => {
       calls.push("write-binary:" + path);
     },
-    deleteItem: async (path: string, recursive?: boolean) => {
+    deleteItem: async (path: string, recursive?: boolean, confirmation?: DeletionConfirmation) => {
+      if (confirmation?.confirmed) calls.push("confirmed:" + path);
       calls.push("delete:" + path + ":" + (recursive ? "recursive" : "single"));
     },
     renameItem: async (from: string, to: string) => {
@@ -252,9 +255,6 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
       },
       retryFailed: () => {
         syncCalls.push("retry");
-      },
-      noteUserInitiatedDeletion: (paths: string[]) => {
-        syncCalls.push("noted:" + paths.join(","));
       },
     },
     // The comment surface (Vorschlagsmodus, V7): records what the owner was
@@ -658,16 +658,13 @@ describe("sync control from a client window", () => {
     dispose();
   });
 
-  it("records a client's deletions as user-initiated", async () => {
-    const { aux, syncCalls, dispose } = await setup();
-
-    await aux.request("sync-control", { what: "note-deletions", paths: ["Notes/old", "Notes/older"] });
-
-    // The mass-deletion guard asks "did a human ask for this?" and reads the
-    // answer from the worker. Without this hop, deleting a folder in the second
-    // window stops the cycle and puts the question in the CENTRAL window —
-    // where the person who deleted it is not looking.
-    expect(syncCalls).toEqual(["noted:Notes/old,Notes/older"]);
+  it("carries confirmation with the actual delete RPC through the client adapter", async () => {
+    const { aux, calls, syncCalls, dispose } = await setup();
+    const adapter = new RemoteVaultAdapter(createAdapter([]), aux);
+    await adapter.deleteItem("Notes/old", true, { confirmed: true });
+    expect(calls).toContain("confirmed:Notes/old");
+    expect(calls).toContain("delete:Notes/old:recursive");
+    expect(syncCalls).toEqual([]);
     dispose();
   });
 

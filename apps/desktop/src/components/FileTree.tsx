@@ -883,12 +883,10 @@ export const FileTree: React.FC<{
       syncActive: !!syncWorker,
     });
     if (!ok) return;
-    // Fully confirmed: the mass-deletion guard must not hold (and on "restore"
-    // resurrect) this deliberate deletion on the next sync cycle.
-    syncWorker?.noteUserInitiatedDeletion([path]);
+    // Confirmation travels with this actual filesystem deletion.
 
     try {
-      await vaultAdapter.deleteItem(path, true);
+      await vaultAdapter.deleteItem(path, true, { confirmed: true });
     } catch (err: any) {
       // Names the item and says it is STILL THERE — the trash-unavailable
       // warning says the opposite (deleted permanently), and the two used to be
@@ -964,12 +962,11 @@ export const FileTree: React.FC<{
       syncActive: !!syncWorker,
     });
     if (!ok) return;
-    syncWorker?.noteUserInitiatedDeletion(roots);
     const errors: string[] = [];
     const deletedOps: { type: "delete"; path: string; isFolder: boolean }[] = [];
     for (const p of roots) {
       try {
-        await vaultAdapter.deleteItem(p, true);
+        await vaultAdapter.deleteItem(p, true, { confirmed: true });
         onCloseTabsByPrefix?.(p);
         deletedOps.push({ type: "delete", path: p, isFolder: folderPaths.has(p) });
       } catch (err) {

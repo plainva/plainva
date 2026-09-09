@@ -427,7 +427,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
       if (!vaultAdapter || paths.length === 0) return;
       // Unified delete flow (plan Kaskadenloeschung): the cascade host brings
       // the cloud note, the large-deletion second prompt and the sync guard's
-      // noteUserInitiatedDeletion — the graph used to skip all three.
+      // operation-specific deletion confirmation — the graph used to skip all three.
       const ok = await requestCascadeDelete({ paths });
       if (!ok) return;
       setSelection([]);

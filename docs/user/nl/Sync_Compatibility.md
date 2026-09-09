@@ -8,6 +8,8 @@ Als een lokaal bestand door een toegangs- of leesfout niet kan worden geüpload,
 
 Offline wijzigingen blijven behouden, ook na meerdere naamswijzigingen. Plainva voltooit de bijbehorende verplaatsingen voordat de huidige inhoud wordt geüpload; bij een fout wachten afhankelijke taken. Ontbreekt de externe bron, dan uploadt Plainva het nog aanwezige lokale bestand of de mapinhoud naar de nieuwe locatie. Onleesbare inhoud blijft met een fout in de wachtrij staan om opnieuw te proberen.
 
+Een bevestiging geldt alleen voor de daadwerkelijk uitgevoerde verwijdering. Ze blijft behouden bij nieuwe pogingen na een verbindingsfout of herstart; nieuwe bestanden op dezelfde locatie nemen haar niet over. De extra bevestiging bij een gepauzeerde massaverwijdering en de herstelkeuze gelden alleen voor de getoonde taken. Grote verwijderingen die al vóór deze update in de wachtrij stonden, kunnen opnieuw om bevestiging vragen.
+
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 
 ## Rechtstreeks geïntegreerd

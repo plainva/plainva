@@ -1,3 +1,4 @@
+import type { DeletionConfirmation } from "../vault/IVaultAdapter.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { SyncOperation } from "./ISyncTarget.js";
 
@@ -62,46 +63,69 @@ export class SyncQueue {
   }
 
   /**
-   * Queues a delete operation. Idempotent: an in-app folder deletion enqueues
-   * the folder AND each contained file explicitly (QueueingVaultAdapter), while
-   * the follow-up full-scan reports the same children via onLocalFileDeleted —
-   * a second pending delete row for the same path would only inflate the
-   * mass-deletion guard's count and produce redundant remote calls.
+   * A scan may repeat the same missing-file observation. A new confirmed
+   * filesystem deletion always gets its own identity; writes/creates/moves
+   * since an older delete also start a new generation.
    */
-  async queueDelete(path: string): Promise<void> {
+  async queueDelete(path: string, confirmation?: DeletionConfirmation): Promise<void> {
+    await this.queueDeletePaths([path], confirmation);
+  }
+
+  /** One successful recursive delete records its actual children atomically. */
+  async queueDeletePaths(paths: ReadonlyArray<string>, confirmation?: DeletionConfirmation): Promise<void> {
+    const at = Date.now();
     await this.db.transaction(async () => {
-      const existing = await this.db.queryOne<{ id: number }>(
-        `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'delete' LIMIT 1`,
-        [path]
-      );
-      if (existing) return;
-
-      await this.db.execute(
-        `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
-        [path, "delete", Date.now()]
-      );
-
-      await this.db.execute(
-        `UPDATE files SET sync_state = 'local_ahead', is_deleted = 1 WHERE path = ?`,
-        [path]
-      );
+      for (const path of new Set(paths)) {
+        if (!confirmation?.confirmed) {
+          const existing = await this.db.queryOne<{ id: number }>(
+            `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'delete' ORDER BY id DESC LIMIT 1`,
+            [path]
+          );
+          if (existing) {
+            const later = await this.db.query<SyncOperation>(
+              `SELECT * FROM offline_queue WHERE id > ? AND operation IN ('write', 'mkdir', 'rename')`,
+              [existing.id]
+            );
+            if (!later.some((op) => endpoints(op).some((p) => overlaps(p, path)))) continue;
+          }
+        }
+        await this.db.execute(
+          `INSERT INTO offline_queue (file_path, operation, queued_at, delete_confirmed_at) VALUES (?, ?, ?, ?)`,
+          [path, "delete", at, confirmation?.confirmed ? at : null]
+        );
+        await this.db.execute(
+          `UPDATE files SET sync_state = 'local_ahead', is_deleted = 1 WHERE path = ?`,
+          [path]
+        );
+      }
     });
   }
 
-  /**
-   * Queues a folder creation (2026-07-17, empty-folder sync): the folder is
-   * pushed to the remote via ISyncTarget.createFolder so it appears in the
-   * cloud immediately instead of materializing with its first file. Idempotent
-   * like queueDelete — folder creates are cheap no-ops when repeated, and the
-   * remote createFolder implementations treat "already exists" as success.
-   */
+  async getPendingDeleteOperations(): Promise<SyncOperation[]> {
+    return this.db.query<SyncOperation>(`SELECT * FROM offline_queue WHERE operation = 'delete' ORDER BY id`);
+  }
+
+  async markDeletesJournaled(ids: ReadonlyArray<number>): Promise<void> {
+    await this.db.transaction(async () => {
+      for (const id of ids) {
+        await this.db.execute(`UPDATE offline_queue SET delete_journaled = 1 WHERE id = ? AND operation = 'delete'`, [id]);
+      }
+    });
+  }
+
+  /** Coalesce repeated creates only while no intervening delete/move starts a new generation. */
   async queueMkdir(path: string): Promise<void> {
     await this.db.transaction(async () => {
       const existing = await this.db.queryOne<{ id: number }>(
-        `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'mkdir' LIMIT 1`,
+        `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'mkdir' ORDER BY id DESC LIMIT 1`,
         [path]
       );
-      if (existing) return;
+      if (existing) {
+        const later = await this.db.query<SyncOperation>(
+          `SELECT * FROM offline_queue WHERE id > ? AND operation IN ('delete', 'rename')`, [existing.id]
+        );
+        if (!later.some((op) => endpoints(op).some((p) => overlaps(p, path)))) return;
+      }
       await this.db.execute(
         `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
         [path, "mkdir", Date.now()]
@@ -354,12 +378,19 @@ export class SyncQueue {
   }
 
   /**
-   * Discards ALL queued DELETE operations and returns their paths. Used by the
+   * Discards the selected DELETE operations (all when no IDs are supplied). Used by the
    * mass-deletion guard's "restore from remote" choice: the caller additionally
    * clears the paths' sync_state so the next full listing re-downloads the files
    * (the reconcile skips paths whose recorded remote_etag still matches).
    */
-  async discardPendingDeletes(): Promise<string[]> {
+  async discardPendingDeletes(ids?: ReadonlySet<number>): Promise<string[]> {
+    if (ids) {
+      const rows = (await this.getPendingDeleteOperations()).filter((op) => ids.has(op.id));
+      await this.db.transaction(async () => {
+        for (const row of rows) await this.db.execute(`DELETE FROM offline_queue WHERE id = ? AND operation = 'delete'`, [row.id]);
+      });
+      return [...new Set(rows.map((row) => row.file_path))];
+    }
     const paths = await this.getPendingDeletePaths();
     if (paths.length > 0) {
       await this.db.execute(`DELETE FROM offline_queue WHERE operation = 'delete'`);

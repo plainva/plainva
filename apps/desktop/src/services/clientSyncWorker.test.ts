@@ -43,16 +43,6 @@ describe("the sync worker a client window gets", () => {
     ]);
   });
 
-  it("reports a deletion as user-initiated, with the paths", async () => {
-    const w = createClientSyncWorker();
-    w.noteUserInitiatedDeletion(["a.md", "b/c.md"]);
-    await settle();
-
-    // The owner's mass-deletion guard is the reader. Drop this hop and deleting
-    // a folder here stops the cycle and puts the question in the other window.
-    expect(sent).toEqual([{ event: "sync-control", args: { what: "note-deletions", paths: ["a.md", "b/c.md"] } }]);
-  });
-
   it("keeps the lifecycle to itself", async () => {
     // start/stop/stopAndDrain belong to the window that owns the vault (E7).
     // Forwarding them would let one window stop syncing for everybody.

@@ -164,7 +164,6 @@ export async function executeDeletionPlan(opts: {
    * class so a client window can pass its stand-in (multi-window P1).
    */
   indexer: IndexerApi | null;
-  syncWorker: { noteUserInitiatedDeletion(paths: string[]): void } | null;
   vaultPath: string | null;
   plan: DeletionPlan;
   selection: CascadeSelection;
@@ -216,10 +215,6 @@ export async function executeDeletionPlan(opts: {
     }
   }
 
-  // 2. The user confirmed exactly these paths — the sync mass-deletion guard
-  //    must not hold (or resurrect) them on the next cycle.
-  opts.syncWorker?.noteUserInitiatedDeletion(paths);
-
   // 2b. A note that is a provider task takes its task with it (E4b). Its
   //     anchor and body are only readable WHILE the file exists, so they are
   //     read here — and the body is what makes "undo" give back the work
@@ -240,7 +235,7 @@ export async function executeDeletionPlan(opts: {
   const deleted: string[] = [];
   for (const p of paths) {
     try {
-      await adapter.deleteItem(p, true);
+      await adapter.deleteItem(p, true, { confirmed: true });
       deleted.push(p);
     } catch (e) {
       console.error("cascade delete failed", p, e);

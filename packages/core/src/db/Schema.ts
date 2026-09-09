@@ -70,7 +70,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       priority INTEGER DEFAULT 50,
       last_error TEXT,
       requires_manual_intervention INTEGER DEFAULT 0,
-      force INTEGER DEFAULT 0
+      force INTEGER DEFAULT 0,
+      delete_confirmed_at INTEGER,
+      delete_journaled INTEGER NOT NULL DEFAULT 0
     );`,
 
     `CREATE TABLE IF NOT EXISTS audit_log (
@@ -532,6 +534,16 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     } catch {
       // Column might already exist
     }
+  }
+
+  // Old queued deletions have no operation-specific proof of confirmation.
+  // Additive migration: never infer one from a historical path journal.
+  const queueColumns = new Set((await db.query<{ name: string }>(`PRAGMA table_info(offline_queue)`)).map((row) => row.name));
+  if (!queueColumns.has("delete_confirmed_at")) {
+    await db.execute(`ALTER TABLE offline_queue ADD COLUMN delete_confirmed_at INTEGER`);
+  }
+  if (!queueColumns.has("delete_journaled")) {
+    await db.execute(`ALTER TABLE offline_queue ADD COLUMN delete_journaled INTEGER NOT NULL DEFAULT 0`);
   }
 
   // Must run after the ALTER above: on pre-existing databases the links table

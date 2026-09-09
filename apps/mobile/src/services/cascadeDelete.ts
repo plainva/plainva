@@ -10,7 +10,6 @@ import {
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { collectTaskAnchors, requestTaskDeletion } from "@plainva/ui";
-import { notifyUserInitiatedDeletion } from "./syncService";
 
 /**
  * Mobile side of the cascade deletion (plan Kaskadenloeschung): the shared
@@ -102,9 +101,6 @@ export async function executeMobileCascade(
     }
   }
 
-  // 2. User-confirmed paths must not trip the sync mass-deletion guard.
-  notifyUserInitiatedDeletion(paths);
-
   // 2b. A note that mirrors a provider task takes the task with it — but only
   //     when the reader CONFIRMED it here. A merely missing file still deletes
   //     nothing: too many innocent causes (a half-finished sync, a rebuilt
@@ -135,7 +131,7 @@ export async function executeMobileCascade(
   const deleted: string[] = [];
   for (const p of paths) {
     try {
-      await vaultOps.remove(v, p);
+      await vaultOps.remove(v, p, { confirmed: true });
       deleted.push(p);
     } catch (e) {
       console.error("mobile cascade delete failed", p, e);

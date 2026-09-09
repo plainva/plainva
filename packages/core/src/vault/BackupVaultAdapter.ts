@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
@@ -289,7 +289,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await this.inner.writeBinaryFile(path, content);
   }
 
-  async deleteItem(path: string, recursive?: boolean): Promise<void> {
+  async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
     try {
       const info = await this.inner.getFileInfo(path);
       if (!info.isDirectory) {
@@ -308,7 +308,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     } catch {
       // Ignore if file doesn't exist
     }
-    return this.inner.deleteItem(path, recursive);
+    return this.inner.deleteItem(path, recursive, confirmation);
   }
 
   /** Snapshots every file under `folder` (skipping Plainva's own directory). */

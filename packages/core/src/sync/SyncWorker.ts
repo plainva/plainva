@@ -370,17 +370,9 @@ export class SyncWorker {
    * a NEW mass deletion later signals again.
    */
   public onMassDeletionPending?: (info: { pendingDeletes: number; syncedTotal: number }) => void;
-  /** User approved executing the held deletes; session-scoped, reset when the queue drains. */
-  private massDeletionApproved = false;
-  /**
-   * Path prefixes of deletions the user explicitly confirmed IN the app this
-   * session (tree/editor delete dialogs — incl. the second, sharper prompt for
-   * large deletions). The mass-deletion guard neither counts nor holds these:
-   * the in-app flow already carried its own confirmation. Deliberately
-   * session-scoped — deletes still pending after a restart re-trip the guard
-   * (destructive intent must not outlive the session).
-   */
-  private userDeletionPrefixes: string[] = [];
+  /** Approval is scoped to the exact IDs shown by the current session. */
+  private massDeletionApprovedIds = new Map<number, number>();
+  private massDeletionPromptIds: number[] = [];
   /** The pending guard state was already signaled to the host (no re-fire every poll). */
   private massDeletionSignaled = false;
   /**
@@ -536,33 +528,24 @@ export class SyncWorker {
    * after a restart (deliberate: destructive intent must not outlive the session).
    */
   public approveMassDeletion(): void {
-    this.massDeletionApproved = true;
+    const at = Date.now();
+    for (const id of this.massDeletionPromptIds) this.massDeletionApprovedIds.set(id, at);
+    this.massDeletionPromptIds = [];
+    this.massDeletionSignaled = false;
     this.triggerImmediate();
   }
 
-  /**
-   * Records deletions the user explicitly confirmed in the app (a path acts as
-   * a prefix, so one folder entry covers all its children). These bypass the
-   * mass-deletion guard's count/hold — see userDeletionPrefixes.
-   */
-  public noteUserInitiatedDeletion(paths: string[]): void {
-    for (const p of paths) {
-      const norm = p.replace(/\\/g, "/").replace(/\/+$/, "");
-      if (norm) this.userDeletionPrefixes.push(norm);
-    }
-    // The confirmation also goes into the journal, so it reaches the OTHER
-    // devices (and survives a restart here — a deletion a human confirmed is
-    // not the "destructive intent" the session scope above protects against).
-    if (this.deletionJournal) {
-      this.deletionJournal.recordPaths(paths).catch((e) => {
-        console.error("[SyncWorker] recording confirmed deletions in the journal failed:", e);
-      });
-    }
-  }
-
-  private isUserInitiatedDeletion(path: string): boolean {
-    if (this.userDeletionPrefixes.some((pre) => path === pre || path.startsWith(pre + "/"))) return true;
-    return this.deletionJournal ? this.deletionJournal.explainsPath(path) !== null : false;
+  /** Persist intent before its queue row can be retired by a remote DELETE. */
+  private async recordQueuedDeletionIntents(): Promise<void> {
+    if (!this.deletionJournal) return;
+    const pending = (await this.queue.getPendingDeleteOperations()).filter((op) =>
+      !op.delete_journaled && (op.delete_confirmed_at != null || this.massDeletionApprovedIds.has(op.id)));
+    if (!pending.length) return;
+    await this.deletionJournal.recordPathEntries(pending.map((op) => ({
+      path: op.file_path,
+      deletedAt: op.delete_confirmed_at ?? this.massDeletionApprovedIds.get(op.id)!,
+    })));
+    await this.queue.markDeletesJournaled(pending.map((op) => op.id));
   }
 
   /**
@@ -602,13 +585,14 @@ export class SyncWorker {
 
   /**
    * Discards the held mass deletion and restores the files from the remote:
-   * drops every queued DELETE, clears the paths' sync_state (the reconcile skips
+   * drops the displayed queued DELETEs, clears their sync_state (the reconcile skips
    * paths whose recorded remote_etag still matches — a stale row would block the
    * re-download forever) and forces the next cycle onto a full listing so the
    * files come back immediately instead of at the next periodic full pass.
    */
   public async discardMassDeletion(): Promise<number> {
-    const paths = await this.queue.discardPendingDeletes();
+    const paths = await this.queue.discardPendingDeletes(new Set(this.massDeletionPromptIds));
+    this.massDeletionPromptIds = [];
     for (const p of paths) {
       await this.stateRepo.deleteSyncState(p);
     }
@@ -1161,6 +1145,8 @@ export class SyncWorker {
       // Its own try/catch: a journal hiccup falls back to the local journal and
       // never stops the file sync.
       if (this.deletionJournal && alive()) {
+        // Local persistence must succeed before any confirmed row can retire.
+        await this.recordQueuedDeletionIntents();
         try {
           await this.deletionJournal.sync(this.target);
         } catch (e) {
@@ -1212,7 +1198,6 @@ export class SyncWorker {
       // and this loop faithfully recreated it minutes later.
       const deletionPending = (pullResult.folders ?? []).length > 0 ? await this.queue.getPendingDeletePaths() : [];
       const awaitingDeletion = (folder: string): boolean =>
-        this.isUserInitiatedDeletion(folder) ||
         deletionPending.some((p) => folder === p || folder.startsWith(p + "/"));
 
       for (const folder of pullResult.folders ?? []) {
@@ -1432,42 +1417,47 @@ export class SyncWorker {
       // them would wipe the remote copy. Hold ALL deletes (writes/renames proceed)
       // until the user explicitly approves or discards them; signal the host once.
       let deletionsHeld: string | null = null;
-      const pendingDeletePaths = await this.queue.getPendingDeletePaths();
+      const pendingDeletes = await this.queue.getPendingDeleteOperations();
+      const pendingIds = new Set(pendingDeletes.map((op) => op.id));
+      for (const id of this.massDeletionApprovedIds.keys()) {
+        if (!pendingIds.has(id)) this.massDeletionApprovedIds.delete(id);
+      }
       const syncedTotal = [...stateMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
-      // Only UNEXPLAINED deletions count towards the guard: paths the user
-      // explicitly confirmed in the app carry their own confirmation (incl. the
-      // second prompt for large deletions), and children covered by a queued
-      // ancestor folder delete must not inflate the share — both used to trip
-      // the guard on an ordinary, deliberate folder deletion, whose "restore"
-      // answer then resurrected the folder from the cloud.
-      const unexplainedDeletes = dropCoveredDeletePaths(
-        pendingDeletePaths.filter((p) => !this.isUserInitiatedDeletion(p))
-      );
+      const unconfirmed = pendingDeletes.filter((op) =>
+        op.delete_confirmed_at == null && !this.massDeletionApprovedIds.has(op.id));
+      const unexplainedDeletes = dropCoveredDeletePaths(unconfirmed.map((op) => op.file_path));
       const isMassDeletion =
         unexplainedDeletes.length > MASS_DELETE_MIN &&
         unexplainedDeletes.length > syncedTotal * MASS_DELETE_SHARE;
-      if (isMassDeletion && !this.massDeletionApproved) {
-        deletionsHeld = `${pendingDeletePaths.length} of ${syncedTotal} synced files are queued for remote deletion; deletions are paused until confirmed`;
+      if (isMassDeletion) {
+        deletionsHeld = `${unconfirmed.length} of ${syncedTotal} synced files are queued for remote deletion; deletions are paused until confirmed`;
         console.warn(`[SyncWorker] ${deletionsHeld}`);
         if (!this.massDeletionSignaled) {
           this.massDeletionSignaled = true;
+          this.massDeletionPromptIds = unconfirmed.map((op) => op.id);
           try {
-            this.onMassDeletionPending?.({ pendingDeletes: pendingDeletePaths.length, syncedTotal });
+            this.onMassDeletionPending?.({ pendingDeletes: unconfirmed.length, syncedTotal });
           } catch (e) {
             console.error("[SyncWorker] onMassDeletionPending consumer failed:", e);
           }
         }
-      } else if (!isMassDeletion) {
-        // Condition cleared (deletes executed or discarded): re-arm the guard.
-        this.massDeletionApproved = false;
+      } else {
         this.massDeletionSignaled = false;
+        this.massDeletionPromptIds = [];
       }
+      const allowedDeleteIds = new Set(pendingDeletes.filter((op) => {
+        const confirmed = op.delete_confirmed_at != null || this.massDeletionApprovedIds.has(op.id);
+        // A confirmation arriving during the pull will first be journaled in
+        // the next cycle. It must not disappear from the queue before that.
+        if (confirmed && this.deletionJournal && !op.delete_journaled) return false;
+        return confirmed || !isMassDeletion;
+      }).map((op) => op.id));
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
       await this.engine.processQueue(
         () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
-        { skipDeletes: deletionsHeld !== null }
+        { skipDeletes: deletionsHeld !== null && allowedDeleteIds.size === 0, allowedDeleteIds }
       );
 
       // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`

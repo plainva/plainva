@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
 import { normalizeVaultPath } from "./path.js";
 import { WorkspaceStateStore } from "./state.js";
 
@@ -70,13 +70,13 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
     }
   }
 
-  async deleteItem(path: string, recursive?: boolean): Promise<void> {
+  async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
     const normalized = normalizeVaultPath(path);
     const info = await this.raw.getFileInfo(path);
     const affected = info.isDirectory && recursive
       ? [info, ...(await this.raw.listDir(path, true))]
       : [info];
-    await this.raw.deleteItem(path, recursive);
+    await this.raw.deleteItem(path, recursive, confirmation);
     for (const item of affected.sort((left, right) => right.path.length - left.path.length)) {
       if (!isWorkspaceLocalOnlyPath(item.path)) await this.state.enqueue("delete", normalizeVaultPath(item.path));
     }

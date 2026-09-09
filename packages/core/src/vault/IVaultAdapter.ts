@@ -45,6 +45,11 @@ export interface VaultFileInfo {
   id?: string;
 }
 
+/** Applies only to the successful delete call carrying it, never to a path's future contents. */
+export interface DeletionConfirmation {
+  confirmed: true;
+}
+
 export interface IVaultAdapter {
   /**
    * Initializes the vault adapter (e.g., connects to DB, authenticates).
@@ -99,7 +104,7 @@ export interface IVaultAdapter {
    * Deletes a file or directory. If a directory, typically fails unless recursive=true.
    * @throws VaultFileNotFoundError
    */
-  deleteItem(path: string, recursive?: boolean): Promise<void>;
+  deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void>;
 
   /**
    * Renames/moves a file or directory.

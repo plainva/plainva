@@ -142,7 +142,7 @@ export interface RpcMap {
   write: { args: { path: string; content: string }; result: void };
   "write-binary": { args: { path: string; base64: string }; result: void };
   rename: { args: { from: string; to: string }; result: void };
-  delete: { args: { path: string; recursive?: boolean }; result: void };
+  delete: { args: { path: string; recursive?: boolean; confirmation?: import("@plainva/core").DeletionConfirmation }; result: void };
   mkdir: { args: { path: string }; result: void };
   /** Is this content open somewhere? Returns true when another window took it. */
   "focus-content": { args: { path: string }; result: boolean };
@@ -349,13 +349,10 @@ export interface RpcMap {
    * value, because the run outlives the request.
    */
   /**
-   * Sync control from another window (C3). "now"/"retry" are the two buttons
-   * the status bar offers; "note-deletions" is not a button at all — it is the
-   * record that a HUMAN asked for these deletions, which is what keeps the
-   * owner's mass-deletion guard from stopping the cycle and asking the central
-   * window about a folder somebody deleted in this one.
+   * Sync control from another window (C3). Deletion confirmation instead
+   * travels on the delete RPC and is stored with the successful operation.
    */
-  "sync-control": { args: { what: "now" | "retry" | "note-deletions"; paths?: string[] }; result: void };
+  "sync-control": { args: { what: "now" | "retry" }; result: void };
 }
 
 export type RpcKind = keyof RpcMap;

@@ -12,10 +12,8 @@ import type { VaultSyncWorker } from "../contexts/VaultContext";
  * Without it a client's `syncWorker` stays null, and the shell reads that as
  * "this vault does not sync": the status bar says LOCAL for a vault that syncs,
  * the retry button never renders, and — the part that actually loses something
- * — a folder deleted in this window arrives at the owner with no record that a
- * human asked for it. The owner's mass-deletion guard then stops the cycle and
- * asks the CENTRAL window about deletions the user made over here, where the
- * question never appears.
+ * — its sync controls disappear. Confirmations for filesystem deletions travel
+ * with the delete RPC, independently of these worker controls.
  *
  * Three of the methods are honest no-ops rather than delegations:
  *
@@ -31,11 +29,11 @@ import type { VaultSyncWorker } from "../contexts/VaultContext";
  * full resync. Providing it here would run the cloud step twice.
  */
 export function createClientSyncWorker(): VaultSyncWorker {
-  const send = (what: "now" | "retry" | "note-deletions", paths?: string[]) => {
+  const send = (what: "now" | "retry") => {
     void (async () => {
       try {
         const bus = await getWindowBus();
-        await bus.request("sync-control", { what, ...(paths ? { paths } : {}) });
+        await bus.request("sync-control", { what });
       } catch (e) {
         console.warn("[clientSyncWorker] the central window did not answer", e);
       }
@@ -48,7 +46,6 @@ export function createClientSyncWorker(): VaultSyncWorker {
     stopAndDrain: async () => {},
     triggerImmediate: () => send("now"),
     retryFailed: () => send("retry"),
-    noteUserInitiatedDeletion: (paths) => send("note-deletions", paths),
     listPendingOperations: async () => ({ total: 0, items: [] }),
   };
 }

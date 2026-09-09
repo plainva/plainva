@@ -31,8 +31,7 @@ import i18n from "../i18n";
  *
  * 3. **The provider call belongs to the reconciler, not to this module.** It
  *    owns the target, the etag and the CalDAV href, and it retries next cycle.
- *    This module records the intent — the same shape as
- *    `noteUserInitiatedDeletion` on the file sync.
+ *    This module records the intent for the specific provider task.
  */
 
 /** One task whose note was deleted and whose provider copy should follow. */

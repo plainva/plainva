@@ -97,8 +97,6 @@ export interface OwnerBusDeps {
   syncWorker: {
     triggerImmediate: () => void;
     retryFailed: () => void;
-    /** See the "sync-control" comment in windowBus.ts — this is a guard, not a button. */
-    noteUserInitiatedDeletion: (paths: string[]) => void;
   } | null;
 }
 
@@ -273,8 +271,8 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("delete", async ({ path, recursive }) => {
-      await deps.vaultAdapter.deleteItem(path, recursive);
+    await bus.handle("delete", async ({ path, recursive, confirmation }) => {
+      await deps.vaultAdapter.deleteItem(path, recursive, confirmation);
       if (deps.indexer) {
         // A recursive delete takes an unknown number of descendants with it, so
         // the index has to be reconciled rather than patched.
@@ -326,13 +324,12 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("sync-control", async ({ what, paths }) => {
+    await bus.handle("sync-control", async ({ what }) => {
       // One worker per vault, in this window (C3). The client shows the status
       // and asks for the two things the status bar offers; the outcome comes
       // back as the ordinary status broadcast, not as a return value, because
       // the run outlives this request.
-      if (what === "note-deletions") deps.syncWorker?.noteUserInitiatedDeletion(paths ?? []);
-      else if (what === "retry") deps.syncWorker?.retryFailed();
+      if (what === "retry") deps.syncWorker?.retryFailed();
       else deps.syncWorker?.triggerImmediate();
     }, { vaultPath: deps.vaultPath }),
   );

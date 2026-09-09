@@ -62,11 +62,16 @@ export class SyncEngine {
        * and burn no retry budget.
        */
       skipDeletes?: boolean;
+      /** The worker's guard snapshot. Later arrivals wait for its next decision. */
+      allowedDeleteIds?: ReadonlySet<number>;
     }
   ): Promise<void> {
     let pending = await this.queue.getPendingOperations();
     if (opts?.skipDeletes) {
       pending = pending.filter((op) => op.operation !== "delete");
+    }
+    if (opts?.allowedDeleteIds) {
+      pending = pending.filter((op) => op.operation !== "delete" || opts.allowedDeleteIds!.has(op.id));
     }
     if (pending.length > 0) {
       console.log(`[SyncEngine] pushing ${pending.length} pending operation(s)`);

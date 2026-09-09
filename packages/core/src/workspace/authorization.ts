@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
+import type { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
 import { VaultPermissionDeniedError } from "../vault/IVaultAdapter.js";
 import type {
   WorkspaceCapability,
@@ -220,9 +220,9 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
     await this.inner.createDir(path);
   }
 
-  async deleteItem(path: string, recursive?: boolean): Promise<void> {
+  async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
     if (!isWorkspaceLocalOnlyPath(path)) await this.check({ action: "delete", path, capability: "content.delete" });
-    await this.inner.deleteItem(path, recursive);
+    await this.inner.deleteItem(path, recursive, confirmation);
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

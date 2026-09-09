@@ -52,6 +52,10 @@ export interface SyncOperation {
    * plaintext content is unchanged. The post-push base hashes stay plaintext.
    */
   force?: number;
+  /** Durable confirmation of this exact local DELETE, not a reusable path grant. */
+  delete_confirmed_at?: number | null;
+  /** Its intent has been saved in the local deletion journal. */
+  delete_journaled?: number;
 }
 
 export interface PushResult {

@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
 import { SyncStateRepository } from "./SyncStateRepository.js";
 import { mergeText } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
@@ -249,8 +249,8 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return this.inner.writeBinaryFile(path, content);
   }
 
-  async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    return this.inner.deleteItem(path, recursive);
+  async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
+    return this.inner.deleteItem(path, recursive, confirmation);
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

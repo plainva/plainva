@@ -13,8 +13,10 @@
  * adapter (never the conflict-aware one: that would create `sync_state` rows and
  * `.CONFLICT` copies for a file that is not a note). Every device merges the
  * remote copy into its own before it reconciles, so a path listed here is an
- * EXPLAINED absence: it is mirrored, and the mass-deletion guard on either side
- * does not count it. What the journal does not know about stays exactly as
+ * EXPLAINED absence: it is mirrored, and the incoming mass-deletion guard
+ * does not count it. Outgoing deletions require their own operation-specific
+ * confirmation; this history never grants authority over a new queue row.
+ * What the journal does not know about stays exactly as
  * guarded as before.
  *
  * It is a message, not an archive: entries older than the retention window are
@@ -203,13 +205,18 @@ export class DeletionJournal {
 
   /** Records deletions the user confirmed here. A folder path covers its children. */
   async recordPaths(paths: ReadonlyArray<string>): Promise<void> {
-    await this.load();
     const at = this.now();
+    await this.recordPathEntries(paths.map((path) => ({ path, deletedAt: at })));
+  }
+
+  /** Queue replay preserves the original confirmation time, including after restart. */
+  async recordPathEntries(paths: ReadonlyArray<{ path: string; deletedAt: number }>): Promise<void> {
+    await this.load();
     const fresh: PathDeletionEntry[] = [];
     for (const p of paths) {
-      const path = normalizeJournalPath(p);
+      const path = normalizeJournalPath(p.path);
       if (!path || path.startsWith(".plainva")) continue;
-      fresh.push({ kind: "path", path, deletedAt: at, deviceId: this.deviceId });
+      fresh.push({ kind: "path", path, deletedAt: p.deletedAt, deviceId: this.deviceId });
     }
     if (fresh.length === 0) return;
     await this.adopt(mergeDeletionEntries(this.entries, fresh));

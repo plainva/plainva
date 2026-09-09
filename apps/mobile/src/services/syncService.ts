@@ -125,7 +125,6 @@ type MobileSyncWorker = {
   stopAndDrain(): Promise<void>;
   triggerImmediate(): void;
   retryFailed(): void | Promise<void>;
-  noteUserInitiatedDeletion(paths: string[]): void;
   fullResync?: () => Promise<void>;
   /** One awaited cycle; only the encrypted-workspace worker offers it. */
   runNow?: () => Promise<void>;
@@ -140,12 +139,6 @@ let deletionJournal: DeletionJournal | null = null;
 /** For the task reconciler: the journal of the vault the worker currently serves. */
 export function currentDeletionJournal(): DeletionJournal | null {
   return deletionJournal;
-}
-
-/** Cascade deletion (plan Kaskadenloeschung): user-confirmed deletions must
- * not trip — or be resurrected by — the sync mass-deletion guard. */
-export function notifyUserInitiatedDeletion(paths: string[]): void {
-  worker?.noteUserInitiatedDeletion(paths);
 }
 
 function setState(next: {

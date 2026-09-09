@@ -76,7 +76,6 @@ export interface VaultSyncWorker {
    * "Vault neu einlesen" falls back to triggerImmediate without it.
    */
   fullResync?: () => Promise<void>;
-  noteUserInitiatedDeletion(paths: string[]): void;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
 }
 
@@ -1599,7 +1598,6 @@ export const VaultProvider: React.FC<{
       syncWorker: {
         triggerImmediate: () => vaultOpsRef.current.syncWorker?.triggerImmediate(),
         retryFailed: () => vaultOpsRef.current.syncWorker?.retryFailed(),
-        noteUserInitiatedDeletion: (paths) => vaultOpsRef.current.syncWorker?.noteUserInitiatedDeletion(paths),
       },
     })
       .then((off) => {

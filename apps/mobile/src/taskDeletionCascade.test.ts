@@ -24,15 +24,12 @@ vi.mock("@plainva/ui", async (importOriginal) => ({
   },
 }));
 
-vi.mock("./services/syncService", () => ({
-  notifyUserInitiatedDeletion: () => {},
-}));
-
 const files = new Map<string, string>();
 vi.mock("./services/vaultService", () => ({
   noteSaver: { flushAll: async () => {} },
   vaultOps: {
-    remove: async (_v: unknown, path: string) => {
+    remove: async (_v: unknown, path: string, confirmation?: { confirmed: true }) => {
+      expect(confirmation).toEqual({ confirmed: true });
       if (!files.has(path)) throw new Error(`already gone: ${path}`);
       files.delete(path);
       removed.push(path);

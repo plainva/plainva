@@ -74,7 +74,6 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
       adapter: d.vaultAdapter,
       queryService: d.queryService,
       indexer: d.indexer ?? null,
-      syncWorker: d.syncWorker ?? null,
       vaultPath: d.vaultPath ?? null,
       plan: p,
       selection,
@@ -108,8 +107,7 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
       });
       if (!ok) continue;
       try {
-        d.syncWorker?.noteUserInitiatedDeletion([folder]);
-        await d.vaultAdapter.deleteItem(folder, true);
+        await d.vaultAdapter.deleteItem(folder, true, { confirmed: true });
         if (d.indexer) await applyIndexChanges(d.indexer, { needsFullScan: true });
         d.triggerFileTreeUpdate();
         notifyFileOps([{ type: "delete", path: folder, isFolder: true }]);

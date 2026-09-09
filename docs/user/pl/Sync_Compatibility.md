@@ -8,6 +8,8 @@ Jeśli nie można przesłać lokalnego pliku z powodu błędu uprawnień lub odc
 
 Zmiany wprowadzone offline są zachowywane również po wielokrotnej zmianie nazwy. Plainva kończy powiązane przenoszenia przed wysłaniem aktualnej treści; nieudana operacja wstrzymuje zależne zadania. Jeśli brakuje zdalnego źródła, Plainva wysyła pozostały lokalny plik lub zawartość folderu do nowej lokalizacji. Nieczytelna zawartość pozostaje w kolejce z błędem do ponowienia.
 
+Potwierdzenie dotyczy tylko faktycznie wykonanej operacji usunięcia. Jest zachowywane przy ponowieniach po błędzie połączenia lub restarcie; nowe pliki w tej samej lokalizacji go nie dziedziczą. Dodatkowe potwierdzenie wstrzymanego masowego usuwania i opcja przywrócenia dotyczą tylko wyświetlonych zadań. Duże operacje usuwania oczekujące już przed aktualizacją mogą wymagać ponownego potwierdzenia.
+
 Plainva synchronizuje vaulty przez wymienne adaptery synchronizacji. Ta strona pokazuje, które usługi możesz już dziś wykorzystać — bezpośrednio zintegrowane, przez protokół WebDAV lub przez własnego klienta desktopowego danego dostawcy.
 
 ## Bezpośrednio zintegrowane

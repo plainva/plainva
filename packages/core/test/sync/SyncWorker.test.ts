@@ -114,6 +114,10 @@ describe("SyncWorker", () => {
       hasPendingStructuralOp: vi.fn().mockResolvedValue(false),
       getPendingStructuralPaths: vi.fn().mockResolvedValue([]),
       getPendingDeletePaths: vi.fn().mockResolvedValue([]),
+      getPendingDeleteOperations: vi.fn(async () => (await queue.getPendingDeletePaths()).map((file_path: string, i: number) => ({
+        id: i + 1, file_path, operation: "delete", queued_at: 1, retry_count: 0, next_retry_at: 0, delete_confirmed_at: null,
+      }))),
+      markDeletesJournaled: vi.fn().mockResolvedValue(undefined),
       discardPendingDeletes: vi.fn().mockResolvedValue([])
     };
 
@@ -195,12 +199,10 @@ describe("SyncWorker", () => {
     expect(vault.createDir).toHaveBeenCalledWith("Andere");
   });
 
-  it("does not recreate a folder the user deleted in this session", async () => {
+  it("allows a remote folder to reappear once no concrete deletion is pending", async () => {
     vault.createDir = vi.fn().mockResolvedValue(undefined);
     vault.exists = vi.fn().mockResolvedValue(false);
-    // The confirmed deletion is already through the queue; only the session
-    // note remains — a full listing minutes later must still not undo it.
-    worker.noteUserInitiatedDeletion(["Tasks"]);
+    // A previous deletion grants no authority over newly created remote contents.
     target.pull.mockResolvedValueOnce({
       etagMap: new Map(),
       folders: ["Tasks", "Tasks/Archiv", "Tasksammlung"],
@@ -209,7 +211,7 @@ describe("SyncWorker", () => {
     await worker.runCycle();
 
     // "Tasksammlung" merely starts with the same letters — it is a sibling.
-    expect(vault.createDir).toHaveBeenCalledTimes(1);
+    expect(vault.createDir).toHaveBeenCalledTimes(3);
     expect(vault.createDir).toHaveBeenCalledWith("Tasksammlung");
   });
 
@@ -1187,14 +1189,14 @@ describe("SyncWorker", () => {
       expect(report).toHaveBeenCalledWith({ mirrored: 0, explained: 0, keptLocalEdits: ["edited.md"] });
     });
 
-    it("a queued delete the journal explains does not count towards the push-side guard", async () => {
+    it("a historical journal entry does not authorize a new queued delete", async () => {
       queue.getPendingDeletePaths.mockResolvedValue(Array.from({ length: 12 }, (_, i) => `del-${i}.md`));
       stateRepo.getAllStates.mockResolvedValue(
         new Map(Array.from({ length: 20 }, (_, i) => [`s-${i}.md`, { remote_etag: `e${i}` }]))
       );
       const journal = journalFor("dev-A");
       target.push = vi.fn().mockResolvedValue(undefined);
-      // Confirmed before a restart: the session allowlist is empty, the journal is not.
+      // Historical paths cannot prove confirmation of these new operation IDs.
       await journal.recordPaths(Array.from({ length: 12 }, (_, i) => `del-${i}.md`));
       const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
       w["isRunning"] = true;
@@ -1203,16 +1205,21 @@ describe("SyncWorker", () => {
 
       await w.runCycle();
 
-      expect(pendingSpy).not.toHaveBeenCalled();
-      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(pendingSpy).toHaveBeenCalledOnce();
+      expect(engine.processQueue.mock.calls[0][2]).toMatchObject({ skipDeletes: true, allowedDeleteIds: new Set() });
     });
 
-    it("noteUserInitiatedDeletion writes the confirmation into the journal", async () => {
+    it("writes confirmed queue operations into the journal before retiring them", async () => {
       const journal = journalFor("dev-A");
       const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal });
-      w.noteUserInitiatedDeletion(["Projekte/Alt"]);
-      await new Promise((r) => setTimeout(r, 0));
+      const operation = { id: 1, file_path: "Projekte/Alt", operation: "delete", delete_confirmed_at: 4000, delete_journaled: 0 };
+      queue.getPendingDeleteOperations.mockResolvedValue([operation]);
+      queue.markDeletesJournaled.mockImplementation(async () => { operation.delete_journaled = 1; });
+      target.push = vi.fn().mockResolvedValue(undefined);
+      w["isRunning"] = true;
+      await w.runCycle();
       expect(journal.explainsPath("Projekte/Alt/notiz.md")).toMatchObject({ deviceId: "dev-A" });
+      expect(queue.markDeletesJournaled).toHaveBeenCalledWith([1]);
     });
 
     it("a failing journal sync never stops the file cycle", async () => {
@@ -1254,8 +1261,8 @@ describe("SyncWorker", () => {
       await worker.runCycle();
 
       const calls = engine.processQueue.mock.calls;
-      expect(calls[0][2]).toEqual({ skipDeletes: true });
-      expect(calls[1][2]).toEqual({ skipDeletes: true });
+      expect(calls[0][2]).toMatchObject({ skipDeletes: true });
+      expect(calls[1][2]).toMatchObject({ skipDeletes: true });
       expect(pendingSpy).toHaveBeenCalledTimes(1); // no re-prompt every poll cycle
       expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 12, syncedTotal: 20 });
       const errorCall = statusSpy.mock.calls.find(([s]) => s === "error");
@@ -1270,26 +1277,27 @@ describe("SyncWorker", () => {
 
       await worker.runCycle();
 
-      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(engine.processQueue.mock.calls[0][2]).toMatchObject({ skipDeletes: false });
       expect(pendingSpy).not.toHaveBeenCalled();
     });
 
-    it("deletions confirmed in-app bypass the guard (session allowlist, E2)", async () => {
+    it("deletions confirmed in-app bypass the guard by operation ID", async () => {
       // A deliberate folder deletion confirmed in the app: 1 folder op + 11
       // child ops. The guard must neither hold nor prompt — the in-app flow
       // already ran its own (double) confirmation.
       queue.getPendingDeletePaths.mockResolvedValue([
-        "proj",
-        ...Array.from({ length: 11 }, (_, i) => `proj/f-${i}.md`),
+        ...Array.from({ length: 12 }, (_, i) => `proj/f-${i}.md`),
       ]);
       stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
       const pendingSpy = vi.fn();
       worker.onMassDeletionPending = pendingSpy;
 
-      worker.noteUserInitiatedDeletion(["proj"]);
+      queue.getPendingDeleteOperations.mockImplementation(async () => (await queue.getPendingDeletePaths()).map((file_path: string, i: number) => ({
+        id: i + 1, file_path, operation: "delete", delete_confirmed_at: 1,
+      })));
       await worker.runCycle();
 
-      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(engine.processQueue.mock.calls[0][2]).toMatchObject({ skipDeletes: false });
       expect(pendingSpy).not.toHaveBeenCalled();
     });
 
@@ -1307,7 +1315,7 @@ describe("SyncWorker", () => {
 
       await worker.runCycle();
 
-      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: false });
+      expect(engine.processQueue.mock.calls[0][2]).toMatchObject({ skipDeletes: false });
       expect(pendingSpy).not.toHaveBeenCalled();
     });
 
@@ -1320,12 +1328,14 @@ describe("SyncWorker", () => {
       const pendingSpy = vi.fn();
       worker.onMassDeletionPending = pendingSpy;
 
-      worker.noteUserInitiatedDeletion(["user-folder"]);
+      queue.getPendingDeleteOperations.mockImplementation(async () => (await queue.getPendingDeletePaths()).map((file_path: string, i: number) => ({
+        id: i + 1, file_path, operation: "delete", delete_confirmed_at: i === 0 ? 1 : null,
+      })));
       await worker.runCycle();
 
-      expect(engine.processQueue.mock.calls[0][2]).toEqual({ skipDeletes: true });
-      // The prompt reports what the two buttons would act on: ALL queued deletes.
-      expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 13, syncedTotal: 20 });
+      expect(engine.processQueue.mock.calls[0][2]).toMatchObject({ skipDeletes: false, allowedDeleteIds: new Set([1]) });
+      // The confirmed operation proceeds; the dialog covers only the others.
+      expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 12, syncedTotal: 20 });
     });
 
     it("approveMassDeletion executes the held deletes on the next cycle", async () => {
@@ -1335,14 +1345,14 @@ describe("SyncWorker", () => {
       stateRepo.getAllStates.mockResolvedValue(syncedBaseline(20));
 
       await worker.runCycle();
-      expect(engine.processQueue.mock.calls.at(-1)![2]).toEqual({ skipDeletes: true });
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toMatchObject({ skipDeletes: true });
 
       worker["isRunning"] = false; // keep triggerImmediate from racing the unit test
       worker.approveMassDeletion();
       worker["isRunning"] = true;
       await worker.runCycle();
 
-      expect(engine.processQueue.mock.calls.at(-1)![2]).toEqual({ skipDeletes: false });
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toMatchObject({ skipDeletes: false });
     });
 
     it("discardMassDeletion drops the deletes, clears their sync_state and forces a full listing", async () => {

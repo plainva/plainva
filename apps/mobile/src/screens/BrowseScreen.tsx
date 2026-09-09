@@ -266,7 +266,7 @@ export function BrowseScreen({
       }
       for (const p of selected) {
         try {
-          await vaultOps.remove(vault, p);
+          await vaultOps.remove(vault, p, { confirmed: true });
         } catch {
           /* keep going; the sync chain surfaces persistent failures */
         }
@@ -326,7 +326,7 @@ export function BrowseScreen({
         });
         if (!sure) return;
       }
-      await vaultOps.removeFolder(vault, target.path);
+      await vaultOps.removeFolder(vault, target.path, { confirmed: true });
     })();
   };
 
