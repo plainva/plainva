@@ -169,7 +169,7 @@ describe("workspace governance P4-P7 contracts", () => {
     const state = new MemoryWorkspaceStateStore();
     const original = workspaceCommentRecord(opened, prepared.operation, prepared.operationHash);
     await state.saveComment(original);
-    const resolution = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 2, previousDeviceOperationHash: prepared.operationHash, targetObjectId: original.targetObjectId, targetRevisionId: original.targetRevisionId, body: "Resolved", resolvedCommentId: original.commentId, recipients: [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }], now: "2026-07-22T10:05:00.000Z" });
+    const resolution = await prepareWorkspaceComment({ runtime, policyHash: workspaceDocumentHash(runtime.policy), sequence: 2, previousDeviceOperationHash: prepared.operationHash, targetObjectId: original.targetObjectId, targetRevisionId: original.targetRevisionId!, body: "Resolved", resolvedCommentId: original.commentId, recipients: [{ groupId: runtime.ownerGroup.groupId, keyEpoch: runtime.ownerGroup.keyEpoch, publicKey: runtime.ownerGroup.hpke.publicKey }], now: "2026-07-22T10:05:00.000Z" });
     const resolvedBody = await openWorkspaceComment({ objectBytes: resolution.objectBytes, operation: resolution.operation, readerKeys: runtime.groupKeys });
     await state.saveComment(workspaceCommentRecord(resolvedBody, resolution.operation, resolution.operationHash));
     expect(await state.listComments(original.targetObjectId)).toEqual([expect.objectContaining({ body: "Please clarify", resolvedAt: "2026-07-22T10:05:00.000Z" })]);

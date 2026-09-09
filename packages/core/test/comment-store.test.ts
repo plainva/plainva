@@ -97,6 +97,12 @@ describe("BundleCommentStore", () => {
     expect(list[0].body).toBe("so far so good");
     // The byline and "is this mine?" read the same field.
     expect(list[0].authorMemberId).toBe(await store.selfId());
+    // The sealed path's facts are absent, not faked: a surface that reads them
+    // sees `undefined` and has to decide, instead of an empty string that
+    // looks like a value (N0).
+    expect(list[0].targetRevisionId).toBeUndefined();
+    expect(list[0].operationHash).toBeUndefined();
+    expect(list[0].payloadHash).toBeUndefined();
     expect((await store.authors()).get("laptop")).toBe("Marco");
     expect(written).toEqual(["Notes/Plan.md"]);
     expect(vault.files.has(OWN_PLAIN)).toBe(true);
@@ -221,6 +227,19 @@ describe("move markers", () => {
   it("resolves two conflicting renames to the earlier one on every device alike", () => {
     const moves = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "A.md", to: "C.md", at: T2 })]);
     expect(resolveCommentPath(moves, "A.md", T0)).toBe("B.md");
+  });
+
+  it("does not hand an old note's remarks to a new note that took its name and was renamed later", () => {
+    // Why the plan's "youngest marker wins" (E1) is NOT the rule: A.md was
+    // renamed to B.md at T1; a NEW A.md was created and renamed to D.md at
+    // T3. A remark written on the old A.md at T0 belongs to B.md. Picking the
+    // youngest of the two markers from A.md would carry it to D.md - the new
+    // note - and lose it for the old one. The earliest marker at or after the
+    // remark's creation is the one that happened to ITS note.
+    const moves = sorted([move({ moveId: "01".repeat(16), from: "A.md", to: "B.md", at: T1 }), move({ moveId: "02".repeat(16), from: "A.md", to: "D.md", at: T3 })]);
+    expect(resolveCommentPath(moves, "A.md", T0)).toBe("B.md");
+    // ...while the new note's own remark, written at T2, follows ITS rename.
+    expect(resolveCommentPath(moves, "A.md", T2)).toBe("D.md");
   });
 
   it("moves a whole folder by prefix", () => {

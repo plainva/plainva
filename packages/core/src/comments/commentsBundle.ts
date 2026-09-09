@@ -418,16 +418,15 @@ export function localCommentsByPath(bundle: CommentsBundle | null, missing?: Rea
         commentId: record.commentId,
         // No object id without a workspace; the path IS the identity here -
         // followed through the move markers (N1) to where the note is today.
+        // No revision and no hashes either: those are the sealed path's facts,
+        // and the record type marks them optional for exactly this reason.
         targetObjectId: placeOf(record),
-        targetRevisionId: "",
         parentCommentId: record.parentCommentId,
         // A device is the author in a plain vault: there are no members, and the
         // surface keys its name map by exactly this field. A named author (N0)
         // stands in front of the device that wrote for it.
         authorMemberId: record.authorId ?? record.authorDeviceId,
         authorDeviceId: record.authorDeviceId,
-        operationHash: "",
-        payloadHash: "",
         body: record.body,
         anchor: record.anchor,
         suggestion: record.suggestion

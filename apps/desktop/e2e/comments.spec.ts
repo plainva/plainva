@@ -378,3 +378,40 @@ test('a broken own file is set aside and reported, never overwritten (N3)', asyn
   const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), fresh);
   expect(Object.values(bundle.comments).map((c: any) => c.body)).toEqual(['after the damage']);
 });
+
+test('a suggestion round is sent from the editor, accepted in the column, and the note changes exactly once (N5)', async ({ page }) => {
+  await openWelcome(page);
+  const column = await openColumn(page);
+
+  // Suggest mode: typing changes a COPY; the band counts the changed blocks.
+  await page.getByTestId('editor-suggest-mode').click();
+  await expect(page.getByTestId('suggest-band')).toBeVisible();
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' plus');
+  const send = page.getByTestId('suggest-send');
+  await expect(send).toBeEnabled({ timeout: 10000 });
+  // The file itself is untouched while the mode is on.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe("# Hello\nWelcome to the mock vault!");
+  await send.click();
+  await expect(page.getByTestId('suggest-band')).toHaveCount(0);
+
+  // The round lands under "Suggestions"; accepting writes the passage.
+  await page.getByTestId('comment-kind-suggestions').click();
+  const card = column.locator('.pv-comment-card').first();
+  await expect(card).toBeVisible({ timeout: 10000 });
+  await card.hover();
+  await card.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md']), { timeout: 10000 }).toContain('Welcome to the mock vault! plus');
+
+  // ...as one ordinary change: exactly one version was kept, and the
+  // proposal is closed as applied in this device's own file.
+  const backups = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/.plainva/backups/') && p.includes('Welcome')));
+  expect(backups, 'one snapshot for the one write').toHaveLength(1);
+  const own = await ownFile(page);
+  const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), own);
+  const records = Object.values(bundle.comments) as any[];
+  expect(records.filter((r) => r.suggestion).map((r) => r.suggestion.replacement)).toEqual([expect.stringContaining('plus')]);
+  expect(records.filter((r) => r.resolvedCommentId).map((r) => r.suggestionOutcome)).toEqual(['applied']);
+});

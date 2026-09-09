@@ -36,13 +36,22 @@ export interface WorkspaceRevisionRecord {
 
 export interface WorkspaceCommentRecord {
   commentId: string;
+  /** The object in a workspace; the note's PATH in a vault without one (the bundle store, N0). */
   targetObjectId: string;
-  targetRevisionId: string;
+  /**
+   * SEALED PATH ONLY (N0): the revision the remark was written against. A
+   * vault without a workspace has no revisions, and the bundle store leaves
+   * this out rather than inventing an empty one - a surface that needs it
+   * must check for it, so that surface cannot break the open path silently.
+   */
+  targetRevisionId?: string;
   parentCommentId: string | null;
   authorMemberId: string;
   authorDeviceId: string;
-  operationHash: string;
-  payloadHash: string;
+  /** SEALED PATH ONLY (N0): the hash of the signed operation that carried the remark. */
+  operationHash?: string;
+  /** SEALED PATH ONLY (N0): the hash of the sealed payload. */
+  payloadHash?: string;
   body: string;
   /** Where in the note it sits, or null for the note as a whole. */
   anchor: WorkspaceCommentAnchor | null;
