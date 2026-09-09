@@ -34,10 +34,11 @@ async function pastTheFirstStart(page: Page) {
 /** The first remark asks once how it should be signed; the answer lands in the settings (finding 2026-09-09). */
 async function answerNamePrompt(page: Page) {
   const input = page.getByPlaceholder(/^Your name$/);
-  if (await input.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await input.fill("Marco");
-    await page.getByRole("button", { name: /^OK$/ }).click();
-  }
+  // Both tests start on a fresh installation. Preparing the durable operation
+  // reads its journal before the name prompt opens; isVisible never waits.
+  await expect(input).toBeVisible();
+  await input.fill("Marco");
+  await page.getByRole("button", { name: /^OK$/ }).click();
 }
 
 /** Into the first note. The welcome vault seeds folders and notes; every row is a swipe row, and the first may be a folder. */
