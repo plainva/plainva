@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-09-09
+Laatst bijgewerkt: 2026-09-10
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 

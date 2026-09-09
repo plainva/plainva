@@ -1,6 +1,6 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-09-10
 
 Plainva kan notities overnemen uit andere notitie-apps. De import schrijft altijd naar de vault die je op dat moment hebt geopend, in een submap die je zelf benoemt — zo raakt hij de rest van je vault nooit aan, en kun je de geïmporteerde map achteraf verplaatsen of verwijderen als elke andere map.
 
@@ -163,3 +163,7 @@ Helemaal onderaan staat hoe je de import **ongedaan maakt**: alles uit één uit
 - [Databases (.base)](Databases_Base.md) — wat er gebeurt met geïmporteerde Notion-databases
 - [OKF](OKF.md) — de frontmatter die geïmporteerde notities krijgen
 - [Aan de slag](Getting_Started.md) — een aparte vault aanmaken voor een import
+
+## Groottelimieten tijdens het uitpakken
+
+ZIP-bestanden worden verwerkt met limieten per bestand, voor de totale grootte en voor het aantal geaccepteerde items. Op de telefoon worden deze limieten ook tijdens het daadwerkelijke uitpakken gecontroleerd; onjuiste opgegeven groottes kunnen ze niet omzeilen. Te grote, onveilige of onleesbare items staan in het resultaat. Een archief met een beschadigde structuur wordt als fout gemeld. De oorspronkelijke export blijft behouden.

@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 

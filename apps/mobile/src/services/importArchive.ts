@@ -1,4 +1,4 @@
-import { unzip } from "fflate";
+import { Inflate, Unzip, unzipSync, type AsyncFlateStreamHandler, type FlateError, type UnzipDecoder } from "fflate";
 import {
   classifyArchiveEntry,
   DEFAULT_EXTRACT_LIMITS,
@@ -34,12 +34,6 @@ export interface ExtractedArchive {
   totalBytes: number;
 }
 
-function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
-  return new Promise((resolve, reject) => {
-    unzip(data, (err, files) => (err ? reject(err) : resolve(files)));
-  });
-}
-
 /**
  * Unpacks a zip the user picked.
  *
@@ -51,43 +45,72 @@ export async function extractArchive(
   data: Uint8Array,
   limits = DEFAULT_EXTRACT_LIMITS,
 ): Promise<ExtractedArchive> {
-  const entries = await unzipAsync(data);
-  const files: MobileUnpackedFile[] = [];
-  const skipped: ExtractedArchive["skipped"] = [];
+  // Validate the central directory without allocating any entry payload.
+  unzipSync(data, { filter: () => false });
+  const files: MobileUnpackedFile[] = [], skipped: ExtractedArchive["skipped"] = [];
   const written = { entries: 0, totalBytes: 0 };
-
-  for (const [relativePath, bytes] of Object.entries(entries)) {
-    // fflate yields directory entries as empty payloads with a trailing slash;
-    // the shared guard already calls those unsafe, so they land in `skipped`
-    // only if they are not plain directories.
-    if (relativePath.endsWith("/")) continue;
-
-    const reason = classifyArchiveEntry(
-      { relativePath, byteSize: bytes.byteLength },
-      written,
-      limits,
-    );
-    if (reason) {
+  let inflatedBytes = 0;
+  const archive = new Unzip(file => {
+    const relativePath = file.name, directory = relativePath.endsWith("/");
+    let stopped = directory, size = 0, chunks: Uint8Array[] = [];
+    const reject = (reason: ExtractSkipReason) => {
+      if (stopped) return;
+      stopped = true; chunks = [];
       skipped.push({ relativePath, reason });
-      continue;
+      file.terminate();
+    };
+    const declared = Number.isFinite(file.originalSize) ? file.originalSize! : 0;
+    const reason = classifyArchiveEntry({ relativePath, byteSize: declared }, written, limits);
+    if (!directory && reason) reject(reason);
+    if (!stopped && inflatedBytes >= limits.maxTotalBytes && declared > 0) reject("too_large");
+    if (!stopped && file.compression !== 0 && file.compression !== 8) reject("unreadable");
+    file.ondata = (error, chunk, final) => {
+      if (stopped) return;
+      if (error) { reject("unreadable"); return; }
+      inflatedBytes += chunk.byteLength;
+      size += chunk.byteLength;
+      if (size > limits.maxEntryBytes || inflatedBytes > limits.maxTotalBytes) { reject("too_large"); return; }
+      // Copy stored entries as well: retaining a view would retain the entire ZIP.
+      if (chunk.byteLength) chunks.push(chunk.slice());
+      if (!final) return;
+      const bytes = chunks.length === 1 ? chunks[0] : new Uint8Array(size);
+      if (chunks.length !== 1) { let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.byteLength; } }
+      chunks = []; written.entries++; written.totalBytes += size;
+      if (isTextPath(relativePath)) {
+        try {
+          files.push({ relativePath, content: new TextDecoder("utf-8", { fatal: true }).decode(bytes), isText: true, byteSize: size });
+          return;
+        } catch { /* Preserve a mislabelled binary as its original bytes. */ }
+      }
+      files.push({ relativePath, content: "", isText: false, byteSize: size, sourcePath: relativePath, bytes });
+    };
+    // Always start a decoder, including a stopped one. Unzip otherwise retains
+    // every compressed chunk in case start() is called after the archive ends.
+    class EntryDecoder implements UnzipDecoder {
+      static compression = file.compression;
+      ondata: AsyncFlateStreamHandler = () => {};
+      private inflater = !stopped && file.compression === 8
+        ? new Inflate((chunk, final) => this.ondata(null, chunk, final)) : undefined;
+      terminate() { stopped = true; this.inflater = undefined; }
+      push(chunk: Uint8Array, final: boolean) {
+        if (stopped) return;
+        if (file.compression === 0) { this.ondata(null, chunk.slice(), final); return; }
+        try {
+          // Bound expansion BEFORE the output callback: one highly compressed
+          // input buffer must not allocate its complete uncompressed payload.
+          for (let offset = 0; offset < chunk.length && !stopped; offset += 64)
+            this.inflater!.push(chunk.subarray(offset, offset + 64), final && offset + 64 >= chunk.length);
+          if (!chunk.length && !stopped) this.inflater!.push(chunk, final);
+        } catch (error) { this.ondata(error as FlateError, new Uint8Array(), false); }
+      }
     }
-
-    written.entries += 1;
-    written.totalBytes += bytes.byteLength;
-
-    if (!isTextPath(relativePath)) {
-      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, sourcePath: relativePath, bytes });
-      continue;
-    }
-    try {
-      // fatal: a mislabelled binary must not become mojibake in a note.
-      const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      files.push({ relativePath, content, isText: true, byteSize: bytes.byteLength });
-    } catch {
-      files.push({ relativePath, content: "", isText: false, byteSize: bytes.byteLength, sourcePath: relativePath, bytes });
-    }
+    archive.register(EntryDecoder); file.start();
+  });
+  for (let offset = 0; offset < data.length; offset += 4096) {
+    archive.push(data.subarray(offset, offset + 4096), offset + 4096 >= data.length);
+    if (offset % 65536 === 0) await new Promise<void>(resolve => setTimeout(resolve, 0));
   }
-
+  if (!data.length) archive.push(data, true);
   return { files, skipped, totalBytes: written.totalBytes };
 }
 

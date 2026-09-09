@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-09
+Stan na: 2026-09-10
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 

@@ -1,6 +1,6 @@
 # Importing from another app
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-10
 
 Plainva can bring notes over from other note apps. The import always writes into the vault you currently have open, in a subfolder you name — so it never touches the rest of your vault, and you can move or delete the imported folder afterwards like any other folder.
 
@@ -163,3 +163,7 @@ At the bottom it says how to **undo** the import: everything from one run sits i
 - [Databases (.base)](Databases_Base.md) — what happens to imported Notion databases
 - [OKF](OKF.md) — the frontmatter imported notes receive
 - [Getting Started](Getting_Started.md) — creating a separate vault for an import
+
+## Size limits during extraction
+
+ZIP files are processed with limits per file, for the total size and for the number of accepted entries. On the phone, these limits are also checked during actual decompression; incorrect size declarations cannot bypass them. Oversized, unsafe or unreadable entries are listed in the result. A structurally broken archive is reported as an error. The original export is kept.

@@ -1,6 +1,6 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-08-21
+Stand: 2026-09-10
 
 Plainva kann Notizen aus anderen Notiz-Apps übernehmen. Der Import schreibt immer in den Vault, den Du gerade geöffnet hast — in einen Unterordner, den Du selbst benennst. Der Rest Deines Vaults wird nicht angefasst, und Du kannst den importierten Ordner hinterher wie jeden anderen Ordner verschieben oder löschen.
 
@@ -163,3 +163,7 @@ Ganz unten steht, wie Du den Import **rückgängig** machst: Alles aus einem Lau
 - [Datenbanken (.base)](Databases_Base.md) — was mit importierten Notion-Datenbanken passiert
 - [OKF](OKF.md) — das Frontmatter, das importierte Notizen bekommen
 - [Erste Schritte](Getting_Started.md) — einen eigenen Vault für den Import anlegen
+
+## Größengrenzen beim Entpacken
+
+ZIP-Dateien werden mit Grenzen pro Datei, für die Gesamtmenge und für die Anzahl der übernommenen Einträge verarbeitet. Auf dem Telefon werden diese Grenzen jetzt auch während des tatsächlichen Entpackens geprüft; falsche Größenangaben im Archiv umgehen sie nicht. Zu große, unsichere oder nicht lesbare Einträge werden im Ergebnis genannt. Ein strukturell defektes Archiv wird als Fehler gemeldet. Der ursprüngliche Export bleibt erhalten.

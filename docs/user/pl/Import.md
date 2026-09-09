@@ -1,6 +1,6 @@
 # Import z innej aplikacji
 
-Stan na: 2026-08-21
+Stan na: 2026-09-10
 
 Plainva potrafi przenieść notatki z innych aplikacji do notatek. Import zawsze zapisuje dane w vaulcie, który masz aktualnie otwarty, w podfolderze o nazwie, którą wybierasz — dzięki temu nigdy nie dotyka reszty Twojego vaultu, a zaimportowany folder możesz później przenieść lub usunąć jak każdy inny folder.
 
@@ -163,3 +163,7 @@ Na samym dole znajduje się informacja, jak **cofnąć** import: wszystko z jedn
 - [Bazy danych (.base)](Databases_Base.md) — co dzieje się z zaimportowanymi bazami danych Notion
 - [OKF](OKF.md) — frontmatter, jaki otrzymują zaimportowane notatki
 - [Pierwsze kroki](Getting_Started.md) — tworzenie osobnego vaultu na potrzeby importu
+
+## Limity rozmiaru podczas rozpakowywania
+
+Pliki ZIP są przetwarzane z limitami rozmiaru pojedynczego pliku, łącznego rozmiaru oraz liczby przyjętych wpisów. Na telefonie limity są sprawdzane także podczas faktycznego rozpakowywania; błędne deklaracje rozmiaru nie pozwalają ich obejść. Wynik wymienia wpisy zbyt duże, niebezpieczne lub nieczytelne. Archiwum z uszkodzoną strukturą jest zgłaszane jako błąd. Oryginalny eksport pozostaje zachowany.

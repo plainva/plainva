@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-09-09
+Última revisão: 2026-09-10
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 

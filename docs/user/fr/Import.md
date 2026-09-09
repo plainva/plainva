@@ -1,6 +1,6 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-09-10
 
 Plainva peut reprendre des notes depuis d'autres applications de prise de notes. L'import écrit toujours dans le vault que vous avez actuellement ouvert, dans un sous-dossier que vous nommez — il ne touche donc jamais au reste de votre vault, et vous pouvez déplacer ou supprimer le dossier importé par la suite comme n'importe quel autre dossier.
 
@@ -163,3 +163,7 @@ Tout en bas figure la façon d'**annuler** l'import : tout ce qui provient d'une
 - [Bases de données (.base)](Databases_Base.md) — ce qui arrive aux bases de données Notion importées
 - [OKF](OKF.md) — le frontmatter que reçoivent les notes importées
 - [Prise en main](Getting_Started.md) — créer un vault séparé pour un import
+
+## Limites de taille pendant l’extraction
+
+Les fichiers ZIP sont traités avec des limites par fichier, de taille totale et de nombre d’entrées acceptées. Sur le téléphone, ces limites sont aussi vérifiées pendant la décompression réelle ; des tailles déclarées incorrectes ne permettent pas de les contourner. Le résultat indique les entrées trop volumineuses, dangereuses ou illisibles. Une archive dont la structure est endommagée est signalée comme erreur. L’export original est conservé.

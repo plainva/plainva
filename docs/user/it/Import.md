@@ -1,6 +1,6 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-09-10
 
 Plainva può importare le tue note da altre app di appunti. L'importazione scrive sempre nel vault che hai attualmente aperto, in una sottocartella che tu stesso nomini — quindi non tocca mai il resto del tuo vault, e puoi spostare o eliminare la cartella importata in seguito come qualsiasi altra cartella.
 
@@ -163,3 +163,7 @@ In fondo è indicato come **annullare** l'importazione: tutto ciò che proviene 
 - [Database (.base)](Databases_Base.md) — cosa succede ai database Notion importati
 - [OKF](OKF.md) — il frontmatter che ricevono le note importate
 - [Per iniziare](Getting_Started.md) — creare un vault separato per un'importazione
+
+## Limiti di dimensione durante l’estrazione
+
+I file ZIP vengono elaborati con limiti per file, per la dimensione totale e per il numero di voci accettate. Sul telefono, i limiti vengono verificati anche durante la decompressione effettiva; dimensioni dichiarate errate non consentono di aggirarli. Il risultato elenca le voci troppo grandi, non sicure o illeggibili. Un archivio con struttura danneggiata viene segnalato come errore. L’esportazione originale viene conservata.

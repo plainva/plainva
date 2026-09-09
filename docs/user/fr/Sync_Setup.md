@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-09-09
+Dernière mise à jour : 2026-09-10
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
