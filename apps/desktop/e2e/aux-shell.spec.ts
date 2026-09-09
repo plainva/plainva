@@ -186,6 +186,9 @@ async function openAuxNote(page: Page) {
   await page.goto(AUX_URL);
   await expect(page.getByTestId('aux-titlebar')).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.cm-content').first()).toContainText('aktuelle Fassung', { timeout: 15000 });
+  // The stub owner predates comment operations. Its null reply must remain a
+  // visible recovery-read error without taking the whole editor down.
+  await expect(page.getByText(/Pending comment operations could not be read|Ausstehende Kommentarvorgänge konnten nicht gelesen werden/)).toBeVisible();
 }
 
 const rpc = (page: Page) => page.evaluate(() => (window as any).__rpc as Array<{ kind: string; args: any }>);
