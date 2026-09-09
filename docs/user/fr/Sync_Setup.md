@@ -41,6 +41,8 @@ Les adresses de serveur typiques (Nextcloud, Koofr, MagentaCLOUD, Storage Box et
 
 Les changements de mot de passe sont d’abord vérifiés auprès de tous les services concernés protégés par mot de passe. Si l’enregistrement est interrompu, les modifications confirmées sont conservées. Rouvre le compte et choisis **Poursuivre l’enregistrement**. L’opération protégée reste disponible après un redémarrage. Si le rattachement du compte ou les identifiants ont changé, choisis **Vérifier à nouveau le mot de passe** pour vérifier le mot de passe actuel auprès des services désormais rattachés. Les identifiants manquants ne sont pas ignorés. Une nouvelle connexion au calendrier est aussi utilisée lors de la prochaine ouverture d’un vault précédemment fermé.
 
+Une nouvelle connexion de calendrier reste liée au vault dans lequel tu l’as démarrée. Si tu le fermes ou changes de vault pendant la vérification, relance la connexion dans ce vault. Si les identifiants existants ne peuvent pas être lus, le regroupement s’arrête et préserve les comptes existants.
+
 ## Google Drive
 
 Google Drive fonctionne actuellement avec vos propres identifiants (« Bring Your Own ») : vous créez une fois un projet Google Cloud gratuit, qui vous appartient exclusivement. Le guide étape par étape : [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

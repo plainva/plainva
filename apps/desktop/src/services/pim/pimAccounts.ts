@@ -1,6 +1,6 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow } from "@plainva/core";
-import type { PimRuntime } from "./pimRuntime";
+import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
 import { savePimCredentials, clearPimCredentials, getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { noteAccountRemovedLocally } from "../settingsProfile";
@@ -59,7 +59,9 @@ async function adoptIfKnown(
   fresh: PimAccountRow,
   creds: PimStoredCredentials
 ): Promise<PimAccountRow | null> {
-  const existing = await runtime.cache.listAccounts().catch(() => [] as PimAccountRow[]);
+  assertPimRuntime(runtime);
+  const existing = await runtime.cache.listAccounts();
+  assertPimRuntime(runtime);
   const target = accountToAdoptInto(existing, {
     id: fresh.id,
     provider: fresh.provider,
@@ -69,11 +71,11 @@ async function adoptIfKnown(
 
   await adoptAccountInto(
     {
-      getCredentials: getPimCredentials,
-      saveCredentials: (v, id, c) => savePimCredentials(v, id, c as PimStoredCredentials),
-      clearCredentials: clearPimCredentials,
-      reassignRows: (from, to) => runtime.cache.reassignAccountRows(from, to),
-      deleteAccount: (id) => runtime.cache.deleteAccount(id),
+      getCredentials: (v, id) => { assertPimRuntime(runtime); return getPimCredentials(v, id); },
+      saveCredentials: (v, id, c) => { assertPimRuntime(runtime); return savePimCredentials(v, id, c as PimStoredCredentials); },
+      clearCredentials: (v, id) => { assertPimRuntime(runtime); return clearPimCredentials(v, id); },
+      reassignRows: (from, to) => { assertPimRuntime(runtime); return runtime.cache.reassignAccountRows(from, to); },
+      deleteAccount: (id) => { assertPimRuntime(runtime); return runtime.cache.deleteAccount(id); },
     },
     { vault: vaultPath, freshId: fresh.id, targetId: target.id, validatedCreds: creds },
   );
@@ -83,12 +85,17 @@ async function adoptIfKnown(
   return { ...target, label: fresh.label, config: fresh.config, enabled: true };
 }
 
+function assertPimRuntime(runtime: PimRuntime): void {
+  if (!runtime.isActive()) throw new Error("pim runtime changed");
+}
+
 async function finishConnect(
   runtime: PimRuntime,
   vaultPath: string,
   account: PimAccountRow,
   creds: PimStoredCredentials
 ): Promise<PimAccountRow> {
+  assertPimRuntime(runtime);
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   // Is this a repair of an account we already have? Connecting again is the
   // normal fix for an expired sign-in, and every connect mints a new id — so
@@ -98,17 +105,22 @@ async function finishConnect(
   if (adopted) account = adopted;
 
   // Persist secret + account only after listCalendars proved the connection.
-  await savePimCredentials(vaultPath, account.id, creds);
+  assertPimRuntime(runtime);
+  if (!adopted) await savePimCredentials(vaultPath, account.id, creds);
+  assertPimRuntime(runtime);
   await runtime.cache.upsertAccount(account);
+  assertPimRuntime(runtime);
   const target = await runtime.buildTarget(account);
   if (target) {
     const calendars = await target.listCalendars();
+    assertPimRuntime(runtime);
     await runtime.cache.replaceCalendars(account.id, calendars);
     const lists = await target.listTaskLists().catch(() => []);
+    assertPimRuntime(runtime);
     await runtime.cache.replaceTaskLists(account.id, lists);
   }
   // First data pull runs in the background — the section renders immediately.
-  void runtime.worker.triggerImmediate();
+  await restartPimAccountAfterLogin(runtime, account.id);
   return account;
 }
 

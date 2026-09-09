@@ -41,6 +41,8 @@ Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele inn
 
 Zmiany hasła są najpierw sprawdzane we wszystkich objętych zmianą usługach chronionych hasłem. Jeśli zapisywanie zostanie przerwane, potwierdzone zmiany zostają zachowane. Otwórz konto ponownie i wybierz **Kontynuuj zapisywanie**. Chroniona operacja pozostaje dostępna po ponownym uruchomieniu. Jeśli powiązanie konta lub dane logowania uległy zmianie, wybierz **Zweryfikuj hasło ponownie**, aby sprawdzić aktualne hasło w obecnie przypisanych usługach. Brakujące dane logowania nie są pomijane. Nowe logowanie do kalendarza jest też używane przy kolejnym otwarciu wcześniej zamkniętego vaulta.
 
+Nowe połączenie z kalendarzem pozostaje przypisane do vaulta, w którym je rozpoczęto. Jeśli zamkniesz go lub zmienisz podczas weryfikacji, rozpocznij połączenie ponownie w pierwotnym vaulcie. Gdy nie można odczytać istniejących danych logowania, scalanie zostaje przerwane, a dotychczasowe konta zachowane.
+
 ## Google Drive
 
 Google Drive działa obecnie z własnymi danymi dostępowymi („Bring Your Own”): jednorazowo tworzysz darmowy własny projekt Google Cloud, który należy wyłącznie do Ciebie. Instrukcja krok po kroku: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

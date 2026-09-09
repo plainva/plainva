@@ -319,59 +319,62 @@ export async function addPimAccount(
   label: string,
   creds: PimStoredCredentials,
 ): Promise<void> {
+  const owner = runtime;
+  if (!owner) throw new Error("pim runtime not started");
+  const assertCurrent = () => { if (runtime !== owner) throw new Error("pim runtime changed"); };
+  if (provider !== creds.kind) throw new Error("pim provider mismatch");
   creds = { ...creds, loginRevision: crypto.randomUUID() };
-  if (!runtime) throw new Error("pim runtime not started");
   const id = newAccountId();
-  await savePimCredentials(runtime.vaultId, id, creds);
   let resolvedLabel = label;
   let config: Record<string, unknown> = {};
-  try {
-    if (creds.kind === "google" || creds.kind === "microsoft") {
-      const auth = buildPimAuthProvider(runtime.vaultId, id, creds);
-      const profile = await fetchVerifiedProfile(auth, creds.kind);
-      const target = creds.kind === "google"
-        ? new GooglePimTarget(auth, webdavFetch)
-        : new GraphPimTarget(auth, webdavFetch);
-      await target.listCalendars();
-      if (profile) {
-        resolvedLabel = profile.label ?? resolvedLabel;
-        config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
-      }
+  // Probe in memory, including token rotation. A failed or abandoned probe
+  // must not create a credential or clean up a slot in another vault.
+  if (creds.kind === "google" || creds.kind === "microsoft") {
+    const auth = buildPimAuthProvider(owner.vaultId, id, creds, {
+      onRotation: async (_previous, next) => { assertCurrent(); creds = next; },
+    });
+    const profile = await fetchVerifiedProfile(auth, creds.kind);
+    assertCurrent();
+    const target = creds.kind === "google"
+      ? new GooglePimTarget(auth, webdavFetch)
+      : new GraphPimTarget(auth, webdavFetch);
+    await target.listCalendars();
+    if (profile) {
+      resolvedLabel = profile.label ?? resolvedLabel;
+      config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
     }
-  } catch (error) {
-    await clearPimCredentials(runtime.vaultId, id).catch(() => undefined);
-    throw error;
+  } else {
+    await allowHttpOrigin(creds.url);
+    assertCurrent();
+    const calendars = await new CalDavPimTarget(creds, webdavFetch).listCalendars();
+    if (!calendars.length) throw new Error("No calendars found on this server.");
   }
-  // Is this a repair of an account we already have? Connecting again is the
-  // normal fix for an expired sign-in, and every connect mints a new id — so
-  // without this the phone ends up with two rows for one account while the
-  // task anchors and cursors stay with the old one (C22). Same rule, same
-  // shared helper as the desktop; only the plumbing differs.
-  const known = await runtime.cache.listAccounts().catch(() => []);
+  assertCurrent();
+  const known = await owner.cache.listAccounts();
+  assertCurrent();
   const adoptInto = accountToAdoptInto(known, {
-    id,
-    provider,
-    identity: verifiedProviderIdentityOf({ config }),
+    id, provider, identity: verifiedProviderIdentityOf({ config }),
   });
   if (adoptInto) {
-    const cache = runtime.cache;
     await adoptAccountInto(
       {
-        getCredentials: getPimCredentials,
-        saveCredentials: (v, accountId, c) => savePimCredentials(v, accountId, c as PimStoredCredentials),
-        clearCredentials: clearPimCredentials,
-        reassignRows: (from, to) => cache.reassignAccountRows(from, to),
-        deleteAccount: (accountId) => cache.deleteAccount(accountId),
+        getCredentials: (v, accountId) => { assertCurrent(); return getPimCredentials(v, accountId); },
+        saveCredentials: (v, accountId, c) => { assertCurrent(); return savePimCredentials(v, accountId, c as PimStoredCredentials); },
+        clearCredentials: (v, accountId) => { assertCurrent(); return clearPimCredentials(v, accountId); },
+        reassignRows: (from, to) => { assertCurrent(); return owner.cache.reassignAccountRows(from, to); },
+        deleteAccount: (accountId) => { assertCurrent(); return owner.cache.deleteAccount(accountId); },
       },
-      { vault: runtime.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
+      { vault: owner.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
     );
-    await cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config, enabled: true });
+    assertCurrent();
+    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config, enabled: true });
   } else {
-    await runtime.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
+    await savePimCredentials(owner.vaultId, id, creds);
+    assertCurrent();
+    await owner.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
   }
-  if (state.status === "off") setState({ status: "idle", message: null });
-  runtime.worker.start();
-  runtime.worker.triggerImmediate();
+  assertCurrent();
+  await restartPimAccountAfterLogin(owner.vaultId, adoptInto?.id ?? id);
 }
 
 /**

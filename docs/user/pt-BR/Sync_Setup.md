@@ -41,6 +41,8 @@ Endereços de servidor típicos (Nextcloud, Koofr, MagentaCLOUD, Storage Box e m
 
 As alterações de senha são verificadas primeiro em todos os serviços afetados protegidos por senha. Se o salvamento for interrompido, as alterações confirmadas são mantidas. Abra a conta novamente e escolha **Continuar salvando**. A operação protegida continua disponível após reiniciar. Se o vínculo da conta ou as credenciais mudaram, escolha **Verificar a senha novamente** para verificar a senha atual nos serviços agora vinculados. Credenciais ausentes não são ignoradas. Um novo login do calendário também é usado ao abrir novamente um vault que estava fechado.
 
+Uma nova conexão de calendário permanece vinculada ao vault em que você a iniciou. Se você fechar ou trocar esse vault durante a verificação, inicie a conexão novamente nele. Se as credenciais existentes não puderem ser lidas, a união é interrompida e mantém as contas existentes.
+
 ## Google Drive
 
 O Google Drive hoje funciona com suas próprias credenciais ("Bring Your Own"): você cria uma vez um projeto gratuito no Google Cloud, que pertence só a você. O guia passo a passo: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

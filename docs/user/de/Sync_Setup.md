@@ -41,6 +41,8 @@ Typische Server-Adressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box u. v. m.) 
 
 Passwortänderungen werden zuerst bei allen betroffenen passwortgeschützten Diensten geprüft. Wird die Speicherung unterbrochen, bleiben bestätigte Änderungen erhalten. Öffne das Konto erneut und wähle **Speicherung fortsetzen**. Der geschützte Vorgang bleibt auch nach einem Neustart verfügbar. Wenn sich Kontozuordnung oder Zugangsdaten geändert haben, kannst Du mit **Passwort erneut prüfen** das aktuelle Passwort für die jetzt zugeordneten Dienste prüfen. Ein fehlender Zugang wird nicht übersprungen. Eine frische Kalenderanmeldung wird auch beim nächsten Öffnen eines zuvor geschlossenen Vaults verwendet.
 
+Eine neue Kalenderverbindung bleibt an den Vault gebunden, in dem Du sie begonnen hast. Schließt oder wechselst Du ihn während der Prüfung, starte die Verbindung dort erneut. Ein Fehler beim Lesen vorhandener Zugangsdaten bricht die Zusammenführung ab und erhält die bisherigen Konten.
+
 ## Google Drive
 
 Google Drive läuft aktuell mit eigenen Zugangsdaten („Bring Your Own"): Du legst einmalig ein kostenloses eigenes Google-Cloud-Projekt an, das nur Dir gehört. Die Schritt-für-Schritt-Anleitung: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

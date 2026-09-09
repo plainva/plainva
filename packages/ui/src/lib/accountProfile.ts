@@ -333,10 +333,11 @@ export interface AccountAdoptionPorts {
  *
  * The credential is RE-READ from the throwaway slot instead of using the one
  * the caller validated with. Validating already refreshed the token, and
- * Microsoft rotates its refresh token on every refresh — the auth provider
+ * the provider may rotate its refresh token — the auth provider
  * persists the rotated one immediately, under the id it was built with, which
  * is the throwaway id. Writing the caller's original would put a spent token on
- * the account that is meant to keep working.
+ * the account that is meant to keep working. A read error is not an empty
+ * slot: it stops adoption before any credential or cached row changes.
  *
  * The rows move BEFORE the throwaway account row is deleted, because
  * `pim_calendars` and `pim_tasklists` cascade on that delete. Reverse the two
@@ -350,7 +351,7 @@ export async function adoptAccountInto(
   ports: AccountAdoptionPorts,
   opts: { vault: string; freshId: string; targetId: string; validatedCreds: unknown },
 ): Promise<void> {
-  const rotated = (await ports.getCredentials(opts.vault, opts.freshId).catch(() => null)) ?? opts.validatedCreds;
+  const rotated = (await ports.getCredentials(opts.vault, opts.freshId)) ?? opts.validatedCreds;
   await ports.saveCredentials(opts.vault, opts.targetId, rotated);
   await ports.clearCredentials(opts.vault, opts.freshId).catch(() => undefined);
   await ports.reassignRows(opts.freshId, opts.targetId);

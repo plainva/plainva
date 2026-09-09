@@ -41,6 +41,8 @@ Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many m
 
 Password changes are checked with every affected password-protected service first. If saving is interrupted, confirmed changes are retained. Open the account again and choose **Continue saving**. The protected operation remains available after a restart. If the account binding or credentials have changed, choose **Verify password again** to check the current password for the services now assigned to the account. Missing credentials are not skipped. A fresh calendar sign-in is also used when a previously closed vault is next opened.
 
+A new calendar connection remains bound to the vault where you started it. If you close or switch that vault during verification, start the connection there again. If existing credentials cannot be read, account merging stops and preserves the existing accounts.
+
 ## Google Drive
 
 Google Drive currently runs with your own credentials ("Bring Your Own"): you create a free Google Cloud project once, owned by you alone. The step-by-step guide: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

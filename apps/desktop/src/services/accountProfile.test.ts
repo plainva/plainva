@@ -847,15 +847,15 @@ describe("adoptAccountInto", () => {
     expect(p.slots.has("fresh")).toBe(false);
   });
 
-  it("still moves the rows when the credential slot cannot be read", async () => {
-    // A keychain that will not answer must not cost the task anchors.
+  it("preserves both accounts when the credential slot cannot be read", async () => {
+    // A failed read may hide a newer rotation. Preserve both rows and slots.
     const p = ports();
     p.api.getCredentials = async () => {
       throw new Error("keychain locked");
     };
-    await adoptAccountInto(p.api, OPTS);
-    expect(p.log).toContain("move:fresh->old");
-    expect(p.slots.get("old")).toEqual({ token: "as-validated" });
+    await expect(adoptAccountInto(p.api, OPTS)).rejects.toThrow("keychain locked");
+    expect(p.log).toEqual([]);
+    expect(p.slots.has("old")).toBe(false);
   });
 });
 

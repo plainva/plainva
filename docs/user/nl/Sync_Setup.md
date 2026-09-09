@@ -41,6 +41,8 @@ Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele and
 
 Wachtwoordwijzigingen worden eerst gecontroleerd bij alle betrokken diensten die met een wachtwoord zijn beveiligd. Als het opslaan wordt onderbroken, blijven bevestigde wijzigingen behouden. Open het account opnieuw en kies **Opslaan voortzetten**. De beveiligde bewerking blijft na een herstart beschikbaar. Als de accountkoppeling of inloggegevens zijn gewijzigd, kies je **Wachtwoord opnieuw controleren** om het huidige wachtwoord te controleren voor de nu gekoppelde diensten. Ontbrekende inloggegevens worden niet overgeslagen. Een nieuwe agenda-aanmelding wordt ook gebruikt wanneer je een eerder gesloten vault opnieuw opent.
 
+Een nieuwe agendaverbinding blijft gekoppeld aan de vault waarin je deze begon. Sluit je die vault of wissel je tijdens de controle van vault, start de verbinding dan daar opnieuw. Als bestaande inloggegevens niet kunnen worden gelezen, stopt het samenvoegen en blijven de bestaande accounts behouden.
+
 ## Google Drive
 
 Google Drive draait momenteel met eigen toegangsgegevens ("Bring Your Own"): je maakt eenmalig een gratis eigen Google Cloud-project aan, dat alleen van jou is. De stap-voor-stap-handleiding: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

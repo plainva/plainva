@@ -41,6 +41,8 @@ Gli indirizzi tipici dei server (Nextcloud, Koofr, MagentaCLOUD, Storage Box e m
 
 Le modifiche della password vengono prima verificate con tutti i servizi interessati protetti da password. Se il salvataggio viene interrotto, le modifiche confermate vengono mantenute. Riapri l’account e scegli **Continua il salvataggio**. L’operazione protetta resta disponibile dopo un riavvio. Se il collegamento dell’account o le credenziali sono cambiati, scegli **Verifica di nuovo la password** per controllare la password attuale nei servizi ora associati. Le credenziali mancanti non vengono ignorate. Un nuovo accesso al calendario viene usato anche alla successiva apertura di un vault precedentemente chiuso.
 
+Una nuova connessione al calendario resta associata al vault in cui l’hai avviata. Se lo chiudi o cambi vault durante la verifica, avvia nuovamente la connessione in quel vault. Se non è possibile leggere le credenziali esistenti, l’unione si interrompe e conserva gli account precedenti.
+
 ## Google Drive
 
 Google Drive funziona attualmente con le tue credenziali ("Bring Your Own"): crei una volta un progetto Google Cloud gratuito, di tua proprietà esclusiva. La guida passo dopo passo: [Google Drive (BYO)](Google_Drive_BYO_Guide.md).

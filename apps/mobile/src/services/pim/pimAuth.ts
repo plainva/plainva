@@ -61,8 +61,8 @@ export function buildPimAuthProvider(
   return {
     async getAccessToken(force?: boolean): Promise<string> {
       // A Google calendar with a sign-in OF ITS OWN uses it, and asks nobody
-      // else. Google tokens do not rotate, so this slot is a complete and valid
-      // sign-in — and it is the one just granted for THIS service, while the
+      // else. This slot holds the complete, service-specific
+      // sign-in just granted for THIS service, while the
       // shared account token may legitimately be narrower (Drive only) and can
       // never be widened, because Google ignores the scope of a refresh.
       // Preferring the shared one turned a freshly connected calendar into a
