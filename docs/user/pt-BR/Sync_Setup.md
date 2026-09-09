@@ -39,7 +39,7 @@ Endereços de servidor típicos (Nextcloud, Koofr, MagentaCLOUD, Storage Box e m
 
 **O endereço aponta para a própria pasta do vault.** Tudo que está abaixo dele pertence ao vault, portanto um endereço um nível acima também arrasta as pastas vizinhas. No WebDAV a pasta faz parte do endereço do servidor: para mover o vault mais tarde, conecte a conta novamente.
 
-Se a senha de aplicativo mudar depois, informe-a **uma única vez** nos detalhes da conta em **Credenciais**: o Plainva a verifica em todos os serviços dessa conta e só a salva quando todos aceitam — assim nenhum serviço fica com a senha antiga.
+As alterações de senha são verificadas primeiro em todos os serviços afetados protegidos por senha. Se o salvamento for interrompido, as alterações confirmadas são mantidas. Abra a conta novamente e escolha **Continuar salvando**. A operação protegida continua disponível após reiniciar. Se o vínculo da conta ou as credenciais mudaram, escolha **Verificar a senha novamente** para verificar a senha atual nos serviços agora vinculados. Credenciais ausentes não são ignoradas. Um novo login do calendário também é usado ao abrir novamente um vault que estava fechado.
 
 ## Google Drive
 

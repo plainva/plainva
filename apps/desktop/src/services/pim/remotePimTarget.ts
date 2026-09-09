@@ -90,6 +90,7 @@ export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
  * of open windows and write the same cache from several sides.
  */
 export function createClientPimRuntime(db: IDatabaseAdapter): PimRuntime {
+  let active = true;
   return {
     cache: new PimCacheRepository(db),
     buildTarget: async (account: PimAccountRow) => createRemotePimTarget(account),
@@ -98,9 +99,11 @@ export function createClientPimRuntime(db: IDatabaseAdapter): PimRuntime {
       stop: () => {},
       triggerImmediate: async () => {
         const bus = await getWindowBus();
+        if (!active) return;
         await bus.request("pim-refresh", {});
       },
     },
-    stop: () => {},
+    stop: () => { active = false; },
+    isActive: () => active,
   };
 }

@@ -302,3 +302,7 @@ export * from "./lib/fileBrokerBinding";
 
 export * from "./lib/accountPasswordChange";
 export * from "./lib/passwordChangeJournal";
+export * from "./lib/passwordCredentialTarget";
+export * from "./lib/protectedCredentialUpdate";
+export * from "./lib/passwordServices";
+export * from "./components/accounts/AccountPasswordChangePanel";

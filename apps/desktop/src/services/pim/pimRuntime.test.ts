@@ -1,21 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PimAccountRow } from "@plainva/core";
 
-const { getPimCredentials } = vi.hoisted(() => ({ getPimCredentials: vi.fn() }));
+const { getPimCredentials, scopeState, started, triggered } = vi.hoisted(() => ({ getPimCredentials: vi.fn(), scopeState: vi.fn(), started: vi.fn(), triggered: vi.fn() }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials, savePimCredentials: vi.fn() }));
 vi.mock("./pimAuth", () => ({ buildPimAuthProvider: () => ({ getAccessToken: async () => "token" }) }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
 vi.mock("../authFetch", () => ({ microsoftAuthFetch: vi.fn() }));
 vi.mock("@plainva/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/core")>()),
-  PimCacheRepository: class {},
+  PimCacheRepository: class { setScopeState = scopeState; },
   PimWorker: class {
-    start() {}
+    start = started;
+    triggerImmediate = triggered;
     stop() {}
   },
 }));
 
-import { createPimRuntime } from "./pimRuntime";
+import { createPimRuntime, restartPimAccountAfterLogin } from "./pimRuntime";
 
 /**
  * Which accounts the worker is even able to REACH.
@@ -36,7 +37,31 @@ describe("building a target for an account", () => {
     enabled: true,
   });
 
-  beforeEach(() => getPimCredentials.mockReset());
+  beforeEach(() => { getPimCredentials.mockReset(); scopeState.mockReset(); started.mockClear(); triggered.mockClear(); });
+
+  it("does not revive a runtime disposed before the login completes", async () => {
+    const target = runtime();
+    target.stop();
+    await restartPimAccountAfterLogin(target, "a1");
+    expect(scopeState).not.toHaveBeenCalled();
+    expect(started).not.toHaveBeenCalled();
+  });
+
+  it("does not revive a runtime disposed while its old failure is cleared", async () => {
+    const target = runtime();
+    scopeState.mockImplementationOnce(async () => { target.stop(); throw new Error("database closed"); });
+    await restartPimAccountAfterLogin(target, "a1");
+    expect(started).not.toHaveBeenCalled();
+    expect(triggered).not.toHaveBeenCalled();
+  });
+
+  it("restarts a live runtime only after a confirmed failure reset", async () => {
+    const target = runtime();
+    await restartPimAccountAfterLogin(target, "a1");
+    expect(scopeState).toHaveBeenCalledWith("a1", "account", { lastError: null });
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(triggered).toHaveBeenCalledTimes(1);
+  });
 
   it("reaches a Google account whose sign-in lives in the shared account slot", async () => {
     getPimCredentials.mockResolvedValue(null);

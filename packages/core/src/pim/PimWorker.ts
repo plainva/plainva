@@ -23,6 +23,8 @@ export interface PimWorkerOptions {
   /** Builds a ready-to-use target for the account (credentials live in the
    * shell's keychain — the worker never sees them). null = skip account. */
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
+  /** Opaque sign-in revision, never a token or password. Refreshes retain it. */
+  accountAuthRevision?: (account: PimAccountRow) => Promise<string | undefined>;
   onStatusChange?: (status: PimStatus, message?: string) => void;
   /**
    * What the status says when every account is parked on a dead sign-in
@@ -120,6 +122,11 @@ export class PimWorker {
         await cache.pruneOrphanedRows().catch(() => {});
       }
       const enabled = (await cache.listAccounts()).filter((a) => a.enabled);
+      // Capture before constructing targets. A late failure from an old login
+      // must never claim the revision of a newly saved login.
+      const revisions = new Map(await Promise.all(enabled.map(async (account) => [
+        account.id, await this.opts.accountAuthRevision?.(account).catch(() => undefined),
+      ] as const)));
       /**
        * An account whose last failure was an ANSWER is skipped (N1/S2).
        *
@@ -130,7 +137,7 @@ export class PimWorker {
        * wrong; only the pointless network trip is gone.
        *
        * Two things bring it back: a manual refresh (the user asking is reason
-       * enough to try) and a re-authorisation, which clears the state. A row
+       * enough to try) and a fresh sign-in revision, even in a closed vault. A row
        * from before this column existed reads as unknown and is retried — an
        * upgrade must never park a working account.
        */
@@ -141,7 +148,8 @@ export class PimWorker {
               await Promise.all(
                 enabled.map(async (a) => {
                   const st = await cache.getScopeState(a.id, "account").catch(() => null);
-                  return st?.lastErrorKind === "fatal" ? a.id : null;
+                  const revision = revisions.get(a.id);
+                  return st?.lastErrorKind === "fatal" && (!revision || revision === st.authRevision) ? a.id : null;
                 })
               )
             ).filter((id): id is string => id !== null)
@@ -174,9 +182,10 @@ export class PimWorker {
               if (!target) return { at: i + n, wrote: false };
               return { at: i + n, wrote: await this.refreshAccount(account, target, gen) };
             } catch (e) {
+              if (gen !== this.generation) return { at: i + n, wrote: false };
               const msg = e instanceof Error ? e.message : String(e);
               await cache
-                .setScopeState(account.id, "account", { lastError: msg, lastErrorKind: classifySyncError(e) })
+                .setScopeState(account.id, "account", { lastError: msg, lastErrorKind: classifySyncError(e), authRevision: revisions.get(account.id) ?? null })
                 .catch(() => {});
               return { at: i + n, wrote: false, error: `${account.label}: ${msg}` };
             }

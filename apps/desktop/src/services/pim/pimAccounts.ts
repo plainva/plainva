@@ -89,6 +89,7 @@ async function finishConnect(
   account: PimAccountRow,
   creds: PimStoredCredentials
 ): Promise<PimAccountRow> {
+  creds = { ...creds, loginRevision: crypto.randomUUID() };
   // Is this a repair of an account we already have? Connecting again is the
   // normal fix for an expired sign-in, and every connect mints a new id — so
   // without this the vault ends up with two rows for one account while the
@@ -148,9 +149,9 @@ export async function connectGoogleAccount(
       ? { refreshToken: opts.refreshToken }
       : await authorizeGooglePim(opts);
   const id = newAccountId();
-  const creds: PimStoredCredentials = { kind: "google", clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken };
+  let creds: PimStoredCredentials = { kind: "google", clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken };
   // Validate + derive the label: Google's primary calendar id IS the address.
-  const auth = buildPimAuthProvider(vaultPath, id, creds);
+  const auth = buildPimAuthProvider(vaultPath, id, creds, { onRotation: async (_previous, next) => { creds = next; } });
   const target = new GooglePimTarget(auth, httpFetch);
   const accessToken = await auth.getAccessToken();
   const [calendars, profileResponse] = await Promise.all([
@@ -189,8 +190,8 @@ export async function connectMicrosoftAccount(
 ): Promise<PimAccountRow> {
   const { refreshToken } = opts.viaBroker ? { refreshToken: "" } : await authorizeMicrosoftPim(opts);
   const id = newAccountId();
-  const creds: PimStoredCredentials = { kind: "microsoft", clientId: opts.clientId, refreshToken };
-  const auth = buildPimAuthProvider(vaultPath, id, creds);
+  let creds: PimStoredCredentials = { kind: "microsoft", clientId: opts.clientId, refreshToken };
+  const auth = buildPimAuthProvider(vaultPath, id, creds, { onRotation: async (_previous, next) => { creds = next; } });
   // Label from Graph /me (User.Read is part of the requested scopes).
   let label = "Microsoft";
   let profile: ReturnType<typeof parseMicrosoftMe> = null;

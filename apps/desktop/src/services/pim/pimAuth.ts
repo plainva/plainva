@@ -15,7 +15,7 @@ import {
   type PimAuthProvider,
 } from "@plainva/core";
 import { NO_STORED_SIGN_IN } from "@plainva/ui";
-import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { rotatePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { microsoftAuthFetch } from "../authFetch";
 import { brokerTokenProvider, describeBrokerLookup } from "../accountBroker";
 
@@ -77,7 +77,8 @@ export async function authorizeMicrosoftPim(opts: { clientId: string }): Promise
 export function buildPimAuthProvider(
   vaultPath: string,
   accountId: string,
-  creds: Extract<PimStoredCredentials, { kind: "google" | "microsoft" }>
+  creds: Extract<PimStoredCredentials, { kind: "google" | "microsoft" }>,
+  options: { onRotation?: (previous: typeof creds, next: typeof creds) => Promise<void> } = {},
 ): PimAuthProvider {
   let accessToken: string | null = null;
   let expiresAt = 0;
@@ -98,25 +99,20 @@ export function buildPimAuthProvider(
     if (!currentRefreshToken) {
       throw new Error(`${NO_STORED_SIGN_IN}: ${await describeBrokerLookup(vaultPath, "calendar", accountId)}`);
     }
-    if (creds.kind === "google") {
-      const res = await refreshDriveAccessToken(
-        { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken },
-        httpFetch
-      );
-      accessToken = res.accessToken;
-      expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
-      return accessToken;
+    const res = creds.kind === "google"
+      ? await refreshDriveAccessToken({ clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken }, httpFetch)
+      : await refreshOneDriveAccessToken({ clientId: creds.clientId, refreshToken: currentRefreshToken, scope: GRAPH_CALENDAR_SCOPES }, microsoftAuthFetch);
+    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
+      const previous = { ...creds, refreshToken: currentRefreshToken };
+      const next = { ...creds, refreshToken: res.refreshToken };
+      if (options.onRotation) await options.onRotation(previous, next);
+      else await rotatePimCredentials(vaultPath, accountId, previous, next);
+      creds = next;
+      currentRefreshToken = res.refreshToken;
     }
-    const res = await refreshOneDriveAccessToken(
-      { clientId: creds.clientId, refreshToken: currentRefreshToken, scope: GRAPH_CALENDAR_SCOPES },
-      microsoftAuthFetch
-    );
+    // An unconfirmed rotation must never populate the access-token cache.
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
-    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
-      currentRefreshToken = res.refreshToken;
-      await savePimCredentials(vaultPath, accountId, { ...creds, refreshToken: res.refreshToken });
-    }
     return accessToken;
   };
 

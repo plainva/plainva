@@ -39,7 +39,7 @@ Typische Server-Adressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box u. v. m.) 
 
 **Die Adresse zeigt auf den Vault-Ordner selbst.** Alles darunter gehört zum Vault — eine Adresse eine Ebene zu hoch zieht die Nachbarordner mit hinein. Bei WebDAV gehört der Ordner zur Server-Adresse; um den Vault später zu verschieben, verbindest Du das Konto neu.
 
-Ändert sich das App-Passwort später, trägst Du es **einmal** in den Konto-Details unter **Zugangsdaten** ein: Plainva prüft es gegen jeden Dienst dieses Kontos und speichert es erst, wenn alle es akzeptieren — so bleibt kein Dienst mit einem alten Passwort zurück.
+Passwortänderungen werden zuerst bei allen betroffenen passwortgeschützten Diensten geprüft. Wird die Speicherung unterbrochen, bleiben bestätigte Änderungen erhalten. Öffne das Konto erneut und wähle **Speicherung fortsetzen**. Der geschützte Vorgang bleibt auch nach einem Neustart verfügbar. Wenn sich Kontozuordnung oder Zugangsdaten geändert haben, kannst Du mit **Passwort erneut prüfen** das aktuelle Passwort für die jetzt zugeordneten Dienste prüfen. Ein fehlender Zugang wird nicht übersprungen. Eine frische Kalenderanmeldung wird auch beim nächsten Öffnen eines zuvor geschlossenen Vaults verwendet.
 
 ## Google Drive
 

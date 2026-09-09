@@ -5,7 +5,7 @@ import { protectedSecrets } from "./protectedSecrets";
 const native = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: native.invoke }));
 
-const value: PasswordChangeJournal = { version: 1, id: "operation", binding: "vault/account", targets: [
+const value: PasswordChangeJournal = { version: 1, id: "operation", owner: "vault/account", binding: "vault/account", targets: [
   { service: "files", previous: "old", next: "new", confirmed: false },
 ] };
 

@@ -7,7 +7,7 @@ function fixture() {
   const state = { journal: null as unknown, failWrite: "", failCheckpoint: 0, checkpoints: 0, failClear: false, acknowledgeOnly: false, binding: "vault/account/targets", verified: true, activated: 0 };
   const status = vi.fn();
   const ports: PasswordChangePorts = {
-    key: crypto.randomUUID(), binding: state.binding, readBinding: async () => state.binding, onStatus: status,
+    key: crypto.randomUUID(), owner: "vault/account", binding: state.binding, readBinding: async () => state.binding, onStatus: status,
     targets: async () => (["files", "calendar"] as const).map((service) => ({ service,
       read: async () => values.get(service)!, withPassword: (_old, pass) => pass,
       verify: async () => { if (!state.verified && service === "calendar") throw Error("rejected"); },
@@ -99,5 +99,34 @@ describe("durable account password change", () => {
     const previous = structuredClone(f.state.journal);
     await expect(beginPasswordChange(f.ports, "another-secret")).rejects.toMatchObject({ phase: "pending" });
     expect(f.state.journal).toEqual(previous);
+  });
+
+  it("retains the pending repair when an explicit new password fails verification", async () => {
+    const f = fixture(); f.state.failWrite = "calendar";
+    await expect(beginPasswordChange(f.ports, "new-secret")).rejects.toThrow();
+    const original = structuredClone(f.state.journal);
+    f.state.verified = false;
+    await expect(beginPasswordChange(f.ports, "another-secret", { replacePending: true })).rejects.toMatchObject({ phase: "verification" });
+    expect(f.state.journal).toEqual(original);
+    expect(f.writes).toEqual(["files"]);
+  });
+
+  it("can explicitly recheck a new password against independently changed sources", async () => {
+    const f = fixture(); f.state.failWrite = "calendar";
+    await expect(beginPasswordChange(f.ports, "new-secret")).rejects.toThrow();
+    f.values.set("files", "independent-secret");
+    f.state.failWrite = "";
+    await beginPasswordChange(f.ports, "verified-secret", { replacePending: true });
+    expect([...f.values.values()]).toEqual(["verified-secret", "verified-secret"]);
+    expect(f.state.journal).toBeNull();
+  });
+
+  it("offers rechecking a changed binding but cannot replace another owner's intent", async () => {
+    const f = fixture(); f.state.failWrite = "calendar";
+    await expect(beginPasswordChange(f.ports, "new-secret")).rejects.toThrow();
+    expect(await readPasswordChangeStatus({ ...f.ports, binding: "new-target" })).toMatchObject({ bindingChanged: true });
+    const original = structuredClone(f.state.journal);
+    await expect(beginPasswordChange({ ...f.ports, owner: "other-vault/account" }, "new", { replacePending: true })).rejects.toMatchObject({ phase: "changed" });
+    expect(f.state.journal).toEqual(original);
   });
 });

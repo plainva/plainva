@@ -79,7 +79,7 @@ const ACCOUNT_CACHE_TABLES: ReadonlyArray<{
     accountColumn: "account_id",
     columns: ["account_id", "list_id", "uid", "title", "notes", "due", "completed", "etag", "updated_ts", "href"],
   },
-  { name: "pim_state", accountColumn: "account_id", columns: ["account_id", "scope", "cursor", "last_sync_ts", "last_error"] },
+  { name: "pim_state", accountColumn: "account_id", columns: ["account_id", "scope", "cursor", "last_sync_ts", "last_error", "last_error_kind", "auth_revision"] },
   {
     name: "pim_task_state",
     accountColumn: "account_id",
@@ -618,34 +618,35 @@ export class PimCacheRepository {
   async setScopeState(
     accountId: string,
     scope: string,
-    opts: { cursor?: string | null; lastSyncTs?: number; lastError?: string | null; lastErrorKind?: SyncErrorKind | null }
+    opts: { cursor?: string | null; lastSyncTs?: number; lastError?: string | null; lastErrorKind?: SyncErrorKind | null; authRevision?: string | null }
   ): Promise<void> {
     const cursor =
       opts.cursor === undefined ? (await this.getScopeState(accountId, scope))?.cursor ?? null : opts.cursor;
     await this.db.execute(
-      `INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind) VALUES (?, ?, ?, ?, ?, ?)`,
-      [accountId, scope, cursor, opts.lastSyncTs ?? Date.now(), opts.lastError ?? null, opts.lastErrorKind ?? null]
+      `INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind, auth_revision) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [accountId, scope, cursor, opts.lastSyncTs ?? Date.now(), opts.lastError ?? null, opts.lastErrorKind ?? null, opts.authRevision ?? null]
     );
   }
 
   async getScopeState(
     accountId: string,
     scope: string
-  ): Promise<{ cursor: string | null; lastSyncTs: number | null; lastError: string | null; lastErrorKind: SyncErrorKind | null } | null> {
+  ): Promise<{ cursor: string | null; lastSyncTs: number | null; lastError: string | null; lastErrorKind: SyncErrorKind | null; authRevision: string | null } | null> {
     const row = await this.db.queryOne<{
       cursor: string | null;
       last_sync_ts: number | null;
       last_error: string | null;
       last_error_kind: string | null;
+      auth_revision: string | null;
     }>(
-      `SELECT cursor, last_sync_ts, last_error, last_error_kind FROM pim_state WHERE account_id = ? AND scope = ?`,
+      `SELECT cursor, last_sync_ts, last_error, last_error_kind, auth_revision FROM pim_state WHERE account_id = ? AND scope = ?`,
       [accountId, scope]
     );
     if (!row) return null;
     // Anything but the two known words reads as unknown, so a row written by an
     // older build is retried rather than parked.
     const kind = row.last_error_kind === "fatal" || row.last_error_kind === "transient" ? row.last_error_kind : null;
-    return { cursor: row.cursor, lastSyncTs: row.last_sync_ts, lastError: row.last_error, lastErrorKind: kind };
+    return { cursor: row.cursor, lastSyncTs: row.last_sync_ts, lastError: row.last_error, lastErrorKind: kind, authRevision: row.auth_revision ?? null };
   }
 }
 

@@ -1,6 +1,7 @@
 import { credentialManager } from "../CredentialManager";
 import { legacySlot, slot } from "../keychainSlots";
-import { readSlot, removeSlot } from "@plainva/ui";
+import { readSlot, removeSlot, replaceProtectedCredential } from "@plainva/ui";
+import { protectedSecrets } from "../protectedSecrets";
 
 /**
  * Per-ACCOUNT credential slots for PIM connections (a vault can hold several
@@ -10,10 +11,10 @@ import { readSlot, removeSlot } from "@plainva/ui";
  * store-key convention (base64 vault suffix) plus the account id.
  */
 
-export type PimStoredCredentials =
+export type PimStoredCredentials = { loginRevision?: string } & (
   | { kind: "caldav"; url: string; user: string; pass: string }
   | { kind: "google"; clientId: string; clientSecret: string; refreshToken: string }
-  | { kind: "microsoft"; clientId: string; refreshToken: string };
+  | { kind: "microsoft"; clientId: string; refreshToken: string });
 
 export function pimSecretKey(vaultPath: string, accountId: string): string {
   return slot.calendar(vaultPath, accountId);
@@ -29,6 +30,10 @@ export async function getPimCredentials(vaultPath: string, accountId: string): P
 
 export async function savePimCredentials(vaultPath: string, accountId: string, creds: PimStoredCredentials): Promise<void> {
   await credentialManager.writeSecret(pimSecretKey(vaultPath, accountId), creds);
+}
+
+export async function rotatePimCredentials(vaultPath: string, accountId: string, previous: PimStoredCredentials, next: PimStoredCredentials): Promise<void> {
+  await replaceProtectedCredential(protectedSecrets, pimSecretKey(vaultPath, accountId), previous, next);
 }
 
 export async function clearPimCredentials(vaultPath: string, accountId: string): Promise<void> {

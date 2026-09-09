@@ -240,8 +240,8 @@ export function registerAccountLoginHandler(): void {
           else if (service === "calendar") {
             const id = record.services.calendar!.pimAccountId;
             await savePimCredentials(vaultId, id, family === "google"
-              ? { kind: "google", clientId, clientSecret: clientSecret ?? "", refreshToken: "" }
-              : { kind: "microsoft", clientId, refreshToken: "" });
+              ? { kind: "google", clientId, clientSecret: clientSecret ?? "", refreshToken: "", loginRevision: crypto.randomUUID() }
+              : { kind: "microsoft", clientId, refreshToken: "", loginRevision: crypto.randomUUID() });
             await restartPimAccountAfterLogin(vaultId, id);
           } else if (family === "microsoft") {
             const id = record.services.mail!.mailAccountId;

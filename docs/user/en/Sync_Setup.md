@@ -39,7 +39,7 @@ Typical server addresses (Nextcloud, Koofr, MagentaCLOUD, Storage Box and many m
 
 **The address points at the vault folder itself.** Everything below it belongs to the vault, so an address one level too high pulls the neighbouring folders in as well. With WebDAV the folder is part of the server address — to move the vault later, connect the account again.
 
-If the app password changes later, enter it **once** in the account details under **Credentials**: Plainva verifies it against every service of that account and only stores it when all of them accept — so no service is left behind on an old password.
+Password changes are checked with every affected password-protected service first. If saving is interrupted, confirmed changes are retained. Open the account again and choose **Continue saving**. The protected operation remains available after a restart. If the account binding or credentials have changed, choose **Verify password again** to check the current password for the services now assigned to the account. Missing credentials are not skipped. A fresh calendar sign-in is also used when a previously closed vault is next opened.
 
 ## Google Drive
 

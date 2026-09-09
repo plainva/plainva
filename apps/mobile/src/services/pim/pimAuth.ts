@@ -6,7 +6,7 @@ import {
 } from "@plainva/core";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { brokerTokenProvider } from "../accountBroker";
-import { savePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { rotatePimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { NO_STORED_SIGN_IN } from "@plainva/ui";
 
 /**
@@ -20,6 +20,7 @@ export function buildPimAuthProvider(
   vaultId: string,
   accountId: string,
   creds: Extract<PimStoredCredentials, { kind: "google" | "microsoft" }>,
+  options: { onRotation?: (previous: typeof creds, next: typeof creds) => Promise<void> } = {},
 ): PimAuthProvider {
   let accessToken: string | null = null;
   let expiresAt = 0;
@@ -37,25 +38,20 @@ export function buildPimAuthProvider(
     if (!currentRefreshToken) {
       throw new Error(`${NO_STORED_SIGN_IN}: this account has no stored sign-in — connect it again.`);
     }
-    if (creds.kind === "google") {
-      const res = await refreshDriveAccessToken(
-        { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken },
-        webdavFetch,
-      );
-      accessToken = res.accessToken;
-      expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
-      return accessToken;
+    const res = creds.kind === "google"
+      ? await refreshDriveAccessToken({ clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: currentRefreshToken }, webdavFetch)
+      : await refreshOneDriveAccessToken({ clientId: creds.clientId, refreshToken: currentRefreshToken, scope: GRAPH_CALENDAR_SCOPES }, webdavFetch);
+    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
+      const previous = { ...creds, refreshToken: currentRefreshToken };
+      const next = { ...creds, refreshToken: res.refreshToken };
+      if (options.onRotation) await options.onRotation(previous, next);
+      else await rotatePimCredentials(vaultId, accountId, previous, next);
+      creds = next;
+      currentRefreshToken = res.refreshToken;
     }
-    const res = await refreshOneDriveAccessToken(
-      { clientId: creds.clientId, refreshToken: currentRefreshToken, scope: GRAPH_CALENDAR_SCOPES },
-      webdavFetch,
-    );
+    // An unconfirmed rotation must never populate the access-token cache.
     accessToken = res.accessToken;
     expiresAt = Date.now() + Math.max(60, (res.expiresIn ?? 3600) - 60) * 1000;
-    if (res.refreshToken && res.refreshToken !== currentRefreshToken) {
-      currentRefreshToken = res.refreshToken;
-      await savePimCredentials(vaultId, accountId, { ...creds, refreshToken: res.refreshToken });
-    }
     return accessToken;
   };
 

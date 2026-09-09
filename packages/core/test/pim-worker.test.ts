@@ -311,6 +311,57 @@ describe("PimWorker", () => {
       return new PimWorker({ cache, buildTarget: async () => target, now: () => NOW, ...extra });
     }
 
+    it("retries a persisted failure on a new runtime only for a fresh sign-in", async () => {
+      await cache.setScopeState("a1", "account", { lastError: "invalid_grant", lastErrorKind: "fatal", authRevision: "old-login" });
+      const unchanged = fakeTarget([]);
+      await autoCycle(workerFor(unchanged, { accountAuthRevision: async () => "old-login" }));
+      expect(unchanged.listCalendars).not.toHaveBeenCalled();
+      const repaired = fakeTarget([]);
+      await autoCycle(workerFor(repaired, { accountAuthRevision: async () => "fresh-login" }));
+      expect(repaired.listCalendars).toHaveBeenCalledTimes(1);
+      expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBeNull();
+    });
+
+    it("a fresh login also wakes failures written before revisions existed", async () => {
+      await cache.setScopeState("a1", "account", { lastError: "invalid_grant", lastErrorKind: "fatal" });
+      const target = fakeTarget([]);
+      await autoCycle(workerFor(target, { accountAuthRevision: async () => "fresh-login" }));
+      expect(target.listCalendars).toHaveBeenCalledTimes(1);
+    });
+
+    it("a late old failure cannot park credentials saved during its request", async () => {
+      let revision = "old-login";
+      let release!: () => void;
+      const waiting = new Promise<void>((resolve) => { release = resolve; });
+      const failed = vi.fn(async () => { await waiting; throw new Error("invalid_grant"); });
+      const worker = workerFor({ ...fakeTarget([]), listCalendars: failed }, { accountAuthRevision: async () => revision });
+      const cycle = worker.triggerImmediate();
+      await vi.waitFor(() => expect(failed).toHaveBeenCalledTimes(1));
+      revision = "fresh-login";
+      release();
+      await cycle;
+      expect((await cache.getScopeState("a1", "account"))?.authRevision).toBe("old-login");
+      const repaired = fakeTarget([]);
+      await autoCycle(workerFor(repaired, { accountAuthRevision: async () => revision }));
+      expect(repaired.listCalendars).toHaveBeenCalledTimes(1);
+    });
+
+    it("a failed fresh login is parked again without repeated automatic requests", async () => {
+      const failed = { ...fakeTarget([]), listCalendars: vi.fn(async () => { throw new Error("invalid_grant"); }) };
+      const worker = workerFor(failed, { accountAuthRevision: async () => "fresh-login" });
+      await worker.triggerImmediate();
+      await autoCycle(workerFor(failed, { accountAuthRevision: async () => "fresh-login" }));
+      expect(failed.listCalendars).toHaveBeenCalledTimes(1);
+      expect((await cache.getScopeState("a1", "account"))?.authRevision).toBe("fresh-login");
+    });
+
+    it("a credential read failure does not treat a parked login as replaced", async () => {
+      await cache.setScopeState("a1", "account", { lastError: "invalid_grant", lastErrorKind: "fatal", authRevision: "old-login" });
+      const target = fakeTarget([]);
+      await autoCycle(workerFor(target, { accountAuthRevision: async () => { throw new Error("keychain locked"); } }));
+      expect(target.listCalendars).not.toHaveBeenCalled();
+    });
+
     it("is skipped once its last failure was an answer, and keeps saying so", async () => {
       const target = fakeTarget([]);
       const failing = { ...target, listCalendars: vi.fn(async () => { throw new Error("invalid_grant"); }) };

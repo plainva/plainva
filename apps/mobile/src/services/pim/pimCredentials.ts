@@ -1,4 +1,5 @@
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices, replaceProtectedCredential } from "@plainva/ui";
+import { protectedSecrets } from "../../platform/protectedSecrets";
 
 /**
  * Per-account PIM credential slots on mobile (mirrors the desktop keychain
@@ -8,10 +9,10 @@ import { getPlatformServices } from "@plainva/ui";
  * different vaults never collide.
  */
 
-export type PimStoredCredentials =
+export type PimStoredCredentials = { loginRevision?: string } & (
   | { kind: "caldav"; url: string; user: string; pass: string }
   | { kind: "google"; clientId: string; clientSecret: string; refreshToken: string }
-  | { kind: "microsoft"; clientId: string; refreshToken: string };
+  | { kind: "microsoft"; clientId: string; refreshToken: string });
 
 /** Slot name of one account's credentials — exported so the secrets sideband
  *  (H2c) can address the same slot this module reads and writes. */
@@ -25,6 +26,10 @@ export async function getPimCredentials(vaultId: string, accountId: string): Pro
 
 export async function savePimCredentials(vaultId: string, accountId: string, creds: PimStoredCredentials): Promise<void> {
   await getPlatformServices().credentials.writeSecret(key(vaultId, accountId), creds);
+}
+
+export async function rotatePimCredentials(vaultId: string, accountId: string, previous: PimStoredCredentials, next: PimStoredCredentials): Promise<void> {
+  await replaceProtectedCredential(protectedSecrets, pimSecretKey(vaultId, accountId), previous, next);
 }
 
 export async function clearPimCredentials(vaultId: string, accountId: string): Promise<void> {

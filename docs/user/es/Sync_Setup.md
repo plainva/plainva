@@ -39,7 +39,7 @@ Las direcciones típicas de servidor (Nextcloud, Koofr, MagentaCLOUD, Storage Bo
 
 **La dirección apunta a la carpeta del vault en sí.** Todo lo que está por debajo pertenece al vault, así que una dirección un nivel más arriba arrastra también las carpetas vecinas. En WebDAV la carpeta forma parte de la dirección del servidor: para mover el vault más adelante, vuelve a conectar la cuenta.
 
-Si la contraseña de aplicación cambia más adelante, introdúcela **una sola vez** en los detalles de la cuenta, en **Credenciales**: Plainva la verifica con todos los servicios de esa cuenta y solo la guarda cuando todos la aceptan, de modo que ningún servicio se queda con la contraseña antigua.
+Los cambios de contraseña se comprueban primero en todos los servicios afectados protegidos por contraseña. Si se interrumpe el guardado, se conservan los cambios confirmados. Abre la cuenta de nuevo y elige **Continuar guardando**. La operación protegida sigue disponible después de reiniciar. Si han cambiado la vinculación de la cuenta o las credenciales, elige **Verificar de nuevo la contraseña** para comprobar la contraseña actual en los servicios ahora asignados. No se omiten credenciales que falten. El nuevo inicio de sesión del calendario también se utiliza al abrir de nuevo un vault que estaba cerrado.
 
 ## Google Drive
 

@@ -1,7 +1,9 @@
+import { desktopPasswordChangePorts } from "../../services/accountPassword";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, ChevronRight, CircleAlert, Clock, Plus, RotateCw, Trash2, Users } from "lucide-react";
 import {
+  AccountPasswordChangePanel,
   Banner,
   Button,
   IconButton,
@@ -48,7 +50,6 @@ import {
   canUnifyAccountLogin,
   unifyAccountLogin,
   passwordServicesOf,
-  updateAccountPassword,
   runConnectSequence,
   type ConnectRequest,
   type ServiceRunStatus,
@@ -93,7 +94,6 @@ export const CloudAccountsPage: React.FC<{
   const [mode, setMode] = useState<Mode>(initialProvider ? { kind: "wizard" } : { kind: "list" });
   const [reconStatus, setReconStatus] = useState<Partial<Record<CloudServiceId, ServiceRunStatus>>>({});
   const [busy, setBusy] = useState(false);
-  const [newPass, setNewPass] = useState("");
   /** Which other card the user declares to be the same account (E3 fallback). */
   const [mergeSource, setMergeSource] = useState("");
   /** Accounts that still hold one refresh token per service (stage B offer). */
@@ -336,28 +336,6 @@ export const CloudAccountsPage: React.FC<{
     try {
       await rerunAccountAuth(selectedVault, runtime, record, (service, st) => setReconStatus((prev) => ({ ...prev, [service]: st })));
       toast.success(t("pim.connected"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-      void reload();
-    }
-  };
-
-  /**
-   * Rotates the app password across EVERY password-backed service of the
-   * account. Before this existed, a rotated Nextcloud/Fastmail password meant
-   * removing the account and connecting each service again.
-   */
-  const changePassword = async (record: CloudAccountRecord) => {
-    setReconStatus({});
-    setBusy(true);
-    try {
-      await updateAccountPassword(selectedVault, runtime, record, newPass, (service, st) =>
-        setReconStatus((prev) => ({ ...prev, [service]: st }))
-      );
-      setNewPass("");
-      toast.success(t("cloudAccounts.passwordUpdated"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -661,30 +639,7 @@ export const CloudAccountsPage: React.FC<{
           })}
         </SettingCard>
 
-        {passwordServices.length > 0 && (
-          <SettingCard label={t("cloudAccounts.credentialsGroup")}>
-            <SettingRow label={t("cloudAccounts.newPassword")} desc={t("cloudAccounts.newPasswordDesc")}>
-              <div style={{ display: "flex", gap: "var(--space-2)" }}>
-                <TextInput
-                  type="password"
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  placeholder={t("settings.password")}
-                  style={{ width: 220 }}
-                  data-testid="cloudacct-new-password"
-                />
-                <Button
-                  variant="secondary"
-                  disabled={busy || !newPass.trim() || !isActiveVault}
-                  onClick={() => void changePassword(detail)}
-                  data-testid="cloudacct-update-password"
-                >
-                  {t("cloudAccounts.updatePassword")}
-                </Button>
-              </div>
-            </SettingRow>
-          </SettingCard>
-        )}
+        {passwordServices.length > 0 && <AccountPasswordChangePanel ports={desktopPasswordChangePorts(selectedVault, detail, runtime)} />}
 
         {hasByo && (
           <SettingCard label={t("cloudAccounts.appRegGroup")}>

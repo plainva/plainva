@@ -108,6 +108,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
   const worker = new PimWorker({
     cache,
     buildTarget: (account) => buildTargetFor(vault.vaultId, account),
+    accountAuthRevision: async (account) => account.provider === "device" ? undefined : (await getPimCredentials(vault.vaultId, account.id))?.loginRevision,
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -318,6 +319,7 @@ export async function addPimAccount(
   label: string,
   creds: PimStoredCredentials,
 ): Promise<void> {
+  creds = { ...creds, loginRevision: crypto.randomUUID() };
   if (!runtime) throw new Error("pim runtime not started");
   const id = newAccountId();
   await savePimCredentials(runtime.vaultId, id, creds);
@@ -383,14 +385,16 @@ export async function addPimAccount(
  * credential.
  */
 export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials): Promise<void> {
-  if (!runtime) throw new Error("pim runtime not started");
-  const existing = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+  creds = { ...creds, loginRevision: crypto.randomUUID() };
+  const target = runtime;
+  if (!target) throw new Error("pim runtime not started");
+  const existing = (await target.cache.listAccounts()).find((a) => a.id === accountId);
   if (!existing) throw new Error(`unknown pim account ${accountId}`);
   // A Google account re-signed with Microsoft credentials would leave a row
   // whose provider and secret disagree — every sync would fail with a message
   // nobody could act on.
   if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
-  await savePimCredentials(runtime.vaultId, accountId, creds);
+  await savePimCredentials(target.vaultId, accountId, creds);
 
   // Stamp the verified identity while we hold a fresh token. A row that never
   // carries one can never be recognised as the same account on a second device,
@@ -401,9 +405,9 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
   // row is in now.
   if (creds.kind === "google" || creds.kind === "microsoft") {
     try {
-      const profile = await fetchVerifiedProfile(buildPimAuthProvider(runtime.vaultId, accountId, creds), creds.kind);
-      if (profile) {
-        await runtime.cache.upsertAccount({
+      const profile = await fetchVerifiedProfile(buildPimAuthProvider(target.vaultId, accountId, creds), creds.kind);
+      if (profile && runtime === target) {
+        await target.cache.upsertAccount({
           ...existing,
           label: profile.label ?? existing.label,
           config: { ...existing.config, [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity },
@@ -414,13 +418,7 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
     }
   }
 
-  // The recorded failure describes a credential that no longer exists. Left
-  // standing it would keep the row red until some later cycle happens to
-  // succeed — the worker clears it the same way on success (PimWorker).
-  await runtime.cache.setScopeState(accountId, "account", { lastError: null }).catch(() => {});
-  if (state.status === "off") setState({ status: "idle", message: null });
-  runtime.worker.start();
-  runtime.worker.triggerImmediate();
+  await restartPimAccountAfterLogin(target.vaultId, accountId);
 }
 
 /** Reconnect only wakes the worker belonging to the captured vault. A closed
@@ -428,7 +426,8 @@ export async function reauthorizePimAccount(accountId: string, creds: PimStoredC
 export async function restartPimAccountAfterLogin(vaultId: string, accountId: string): Promise<void> {
   const target = runtime;
   if (!target || target.vaultId !== vaultId) return;
-  await target.cache.setScopeState(accountId, "account", { lastError: null });
+  try { await target.cache.setScopeState(accountId, "account", { lastError: null }); }
+  catch (error) { if (runtime === target) throw error; }
   if (runtime !== target) return;
   if (state.status === "off") setState({ status: "idle", message: null });
   target.worker.start();

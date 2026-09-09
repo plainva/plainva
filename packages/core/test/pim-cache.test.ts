@@ -72,13 +72,21 @@ describe("PimCacheRepository", () => {
     expect(await repo.getScopeState("acc1", "events:cal1")).toBeNull();
   });
 
+  it("adds login revisions to an existing cache without losing its saved failure", async () => {
+    await repo.setScopeState("acc1", "account", { lastError: "invalid_grant", lastErrorKind: "fatal" });
+    await db.execute("ALTER TABLE pim_state DROP COLUMN auth_revision");
+    await initializeSchema(db);
+    await initializeSchema(db);
+    expect(await repo.getScopeState("acc1", "account")).toMatchObject({ lastError: "invalid_grant", lastErrorKind: "fatal", authRevision: null });
+  });
+
   it("snapshots, removes and restores every local row of one account", async () => {
     await repo.replaceEventWindow("acc1", "cal1", 0, Date.parse("2027-01-01T00:00:00Z"), [
       ev("e1", "2026-08-01T10:00:00Z", "2026-08-01T11:00:00Z"),
     ]);
     await repo.replaceTaskLists("acc1", [{ id: "l1", name: "Tasks" }]);
     await repo.replaceTasks("acc1", "l1", [{ uid: "t1", listId: "l1", title: "T", completed: false }]);
-    await repo.setScopeState("acc1", "events:cal1", { cursor: "cursor", lastSyncTs: 5 });
+    await repo.setScopeState("acc1", "events:cal1", { cursor: "cursor", lastSyncTs: 5, lastError: "invalid_grant", lastErrorKind: "fatal", authRevision: "login-1" });
     await repo.upsertTaskState({
       accountId: "acc1",
       listId: "l1",
@@ -101,9 +109,9 @@ describe("PimCacheRepository", () => {
     expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({
       cursor: "cursor",
       lastSyncTs: 5,
-      lastError: null,
-      // No failure, no verdict (N1/S2).
-      lastErrorKind: null,
+      lastError: "invalid_grant",
+      lastErrorKind: "fatal",
+      authRevision: "login-1",
     });
     expect(await repo.getTaskStates("acc1", "l1")).toMatchObject([
       { uid: "t1", notePath: "Tasks/T.md", remoteEtag: "etag" },
@@ -219,6 +227,7 @@ describe("PimCacheRepository", () => {
     await repo.setScopeState("acc1", "events:cal1", { cursor: "tok", lastSyncTs: 42, lastError: null });
     expect(await repo.getScopeState("acc1", "events:cal1")).toEqual({
       cursor: "tok",
+      authRevision: null,
       lastSyncTs: 42,
       lastError: null,
       lastErrorKind: null,

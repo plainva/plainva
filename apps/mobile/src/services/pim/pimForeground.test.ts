@@ -68,6 +68,13 @@ beforeEach(() => {
 });
 
 describe("pimForegroundSync", () => {
+  it("does not revive a vault closed while clearing its previous failure", async () => {
+    scopeState.mockImplementationOnce(async () => { pim.stopPim(); throw new Error("database closed"); });
+    await pim.restartPimAccountAfterLogin("v1", "a1");
+    expect(started).not.toHaveBeenCalled();
+    expect(triggered.count).toBe(0);
+    await pim.startPim(vault);
+  });
   it("reconnect clears the captured vault's calendar failure and starts its worker", async () => {
     await pim.restartPimAccountAfterLogin("v1", "a1");
     expect(scopeState).toHaveBeenCalledWith("a1", "account", { lastError: null });

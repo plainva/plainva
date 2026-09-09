@@ -39,7 +39,7 @@ Typische serveradressen (Nextcloud, Koofr, MagentaCLOUD, Storage Box en vele and
 
 **Het adres wijst naar de vault-map zelf.** Alles daaronder hoort bij de vault, dus een adres dat één niveau te hoog ligt trekt ook de naburige mappen mee. Bij WebDAV maakt de map deel uit van het serveradres — om de vault later te verplaatsen, verbind je het account opnieuw.
 
-Verandert het app-wachtwoord later, voer het dan **één keer** in bij de accountgegevens onder **Inloggegevens**: Plainva controleert het bij elke dienst van dat account en slaat het pas op als ze het allemaal accepteren — zo blijft geen dienst achter met een oud wachtwoord.
+Wachtwoordwijzigingen worden eerst gecontroleerd bij alle betrokken diensten die met een wachtwoord zijn beveiligd. Als het opslaan wordt onderbroken, blijven bevestigde wijzigingen behouden. Open het account opnieuw en kies **Opslaan voortzetten**. De beveiligde bewerking blijft na een herstart beschikbaar. Als de accountkoppeling of inloggegevens zijn gewijzigd, kies je **Wachtwoord opnieuw controleren** om het huidige wachtwoord te controleren voor de nu gekoppelde diensten. Ontbrekende inloggegevens worden niet overgeslagen. Een nieuwe agenda-aanmelding wordt ook gebruikt wanneer je een eerder gesloten vault opnieuw opent.
 
 ## Google Drive
 

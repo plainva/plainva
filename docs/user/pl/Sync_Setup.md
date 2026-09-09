@@ -39,7 +39,7 @@ Typowe adresy serwerów (Nextcloud, Koofr, MagentaCLOUD, Storage Box i wiele inn
 
 **Adres wskazuje na sam folder vaulta.** Wszystko poniżej należy do vaulta, więc adres o poziom za wysoko wciąga również sąsiednie foldery. W WebDAV folder jest częścią adresu serwera — aby przenieść vault później, połącz konto ponownie.
 
-Jeśli hasło aplikacji zmieni się później, wpisz je **raz** w szczegółach konta w sekcji **Dane logowania**: Plainva sprawdzi je w każdej usłudze tego konta i zapisze dopiero wtedy, gdy wszystkie je zaakceptują — dzięki temu żadna usługa nie zostanie ze starym hasłem.
+Zmiany hasła są najpierw sprawdzane we wszystkich objętych zmianą usługach chronionych hasłem. Jeśli zapisywanie zostanie przerwane, potwierdzone zmiany zostają zachowane. Otwórz konto ponownie i wybierz **Kontynuuj zapisywanie**. Chroniona operacja pozostaje dostępna po ponownym uruchomieniu. Jeśli powiązanie konta lub dane logowania uległy zmianie, wybierz **Zweryfikuj hasło ponownie**, aby sprawdzić aktualne hasło w obecnie przypisanych usługach. Brakujące dane logowania nie są pomijane. Nowe logowanie do kalendarza jest też używane przy kolejnym otwarciu wcześniej zamkniętego vaulta.
 
 ## Google Drive
 

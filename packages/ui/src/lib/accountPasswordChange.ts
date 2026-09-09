@@ -5,6 +5,7 @@ import { withAccountCredentialLock } from "./tokenRefreshCoordinator";
 export interface PasswordChangeJournal {
   version: 1;
   id: string;
+  owner: string;
   binding: string;
   targets: { service: CloudServiceId; previous: string; next: string; confirmed: boolean }[];
 }
@@ -19,12 +20,14 @@ export interface PasswordChangeTarget {
 }
 
 export interface PasswordChangeStatus {
+  bindingChanged?: true;
   phase: "verifying" | "saving" | "repair" | "complete";
   services: Partial<Record<CloudServiceId, "waiting" | "confirmed" | "failed">>;
 }
 
 export interface PasswordChangePorts {
   key: string;
+  owner: string;
   binding: string;
   readBinding(): Promise<string>;
   targets(): Promise<PasswordChangeTarget[]>;
@@ -49,7 +52,7 @@ export class PasswordChangeError extends Error {
 export function parsePasswordChangeJournal(value: unknown): PasswordChangeJournal {
   if (!value || typeof value !== "object") throw new PasswordChangeError("storage");
   const j = value as PasswordChangeJournal;
-  if (j.version !== 1 || typeof j.id !== "string" || !j.id || typeof j.binding !== "string" || !j.binding
+  if (j.version !== 1 || typeof j.id !== "string" || !j.id || typeof j.owner !== "string" || !j.owner || typeof j.binding !== "string" || !j.binding
     || !Array.isArray(j.targets) || j.targets.length < 1 || j.targets.length > 3
     || new Set(j.targets.map((t) => t?.service)).size !== j.targets.length
     || j.targets.some((t) => !t || !["files", "calendar", "mail"].includes(t.service)
@@ -94,7 +97,7 @@ function orderedTargets(journal: PasswordChangeJournal, targets: PasswordChangeT
 }
 
 async function finish(ports: PasswordChangePorts, journal: PasswordChangeJournal, targets: PasswordChangeTarget[]): Promise<void> {
-  if (journal.binding !== ports.binding) throw new PasswordChangeError("changed");
+  if (journal.owner !== ports.owner || journal.binding !== ports.binding) throw new PasswordChangeError("changed");
   const ordered = orderedTargets(journal, targets);
   const status = passwordChangeStatus(journal);
   status.phase = "saving";
@@ -127,7 +130,11 @@ async function finish(ports: PasswordChangePorts, journal: PasswordChangeJournal
   for (let i = 0; i < ordered.length; i++) {
     if (await ordered[i].read() !== journal.targets[i].next) throw new PasswordChangeError("changed", ordered[i].service);
   }
-  await ports.activate?.();
+  try { await ports.activate?.(); } catch { throw new PasswordChangeError("storage"); }
+  await sameBinding(ports);
+  for (let i = 0; i < ordered.length; i++) {
+    if (await ordered[i].read() !== journal.targets[i].next) throw new PasswordChangeError("changed", ordered[i].service);
+  }
   try {
     await ports.journal.clear(journal);
     if (await ports.journal.read() !== null) throw new Error("unconfirmed cleanup");
@@ -135,13 +142,15 @@ async function finish(ports: PasswordChangePorts, journal: PasswordChangeJournal
   ports.onStatus?.({ ...status, phase: "complete" });
 }
 
-export function beginPasswordChange(ports: PasswordChangePorts, password: string): Promise<void> {
+export function beginPasswordChange(ports: PasswordChangePorts, password: string, options: { replacePending?: boolean } = {}): Promise<void> {
   return withAccountCredentialLock(`password-change:${ports.key}`, async () => {
-    if (await readJournal(ports)) throw new PasswordChangeError("pending");
+    const previousIntent = await readJournal(ports);
+    if (previousIntent?.owner && previousIntent.owner !== ports.owner) throw new PasswordChangeError("changed");
+    if (previousIntent && !options.replacePending) throw new PasswordChangeError("pending");
     await sameBinding(ports);
     const targets = await ports.targets();
     if (!targets.length) throw new PasswordChangeError("missing");
-    const journal: PasswordChangeJournal = { version: 1, id: crypto.randomUUID(), binding: ports.binding, targets: [] };
+    const journal: PasswordChangeJournal = { version: 1, id: crypto.randomUUID(), owner: ports.owner, binding: ports.binding, targets: [] };
     const status: PasswordChangeStatus = { phase: "verifying", services: {} };
     for (const target of targets) {
       status.services[target.service] = "waiting";
@@ -160,7 +169,7 @@ export function beginPasswordChange(ports: PasswordChangePorts, password: string
       if (await targets[i].read() !== journal.targets[i].previous) throw new PasswordChangeError("changed", targets[i].service);
     }
     // A durable, read-back intent always precedes the first credential write.
-    await checkpoint(ports, parsePasswordChangeJournal(journal), null);
+    await checkpoint(ports, parsePasswordChangeJournal(journal), previousIntent);
     await finish(ports, journal, targets);
   });
 }
@@ -173,10 +182,10 @@ export function resumePasswordChange(ports: PasswordChangePorts): Promise<void> 
   });
 }
 
-export async function readPasswordChangeStatus(ports: Pick<PasswordChangePorts, "journal" | "binding">): Promise<PasswordChangeStatus | null> {
+export async function readPasswordChangeStatus(ports: Pick<PasswordChangePorts, "journal" | "binding" | "owner">): Promise<PasswordChangeStatus | null> {
   const raw = await ports.journal.read();
   if (raw === null) return null;
   const journal = parsePasswordChangeJournal(raw);
-  if (journal.binding !== ports.binding) throw new PasswordChangeError("changed");
-  return passwordChangeStatus(journal);
+  if (journal.owner !== ports.owner) throw new PasswordChangeError("changed");
+  return { ...passwordChangeStatus(journal), ...(journal.binding !== ports.binding ? { bindingChanged: true as const } : {}) };
 }

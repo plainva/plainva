@@ -43,6 +43,8 @@ export type AccountCard = {
   signIn?: DeviceSignInState;
   /** The registry record, when the account has one — the login needs it. */
   record?: CloudAccountRecord;
+  /** Vault that supplied the registry record, also for calendar/mail-only cards. */
+  recordVaultId?: string;
 };
 
 /**
@@ -170,5 +172,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       record: recordFor(family, a.label),
     });
   }
+  if ((await getActiveVaultEntry()).id !== entry.id) throw new Error("account vault changed");
+  for (const card of cards) if (card.record) card.recordVaultId = entry.id;
   return { cards, records };
 }

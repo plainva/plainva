@@ -45,6 +45,7 @@ export interface PimRuntime {
   worker: PimWorkerHandle;
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
   stop: () => void;
+  isActive: () => boolean;
 }
 
 /**
@@ -71,6 +72,7 @@ export function createPimRuntime(opts: {
    * data changed). */
   onCycleEnd?: () => void;
 }): PimRuntime {
+  let active = true;
   const cache = new PimCacheRepository(opts.db);
 
   const buildTarget = async (account: PimAccountRow): Promise<IPimTarget | null> => {
@@ -92,6 +94,7 @@ export function createPimRuntime(opts: {
   const worker = new PimWorker({
     cache,
     buildTarget,
+    accountAuthRevision: async (account) => (await getPimCredentials(opts.vaultPath, account.id))?.loginRevision,
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -108,6 +111,18 @@ export function createPimRuntime(opts: {
     cache,
     worker,
     buildTarget,
-    stop: () => worker.stop(),
+    stop: () => { active = false; worker.stop(); },
+    isActive: () => active,
   };
+}
+
+/** A login finishing after a vault closes must not restart its disposed worker.
+ * Its persisted revision still wakes the new runtime on the next open. */
+export async function restartPimAccountAfterLogin(runtime: PimRuntime | null, accountId: string): Promise<void> {
+  if (!runtime?.isActive()) return;
+  try { await runtime.cache.setScopeState(accountId, "account", { lastError: null }); }
+  catch (error) { if (runtime.isActive()) throw error; }
+  if (!runtime.isActive()) return;
+  runtime.worker.start();
+  void runtime.worker.triggerImmediate();
 }

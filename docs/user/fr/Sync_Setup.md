@@ -39,7 +39,7 @@ Les adresses de serveur typiques (Nextcloud, Koofr, MagentaCLOUD, Storage Box et
 
 **L'adresse pointe sur le dossier du vault lui-même.** Tout ce qui se trouve en dessous appartient au vault ; une adresse un niveau trop haut y entraîne donc aussi les dossiers voisins. Avec WebDAV, le dossier fait partie de l'adresse du serveur : pour déplacer le vault plus tard, reconnectez le compte.
 
-Si le mot de passe d'application change plus tard, saisissez-le **une seule fois** dans les détails du compte sous **Identifiants** : Plainva le vérifie sur chaque service de ce compte et ne l'enregistre que si tous l'acceptent — aucun service ne reste ainsi sur un ancien mot de passe.
+Les changements de mot de passe sont d’abord vérifiés auprès de tous les services concernés protégés par mot de passe. Si l’enregistrement est interrompu, les modifications confirmées sont conservées. Rouvre le compte et choisis **Poursuivre l’enregistrement**. L’opération protégée reste disponible après un redémarrage. Si le rattachement du compte ou les identifiants ont changé, choisis **Vérifier à nouveau le mot de passe** pour vérifier le mot de passe actuel auprès des services désormais rattachés. Les identifiants manquants ne sont pas ignorés. Une nouvelle connexion au calendrier est aussi utilisée lors de la prochaine ouverture d’un vault précédemment fermé.
 
 ## Google Drive
 

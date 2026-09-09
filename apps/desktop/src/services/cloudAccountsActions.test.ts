@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
+import { keychainSlotName, oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
 
 /**
  * Regression net for the orchestration layer (control pass 2026-07-20,
@@ -24,6 +24,20 @@ const slots = new Map<string, unknown>();
 /** Endpoints that reject the new password — drives the failure scenarios. */
 const reject = new Set<string>();
 
+vi.mock("./protectedSecrets", () => ({ protectedSecrets: {
+  read: async (key: string) => {
+    const source = key.includes(" · Files · webdav · ") ? "webdav" : key.includes(" · Calendar · P · ") ? "pim" : key;
+    return slots.has(source) ? JSON.stringify(slots.get(source)) : null;
+  },
+  compareAndSet: async (key: string, expected: string | null, next: string | null) => {
+    const source = key.includes(" · Files · webdav · ") ? "webdav" : key.includes(" · Calendar · P · ") ? "pim" : key;
+    if (source === "pim" && reject.has("caldav-write")) throw new Error("caldav write failed");
+    if ((slots.has(source) ? JSON.stringify(slots.get(source)) : null) !== expected) return false;
+    if (next === null) slots.delete(source); else slots.set(source, JSON.parse(next));
+    return true;
+  },
+} }));
+
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: vi.fn(async (key: string) => slots.get(key) ?? null),
@@ -36,6 +50,8 @@ vi.mock("./CredentialManager", () => ({
     getWebDavCredentials: vi.fn(async () => slots.get("webdav") ?? null),
     getDriveCredentials: vi.fn(async () => slots.get("drive") ?? null),
     getOneDriveCredentials: vi.fn(async () => slots.get("onedrive") ?? null),
+    getDropboxCredentials: vi.fn(async () => slots.get("dropbox") ?? null),
+    getS3Credentials: vi.fn(async () => slots.get("s3") ?? null),
     saveOneDriveCredentials: vi.fn(async (_v: string, creds: unknown) => {
       slots.set("onedrive", creds);
     }),
@@ -118,6 +134,7 @@ vi.mock("./accountBroker", () => ({
 vi.mock("./dropboxAuth", () => ({ authorizeDropbox: vi.fn() }));
 
 vi.mock("./pim/pimCredentials", () => ({
+  pimSecretKey: (vault: string, id: string) => keychainSlotName({ vaultKey: vault, service: "calendar", account: id }),
   getPimCredentials: vi.fn(async () => slots.get("pim") ?? null),
   savePimCredentials: vi.fn(async (_v: string, _id: string, creds: unknown) => {
     if (reject.has("caldav-write")) throw new Error("caldav write failed");
@@ -221,13 +238,14 @@ describe("account password rotation", () => {
     label: "marco@cloud.example.org",
     services: { files: { provider: "webdav" }, calendar: { pimAccountId: "P" } },
   };
-  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+  const runtime = { isActive: () => true, cache: { setScopeState: vi.fn() }, worker: { start: vi.fn(), triggerImmediate: vi.fn() } } as unknown as PimRuntime;
 
   beforeEach(() => {
     // The success path announces the credential change to the app shell.
     vi.stubGlobal("window", { dispatchEvent: vi.fn() });
     slots.clear();
     reject.clear();
+    registry.set("/v", [nextcloud]);
     slots.set("webdav", { url: "https://cloud.example.org/dav", user: "marco", pass: "old" });
     slots.set("pim", { kind: "caldav", url: "https://cloud.example.org/caldav", user: "marco", pass: "old" });
   });
@@ -264,17 +282,17 @@ describe("account password rotation", () => {
 
   it("writes NOTHING when a single service rejects the password", async () => {
     reject.add("caldav");
-    await expect(updateAccountPassword("/v", runtime, nextcloud, "new", () => {})).rejects.toThrow(/caldav login failed/);
+    await expect(updateAccountPassword("/v", runtime, nextcloud, "new", () => {})).rejects.toMatchObject({ phase: "verification", service: "calendar" });
     expect(slots.get("webdav")).toMatchObject({ pass: "old" });
     expect(slots.get("pim")).toMatchObject({ pass: "old" });
   });
 
-  it("rolls back an already written slot when a later write fails", async () => {
+  it("keeps an already confirmed slot and a resumable journal when a later write fails", async () => {
     reject.add("caldav-write");
-    await expect(updateAccountPassword("/v", runtime, nextcloud, "new", () => {})).rejects.toThrow(/caldav write failed/);
-    // The files slot was written first and must be back on the old secret.
-    expect(slots.get("webdav")).toMatchObject({ pass: "old" });
+    await expect(updateAccountPassword("/v", runtime, nextcloud, "new", () => {})).rejects.toMatchObject({ phase: "storage", service: "calendar" });
+    expect(slots.get("webdav")).toMatchObject({ pass: "new" });
     expect(slots.get("pim")).toMatchObject({ pass: "old" });
+    expect([...slots.values()].some((value) => (value as { version?: number }).version === 1)).toBe(true);
   });
 });
 
@@ -631,10 +649,10 @@ describe("account reconnect preserves every existing source until consent is com
     registry.set("/v", [card]);
     accountTokens.set(card.id, { clientId: "client", ...(family === "google" ? { clientSecret: "secret" } : {}), refreshToken: "old" });
     slots.set("pim", { kind: family, clientId: "client", refreshToken: "" });
-    const runtime = { cache: { setScopeState: vi.fn(async () => {}) }, worker: { start: vi.fn(), triggerImmediate: vi.fn(async () => {}) } };
+    const runtime = { isActive: () => true, cache: { setScopeState: vi.fn(async () => {}) }, worker: { start: vi.fn(), triggerImmediate: vi.fn(async () => {}) } };
     await rerunAccountAuth("/v", runtime as unknown as PimRuntime, card, () => {});
     expect(accountTokens.get(card.id)).toMatchObject({ refreshToken: family === "google" ? "RT" : "MS-RT", scopes: expect.any(String) });
-    expect(slots.get("pim")).toMatchObject({ kind: family, clientId: "client", refreshToken: "" });
+    expect(slots.get("pim")).toMatchObject({ kind: family, clientId: "client", refreshToken: "", loginRevision: expect.any(String) });
     expect(runtime.cache.setScopeState).toHaveBeenCalledWith("P", "account", { lastError: null });
     expect(runtime.worker.start).toHaveBeenCalledTimes(1);
     expect(runtime.worker.triggerImmediate).toHaveBeenCalledTimes(1);

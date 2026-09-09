@@ -344,6 +344,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       -- tell a dropped request from a revoked sign-in, so every dead account
       -- kept spending a network round per cycle, forever.
       last_error_kind TEXT,
+      auth_revision TEXT,
       PRIMARY KEY (account_id, scope)
     );`,
     `CREATE TABLE IF NOT EXISTS pim_task_state (
@@ -473,6 +474,12 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`ALTER TABLE pim_state ADD COLUMN last_error_kind TEXT;`);
   } catch {
     // Column might already exist
+  }
+
+  // A saved failure belongs to one sign-in, including across process restarts.
+  const pimColumns = await db.query<{ name: string }>(`PRAGMA table_info(pim_state)`);
+  if (!pimColumns.some((column) => column.name === "auth_revision")) {
+    await db.execute(`ALTER TABLE pim_state ADD COLUMN auth_revision TEXT;`);
   }
 
   try {

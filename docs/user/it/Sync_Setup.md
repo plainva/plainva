@@ -39,7 +39,7 @@ Gli indirizzi tipici dei server (Nextcloud, Koofr, MagentaCLOUD, Storage Box e m
 
 **L'indirizzo punta alla cartella del vault stessa.** Tutto ciò che si trova sotto appartiene al vault, quindi un indirizzo un livello troppo in alto trascina con sé anche le cartelle vicine. Con WebDAV la cartella fa parte dell'indirizzo del server: per spostare il vault in seguito, riconnetti l'account.
 
-Se la password per app cambia in seguito, inseriscila **una sola volta** nei dettagli dell'account sotto **Credenziali**: Plainva la verifica su ogni servizio di quell'account e la salva solo quando tutti la accettano, così nessun servizio resta con la vecchia password.
+Le modifiche della password vengono prima verificate con tutti i servizi interessati protetti da password. Se il salvataggio viene interrotto, le modifiche confermate vengono mantenute. Riapri l’account e scegli **Continua il salvataggio**. L’operazione protetta resta disponibile dopo un riavvio. Se il collegamento dell’account o le credenziali sono cambiati, scegli **Verifica di nuovo la password** per controllare la password attuale nei servizi ora associati. Le credenziali mancanti non vengono ignorate. Un nuovo accesso al calendario viene usato anche alla successiva apertura di un vault precedentemente chiuso.
 
 ## Google Drive
 

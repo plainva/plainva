@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, Folder, ListChecks, Mail, RotateCw, Unlink } from "lucide-react";
 import {
+  AccountPasswordChangePanel,
+  passwordServicesOf,
   accountMonogram,
   Banner,
   Button,
@@ -19,8 +21,8 @@ import {
   toast,
 } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
-import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
+import { mobilePasswordChangePorts } from "../services/accountPassword";
 import { beginAccountLogin, canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
 import { clearAccountToken, getAccountToken } from "../services/accountBroker";
 import { mConfirm } from "../services/mobileDialogs";
@@ -76,26 +78,28 @@ export function CloudAccountDetailScreen({
   const [ready, setReady] = useState(false);
   const [loginVaultId, setLoginVaultId] = useState<string | null>(null);
   const [loginStatus, setLoginStatus] = useState<AccountLoginStatus | undefined>();
+  const loadGeneration = useRef(0);
 
   const reload = useCallback(() => {
+    const turn = ++loadGeneration.current;
     void loadAccountCards()
       .then(async ({ cards }) => {
         const found = cards.find((c) => c.key === accountKey) ?? null;
-        setCard(found);
-        setReady(true);
-        if (found?.record) {
-          const entry = await getActiveVaultEntry();
-          setLoginVaultId(entry.id);
-          setLoginStatus(getAccountLoginStatus(entry.id, found.record.id));
-          setUnifiable(await canUnifyMobileAccount(entry.id, found.record));
-          setSharedLogin(!!(await getAccountToken(entry.id, found.record.id).catch(() => null))?.refreshToken);
-        } else {
-          setUnifiable(false);
-          setSharedLogin(false);
+        let unifiable = false, shared = false;
+        if (found?.record && found.recordVaultId) {
+          const id = found.recordVaultId;
+          unifiable = await canUnifyMobileAccount(id, found.record);
+          shared = !!(await getAccountToken(id, found.record.id).catch(() => null))?.refreshToken;
         }
+        if (turn !== loadGeneration.current) return;
+        setCard(found); setReady(true); setUnifiable(unifiable); setSharedLogin(shared);
+        setLoginVaultId(found?.recordVaultId ?? null);
+        setLoginStatus(found?.record && found.recordVaultId ? getAccountLoginStatus(found.recordVaultId, found.record.id) : undefined);
       })
       .catch(() => {
+        if (turn !== loadGeneration.current) return;
         setCard(null);
+        setLoginVaultId(null);
         setReady(true);
       });
   }, [accountKey]);
@@ -110,11 +114,13 @@ export function CloudAccountDetailScreen({
   }, [loginVaultId, card?.record?.id]);
 
   useEffect(() => {
+    const token = loadGeneration;
     reload();
     window.addEventListener("m-vaults-changed", reload);
     window.addEventListener("m-pim-changed", reload);
     window.addEventListener(MAIL_CHANGED_EVENT, reload);
     return () => {
+      token.current++;
       window.removeEventListener("m-vaults-changed", reload);
       window.removeEventListener("m-pim-changed", reload);
       window.removeEventListener(MAIL_CHANGED_EVENT, reload);
@@ -139,11 +145,11 @@ export function CloudAccountDetailScreen({
   }, [card?.family]);
 
   const signIn = (fallback?: { clientId: string; clientSecret?: string }) => {
-    if (!card?.record) return;
+    if (!card?.record || !loginVaultId) return;
     void (async () => {
       setSigningIn(true);
       try {
-        const out = await beginAccountLogin((await getActiveVaultEntry()).id, card.record!, fallback);
+        const out = await beginAccountLogin(loginVaultId, card.record!, fallback);
         setNeedClient(out.kind === "needsClientId" ? out.family : null);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -164,7 +170,7 @@ export function CloudAccountDetailScreen({
    * their own sign-in, which is what "Ein Login für alle Dienste" then rebuilds.
    */
   const resetSharedLogin = () => {
-    if (!card?.record) return;
+    if (!card?.record || !loginVaultId) return;
     void (async () => {
       const ok = await mConfirm({
         title: t("cloudAccounts.resetSharedLogin"),
@@ -174,8 +180,7 @@ export function CloudAccountDetailScreen({
       });
       if (!ok) return;
       try {
-        const entry = await getActiveVaultEntry();
-        await clearAccountToken(entry.id, card.record!.id);
+        await clearAccountToken(loginVaultId, card.record!.id);
         toast.success(t("cloudAccounts.sharedLoginCleared"));
         reload();
       } catch (e) {
@@ -257,6 +262,10 @@ export function CloudAccountDetailScreen({
               })}
             </RowList>
           </GroupCard>
+
+          {card.record && loginVaultId && passwordServicesOf(card.record).length > 0 && (
+            <AccountPasswordChangePanel ports={mobilePasswordChangePorts(loginVaultId, card.record)} />
+          )}
 
           {card.family === "device" && (
             <>
