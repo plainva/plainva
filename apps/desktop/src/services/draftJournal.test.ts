@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const files = new Map<string, string>();
 const invokeMock = vi.fn(async (cmd: string, args?: Record<string, unknown>) => {
   if (cmd === "register_write_root") return "root-1";
+  if (cmd === "checked_read_text_file") return files.get(`APPDATA/drafts/${args?.relPath as string}`) ?? null;
   if (cmd === "write_file_atomic") {
     files.set(`APPDATA/drafts/${args?.relPath as string}`, args?.contents as string);
     return undefined;
@@ -115,6 +116,15 @@ describe("draftJournal", () => {
     await recordDraft(VAULT, NOTE, "older arrival", 3, "left");
     expect(await readDraft(VAULT, NOTE, "saved")).toMatchObject({ text: "unsaved", revision: 4 });
   });
+  it("does not replace another session's draft when the native read fails", async () => {
+    await recordDraft(VAULT, NOTE, "kept in the old editor", 9, "old");
+    const previous = files.get(FILE);
+    invokeMock.mockRejectedValueOnce(new Error("cannot read existing draft"));
+    await expect(recordDraft(VAULT, NOTE, "new editor", 1, "new")).rejects.toThrow("cannot read existing draft");
+    expect(files.get(FILE)).toBe(previous);
+    await recordDraft(VAULT, NOTE, "new editor", 1, "new");
+    expect(JSON.parse(files.get(FILE)!).entries.map((entry: { sessionId: string }) => entry.sessionId)).toEqual(["old", "new"]);
+  });
 });
 
 import { remove } from "@tauri-apps/plugin-fs";
@@ -123,6 +133,18 @@ function gate() {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => { resolve = done; });
   return { promise, resolve };
+}
+function holdNextAtomicWrite() {
+  const entered = gate(), release = gate();
+  const original = invokeMock.getMockImplementation()!;
+  invokeMock.mockImplementation(async (command, args) => {
+    if (command !== "write_file_atomic") return original(command, args);
+    invokeMock.mockImplementation(original);
+    entered.resolve();
+    await release.promise;
+    return original(command, args);
+  });
+  return { entered, release };
 }
 describe("ordered desktop draft writes", () => {
   beforeEach(() => { files.clear(); invokeMock.mockClear(); });
@@ -146,12 +168,7 @@ describe("ordered desktop draft writes", () => {
   });
 
   it("serializes a delayed atomic write, confirmation and newer snapshot", async () => {
-    const entered = gate(), release = gate();
-    invokeMock.mockImplementationOnce(async (_cmd, args) => {
-      entered.resolve();
-      await release.promise;
-      files.set("APPDATA/drafts/" + String(args?.relPath), String(args?.contents));
-    });
+    const { entered, release } = holdNextAtomicWrite();
     const old = recordDraft(VAULT, NOTE, "old", 3);
     await entered.promise;
     const clearing = clearDraft(VAULT, NOTE, 3);
@@ -162,12 +179,7 @@ describe("ordered desktop draft writes", () => {
   });
 
   it("keeps unrelated vaults independent while one atomic write waits", async () => {
-    const entered = gate(), release = gate();
-    invokeMock.mockImplementationOnce(async (_cmd, args) => {
-      entered.resolve();
-      await release.promise;
-      files.set("APPDATA/drafts/" + String(args?.relPath), String(args?.contents));
-    });
+    const { entered, release } = holdNextAtomicWrite();
     const held = recordDraft(VAULT, NOTE, "vault A", 5);
     await entered.promise;
     await recordDraft("other", NOTE, "vault B", 1);

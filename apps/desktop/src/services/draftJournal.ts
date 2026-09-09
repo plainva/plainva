@@ -3,6 +3,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readTextFile, remove, stat } from "@tauri-apps/plugin-fs";
 import { isOwnerWindow } from "./windowContext";
 import { getWindowBus } from "./windowBus";
+import { checkedReadTextFile } from "../adapters/checkedFilesystem";
 
 /**
  * Crash/draft recovery journal (hardening plan P2.4). While a note is dirty,
@@ -119,9 +120,11 @@ export async function recordDraft(
     return;
   }
   await serial(relFile(vaultPath, notePath), async () => {
-    const { dir, rootId } = await draftsRoot();
-    const file = await join(dir, relFile(vaultPath, notePath));
-    const entries = (await exists(file)) ? decodeDrafts(await readTextFile(file)) : [];
+    const { rootId } = await draftsRoot();
+    // The plugin's exists() hides I/O errors. An unreadable older draft must
+    // never become an empty journal that the next editor overwrites.
+    const raw = await checkedReadTextFile(rootId, relFile(vaultPath, notePath));
+    const entries = raw === null ? [] : decodeDrafts(raw);
     const previous = entries.find((entry) => sessionOf(entry) === sessionId);
     if (previous && previous.revision > revision) return;
     const entry: DraftEntry = { vaultPath, notePath, text, revision, sessionId, savedAt: Date.now() };

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 mod atomic_write;
+mod checked_fs;
 mod backup;
 mod db_batch;
 mod linux_appimage;
@@ -431,6 +432,9 @@ pub fn run() {
             tray::tray_set_next,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
+            checked_fs::checked_path_exists,
+            checked_fs::checked_read_text_file,
+            checked_fs::checked_read_dir,
             atomic_write::set_file_times,
             sync_upload::sync_upload_file,
             sync_upload::sync_file_sha256,

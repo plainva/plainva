@@ -36,6 +36,22 @@ function firstRunShell(page: any) {
         if (cmd === 'plugin:sql|execute') return [0, 0];
         if (cmd === 'plugin:sql|select') return [];
         if (cmd === 'plugin:sql|select_one') return null;
+        if (cmd === "register_write_root") return "mock-root:" + String(args.path).replace(/\/$/, "");
+        // Checked native reads use the same files as the plugin fixture.
+        if (cmd === "checked_path_exists" || cmd === "checked_read_text_file" || cmd === "checked_read_dir") {
+          const root = String(args.rootId).replace(/^mock-root:/, "").replace(/\/$/, "");
+          const rel = String(args.relPath).replace(/^\/+/, "");
+          const path = rel ? `${root}/${rel}` : root;
+          const present = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|exists", { path });
+          if (cmd === "checked_path_exists") return present;
+          if (!present) return null;
+          if (cmd === "checked_read_dir") {
+            const entries = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_dir", { path });
+            return entries.map((entry: any) => ({ name: entry.name, isDirectory: !!entry.isDirectory, isFile: entry.isFile ?? (!entry.isDirectory && !entry.isSymlink), isSymlink: !!entry.isSymlink }));
+          }
+          const bytes = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_text_file", { path });
+          return typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+        }
         if (cmd === 'plugin:fs|exists') return !!fs[String(args.path).replace(/\/$/, '')];
         if (cmd === 'plugin:fs|read_dir') return [];
         if (cmd === 'plugin:fs|watch') return 1;

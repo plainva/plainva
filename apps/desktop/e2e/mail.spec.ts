@@ -241,6 +241,21 @@ test.beforeEach(async ({ page }) => {
           return [];
         }
         if (cmd === 'plugin:sql|select_one') return null;
+        // Checked native reads use the same files as the plugin fixture.
+        if (cmd === "checked_path_exists" || cmd === "checked_read_text_file" || cmd === "checked_read_dir") {
+          const root = String(args.rootId).replace(/^mock-root:/, "").replace(/\/$/, "");
+          const rel = String(args.relPath).replace(/^\/+/, "");
+          const path = rel ? `${root}/${rel}` : root;
+          const present = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|exists", { path });
+          if (cmd === "checked_path_exists") return present;
+          if (!present) return null;
+          if (cmd === "checked_read_dir") {
+            const entries = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_dir", { path });
+            return entries.map((entry: any) => ({ name: entry.name, isDirectory: !!entry.isDirectory, isFile: entry.isFile ?? (!entry.isDirectory && !entry.isSymlink), isSymlink: !!entry.isSymlink }));
+          }
+          const bytes = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_text_file", { path });
+          return typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+        }
         if (cmd === 'plugin:fs|exists') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           return !!fs[p];

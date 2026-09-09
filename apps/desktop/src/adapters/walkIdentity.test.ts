@@ -52,7 +52,15 @@ vi.mock("@tauri-apps/api/path", () => ({
   normalize: async (p: string) => p.replace(/\/+$/, ""),
   sep: () => "/",
 }));
-vi.mock("@tauri-apps/api/core", () => ({ invoke: async () => "root-1" }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: async (command: string, args: { relPath: string }) => {
+  if (command === "register_write_root") return "root-1";
+  if (command === "checked_read_dir") {
+    return (await readDirMock(args.relPath ? `/vault/${args.relPath}` : "/vault")).map((entry) => ({
+      name: entry.name, isDirectory: entry.isDirectory, isFile: !entry.isDirectory, isSymlink: false,
+    }));
+  }
+  throw new Error("Unexpected filesystem command");
+} }));
 
 import { TauriVaultAdapter } from "./TauriVaultAdapter";
 
@@ -110,5 +118,26 @@ describe("walk identity guard", () => {
     // non-directory entry (alias, X.md). The identity comes from the stat that
     // replaced the exists() guard, not from an added call.
     expect(statMock.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+  it("reports an unreadable root instead of claiming a complete empty vault", async () => {
+    seed(true);
+    statMock.mockRejectedValueOnce(new Error("EACCES"));
+    const report = await new TauriVaultAdapter(ROOT).listDirReport("", true);
+    expect(report.files).toEqual([]);
+    expect(report.skipped).toEqual([{ path: "", reason: "unreadable" }]);
+  });
+  it("reports a native iterator failure as an incomplete directory", async () => {
+    seed(true);
+    readDirMock.mockRejectedValueOnce(new Error("directory iterator EIO"));
+    const report = await new TauriVaultAdapter(ROOT).listDirReport("", true);
+    expect(report.files).toEqual([]);
+    expect(report.skipped).toEqual([{ path: "", reason: "unreadable" }]);
+  });
+  it("does not invent file metadata when a child cannot be inspected", async () => {
+    seed(false);
+    fs.delete("/vault/Tools/real/X.md");
+    const report = await new TauriVaultAdapter(ROOT).listDirReport("", true);
+    expect(report.files.some((file) => file.path === "Tools/real/X.md")).toBe(false);
+    expect(report.skipped).toContainEqual({ path: "Tools/real/X.md", reason: "unreadable" });
   });
 });

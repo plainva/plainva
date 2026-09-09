@@ -1,5 +1,6 @@
+import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
 import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath } from "@plainva/core";
-import { readTextFile, readFile, readDir, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "@plainva/ui";
@@ -135,9 +136,10 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async readTextFile(path: string): Promise<string> {
-    const absPath = await this.getAbsolutePath(path);
-    if (!(await exists(absPath))) throw new VaultFileNotFoundError(path);
-    return readTextFile(absPath);
+    await this.getAbsolutePath(path);
+    const text = await checkedReadTextFile(await this.rootId(), path);
+    if (text === null) throw new VaultFileNotFoundError(path);
+    return text;
   }
 
   // Writes go through the native atomic command (hardening P2): exclusive
@@ -156,7 +158,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     const absPath = await this.getAbsolutePath(path);
-    if (!(await exists(absPath))) throw new VaultFileNotFoundError(path);
+    if (!(await this.exists(path))) throw new VaultFileNotFoundError(path);
     return readFile(absPath);
   }
 
@@ -194,7 +196,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // as every remote sync target ("not found = success"). Throwing here left a
     // phantom tree row that could never be cleared. The caller still runs its
     // index/tree cleanup on this success path.
-    if (!(await exists(absPath))) return;
+    if (!(await this.exists(path))) return;
 
     // Internal housekeeping (backup rotation, pruning) must not flood the OS
     // trash — hard-delete everything under .plainva; user content keeps
@@ -233,19 +235,19 @@ export class TauriVaultAdapter implements IVaultAdapter {
   async renameItem(oldPath: string, newPath: string): Promise<void> {
     const oldAbs = await this.getAbsolutePath(oldPath);
     const newAbs = await this.getAbsolutePath(newPath);
-    if (!(await exists(oldAbs))) throw new VaultFileNotFoundError(oldPath);
-    if (await exists(newAbs)) throw new VaultFileExistsError(newPath);
+    if (!(await this.exists(oldPath))) throw new VaultFileNotFoundError(oldPath);
+    if (await this.exists(newPath)) throw new VaultFileExistsError(newPath);
     await rename(oldAbs, newAbs);
   }
 
   async exists(path: string): Promise<boolean> {
-    const absPath = await this.getAbsolutePath(path);
-    return await exists(absPath);
+    await this.getAbsolutePath(path);
+    return checkedPathExists(await this.rootId(), path);
   }
 
   async getFileInfo(path: string): Promise<VaultFileInfo> {
     const absPath = await this.getAbsolutePath(path);
-    if (!(await exists(absPath))) throw new VaultFileNotFoundError(path);
+    if (!(await this.exists(path))) throw new VaultFileNotFoundError(path);
     const entryStat = await stat(absPath);
     return {
       name: path.split(/[/\\]/).pop() || "",
@@ -293,6 +295,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     try {
       dirStat = await limit.run(() => stat(absPath));
     } catch {
+      skipped.push({ path, reason: "unreadable" });
       return [];
     }
     if (dirStat.dev != null && dirStat.ino != null) {
@@ -304,9 +307,11 @@ export class TauriVaultAdapter implements IVaultAdapter {
       visited.add(identity);
     }
 
-    let entries: Awaited<ReturnType<typeof readDir>>;
+    let entries: CheckedDirEntry[];
     try {
-      entries = await limit.run(() => readDir(absPath));
+      const snapshot = await limit.run(async () => checkedReadDirectory(await this.rootId(), path));
+      if (snapshot === null) throw new VaultFileNotFoundError(path);
+      entries = snapshot;
     } catch {
       // Permission denied, offline network share, torn-down mount: report it
       // instead of returning an empty folder that looks legitimately empty.
@@ -342,7 +347,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // win — otherwise a symlinked directory (e.g. a venv's `lib64 -> lib`) is
     // walked as a "file" and readTextFile crashes on it with EISDIR.
     type ResolvedEntry = VaultFileInfo & { absPath: string };
-    const resolved: ResolvedEntry[] = await Promise.all(
+    const inspected: Array<ResolvedEntry | null> = await Promise.all(
       validEntries.map((entry) => {
         const relativeChildPath = path ? `${path}/${entry.name}` : entry.name!;
         const childAbsPath = basePath + entry.name;
@@ -353,24 +358,22 @@ export class TauriVaultAdapter implements IVaultAdapter {
           });
         }
         return limit.run(async () => {
-          let mtime = Date.now();
-          let ctime: number | undefined;
-          let size = 0;
-          let isDirectory = false;
           try {
             const entryStat = await stat(childAbsPath);
-            isDirectory = entryStat.isDirectory;
-            mtime = entryStat.mtime?.getTime() || Date.now();
-            ctime = isDirectory ? undefined : entryStat.birthtime?.getTime() || undefined;
-            size = isDirectory ? 0 : entryStat.size;
+            const isDirectory = entryStat.isDirectory;
+            const mtime = entryStat.mtime?.getTime() || Date.now();
+            const ctime = isDirectory ? undefined : entryStat.birthtime?.getTime() || undefined;
+            const size = isDirectory ? 0 : entryStat.size;
+            return { name: entry.name!, path: relativeChildPath, absPath: childAbsPath, isDirectory, mtime, ctime, size };
           } catch {
-            console.warn(`Failed to stat ${childAbsPath}`);
+            skipped.push({ path: relativeChildPath, reason: "unreadable" });
+            return null;
           }
-          return { name: entry.name!, path: relativeChildPath, absPath: childAbsPath, isDirectory, mtime, ctime, size };
         });
       })
     );
 
+    const resolved = inspected.filter((entry): entry is ResolvedEntry => entry !== null);
     const results: VaultFileInfo[] = resolved.map(({ absPath: _absPath, ...info }) => info);
 
     // Recurse into subdirectories concurrently too; the shared limiter keeps the
@@ -412,9 +415,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
   async createDir(path: string): Promise<void> {
     const absPath = await this.getAbsolutePath(path);
-    if (!(await exists(absPath))) {
-      await mkdir(absPath, { recursive: true });
-    }
+    await mkdir(absPath, { recursive: true });
   }
 
   async watch(callback: (events: import("@plainva/core").WatchEvent[]) => void): Promise<() => void> {
