@@ -116,6 +116,21 @@ export function NoteScreen({
   const [menu, setMenu] = useState(false);
   const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  /**
+   * A text change the SCREEN makes - accepting a proposal, a whole round, the
+   * anchor markers of a new remark, and the roll-backs of those - has to reach
+   * the editor that is on screen. The host reads `initialDoc` once per mount,
+   * so `setDoc` alone left the view on the old text until the note was
+   * reopened (finding 2026-09-09, from the phone's E2E: an accepted proposal
+   * was in the file and not in the view). The desktop dispatches on its view
+   * directly; this is the phone's equivalent - the host adopts the text as an
+   * external change, without touching the undo history.
+   */
+  const adoptDoc = useCallback((next: string) => {
+    setDoc(next);
+    noteSaver.schedule(vault, path, next);
+    window.dispatchEvent(new CustomEvent("m-editor-adopt-text", { detail: { path, text: next } }));
+  }, [vault, path]);
   // C4: live preview <-> raw markdown source (session mode, per note session).
   const [source, setSource] = useState(false);
   // Read-first (M4/E5): notes open rendered and read-only; the pencil FAB
@@ -338,10 +353,10 @@ export function NoteScreen({
     const repaired = repairAnchorMarkerPlacement(stripped.text);
     if (stripped.removed.length === 0 && repaired.edits.length === 0) return;
     const text = repaired.text;
-    setDoc(text);
-    noteSaver.schedule(vault, path, text);
-    setReloadTick((n) => n + 1);
-  }, [doc, comments, path, vault, workspaceCanWrite, suggesting]);
+    // Through the helper, not a remount: the editor adopts the stripped text
+    // in place and keeps its scroll and cursor (finding 2026-09-09).
+    adoptDoc(text);
+  }, [doc, comments, path, vault, workspaceCanWrite, suggesting, adoptDoc]);
   const toggleSuggestionsInline = () => {
     const next = !suggestionsInline;
     setSuggestionsInline(next);
@@ -643,13 +658,11 @@ export function NoteScreen({
     for (let i = 1; i < spans.length; i += 1) if (spans[i].to > spans[i - 1].from) { toast.error(t("comments.suggestRoundOrphan")); return; }
     let next = text;
     for (const span of spans) next = next.slice(0, span.from) + span.comment.suggestion!.replacement + next.slice(span.to);
-    setDoc(next);
-    noteSaver.schedule(vault, path, next);
+    adoptDoc(next);
     try {
       for (const span of spans) await postMobileComment(vault, { path, body: "", resolvedCommentId: span.comment.commentId, suggestionOutcome: "applied" });
     } catch (error) {
-      setDoc(text);
-      noteSaver.schedule(vault, path, text);
+      adoptDoc(text);
       throw error;
     }
     setCommentTick((n) => n + 1);
@@ -673,7 +686,7 @@ export function NoteScreen({
     const text = doc;
     if (markerId && text !== null && workspaceCanWrite && !comment.parentCommentId) {
       const next = removeAnchorMarkers(text, markerId);
-      if (next !== text) { setDoc(next); noteSaver.schedule(vault, path, next); }
+      if (next !== text) adoptDoc(next);
     }
     setCommentTick((n) => n + 1);
   };
@@ -700,15 +713,13 @@ export function NoteScreen({
       return;
     }
     const next = text.slice(0, resolution.from) + comment.suggestion.replacement + text.slice(resolution.to);
-    setDoc(next);
-    noteSaver.schedule(vault, path, next);
+    adoptDoc(next);
     try {
       await postMobileComment(vault, { path, body: "", resolvedCommentId: comment.commentId, suggestionOutcome: "applied" });
     } catch (error) {
       // The swap is already in the buffer. If the record never landed, the note
       // must not silently keep a change nobody agreed to.
-      setDoc(text);
-      noteSaver.schedule(vault, path, text);
+      adoptDoc(text);
       throw error;
     }
     setCommentTick((n) => n + 1);
@@ -959,8 +970,7 @@ export function NoteScreen({
               if (workspaceCanWrite && !pendingRange.display) {
                 const next = insertAnchorMarkers(text, placed.from, placed.to, id);
                 marker = { before: text };
-                setDoc(next);
-                noteSaver.schedule(vault, path, next);
+                adoptDoc(next);
               }
             }
             try {
@@ -969,10 +979,7 @@ export function NoteScreen({
               /* The markers are already in the buffer. If the record never
                  landed, the note must not keep a pair pointing at a comment
                  that does not exist. */
-              if (marker) {
-                setDoc(marker.before);
-                noteSaver.schedule(vault, path, marker.before);
-              }
+              if (marker) adoptDoc(marker.before);
               throw error;
             }
             setPendingPropertyAnchor(null);

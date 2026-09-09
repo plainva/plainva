@@ -658,12 +658,22 @@ export function EditorHost({
         rememberPersistedText(path, d.mergedText);
       }
     };
+    // The screen changed the text itself (an accepted proposal, the markers of
+    // a new remark): adopt it as an external change, whatever the buffer holds
+    // - the screen is the owner of that change (finding 2026-09-09).
+    const onAdoptText = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { path?: string; text?: string } | undefined;
+      if (d?.path !== path || typeof d.text !== "string") return;
+      sessionRef.current?.applyExternalText(d.text);
+    };
     window.addEventListener("m-external-update", onExternalUpdate);
     window.addEventListener("m-auto-merged", onAutoMerged);
+    window.addEventListener("m-editor-adopt-text", onAdoptText);
 
     return () => {
       window.removeEventListener("m-external-update", onExternalUpdate);
       window.removeEventListener("m-auto-merged", onAutoMerged);
+      window.removeEventListener("m-editor-adopt-text", onAdoptText);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path);
