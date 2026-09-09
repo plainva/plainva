@@ -3,6 +3,7 @@ import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
+import { SyncProviderError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
 
@@ -65,20 +66,31 @@ function isGoogleNative(mimeType?: string): boolean {
   return !!mimeType && mimeType.startsWith("application/vnd.google-apps.") && mimeType !== FOLDER_MIME;
 }
 
-/** Best-effort extraction of the Drive API error reason/message from a failed response. */
-async function errorReason(res: Response): Promise<string> {
-  try {
-    const json = (await res.json()) as { error?: { message?: string; errors?: { reason?: string }[] } };
-    return json?.error?.errors?.[0]?.reason || json?.error?.message || res.statusText;
-  } catch {
-    return res.statusText;
-  }
+const DRIVE_RATE_LIMIT_REASONS = new Set(["userRateLimitExceeded", "rateLimitExceeded"]);
+type DriveFailure = { detail: string; rateLimited: boolean };
+// Retry and final reporting read the same body once, without cloning a stream.
+const driveFailures = new WeakMap<Response, Promise<DriveFailure>>();
+function driveFailure(res: Response): Promise<DriveFailure> {
+  const existing = driveFailures.get(res);
+  if (existing) return existing;
+  const reading = (async () => {
+    let detail = res.statusText?.trim() || "no error details returned by Google Drive";
+    try {
+      const json = await res.json() as { error?: { message?: unknown; errors?: unknown } };
+      const errors = json?.error?.errors;
+      const reasons = Array.isArray(errors) ? errors.map(error =>
+        typeof error?.reason === "string" ? error.reason.trim() : "") : [];
+      if (reasons.some(Boolean)) detail = reasons.filter(Boolean).join(", ");
+      else if (typeof json?.error?.message === "string" && json.error.message.trim()) detail = json.error.message.trim();
+      return { detail, rateLimited: res.status === 403 && reasons.length > 0 && reasons.every(reason => DRIVE_RATE_LIMIT_REASONS.has(reason)) };
+    } catch { return { detail, rateLimited: false }; }
+  })();
+  driveFailures.set(res, reading); return reading;
 }
 
 async function driveResponseError(operation: string, res: Response): Promise<Error> {
-  const reason = (await errorReason(res)).trim();
-  const detail = reason || res.statusText.trim() || "no error details returned by Google Drive";
-  return new Error(`Google Drive ${operation} failed (HTTP ${res.status}): ${detail}`);
+  const failure = await driveFailure(res);
+  return new SyncProviderError(`Google Drive ${operation} failed (HTTP ${res.status}): ${failure.detail}`, res.status, failure.rateLimited);
 }
 
 /**
@@ -200,7 +212,8 @@ export class DriveSyncTarget implements ISyncTarget {
       ? await streamUpload(this.uploader, { ref: stream, url, method, headers })
       : await fetchWithRetry(
           () => this.request(method, url, { ...init, headers }),
-          method === "GET" ? "read" : "write"
+          method === "GET" ? "read" : "write",
+          { retryableReadResponse: async response => response.status === 403 && (await driveFailure(response)).rateLimited },
         );
     if (res.status === 401 && !isRetry) {
       // force: the server has just rejected this token, so a broker must not
@@ -878,14 +891,6 @@ export class DriveSyncTarget implements ISyncTarget {
     if (!id) return null;
     const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?alt=media`);
     if (res.status === 404) return null;
-    if (res.status === 403) {
-      // A single un-downloadable file (e.g. a Google-native file that slipped through,
-      // or an abuse-flagged file) must not abort the whole sync cycle. Skip it and log
-      // the Drive-reported reason for diagnosis.
-      const reason = await errorReason(res);
-      console.warn(`[Drive] skipping download of ${filePath}: 403 ${reason}`);
-      return null;
-    }
     if (!res.ok) throw await driveResponseError("download", res);
     const buf = await res.arrayBuffer();
     return new Uint8Array(buf);

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError, syncErrorMessage, syncErrorReason, TRANSIENT_FAILURES_BEFORE_ERROR } from "../../src/sync/SyncWorker.js";
+import { SyncProviderError } from "../../src/sync/errorKind.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 import { DeletionJournal, serializeDeletionJournal } from "../../src/sync/deletionJournal.js";
 
@@ -908,7 +909,7 @@ describe("SyncWorker", () => {
       target.getStartCursor = vi.fn().mockResolvedValue("cursor-A");
       target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"], ["c.md", "e3"]]) });
       target.download.mockImplementation(async (p: string) => {
-        if (p === "b.md") throw new Error("403 rate limited");
+        if (p === "b.md") throw new SyncProviderError("403 userRateLimitExceeded", 403, true);
         return new TextEncoder().encode("x");
       });
       const batches: string[][] = [];
@@ -1023,10 +1024,10 @@ describe("SyncWorker", () => {
       // The other deletion still ran; the unadvanced cursor replays the failed one.
       expect(vault.deleteItem).toHaveBeenCalledWith("b.md");
       expect(worker["cursor"]).toBe("c0");
-      // "Retried next cycle" is what the message says, so it is what the
-      // status says. The cursor stays put either way — that is the retry.
-      expect(statusSpy.mock.calls.some(([s]) => s === "retrying")).toBe(true);
-      expect(statusSpy.mock.calls.some(([s]) => s === "error")).toBe(false);
+      // An unexplained lock needs attention; the concrete path/cause remains
+      // visible while the unadvanced cursor still permits automatic recovery.
+      expect(statusSpy.mock.calls.at(-1)?.[0]).toBe("error");
+      expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("a.md: locked");
     });
 
     it("defers onFirstCycleComplete until a cycle with zero pull failures", async () => {

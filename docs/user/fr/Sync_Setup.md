@@ -166,3 +166,7 @@ Google Drive ne distingue pas les majuscules des minuscules lors de ses recherch
 En revanche, si deux noms diffèrent par la **casse**, ce sont deux fichiers. Plainva ne modifie ni ne supprime alors rien et affiche la carte **Deux écritures, un seul fichier** avec les deux noms — sur mobile sur la page du coffre, sur l'ordinateur dans les paramètres de synchronisation. Tous les autres fichiers continuent d'être synchronisés. Renommez l'une des deux notes et la carte disparaît d'elle-même.
 
 La nouvelle connexion ne couvre pas tous les services. Tes accès précédents sont conservés. Reconnecte-toi et autorise tous les services indiqués. Le rattachement du compte a changé. Ouvre les réglages actuels du compte et reconnecte-toi.
+
+## Google Drive : téléchargements incomplets
+
+Lorsque Google Drive limite temporairement les requêtes, Plainva réessaie le téléchargement après un délai. Un téléchargement échoué ne signifie ni fichier absent ni modification terminée. Le contenu local et le dernier état de synchronisation confirmé sont conservés ; le cycle suivant réessaie la modification en attente. Les autres fichiers téléchargés restent disponibles. Les autorisations manquantes et les refus permanents apparaissent comme des erreurs avec le chemin du fichier et la cause. Cela vaut sur ordinateur et sur mobile.

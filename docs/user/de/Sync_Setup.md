@@ -166,3 +166,7 @@ Google Drive unterscheidet beim Suchen keine Groß- und Kleinschreibung, und Win
 Unterscheiden sich zwei Namen dagegen in der **Groß- und Kleinschreibung**, sind es zwei Dateien. Plainva ändert und löscht dann nichts, sondern zeigt die Karte **Zwei Schreibweisen, eine Datei** mit beiden Namen — mobil auf der Vault-Seite, am Desktop in den Sync-Einstellungen. Alle übrigen Dateien werden weiter synchronisiert. Benenne eine der beiden Notizen um, dann verschwindet die Karte von selbst.
 
 Die neue Anmeldung deckt nicht alle Dienste ab. Deine bisherigen Zugänge bleiben erhalten. Melde Dich erneut an und erlaube alle angezeigten Dienste. Die Kontozuordnung hat sich geändert. Öffne die aktuellen Kontoeinstellungen und melde Dich erneut an.
+
+## Google Drive: offene Downloads
+
+Wenn Google Drive vorübergehend zu viele Anfragen meldet, versucht Plainva den Download mit Abstand erneut. Bleibt ein Download erfolglos, wird er nicht als fehlende Datei oder erledigte Änderung gewertet. Der vorhandene lokale Inhalt und der bestätigte Sync-Stand bleiben erhalten; der nächste Durchlauf versucht die offene Änderung erneut. Erfolgreich geladene Nachbardateien bleiben verfügbar. Fehlende Rechte oder andere dauerhafte Ablehnungen erscheinen mit Dateipfad und Ursache als Fehler. Das gilt auf Desktop und Mobilgeräten.

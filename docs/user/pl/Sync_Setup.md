@@ -166,3 +166,7 @@ Google Drive podczas wyszukiwania nie rozróżnia wielkości liter, a Windows i 
 Jeśli natomiast dwie nazwy różnią się **wielkością liter**, są to dwa pliki. Plainva niczego wtedy nie zmienia ani nie usuwa, lecz pokazuje kartę **Dwie pisownie, jeden plik** z obiema nazwami — na telefonie na stronie sejfu, na komputerze w ustawieniach synchronizacji. Wszystkie pozostałe pliki są nadal synchronizowane. Zmień nazwę jednej z notatek, a karta zniknie sama.
 
 Nowe logowanie nie obejmuje wszystkich usług. Zachowano Twój dotychczasowy dostęp. Zaloguj się ponownie i zezwól na wszystkie wymienione usługi. Powiązanie konta uległo zmianie. Otwórz aktualne ustawienia konta i zaloguj się ponownie.
+
+## Google Drive: nieukończone pobieranie
+
+Gdy Google Drive tymczasowo ogranicza żądania, Plainva ponawia pobieranie po przerwie. Nieudane pobranie nie jest traktowane jako brak pliku ani ukończona zmiana. Lokalna treść i potwierdzony stan synchronizacji pozostają zachowane; następny cykl ponawia oczekującą zmianę. Inne poprawnie pobrane pliki nadal są dostępne. Brak uprawnień i inne trwałe odmowy pojawiają się jako błędy ze ścieżką pliku i przyczyną. Dotyczy to komputera i urządzeń mobilnych.

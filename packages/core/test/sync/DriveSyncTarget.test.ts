@@ -442,7 +442,7 @@ describe("DriveSyncTarget", () => {
     expect(result).toEqual({ etag: "h", remoteId: "new-id" });
   });
 
-  it("skips a file that returns 403 on download instead of aborting", async () => {
+  it("preserves an abuse refusal as a failed download", async () => {
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
@@ -453,7 +453,7 @@ describe("DriveSyncTarget", () => {
       throw new Error(`unexpected ${init.method} ${u}`);
     });
 
-    expect(await target.download("note.md")).toBeNull();
+    await expect(target.download("note.md")).rejects.toThrow("cannotDownloadAbusiveFile");
   });
 
   describe("listFolders (settings picker, 2026-07-06)", () => {

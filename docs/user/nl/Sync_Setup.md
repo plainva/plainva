@@ -166,3 +166,7 @@ Google Drive maakt bij het zoeken geen onderscheid tussen hoofd- en kleine lette
 Verschillen twee namen daarentegen in **hoofdlettergebruik**, dan zijn het twee bestanden. Plainva wijzigt en verwijdert dan niets en toont de kaart **Twee schrijfwijzen, één bestand** met beide namen — mobiel op de vault-pagina, op de desktop in de synchronisatie-instellingen. Alle andere bestanden worden gewoon verder gesynchroniseerd. Hernoem een van beide notities en de kaart verdwijnt vanzelf.
 
 De nieuwe aanmelding dekt niet alle diensten. Je bestaande aanmeldingen zijn behouden. Meld je opnieuw aan en geef alle vermelde diensten toestemming. De accountkoppeling is gewijzigd. Open de huidige accountinstellingen en meld je opnieuw aan.
+
+## Google Drive: onvolledige downloads
+
+Wanneer Google Drive tijdelijk verzoeken beperkt, probeert Plainva de download na een pauze opnieuw. Een mislukte download telt niet als een ontbrekend bestand of een voltooide wijziging. De bestaande lokale inhoud en de bevestigde synchronisatiestatus blijven behouden; de volgende cyclus probeert de openstaande wijziging opnieuw. Andere succesvol gedownloade bestanden blijven beschikbaar. Ontbrekende rechten en andere blijvende weigeringen verschijnen als fouten met het bestandspad en de oorzaak. Dit geldt op desktop en mobiel.

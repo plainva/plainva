@@ -1105,6 +1105,7 @@ export class SyncWorker {
     // heuristic — etag-skips don't touch the streak). Any failure blocks cursor
     // adoption below, so skipped files are re-listed and retried next cycle.
     let pullFailureCount = 0;
+    let pullFailure: { path: string; error: unknown } | undefined;
     let consecutivePullFailures = 0;
     const guardPullStep = async (path: string, step: () => Promise<void>) => {
       this.noteCycleActivity();
@@ -1118,11 +1119,14 @@ export class SyncWorker {
         // before the push, fail-closed (settings-sync plan §3.5/A3).
         if (e instanceof FatalSyncProtocolError) throw e;
         pullFailureCount++;
+        if (!pullFailure || (classifySyncError(e) === "fatal" && classifySyncError(pullFailure.error) === "transient"))
+          pullFailure = { path, error: e };
         consecutivePullFailures++;
         console.error(`[SyncWorker] pull step failed for ${path}:`, e);
         if (consecutivePullFailures >= MAX_CONSECUTIVE_PULL_FAILURES) {
-          throw new Error(
-            `pull aborted after ${MAX_CONSECUTIVE_PULL_FAILURES} consecutive file failures (${pullFailureCount} failed this cycle): ${e instanceof Error ? e.message : String(e)}`,
+          const cause = pullFailure?.error ?? e;
+          throw new AggregateError(cause === e ? [e] : [cause, e],
+            `pull aborted after ${MAX_CONSECUTIVE_PULL_FAILURES} consecutive file failures (${pullFailureCount} failed this cycle): ${syncErrorMessage(cause)}`,
             { cause: e }
           );
         }
@@ -1545,14 +1549,15 @@ export class SyncWorker {
         // frozen cursor retries them next cycle) WITHOUT counting toward the
         // consecutive-failure backoff: one permanently poisoned file must not slow
         // down all syncing. A fully clean next cycle clears this automatically.
-        // "Retried next cycle" is what the sentence says, so it is what the
-        // status says: this is not a stopped sync, and a red triangle for it
-        // trains the user to ignore the triangle.
+        // Keep the concrete cause visible. Refused access needs attention even
+        // though the cursor still allows the next cycle to try the file again.
+        const transient = pullFailure && classifySyncError(pullFailure.error) === "transient";
+        const detail = pullFailure ? ` (${pullFailure.path}: ${syncErrorMessage(pullFailure.error)})` : "";
         this.setStatus(
-          "retrying",
-          `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle`,
+          transient ? "retrying" : "error",
+          `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle${detail}`,
           undefined,
-          Date.now() + this.intervalMs,
+          transient ? Date.now() + this.intervalMs : undefined,
         );
       } else {
         this.setStatus("idle");

@@ -19,6 +19,8 @@ export type HttpOpKind = "read" | "write";
 
 export interface HttpRetryOptions {
   maxAttempts?: number;
+  /** Provider-specific temporary responses; used only for read operations. */
+  retryableReadResponse?: (response: Response) => Promise<boolean>;
   baseDelayMs?: number;
   maxDelayMs?: number;
   /** Injection point for tests. */
@@ -83,7 +85,7 @@ export async function fetchWithRetry(
       await sleep(retryDelayMs(attempt, res.headers?.get?.("Retry-After") ?? null, opts));
       continue;
     }
-    if (kind === "read" && RETRYABLE_READ_STATUS.has(res.status) && attempt < maxAttempts) {
+    if (kind === "read" && attempt < maxAttempts && (RETRYABLE_READ_STATUS.has(res.status) || await opts.retryableReadResponse?.(res))) {
       await sleep(retryDelayMs(attempt, res.headers?.get?.("Retry-After") ?? null, opts));
       continue;
     }

@@ -166,3 +166,7 @@ Google Drive non distingue maiuscole e minuscole durante la ricerca, e Windows e
 Se invece due nomi differiscono per **maiuscole e minuscole**, sono due file. Plainva non modifica né elimina nulla e mostra la scheda **Due grafie, un solo file** con entrambi i nomi: su mobile nella pagina del vault, sul desktop nelle impostazioni di sincronizzazione. Tutti gli altri file continuano a essere sincronizzati. Rinomina una delle due note e la scheda scompare da sola.
 
 Il nuovo accesso non copre tutti i servizi. I tuoi accessi precedenti sono stati conservati. Accedi di nuovo e autorizza tutti i servizi elencati. Il collegamento dell’account è cambiato. Apri le impostazioni attuali dell’account e accedi di nuovo.
+
+## Google Drive: download incompleti
+
+Quando Google Drive limita temporaneamente le richieste, Plainva riprova il download dopo una pausa. Un download fallito non viene considerato un file mancante o una modifica completata. Il contenuto locale e lo stato di sincronizzazione confermato restano intatti; il ciclo successivo riprova la modifica in sospeso. Gli altri file scaricati restano disponibili. I permessi mancanti e gli altri rifiuti permanenti compaiono come errori con il percorso del file e la causa. Vale su desktop e dispositivi mobili.

@@ -166,3 +166,7 @@ Google Drive no distingue mayúsculas de minúsculas al buscar, y Windows y macO
 En cambio, si dos nombres se diferencian en **mayúsculas y minúsculas**, son dos archivos. Plainva no cambia ni borra nada y muestra la tarjeta **Dos grafías, un archivo** con ambos nombres: en el móvil en la página del vault, en el escritorio en los ajustes de sincronización. Todos los demás archivos se siguen sincronizando. Cambia el nombre de una de las dos notas y la tarjeta desaparecerá sola.
 
 El nuevo acceso no cubre todos los servicios. Se conservaron tus accesos anteriores. Inicia sesión de nuevo y permite todos los servicios indicados. La vinculación de la cuenta cambió. Abre su configuración actual e inicia sesión de nuevo.
+
+## Google Drive: descargas pendientes
+
+Cuando Google Drive limita temporalmente las solicitudes, Plainva vuelve a intentar la descarga tras una pausa. Una descarga fallida no se considera un archivo ausente ni un cambio completado. Se conservan el contenido local y el estado de sincronización confirmado; el siguiente ciclo vuelve a intentar el cambio pendiente. Los demás archivos descargados siguen disponibles. Los permisos insuficientes u otros rechazos permanentes aparecen como errores con la ruta y la causa. Esto se aplica en escritorio y móvil.

@@ -166,3 +166,7 @@ Google Drive matches names case-insensitively when it searches, and Windows and 
 When two names differ in **capitalization**, however, they are two files. Plainva then changes and deletes nothing and shows the card **Two spellings, one file** with both names — on mobile on the vault page, on the desktop in the sync settings. Every other file keeps syncing. Rename one of the two notes and the card disappears by itself.
 
 The new sign-in does not cover every service. Your existing sign-ins were kept. Sign in again and allow every listed service. The account binding changed. Open the current account settings and sign in again.
+
+## Google Drive: incomplete downloads
+
+When Google Drive temporarily limits requests, Plainva retries the download with a delay. A failed download is not treated as a missing file or a completed change. Existing local content and the confirmed sync state are kept; the next cycle retries the outstanding change. Other files that downloaded successfully remain available. Missing permissions or other permanent refusals appear as errors with the file path and cause. This applies on desktop and mobile.

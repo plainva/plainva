@@ -30,6 +30,13 @@ export function syncErrorMessage(error: unknown): string {
  * human. See `classifySyncError`. */
 export type SyncErrorKind = "transient" | "fatal";
 
+/** A provider can identify a temporary cause even behind a normally fatal status. */
+export class SyncProviderError extends Error {
+  constructor(message: string, public readonly status: number, public readonly transient = false) {
+    super(message); this.name = "SyncProviderError";
+  }
+}
+
 /**
  * Is this failure worth waiting out, or is it an answer?
  *
@@ -56,6 +63,15 @@ export function classifySyncError(error: unknown): SyncErrorKind {
   // Authentication is fatal even when it arrives wrapped in a 5xx-looking
   // sentence: `invalid_grant` means the refresh token is gone for good.
   if (/invalid[_ -]?grant|token.*(?:revoked|expired)|unauthori[sz]ed/.test(text)) return "fatal";
+
+  if (error instanceof AggregateError && error.errors.length > 0)
+    return error.errors.every(cause => classifySyncError(cause) === "transient") ? "transient" : "fatal";
+
+  // Only a provider's parsed cause can override its HTTP status. This also
+  // survives the worker's consecutive-file-failure wrapper.
+  const provider = error instanceof SyncProviderError ? error
+    : error instanceof Error && error.cause instanceof SyncProviderError ? error.cause : undefined;
+  if (provider?.transient) return "transient";
 
   // An explicit status wins over any wording. `status` is what a thrown
   // Response-like error carries; the providers also put the code in the text.
