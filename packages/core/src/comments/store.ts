@@ -153,6 +153,8 @@ export interface BundleCommentStoreDeps {
    * and a comment must never become a write to the note.
    */
   vault: IVaultAdapter;
+  /** Same stable vault identity as the sideband, including across wrappers. */
+  vaultKey?: string;
   /** This device's stable id - the same one the sideband stamps, so one device stays one author. */
   deviceId(): Promise<string>;
   mode(): Promise<BundleCommentsMode>;
@@ -214,9 +216,9 @@ export class BundleCommentStore implements CommentStore {
     const mode = await this.deps.mode();
     if (mode.kind === "locked") return null;
     const faults: CommentBundleFault[] = [];
-    const bundle = await readAllComments(this.deps.vault, await this.deps.deviceId(), cryptoOf(mode), { faults, now: this.deps.now?.() });
-    this.report(faults);
-    return bundle;
+    try {
+      return await readAllComments(this.deps.vault, await this.deps.deviceId(), cryptoOf(mode), { faults, now: this.deps.now?.(), vaultKey: this.deps.vaultKey });
+    } finally { this.report(faults); }
   }
 
   /**
@@ -282,16 +284,23 @@ export class BundleCommentStore implements CommentStore {
     // name the vault already has rather than asking the same question twice.
     const authorName = input.author ? input.author.displayName?.trim() || undefined : (await this.deps.authorName?.())?.trim() || undefined;
     const faults: CommentBundleFault[] = [];
-    await appendLocalComment(this.deps.vault, record, {
+    try { await appendLocalComment(this.deps.vault, record, {
       deviceId: record.authorDeviceId,
+      vaultKey: this.deps.vaultKey,
+      resolveCrypto: () => this.writeCrypto(),
       crypto: cryptoOf(mode),
       authorName,
       authorKey: input.author?.id ?? undefined,
       now,
       faults,
-    });
-    this.report(faults);
+    }); } finally { this.report(faults); }
     this.deps.written?.(input.path);
+  }
+
+  private async writeCrypto(): Promise<CommentsCrypto | undefined> {
+    const mode = await this.deps.mode();
+    if (mode.kind === "locked") throw new CommentStoreLockedError();
+    return cryptoOf(mode);
   }
 
   /** No outbox, nothing pending: a typed non-operation rather than a missing branch. */
@@ -318,9 +327,10 @@ export class BundleCommentStore implements CommentStore {
     // the marker only matters once there is something to keep in place - and
     // that something may sit in another device's file.
     const faults: CommentBundleFault[] = [];
-    if (!(await readAllComments(this.deps.vault, deviceId, cryptoOf(mode), { faults, now }))) { this.report(faults); return; }
-    await appendLocalMoves(this.deps.vault, records, { deviceId, crypto: cryptoOf(mode), now, faults });
-    this.report(faults);
+    if (!(await readAllComments(this.deps.vault, deviceId, cryptoOf(mode), { faults, now, vaultKey: this.deps.vaultKey }))) { this.report(faults); return; }
+    try {
+      await appendLocalMoves(this.deps.vault, records, { deviceId, crypto: cryptoOf(mode), now, faults, vaultKey: this.deps.vaultKey, resolveCrypto: () => this.writeCrypto() });
+    } finally { this.report(faults); }
     this.deps.written?.(real.length === 1 && !real[0].folder ? real[0].to : "*");
   }
 }

@@ -3350,8 +3350,11 @@
       "bundle-json": "not valid JSON",
       "bundle-schema": "unexpected structure",
       "bundle-version": "unsupported version",
-      "bundle-sealed": "cannot be opened with this device's key"
+      "bundle-sealed": "cannot be opened with this device's key",
+      "bundle-read": "file access failed",
+      "bundle-backup": "backup failed"
     },
+    "commentFileBackupFailed": "The damaged comments file {{file}} could not be set aside safely. The original is preserved. New remarks cannot be saved until this is fixed. Check free space and file access, then try again.",
     "commentTaskFallback": "Comment"
   },
   "workspaceSecurity": {

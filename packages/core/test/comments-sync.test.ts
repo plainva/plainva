@@ -70,6 +70,12 @@ describe("commentsBundle merge", () => {
     expect(merged.authors.laptop.name).toBe("Marco K.");
     expect(merged.authors.phone.name).toBe("Phone");
   });
+
+  it("converges when recovered author names have the same timestamp", () => {
+    const left = bundle([], { laptop: { name: "A", updatedAt: NOW } });
+    const right = bundle([], { laptop: { name: "B", updatedAt: NOW } });
+    expect(mergeCommentsBundles(left, right, NOW).authors).toEqual(mergeCommentsBundles(right, left, NOW).authors);
+  });
 });
 
 describe("commentsBundle validation", () => {

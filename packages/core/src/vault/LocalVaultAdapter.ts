@@ -172,8 +172,9 @@ export class LocalVaultAdapter implements IVaultAdapter {
     try {
       await fs.access(absolutePath);
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      if (error.code === "ENOENT") return false;
+      return this.handleError(error, vaultPath);
     }
   }
 

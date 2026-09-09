@@ -3386,8 +3386,11 @@
       "bundle-json": "JSON non valido",
       "bundle-schema": "struttura inattesa",
       "bundle-version": "versione non supportata",
-      "bundle-sealed": "non apribile con la chiave di questo dispositivo"
+      "bundle-sealed": "non apribile con la chiave di questo dispositivo",
+      "bundle-read": "accesso al file non riuscito",
+      "bundle-backup": "backup non riuscito"
     },
+    "commentFileBackupFailed": "Non è stato possibile mettere al sicuro il file dei commenti danneggiato {{file}}. L’originale è conservato. Non è possibile salvare nuove annotazioni finché l’errore non viene risolto. Controlla lo spazio libero e l’accesso al file, poi riprova.",
     "commentTaskFallback": "Commento"
   },
   "workspaceSecurity": {

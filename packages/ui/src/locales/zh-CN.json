@@ -3314,8 +3314,11 @@
       "bundle-json": "不是有效的 JSON",
       "bundle-schema": "结构异常",
       "bundle-version": "不支持的版本",
-      "bundle-sealed": "无法用此设备的密钥打开"
+      "bundle-sealed": "无法用此设备的密钥打开",
+      "bundle-read": "文件访问失败",
+      "bundle-backup": "备份失败"
     },
+    "commentFileBackupFailed": "无法安全地另存损坏的评论文件 {{file}}。原文件已保留。问题解决前无法保存新评论。请检查可用空间和文件访问权限，然后重试。",
     "commentTaskFallback": "评论"
   },
   "workspaceSecurity": {

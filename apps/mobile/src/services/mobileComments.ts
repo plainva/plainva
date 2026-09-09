@@ -112,6 +112,7 @@ export function mobileCommentStore(vault: MobileVault): CommentStore {
   if (!store) {
     store = new BundleCommentStore({
       vault: vault.adapter,
+      vaultKey: vault.vaultId,
       deviceId: mobileSyncDeviceId,
       mode: () => mobileCommentsMode(vault),
       // The reviewer name this vault already carries (D1), the person at this

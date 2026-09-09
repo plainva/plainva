@@ -3350,8 +3350,11 @@
       "bundle-json": "kein gültiges JSON",
       "bundle-schema": "unerwartete Struktur",
       "bundle-version": "Version wird nicht unterstützt",
-      "bundle-sealed": "lässt sich mit dem Schlüssel dieses Geräts nicht öffnen"
+      "bundle-sealed": "lässt sich mit dem Schlüssel dieses Geräts nicht öffnen",
+      "bundle-read": "Dateizugriff fehlgeschlagen",
+      "bundle-backup": "Sicherung fehlgeschlagen"
     },
+    "commentFileBackupFailed": "Die beschädigte Anmerkungsdatei {{file}} konnte nicht sicher beiseitegelegt werden. Das Original bleibt erhalten. Neue Anmerkungen können erst nach Beheben des Fehlers gespeichert werden. Prüfe Speicherplatz und Dateizugriff und versuche es erneut.",
     "commentTaskFallback": "Kommentar"
   },
   "workspaceSecurity": {

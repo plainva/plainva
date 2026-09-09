@@ -245,7 +245,12 @@ describe("CommentsSyncStep (one file per device)", () => {
       const all = await readAllComments(vault.as(), device, undefined);
       expect(Object.values(all!.comments).map((c) => c.body).sort()).toEqual(["desk", "laptop", "phone"]);
     }
-    expect(target.writes.filter((p) => p !== COMMENTS_DEVICES_PATH).sort()).toEqual([DESK, LAPTOP, PHONE]);
+    expect([...new Set(target.writes.filter((p) => p !== COMMENTS_DEVICES_PATH))].sort()).toEqual([DESK, LAPTOP, PHONE]);
+    // Recovery records travel in each device's own file. Once all devices
+    // hold that union, repeated cycles stop writing again.
+    const writes = target.writes.length;
+    for (const [device, vault] of Object.entries(vaults)) await step(device).run(target.as(), vault.as());
+    expect(target.writes.length).toBe(writes);
   });
 
   it("reads the legacy file forever and never writes it", async () => {
@@ -276,24 +281,26 @@ describe("CommentsSyncStep (one file per device)", () => {
 
     const sealedPath = commentsDevicePath("laptop", true);
     const own = parseCommentsBundle(decodeText(xorCrypto.open(target.remote.get(sealedPath)!)))!;
-    expect(Object.keys(own.comments).sort()).toEqual([ID(1), ID(4), ID(5)]);
+    expect(Object.keys(own.comments).sort()).toEqual([ID(1), ID(2), ID(4), ID(5)]);
     expect(target.deletes.sort()).toEqual([LAPTOP, COMMENTS_SYNC_PATH].sort());
     expect(vault.files.has(LAPTOP)).toBe(false);
     expect(vault.files.has(COMMENTS_SYNC_PATH)).toBe(false);
-    // The phone's plaintext is its own business until it unlocks: mirrored, never dropped.
+    // The phone controls its remote plaintext. Here its records are already
+    // inside the sealed file, so no new plaintext mirror is written.
     expect(target.remote.get(PHONE)).toBe(foreign);
-    expect(vault.files.get(PHONE)).toBe(decodeText(foreign));
+    expect(vault.files.has(PHONE)).toBe(false);
     expect(Object.keys((await readAllComments(vault.as(), "laptop", xorCrypto))!.comments).sort()).toEqual([ID(1), ID(2), ID(4), ID(5)]);
   });
 
-  it("mirrors a foreign file's absence - the origin dropped its plaintext after unlocking", async () => {
+  it("preserves received comments when a foreign file is absent remotely", async () => {
     const vault = new FakeVault();
     const target = new FakeTarget();
     await appendLocalComment(vault.as(), rec(), { deviceId: "laptop", now: NOW });
     vault.files.set(PHONE, serializeCommentsBundle(bundle([rec({ commentId: ID(2), authorDeviceId: "phone" })])));
     vault.files.set(COMMENTS_DEVICES_PATH, JSON.stringify({ format: "plainva-comment-devices", version: 1, devices: { phone: { updatedAt: NOW } } }));
     await step("laptop").run(target.as(), vault.as());
-    expect(vault.files.has(PHONE)).toBe(false);
+    expect(vault.files.has(PHONE)).toBe(true);
+    expect(Object.keys(parseCommentsBundle(decodeText(target.remote.get(LAPTOP)!))!.comments).sort()).toEqual([ID(1), ID(2)]);
   });
 
   it("never overwrites a file it cannot read: a broken foreign remote leaves the local mirror, a broken own remote holds the upload", async () => {

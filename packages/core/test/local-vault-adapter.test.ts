@@ -1,9 +1,14 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.ts";
 import { VaultFileNotFoundError, VaultFileExistsError, VaultPermissionDeniedError, WatchEvent } from "../src/vault/IVaultAdapter.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...actual, access: vi.fn(actual.access) };
+});
 
 describe("LocalVaultAdapter", () => {
   let tmpDir: string;
@@ -16,6 +21,7 @@ describe("LocalVaultAdapter", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -50,6 +56,13 @@ describe("LocalVaultAdapter", () => {
     expect(await adapter.exists("file.txt")).toBe(false);
     await adapter.writeTextFile("file.txt", "data");
     expect(await adapter.exists("file.txt")).toBe(true);
+  });
+
+  it.each(["EACCES", "EIO"])("does not report an access failure (%s) as absence", async (code) => {
+    await adapter.writeTextFile("existing.md", "preserve");
+    vi.spyOn(fs, "access").mockRejectedValueOnce(Object.assign(new Error("access failed"), { code }));
+    await expect(adapter.exists("existing.md")).rejects.toThrow();
+    expect(await adapter.readTextFile("existing.md")).toBe("preserve");
   });
 
   it("can delete files", async () => {

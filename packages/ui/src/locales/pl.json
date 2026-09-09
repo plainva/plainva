@@ -3422,8 +3422,11 @@
       "bundle-json": "nieprawidłowy JSON",
       "bundle-schema": "nieoczekiwana struktura",
       "bundle-version": "nieobsługiwana wersja",
-      "bundle-sealed": "nie można otworzyć kluczem tego urządzenia"
+      "bundle-sealed": "nie można otworzyć kluczem tego urządzenia",
+      "bundle-read": "nie udało się uzyskać dostępu do pliku",
+      "bundle-backup": "nie udało się utworzyć kopii zapasowej"
     },
+    "commentFileBackupFailed": "Nie udało się bezpiecznie odłożyć uszkodzonego pliku komentarzy {{file}}. Oryginał pozostaje zachowany. Do czasu usunięcia błędu nie można zapisywać nowych uwag. Sprawdź wolne miejsce i dostęp do pliku, a następnie spróbuj ponownie.",
     "commentTaskFallback": "Komentarz"
   },
   "workspaceSecurity": {

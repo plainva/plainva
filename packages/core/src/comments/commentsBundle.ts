@@ -147,7 +147,7 @@ export function mergeCommentsBundles(local: CommentsBundle | null, remote: Comme
     const theirs = remote?.authors[deviceId];
     // A device owns its own name, so the newer statement about it is the true
     // one. Nothing here lets one device rename another.
-    authors[deviceId] = mine && theirs ? (mine.updatedAt >= theirs.updatedAt ? mine : theirs) : (mine ?? theirs)!;
+    authors[deviceId] = mine && theirs ? (mine.updatedAt > theirs.updatedAt || (mine.updatedAt === theirs.updatedAt && mine.name <= theirs.name) ? mine : theirs) : (mine ?? theirs)!;
   }
   // Moves are immutable events like the records: a union, never a choice.
   const moves: Record<string, LocalMoveRecord> = {};

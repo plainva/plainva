@@ -3350,8 +3350,11 @@
       "bundle-json": "geen geldige JSON",
       "bundle-schema": "onverwachte structuur",
       "bundle-version": "niet-ondersteunde versie",
-      "bundle-sealed": "kan niet worden geopend met de sleutel van dit apparaat"
+      "bundle-sealed": "kan niet worden geopend met de sleutel van dit apparaat",
+      "bundle-read": "bestandstoegang mislukt",
+      "bundle-backup": "back-up mislukt"
     },
+    "commentFileBackupFailed": "Het beschadigde opmerkingenbestand {{file}} kon niet veilig apart worden gezet. Het origineel blijft behouden. Nieuwe opmerkingen kunnen pas worden opgeslagen als dit is opgelost. Controleer de vrije ruimte en bestandstoegang en probeer het opnieuw.",
     "commentTaskFallback": "Opmerking"
   },
   "workspaceSecurity": {

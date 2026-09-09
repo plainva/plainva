@@ -58,6 +58,7 @@ export function createLocalCommentStore(
 ): CommentStore {
   return new BundleCommentStore({
     vault: raw,
+    vaultKey: vaultPath,
     deviceId: async () => getDeviceId(await getSettingsStore()),
     mode: () => localCommentsMode(vaultPath, raw),
     // The name the person gave, else the device's own label - never nothing.

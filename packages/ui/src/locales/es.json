@@ -3386,8 +3386,11 @@
       "bundle-json": "JSON no válido",
       "bundle-schema": "estructura inesperada",
       "bundle-version": "versión no compatible",
-      "bundle-sealed": "no se puede abrir con la clave de este dispositivo"
+      "bundle-sealed": "no se puede abrir con la clave de este dispositivo",
+      "bundle-read": "falló el acceso al archivo",
+      "bundle-backup": "falló la copia de seguridad"
     },
+    "commentFileBackupFailed": "No se pudo apartar de forma segura el archivo de comentarios dañado {{file}}. Se conserva el original. No se podrán guardar nuevas anotaciones hasta resolver el error. Comprueba el espacio libre y el acceso al archivo e inténtalo de nuevo.",
     "commentTaskFallback": "Comentario"
   },
   "workspaceSecurity": {

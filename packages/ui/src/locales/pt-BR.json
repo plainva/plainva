@@ -3386,8 +3386,11 @@
       "bundle-json": "JSON inválido",
       "bundle-schema": "estrutura inesperada",
       "bundle-version": "versão não suportada",
-      "bundle-sealed": "não pode ser aberto com a chave deste dispositivo"
+      "bundle-sealed": "não pode ser aberto com a chave deste dispositivo",
+      "bundle-read": "falha no acesso ao arquivo",
+      "bundle-backup": "falha no backup"
     },
+    "commentFileBackupFailed": "Não foi possível separar com segurança o arquivo de comentários danificado {{file}}. O original foi preservado. Novas observações só poderão ser salvas depois que o erro for resolvido. Verifique o espaço livre e o acesso ao arquivo e tente novamente.",
     "commentTaskFallback": "Comentário"
   },
   "workspaceSecurity": {

@@ -19,6 +19,7 @@ export function describeCommentFaults(faults: readonly CommentBundleFault[], t: 
     .map((fault) => {
       const reason = t(`comments.commentFaultReason.${fault.reason}`);
       const file = fault.path.replace(/^remote:/, "");
+      if (fault.reason === "bundle-backup") return t("comments.commentFileBackupFailed", { file });
       return fault.movedTo
         ? t("comments.commentFileSetAside", { file: fault.movedTo, reason })
         : t("comments.commentFileUnreadable", { file, reason });

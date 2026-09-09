@@ -3386,8 +3386,11 @@
       "bundle-json": "JSON invalide",
       "bundle-schema": "structure inattendue",
       "bundle-version": "version non prise en charge",
-      "bundle-sealed": "impossible à ouvrir avec la clé de cet appareil"
+      "bundle-sealed": "impossible à ouvrir avec la clé de cet appareil",
+      "bundle-read": "échec de l’accès au fichier",
+      "bundle-backup": "échec de la sauvegarde"
     },
+    "commentFileBackupFailed": "Le fichier de commentaires endommagé {{file}} n’a pas pu être mis de côté en toute sécurité. L’original est conservé. Les nouvelles remarques ne pourront pas être enregistrées tant que l’erreur persiste. Vérifiez l’espace libre et l’accès au fichier, puis réessayez.",
     "commentTaskFallback": "Commentaire"
   },
   "workspaceSecurity": {

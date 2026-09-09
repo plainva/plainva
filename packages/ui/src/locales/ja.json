@@ -3314,8 +3314,11 @@
       "bundle-json": "有効な JSON ではありません",
       "bundle-schema": "想定外の構造です",
       "bundle-version": "サポートされていないバージョンです",
-      "bundle-sealed": "この端末の鍵では開けません"
+      "bundle-sealed": "この端末の鍵では開けません",
+      "bundle-read": "ファイルへのアクセスに失敗しました",
+      "bundle-backup": "バックアップに失敗しました"
     },
+    "commentFileBackupFailed": "破損したコメントファイル {{file}} を安全に退避できませんでした。元のファイルは保持されます。問題が解消されるまで新しいコメントは保存できません。空き容量とファイルへのアクセス権を確認し、もう一度お試しください。",
     "commentTaskFallback": "コメント"
   },
   "workspaceSecurity": {

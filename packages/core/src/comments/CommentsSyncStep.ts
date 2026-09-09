@@ -9,11 +9,13 @@
  * sync left a conflict copy nobody read. Now every device writes ONLY
  * `.plainva/sync/comments.<deviceId>.json` (or `.enc` once a passphrase
  * exists) and reads the union of every `comments.*` file in the folder.
- * Nothing ever writes another device's file, so there is nothing to collide.
+ * Remote files still have one writer. Recovery records also travel in this
+ * device's file with their original immutable IDs, so missing mirrors and a
+ * new connection cannot strand previously received comments.
  *
  * The old `comments.json`/`comments.enc` is the LEGACY file: read forever,
- * written never. No migration run - copying it on two devices at once would be
- * exactly the collision this removes. It dies when the user deletes it, or not.
+ * written never. Its records are copied into the current device file with
+ * unchanged IDs; concurrent migrations therefore converge without duplicates.
  *
  * The sideband (a Plainva sync connection) carries the files directly,
  * OUTSIDE the file queue, through the worker's raw adapter - never the
@@ -29,6 +31,7 @@
  * is left exactly where it is - a foreign sync would carry a rename to its
  * origin as a deletion - and reported with a reason code (N3).
  */
+import { withCommentsWrite, withCommentsSync } from "./commentsCoordinator.js";
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { COMMENTS_DEVICES_PATH, COMMENTS_ENC_PATH, COMMENTS_SYNC_DIR, COMMENTS_SYNC_PATH } from "../settingsSync/paths.js";
@@ -45,6 +48,7 @@ import {
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
+const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
 /**
  * Sealed-bundle crypto, injected by the shell once a master key exists.
@@ -67,9 +71,9 @@ export interface CommentsCrypto {
  * surface can say it in the person's language and a diagnosis export can name
  * it. The sentence stays in `message` for the export.
  */
-export type CommentBundleFaultReason = "bundle-json" | "bundle-schema" | "bundle-version" | "bundle-sealed";
+export type CommentBundleFaultReason = "bundle-json" | "bundle-schema" | "bundle-version" | "bundle-sealed" | "bundle-read" | "bundle-backup";
 
-export const COMMENT_BUNDLE_FAULT_REASONS: readonly CommentBundleFaultReason[] = ["bundle-json", "bundle-schema", "bundle-version", "bundle-sealed"];
+export const COMMENT_BUNDLE_FAULT_REASONS: readonly CommentBundleFaultReason[] = ["bundle-json", "bundle-schema", "bundle-version", "bundle-sealed", "bundle-read", "bundle-backup"];
 
 export interface CommentBundleFault {
   /** Vault-relative path of the file that could not be read. */
@@ -131,7 +135,11 @@ export function parseCommentsFileName(name: string): CommentsFileName | null {
 
 function decode(bytes: Uint8Array | null, crypto: CommentsCrypto | undefined, origin: string): CommentsBundle | null {
   if (!bytes) return null;
-  if (!crypto) return parseCommentsBundle(decoder.decode(bytes as BufferSource));
+  if (!crypto) {
+    const bundle = parseCommentsBundle(decoder.decode(bytes as BufferSource));
+    if (!bundle) throw new CommentBundleError("comments bundle root is empty");
+    return bundle;
+  }
   let plain: Uint8Array;
   try {
     plain = crypto.open(bytes);
@@ -140,7 +148,9 @@ function decode(bytes: Uint8Array | null, crypto: CommentsCrypto | undefined, or
     // that would erase every comment the other devices ever wrote.
     throw new CommentBundleError(`${origin} comments bundle cannot be opened: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return parseCommentsBundle(decoder.decode(plain as BufferSource));
+  const bundle = parseCommentsBundle(decoder.decode(plain as BufferSource));
+  if (!bundle) throw new CommentBundleError("comments bundle root is empty");
+  return bundle;
 }
 
 function encode(bundle: CommentsBundle, crypto: CommentsCrypto | undefined): Uint8Array {
@@ -177,7 +187,12 @@ export async function readCommentsFile(
   crypto: CommentsCrypto | undefined,
   faults?: CommentBundleFault[],
 ): Promise<CommentsBundle | null> {
-  const bytes = await readFileBytes(vault, path, sealed);
+  let bytes: Uint8Array | null;
+  try { bytes = await readFileBytes(vault, path, sealed); }
+  catch (error) {
+    faults?.push({ path, reason: "bundle-read", message: errorMessage(error) });
+    return null;
+  }
   if (!bytes) return null;
   try {
     return decode(bytes, sealed ? crypto : undefined, path);
@@ -209,27 +224,57 @@ export async function writeLocalComments(vault: IVaultAdapter, bundle: CommentsB
  * writing; the fault says where it went (N3). Only the own file is ever moved:
  * a foreign sync would carry that rename to the origin device as a deletion.
  */
-export async function readOwnComments(
+export interface CommentsReadOptions {
+  faults?: CommentBundleFault[];
+  now?: string;
+  vaultKey?: string;
+}
+
+export function readOwnComments(
   vault: IVaultAdapter,
   deviceId: string,
   crypto: CommentsCrypto | undefined,
-  options: { faults?: CommentBundleFault[]; now?: string } = {},
+  options: CommentsReadOptions = {},
+): Promise<CommentsBundle | null> {
+  return withCommentsWrite(vault, { ...options, deviceId }, () => readOwnCommentsUnlocked(vault, deviceId, crypto, options));
+}
+
+async function readOwnCommentsUnlocked(
+  vault: IVaultAdapter,
+  deviceId: string,
+  crypto: CommentsCrypto | undefined,
+  options: CommentsReadOptions = {},
 ): Promise<CommentsBundle | null> {
   const sealed = !!crypto;
   const path = commentsDevicePath(deviceId, sealed);
-  const bytes = await readFileBytes(vault, path, sealed);
+  let bytes: Uint8Array | null;
+  try { bytes = await readFileBytes(vault, path, sealed); }
+  catch (error) {
+    options.faults?.push({ path, reason: "bundle-read", message: errorMessage(error) });
+    throw error;
+  }
   if (!bytes) return null;
-  try {
-    return decode(bytes, crypto, path);
-  } catch (error) {
+  try { return decode(bytes, crypto, path); }
+  catch (error) {
     const stamp = (options.now ?? new Date().toISOString()).replace(/[:.]/g, "-");
-    const movedTo = path.replace(/\.(json|enc)$/, `.broken-${stamp}.$1`);
+    let movedTo = path.replace(/\.(json|enc)$/, `.broken-${stamp}.$1`);
     try {
-      await vault.renameItem(path, movedTo);
-    } catch {
-      // Cannot set it aside: leave it, and the next write will try again.
+      // Never replace an earlier recovery copy, even at the same timestamp.
+      for (let suffix = 1; await vault.exists(movedTo); suffix += 1) {
+        if (suffix > 1000) throw new Error("No free comment recovery filename", { cause: error });
+        movedTo = path.replace(/\.(json|enc)$/, `.broken-${stamp}-${suffix}.$1`);
+      }
+      await writeFileBytes(vault, movedTo, bytes, sealed);
+      const saved = await readFileBytes(vault, movedTo, sealed);
+      if (!bytesEqual(bytes, saved)) throw new Error("Comment recovery copy could not be verified", { cause: error });
+      if (!bytesEqual(bytes, await readFileBytes(vault, path, sealed))) throw new Error("Comment source changed during recovery", { cause: error });
+      await vault.deleteItem(path);
+    } catch (backupError) {
+      options.faults?.push({ path, reason: "bundle-backup", message: errorMessage(backupError) });
+      // The caller must not replace an own file whose recovery failed.
+      throw backupError;
     }
-    options.faults?.push({ path, reason: commentBundleFaultReason(error), message: error instanceof Error ? error.message : String(error), movedTo });
+    options.faults?.push({ path, reason: commentBundleFaultReason(error), message: errorMessage(error), movedTo });
     return null;
   }
 }
@@ -239,13 +284,16 @@ export interface CommentsFileEntry extends CommentsFileName {
 }
 
 /** Every comment bundle file in the sideband folder, own and foreign, legacy included. */
-export async function listCommentsFiles(vault: IVaultAdapter): Promise<CommentsFileEntry[]> {
+export async function listCommentsFiles(vault: IVaultAdapter, faults?: CommentBundleFault[]): Promise<CommentsFileEntry[]> {
   let names: string[];
   try {
     names = (await vault.listDir(COMMENTS_SYNC_DIR, false)).filter((entry) => !entry.isDirectory).map((entry) => entry.name);
-  } catch {
-    // No folder yet, or a listing the platform refused: the known paths are
-    // still asked below, so an unlistable folder does not hide the own file.
+  } catch (error) {
+    // Still ask known paths, but do not present a refused listing as an empty
+    // comment folder. Only a confirmed missing folder is a normal first use.
+    let missing = false;
+    try { missing = !(await vault.exists(COMMENTS_SYNC_DIR)); } catch { /* Access is still unknown. */ }
+    if (!missing) faults?.push({ path: COMMENTS_SYNC_DIR, reason: "bundle-read", message: errorMessage(error) });
     names = [];
   }
   const out: CommentsFileEntry[] = [];
@@ -259,7 +307,11 @@ export async function listCommentsFiles(vault: IVaultAdapter): Promise<CommentsF
   for (const legacy of ["comments.json", "comments.enc"]) {
     if (seen.has(legacy)) continue;
     const path = `${COMMENTS_SYNC_DIR}/${legacy}`;
-    if (await vault.exists(path)) out.push({ ...parseCommentsFileName(legacy)!, path });
+    try {
+      if (await vault.exists(path)) out.push({ ...parseCommentsFileName(legacy)!, path });
+    } catch (error) {
+      faults?.push({ path, reason: "bundle-read", message: errorMessage(error) });
+    }
   }
   return out;
 }
@@ -270,33 +322,32 @@ export async function listCommentsFiles(vault: IVaultAdapter): Promise<CommentsF
  * only with a key; without one they are skipped, not reported - a device
  * without the key is `locked`, and the store says so before reading.
  */
-export async function readAllComments(
+export function readAllComments(vault: IVaultAdapter, deviceId: string, crypto: CommentsCrypto | undefined, options: CommentsReadOptions = {}): Promise<CommentsBundle | null> {
+  return withCommentsWrite(vault, { ...options, deviceId }, () => readAllCommentsUnlocked(vault, deviceId, crypto, options));
+}
+
+async function readAllCommentsUnlocked(
   vault: IVaultAdapter,
   deviceId: string,
   crypto: CommentsCrypto | undefined,
-  options: { faults?: CommentBundleFault[]; now?: string } = {},
+  options: CommentsReadOptions = {},
 ): Promise<CommentsBundle | null> {
   const now = options.now ?? new Date().toISOString();
   const ownName = commentsDeviceFileName(deviceId, !!crypto);
-  const files = await listCommentsFiles(vault);
+  const files = await listCommentsFiles(vault, options.faults);
   let merged: CommentsBundle | null = null;
   let sawOwn = false;
   for (const file of files) {
     if (file.sealed && !crypto) continue;
-    let bundle: CommentsBundle | null;
-    if (file.path === `${COMMENTS_SYNC_DIR}/${ownName}`) {
-      sawOwn = true;
-      bundle = await readOwnComments(vault, deviceId, crypto, { faults: options.faults, now });
-    } else {
-      bundle = await readCommentsFile(vault, file.path, file.sealed, crypto, options.faults);
-    }
+    if (file.path === `${COMMENTS_SYNC_DIR}/${ownName}`) sawOwn = true;
+    const bundle = await readCommentsFile(vault, file.path, file.sealed, crypto, options.faults);
     if (!bundle) continue;
     merged = merged ? mergeCommentsBundles(merged, bundle, now) : bundle;
   }
   if (!sawOwn) {
     // The listing may have missed it (an adapter that cannot list here): the
     // own file is the one path always asked by name.
-    const own = await readOwnComments(vault, deviceId, crypto, { faults: options.faults, now });
+    const own = await readCommentsFile(vault, commentsDevicePath(deviceId, !!crypto), !!crypto, crypto, options.faults);
     if (own) merged = merged ? mergeCommentsBundles(merged, own, now) : own;
   }
   return merged;
@@ -311,21 +362,24 @@ export async function readAllComments(
 export async function appendLocalComment(
   vault: IVaultAdapter,
   record: LocalCommentRecord,
-  options: { deviceId: string; crypto?: CommentsCrypto; authorName?: string; /** Whose name it is: a named author's id, else this device. */ authorKey?: string; now?: string; faults?: CommentBundleFault[] },
+  options: { deviceId: string; vaultKey?: string; resolveCrypto?: () => Promise<CommentsCrypto | undefined>; crypto?: CommentsCrypto; authorName?: string; /** Whose name it is: a named author's id, else this device. */ authorKey?: string; now?: string; faults?: CommentBundleFault[] },
 ): Promise<CommentsBundle> {
-  const now = options.now ?? new Date().toISOString();
-  const current = (await readOwnComments(vault, options.deviceId, options.crypto, { faults: options.faults, now })) ?? emptyCommentsBundle(now);
-  const authors = { ...current.authors };
-  const name = options.authorName?.trim();
-  if (name) authors[options.authorKey ?? record.authorDeviceId] = { name, updatedAt: now };
-  const next: CommentsBundle = {
-    ...current,
-    updatedAt: now,
-    comments: { ...current.comments, [record.commentId]: record },
-    authors,
-  };
-  await writeCommentsFile(vault, commentsDevicePath(options.deviceId, !!options.crypto), next, options.crypto);
-  return next;
+  return withCommentsWrite(vault, options, async () => {
+    const crypto = options.resolveCrypto ? await options.resolveCrypto() : options.crypto;
+    const now = options.now ?? new Date().toISOString();
+    const current = (await readOwnCommentsUnlocked(vault, options.deviceId, crypto, { faults: options.faults, now })) ?? emptyCommentsBundle(now);
+    const authors = { ...current.authors };
+    const name = options.authorName?.trim();
+    if (name) authors[options.authorKey ?? record.authorDeviceId] = { name, updatedAt: now };
+    const next: CommentsBundle = {
+      ...current,
+      updatedAt: now,
+      comments: { ...current.comments, [record.commentId]: record },
+      authors,
+    };
+    await writeCommentsFile(vault, commentsDevicePath(options.deviceId, !!crypto), next, crypto);
+    return next;
+  });
 }
 
 /**
@@ -336,18 +390,21 @@ export async function appendLocalComment(
 export async function appendLocalMoves(
   vault: IVaultAdapter,
   moves: readonly LocalMoveRecord[],
-  options: { deviceId: string; crypto?: CommentsCrypto; now?: string; faults?: CommentBundleFault[] },
+  options: { deviceId: string; vaultKey?: string; resolveCrypto?: () => Promise<CommentsCrypto | undefined>; crypto?: CommentsCrypto; now?: string; faults?: CommentBundleFault[] },
 ): Promise<CommentsBundle> {
-  const now = options.now ?? new Date().toISOString();
-  const current = (await readOwnComments(vault, options.deviceId, options.crypto, { faults: options.faults, now })) ?? emptyCommentsBundle(now);
-  const next: CommentsBundle = {
-    ...current,
-    updatedAt: now,
-    moves: { ...(current.moves ?? {}) },
-  };
-  for (const move of moves) next.moves![move.moveId] = move;
-  await writeCommentsFile(vault, commentsDevicePath(options.deviceId, !!options.crypto), next, options.crypto);
-  return next;
+  return withCommentsWrite(vault, options, async () => {
+    const crypto = options.resolveCrypto ? await options.resolveCrypto() : options.crypto;
+    const now = options.now ?? new Date().toISOString();
+    const current = (await readOwnCommentsUnlocked(vault, options.deviceId, crypto, { faults: options.faults, now })) ?? emptyCommentsBundle(now);
+    const next: CommentsBundle = {
+      ...current,
+      updatedAt: now,
+      moves: { ...(current.moves ?? {}) },
+    };
+    for (const move of moves) next.moves![move.moveId] = move;
+    await writeCommentsFile(vault, commentsDevicePath(options.deviceId, !!crypto), next, crypto);
+    return next;
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -408,6 +465,8 @@ function sameRoster(a: CommentDevicesRoster | null, b: CommentDevicesRoster | nu
 /* The sideband step                                                   */
 
 export interface CommentsSyncOptions {
+  /** Same stable vault identity as the shell store, independent of adapter instances. */
+  vaultKey?: string;
   /** This device's stable id - the same one the store writes as the author. */
   deviceId: string;
   /** Present once a master key is cached; absent means plaintext mode. */
@@ -428,144 +487,119 @@ function deleteOp(path: string) {
 export class CommentsSyncStep {
   constructor(private readonly options: CommentsSyncOptions) {}
 
-  private get sealed(): boolean {
-    return !!this.options.crypto;
+  run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+    return withCommentsSync(vault, this.options, async () => {
+      const faults: CommentBundleFault[] = [];
+      try { await this.runCycle(target, vault, faults); }
+      finally { if (faults.length > 0) this.options.onFaults?.(faults); }
+    });
   }
 
-  /**
-   * One cycle. In order: this device's own file goes up (union with its own
-   * remote copy, never with anybody else's), the roster is exchanged, every
-   * other device's file comes down as a read-only mirror, and the legacy file
-   * is mirrored the same way. A plaintext copy of the own file left over from
-   * before the passphrase is folded into the sealed one and dropped - the
-   * legacy plaintext too, exactly as before N2.
-   *
-   * A vault that never carried a comment gets no file put into it - and
-   * pushed to the cloud - every cycle: nothing here, nothing there, return.
-   */
-  async run(target: ISyncTarget, vault: IVaultAdapter): Promise<void> {
+  private async runCycle(target: ISyncTarget, vault: IVaultAdapter, faults: CommentBundleFault[]): Promise<void> {
     const now = (this.options.now ?? (() => new Date().toISOString()))();
     const { crypto, deviceId } = this.options;
-    const faults: CommentBundleFault[] = [];
-    const sealed = this.sealed;
+    const sealed = !!crypto;
     const ownPath = commentsDevicePath(deviceId, sealed);
-
-    const own = await readOwnComments(vault, deviceId, crypto, { faults, now });
-
-    // Plaintext to fold into the sealed file, then drop (D4's rule): this
-    // device's own plaintext file from before the passphrase, and the legacy
-    // plaintext file. Read before deleting - dropping it unread would discard
-    // whatever was written while there was no key.
-    const fold: Array<{ bundle: CommentsBundle; path: string; remote: boolean; local: boolean }> = [];
-    if (sealed) {
-      const ownPlainPath = commentsDevicePath(deviceId, false);
-      const ownPlainLocal = await readCommentsFile(vault, ownPlainPath, false, undefined, faults);
-      const ownPlainRemote = this.decodeTolerant(await target.download(ownPlainPath), undefined, ownPlainPath, faults);
-      const ownPlain = mergeOptional(ownPlainLocal, ownPlainRemote, now);
-      if (ownPlain) fold.push({ bundle: ownPlain, path: ownPlainPath, remote: ownPlainRemote !== null, local: ownPlainLocal !== null });
-      const legacyLocal = await readCommentsFile(vault, COMMENTS_SYNC_PATH, false, undefined, faults);
-      const legacyRemote = this.decodeTolerant(await target.download(COMMENTS_SYNC_PATH), undefined, COMMENTS_SYNC_PATH, faults);
-      const legacy = mergeOptional(legacyLocal, legacyRemote, now);
-      if (legacy) fold.push({ bundle: legacy, path: COMMENTS_SYNC_PATH, remote: legacyRemote !== null, local: legacyLocal !== null });
+    const initial = await withCommentsWrite(vault, this.options, async () => ({
+      files: await listCommentsFiles(vault, faults),
+      roster: await readLocalRoster(vault),
+    }));
+    const rosterBytes = await target.download(COMMENTS_DEVICES_PATH);
+    const remoteRoster = parseCommentDevicesRoster(rosterBytes ? decoder.decode(rosterBytes as BufferSource) : null);
+    const devices = new Set([
+      ...Object.keys(initial.roster?.devices ?? {}),
+      ...Object.keys(remoteRoster?.devices ?? {}),
+      ...initial.files.filter((file) => !file.legacy).map((file) => file.deviceId),
+      safeDeviceName(deviceId),
+    ]);
+    const paths = new Map<string, boolean>();
+    for (const device of devices) {
+      for (const encrypted of sealed ? [true, false] : [false]) paths.set(commentsDevicePath(device, encrypted), encrypted);
     }
-
-    const localRoster = parseCommentDevicesRoster((await vault.exists(COMMENTS_DEVICES_PATH)) ? await vault.readTextFile(COMMENTS_DEVICES_PATH) : null);
-    const remoteRosterBytes = await target.download(COMMENTS_DEVICES_PATH);
-    const remoteRoster = parseCommentDevicesRoster(remoteRosterBytes ? decoder.decode(remoteRosterBytes as BufferSource) : null);
-
-    // The legacy file, read-only: mirrored down so the store sees it. In
-    // sealed mode the plaintext one is folded above; the sealed one is mirrored.
-    const legacyRemoteBytes = await target.download(commentsPathFor(sealed));
-    const ownRemoteBytes = await target.download(ownPath);
-
-    if (!own && !ownRemoteBytes && fold.length === 0 && !remoteRoster && !legacyRemoteBytes && !localRoster) {
-      this.report(faults);
-      return;
+    paths.set(COMMENTS_SYNC_PATH, false);
+    if (sealed) paths.set(COMMENTS_ENC_PATH, true);
+    const downloaded = new Map<string, { bytes: Uint8Array | null; bundle: CommentsBundle | null; sealed: boolean }>();
+    // No disk gate spans a network request: replies remain immediately durable.
+    for (const [path, encrypted] of paths) {
+      const bytes = await target.download(path);
+      downloaded.set(path, { bytes, bundle: this.decodeRemote(bytes, encrypted ? crypto : undefined, path, faults), sealed: encrypted });
     }
+    const ownRemote = downloaded.get(ownPath)!;
+    const ownRemoteUnreadable = ownRemote.bytes !== null && ownRemote.bundle === null;
+    const saved = await withCommentsWrite(vault, this.options, async () => {
+      // Downloading may have taken minutes. Re-read the actual latest disk state
+      // only now, under the SAME gate used by posts, moves and quarantine.
+      const own = await readOwnCommentsUnlocked(vault, deviceId, crypto, { faults, now });
+      let merged = await readAllCommentsUnlocked(vault, deviceId, crypto, { faults, now });
+      merged = mergeOptional(merged, own, now);
+      for (const entry of downloaded.values()) merged = mergeOptional(merged, entry.bundle, now);
+      const localRoster = await readLocalRoster(vault);
+      if (!merged && !localRoster && !remoteRoster && ![...downloaded.values()].some((entry) => entry.bytes !== null)) return null;
+      if (merged && (!own || !sameBundle(own, merged))) await writeCommentsFile(vault, ownPath, merged, crypto);
 
-    // 1. The own file: union with its own remote copy, then up if it differs.
-    let ownRemote: CommentsBundle | null = null;
-    let ownRemoteUnreadable = false;
-    if (ownRemoteBytes) {
-      try {
-        ownRemote = decode(ownRemoteBytes, crypto, ownPath);
-      } catch (error) {
-        // Ours, but not readable with the key at hand (a rotated key, a
-        // truncated upload): never overwrite what cannot be read. Reported,
-        // and the local file stays local until somebody looks.
-        ownRemoteUnreadable = true;
-        faults.push({ path: `remote:${ownPath}`, reason: commentBundleFaultReason(error), message: error instanceof Error ? error.message : String(error) });
+      // Readable foreign/legacy files are recovery sources. Their records travel
+      // in OUR file with unchanged IDs/authors; we never upload a foreign file.
+      // An existing local mirror is never replaced by an absent/older remote.
+      for (const [path, entry] of downloaded) {
+        if (path === ownPath || !entry.bundle || !entry.bytes || (sealed && !entry.sealed)) continue;
+        if (!(await vault.exists(path))) await writeFileBytes(vault, path, entry.bytes, entry.sealed);
       }
+      const self: CommentDevicesRoster = { format: "plainva-comment-devices", version: 1, devices: { [safeDeviceName(deviceId)]: { updatedAt: now } } };
+      const roster = mergeCommentDevicesRoster(mergeCommentDevicesRoster(localRoster, remoteRoster), self);
+      if (!sameRoster(roster, localRoster)) await vault.writeTextFile(COMMENTS_DEVICES_PATH, serializeCommentDevicesRoster(roster));
+      const plainFiles = sealed ? (await listCommentsFiles(vault, faults)).filter((file) => !file.sealed).map((file) => file.path) : [];
+      return { merged, roster, plainFiles };
+    });
+    if (!saved) return;
+    if (saved.merged && !ownRemoteUnreadable && (!ownRemote.bundle || !sameBundle(saved.merged, ownRemote.bundle))) {
+      await target.push(writeOp(ownPath, encode(saved.merged, crypto)));
     }
-    let merged = own;
-    if (ownRemote) merged = mergeOptional(merged, ownRemote, now);
-    for (const entry of fold) merged = mergeOptional(merged, entry.bundle, now);
-    if (merged && (!own || !sameBundle(merged, own))) await writeCommentsFile(vault, ownPath, merged, crypto);
-    if (merged && !ownRemoteUnreadable && (!ownRemote || !sameBundle(merged, ownRemote))) {
-      await target.push(writeOp(ownPath, encode(merged, crypto)));
+    if (!sameRoster(saved.roster, remoteRoster)) {
+      await target.push(writeOp(COMMENTS_DEVICES_PATH, encoder.encode(serializeCommentDevicesRoster(saved.roster))));
     }
-    // Only once the merged state is safely inside the sealed file.
-    for (const entry of fold) {
-      if (entry.local) await vault.deleteItem(entry.path).catch(() => undefined);
-      if (entry.remote) await target.push(deleteOp(entry.path)).catch(() => undefined);
-    }
-
-    // 2. The roster: union of local, remote and this device.
-    const self: CommentDevicesRoster = { format: "plainva-comment-devices", version: 1, devices: { [safeDeviceName(deviceId)]: { updatedAt: now } } };
-    const roster = mergeCommentDevicesRoster(mergeCommentDevicesRoster(localRoster, remoteRoster), self);
-    const rosterText = serializeCommentDevicesRoster(roster);
-    if (!sameRoster(roster, localRoster)) await vault.writeTextFile(COMMENTS_DEVICES_PATH, rosterText);
-    if (!sameRoster(roster, remoteRoster)) await target.push(writeOp(COMMENTS_DEVICES_PATH, encoder.encode(rosterText)));
-
-    // 3. Every other device's file: a read-only mirror. Never written up,
-    // never merged into - absence on the remote is mirrored as absence here,
-    // because the origin dropped it (its plaintext, after unlocking).
-    for (const device of Object.keys(roster.devices)) {
-      if (device === safeDeviceName(deviceId)) continue;
-      for (const remoteSealed of sealed ? [true, false] : [false]) {
-        await this.mirror(target, vault, `${COMMENTS_SYNC_DIR}/${commentsDeviceFileName(device, remoteSealed)}`, remoteSealed, crypto, faults, true);
+    if (!sealed || !saved.merged || ownRemoteUnreadable) return;
+    const ownPlainPath = commentsDevicePath(deviceId, false);
+    const remotePlainPaths = [ownPlainPath, COMMENTS_SYNC_PATH].filter((path) => downloaded.get(path)?.bundle);
+    if (saved.plainFiles.length === 0 && remotePlainPaths.length === 0) return;
+    // An upload acknowledgement alone is insufficient for retiring the only
+    // recovery source. Check the readable sealed result before any cleanup.
+    const confirmed = this.decodeRemote(await target.download(ownPath), crypto, ownPath, faults);
+    if (!confirmed || !bundleContains(confirmed, saved.merged)) return;
+    await withCommentsWrite(vault, this.options, async () => {
+      const currentOwn = await readCommentsFile(vault, ownPath, true, crypto, faults);
+      if (!currentOwn) return;
+      for (const path of saved.plainFiles) {
+        const source = await readCommentsFile(vault, path, false, undefined, faults);
+        if (source && bundleContains(confirmed, source) && bundleContains(currentOwn, source)) await vault.deleteItem(path);
       }
+    });
+    for (const path of remotePlainPaths) {
+      // Only our own file and the read-only legacy file may be retired here.
+      // A foreign device remains responsible for its remote plaintext.
+      const current = this.decodeRemote(await target.download(path), undefined, path, faults);
+      if (current && bundleContains(confirmed, current)) await target.push(deleteOp(path));
     }
-    // 4. The legacy file, the same way - except that absence is not mirrored:
-    // nothing writes it, so a missing remote copy means it never existed there.
-    if (sealed) await this.mirror(target, vault, COMMENTS_ENC_PATH, true, crypto, faults, false);
-    else await this.mirror(target, vault, COMMENTS_SYNC_PATH, false, undefined, faults, false);
-
-    this.report(faults);
   }
 
-  /** Downloads `path` and writes it locally byte for byte if it is readable and differs. */
-  private async mirror(target: ISyncTarget, vault: IVaultAdapter, path: string, sealed: boolean, crypto: CommentsCrypto | undefined, faults: CommentBundleFault[], mirrorAbsence: boolean): Promise<void> {
-    const remote = await target.download(path);
-    if (!remote) {
-      if (mirrorAbsence && (await vault.exists(path))) await vault.deleteItem(path).catch(() => undefined);
-      return;
-    }
-    try {
-      decode(remote, sealed ? crypto : undefined, path);
-    } catch (error) {
-      // Somebody else's file, unreadable: left alone here AND there. The local
-      // mirror, if any, stays as it was - it read fine when it arrived.
-      faults.push({ path: `remote:${path}`, reason: commentBundleFaultReason(error), message: error instanceof Error ? error.message : String(error) });
-      return;
-    }
-    const local = await readFileBytes(vault, path, sealed);
-    if (!bytesEqual(local, remote)) await writeFileBytes(vault, path, remote, sealed);
-  }
-
-  private decodeTolerant(bytes: Uint8Array | null, crypto: CommentsCrypto | undefined, path: string, faults: CommentBundleFault[]): CommentsBundle | null {
-    if (!bytes) return null;
-    try {
-      return decode(bytes, crypto, path);
-    } catch (error) {
-      faults.push({ path: `remote:${path}`, reason: commentBundleFaultReason(error), message: error instanceof Error ? error.message : String(error) });
+  private decodeRemote(bytes: Uint8Array | null, crypto: CommentsCrypto | undefined, path: string, faults: CommentBundleFault[]): CommentsBundle | null {
+    if (bytes === null) return null;
+    try { return decode(bytes, crypto, path); }
+    catch (error) {
+      faults.push({ path: `remote:${path}`, reason: commentBundleFaultReason(error), message: errorMessage(error) });
       return null;
     }
   }
+}
 
-  private report(faults: CommentBundleFault[]): void {
-    if (faults.length > 0) this.options.onFaults?.(faults);
-  }
+async function readLocalRoster(vault: IVaultAdapter): Promise<CommentDevicesRoster | null> {
+  return parseCommentDevicesRoster((await vault.exists(COMMENTS_DEVICES_PATH)) ? await vault.readTextFile(COMMENTS_DEVICES_PATH) : null);
+}
+
+/** A conflicting immutable ID is not proof that the source was preserved. */
+function bundleContains(container: CommentsBundle, source: CommentsBundle): boolean {
+  for (const [id, record] of Object.entries(source.comments)) if (JSON.stringify(container.comments[id]) !== JSON.stringify(record)) return false;
+  for (const [id, move] of Object.entries(source.moves ?? {})) if (JSON.stringify(container.moves?.[id]) !== JSON.stringify(move)) return false;
+  return sameBundle(mergeCommentsBundles(container, source, container.updatedAt), container);
 }
 
 function mergeOptional(a: CommentsBundle | null, b: CommentsBundle | null, now: string): CommentsBundle | null {

@@ -1223,6 +1223,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         return null;
       }
       return new CommentsSyncStep({
+        vaultKey: vaultPath,
         // One file per device (N2): the same id the store writes as the author.
         deviceId: await getDeviceId(),
         crypto: mk ? commentsCryptoFor(mk) : undefined,

@@ -49,3 +49,7 @@ When the vault has a sync passphrase that has not been entered on this device, t
 When you rename or move a note (or a whole folder), its remarks follow. If the move cannot be recorded, the rename stands and Plainva says so; the remarks then sit under the old name in **Open comments**.
 
 A remarks file that cannot be read is never overwritten: this device's own file is set aside untouched (`comments.<device>.broken-<time>.json`), another device's stays where it is. Plainva reports the reason once and offers **Export diagnosis** — paths and reasons, never comment text.
+
+Concurrent replies, move markers and an active sync are merged when writing. A missing, empty or older cloud file does not remove remarks already received. When connecting a new sync target, local legacy records and remarks received from other devices are transferred with their original IDs; duplicate copies appear as the same remark.
+
+Before setting aside this device’s damaged file, Plainva reads the complete backup and compares it with the original. If that fails, the original stays and new remarks are not saved; Plainva reports the backup failure. Check free space and file access, then send again. Plaintext sources are removed only when all their content is present in a readable encrypted copy both on this device and at the sync target. A source changed in the meantime stays until the next successful sync.
