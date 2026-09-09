@@ -337,17 +337,27 @@ async function readAllCommentsUnlocked(
   const files = await listCommentsFiles(vault, options.faults);
   let merged: CommentsBundle | null = null;
   let sawOwn = false;
+  const readOwnForDisplay = async () => {
+    try { return await readOwnCommentsUnlocked(vault, deviceId, crypto, options); }
+    catch {
+      // readOwnComments reported the access/recovery failure and kept the
+      // source. A display can still show the other healthy bundles; a writer
+      // calls the strict reader directly and cannot replace the failed one.
+      return null;
+    }
+  };
   for (const file of files) {
     if (file.sealed && !crypto) continue;
-    if (file.path === `${COMMENTS_SYNC_DIR}/${ownName}`) sawOwn = true;
-    const bundle = await readCommentsFile(vault, file.path, file.sealed, crypto, options.faults);
+    const isOwn = file.path === `${COMMENTS_SYNC_DIR}/${ownName}`;
+    if (isOwn) sawOwn = true;
+    const bundle = isOwn ? await readOwnForDisplay() : await readCommentsFile(vault, file.path, file.sealed, crypto, options.faults);
     if (!bundle) continue;
     merged = merged ? mergeCommentsBundles(merged, bundle, now) : bundle;
   }
   if (!sawOwn) {
     // The listing may have missed it (an adapter that cannot list here): the
     // own file is the one path always asked by name.
-    const own = await readCommentsFile(vault, commentsDevicePath(deviceId, !!crypto), !!crypto, crypto, options.faults);
+    const own = await readOwnForDisplay();
     if (own) merged = merged ? mergeCommentsBundles(merged, own, now) : own;
   }
   return merged;

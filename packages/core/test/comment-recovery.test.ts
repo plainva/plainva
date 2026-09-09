@@ -190,6 +190,38 @@ describe("durable comment files across stores, sync cycles and recovery", () => 
     expect(await raw.exists(own)).toBe(false);
   });
 
+  it("serializes quarantine on opening against a concurrent new reply", async () => {
+    await raw.writeTextFile(own, "{ damaged original");
+    const entered = deferred(), release = deferred();
+    const write = raw.writeTextFile.bind(raw);
+    vi.spyOn(raw, "writeTextFile").mockImplementation(async (path, value) => {
+      if (path.includes(".broken-")) { entered.resolve(); await release.promise; }
+      return write(path, value);
+    });
+    const faults: CommentBundleFault[] = [];
+    const reading = store(undefined, faults).list("Note.md");
+    await entered.promise;
+    const posting = store().post({ path: "Note.md", body: "after quarantine" });
+    release.resolve();
+    await Promise.all([reading, posting]);
+    expect(Object.values((await local()).comments).map((r) => r.body)).toEqual(["after quarantine"]);
+    expect(await raw.readTextFile(faults[0].movedTo!)).toBe("{ damaged original");
+  });
+
+  it("still displays foreign comments when the own file cannot be set aside", async () => {
+    await raw.writeTextFile(own, "{ damaged original");
+    await raw.writeTextFile(foreign, serializeCommentsBundle(bundle(record(2, "phone"))));
+    const write = raw.writeTextFile.bind(raw);
+    vi.spyOn(raw, "writeTextFile").mockImplementation(async (path, value) => {
+      if (path.includes(".broken-")) throw new Error("backup denied");
+      return write(path, value);
+    });
+    const faults: CommentBundleFault[] = [];
+    expect((await store(undefined, faults).list("Note.md")).map((r) => r.body)).toEqual(["remark 2"]);
+    expect(await raw.readTextFile(own)).toBe("{ damaged original");
+    expect(faults).toContainEqual(expect.objectContaining({ path: own, reason: "bundle-backup" }));
+  });
+
   it("lists healthy comments when a foreign file cannot be read and leaves its bytes untouched", async () => {
     await store().post({ path: "Note.md", body: "healthy" });
     await raw.writeTextFile(foreign, serializeCommentsBundle(bundle(record(2, "phone"))));
