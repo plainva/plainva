@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultFileInfo } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
 import { SyncStateRepository } from "./SyncStateRepository.js";
 import { mergeText } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
@@ -274,6 +274,12 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    */
   async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void> {
     await (this.inner as any).setFileTimes?.(path, times);
+  }
+
+  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+    return this.inner.listDirReport
+      ? this.inner.listDirReport(path, recursive)
+      : { files: await this.inner.listDir(path, recursive), skipped: [] };
   }
 
   async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {

@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
@@ -416,6 +416,12 @@ export class BackupVaultAdapter implements IVaultAdapter {
    */
   async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void> {
     await (this.inner as any).setFileTimes?.(path, times);
+  }
+
+  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+    return this.inner.listDirReport
+      ? this.inner.listDirReport(path, recursive)
+      : { files: await this.inner.listDir(path, recursive), skipped: [] };
   }
 
   async listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> {

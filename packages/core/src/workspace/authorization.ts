@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
+import type { IVaultAdapter, VaultListing, VaultFileInfo, WatchEvent } from "../vault/IVaultAdapter.js";
 import { VaultPermissionDeniedError } from "../vault/IVaultAdapter.js";
 import type {
   WorkspaceCapability,
@@ -194,6 +194,12 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
    */
   async setFileTimes(path: string, times: { createdMs?: number; modifiedMs?: number }): Promise<void> {
     await (this.inner as any).setFileTimes?.(path, times);
+  }
+
+  async listDirReport(path?: string, recursive?: boolean): Promise<VaultListing> {
+    return this.inner.listDirReport
+      ? this.inner.listDirReport(path, recursive)
+      : { files: await this.inner.listDir(path, recursive), skipped: [] };
   }
 
   listDir(path?: string, recursive?: boolean): Promise<VaultFileInfo[]> { return this.inner.listDir(path, recursive); }

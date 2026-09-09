@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { realSqlite } from "../helpers/realSqlite.js";
 import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 import { QueueingVaultAdapter } from "../../src/vault/QueueingVaultAdapter.js";
+import { BackupVaultAdapter } from "../../src/vault/BackupVaultAdapter.js";
+import { ConflictAwareVaultAdapter } from "../../src/vault/ConflictAwareVaultAdapter.js";
 import { SyncQueue } from "../../src/sync/SyncQueue.js";
 import { SyncEngine } from "../../src/sync/SyncEngine.js";
 import { SyncWorker } from "../../src/sync/SyncWorker.js";
@@ -246,6 +248,10 @@ describe("durable rename replay with real SQLite and vault files", () => {
     await raw.writeTextFile("Old/a.md", "keep");
     await vault.renameItem("Old", "New");
     Object.assign(raw, { listDirReport: vi.fn().mockResolvedValue({ files: [], skipped: [{ path: "New/a.md", reason: "unreadable" }] }) });
+    // Both shells hand the engine their full conflict/queue/backup chain.
+    // No wrapper may discard the raw adapter's incomplete-listing report.
+    const chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), queue), new SyncStateRepository(db));
+    engine = new SyncEngine(queue, target, chain);
     await engine.processQueue();
     expect(await db.query("SELECT * FROM offline_queue")).toHaveLength(1);
     expect(remote.size).toBe(0);
