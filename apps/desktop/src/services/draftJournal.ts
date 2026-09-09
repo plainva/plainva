@@ -32,7 +32,19 @@ interface DraftEntry {
   text: string;
   revision: number;
   savedAt: number;
+  /** Revisions belong to one editor lifetime, including auxiliary windows. */
+  sessionId?: string;
 }
+
+function decodeDrafts(text: string): DraftEntry[] {
+  const value = JSON.parse(text) as DraftEntry | { version: number; entries: DraftEntry[] };
+  const entries = "entries" in value && value.version === 2 ? value.entries : [value as DraftEntry];
+  if (!Array.isArray(entries) || entries.some((entry) => typeof entry?.text !== "string"
+    || typeof entry.revision !== "number" || typeof entry.savedAt !== "number")) throw new Error("Invalid draft journal");
+  return entries;
+}
+
+const sessionOf = (entry: DraftEntry) => entry.sessionId ?? "legacy";
 
 /** FNV-1a 64-bit hex — a stable file-name handle, not a security boundary. */
 export function pathHash(input: string): string {
@@ -94,7 +106,8 @@ export async function recordDraft(
   vaultPath: string,
   notePath: string,
   text: string,
-  revision: number
+  revision: number,
+  sessionId = "legacy",
 ): Promise<void> {
   // An auxiliary window hands its snapshots to the owner, like every other
   // write. Not a restriction but the same rule: one window owns the disk. The
@@ -102,16 +115,20 @@ export async function recordDraft(
   // owner's journal covers the drafts of every window in it.
   if (!isOwnerWindow()) {
     const bus = await getWindowBus();
-    await bus.request("draft-record", { vaultPath, notePath, text, revision });
+    await bus.request("draft-record", { vaultPath, notePath, text, revision, sessionId });
     return;
   }
   await serial(relFile(vaultPath, notePath), async () => {
-    const { rootId } = await draftsRoot();
-    const entry: DraftEntry = { vaultPath, notePath, text, revision, savedAt: Date.now() };
+    const { dir, rootId } = await draftsRoot();
+    const file = await join(dir, relFile(vaultPath, notePath));
+    const entries = (await exists(file)) ? decodeDrafts(await readTextFile(file)) : [];
+    const previous = entries.find((entry) => sessionOf(entry) === sessionId);
+    if (previous && previous.revision > revision) return;
+    const entry: DraftEntry = { vaultPath, notePath, text, revision, sessionId, savedAt: Date.now() };
     await invoke("write_file_atomic", {
       rootId,
       relPath: relFile(vaultPath, notePath),
-      contents: JSON.stringify(entry),
+      contents: JSON.stringify({ version: 2, entries: [...entries.filter((draft) => sessionOf(draft) !== sessionId), entry] }),
       encoding: "utf8",
     });
   });
@@ -119,14 +136,15 @@ export async function recordDraft(
 
 export async function readDraft(
   vaultPath: string,
-  notePath: string
+  notePath: string,
+  diskText?: string,
 ): Promise<DraftEntry | null> {
   try {
     const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
     if (!(await exists(file))) return null;
-    const entry = JSON.parse(await readTextFile(file)) as DraftEntry;
-    if (typeof entry?.text !== "string") return null;
-    return entry;
+    const entries = decodeDrafts(await readTextFile(file));
+    return entries.filter((entry) => diskText === undefined || entry.text !== diskText)
+      .sort((a, b) => b.savedAt - a.savedAt || sessionOf(a).localeCompare(sessionOf(b)))[0] ?? null;
   } catch {
     return null;
   }
@@ -139,7 +157,8 @@ export async function readDraft(
 export async function clearDraft(
   vaultPath: string,
   notePath: string,
-  upToRevision: number
+  upToRevision: number,
+  sessionId = "legacy",
 ): Promise<void> {
   if (!isOwnerWindow()) {
     // `Infinity` does not survive JSON — null carries "force" over the bus.
@@ -149,6 +168,7 @@ export async function clearDraft(
         vaultPath,
         notePath,
         upToRevision: Number.isFinite(upToRevision) ? upToRevision : null,
+        sessionId,
       })
       .catch(() => {
         /* best-effort, same as the local path below */
@@ -159,11 +179,15 @@ export async function clearDraft(
     try {
       const file = await join(await draftsDir(), pathHash(vaultPath), `${pathHash(notePath)}.json`);
       if (!(await exists(file))) return;
-      if (upToRevision !== Infinity) {
-        const entry = JSON.parse(await readTextFile(file)) as DraftEntry;
-        if (typeof entry?.revision === "number" && entry.revision > upToRevision) return;
+      const entries = decodeDrafts(await readTextFile(file));
+      const remaining = entries.filter((entry) => sessionOf(entry) !== sessionId || entry.revision > upToRevision);
+      if (remaining.length === entries.length) return;
+      if (remaining.length === 0) await remove(file);
+      else {
+        const { rootId } = await draftsRoot();
+        await invoke("write_file_atomic", { rootId, relPath: relFile(vaultPath, notePath),
+          contents: JSON.stringify({ version: 2, entries: remaining }), encoding: "utf8" });
       }
-      await remove(file);
     } catch {
       // best-effort — a stale journal entry is annoying, not dangerous
     }

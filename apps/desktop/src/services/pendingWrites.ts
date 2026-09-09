@@ -54,10 +54,32 @@ export async function trackPendingWrite(
  */
 export async function settlePendingWrites(vaultPath: string): Promise<void> {
   const prefix = vaultPath + "\u0000";
-  const runs: Promise<void>[] = [];
-  for (const [key, run] of pending) if (key.startsWith(prefix)) runs.push(run);
-  if (runs.length === 0) return;
-  await Promise.allSettled(runs);
+  for (;;) {
+    const runs: Promise<void>[] = [];
+    for (const [key, run] of pending) if (key.startsWith(prefix)) runs.push(run);
+    if (runs.length === 0) return;
+    await Promise.allSettled(runs);
+  }
+}
+
+/** Serializes a captured write or an external-update preservation operation. */
+export function withPendingWrite(vaultPath: string, path: string, work: () => Promise<void>): Promise<void> {
+  const previous = pendingWriteFor(vaultPath, path);
+  const run = (previous ?? Promise.resolve()).catch(() => {}).then(work);
+  return trackPendingWrite(vaultPath, path, run);
+}
+
+/** Strict counterpart to teardown's drain: rewriting a file requires success. */
+export async function waitForPendingWrites(path: string, vaultPath?: string): Promise<void> {
+  let failure: PromiseRejectedResult | undefined;
+  for (;;) {
+    const runs = [...pending].filter(([key]) => vaultPath === undefined
+      ? key.endsWith("\u0000" + path) : key === keyOf(vaultPath, path)).map(([, run]) => run);
+    if (runs.length === 0) break;
+    const results = await Promise.allSettled(runs);
+    failure ??= results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  }
+  if (failure) throw failure.reason;
 }
 
 /** Tests only. */

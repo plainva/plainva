@@ -17,7 +17,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind, type TextFileShape } from "@plainva/ui";
+import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
@@ -52,7 +52,7 @@ import { getTemplateFolder } from "../services/newItemFlow";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
-import { requestSaveFlush } from "../services/saveFlush";
+import { requestSaveFlush, type SaveFlushRequest } from "../services/saveFlush";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
@@ -65,7 +65,9 @@ import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
-import { pendingWriteFor, trackPendingWrite } from "../services/pendingWrites";
+import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
+import { mergeText, containsTextChanges, ConflictError } from "@plainva/core";
+import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 
@@ -648,13 +650,13 @@ export const Editor: React.FC<{
   } | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
   const contentSyncTimeoutRef = useRef<number | null>(null);
-  const isDirtyRef = useRef<boolean>(false);
+  // Every asynchronous save keeps the identity and refs of its original note.
+  const saveState = useMemo(() => new EditorSaveLifetime(vaultPath, activePath, vaultAdapter), [vaultPath, activePath, vaultAdapter]);
   // The last on-disk content this editor knowingly produced or adopted (own
   // save, load, external adopt, auto-merge, restore); null before the first
   // load. Lets the external-update handler tell the watcher echo of our OWN
   // save apart from a genuine external change while the user keeps typing —
   // writing a .CONFLICT for that echo was the spurious-conflict bug.
-  const lastPersistedRef = useRef<string | null>(null);
   // A sync conflict preserved the editor text in a .CONFLICT file; the target
   // file on disk now holds the OTHER side. Shown as a persistent banner (a
   // transient toast is too easy to miss for a "your text lives elsewhere now").
@@ -670,8 +672,7 @@ export const Editor: React.FC<{
   const [conflictInfo, setConflictInfo] = useState<{ conflictPath: string } | null>(null);
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
-  const [draftOffer, setDraftOffer] = useState<{ text: string; savedAt: number } | null>(null);
-  const draftRevisionRef = useRef(0);
+  const [draftOffer, setDraftOffer] = useState<{ text: string; savedAt: number; revision: number; sessionId?: string } | null>(null);
   const draftTimerRef = useRef<number | null>(null);
   // The CodeMirror session lives OUTSIDE React (P1/P2, Gesamtplan
   // Editor-Stabilitaet 2026-07-05): one instance per open file, mounted into
@@ -702,115 +703,120 @@ export const Editor: React.FC<{
    * whole-file diff, and for a `.bat` a change in what the file DOES. Null for
    * anything that is not opened as text.
    */
-  const textShapeRef = useRef<TextFileShape | null>(null);
   // Scroll container around the read view / editor. Used to scope outline
   // navigation to this pane's read view instead of a document-wide id lookup
   // (which would hit the first/left pane in a split — #4).
   const readScrollRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    saveState.activate();
+    return () => saveState.deactivate();
+  }, [saveState]);
 
   // ---- Save pipeline (P2) --------------------------------------------------
   // The session reports real edits via onDocChanged; the text is read from the
   // view AT SAVE TIME (never from a stale closure). The read-mode properties
   // fallback saves a fixed string instead.
   const persistText = async (val: string) => {
-    if (!activePath || !vaultAdapter || !indexer) return;
-    const path = activePath;
-
-    // In-flight guard (P1.7): saves to the same file are chained, and a newly
-    // loading editor waits for the chain — a tab switch mid-write can neither
-    // race two writes nor read the pre-write content back.
-    const previous = pendingWriteFor(vaultPath ?? "", path);
-    // Draft snapshots taken AFTER this point must survive the journal clear
-    // below — fix the covered revision before any awaiting happens.
-    const revAtSave = draftRevisionRef.current;
-    const run = (async () => {
-      if (previous) {
-        try { await previous; } catch { /* the previous failure was already reported */ }
-      }
-      let savedOrSafelyPreserved = false;
+    if (!activePath || !vaultAdapter) throw new Error("No writable note is open");
+    const path = activePath, draftVault = vaultPath ?? "";
+    const revAtSave = saveState.revision;
+    const shape = saveState.shape;
+    const current = () => saveState.isActive();
+    // Closing captures the final buffer even before the 400-ms journal timer.
+    // Confirmations only clear the draft of this particular editor lifetime.
+    const journal = import("../services/draftJournal").then(async ({ recordDraft }) => {
+      if (draftVault) await recordDraft(draftVault, path, val, revAtSave, saveState.id);
+    }).catch((error) => { console.error("Could not journal the pending note save", error); });
+    await withPendingWrite(draftVault, path, async () => {
+      await journal;
+      if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) return;
+      saveState.update({ activeWrites: saveState.activeWrites + 1 });
+      if (current()) { setIsSaving(true); setSaveError(null); }
       try {
-        setIsSaving(true);
-        setSaveError(null);
-        // A foreign text file goes back in the shape it came in (C15, S13):
-        // CRLF stays CRLF, a BOM stays a BOM. Notes have no shape here and
-        // keep the project's UTF-8/LF.
-        const shape = textShapeRef.current;
-        await vaultAdapter.writeTextFile(path, shape ? applyTextShape(val, shape) : val);
-        savedOrSafelyPreserved = true;
-        // Remember what WE wrote so the watcher echo of this save is never
-        // mistaken for an external change (the auto-merge case updates this via
-        // plainva-auto-merged instead, since the adapter wrote merged content).
-        lastPersistedRef.current = val;
-        setConflictInfo(null);
-
-        // Re-index only this file so FTS/tags/links are instantly updated.
-        // indexFile RE-READS the file from disk so the index always matches what
-        // the adapter actually wrote — including the auto-merge case where the
-        // ConflictAware layer writes merged content, not `val`. We still pass the
-        // file's REAL mtime from a stat (not Date.now()): a matching mtime lets
-        // the watcher's echo detection skip re-indexing this save a second time
-        // (WP5 5f). Fall back to the old approximation if the stat fails.
-        let info: VaultFileInfo;
-        try {
-          info = await vaultAdapter.getFileInfo(path);
-        } catch {
-          info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: val.length };
+        const normalize = (text: string) => shape ? readTextShape(text).text : text.replace(/\r\n/g, "\n");
+        const disk = normalize(await vaultAdapter.readTextFile(path));
+        const base = saveState.baseInput;
+        let candidate = val;
+        // A pull may already have advanced the sync index. The editor's own
+        // base still identifies changes it has not incorporated into its buffer.
+        if (base !== null && disk !== base && disk !== val) {
+          const merged = mergeText(base, val, disk);
+          if (merged.hasConflicts) {
+            const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
+            const stem = ext ? path.slice(0, -ext.length) : path;
+            const copy = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
+            await vaultAdapter.writeTextFile(copy, shape ? applyTextShape(val, shape) : val);
+            throw new ConflictError("Cannot automatically merge the pending editor changes", copy);
+          }
+          candidate = merged.mergedText;
         }
-        const metaChanged = await indexer.indexFile(info);
-        // Body-refresh channel (plan Pinboard P2): pure prose edits deliberately
-        // do NOT bump fileTreeVersion (see below), but the pinboard view renders
-        // note BODIES — it listens for this event and re-queries when the saved
-        // path belongs to its source set. Dispatched AFTER indexFile so the FTS
-        // row the view reads is already current. Cheap: nothing listens unless
-        // a pinboard view is mounted.
-        window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
-        // File-only refresh (P2.5/P2.7): a save never changes the folder
-        // structure, and views not showing this path can skip their reload.
-        // Skip the app-wide fileTreeVersion bump entirely on pure prose edits
-        // (title/mode/tags/properties/links unchanged) — that fan-out re-fires
-        // 8-12 uncached queries across every useVault() consumer and was the
-        // source of the typing lag during autosave. FTS is already updated in
-        // the DB above (search queries live), while LINK changes do report
-        // metaChanged: the backlinks panel and loadGraphCached key off the
-        // version, so a hand-typed [[link]] must bump it to become visible.
-        if (metaChanged) triggerFileTreeUpdate([path]);
-      } catch (e: any) {
-        console.error("Failed to save file", e);
-        setSaveError(e.message || String(e));
-        if (e.name === "ConflictError" || e.message?.includes("Cannot automatically merge")) {
-          const conflictPath = e.conflictPath ? e.conflictPath : null;
-          savedOrSafelyPreserved = true;
-          // Persistent banner instead of only a transient toast (P1.8): the
-          // user must understand that the TARGET file now holds the other
-          // side and their text lives in the .CONFLICT copy.
-          setConflictInfo({ conflictPath: conflictPath ?? "" });
-          toast.warning(t("dialogs.conflictSavedMsg", { path: conflictPath ?? ".CONFLICT" }));
-        }
-      } finally {
-        setIsSaving(false);
-        if (savedOrSafelyPreserved) {
-          isDirtyRef.current = false;
-          dirtyStore.set(path, false);
-          // The buffer is on disk (or preserved as .CONFLICT) — the journal
-          // entry up to the covered revision has served its purpose.
-          if (vaultPath) {
-            void import("../services/draftJournal")
-              .then(({ clearDraft }) => clearDraft(vaultPath, path, revAtSave))
-              .catch(() => {});
+        await vaultAdapter.writeTextFile(path, shape ? applyTextShape(candidate, shape) : candidate);
+        const stored = normalize(await vaultAdapter.readTextFile(path));
+        if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
+        saveState.update({ baseInput: val });
+        saveState.update({ savedRevision: revAtSave });
+        saveState.update({ persisted: stored });
+        const sameRevision = saveState.revision === revAtSave;
+        if (sameRevision) dirtyStore.set(path, false, saveState.id);
+        if (current() && sameRevision) {
+          const session = sessionRef.current;
+          const live = session?.view.state.doc.toString() ?? contentRef.current;
+          if (live === val) {
+            session?.applyExternalText(stored);
+            contentRef.current = stored;
+            setContent(stored);
+            saveState.update({ baseInput: stored });
+            saveState.update({ dirty: false });
+            dirtyStore.set(path, false, saveState.id);
+            setConflictInfo(null);
           }
         }
+        if (draftVault) {
+          const { clearDraft } = await import("../services/draftJournal");
+          await clearDraft(draftVault, path, revAtSave, saveState.id);
+          const recovered = saveState.recoveredDraft;
+          if (recovered && sameRevision) {
+            await clearDraft(draftVault, path, recovered.revision, recovered.sessionId);
+            saveState.update({ recoveredDraft: null });
+          }
+        }
+        // The note is committed even if refreshing its derived index fails.
+        try {
+          if (indexer) {
+            let info: VaultFileInfo;
+            try { info = await vaultAdapter.getFileInfo(path); }
+            catch { info = { path, name: path.split(/[/\\]/).pop()!, isDirectory: false, mtime: Date.now(), size: stored.length }; }
+            const metaChanged = await indexer.indexFile(info);
+            if (metaChanged) triggerFileTreeUpdate([path]);
+          }
+          window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path, vaultPath: draftVault } }));
+        } catch (error) { console.error("Could not refresh the saved note index", error); }
+      } catch (error) {
+        const e = error as Error & { conflictPath?: string };
+        console.error("Failed to save file", error);
+        if (current()) {
+          setSaveError(e.message || String(error));
+          if (e.name === "ConflictError") {
+            setConflictInfo({ conflictPath: e.conflictPath ?? "" });
+            toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ?? ".CONFLICT" }));
+          }
+        }
+        throw error;
+      } finally {
+        saveState.update({ activeWrites: saveState.activeWrites - 1 });
+        if (current()) setIsSaving(saveState.activeWrites > 0);
       }
-    })();
-
-    await trackPendingWrite(vaultPath ?? "", path, run);
+    });
   };
 
   const scheduleSave = (getText: () => string) => {
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
-    if (!activePath || !vaultAdapter || !indexer) return;
+    if (!activePath || !vaultAdapter) return;
+    const rev = saveState.nextRevision();
     saveTimeoutRef.current = window.setTimeout(() => {
       saveTimeoutRef.current = null;
-      void persistText(getText());
+      void persistText(getText()).catch(() => {});
     }, 1000); // 1s debounce
     // Draft journal (P2.4): snapshot the dirty buffer BEFORE the save fires
     // (400 ms < 1 s) so a hard crash between keystroke and save loses at most
@@ -822,9 +828,9 @@ export const Editor: React.FC<{
       const draftPath = activePath;
       draftTimerRef.current = window.setTimeout(() => {
         draftTimerRef.current = null;
-        const rev = ++draftRevisionRef.current;
+        const text = getText();
         void import("../services/draftJournal")
-          .then(({ recordDraft }) => recordDraft(draftVault, draftPath, getText(), rev))
+          .then(({ recordDraft }) => recordDraft(draftVault, draftPath, text, rev, saveState.id))
           .catch(() => {});
       }, 400);
     }
@@ -843,8 +849,9 @@ export const Editor: React.FC<{
       }
       return;
     }
-    isDirtyRef.current = true;
-    if (activePath) dirtyStore.set(activePath, true);
+    saveState.update({ dirty: true });
+    contentRef.current = view.state.doc.toString();
+    if (activePath) dirtyStore.set(activePath, true, saveState.id);
     // E3: debounce the React-state mirror — the status bar / properties panel
     // and the read mode read from `content`, the editor itself never does, so
     // typing no longer re-renders this component per keystroke. Very large
@@ -862,8 +869,9 @@ export const Editor: React.FC<{
   // Read-mode properties edits have no editor view; save the given text as-is.
   const applyNonViewEdit = (val: string) => {
     if (val === contentRef.current) return;
-    isDirtyRef.current = true;
-    if (activePath) dirtyStore.set(activePath, true);
+    saveState.update({ dirty: true });
+    if (activePath) dirtyStore.set(activePath, true, saveState.id);
+    contentRef.current = val;
     setContent(val);
     scheduleSave(() => val);
   };
@@ -1787,7 +1795,7 @@ export const Editor: React.FC<{
   useEffect(() => {
     if (!vaultAdapter || !activePath) {
       loadedPathRef.current = null;
-      lastPersistedRef.current = null;
+      saveState.update({ persisted: null });
       setContent("");
       setIsLoading(false);
       setSaveError(null);
@@ -1796,7 +1804,7 @@ export const Editor: React.FC<{
 
     let isMounted = true;
     loadedPathRef.current = null;
-    lastPersistedRef.current = null;
+    saveState.update({ persisted: null });
     setIsLoading(true);
     setLoadError(null);
     setNotText(false);
@@ -1824,10 +1832,12 @@ export const Editor: React.FC<{
           return;
         }
         const shaped = isText ? readTextShape(text) : null;
-        textShapeRef.current = shaped?.shape ?? null;
+        saveState.update({ shape: shaped?.shape ?? null });
         const normalized = shaped ? shaped.text : text.replace(/\r\n/g, '\n');
         // The freshly loaded disk state counts as "our" persisted baseline.
-        lastPersistedRef.current = normalized;
+        saveState.update({ persisted: normalized });
+        saveState.update({ baseInput: normalized });
+        contentRef.current = normalized;
         setContent(normalized);
         setIsLoading(false);
         if (vaultAdapter.acknowledgeExternalUpdate) {
@@ -1838,9 +1848,9 @@ export const Editor: React.FC<{
         // (crash or failed save) — offer it in a banner, never auto-apply.
         if (vaultPath) {
           void import("../services/draftJournal").then(async ({ readDraft }) => {
-            const draft = await readDraft(vaultPath, activePath);
+            const draft = await readDraft(vaultPath, activePath, normalized);
             if (isMounted && draft && draft.text !== normalized) {
-              setDraftOffer({ text: draft.text, savedAt: draft.savedAt });
+              setDraftOffer({ text: draft.text, savedAt: draft.savedAt, revision: draft.revision, sessionId: draft.sessionId });
             }
           }).catch(() => {});
         }
@@ -1860,7 +1870,7 @@ export const Editor: React.FC<{
     });
 
     return () => { isMounted = false; };
-  }, [vaultAdapter, activePath, vaultPath]);
+  }, [vaultAdapter, activePath, vaultPath, saveState]);
 
   // Listen for external updates
   useEffect(() => {
@@ -1890,162 +1900,102 @@ export const Editor: React.FC<{
         }
         console.log(`[Editor] adopting ${reason} for ${activePath}`);
       }
+      contentRef.current = text;
       setContent(text);
     };
 
-    const handleExternalUpdate = async (e: Event) => {
-      const customEvent = e as CustomEvent<{path: string}>;
-      if (customEvent.detail.path !== activePath || !activePath) return;
+    const current = () => saveState.isActive();
+    const handleExternalUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<{ path: string; vaultPath?: string }>).detail;
+      if (!activePath || !vaultAdapter || detail.path !== activePath
+        || (detail.vaultPath && detail.vaultPath !== vaultPath)) return;
       const path = activePath;
-
-      if (!isDirtyRef.current) {
-        const text = await vaultAdapter!.readTextFile(path);
-        lastPersistedRef.current = text.replace(/\r\n/g, '\n');
-        applyExternalText(text.replace(/\r\n/g, '\n'), "external modification");
-        if (vaultAdapter!.acknowledgeExternalUpdate) {
-          await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
+      const capturedSession = sessionRef.current;
+      void withPendingWrite(vaultPath ?? "", path, async () => {
+        if (!current() || sessionRef.current !== capturedSession) return;
+        const raw = await vaultAdapter.readTextFile(path);
+        if (!current() || sessionRef.current !== capturedSession) return;
+        const disk = saveState.shape ? readTextShape(raw).text : raw.replace(/\r\n/g, "\n");
+        const draft = capturedSession?.view.state.doc.toString() ?? contentRef.current;
+        const revision = saveState.revision;
+        const action = saveState.dirty
+          ? decideDirtyExternalUpdate({ disk, draft, lastPersisted: saveState.persisted }) : "realign";
+        if (action === "own-echo") return;
+        let conflictPath: string | null = null;
+        if (action !== "realign") {
+          const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
+          const stem = ext ? path.slice(0, -ext.length) : path;
+          conflictPath = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
+          const shape = saveState.shape;
+          // Keep the scheduled write until this copy exists. If new typing
+          // arrives during preservation, its next save merges from its own
+          // editor base and cannot blindly overwrite the external version.
+          await vaultAdapter.writeTextFile(conflictPath, shape ? applyTextShape(draft, shape) : draft);
+          if (current()) {
+            setConflictInfo({ conflictPath });
+            toast.warning(t("dialogs.conflictSavedMsg", { path: conflictPath }));
+          }
         }
-        return;
-      }
-
-      // The editor is DIRTY and the file changed on disk under us (another editor, a
-      // sync pull, the OS). The old behavior — keep the draft, "handle it on save" —
-      // lost data: the sync worker can advance our stored hash so the next save sees no
-      // divergence and clobbers the newer external version with the stale draft, with no
-      // .CONFLICT. Instead preserve the draft as a .CONFLICT sibling and adopt the
-      // external version now, so neither side is lost and the user can merge.
-      let disk: string;
-      try {
-        disk = (await vaultAdapter!.readTextFile(path)).replace(/\r\n/g, '\n');
-      } catch (err) {
-        console.error(`[Editor] external update: reading ${path} failed`, err);
-        return; // keep the draft rather than risk losing it
-      }
-      const view = sessionRef.current?.view;
-      const draft = view ? view.state.doc.toString() : contentRef.current;
-      const action = decideDirtyExternalUpdate({ disk, draft, lastPersisted: lastPersistedRef.current });
-      // The external change already matches our draft (e.g. the echo of our own push):
-      // no conflict, just realign the dirty/sync state.
-      if (action === "realign") {
-        isDirtyRef.current = false;
-        dirtyStore.set(path, false);
-        if (vaultAdapter!.acknowledgeExternalUpdate) {
-          await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
-        }
-        return;
-      }
-      // The disk equals the last text WE persisted: the watcher echo of our own
-      // save (or a stale-hash false positive from the sync push race) arriving
-      // while the user kept typing. Not an external change — keep the newer
-      // draft and the dirty flag; the scheduled save persists it normally.
-      // Writing a .CONFLICT here was the spurious-conflict bug.
-      if (action === "own-echo") {
-        console.log(`[Editor] external update for ${path} matches our last save — own echo, keeping the draft`);
-        return;
-      }
-      // Cancel a scheduled save so the stale draft cannot win right after we adopt.
-      if (saveTimeoutRef.current !== null) {
-        window.clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const extMatch = path.match(/(\.[^.]+)$/);
-      const ext = extMatch ? extMatch[1] : "";
-      const conflictBase = extMatch ? path.substring(0, path.length - ext.length) : path;
-      const conflictPath = `${conflictBase}.CONFLICT-${timestamp}${ext}`;
-      try {
-        await vaultAdapter!.writeTextFile(conflictPath, draft);
-      } catch (err) {
-        console.error(`[Editor] external update: preserving draft as ${conflictPath} failed`, err);
-        return; // don't adopt-and-lose; leave the draft in the editor
-      }
-      lastPersistedRef.current = disk;
-      applyExternalText(disk, "external modification (draft preserved as conflict)");
-      isDirtyRef.current = false;
-      dirtyStore.set(path, false);
-      if (vaultAdapter!.acknowledgeExternalUpdate) {
-        await vaultAdapter!.acknowledgeExternalUpdate(path).catch(console.error);
-      }
-      setConflictInfo({ conflictPath });
-      toast.warning(t("dialogs.conflictSavedMsg", { path: conflictPath }));
-    };
-
-    const handleAutoMerged = (e: Event) => {
-      const customEvent = e as CustomEvent<{ path: string; mergedText: string }>;
-      if (customEvent.detail.path === activePath) {
-        // On save, external + local changes were auto-merged and written to disk.
-        // Adopt the merged content so the next save does not overwrite the merge
-        // with the stale pre-merge view (which would silently drop external changes).
-        lastPersistedRef.current = customEvent.detail.mergedText.replace(/\r\n/g, '\n');
-        applyExternalText(customEvent.detail.mergedText.replace(/\r\n/g, '\n'), "auto-merged content");
-        isDirtyRef.current = false;
-      }
-    };
-
-    // Version-restore handshake (Gesamtplan Backups & Versionierung, P5):
-    // the modal asks for a flush BEFORE restoring — a pending 1-s save timer
-    // would otherwise overwrite the restored content a second later. Always
-    // ack, even when clean, so the modal never waits out its timeout.
-    const handleFlushRequest = async (e: Event) => {
-      const { path } = (e as CustomEvent<{ path: string }>).detail;
-      if (path !== activePath) return;
-      try {
+        if (!current() || sessionRef.current !== capturedSession || saveState.revision !== revision
+          || (capturedSession?.view.state.doc.toString() ?? contentRef.current) !== draft) return;
         if (saveTimeoutRef.current !== null) {
           window.clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
         }
-        if (isDirtyRef.current) {
+        if (draftTimerRef.current !== null) {
+          window.clearTimeout(draftTimerRef.current);
+          draftTimerRef.current = null;
+        }
+        // Already queued snapshots of this revision are obsolete only AFTER
+        // its preservation succeeded and the same buffer adopted the disk.
+        saveState.update({ discardedRevision: revision });
+        saveState.update({ baseInput: disk });
+        saveState.update({ persisted: disk });
+        applyExternalText(disk, conflictPath ? "external modification (draft preserved)" : "external modification");
+        saveState.update({ dirty: false });
+        dirtyStore.set(path, false, saveState.id);
+        if (vaultPath) {
+          const { clearDraft } = await import("../services/draftJournal");
+          await clearDraft(vaultPath, path, revision, saveState.id);
+        }
+        await vaultAdapter.acknowledgeExternalUpdate?.(path);
+      }).catch((error) => {
+        console.error("[Editor] external update could not be completed", error);
+        if (current()) setSaveError(error instanceof Error ? error.message : String(error));
+      });
+    };
+
+    // A merge notification is a disk update, not permission to replace a
+    // newer buffer synchronously while its original save is still finishing.
+    const handleAutoMerged = handleExternalUpdate;
+
+    const handleFlushRequest = (e: Event) => {
+      const request = (e as CustomEvent<SaveFlushRequest>).detail;
+      if (request.path !== activePath || (request.vaultPath !== undefined && request.vaultPath !== vaultPath)) return;
+      const flush = async () => {
+        while (current()) {
+          if (saveTimeoutRef.current !== null) {
+            window.clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = null;
+          }
+          if (!saveState.dirty) break;
           const view = sessionRef.current?.view;
           await persistText(view ? view.state.doc.toString() : contentRef.current);
         }
-      } finally {
-        window.dispatchEvent(new CustomEvent("plainva-pending-save-flushed", { detail: { path } }));
-      }
+        if (activePath) await waitForPendingWrites(activePath, vaultPath ?? "");
+      };
+      request.waitUntil(flush());
     };
 
-    // Restored content bypasses the dirty guard of plainva-external-update on
-    // purpose: the restore IS the user's latest intent. Cancel any scheduled
-    // save so stale text cannot win afterwards.
-    const handleFileRestored = (e: Event) => {
-      const { path, content: restored } = (e as CustomEvent<{ path: string; content: string }>).detail;
-      if (path !== activePath) return;
-      if (saveTimeoutRef.current !== null) {
-        window.clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      lastPersistedRef.current = restored.replace(/\r\n/g, "\n");
-      applyExternalText(restored.replace(/\r\n/g, "\n"), "restored version");
-      isDirtyRef.current = false;
-      if (vaultAdapter?.acknowledgeExternalUpdate) {
-        vaultAdapter.acknowledgeExternalUpdate(path).catch(console.error);
-      }
-    };
-
-    /**
-     * Tab menu → "Neu laden" (P2): re-read THIS file from disk. The per-file
-     * sibling of P1's vault-wide reconcile, for the case "I edited the open
-     * note in another program". A dirty buffer wins — discarding what the user
-     * typed without asking would be the one unrecoverable outcome here.
-     */
+    const handleFileRestored = handleExternalUpdate;
     const handleReloadFile = (e: Event) => {
       const { path } = (e as CustomEvent<{ path: string }>).detail;
       if (path !== activePath || !vaultAdapter) return;
-      if (isDirtyRef.current) {
-        toast.warning(t("tabMenu.reloadDirty", { defaultValue: "Ungespeicherte Änderungen — erst speichern, dann neu laden." }));
+      if (saveState.dirty) {
+        toast.warning(t("tabMenu.reloadDirty"));
         return;
       }
-      void vaultAdapter
-        .readTextFile(path)
-        .then((disk) => {
-          const normalized = disk.replace(/\r\n/g, "\n");
-          lastPersistedRef.current = normalized;
-          applyExternalText(normalized, "reloaded from disk");
-          isDirtyRef.current = false;
-        })
-        .catch((err) => {
-          console.error("[Editor] reloading the file failed", err);
-          toast.error(t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
-        });
+      handleExternalUpdate(e);
     };
 
     window.addEventListener("plainva-external-update", handleExternalUpdate);
@@ -2061,7 +2011,7 @@ export const Editor: React.FC<{
       window.removeEventListener("plainva-reload-file", handleReloadFile);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePath, vaultAdapter]);
+  }, [activePath, vaultAdapter, saveState]);
 
   // ---- CodeMirror session (P1/P2) ------------------------------------------
   // Mutable host bindings for the session's stable extensions. Refreshed on
@@ -2216,10 +2166,10 @@ export const Editor: React.FC<{
         setContent(text);
         contentRef.current = text;
       }
-      if (saveTimeoutRef.current !== null && isDirtyRef.current) {
-        window.clearTimeout(saveTimeoutRef.current);
+      if (saveState.dirty) {
+        if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
-        void persistText(text);
+        void persistText(text).catch(() => {});
       }
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
@@ -2984,9 +2934,11 @@ export const Editor: React.FC<{
               setDraftOffer(null);
               const view = sessionRef.current?.view;
               if (view) {
+                saveState.recover(offer);
                 // A plain user-visible edit: dirty + autosave + undoable.
                 view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: offer.text } });
               } else {
+                saveState.recover(offer);
                 applyNonViewEdit(offer.text);
               }
             }}
@@ -3000,7 +2952,7 @@ export const Editor: React.FC<{
               setDraftOffer(null);
               if (activePath && vaultPath) {
                 void import("../services/draftJournal")
-                  .then(({ clearDraft }) => clearDraft(vaultPath, activePath, Infinity))
+                  .then(({ clearDraft }) => clearDraft(vaultPath, activePath, draftOffer!.revision, draftOffer!.sessionId))
                   .catch(() => {});
               }
             }}

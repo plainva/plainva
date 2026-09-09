@@ -15,7 +15,7 @@ export interface SaveCoordinatorOptions<C> {
   /** The failed revision was preserved separately, for example in a conflict
    * copy. A newer revision still needs its OWN confirmed save or recovery. */
   isTerminal?: (error: unknown) => boolean;
-  write: (ctx: C, path: string, text: string) => Promise<void>;
+  write: (ctx: C, path: string, text: string, revision: number) => Promise<void>;
 }
 
 interface Entry<C> {
@@ -70,7 +70,7 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
     const writing = Promise.resolve(previousWrite).catch(() => {}).then(async () => {
       if (entries.get(key) !== entry) return;
       ({ revision, text, ctx, path } = entry);
-      await opts.write(ctx, path, text);
+      await opts.write(ctx, path, text, revision);
     });
     writes.set(key, writing);
     void writing.then(() => {

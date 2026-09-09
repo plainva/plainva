@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
  * safe CONFLICT preserve) — tab strips subscribe and show the dirty dot.
  */
 let dirty: ReadonlySet<string> = new Set<string>();
+const owners = new Map<string, Set<string>>();
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -14,10 +15,15 @@ function emit() {
 
 export const dirtyStore = {
   get: (): ReadonlySet<string> => dirty,
-  set(path: string, isDirty: boolean) {
-    if (!path || isDirty === dirty.has(path)) return;
+  set(path: string, isDirty: boolean, owner = "legacy") {
+    if (!path) return;
+    const holders = owners.get(path) ?? new Set<string>();
+    if (isDirty) holders.add(owner); else holders.delete(owner);
+    if (holders.size) owners.set(path, holders); else owners.delete(path);
+    const remainsDirty = holders.size > 0;
+    if (remainsDirty === dirty.has(path)) return;
     const next = new Set(dirty);
-    if (isDirty) next.add(path);
+    if (remainsDirty) next.add(path);
     else next.delete(path);
     dirty = next;
     emit();
@@ -30,6 +36,7 @@ export const dirtyStore = {
   },
   /** Test helper. */
   clearAll() {
+    owners.clear();
     if ((dirty as Set<string>).size === 0) return;
     dirty = new Set<string>();
     emit();

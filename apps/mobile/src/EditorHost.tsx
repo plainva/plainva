@@ -556,7 +556,7 @@ export function EditorHost({
     // The load-time snapshot IS the persisted disk state for this path (the
     // rare draft-restore case self-corrects on the first save). Needed by the
     // external-update guard below to tell our own echo from foreign content.
-    rememberPersistedText(vault, path, initialDoc);
+    if (!noteSaver.hasPending(path, vault)) rememberPersistedText(vault, path, initialDoc);
     // Search jump (P4): a parked jump from the search tab selects and
     // reveals the first occurrence once the session exists (rAF so the
     // first layout pass has happened before scrolling).
@@ -649,16 +649,13 @@ export function EditorHost({
       if ((ev as CustomEvent).detail?.path !== path) return;
       void handleExternalUpdate().catch((e) => console.error("[EditorHost] external update failed", e));
     };
-    const onAutoMerged = (ev: Event) => {
-      const d = (ev as CustomEvent).detail as { path?: string; mergedText?: string } | undefined;
-      if (d?.path !== path || typeof d.mergedText !== "string") return;
-      // Our save was 3-way-merged with a concurrent disk change. A clean
-      // buffer adopts the merge result; a dirty one keeps typing — its next
-      // save runs through the same merge chain and converges.
-      if (!noteSaver.hasPending(path, vault)) {
-        sessionRef.current?.applyExternalText(d.mergedText);
-        rememberPersistedText(vault, path, d.mergedText);
-      }
+    const onAutoMerged = onExternalUpdate;
+    const onSaveConfirmed = (ev: Event) => {
+      const d = (ev as CustomEvent<{ vaultId: string; path: string; input: string; stored: string; revision: number }>).detail;
+      if (d.vaultId !== vault.vaultId || d.path !== path || sessionRef.current !== session
+        || noteSaver.getRevision(path, vault) !== d.revision || session.view.state.doc.toString() !== d.input) return;
+      session.applyExternalText(d.stored);
+      rememberPersistedText(vault, path, d.stored);
     };
     // The screen changed the text itself (an accepted proposal, the markers of
     // a new remark): adopt it as an external change, whatever the buffer holds
@@ -670,11 +667,13 @@ export function EditorHost({
     };
     window.addEventListener("m-external-update", onExternalUpdate);
     window.addEventListener("m-auto-merged", onAutoMerged);
+    window.addEventListener("m-editor-save-confirmed", onSaveConfirmed);
     window.addEventListener("m-editor-adopt-text", onAdoptText);
 
     return () => {
       window.removeEventListener("m-external-update", onExternalUpdate);
       window.removeEventListener("m-auto-merged", onAutoMerged);
+      window.removeEventListener("m-editor-save-confirmed", onSaveConfirmed);
       window.removeEventListener("m-editor-adopt-text", onAdoptText);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).

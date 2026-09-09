@@ -191,9 +191,9 @@ export interface RpcMap {
   "workspace-revisions": { args: { path: string }; result: WorkspaceRevisionRecord[] | null };
   "workspace-revision-read": { args: { revisionId: string }; result: { base64: string } };
   /** Draft snapshot of an unsaved buffer — the owner owns the journal on disk. */
-  "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number }; result: void };
+  "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number; sessionId?: string }; result: void };
   /** Clears a journal entry; `upToRevision: null` forces (Infinity over JSON). */
-  "draft-clear": { args: { vaultPath: string; notePath: string; upToRevision: number | null }; result: void };
+  "draft-clear": { args: { vaultPath: string; notePath: string; upToRevision: number | null; sessionId?: string }; result: void };
   /**
    * Open this content wherever it belongs: the owner focuses the window that
    * already has it, otherwise it tells the caller to show it itself. `where`

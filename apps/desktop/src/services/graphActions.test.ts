@@ -10,7 +10,7 @@ import {
   removeLinksTo,
 } from "./graphActions";
 import { setPlatformServices } from "@plainva/ui";
-import { requestSaveFlush } from "./saveFlush";
+import { requestSaveFlush, type SaveFlushRequest } from "./saveFlush";
 
 vi.mock("./newNote", () => ({
   buildNewNoteContent: (type: string, title?: string) => `---\ntype: ${type}\n---\n# ${title}\n`,
@@ -129,9 +129,8 @@ describe("appendWikiLink", () => {
     const files: Record<string, string> = { "open.md": "stale" };
     // Simulate an open editor: on flush request it saves NEW content, then acks.
     const onFlush = (e: Event) => {
-      const path = (e as CustomEvent<{ path: string }>).detail.path;
-      files[path] = "fresh";
-      window.dispatchEvent(new CustomEvent("plainva-pending-save-flushed", { detail: { path } }));
+      const { path, waitUntil } = (e as CustomEvent<SaveFlushRequest>).detail;
+      waitUntil(Promise.resolve().then(() => { files[path] = "fresh"; }));
     };
     window.addEventListener("plainva-flush-pending-save", onFlush);
     vi.useRealTimers();

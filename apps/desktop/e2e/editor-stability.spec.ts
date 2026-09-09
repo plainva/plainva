@@ -382,3 +382,57 @@ test('right-click on a table cell opens the menu without moving the view', async
   expect(await removedTableNodes(page)).toBe(0);
   expect(await markerAlive(page)).toBe(true);
 });
+
+/** Hold the actual native write boundary, leaving the mounted React editor,
+ * its coordinator, journal and error handling in the normal application. */
+async function holdBigSave(page: Page, fail = false) {
+  await page.evaluate((reject) => {
+    const w = window as any;
+    const original = w.__TAURI_INTERNALS__.invoke;
+    let held = false;
+    w.__saveEntered = false;
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:path|resolve_directory') return '/app-data';
+      if (cmd === 'write_file_atomic' && args.relPath === 'Big.md' && !held) {
+        held = true; w.__saveEntered = true;
+        await new Promise<void>(resolve => { w.__releaseSave = resolve; });
+        if (reject) throw new Error('held-note-write-failed');
+      }
+      return original(cmd, args, options);
+    };
+  }, fail);
+}
+test('a delayed save does not mark later typing as saved and the next save keeps it', async ({ page }) => {
+  await openBigAndArm(page);
+  await holdBigSave(page);
+  await page.keyboard.type('\nFIRST_PENDING');
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).__saveEntered)).toBe(true);
+  await page.keyboard.type('\nNEWER_PENDING');
+  await page.waitForTimeout(1400);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Big.md'])).not.toContain('FIRST_PENDING');
+  await page.evaluate(() => (window as any).__releaseSave());
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Big.md'])).toContain('NEWER_PENDING');
+  await expect(page.locator('.cm-content').first()).toContainText('NEWER_PENDING');
+});
+
+test('a failed old save does not alter the next mounted note or its save status', async ({ page }) => {
+  await openBigAndArm(page);
+  await holdBigSave(page, true);
+  await page.keyboard.type('\nOLD_NOTE_DRAFT');
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).__saveEntered)).toBe(true);
+  await page.getByText('Welcome', { exact: true }).first().click();
+  const editor = page.locator('.cm-content').first();
+  await expect(editor).toContainText('Welcome to the mock vault!');
+  await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.type('\nNEW_NOTE_INPUT');
+  await page.evaluate(() => (window as any).__releaseSave());
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toContain('NEW_NOTE_INPUT');
+  await expect(editor).toContainText('NEW_NOTE_INPUT');
+  await expect(editor).not.toContainText('OLD_NOTE_DRAFT');
+  // The original note was either retried successfully on close or its own
+  // session journal retains it; it never lands in the newly opened note.
+  await expect.poll(() => page.evaluate(() => Object.values((window as any).mockFs).some(
+    (value: any) => typeof value === 'string' && value.includes('OLD_NOTE_DRAFT')))).toBe(true);
+});

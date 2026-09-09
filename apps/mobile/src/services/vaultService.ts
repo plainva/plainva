@@ -2,6 +2,8 @@ import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
   ConflictError,
+  mergeText,
+  containsTextChanges,
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
@@ -1197,9 +1199,12 @@ export const vaultOps = {
  * genuinely foreign version reaching the disk (sync pull, auto-merge).
  */
 const lastPersistedText = new Map<string, string>();
+const editorBaseText = new Map<string, string>();
 
 export function rememberPersistedText(vault: MobileVault, path: string, text: string): void {
-  lastPersistedText.set(JSON.stringify([vault.vaultId, path]), text);
+  const key = JSON.stringify([vault.vaultId, path]);
+  lastPersistedText.set(key, text);
+  editorBaseText.set(key, text);
 }
 
 export function getLastPersistedText(vault: MobileVault, path: string): string | null {
@@ -1208,6 +1213,7 @@ export function getLastPersistedText(vault: MobileVault, path: string): string |
 
 export function clearPersistedTextCache(): void {
   lastPersistedText.clear();
+  editorBaseText.clear();
 }
 
 /**
@@ -1220,9 +1226,30 @@ export function clearPersistedTextCache(): void {
  */
 export const noteSaver = createSaveCoordinator<MobileVault>({
   contextKey: (vault) => vault.vaultId,
-  write: async (vault, path, text) => {
-    await vaultOps.save(vault, path, text);
-    rememberPersistedText(vault, path, text);
+  write: async (vault, path, text, revision) => {
+    const key = JSON.stringify([vault.vaultId, path]);
+    const disk = await vault.files.readTextFile(path);
+    const base = editorBaseText.get(key);
+    let candidate = text;
+    // A pull can advance the sync index while the editor still holds its old
+    // base. Preserve that ancestry through delayed saves and further typing.
+    if (base !== undefined && disk !== base && disk !== text) {
+      const merged = mergeText(base, text, disk);
+      if (merged.hasConflicts) {
+        const ext = path.match(/(\.[^./\\]+)$/)?.[1] ?? "";
+        const stem = ext ? path.slice(0, -ext.length) : path;
+        const copy = stem + ".CONFLICT-" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID() + ext;
+        await vault.files.writeTextFile(copy, text);
+        throw new ConflictError("Cannot automatically merge the pending editor changes", copy);
+      }
+      candidate = merged.mergedText;
+    }
+    await vaultOps.save(vault, path, candidate);
+    const stored = await vault.files.readTextFile(path);
+    if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
+    editorBaseText.set(key, text);
+    lastPersistedText.set(key, stored);
+    window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
   },
   onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
   onSaved: (path, vault, revision) => {

@@ -429,8 +429,7 @@ export function NoteScreen({
   const managedIndex = /(^|\/)index\.md$/i.test(path) && doc !== null && isPlainvaManagedIndex(doc);
   useEffect(() => {
     let stale = false;
-    void vaultOps
-      .read(vault, path)
+    void noteSaver.flush(path, vault).catch(() => {}).then(() => vaultOps.read(vault, path))
       .then(async (text) => {
         if (stale) return;
         setLoadError(false);

@@ -607,24 +607,24 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision }) => {
+    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision, sessionId }) => {
       // The journal lives on disk next to the owner's own drafts; an auxiliary
       // window has no write access to it (aux capability) and needs none.
-      await recordDraft(vaultPath, notePath, text, revision);
+      await recordDraft(vaultPath, notePath, text, revision, sessionId);
     }),
   );
 
   offs.push(
-    await bus.handle("draft-clear", async ({ vaultPath, notePath, upToRevision }) => {
-      await clearDraft(vaultPath, notePath, upToRevision ?? Infinity);
+    await bus.handle("draft-clear", async ({ vaultPath, notePath, upToRevision, sessionId }) => {
+      await clearDraft(vaultPath, notePath, upToRevision ?? Infinity, sessionId);
     }),
   );
 
   offs.push(
-    await bus.handle("flush-pending", async ({ path }) => {
+    await bus.handle("flush-pending", async ({ path }, _sender, vaultPath) => {
       // An editor in THIS window may hold an unsaved buffer for the file the
       // other window is about to rewrite. Same handshake the restore path uses.
-      await requestSaveFlush(path);
+      await requestSaveFlush(path, vaultPath ?? undefined);
     }),
   );
 

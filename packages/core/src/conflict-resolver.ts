@@ -28,3 +28,10 @@ export function mergeText(base: string, yours: string, theirs: string): MergeRes
     hasConflicts: result.conflict
   };
 }
+
+/** A read-back contains the intended change, possibly with additional edits. */
+export function containsTextChanges(base: string, intended: string, actual: string): boolean {
+  if (actual === intended) return true;
+  const result = mergeText(base, intended, actual);
+  return !result.hasConflicts && result.mergedText === actual;
+}

@@ -53,7 +53,7 @@ describe("draftJournal", () => {
       "write_file_atomic",
       expect.objectContaining({ encoding: "utf8", rootId: "root-1" })
     );
-    const entry = JSON.parse(files.get(FILE)!);
+    const entry = JSON.parse(files.get(FILE)!).entries[0];
     expect(entry).toMatchObject({ vaultPath: VAULT, notePath: NOTE, text: "draft text", revision: 3 });
     expect(await readDraft(VAULT, NOTE)).toMatchObject({ text: "draft text", revision: 3 });
   });
@@ -77,6 +77,44 @@ describe("draftJournal", () => {
     files.set(FILE, JSON.stringify({ nope: true }));
     expect(await readDraft(VAULT, NOTE)).toBeNull();
   });
+
+  it("keeps a reopened editor's revision 1 when the old editor confirms revision 100", async () => {
+    await recordDraft(VAULT, NOTE, "old editor", 100, "old");
+    await recordDraft(VAULT, NOTE, "reopened editor", 1, "new");
+    await clearDraft(VAULT, NOTE, 100, "old");
+    expect(await readDraft(VAULT, NOTE)).toMatchObject({ text: "reopened editor", revision: 1, sessionId: "new" });
+  });
+
+  it("preserves both window drafts and clears only the explicitly dismissed offer", async () => {
+    await recordDraft(VAULT, NOTE, "left window", 3, "left");
+    await recordDraft(VAULT, NOTE, "right window", 2, "right");
+    const offered = (await readDraft(VAULT, NOTE))!;
+    await clearDraft(VAULT, NOTE, offered.revision, offered.sessionId);
+    const remaining = (await readDraft(VAULT, NOTE))!;
+    expect(remaining.text).not.toBe(offered.text);
+    expect([offered.text, remaining.text].sort()).toEqual(["left window", "right window"]);
+  });
+
+  it("migrates a legacy entry without allowing a new session to erase it", async () => {
+    files.set(FILE, JSON.stringify({ vaultPath: VAULT, notePath: NOTE, text: "legacy recovery", revision: 99, savedAt: 1 }));
+    await recordDraft(VAULT, NOTE, "current", 1, "new");
+    await clearDraft(VAULT, NOTE, 1, "new");
+    expect(await readDraft(VAULT, NOTE)).toMatchObject({ text: "legacy recovery", revision: 99 });
+  });
+
+  it("refuses to replace an unreadable existing journal", async () => {
+    files.set(FILE, "{broken");
+    await expect(recordDraft(VAULT, NOTE, "new", 1, "new")).rejects.toThrow();
+    expect(files.get(FILE)).toBe("{broken");
+  });
+
+  it("offers an unsaved session even if a more recent draft already matches disk", async () => {
+    await recordDraft(VAULT, NOTE, "unsaved", 4, "left");
+    await recordDraft(VAULT, NOTE, "saved", 5, "right");
+    expect(await readDraft(VAULT, NOTE, "saved")).toMatchObject({ text: "unsaved" });
+    await recordDraft(VAULT, NOTE, "older arrival", 3, "left");
+    expect(await readDraft(VAULT, NOTE, "saved")).toMatchObject({ text: "unsaved", revision: 4 });
+  });
 });
 
 import { remove } from "@tauri-apps/plugin-fs";
@@ -87,6 +125,7 @@ function gate() {
   return { promise, resolve };
 }
 describe("ordered desktop draft writes", () => {
+  beforeEach(() => { files.clear(); invokeMock.mockClear(); });
   afterEach(() => vi.restoreAllMocks());
 
   it("finishes an old removal before allowing the next atomic snapshot", async () => {

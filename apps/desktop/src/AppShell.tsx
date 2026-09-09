@@ -55,6 +55,7 @@ import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { toast } from "@plainva/ui";
+import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
@@ -583,8 +584,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   });
   const flushSave = useStableHandler(() => {
     if (activePath && !isVirtualPath(activePath)) {
-      window.dispatchEvent(new CustomEvent("plainva-flush-pending-save", { detail: { path: activePath } }));
-      toast.info(t("shortcuts.savedToast", { defaultValue: "Gespeichert" }));
+      void requestSaveFlush(activePath, vaultPath ?? undefined)
+        .then(() => toast.info(t("shortcuts.savedToast")))
+        .catch((error) => toast.error(t("editor.saveFailed") + ": " + (error instanceof Error ? error.message : String(error))));
     }
   });
 
