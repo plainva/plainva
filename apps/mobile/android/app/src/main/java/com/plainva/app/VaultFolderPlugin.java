@@ -151,25 +151,24 @@ public class VaultFolderPlugin extends Plugin {
         try {
             Uri tree = Uri.parse(handle);
             String dirId = docIdFor(tree, handle, path);
-            if (dirId == null) { call.reject("not found: " + path); return; }
+            if (dirId == null) { call.reject("not found: " + path, "ENOENT"); return; }
             JSArray entries = new JSArray();
             Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, dirId);
             try (Cursor c = getContext().getContentResolver().query(children, CHILD_PROJECTION, null, null, null)) {
-                if (c != null) {
-                    Map<String, String> cache = cacheFor(handle);
-                    while (c.moveToNext()) {
-                        String id = c.getString(0);
-                        String name = c.getString(1);
-                        String mime = c.getString(2);
-                        JSObject e = new JSObject();
-                        e.put("name", name);
-                        boolean isDir = DocumentsContract.Document.MIME_TYPE_DIR.equals(mime);
-                        e.put("isDirectory", isDir);
-                        e.put("size", c.isNull(3) ? 0 : c.getLong(3));
-                        e.put("mtime", c.isNull(4) ? 0 : c.getLong(4));
-                        entries.put(e);
-                        cache.put(join(path, name), id);
-                    }
+                requireCompleteCursor(c);
+                Map<String, String> cache = cacheFor(handle);
+                while (c.moveToNext()) {
+                    String id = c.getString(0);
+                    String name = c.getString(1);
+                    String mime = c.getString(2);
+                    JSObject e = new JSObject();
+                    e.put("name", name);
+                    boolean isDir = DocumentsContract.Document.MIME_TYPE_DIR.equals(mime);
+                    e.put("isDirectory", isDir);
+                    e.put("size", c.isNull(3) ? 0 : c.getLong(3));
+                    e.put("mtime", c.isNull(4) ? 0 : c.getLong(4));
+                    entries.put(e);
+                    cache.put(join(path, name), id);
                 }
             }
             JSObject out = new JSObject();
@@ -206,7 +205,7 @@ public class VaultFolderPlugin extends Plugin {
         try {
             Uri tree = Uri.parse(handle);
             String id = docIdFor(tree, handle, path);
-            if (id == null) { call.reject("not found: " + path); return; }
+            if (id == null) { call.reject("not found: " + path, "ENOENT"); return; }
             Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
             try (InputStream in = getContext().getContentResolver().openInputStream(doc)) {
                 if (in == null) { call.reject("not readable: " + path); return; }
@@ -273,7 +272,7 @@ public class VaultFolderPlugin extends Plugin {
         try {
             Uri tree = Uri.parse(handle);
             String id = docIdFor(tree, handle, path);
-            if (id == null) { call.reject("not found: " + path); return; }
+            if (id == null) { call.reject("not found: " + path, "ENOENT"); return; }
             Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
             JSObject entry = describe(tree, id, lastSegment(path));
             if (entry != null && Boolean.TRUE.equals(entry.getBool("isDirectory")) && !recursive && hasChildren(tree, id)) {
@@ -297,7 +296,7 @@ public class VaultFolderPlugin extends Plugin {
         try {
             Uri tree = Uri.parse(handle);
             String id = docIdFor(tree, handle, from);
-            if (id == null) { call.reject("not found: " + from); return; }
+            if (id == null) { call.reject("not found: " + from, "ENOENT"); return; }
             Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
             String fromParent = parentOf(from);
             String toParent = parentOf(to);
@@ -385,13 +384,12 @@ public class VaultFolderPlugin extends Plugin {
         Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId);
         String found = null;
         try (Cursor c = getContext().getContentResolver().query(children, CHILD_PROJECTION, null, null, null)) {
-            if (c != null) {
-                while (c.moveToNext()) {
-                    String id = c.getString(0);
-                    String childName = c.getString(1);
-                    cache.put(join(parentPath, childName), id);
-                    if (name.equals(childName)) found = id;
-                }
+            requireCompleteCursor(c);
+            while (c.moveToNext()) {
+                String id = c.getString(0);
+                String childName = c.getString(1);
+                cache.put(join(parentPath, childName), id);
+                if (name.equals(childName)) found = id;
             }
         }
         return found;
@@ -413,7 +411,8 @@ public class VaultFolderPlugin extends Plugin {
     private JSObject describe(Uri tree, String id, String name) {
         Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
         try (Cursor c = getContext().getContentResolver().query(doc, CHILD_PROJECTION, null, null, null)) {
-            if (c == null || !c.moveToFirst()) return null;
+            requireCompleteCursor(c);
+            if (!c.moveToFirst()) return null;
             JSObject e = new JSObject();
             String displayName = c.getString(1);
             e.put("name", displayName != null ? displayName : name);
@@ -421,17 +420,21 @@ public class VaultFolderPlugin extends Plugin {
             e.put("size", c.isNull(3) ? 0 : c.getLong(3));
             e.put("mtime", c.isNull(4) ? 0 : c.getLong(4));
             return e;
-        } catch (Exception e) {
-            return null;
         }
     }
 
     private boolean hasChildren(Uri tree, String id) {
         Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, id);
         try (Cursor c = getContext().getContentResolver().query(children, new String[] { DocumentsContract.Document.COLUMN_DOCUMENT_ID }, null, null, null)) {
-            return c != null && c.moveToFirst();
-        } catch (Exception e) {
-            return false;
+            requireCompleteCursor(c);
+            return c.moveToFirst();
+        }
+    }
+
+    /** A crashed or still-loading provider did not report an empty folder. */
+    private static void requireCompleteCursor(Cursor cursor) {
+        if (cursor == null || cursor.getExtras().getBoolean(DocumentsContract.EXTRA_LOADING, false)) {
+            throw new IllegalStateException("folder provider did not return a complete result");
         }
     }
 

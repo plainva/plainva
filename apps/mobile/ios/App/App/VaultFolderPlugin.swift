@@ -164,14 +164,21 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         do {
             try body(resolved.url)
         } catch {
-            call.reject(error.localizedDescription)
+            let nsError = error as NSError
+            call.reject(error.localizedDescription, isMissing(error) ? "ENOENT" : "\(nsError.domain):\(nsError.code)")
         }
     }
 
     private static let keys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey, .creationDateKey, .nameKey]
 
-    private func describe(_ url: URL) -> [String: Any]? {
-        guard let values = try? url.resourceValues(forKeys: VaultFolderPlugin.keys) else { return nil }
+    private func isMissing(_ error: Error) -> Bool {
+        let e = error as NSError
+        return (e.domain == NSCocoaErrorDomain && (e.code == NSFileReadNoSuchFileError || e.code == NSFileNoSuchFileError))
+            || (e.domain == NSPOSIXErrorDomain && e.code == Int(ENOENT))
+    }
+
+    private func describe(_ url: URL) throws -> [String: Any] {
+        let values = try url.resourceValues(forKeys: VaultFolderPlugin.keys)
         let isDir = values.isDirectory ?? false
         var out: [String: Any] = [
             "name": values.name ?? url.lastPathComponent,
@@ -191,7 +198,7 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         withFolder(call) { base in
             guard let dir = target(base, call.getString("path") ?? "") else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path escapes the folder"]) }
             let urls = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(VaultFolderPlugin.keys), options: [])
-            let entries = urls.compactMap { self.describe($0) }
+            let entries = try urls.map { try self.describe($0) }
             call.resolve(["entries": entries])
         }
     }
@@ -199,9 +206,9 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
     @objc func stat(_ call: CAPPluginCall) {
         withFolder(call) { base in
             guard let url = target(base, call.getString("path") ?? "") else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path escapes the folder"]) }
-            if FileManager.default.fileExists(atPath: url.path), let entry = describe(url) {
-                call.resolve(["entry": entry])
-            } else {
+            do {
+                call.resolve(["entry": try describe(url)])
+            } catch where isMissing(error) {
                 call.resolve(["entry": NSNull()])
             }
         }
@@ -218,7 +225,10 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
             }
             if let e = coordinatorError { throw e }
             if let e = readError { throw e }
-            call.resolve(["dataBase64": (data ?? Data()).base64EncodedString()])
+            guard let content = data else {
+                throw NSError(domain: "VaultFolder", code: 7, userInfo: [NSLocalizedDescriptionKey: "file coordinator returned no content"])
+            }
+            call.resolve(["dataBase64": content.base64EncodedString()])
         }
     }
 
@@ -245,11 +255,8 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
                 throw NSError(domain: "VaultFolder", code: 3, userInfo: [NSLocalizedDescriptionKey: "path required"])
             }
             let recursive = call.getBool("recursive") ?? false
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else {
-                throw NSError(domain: "VaultFolder", code: 4, userInfo: [NSLocalizedDescriptionKey: "not found: \(path)"])
-            }
-            if isDir.boolValue && !recursive {
+            let entry = try describe(url)
+            if entry["isDirectory"] as? Bool == true && !recursive {
                 let children = try FileManager.default.contentsOfDirectory(atPath: url.path)
                 if !children.isEmpty {
                     throw NSError(domain: "VaultFolder", code: 5, userInfo: [NSLocalizedDescriptionKey: "directory not empty: \(path)"])

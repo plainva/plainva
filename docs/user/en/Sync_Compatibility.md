@@ -4,6 +4,8 @@ Last reviewed: 2026-09-09
 
 If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete inventory, Plainva reports a sync error. It does not treat that response as an empty folder or calendar inventory or infer deletions from it. This applies on desktop and mobile.
 
+If a local file cannot be uploaded because of a permission or read error, its task and error stay in the queue. Restore file access and retry sync. Only a genuinely missing file counts as absent; an access failure is not recorded as a successful upload.
+
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 
 ## Directly integrated

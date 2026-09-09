@@ -43,6 +43,8 @@ export interface VaultFolderNative {
   release(opts: { handle: string }): Promise<void>;
   /** ONE listing query per folder (SAF: DocumentsContract with a projection). */
   list(opts: { handle: string; path: string }): Promise<{ entries: VaultFolderEntry[] }>;
+  /** Only a confirmed absence returns null (or rejects with code ENOENT).
+   * Permission, provider and I/O failures reject and must stay failures. */
   stat(opts: { handle: string; path: string }): Promise<{ entry: VaultFolderEntry | null }>;
   read(opts: { handle: string; path: string }): Promise<{ dataBase64: string }>;
   write(opts: { handle: string; path: string; dataBase64: string }): Promise<void>;

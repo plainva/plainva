@@ -4,6 +4,8 @@ Stan na: 2026-09-09
 
 Jeśli usługa WebDAV, CalDAV lub S3 zwróci stronę logowania albo niepełną listę zasobów, Plainva zgłosi błąd synchronizacji. Nie potraktuje takiej odpowiedzi jako pustego folderu lub pustej listy kalendarzy i nie wywnioskuje z niej usunięć. Dotyczy to wersji komputerowej i mobilnej.
 
+Jeśli nie można przesłać lokalnego pliku z powodu błędu uprawnień lub odczytu, zadanie i błąd pozostają w kolejce. Przywróć dostęp do pliku i ponów synchronizację. Tylko rzeczywiście brakujący plik jest uznawany za nieobecny; błąd dostępu nie jest zapisywany jako udane przesłanie.
+
 Plainva synchronizuje vaulty przez wymienne adaptery synchronizacji. Ta strona pokazuje, które usługi możesz już dziś wykorzystać — bezpośrednio zintegrowane, przez protokół WebDAV lub przez własnego klienta desktopowego danego dostawcy.
 
 ## Bezpośrednio zintegrowane

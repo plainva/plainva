@@ -4,6 +4,8 @@ Stand: 2026-09-09
 
 Antwortet ein WebDAV-, CalDAV- oder S3-Dienst mit einer Anmeldeseite oder einer unvollständigen Bestandsliste, meldet Plainva einen Abgleichfehler. Diese Antwort gilt nicht als leerer Ordner oder Kalenderbestand und löst keine daraus abgeleiteten Löschungen aus. Das gilt auf Desktop und Mobil.
 
+Kann eine lokale Datei wegen fehlender Rechte oder eines Lesefehlers nicht hochgeladen werden, bleibt der Auftrag mit seinem Fehler in der Warteschlange. Stelle den Dateizugriff wieder her und starte den Abgleich erneut. Nur eine tatsächlich fehlende Datei gilt als nicht mehr vorhanden; ein Zugriffsfehler wird nicht als erfolgreicher Upload verbucht.
+
 Plainva synchronisiert Vaults über austauschbare Sync-Adapter. Diese Seite zeigt, welche Dienste Du heute schon nutzen kannst — direkt integriert, über das WebDAV-Protokoll oder über den Desktop-Sync-Client des jeweiligen Anbieters.
 
 ## Direkt integriert

@@ -1,5 +1,6 @@
 import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
+import { isMissingFile } from "./fileErrors";
 
 /**
  * IVaultAdapter over a folder the user picked on the device (external vault
@@ -95,8 +96,9 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     try {
       const res = await this.plugin.read({ handle: this.handle, path: rel });
       return b64ToUtf8(res.dataBase64);
-    } catch {
-      throw new VaultFileNotFoundError(path);
+    } catch (error) {
+      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+      throw error;
     }
   }
 
@@ -105,8 +107,9 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     try {
       const res = await this.plugin.read({ handle: this.handle, path: rel });
       return b64ToBytes(res.dataBase64);
-    } catch {
-      throw new VaultFileNotFoundError(path);
+    } catch (error) {
+      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+      throw error;
     }
   }
 
@@ -157,8 +160,9 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     try {
       const res = await this.plugin.stat({ handle: this.handle, path: rel });
       return res.entry ? toInfo(rel, res.entry) : null;
-    } catch {
-      return null;
+    } catch (error) {
+      if (isMissingFile(error)) return null;
+      throw error;
     }
   }
 

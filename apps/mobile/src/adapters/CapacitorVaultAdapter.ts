@@ -6,6 +6,7 @@ import {
   type VaultFileInfo,
 } from "@plainva/core";
 import { atomicWriteBase64, atomicWriteText } from "../platform/atomicFile";
+import { isExistingDirectory, isMissingFile } from "./fileErrors";
 
 /**
  * IVaultAdapter over the Capacitor filesystem (M2, sync-first model): the
@@ -50,8 +51,8 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async initialize(): Promise<void> {
     try {
       await Filesystem.mkdir({ path: this.root, directory: Directory.Data, recursive: true });
-    } catch {
-      /* already exists */
+    } catch (error) {
+      if (!isExistingDirectory(error)) throw error;
     }
   }
 
@@ -65,8 +66,9 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
         encoding: Encoding.UTF8,
       });
       return res.data as string;
-    } catch {
-      throw new VaultFileNotFoundError(path);
+    } catch (error) {
+      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+      throw error;
     }
   }
 
@@ -75,8 +77,9 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
       const res = await Filesystem.readFile({ path: this.full(path), directory: Directory.Data });
       if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
       return b64ToBytes(res.data as string);
-    } catch {
-      throw new VaultFileNotFoundError(path);
+    } catch (error) {
+      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+      throw error;
     }
   }
 
@@ -136,8 +139,8 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async createDir(path: string): Promise<void> {
     try {
       await Filesystem.mkdir({ path: this.full(path), directory: Directory.Data, recursive: true });
-    } catch {
-      /* already exists */
+    } catch (error) {
+      if (!isExistingDirectory(error)) throw error;
     }
   }
 
@@ -153,8 +156,9 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
         mtime: st.mtime,
         ctime: st.ctime ?? undefined,
       };
-    } catch {
-      return null;
+    } catch (error) {
+      if (isMissingFile(error)) return null;
+      throw error;
     }
   }
 

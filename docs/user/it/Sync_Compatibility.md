@@ -4,6 +4,8 @@ Ultimo aggiornamento: 2026-09-09
 
 Se un servizio WebDAV, CalDAV o S3 restituisce una pagina di accesso o un inventario incompleto, Plainva segnala un errore di sincronizzazione. La risposta non viene interpretata come una cartella o un elenco di calendari vuoto e non determina eliminazioni dedotte dal suo contenuto. Questo vale sia su desktop sia su mobile.
 
+Se un file locale non può essere caricato per un errore di autorizzazione o lettura, il tentativo e il relativo errore restano in coda. Ripristina l’accesso al file e riprova la sincronizzazione. Solo un file realmente mancante viene considerato assente; un errore di accesso non viene registrato come caricamento riuscito.
+
 Plainva sincronizza i vault tramite adattatori di sincronizzazione intercambiabili. Questa pagina mostra quali servizi puoi usare oggi — direttamente integrati, tramite il protocollo WebDAV, o tramite il client di sincronizzazione desktop del provider stesso.
 
 ## Integrati direttamente

@@ -4,6 +4,8 @@ Dernière mise à jour : 2026-09-09
 
 Si un service WebDAV, CalDAV ou S3 renvoie une page de connexion ou un inventaire incomplet, Plainva signale une erreur de synchronisation. Cette réponse n’est pas interprétée comme un dossier ou une liste de calendriers vide et n’entraîne aucune suppression déduite de son contenu. Cela s’applique sur ordinateur comme sur mobile.
 
+Si un fichier local ne peut pas être envoyé à cause des permissions ou d’une erreur de lecture, la tâche et son erreur restent dans la file. Rétablissez l’accès au fichier et relancez la synchronisation. Seul un fichier réellement manquant est considéré comme absent ; un échec d’accès ne compte pas comme un envoi réussi.
+
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 
 ## Directement intégrés

@@ -4,6 +4,8 @@ Laatst bijgewerkt: 2026-09-09
 
 Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inventaris terugstuurt, meldt Plainva een synchronisatiefout. Die reactie wordt niet als een lege map of kalenderlijst behandeld en leidt niet tot daaruit afgeleide verwijderingen. Dit geldt op desktop en mobiel.
 
+Als een lokaal bestand door een toegangs- of leesfout niet kan worden geüpload, blijven de opdracht en de fout in de wachtrij staan. Herstel de bestandstoegang en probeer opnieuw te synchroniseren. Alleen een bestand dat echt ontbreekt, geldt als afwezig; een toegangsfout wordt niet als geslaagde upload geregistreerd.
+
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 
 ## Rechtstreeks geïntegreerd
