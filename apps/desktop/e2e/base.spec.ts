@@ -868,8 +868,9 @@ test('Base wizard: new database via source step, live match count, created file 
   // Trigger "new database" via the same window event the sidebar menu uses,
   // then name it in the inline (autofocused) input.
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })));
-  await page.keyboard.type('Neu');
-  await page.keyboard.press('Enter');
+  const nameField = page.getByPlaceholder(/Base-Name|Base name/);
+  await nameField.fill('Neu');
+  await nameField.press('Enter');
 
   // The wizard opens; no file exists yet.
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
@@ -1251,8 +1252,9 @@ test('Wizard: a brand-new EMPTY folder is pickable via the browsable picker; tag
   await page.goto('/');
   await expect(page.locator('aside').getByText('Cockpit', { exact: true })).toBeVisible({ timeout: 10000 });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-new-item', { detail: { kind: 'base' } })));
-  await page.keyboard.type('Zwei');
-  await page.keyboard.press('Enter');
+  const nameField = page.getByPlaceholder(/Base-Name|Base name/);
+  await nameField.fill('Zwei');
+  await nameField.press('Enter');
   await expect(page.getByText(/Neue Datenbank|New database/).first()).toBeVisible();
 
   const wizard = page.getByTestId('base-create-wizard');
