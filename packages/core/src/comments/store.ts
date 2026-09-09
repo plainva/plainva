@@ -25,7 +25,7 @@ import type { WorkspaceCommentRecord } from "../workspace/state.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";
 import { commentWriteIdentity, type CommentWriteIdentity } from "./commentIdentity.js";
 import { appendLocalComment, appendLocalMoves, readAllComments, type CommentBundleFault, type CommentsCrypto } from "./CommentsSyncStep.js";
-import { commentPathsToCheck, localCommentAuthorNames, localCommentsByPath, localCommentsForPath, type CommentsBundle, type LocalCommentRecord, type LocalMoveRecord } from "./commentsBundle.js";
+import { commentPathsToCheck, localCommentAuthorNames, localCommentsByPath, localCommentsForPath, resolveCommentPath, sortedCommentMoves, type CommentsBundle, type LocalCommentRecord, type LocalMoveRecord } from "./commentsBundle.js";
 
 /**
  * How a store can hold comments right now.
@@ -110,6 +110,12 @@ export interface CommentStore {
   authors(): Promise<Map<string, string>>;
   /** Who this device is as an author - the member id in a workspace, the device id otherwise. */
   selfId(): Promise<string | null>;
+  /** Storage kind and actual writing device, including workspace membership. */
+  writerKey(): Promise<string>;
+  /** Stable workspace target, absent for a bundle whose identity is its path. */
+  captureTarget(path: string): Promise<string | undefined>;
+  /** Current location of a captured operation, following its original identity. */
+  resolvePath(path: string, createdAt: string, targetObjectId?: string): Promise<string>;
   post(input: CommentPostInput): Promise<void>;
   /** A queued remark that failed to publish: try again now. A store without an outbox has nothing to retry. */
   retry(outboxId: string): Promise<void>;
@@ -195,6 +201,29 @@ export class BundleCommentStore implements CommentStore {
   private readonly reported = new Set<string>();
 
   constructor(private readonly deps: BundleCommentStoreDeps) {}
+
+  async writerKey(): Promise<string> {
+    if ((await this.deps.mode()).kind === "locked") throw new CommentStoreLockedError();
+    return JSON.stringify(["bundle", await this.deps.deviceId()]);
+  }
+
+  async captureTarget(): Promise<undefined> { return undefined; }
+
+  async resolvePath(path: string, createdAt: string, targetObjectId?: string): Promise<string> {
+    if (targetObjectId !== undefined) throw new Error("A workspace operation cannot be written to a comment bundle");
+    if ((await this.deps.mode()).kind === "locked") throw new CommentStoreLockedError();
+    const moves = sortedCommentMoves(await this.bundle());
+    const missing = new Set<string>();
+    let resolved = resolveCommentPath(moves, path, createdAt);
+    for (let step = 0; step <= moves.length; step += 1) {
+      if (await this.deps.vault.exists(resolved)) return resolved;
+      missing.add(resolved);
+      const next = resolveCommentPath(moves, path, createdAt, missing);
+      if (next === resolved) return resolved;
+      resolved = next;
+    }
+    return resolved;
+  }
 
   /** Hands new faults to the shell; one that was already shown stays quiet. */
   private report(faults: CommentBundleFault[]): void {

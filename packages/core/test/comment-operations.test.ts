@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BundleCommentStore, createWorkspaceObjectId, commentsDevicePath, parseCommentsBundle } from "../src/index.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
+import { createCommentOperationService } from "../src/comments/commentOperationService.js";
 import {
   CommentOperationRunner, FileCommentOperationJournal, prepareCommentOperation, parseCommentOperation,
   type CommentOperation, type CommentOperationDeps, type CommentOperationFiles,
@@ -54,6 +55,58 @@ async function setup() {
 }
 
 describe("durable comment operation recovery with real files", () => {
+  it("the shared service follows a renamed target and never shows it on the reused old pathname", async () => {
+    const f = await setup();
+    await f.store().post({ path: "note.md", body: "Existing discussion" });
+    const service = createCommentOperationService({ ...f.deps,
+      resolvePath: (operation) => f.store().resolvePath(operation.notePath, operation.createdAt),
+    });
+    const op = await service.prepare({ notePath: "note.md", kind: "apply", text: f.proposal().text, markers: f.proposal().markers });
+    await f.journal.write(op);
+    await f.vault.renameItem("note.md", "renamed.md");
+    await f.store().recordMoves([{ from: "note.md", to: "renamed.md" }]);
+    await f.vault.writeTextFile("note.md", "A different new note.");
+    expect(await service.pending("note.md")).toEqual([]);
+    expect((await service.pending("renamed.md"))[0].operationId).toBe(op.operationId);
+    expect((await service.run(op)).phase).toBe("completed");
+    expect(await f.vault.readTextFile("note.md")).toBe("A different new note.");
+    expect(await f.vault.readTextFile("renamed.md")).toBe(op.text!.intended);
+    expect((await service.read(op.operationId))?.receipt?.confirmedText).toBe(op.text!.intended);
+    expect(await service.pending()).toEqual([]);
+  });
+
+  it("the service captures its input before waiting for author setup and rejects a changed writer", async () => {
+    const f = await setup();
+    const op = f.proposal();
+    const input = { notePath: op.notePath, kind: op.kind, text: op.text, markers: op.markers };
+    let release!: () => void;
+    const wait = new Promise<void>((resolve) => { release = resolve; });
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async (operation) => operation.notePath,
+      prepareMarkers: async (captured) => { await wait; return captured.markers; },
+    });
+    const preparing = service.prepare(input);
+    input.markers[0].body = "Changed outside the operation";
+    release();
+    expect((await preparing).markers[0].body).toBe("");
+    const changed = createCommentOperationService({ ...f.deps, resolvePath: async (operation) => operation.notePath,
+      prepareMarkers: async (captured) => { f.deps.authorKey = async () => "another"; return captured.markers; },
+      authorKey: () => f.deps.authorKey(),
+    });
+    await expect(changed.prepare(input)).rejects.toThrow("writer changed");
+    expect(await f.journal.list()).toEqual([]);
+  });
+
+  it("keeps the prepared journal when a target moves while its physical write lane is acquired", async () => {
+    const f = await setup(); let location = "note.md";
+    const service = createCommentOperationService({ ...f.deps, resolvePath: async () => location,
+      withNoteLock: async (_path, work) => { location = "renamed.md"; await work(); },
+    });
+    const op = f.proposal();
+    await expect(service.run(op)).rejects.toMatchObject({ reason: "storage", phase: "prepared" });
+    expect((await service.read(op.operationId))?.phase).toBe("prepared");
+    expect(f.counts()).toEqual({ noteWrites: 0, posts: 0 });
+  });
+
   it("completes a round only after confirmed text and both markers, including concurrent retries", async () => {
     const f = await setup(); const op = f.proposal();
     const phases: string[] = []; f.deps.changed = (state) => { phases.push(state.phase); };

@@ -315,8 +315,9 @@ describe("the name a remark is signed with, on the phone (finding 2026-09-09)", 
 
   it("is asked for once, in the post funnel, for remarks and proposals only", () => {
     const post = service.slice(service.indexOf("export async function postMobileComment"));
-    expect(post).toMatch(/if \(!input\.resolvedCommentId && !input\.retractsCommentId && \(input\.body\.trim\(\) \|\| input\.suggestion\)\) await ensureAuthorName\(vault\)/);
-    const ask = service.slice(service.indexOf("async function ensureAuthorName"), service.indexOf("export function mobileCommentStore"));
+    expect(post).toMatch(/const captured = structuredClone\(input\)/);
+    expect(post).toMatch(/if \(!captured\.resolvedCommentId && !captured\.retractsCommentId && \(captured\.body\.trim\(\) \|\| captured\.suggestion\)\) await ensureMobileCommentAuthorName\(vault\)/);
+    const ask = service.slice(service.indexOf("async function ensureMobileCommentAuthorName"), service.indexOf("export function mobileCommentStore"));
     expect(ask).toMatch(/nameAsked\.add\(vault\.vaultId\)/);
     expect(ask).toMatch(/updateMobileSettings\(\{ verifierName: res\.value\.trim\(\) \}\)/);
   });

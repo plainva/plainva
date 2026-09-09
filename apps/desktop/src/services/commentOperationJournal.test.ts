@@ -1,8 +1,11 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, readFile, readdir, writeFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { prepareCommentOperation } from "@plainva/core";
+import { BundleCommentStore, createWorkspaceObjectId, prepareCommentOperation } from "@plainva/core";
+import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
+import { desktopCommentOperations } from "./commentOperations";
 
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), mkdir: vi.fn(), directory: "", owner: true }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => bridge.invoke(...args) }));
@@ -40,6 +43,29 @@ afterEach(async () => { await rm(root, { recursive: true, force: true }); vi.cle
 const operation = () => prepareCommentOperation({ contextKey: "vault-a", authorKey: "writer", notePath: "note.md", kind: "post", markers: [{ path: "note.md", body: "Review this." }] });
 
 describe("desktop native comment journal", () => {
+  it("the actual service retains text shape and completes a failed marker without restoring an older note", async () => {
+    const vaultPath = join(root, "vault"); const raw = new LocalVaultAdapter(vaultPath); await raw.initialize();
+    await raw.writeTextFile("note.md", "\uFEFFOld sentence.\r\n");
+    const store = new BundleCommentStore({ vault: raw, vaultKey: vaultPath, deviceId: async () => "desktop", mode: async () => ({ kind: "plain" as const }) });
+    const deps = { vaultPath, adapter: raw, store, assertCurrent: () => {}, ensureAuthorName: async () => {}, noteWritten: async () => {} };
+    const service = desktopCommentOperations(deps);
+    const op = await service.prepare({ notePath: "note.md", kind: "apply", text: { before: "Old sentence.\n", intended: "New sentence.\n" },
+      markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "applied" }] });
+    const write = raw.writeTextFile.bind(raw);
+    const blocked = vi.spyOn(raw, "writeTextFile").mockImplementation(async (path, text) => {
+      if (path.startsWith(".plainva/sync/comments.")) throw new Error("comment write denied");
+      await write(path, text);
+    });
+    await expect(service.run(op)).rejects.toMatchObject({ phase: "markers-pending" });
+    expect(await raw.readTextFile("note.md")).toBe("\uFEFFNew sentence.\r\n");
+    expect((await service.read(op.operationId))?.receipt?.confirmedText).toBe("New sentence.\n");
+    blocked.mockRestore(); await raw.writeTextFile("note.md", "\uFEFFLater independent text.\r\n");
+    const resumed = desktopCommentOperations(deps);
+    expect((await resumed.run(op)).phase).toBe("completed");
+    expect(await raw.readTextFile("note.md")).toBe("\uFEFFLater independent text.\r\n");
+    expect(await resumed.pending()).toEqual([]);
+  });
+
   it("retains pending operations across fresh instances and isolates vaults", async () => {
     const op = operation();
     await desktopCommentOperationJournal("vault-a").write(op);

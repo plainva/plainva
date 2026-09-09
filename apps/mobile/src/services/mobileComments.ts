@@ -19,11 +19,10 @@ import {
   createWorkspaceObjectId,
   effectiveWorkspaceCapabilities,
   workspaceSliceIdsForObject,
-  type CommentAuthor,
+  type CommentPostInput,
   type CommentStore,
   type CommentStoreState,
   type WorkspaceCapability,
-  type WorkspaceCommentAnchor,
   type WorkspaceCommentRecord,
 } from "@plainva/core";
 import { Capacitor } from "@capacitor/core";
@@ -85,7 +84,7 @@ const nameAsked = new Set<string>();
  * asked again this session, and the phone then signs with its own label.
  * "Mark as reviewed" fills the same field the same way.
  */
-async function ensureAuthorName(vault: MobileVault): Promise<void> {
+export async function ensureMobileCommentAuthorName(vault: MobileVault): Promise<void> {
   if (nameAsked.has(vault.vaultId)) return;
   if (getMobileSettings().verifierName.trim()) return;
   nameAsked.add(vault.vaultId);
@@ -155,22 +154,11 @@ export function mobileCommentSelfId(): Promise<string> {
   return mobileSyncDeviceId();
 }
 
-export interface PostMobileCommentInput {
-  path: string;
-  body: string;
-  parentCommentId?: string | null;
-  resolvedCommentId?: string | null;
-  anchor?: WorkspaceCommentAnchor | null;
-  suggestion?: { replacement: string } | null;
-  suggestionOutcome?: "applied" | "declined" | null;
-  /** A retraction marker (K7): deletes the record it names, if this device wrote that record. */
-  retractsCommentId?: string | null;
-  /** The proposal round (V5), on proposals only. */
+export interface PostMobileCommentInput extends CommentPostInput {
+  /** Compatibility fields for existing suggestion-round callers. */
   suggestionBatchId?: string | null;
   batchIndex?: number | null;
   batchNote?: string | null;
-  /** A named author acting through this device (the KI harness, v4). */
-  author?: CommentAuthor | null;
 }
 
 /**
@@ -180,17 +168,11 @@ export interface PostMobileCommentInput {
  * must appear now, and the union merge makes an early local write safe.
  */
 export async function postMobileComment(vault: MobileVault, input: PostMobileCommentInput): Promise<void> {
-  if (!input.resolvedCommentId && !input.retractsCommentId && (input.body.trim() || input.suggestion)) await ensureAuthorName(vault);
-  await mobileCommentStore(vault).post({
-    path: input.path,
-    body: input.body,
-    parentCommentId: input.parentCommentId,
-    resolvedCommentId: input.resolvedCommentId,
-    anchor: input.anchor,
-    suggestion: input.suggestion,
-    suggestionOutcome: input.suggestionOutcome,
-    retractsCommentId: input.retractsCommentId,
-    batch: input.suggestionBatchId ? { batchId: input.suggestionBatchId, index: input.batchIndex ?? 0, note: input.batchNote ?? null } : null,
-    author: input.author,
+  const captured = structuredClone(input);
+  const store = mobileCommentStore(vault);
+  if (!captured.resolvedCommentId && !captured.retractsCommentId && (captured.body.trim() || captured.suggestion)) await ensureMobileCommentAuthorName(vault);
+  await store.post({
+    ...captured,
+    batch: captured.batch ?? (captured.suggestionBatchId ? { batchId: captured.suggestionBatchId, index: captured.batchIndex ?? 0, note: captured.batchNote ?? null } : null),
   });
 }

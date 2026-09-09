@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
@@ -20,8 +20,10 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createLocalCommentStore } from "../services/localComments";
 import { WorkspaceCommentStore } from "../services/workspaceCommentStore";
+import { desktopCommentOperations } from "../services/commentOperations";
+import { clientCommentOperations } from "../services/clientCommentOperations";
 import { installCommentFaultReporter } from "../services/commentFaults";
-import type { CommentPathMove, CommentStore, CommentStoreState } from "@plainva/core";
+import type { CommentOperationInput, CommentOperationService, CommentPostInput, CommentPathMove, CommentStore, CommentStoreState } from "@plainva/core";
 import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
@@ -318,6 +320,8 @@ interface VaultContextType extends VaultState {
    * then nothing counts as addressed to you.
    */
   getCommentSelfId: () => Promise<string | null>;
+  commentOperations: CommentOperationService | null;
+  postWorkspaceCommentInput: (input: CommentPostInput) => Promise<void>;
   postWorkspaceComment: (path: string, body: string, parentCommentId?: string | null, anchor?: WorkspaceCommentAnchor | null, suggestion?: { replacement: string } | null, batch?: { batchId: string; index: number; note: string | null } | null) => Promise<void>;
   resolveWorkspaceComment: (path: string, commentId: string, suggestionOutcome?: "applied" | "declined" | null) => Promise<void>;
   /** Deletes a remark by appending a retraction marker (K7): its author, or a member who governs the workspace. */
@@ -334,20 +338,24 @@ export const VaultContext = createContext<VaultContextType | undefined>(undefine
  * level on purpose - nothing here depends on this window's state, and a
  * memoised object would only add a dependency the context value has to track.
  */
-const CLIENT_COMMENTS: Pick<VaultContextType, "getWorkspaceCapabilities" | "listWorkspaceComments" | "listPublicationComments" | "listWorkspaceMembers" | "getCommentSelfId" | "postWorkspaceComment" | "resolveWorkspaceComment" | "retractWorkspaceComment" | "retryWorkspaceComment" | "discardWorkspaceComment" | "getCommentStoreState"> = {
-  getWorkspaceCapabilities: (path) => getWindowBus().then((bus) => bus.request("comment-capabilities", { path })),
-  listWorkspaceComments: (path) => getWindowBus().then((bus) => bus.request("comment-list", { path })),
-  listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path })),
-  listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {})),
-  getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {})),
+function clientComments(vaultPath: string | null): Pick<VaultContextType, "postWorkspaceCommentInput" | "getWorkspaceCapabilities" | "listWorkspaceComments" | "listPublicationComments" | "listWorkspaceMembers" | "getCommentSelfId" | "postWorkspaceComment" | "resolveWorkspaceComment" | "retractWorkspaceComment" | "retryWorkspaceComment" | "discardWorkspaceComment" | "getCommentStoreState"> {
+  const scope = { vaultPath };
+  return {
+  getWorkspaceCapabilities: (path) => getWindowBus().then((bus) => bus.request("comment-capabilities", { path }, scope)),
+  listWorkspaceComments: (path) => getWindowBus().then((bus) => bus.request("comment-list", { path }, scope)),
+  listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path }, scope)),
+  listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {}, scope)),
+  getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {}, scope)),
+  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, scope)),
   postWorkspaceComment: (path, body, parentCommentId = null, anchor = null, suggestion = null, batch = null) =>
-    getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch })),
-  resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome })),
-  retractWorkspaceComment: (path, commentId) => getWindowBus().then((bus) => bus.request("comment-retract", { path, commentId })),
-  retryWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-retry", { outboxId })),
-  discardWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-discard", { outboxId })),
-  getCommentStoreState: () => getWindowBus().then((bus) => bus.request("comment-state", {})),
+    getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch }, scope)),
+  resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome }, scope)),
+  retractWorkspaceComment: (path, commentId) => getWindowBus().then((bus) => bus.request("comment-retract", { path, commentId }, scope)),
+  retryWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-retry", { outboxId }, scope)),
+  discardWorkspaceComment: (outboxId) => getWindowBus().then((bus) => bus.request("comment-discard", { outboxId }, scope)),
+  getCommentStoreState: () => getWindowBus().then((bus) => bus.request("comment-state", {}, scope)),
 };
+}
 
 /**
  * The revision history of a workspace note, from an auxiliary window (finding
@@ -647,6 +655,9 @@ export const VaultProvider: React.FC<{
   const syncProviderRef = useRef<SyncProviderId | null>(null);
   const workspaceStateRef = useRef<SqlWorkspaceStateStore | null>(null);
   const workspaceRuntimeRef = useRef<PersonalWorkspaceRuntime | null>(null);
+  const workspacePlaneVaultRef = useRef<string | null>(null);
+  const commentLifetimeRef = useRef({ vaultPath: state.vaultPath, adapter: state.vaultAdapter });
+  useLayoutEffect(() => { commentLifetimeRef.current = { vaultPath: state.vaultPath, adapter: state.vaultAdapter }; }, [state.vaultPath, state.vaultAdapter]);
   /** Client mode: the read/render services, kept for disposal on unmount. */
   const clientServicesRef = useRef<ClientVaultServices | null>(null);
   const isClient = mode === "client";
@@ -754,6 +765,7 @@ export const VaultProvider: React.FC<{
       // (finding 2026-08-25, B6). They used to arrive as the same null.
       const workspaceAccess = workspaceSecurityStatus ? await readWorkspaceRuntime(path) : null;
       const workspaceRuntime = workspaceAccess?.state === "unlocked" ? workspaceAccess.runtime : null;
+      workspacePlaneVaultRef.current = path;
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
       const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
@@ -1545,7 +1557,7 @@ export const VaultProvider: React.FC<{
     let cancelled = false;
     const commentOps = (): OwnerCommentDeps => {
       const ops = commentOpsRef.current;
-      if (!ops) throw new Error("vault not ready");
+      if (!ops || ops.vaultPath !== state.vaultPath) throw new Error("vault not ready");
       return ops;
     };
     void installOwnerBus({
@@ -1564,6 +1576,7 @@ export const VaultProvider: React.FC<{
       // owner holds the workspace runtime and the sideband bundle, so a client
       // asks here. Through the ref, for the same reason as the two above.
       comments: {
+        get operations() { return commentOps().operations; },
         capabilities: (path) => commentOps().capabilities(path),
         list: (path) => commentOps().list(path),
         listPublication: (path) => commentOps().listPublication(path),
@@ -1678,6 +1691,9 @@ export const VaultProvider: React.FC<{
         offs.push(
           await bus.onBroadcast("comments-changed", ({ path }) => {
             window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+          }),
+          await bus.onBroadcast("comment-operation-changed", (detail, _from, vaultPath) => {
+            window.dispatchEvent(new CustomEvent("plainva-comment-operation-changed", { detail: { ...detail, vaultPath } }));
           }),
         );
         offs.push(
@@ -2076,6 +2092,7 @@ export const VaultProvider: React.FC<{
     state.pimRuntime?.stop();
     syncTargetRef.current = null;
     syncProviderRef.current = null;
+    workspacePlaneVaultRef.current = null;
     workspaceStateRef.current = null;
     loadAbortRef.current?.abort();
     activeLoadPathRef.current = null;
@@ -2428,7 +2445,7 @@ export const VaultProvider: React.FC<{
     const workspaceState = workspaceStateRef.current;
     const target = syncTargetRef.current;
     const provider = syncProviderRef.current;
-    if (!state.vaultPath || !runtime || !workspaceState || !target || !provider) throw new Error("workspace-unavailable-or-locked");
+    if (!state.vaultPath || workspacePlaneVaultRef.current !== state.vaultPath || !runtime || !workspaceState || !target || !provider) throw new Error("workspace-unavailable-or-locked");
     return { runtime, workspaceState, store: createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
   };
 
@@ -2919,8 +2936,13 @@ export const VaultProvider: React.FC<{
     const vaultPath = state.vaultPath;
     if (!vaultPath) return null;
     if (state.workspaceSecurityStatus) {
+      const workspaceId = state.workspaceSecurityStatus.workspaceId;
       return new WorkspaceCommentStore({
-        plane: () => { const { runtime, workspaceState } = workspaceControlPlane(); return { runtime, workspaceState }; },
+        plane: () => {
+          const { runtime, workspaceState } = workspaceControlPlane();
+          if (runtime.workspaceId !== workspaceId) throw new Error("workspace-comment-runtime-changed");
+          return { runtime, workspaceState };
+        },
         worker: () => syncWorkerRef.current as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
         changed: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
       });
@@ -3144,11 +3166,41 @@ export const VaultProvider: React.FC<{
     await settings.save();
   };
 
-  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null, batch: { batchId: string; index: number; note: string | null } | null = null): Promise<void> => {
+  const ensureOperationAuthor = useStableHandler(async (store: CommentStore, vaultPath: string, input: CommentOperationInput) => {
+    if (input.markers.some((marker) => !marker.resolvedCommentId && !marker.retractsCommentId && (marker.body.trim() || marker.suggestion)))
+      await ensureCommentAuthorName(store, vaultPath);
+  });
+  const refreshOperationIndex = useStableHandler((path: string) => triggerFileTreeUpdate([path]));
+  const commentOperations = useMemo((): CommentOperationService | null => {
+    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer;
+    if (!vaultPath) return null;
+    if (isClient) return clientCommentOperations(vaultPath);
+    if (!adapter || !commentStoreMemo) return null;
+    const store = commentStoreMemo;
+    return desktopCommentOperations({ vaultPath, adapter, store,
+      assertCurrent: () => {
+        const current = commentLifetimeRef.current;
+        if (current.vaultPath !== vaultPath || current.adapter !== adapter) throw new Error("The comment vault changed");
+      },
+      ensureAuthorName: (input) => ensureOperationAuthor(store, vaultPath, input),
+      noteWritten: async (path) => {
+        if (indexer && await indexer.indexFile(await adapter.getFileInfo(path))) refreshOperationIndex(path);
+      },
+    });
+  }, [state.vaultPath, state.vaultAdapter, state.indexer, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
+  const clientCommentApi = useMemo(() => clientComments(state.vaultPath), [state.vaultPath]);
+
+  const postWorkspaceCommentInput = async (input: CommentPostInput): Promise<void> => {
+    const captured = structuredClone(input);
     const store = commentStore();
     if (!store) throw new Error("comments-unavailable");
-    if (state.vaultPath && !resolvedCommentId && !retractsCommentId && (body.trim() || suggestion)) await ensureCommentAuthorName(store, state.vaultPath);
-    await store.post({ path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, batch });
+    if (state.vaultPath && !captured.resolvedCommentId && !captured.retractsCommentId && (captured.body.trim() || captured.suggestion))
+      await ensureCommentAuthorName(store, state.vaultPath);
+    await store.post(captured);
+  };
+
+  const postWorkspaceCommentRecord = async (path: string, body: string, parentCommentId: string | null = null, resolvedCommentId: string | null = null, anchor: WorkspaceCommentAnchor | null = null, suggestion: { replacement: string } | null = null, suggestionOutcome: "applied" | "declined" | null = null, retractsCommentId: string | null = null, batch: { batchId: string; index: number; note: string | null } | null = null): Promise<void> => {
+    await postWorkspaceCommentInput({ path, body, parentCommentId, resolvedCommentId, anchor, suggestion, suggestionOutcome, retractsCommentId, batch });
   };
 
   const retryWorkspaceComment = async (outboxId: string): Promise<void> => commentStore()?.retry(outboxId);
@@ -3251,12 +3303,14 @@ export const VaultProvider: React.FC<{
   // owner's own editor calls, so both windows take one path per remark.
   useEffect(() => {
     commentOpsRef.current = {
+      vaultPath: state.vaultPath,
+      operations: commentOperations,
       capabilities: getWorkspaceCapabilities,
       list: listWorkspaceComments,
       listPublication: listPublicationComments,
       members: listWorkspaceMembers,
       selfId: getCommentSelfId,
-      post: ({ path, body, parentCommentId, anchor, suggestion, batch }) => postWorkspaceComment(path, body, parentCommentId, anchor, suggestion, batch),
+      post: postWorkspaceCommentInput,
       resolve: ({ path, commentId, suggestionOutcome }) => resolveWorkspaceComment(path, commentId, suggestionOutcome),
       retract: ({ path, commentId }) => retractWorkspaceComment(path, commentId),
       retry: retryWorkspaceComment,
@@ -3307,9 +3361,9 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...CLIENT_COMMENTS, ...CLIENT_WORKSPACE_HISTORY } : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, commentOperations, postWorkspaceCommentInput, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...clientCommentApi, ...CLIENT_WORKSPACE_HISTORY } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, isClient, clientLifecycle, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
+    [state, isClient, clientLifecycle, clientCommentApi, commentOperations, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );
 
   return (

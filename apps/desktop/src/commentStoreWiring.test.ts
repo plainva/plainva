@@ -153,8 +153,9 @@ describe("the comment texts live in their own namespace (N4)", () => {
 describe("the name a remark is signed with (finding 2026-09-09)", () => {
   it("is asked for once, in the post funnel, for remarks and proposals only", () => {
     const context = strip(read("contexts", "VaultContext.tsx"));
-    const funnel = context.slice(context.indexOf("const postWorkspaceCommentRecord = async"), context.indexOf("const retryWorkspaceComment"));
-    expect(funnel).toMatch(/if \(state\.vaultPath && !resolvedCommentId && !retractsCommentId && \(body\.trim\(\) \|\| suggestion\)\) await ensureCommentAuthorName\(store, state\.vaultPath\)/);
+    const funnel = context.slice(context.indexOf("const postWorkspaceCommentInput = async"), context.indexOf("const retryWorkspaceComment"));
+    expect(funnel).toMatch(/const captured = structuredClone\(input\)/);
+    expect(funnel).toMatch(/if \(state\.vaultPath && !captured\.resolvedCommentId && !captured\.retractsCommentId && \(captured\.body\.trim\(\) \|\| captured\.suggestion\)\)\s+await ensureCommentAuthorName\(store, state\.vaultPath\)/);
     const ask = context.slice(context.indexOf("const ensureCommentAuthorName = async"), context.indexOf("const postWorkspaceCommentRecord"));
     // Never in a workspace (the member signs), never twice a session, and the
     // answer lands in the one field the app has.

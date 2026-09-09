@@ -77,7 +77,7 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
   // would race the owner on the very first open of a new vault.
   const queryService = new VaultQueryService(dbAdapter);
   const graphService = new GraphService(dbAdapter);
-  const vaultAdapter = new RemoteVaultAdapter(readAdapter, bus);
+  const vaultAdapter = new RemoteVaultAdapter(readAdapter, bus, vaultPath);
 
   return {
     vaultPath,

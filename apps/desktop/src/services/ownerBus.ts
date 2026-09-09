@@ -1,4 +1,4 @@
-import { PimConflictError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
+import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
@@ -22,6 +22,7 @@ import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
+import { withPendingWrite } from "./pendingWrites";
 
 /**
  * The owner half of the window bus (multi-window P0).
@@ -46,6 +47,8 @@ import type { PimRuntime } from "./pim/pimRuntime";
  * VaultContext so a re-installed bus never holds yesterday's closures.
  */
 export interface OwnerCommentDeps {
+  vaultPath?: string | null;
+  operations?: CommentOperationService | null;
   capabilities: (path: string) => Promise<RpcMap["comment-capabilities"]["result"]>;
   list: (path: string) => Promise<RpcMap["comment-list"]["result"]>;
   listPublication: (path: string) => Promise<RpcMap["comment-list-publication"]["result"]>;
@@ -154,6 +157,8 @@ function installEventBridges(vaultPath: string): () => void {
   ];
   const offs = bridges.map(([local, channel]) => {
     const handler = (e: Event) => {
+      const eventVault = (e as CustomEvent).detail?.vaultPath;
+      if (eventVault && eventVault !== vaultPath) return;
       const path = (e as CustomEvent).detail?.path;
       if (typeof path !== "string") return;
       void getWindowBus()
@@ -170,9 +175,18 @@ function installEventBridges(vaultPath: string): () => void {
       .catch(() => {});
   };
   window.addEventListener("plainva-workspace-security-changed", onSecurity);
+  const onOperation = (event: Event) => {
+    const detail = (event as CustomEvent).detail;
+    if (detail?.vaultPath !== vaultPath || !detail.operation?.operationId) return;
+    void getWindowBus().then((bus) => bus.broadcast("comment-operation-changed", {
+      path: detail.path ?? detail.operation.notePath, operationId: detail.operation.operationId,
+    }, vaultPath)).catch(() => {});
+  };
+  window.addEventListener("plainva-comment-operation-changed", onOperation);
   return () => {
     for (const off of offs) off();
     window.removeEventListener("plainva-workspace-security-changed", onSecurity);
+    window.removeEventListener("plainva-comment-operation-changed", onOperation);
   };
 }
 
@@ -250,15 +264,19 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
 
   offs.push(
     await bus.handle("write", async ({ path, content }) => {
-      await deps.vaultAdapter.writeTextFile(path, content);
-      await indexAfterWrite(path);
+      await withPendingWrite(deps.vaultPath, path, async () => {
+        await deps.vaultAdapter.writeTextFile(path, content);
+        await indexAfterWrite(path);
+      });
     }, { vaultPath: deps.vaultPath }),
   );
 
   offs.push(
     await bus.handle("write-binary", async ({ path, base64 }) => {
-      await deps.vaultAdapter.writeBinaryFile(path, base64ToBytes(base64));
-      await indexAfterWrite(path);
+      await withPendingWrite(deps.vaultPath, path, async () => {
+        await deps.vaultAdapter.writeBinaryFile(path, base64ToBytes(base64));
+        await indexAfterWrite(path);
+      });
     }, { vaultPath: deps.vaultPath }),
   );
 
@@ -303,6 +321,21 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
   offs.push(await bus.handle("comment-members", () => comments().members(), scoped));
   offs.push(await bus.handle("comment-self", () => comments().selfId(), scoped));
   offs.push(await bus.handle("comment-post", (args) => comments().post(args), scoped));
+  const operations = (): CommentOperationService => {
+    const service = comments().operations;
+    if (!service) throw new Error("Comment operations are unavailable");
+    return service;
+  };
+  offs.push(await bus.handle("comment-operation-prepare", (input) => operations().prepare(input), scoped));
+  offs.push(await bus.handle("comment-operation-pending", ({ path }) => operations().pending(path), scoped));
+  offs.push(await bus.handle("comment-operation-read", ({ operationId }) => operations().read(operationId), scoped));
+  offs.push(await bus.handle("comment-operation-run", async ({ operation }) => {
+    try { return { ok: true as const, operation: await operations().run(operation) }; }
+    catch (error) {
+      if (!(error instanceof CommentOperationError)) throw error;
+      return { ok: false as const, operationId: error.operationId, phase: error.phase, reason: error.reason };
+    }
+  }, scoped));
   offs.push(await bus.handle("comment-resolve", (args) => comments().resolve(args), scoped));
   offs.push(await bus.handle("comment-retract", (args) => comments().retract(args), scoped));
   offs.push(await bus.handle("comment-retry", ({ outboxId }) => comments().retry(outboxId), scoped));

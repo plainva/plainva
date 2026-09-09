@@ -23,6 +23,7 @@ export class RemoteVaultAdapter implements IVaultAdapter {
   constructor(
     private readonly reads: IVaultAdapter,
     private readonly bus: WindowBus,
+    private readonly vaultPath: string,
   ) {}
 
   async initialize(): Promise<void> {
@@ -64,25 +65,25 @@ export class RemoteVaultAdapter implements IVaultAdapter {
   // --- writes: delegated to the owner ------------------------------------
 
   async writeTextFile(path: string, content: string): Promise<void> {
-    await this.bus.request("write", { path, content });
+    await this.bus.request("write", { path, content }, { vaultPath: this.vaultPath });
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
     // Base64 for the same reason the atomic-write IPC uses it: a JSON number
     // array would be roughly four times the bytes on the wire.
-    await this.bus.request("write-binary", { path, base64: bytesToBase64(content) });
+    await this.bus.request("write-binary", { path, base64: bytesToBase64(content) }, { vaultPath: this.vaultPath });
   }
 
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
-    await this.bus.request("delete", { path, recursive, ...(confirmation ? { confirmation } : {}) });
+    await this.bus.request("delete", { path, recursive, ...(confirmation ? { confirmation } : {}) }, { vaultPath: this.vaultPath });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    await this.bus.request("rename", { from: oldPath, to: newPath });
+    await this.bus.request("rename", { from: oldPath, to: newPath }, { vaultPath: this.vaultPath });
   }
 
   async createDir(path: string): Promise<void> {
-    await this.bus.request("mkdir", { path });
+    await this.bus.request("mkdir", { path }, { vaultPath: this.vaultPath });
   }
 
   /**

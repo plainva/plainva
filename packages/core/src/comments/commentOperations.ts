@@ -75,6 +75,7 @@ export function parseCommentOperation(text: string): CommentOperation {
   commentWriteIdentity({ commentId: op.operationId, createdAt: op.createdAt });
   requireRecord(op.text === null || (typeof op.text?.before === "string" && typeof op.text.intended === "string"));
   requireRecord(Array.isArray(op.markers) && op.markers.length > 0 && Array.isArray(op.postedIds));
+  requireRecord(op.markers.every((marker) => (marker?.targetObjectId ?? null) === (op.markers[0]?.targetObjectId ?? null)));
   requireRecord(!op.markers.some((marker) => marker.suggestionOutcome === "applied") || op.text !== null);
   const ids = new Set<string>();
   for (const marker of op.markers) {

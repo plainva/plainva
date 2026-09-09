@@ -35,6 +35,23 @@ function createWire() {
 }
 
 describe("window bus", () => {
+  it("captures the vault before asynchronous listener setup and supports an explicit older vault", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    let visible = "/A";
+    const client = createWindowBus(wire.make("aux-1"), undefined, () => visible);
+    const written: string[] = [];
+    await owner.handle("write", async ({ path }) => { written.push(`A:${path}`); }, { vaultPath: "/A" });
+    await owner.handle("write", async ({ path }) => { written.push(`B:${path}`); }, { vaultPath: "/B" });
+    const first = client.request("write", { path: "first.md", content: "a" });
+    visible = "/B";
+    await first;
+    await client.request("write", { path: "second.md", content: "b" }, { vaultPath: "/A" });
+    await client.request("write", { path: "third.md", content: "c" });
+    expect(written).toEqual(["A:first.md", "A:second.md", "B:third.md"]);
+    await owner.dispose(); await client.dispose();
+  });
+
   it("carries a request to the owner and the result back", async () => {
     const wire = createWire();
     const owner = createWindowBus(wire.make(OWNER_LABEL));

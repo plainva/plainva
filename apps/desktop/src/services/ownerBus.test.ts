@@ -13,6 +13,7 @@ import { PimConflictError, type DeletionConfirmation, type IVaultAdapter } from 
  */
 
 import { RemoteVaultAdapter } from "../adapters/RemoteVaultAdapter";
+import { withPendingWrite } from "./pendingWrites";
 
 const focusedWindows: string[] = [];
 vi.mock("@tauri-apps/api/window", () => ({
@@ -336,6 +337,19 @@ beforeEach(() => {
 });
 
 describe("delegated mutations", () => {
+  it("waits for a comment operation holding the same physical note's write lane", async () => {
+    const { aux, calls, dispose } = await setup();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const operation = withPendingWrite("/vault", "Note.md", () => gate);
+    const writing = aux.request("write", { path: "Note.md", content: "later input" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).not.toContain("write:Note.md");
+    release(); await Promise.all([operation, writing]);
+    expect(calls.filter((call) => call === "write:Note.md")).toHaveLength(1);
+    dispose();
+  });
+
   it("writes through the owner's adapter and indexes the result", async () => {
     const { aux, calls, indexed, dispose } = await setup();
 
@@ -660,7 +674,7 @@ describe("sync control from a client window", () => {
 
   it("carries confirmation with the actual delete RPC through the client adapter", async () => {
     const { aux, calls, syncCalls, dispose } = await setup();
-    const adapter = new RemoteVaultAdapter(createAdapter([]), aux);
+    const adapter = new RemoteVaultAdapter(createAdapter([]), aux, "/vault");
     await adapter.deleteItem("Notes/old", true, { confirmed: true });
     expect(calls).toContain("confirmed:Notes/old");
     expect(calls).toContain("delete:Notes/old:recursive");

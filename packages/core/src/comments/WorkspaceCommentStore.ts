@@ -61,6 +61,25 @@ export function mergeCommentOutbox(stored: WorkspaceCommentRecord[], queued: Wor
 export class WorkspaceCommentStore implements CommentStore {
   constructor(private readonly deps: WorkspaceCommentStoreDeps) {}
 
+  async writerKey(): Promise<string> {
+    const { runtime } = this.deps.plane();
+    return JSON.stringify(["workspace", runtime.workspaceId, runtime.memberId, runtime.device.publicIdentity.deviceId]);
+  }
+
+  async captureTarget(path: string): Promise<string> {
+    const { workspaceState } = this.deps.plane();
+    const object = await workspaceState.getObjectByPath(path);
+    if (!object || object.deleted || !object.currentRevisionId) throw new Error("workspace-object-not-synced");
+    return object.objectId;
+  }
+
+  async resolvePath(path: string, _createdAt: string, targetObjectId?: string): Promise<string> {
+    const { workspaceState } = this.deps.plane();
+    const object = targetObjectId ? await workspaceState.getObjectById(targetObjectId) : await workspaceState.getObjectByPath(path);
+    if (!object || object.deleted || !object.currentRevisionId) throw new Error("workspace-object-not-synced");
+    return object.path;
+  }
+
   async state(): Promise<CommentStoreState> {
     return { mode: "workspace", hasOutbox: true };
   }

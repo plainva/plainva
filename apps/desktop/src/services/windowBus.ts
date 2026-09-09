@@ -24,12 +24,13 @@
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentAnchor, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
+import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
+import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
 /** Label of the window that owns the services. Tauri's own default label. */
 export const OWNER_LABEL = "main";
@@ -64,6 +65,7 @@ export interface BroadcastMap {
    * re-dispatches it, so the editor code stays identical in both windows.
    */
   "comments-changed": { path: string };
+  "comment-operation-changed": { path: string; operationId: string };
   /** The owner's workspace security status moved; a client asks for it again (V7). */
   "workspace-security-changed": Record<string, never>;
   /**
@@ -165,9 +167,14 @@ export interface RpcMap {
   "comment-members": { args: Record<string, never>; result: WorkspacePolicyMember[] };
   "comment-self": { args: Record<string, never>; result: string | null };
   "comment-post": {
-    args: { path: string; body: string; parentCommentId: string | null; anchor: WorkspaceCommentAnchor | null; suggestion: { replacement: string } | null; batch: { batchId: string; index: number; note: string | null } | null };
+    args: CommentPostInput;
     result: void;
   };
+  "comment-operation-prepare": { args: CommentOperationInput; result: CommentOperation };
+  "comment-operation-run": { args: { operation: CommentOperation }; result:
+    { ok: true; operation: CommentOperation } | { ok: false; operationId: string; phase: CommentOperationPhase; reason: "storage" | "context" | "needs-review" } };
+  "comment-operation-pending": { args: { path?: string }; result: CommentOperation[] };
+  "comment-operation-read": { args: { operationId: string }; result: CommentOperation | null };
   "comment-resolve": { args: { path: string; commentId: string; suggestionOutcome: "applied" | "declined" | null }; result: void };
   "comment-retract": { args: { path: string; commentId: string }; result: void };
   "comment-retry": { args: { outboxId: string }; result: void };
@@ -376,6 +383,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "file-changed": "vault",
   "note-saved": "vault",
   "comments-changed": "vault",
+  "comment-operation-changed": "vault",
   "workspace-security-changed": "vault",
   "sync-status": "vault",
   "pim-changed": "vault",
@@ -417,6 +425,10 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "comment-members": "vault",
   "comment-self": "vault",
   "comment-post": "vault",
+  "comment-operation-prepare": "vault",
+  "comment-operation-run": "vault",
+  "comment-operation-pending": "vault",
+  "comment-operation-read": "vault",
   "comment-resolve": "vault",
   "comment-retract": "vault",
   "comment-retry": "vault",
@@ -509,7 +521,7 @@ export interface WindowBus {
     handler: (payload: BroadcastMap[C], from: string, vaultPath: string | null) => void,
   ): Promise<() => void>;
   /** Aux side: ask the owner to do something and wait for the outcome. */
-  request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"]): Promise<RpcMap[K]["result"]>;
+  request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"], opts?: { vaultPath?: string | null }): Promise<RpcMap[K]["result"]>;
   /**
    * Owner side: answer one request kind. Throwing rejects the caller's promise.
    *
@@ -600,11 +612,12 @@ export function createWindowBus(
       return un;
     },
 
-    async request(kind, args) {
+    async request(kind, args, opts) {
+      const vaultPath = opts?.vaultPath === undefined ? vaultPathOf() : opts.vaultPath;
       await ensureReplyListener();
       rpcCounter += 1;
       const id = `${transport.label}-${rpcCounter}-${Math.random().toString(36).slice(2, 8)}`;
-      const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath: vaultPathOf(), args };
+      const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath, args };
       const result = new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           pending.delete(id);
