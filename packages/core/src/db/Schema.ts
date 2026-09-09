@@ -169,6 +169,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       suggestion_applied_at TEXT,
       suggestion_applied_by TEXT,
       suggestion_declined_at TEXT,
+      suggestion_outcome TEXT,
       created_at        TEXT NOT NULL,
       resolved_comment_id TEXT,
       resolved_at       TEXT,
@@ -388,6 +389,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     `ALTER TABLE workspace_comment ADD COLUMN suggestion_batch_id TEXT;`,
     `ALTER TABLE workspace_comment ADD COLUMN batch_index INTEGER;`,
     `ALTER TABLE workspace_comment ADD COLUMN batch_note TEXT;`,
+    // Keep a resolution's own outcome, including when its proposal arrives later.
+    `ALTER TABLE workspace_comment ADD COLUMN suggestion_outcome TEXT;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN suggestion_batch_id TEXT;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_index INTEGER;`,
     `ALTER TABLE workspace_comment_outbox ADD COLUMN batch_note TEXT;`,

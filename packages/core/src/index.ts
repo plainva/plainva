@@ -61,6 +61,8 @@ export * from "./settingsSync/SecretsSyncStep.js";
 export * from "./comments/commentsBundle.js";
 export * from "./comments/CommentsSyncStep.js";
 export * from "./comments/store.js";
+export * from "./comments/commentIdentity.js";
+export * from "./comments/WorkspaceCommentStore.js";
 export * from "./settingsSync/KeyfileSyncStep.js";
 export * from "./settingsSync/manifestGuard.js";
 export * from "./settingsSync/connectionId.js";

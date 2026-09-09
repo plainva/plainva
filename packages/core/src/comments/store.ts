@@ -11,8 +11,8 @@
  * read one broke the plain vault silently.
  *
  * So: ONE interface, chosen ONCE per vault. The open store lives here in the
- * core, because nothing in it is shell-specific; the sealed store stays a thin
- * adapter in the desktop shell around the runtime that already lives there.
+ * core, because nothing in it is shell-specific; the sealed store likewise
+ * receives its captured runtime and worker from the shell.
  * The KI harness (v4) writes its proposals through the same `post`, with an
  * explicit author - which is why `CommentPostInput.author` exists before
  * anything uses it.
@@ -22,6 +22,7 @@ import type { WorkspaceCapability } from "../workspace/documents.js";
 import type { WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
 import type { WorkspaceCommentRecord } from "../workspace/state.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";
+import { commentWriteIdentity, type CommentWriteIdentity } from "./commentIdentity.js";
 import { appendLocalComment, appendLocalMoves, readAllComments, type CommentBundleFault, type CommentsCrypto } from "./CommentsSyncStep.js";
 import { commentPathsToCheck, localCommentAuthorNames, localCommentsByPath, localCommentsForPath, type CommentsBundle, type LocalCommentRecord, type LocalMoveRecord } from "./commentsBundle.js";
 
@@ -55,6 +56,8 @@ export interface CommentAuthor {
 }
 
 export interface CommentPostInput {
+  /** Present for a durable operation; repeating it cannot append a second marker. */
+  identity?: CommentWriteIdentity;
   path: string;
   body: string;
   parentCommentId?: string | null;
@@ -262,9 +265,10 @@ export class BundleCommentStore implements CommentStore {
   async post(input: CommentPostInput): Promise<void> {
     const mode = await this.deps.mode();
     if (mode.kind === "locked") throw new CommentStoreLockedError();
-    const now = this.deps.now?.() ?? new Date().toISOString();
+    const identity = commentWriteIdentity(input.identity, this.deps.now?.());
+    const now = identity.createdAt;
     const record: LocalCommentRecord = {
-      commentId: createWorkspaceObjectId(),
+      commentId: identity.commentId,
       path: input.path,
       parentCommentId: input.parentCommentId ?? null,
       resolvedCommentId: input.resolvedCommentId ?? null,

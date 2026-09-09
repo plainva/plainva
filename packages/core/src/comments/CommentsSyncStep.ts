@@ -32,6 +32,7 @@
  * origin as a deletion - and reported with a reason code (N3).
  */
 import { withCommentsWrite, withCommentsSync } from "./commentsCoordinator.js";
+import { CommentIdentityConflictError, sameCommentContent } from "./commentIdentity.js";
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { COMMENTS_DEVICES_PATH, COMMENTS_ENC_PATH, COMMENTS_SYNC_DIR, COMMENTS_SYNC_PATH } from "../settingsSync/paths.js";
@@ -378,6 +379,11 @@ export async function appendLocalComment(
     const crypto = options.resolveCrypto ? await options.resolveCrypto() : options.crypto;
     const now = options.now ?? new Date().toISOString();
     const current = (await readOwnCommentsUnlocked(vault, options.deviceId, crypto, { faults: options.faults, now })) ?? emptyCommentsBundle(now);
+    const existing = current.comments[record.commentId];
+    if (existing) {
+      if (!sameCommentContent(existing, record)) throw new CommentIdentityConflictError(record.commentId);
+      return current;
+    }
     const authors = { ...current.authors };
     const name = options.authorName?.trim();
     if (name) authors[options.authorKey ?? record.authorDeviceId] = { name, updatedAt: now };
