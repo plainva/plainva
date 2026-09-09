@@ -61,3 +61,11 @@ Plainva registra en este dispositivo el progreso de cada operación de comentari
 Si la nota cambió antes de confirmar su texto, abre **Comparar texto**. Compara el cambio previsto con el texto actual y edita la nota si hace falta. El reintento vuelve a comprobarlo; un texto diferente nunca se sustituye por la versión anterior.
 
 Si los dispositivos comunican decisiones distintas, la tarjeta muestra **Decisiones contradictorias**. Usa **Revisar decisión** para comparar la propuesta con la nota actual. **Confirmar como aplicado** o **Confirmar como rechazado** confirma ese texto y sustituye únicamente las decisiones ya conocidas aquí. No vuelve a insertar la propuesta. Una decisión contraria antes desconocida que llegue después puede mostrar otro conflicto.
+
+## Comentarios anteriores en un espacio de trabajo
+
+Escritorio y móvil utilizan el mismo almacén de comentarios firmados en un espacio de trabajo cifrado. Los comentarios escritos sin conexión permanecen en la bandeja de salida. Si falla el envío, puedes reintentar el mismo comentario sin duplicar los que ya se hayan guardado.
+
+Los comentarios de los archivos anteriores se conservan y se importan con permisos de administración y de comentarios. **Del historial anterior** mantiene el nombre y la fecha originales. Estos datos no acreditan retroactivamente la pertenencia al espacio de trabajo; la nueva firma confirma la importación. Si faltan permisos, la nota de destino sincronizada o un guardado correcto, el comentario anterior sigue visible. Hasta que su destino quede asignado de forma duradera, no ofrece acciones de respuesta, eliminación ni sugerencias. La importación no vuelve a enviar las notificaciones del historial anterior.
+
+Si solo está bloqueado el historial anterior, la acción de desbloqueo abre el flujo de la frase de contraseña de sincronización; los nuevos comentarios del espacio de trabajo siguen disponibles. Si está bloqueado el propio espacio de trabajo, abre los ajustes de seguridad. Las operaciones de sugerencias iniciadas antes de la actualización conservan su progreso guardado y pueden continuar con los permisos actuales. La importación no elimina los archivos originales de comentarios.

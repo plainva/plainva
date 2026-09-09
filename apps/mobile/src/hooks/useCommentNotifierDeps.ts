@@ -54,7 +54,7 @@ export function useCommentNotifierDeps(
           return notes;
         },
         listNames: async () => await listMobileCommentAuthors(vault),
-        identity: async () => ({ memberId: await mobileCommentSelfId(), deviceId: null }),
+        identity: async () => ({ memberId: await mobileCommentSelfId(vault), deviceId: null }),
         openComment: ({ path, commentId }) => {
           requestCommentJump({ path, commentId });
           // Straight to the note, without the attachment/database routing the

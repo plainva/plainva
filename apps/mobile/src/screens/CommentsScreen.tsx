@@ -1,3 +1,5 @@
+import { commentCreatedAt } from "@plainva/core";
+import { CommentLegacyLock, CommentProvenance } from "@plainva/ui";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, Lock, MessageSquare, Replace } from "lucide-react";
@@ -58,6 +60,7 @@ export function CommentsScreen({
   // Locked on this phone (N3): the list is empty for a reason, and the reason
   // is what this screen has to say.
   const [locked, setLocked] = useState(false);
+  const [legacyLocked, setLegacyLocked] = useState(false);
   // "new" exists only while a gathered notification handed its ids in (C30).
   const [focus, setFocus] = useState<ReadonlySet<string> | null>(() => takeCommentOverviewFocus());
   const [filter, setFilter] = useState<"all" | "mine" | "new">(() => (focus ? "new" : "all"));
@@ -77,13 +80,14 @@ export function CommentsScreen({
     const [comments, authors, self, state] = await Promise.all([
       listAllMobileComments(vault),
       listMobileCommentAuthors(vault),
-      mobileCommentSelfId(),
+      mobileCommentSelfId(vault),
       mobileCommentStoreState(vault),
     ]);
     setByPath(comments);
     setNames(authors);
     setSelfId(self);
     setLocked(state.mode === "locked");
+    setLegacyLocked(state.legacyLocked === true);
   }, [vault]);
 
   // Pulling refreshes the vault the way every other list does, and then re-reads
@@ -137,9 +141,10 @@ export function CommentsScreen({
           { value: "mine", label: t("comments.commentOverviewMine") },
         ]}
       />
+      {legacyLocked && <CommentLegacyLock onUnlock={() => window.dispatchEvent(new CustomEvent("m-comments-unlock", { detail: { legacy: true } }))} />}
       {locked ? (
         <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("m-comments-unlock"))}>{t("comments.commentsUnlock")}</Button>}>
-          {t("comments.commentsLocked")}
+          {t(vault.workspaceState ? "comments.workspaceLocked" : "comments.commentsLocked")}
         </EmptyState>
       ) : notes.length === 0 ? (
         <EmptyState icon={<MessageSquare size={ICON.empty} />}>
@@ -179,8 +184,9 @@ export function CommentsScreen({
                   </span>
                 )}
                 <small className="pv-comment-card__meta">
-                  {nameOf(root)} · {new Date(root.createdAt).toLocaleDateString()}
+                  {nameOf(root)} · {new Date(commentCreatedAt(root)).toLocaleDateString()}
                 </small>
+                <CommentProvenance comment={root} />
                 <span className="pv-comment-card__body">
                   {parseCommentMentions(root.body, names).map((segment, index) =>
                     segment.kind === "mention" ? (

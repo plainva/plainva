@@ -6,7 +6,7 @@
  * A thread is a structural fact about the records, not a property of the surface
  * that draws it, so it belongs here.
  */
-import { propertyAnchorKey, resolvePropertyAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey, commentCreatedAt, propertyAnchorKey, resolvePropertyAnchor, type WorkspaceCommentRecord } from "@plainva/core";
 import { mentionsMember } from "./commentMentions.js";
 
 export interface CommentThread {
@@ -190,7 +190,7 @@ export function findPropertyCommentThread(
     if (resolution.status === "orphan" || resolution.key !== column) continue;
     const target = isCommentThreadOpen(comment) ? "open" : "settled";
     const current = target === "open" ? open : settled;
-    if (current && current.createdAt <= comment.createdAt) continue;
+    if (current && commentCreatedAt(current) <= commentCreatedAt(comment)) continue;
     if (target === "open") open = comment;
     else settled = comment;
   }
@@ -227,16 +227,16 @@ export function groupSuggestionRounds(threads: readonly CommentThread[]): { roun
     if (!batchId || !thread.root.suggestion) { rest.push(thread); continue; }
     let round = byBatch.get(batchId);
     if (!round) {
-      round = { batchId, authorMemberId: thread.root.authorMemberId, createdAt: thread.root.createdAt, note: thread.root.batchNote ?? null, blocks: [], open: 0 };
+      round = { batchId, authorMemberId: commentAuthorKey(thread.root), createdAt: commentCreatedAt(thread.root), note: thread.root.batchNote ?? null, blocks: [], open: 0 };
       byBatch.set(batchId, round);
     }
     round.blocks.push(thread);
-    if (thread.root.createdAt < round.createdAt) round.createdAt = thread.root.createdAt;
+    if (commentCreatedAt(thread.root) < round.createdAt) round.createdAt = commentCreatedAt(thread.root);
     if (!round.note && thread.root.batchNote) round.note = thread.root.batchNote;
   }
   const rounds = [...byBatch.values()];
   for (const round of rounds) {
-    round.blocks.sort((a, b) => (a.root.batchIndex ?? 0) - (b.root.batchIndex ?? 0) || a.root.createdAt.localeCompare(b.root.createdAt));
+    round.blocks.sort((a, b) => (a.root.batchIndex ?? 0) - (b.root.batchIndex ?? 0) || commentCreatedAt(a.root).localeCompare(commentCreatedAt(b.root)));
     round.open = round.blocks.filter((block) => isCommentThreadOpen(block.root)).length;
   }
   rounds.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

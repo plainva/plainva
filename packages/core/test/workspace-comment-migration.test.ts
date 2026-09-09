@@ -183,24 +183,28 @@ it.each(["list", "listAll"] as const)("%s cannot lose a comment during the queue
   expect(result).toHaveLength(1); expect(result?.[0].body).toBe("Handover");
 });
 
-it("resumes only an already saved bundle operation through its original writer after upgrade", async () => {
-  const w = await setup();
+async function operationHarness(w: Awaited<ReturnType<typeof setup>>) {
   const dir = join(w.root, ".local-journal"); await mkdir(dir);
   const journal = () => new FileCommentOperationJournal({
     read: async file => { try { return await readFile(join(dir, file), "utf8"); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; } },
     writeAtomic: async (file, text) => { const part = join(dir, `${file}.part`); await writeFile(part, text); await rename(part, join(dir, file)); },
     list: () => readdir(dir),
   });
-  const op = prepareCommentOperation({ contextKey: w.root, authorKey: await w.legacy.writerKey(), notePath: "note.md", kind: "post", markers: [{ path: "note.md", body: "Started before upgrade" }] });
-  await journal().write(op);
   const store = w.store(), disk = journal();
   const route = (operation?: CommentOperation) => commentOperationStore(store, disk, operation);
-  const service = createCommentOperationService({ contextKey: w.root, journal: disk,
+  const deps = { contextKey: w.root, journal: disk,
     authorKey: async operation => (await route(operation)).writerKey(),
     resolvePath: async operation => (await route(operation)).resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId),
     withNoteLock: async (_path, work) => work(), readText: path => w.raw.readTextFile(path), writeText: (path, text) => w.raw.writeTextFile(path, text),
     post: async (marker, operation) => (await route(operation)).post(marker),
-  });
+  } satisfies Parameters<typeof createCommentOperationService>[0];
+  return { store, disk, deps, service: createCommentOperationService(deps) };
+}
+
+it("resumes only an already saved bundle operation through its original writer after upgrade", async () => {
+  const w = await setup(), { store, disk, service } = await operationHarness(w);
+  const op = prepareCommentOperation({ contextKey: w.root, authorKey: await w.legacy.writerKey(), notePath: "note.md", kind: "post", markers: [{ path: "note.md", body: "Started before upgrade" }] });
+  await disk.write(op);
   expect((await service.run(op)).phase).toBe("completed");
   expect((await w.legacy.list("note.md"))[0].commentId).toBe(op.markers[0].identity.commentId);
   await service.run(op); expect(await w.legacy.list("note.md")).toHaveLength(1);
@@ -210,4 +214,38 @@ it("resumes only an already saved bundle operation through its original writer a
   const changed = structuredClone(op); changed.markers[0].body = "Changed old plan";
   await expect(service.run(changed)).rejects.toThrow();
   expect((await store.list("note.md"))[0].legacyOrigin?.record.commentId).toBe(op.markers[0].identity.commentId);
+});
+
+it.each(["legacy", "workspace"] as const)("an unfinished %s operation obeys current comment and content rights", async kind => {
+  const w = await setup(), { store, disk, service } = await operationHarness(w);
+  const op = prepareCommentOperation({ contextKey: w.root, authorKey: await (kind === "legacy" ? w.legacy : store).writerKey(), notePath: "note.md", kind: "apply",
+    text: { before: "Original sentence.", intended: "Changed sentence." }, markers: [{ path: "note.md", body: "Decision" }] });
+  await disk.write(op);
+  const original = structuredClone(w.runtime.policy.payload.assignments);
+  w.runtime.policy.payload.assignments = original.map(a => ({ ...a, role: "Commenter", capabilities: ["comment.read", "content.read", "content.write"] }));
+  await expect(service.run(op)).rejects.toThrow();
+  expect(await w.raw.readTextFile("note.md")).toBe("Original sentence.");
+  w.runtime.policy.payload.assignments = original.map(a => ({ ...a, role: "Commenter", capabilities: ["comment.read", "comment.create", "content.read"] }));
+  await expect(service.run(op)).rejects.toThrow();
+  expect(await w.raw.readTextFile("note.md")).toBe("Original sentence.");
+  expect((await disk.read(op.operationId))?.phase).toBe("prepared");
+  w.runtime.policy.payload.assignments = original;
+  expect((await service.run(op)).phase).toBe("completed");
+  expect(await w.raw.readTextFile("note.md")).toBe("Changed sentence.");
+});
+
+it("an old saved text receipt resumes after upgrade without replaying its text over later edits", async () => {
+  const w = await setup(), { disk, deps, service } = await operationHarness(w);
+  const op = prepareCommentOperation({ contextKey: w.root, authorKey: await w.legacy.writerKey(), notePath: "note.md", kind: "apply",
+    text: { before: "Original sentence.", intended: "Accepted sentence." }, markers: [{ path: "note.md", body: "Old decision" }] });
+  const beforeUpgrade = createCommentOperationService({ ...deps, authorKey: () => w.legacy.writerKey(),
+    resolvePath: operation => w.legacy.resolvePath(operation.notePath, operation.createdAt), post: async () => { throw new Error("Interrupted marker write"); } });
+  await expect(beforeUpgrade.run(op)).rejects.toThrow();
+  const saved = (await disk.read(op.operationId))!;
+  expect(saved.phase).toBe("markers-pending"); expect(saved.receipt?.confirmedText).toBe("Accepted sentence.");
+  await w.raw.writeTextFile("note.md", "My later edit.");
+  const completed = await service.run(op);
+  expect(completed.phase).toBe("completed"); expect(completed.receipt).toEqual(saved.receipt);
+  expect(await w.raw.readTextFile("note.md")).toBe("My later edit.");
+  expect((await w.legacy.list("note.md"))[0].commentId).toBe(op.markers[0].identity.commentId);
 });

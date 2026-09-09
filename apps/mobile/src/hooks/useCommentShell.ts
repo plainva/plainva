@@ -15,16 +15,18 @@ import { useCommentFaults } from "./useCommentFaults";
  */
 export function useCommentShell(
   vault: MobileVault | null,
-  navigate: (entry: { kind: "note" | "comments" | "sync"; path: string }) => void,
+  navigate: (entry: { kind: "note" | "comments" | "sync" | "settingsArea"; path: string }) => void,
 ): void {
   useCommentNotifierDeps(vault, navigate);
   useCommentMoves(vault);
   useCommentFaults(vault);
-  // The way out of `locked` (N3): the sheet and the overview ask, the shell
-  // opens the sync screen where the passphrase is entered.
+  // Workspace keys and the older sideband passphrase have separate unlock routes.
   useEffect(() => {
-    const onUnlock = () => navigate({ kind: "sync", path: "" });
+    const onUnlock = (event: Event) => {
+      const legacy = (event as CustomEvent<{ legacy?: boolean }>).detail?.legacy;
+      navigate(vault?.workspaceState && !legacy ? { kind: "settingsArea", path: "security" } : { kind: "sync", path: "" });
+    };
     window.addEventListener("m-comments-unlock", onUnlock);
     return () => window.removeEventListener("m-comments-unlock", onUnlock);
-  }, [navigate]);
+  }, [navigate, vault]);
 }

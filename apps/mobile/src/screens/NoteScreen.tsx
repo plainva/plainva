@@ -44,7 +44,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
-import { listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
+import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { mobileCommentOperations } from "../services/commentOperations";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
@@ -217,9 +217,13 @@ export function NoteScreen({
    * to do; nothing is posted. Re-read with the remarks: an unlock changes it.
    */
   const [commentsLocked, setCommentsLocked] = useState(false);
+  const [legacyCommentsLocked, setLegacyCommentsLocked] = useState(false);
+  const [commentHasOutbox, setCommentHasOutbox] = useState(false);
   useEffect(() => {
     let stale = false;
-    void mobileCommentStoreState(vault).then((state) => { if (!stale) setCommentsLocked(state.mode === "locked"); }).catch(() => { if (!stale) setCommentsLocked(false); });
+    void mobileCommentStoreState(vault).then((state) => {
+      if (!stale) { setCommentsLocked(state.mode === "locked"); setLegacyCommentsLocked(state.legacyLocked === true); setCommentHasOutbox(state.hasOutbox); }
+    }).catch(() => { if (!stale) { setCommentsLocked(false); setLegacyCommentsLocked(false); setCommentHasOutbox(false); } });
     return () => { stale = true; };
   }, [vault, path, commentTick]);
   const requestCommentUnlock = useCallback(() => window.dispatchEvent(new CustomEvent("m-comments-unlock")), []);
@@ -242,11 +246,11 @@ export function NoteScreen({
   }, [path]);
   useEffect(() => {
     let stale = false;
-    void mobileCommentSelfId()
+    void mobileCommentSelfId(vault)
       .then((id) => { if (!stale) setCommentSelfId(id); })
       .catch(() => { if (!stale) setCommentSelfId(null); });
     return () => { stale = true; };
-  }, []);
+  }, [vault]);
   /**
    * Property comments (E2) - the count per frontmatter key and the anchor a
    * fresh one carries.
@@ -973,7 +977,10 @@ export function NoteScreen({
           onApplySuggestion={(comment) => { void applySuggestion(comment, "applied"); }}
           onDeclineSuggestion={(comment) => { void applySuggestion(comment, "declined"); }}
           activeCommentId={activeCommentId}
-          locked={commentsLocked ? { onUnlock: requestCommentUnlock } : undefined}
+          locked={commentsLocked ? { onUnlock: requestCommentUnlock, workspace: commentHasOutbox } : undefined}
+          legacyLocked={legacyCommentsLocked ? { onUnlock: () => window.dispatchEvent(new CustomEvent("m-comments-unlock", { detail: { legacy: true } })) } : undefined}
+          onRetryPending={commentHasOutbox ? outboxId => { void mobileCommentStore(vault).retry(outboxId).catch(error => toast.error(errorText(error))); } : undefined}
+          onDiscardPending={commentHasOutbox ? outboxId => { void mobileCommentStore(vault).discard(outboxId).catch(error => toast.error(errorText(error))); } : undefined}
           onRevealAnchor={revealAnchor}
           onOpenNote={(target) => {
             // The same resolution the editor's wiki links take (K4).

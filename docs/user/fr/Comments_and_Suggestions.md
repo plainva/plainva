@@ -61,3 +61,11 @@ Plainva conserve sur cet appareil la progression de chaque opération sur les co
 Si la note a changé avant la confirmation du texte, ouvrez **Comparer les textes**. Comparez la modification prévue au texte actuel et modifiez vous-même la note si nécessaire. Réessayer vérifie à nouveau ; un texte différent ne remplace jamais la version actuelle par une ancienne.
 
 Si des appareils rapportent des décisions différentes, la carte affiche **Décisions contradictoires**. Utilisez **Examiner la décision** pour comparer la proposition à la note actuelle. **Confirmer comme appliqué** ou **Confirmer comme refusé** confirme ce texte et remplace uniquement les décisions déjà connues ici. La proposition n’est pas insérée à nouveau. Une décision contraire inconnue arrivant plus tard peut faire réapparaître un conflit.
+
+## Anciens commentaires dans un espace de travail
+
+Sur ordinateur et sur mobile, un espace de travail chiffré utilise le même stockage de commentaires signés. Les commentaires écrits hors ligne restent dans la boîte d’envoi. Après un échec, vous pouvez réessayer d’envoyer le même commentaire sans dupliquer ceux déjà enregistrés.
+
+Les commentaires des anciens fichiers sont conservés et importés avec les droits de gestion et de commentaire. **De l’ancien historique** conserve le nom et la date d’origine. Ces indications n’établissent pas rétroactivement une appartenance à l’espace de travail ; la nouvelle signature confirme l’importation. Si les droits, la note cible synchronisée ou un enregistrement réussi manquent, l’ancien commentaire reste visible. Les actions de réponse, de suppression et de suggestion restent indisponibles jusqu’à l’attribution durable de sa cible. L’importation ne renvoie pas les notifications de l’ancien historique.
+
+Si seul l’ancien historique est verrouillé, l’action de déverrouillage ouvre la saisie de la phrase secrète de synchronisation ; les nouveaux commentaires restent disponibles. Si l’espace de travail lui-même est verrouillé, elle ouvre les paramètres de sécurité. Les opérations de suggestion commencées avant la mise à jour conservent leur progression enregistrée et peuvent reprendre avec les droits actuels. L’importation ne supprime pas les fichiers de commentaires d’origine.

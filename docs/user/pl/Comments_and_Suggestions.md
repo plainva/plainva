@@ -61,3 +61,11 @@ Plainva zapisuje na tym urządzeniu postęp każdej operacji dotyczącej komenta
 Jeśli notatka zmieniła się przed potwierdzeniem tekstu, otwórz **Porównaj tekst**. Porównaj planowaną zmianę z aktualnym tekstem i w razie potrzeby samodzielnie edytuj notatkę. Ponowienie sprawdza ponownie; inny tekst nigdy nie jest zastępowany starą wersją.
 
 Jeśli urządzenia zgłaszają różne decyzje, karta pokazuje **Sprzeczne decyzje**. Użyj **Sprawdź decyzję**, aby porównać propozycję z aktualną notatką. **Potwierdź jako zastosowane** lub **Potwierdź jako odrzucone** potwierdza ten tekst i zastępuje tylko decyzje już tutaj znane. Nie wstawia propozycji ponownie. Nieznana wcześniej przeciwna decyzja otrzymana później może ponownie wywołać konflikt.
+
+## Starsze komentarze w obszarze roboczym
+
+Komputer i urządzenie mobilne korzystają z tego samego magazynu podpisanych komentarzy w zaszyfrowanym obszarze roboczym. Komentarze napisane offline pozostają w skrzynce nadawczej. Po błędzie wysyłania możesz ponowić wysłanie tego samego komentarza bez tworzenia duplikatów zapisanych wpisów.
+
+Komentarze w starszych plikach są zachowywane i importowane przy uprawnieniach do zarządzania i komentowania. **Z wcześniejszej historii** zachowuje pierwotną nazwę i datę. Informacje te nie potwierdzają wstecznie członkostwa w obszarze roboczym; nowy podpis potwierdza import. Jeśli brakuje uprawnień, zsynchronizowanej notatki docelowej lub udanego zapisu, stary komentarz pozostaje widoczny. Odpowiadanie, usuwanie i działania dotyczące sugestii są niedostępne do czasu trwałego przypisania celu. Import nie wysyła ponownie powiadomień ze starej historii.
+
+Jeśli zablokowana jest tylko starsza historia, odblokowanie otwiera ekran hasła synchronizacji; nowe komentarze nadal są dostępne. Jeśli zablokowany jest sam obszar roboczy, otwierają się ustawienia bezpieczeństwa. Operacje sugestii rozpoczęte przed aktualizacją zachowują zapisany postęp i można je wznowić z aktualnymi uprawnieniami. Import nie usuwa oryginalnych plików komentarzy.

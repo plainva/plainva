@@ -8,14 +8,14 @@
  * post writes - lives in `@plainva/core` (`BundleCommentStore`), so a comment
  * anchored on the desktop keeps resolving here and is never silently dropped.
  *
- * What differs is only what must differ: where the master key is cached, and
- * which adapter writes the file. The phone has no sealed workspace store (the
- * desktop's `WorkspaceCommentStore`); in an encrypted workspace it keeps
- * writing the sideband bundle - a gap the parity catalogue names.
+ * Both shells use the signed workspace store when a workspace exists. Older
+ * sideband history remains visible with its original provenance.
  */
 import {
   BUNDLE_COMMENT_CAPABILITIES,
   BundleCommentStore,
+  MigratingWorkspaceCommentStore,
+  CommentStoreLockedError,
   createWorkspaceObjectId,
   effectiveWorkspaceCapabilities,
   workspaceSliceIdsForObject,
@@ -31,6 +31,7 @@ import { mPrompt } from "./mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
 import { mobileCommentsMode, mobileSyncDeviceId } from "./mobileSettingsSync";
 import type { MobileVault } from "./vaultService";
+import { mobileCommentWorker } from "./commentWorker";
 
 /** The plain-vault set - what the surface falls back to without a workspace policy. */
 export const MOBILE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = BUNDLE_COMMENT_CAPABILITIES;
@@ -47,7 +48,8 @@ export const MOBILE_COMMENT_CAPABILITIES: readonly WorkspaceCapability[] = BUNDL
  */
 export async function noteWorkspaceCapabilities(vault: MobileVault, path: string): Promise<WorkspaceCapability[] | null> {
   const runtime = vault.workspaceRuntime;
-  if (!runtime || !vault.workspaceState) return null;
+  if (!vault.workspaceState) return null;
+  if (!runtime) return [];
   const object = await vault.workspaceState.getObjectByPath(path);
   const objectId = object?.objectId ?? createWorkspaceObjectId();
   const sliceIds = workspaceSliceIdsForObject(runtime.policy.payload, { objectId, path, contentKind: object?.contentKind });
@@ -60,7 +62,7 @@ export async function canCommentOnNote(vault: MobileVault, path: string): Promis
   return capabilities.includes("comment.create");
 }
 
-const stores = new WeakMap<MobileVault, CommentStore>();
+const stores = new WeakMap<MobileVault, { state: MobileVault["workspaceState"]; store: CommentStore }>();
 
 /**
  * What this phone calls itself when nobody typed a name (finding 2026-09-09):
@@ -85,6 +87,7 @@ const nameAsked = new Set<string>();
  * "Mark as reviewed" fills the same field the same way.
  */
 export async function ensureMobileCommentAuthorName(vault: MobileVault): Promise<void> {
+  if (vault.workspaceState) return;
   if (nameAsked.has(vault.vaultId)) return;
   if (getMobileSettings().verifierName.trim()) return;
   nameAsked.add(vault.vaultId);
@@ -107,9 +110,10 @@ export async function ensureMobileCommentAuthorName(vault: MobileVault): Promise
  * change it while the vault stays open.
  */
 export function mobileCommentStore(vault: MobileVault): CommentStore {
-  let store = stores.get(vault);
-  if (!store) {
-    store = new BundleCommentStore({
+  const existing = stores.get(vault);
+  if (existing && existing.state === vault.workspaceState) return existing.store;
+  const changed = (path: string) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path, vaultId: vault.vaultId } }));
+  const legacy = new BundleCommentStore({
       vault: vault.adapter,
       vaultKey: vault.vaultId,
       deviceId: mobileSyncDeviceId,
@@ -118,13 +122,25 @@ export function mobileCommentStore(vault: MobileVault): CommentStore {
       // phone - rather than a second name field asking the same question -
       // else the phone's own label, never nothing.
       authorName: async () => getMobileSettings().verifierName.trim() || commentDeviceFallbackName(await mobileSyncDeviceId()),
-      written: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
+      written: changed,
       // A comment file that could not be read (N3): the shell shows it once,
       // with the reason and a way to export the diagnosis.
       faulted: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultId: vault.vaultId, faults } })),
-    });
-    stores.set(vault, store);
-  }
+  });
+  const workspaceState = vault.workspaceState;
+  let workspaceId = vault.workspaceRuntime?.workspaceId;
+  const store = workspaceState ? new MigratingWorkspaceCommentStore({
+    plane: () => {
+      const runtime = vault.workspaceRuntime;
+      if (!runtime) throw new CommentStoreLockedError();
+      workspaceId ??= runtime.workspaceId;
+      if (vault.workspaceState !== workspaceState || runtime.workspaceId !== workspaceId) throw new Error("workspace-comment-runtime-changed");
+      return { runtime, workspaceState };
+    },
+    worker: () => mobileCommentWorker(vault),
+    changed,
+  }, legacy) : legacy;
+  stores.set(vault, { state: workspaceState, store });
   return store;
 }
 
@@ -150,8 +166,8 @@ export function listMobileCommentAuthors(vault: MobileVault): Promise<Map<string
  * Who this device is, as a comment author - the SAME id the store writes into
  * `authorDeviceId`, which is what the surface maps into `authorMemberId`.
  */
-export function mobileCommentSelfId(): Promise<string> {
-  return mobileSyncDeviceId();
+export function mobileCommentSelfId(vault: MobileVault): Promise<string | null> {
+  return mobileCommentStore(vault).selfId();
 }
 
 export interface PostMobileCommentInput extends CommentPostInput {

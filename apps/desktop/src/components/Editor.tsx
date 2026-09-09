@@ -250,11 +250,13 @@ export const Editor: React.FC<{
   // The way out of `locked`, from the column: the unlock prompt, even if it
   // was dismissed once this session - this time the person asked for it.
   const requestCommentUnlock = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }));
-  }, [vaultPath]);
+    if (commentStoreState?.hasOutbox) window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } }));
+    else window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }));
+  }, [vaultPath, commentStoreState?.hasOutbox]);
   const workspaceReadOnly = workspaceCapabilities !== null && !workspaceCapabilities.includes("content.write");
   const workspaceCanComment = workspaceCapabilities?.includes("comment.create") === true;
   const workspaceCanReadComments = workspaceCapabilities?.includes("comment.read") === true;
+  const commentsAccessible = workspaceCanReadComments || commentsLocked;
   useEffect(() => {
     if (!activePath || !workspaceCanReadComments) { setWorkspaceComments([]); return; }
     const refresh = () => void listWorkspaceComments(activePath).then(setWorkspaceComments).catch(() => setWorkspaceComments([]));
@@ -610,7 +612,7 @@ export const Editor: React.FC<{
   // note, and a column that the vault preference or an open thread forced
   // open took half of it. Its switch is a session choice - a peek never
   // rewrites the preference the main pane keeps.
-  const commentColumnOpen = workspaceCanReadComments && (commentColumnSession ?? (peek ? "closed" : commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed"))) === "open";
+  const commentColumnOpen = commentsAccessible && (commentColumnSession ?? (peek ? "closed" : commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed"))) === "open";
   const toggleCommentColumn = useCallback(() => {
     const next = commentColumnOpen ? "closed" : "open";
     setCommentColumnSession(next);
@@ -2632,7 +2634,7 @@ export const Editor: React.FC<{
     <div ref={editorRootRef} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
       {/* The peek hides the toolbar, so the column's switch floats over the
           note's top right until the column is open - which has its own X. */}
-      {peek && workspaceCanReadComments && !commentColumnOpen && (
+      {peek && commentsAccessible && !commentColumnOpen && (
         <IconButton
           label={t("comments.commentColumnShow")}
           onClick={toggleCommentColumn}
@@ -2711,7 +2713,7 @@ export const Editor: React.FC<{
             )}
           </div>}
 
-          {workspaceCanReadComments && (
+          {commentsAccessible && (
             <IconButton
               label={commentColumnOpen ? t("comments.commentColumnHide") : t("comments.commentColumnShow")}
               active={commentColumnOpen}
@@ -2958,7 +2960,7 @@ export const Editor: React.FC<{
           <UiButton size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">{t("comments.suggestSend", { n: suggestCount })}</UiButton>
         </div>
       )}
-      <div className={workspaceCanReadComments ? "pv-comment-layout" : undefined} style={workspaceCanReadComments ? undefined : { display: "contents" }}>
+      <div className={commentsAccessible ? "pv-comment-layout" : undefined} style={commentsAccessible ? undefined : { display: "contents" }}>
       <div ref={readScrollRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: "var(--bg-primary)", overflowY: viewMode === 'read' ? "auto" : "hidden" }}>
         {viewMode === 'read' ? (
           <>
@@ -3097,7 +3099,8 @@ export const Editor: React.FC<{
           onResolve={(commentId) => { void resolveComment(commentId); }}
           onRetryPending={commentStoreState?.hasOutbox ? (outboxId) => { void retryWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
           onDiscardPending={commentStoreState?.hasOutbox ? (outboxId) => { void discardWorkspaceComment(outboxId).catch((error) => toast.error(error instanceof Error ? error.message : String(error))); } : undefined}
-          locked={commentsLocked ? { onUnlock: requestCommentUnlock } : undefined}
+          locked={commentsLocked ? { onUnlock: requestCommentUnlock, workspace: commentStoreState?.hasOutbox } : undefined}
+          legacyLocked={commentStoreState?.legacyLocked ? { onUnlock: () => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } })) } : undefined}
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
         />

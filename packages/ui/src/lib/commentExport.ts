@@ -27,7 +27,7 @@
  * else - a note without comments never had one, so nothing changes for anyone
  * who does not use them.
  */
-import { resolveCommentAnchor, stripAnchorMarkers, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey, commentCreatedAt, resolveCommentAnchor, stripAnchorMarkers, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
 import i18n from "../i18n";
 import { buildCommentThreads, isCommentThreadOpen, type CommentThread } from "./commentThreads.js";
 
@@ -83,7 +83,8 @@ function defaultDate(iso: string): string {
 /** One line of prose per comment: who, when. */
 function byline(comment: WorkspaceCommentRecord, input: CommentExportInput): string {
   const format = input.formatDate ?? defaultDate;
-  return `${authorName(comment.authorMemberId, input.names)} · ${format(comment.createdAt)}`;
+  const name = comment.legacyOrigin?.authorName || authorName(commentAuthorKey(comment), input.names);
+  return `${name} · ${format(commentCreatedAt(comment))}${comment.legacyOrigin ? ` · ${i18n.t("comments.legacyOrigin")}` : ""}`;
 }
 
 /** A quote that has to survive inside a Markdown heading. */

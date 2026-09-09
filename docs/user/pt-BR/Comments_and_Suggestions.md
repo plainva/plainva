@@ -61,3 +61,11 @@ O Plainva registra neste dispositivo o progresso de cada operação de comentár
 Se a nota mudou antes da confirmação do texto, abra **Comparar texto**. Compare a alteração planejada com o texto atual e edite a nota se necessário. A nova tentativa verifica novamente; um texto diferente nunca é substituído pela versão antiga.
 
 Se dispositivos informarem decisões diferentes, o cartão mostra **Decisões conflitantes**. Use **Revisar decisão** para comparar a proposta com a nota atual. **Confirmar como aplicado** ou **Confirmar como rejeitado** confirma esse texto e substitui apenas as decisões já conhecidas aqui. A proposta não é inserida novamente. Uma decisão contrária antes desconhecida que chegar depois pode exibir um novo conflito.
+
+## Comentários anteriores em um espaço de trabalho
+
+Desktop e dispositivos móveis usam o mesmo armazenamento de comentários assinados em um espaço de trabalho criptografado. Comentários escritos offline permanecem na caixa de saída. Após uma falha de envio, você pode tentar enviar o mesmo comentário novamente sem duplicar os já salvos.
+
+Os comentários nos arquivos anteriores são preservados e importados com permissões de gerenciamento e de comentários. **Do histórico anterior** mantém o nome e a data originais. Essas informações não comprovam retroativamente a participação no espaço de trabalho; a nova assinatura confirma a importação. Se faltarem permissões, a nota de destino sincronizada ou um salvamento bem-sucedido, o comentário anterior continua visível. As ações de resposta, exclusão e sugestões ficam indisponíveis até que o destino seja atribuído de forma durável. A importação não reenvia as notificações do histórico anterior.
+
+Se apenas o histórico anterior estiver bloqueado, a ação de desbloqueio abre o fluxo da frase secreta de sincronização; novos comentários continuam disponíveis. Se o próprio espaço de trabalho estiver bloqueado, a ação abre as configurações de segurança. Operações de sugestões iniciadas antes da atualização mantêm o progresso salvo e podem continuar com as permissões atuais. A importação não remove os arquivos originais de comentários.

@@ -1,3 +1,5 @@
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { CommentLegacyLock, CommentProvenance } from "@plainva/ui";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, Lock, MessageSquare, RefreshCw, Replace } from "lucide-react";
@@ -102,12 +104,15 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
         </Button>
       </div>
       <div className="pv-comment-overview__body">
+        {storeState?.legacyLocked && <CommentLegacyLock onUnlock={() => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))} />}
         {storeState?.mode === "locked" && (
           <EmptyState
             icon={<Lock size={ICON.empty} />}
-            action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))}>{t("comments.commentsUnlock")}</Button>}
+            action={<Button size="sm" data-testid="comments-unlock" onClick={() => window.dispatchEvent(storeState.hasOutbox
+              ? new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } })
+              : new CustomEvent("plainva-encryption-locked", { detail: { vaultPath, force: true } }))}>{t("comments.commentsUnlock")}</Button>}
           >
-            {t("comments.commentsLocked")}
+            {t(storeState?.hasOutbox ? "comments.workspaceLocked" : "comments.commentsLocked")}
           </EmptyState>
         )}
         {storeState?.mode !== "locked" && notes.length === 0 && (
@@ -143,10 +148,11 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                 }}
               >
                 <p className="pv-comment-round__meta">
-                  <strong>{t("comments.suggestRound", { name: commentAuthorLabel({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId }, memberNames, selfMemberId, t) })}</strong>
+                  <strong>{t("comments.suggestRound", { name: commentAuthorLabel(round.blocks[0].root, memberNames, selfMemberId, t) })}</strong>
                   {" · "}{t("comments.suggestRoundCount", { n: round.open })}
                   {round.note ? <em> · „{round.note}“</em> : null}
                 </p>
+                <CommentProvenance comment={round.blocks[0].root} />
               </div>
             ))}
             {groupSuggestionRounds(note.threads).threads.map(({ root, replies, addressed }) => (
@@ -173,11 +179,12 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
                     <Replace size={ICON.meta} aria-hidden="true" /> {t(root.suggestionDecision?.status === "conflict" ? "comments.decisionConflict" : "comments.suggestionPending")}
                   </span>
                 )}
-                <small className="pv-comment-card__meta" data-tip={root.authorMemberId}>
+                <small className="pv-comment-card__meta" data-tip={commentAuthorKey(root)}>
                   {commentAuthorLabel(root, memberNames, selfMemberId, t)}
                   {" · "}
-                  {new Date(root.createdAt).toLocaleString()}
+                  {new Date(commentCreatedAt(root)).toLocaleString()}
                 </small>
+                <CommentProvenance comment={root} />
                 <span className="pv-comment-card__body">
                   {parseCommentMentions(root.body, memberNames).map((segment, index) =>
                     segment.kind === "mention" ? (

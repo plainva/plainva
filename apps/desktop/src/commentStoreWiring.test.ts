@@ -103,7 +103,7 @@ describe("locked and unreadable are said, not hidden (N3)", () => {
   it("lets the editor read the store state and hand the column its locked state", () => {
     const editor = strip(read("components", "Editor.tsx"));
     expect(editor).toMatch(/getCommentStoreState\(\)/);
-    expect(editor).toMatch(/locked=\{commentsLocked \? \{ onUnlock: requestCommentUnlock \} : undefined\}/);
+    expect(editor).toMatch(/locked=\{commentsLocked \? \{ onUnlock: requestCommentUnlock, workspace: commentStoreState\?\.hasOutbox \} : undefined\}/);
     // The suggest verb stays and leads to the explanation, never into a mode
     // whose send would fail a minute later.
     const start = editor.slice(editor.indexOf("const startSuggesting = useStableHandler("), editor.indexOf("const stopSuggesting"));

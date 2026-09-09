@@ -122,6 +122,7 @@ function isMine(
   selfMemberId: string | null,
   selfDeviceId: string | null,
 ): boolean {
+  if (comment.legacyOrigin) return false;
   if (selfMemberId && comment.authorMemberId === selfMemberId) return true;
   if (selfDeviceId && comment.authorDeviceId === selfDeviceId) return true;
   return false;
@@ -229,6 +230,10 @@ export function planCommentNotifications(input: CommentNotificationInput): Comme
       // Accounted for the moment it is looked at, not the moment it is
       // reported. See the field note on `seen`.
       seen.push(comment.commentId);
+
+      // Importing existing history must not announce every old message again
+      // or make the importing member the author of those historical threads.
+      if (comment.legacyOrigin) continue;
 
       if (isMine(comment, input.selfMemberId, input.selfDeviceId)) continue;
       if (mutedPaths.has(note.path)) continue;

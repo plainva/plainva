@@ -61,3 +61,11 @@ Plainva bewaart op dit apparaat de voortgang van elke reactiehandeling. Als de t
 Als de notitie vóór de tekstbevestiging is gewijzigd, open dan **Tekst vergelijken**. Vergelijk de geplande wijziging met de huidige tekst en bewerk de notitie zo nodig zelf. Opnieuw proberen controleert nogmaals; afwijkende tekst wordt nooit door de oude versie vervangen.
 
 Als apparaten verschillende beslissingen melden, toont de kaart **Tegenstrijdige beslissingen**. Gebruik **Beslissing bekijken** om het voorstel met de huidige notitie te vergelijken. **Bevestigen als toegepast** of **Bevestigen als afgewezen** bevestigt deze tekst en vervangt alleen de hier al bekende beslissingen. Het voorstel wordt niet opnieuw ingevoegd. Een later ontvangen, eerder onbekende tegenbeslissing kan opnieuw een conflict tonen.
+
+## Oudere opmerkingen in een werkruimte
+
+Desktop en mobiel gebruiken dezelfde opslag voor ondertekende opmerkingen in een versleutelde werkruimte. Offline geschreven opmerkingen blijven in het postvak UIT. Na een verzendfout kun je dezelfde opmerking opnieuw verzenden zonder al opgeslagen opmerkingen te verdubbelen.
+
+Opmerkingen in de oude bestanden blijven bewaard en worden met beheer- en opmerkingsrechten geïmporteerd. **Uit eerdere geschiedenis** behoudt de oorspronkelijke naam en datum. Die vermeldingen bewijzen achteraf geen lidmaatschap van de werkruimte; de nieuwe handtekening bevestigt de import. Als rechten, de gesynchroniseerde doelnotitie of een geslaagde opslag ontbreken, blijft de oude opmerking zichtbaar. Antwoorden, verwijderen en suggestieacties blijven uitgeschakeld totdat het doel duurzaam is toegewezen. De import verstuurt de meldingen van de oude geschiedenis niet opnieuw.
+
+Als alleen de oudere geschiedenis is vergrendeld, opent de ontgrendelactie de invoer van de synchronisatiewachtzin; nieuwe opmerkingen blijven beschikbaar. Als de werkruimte zelf is vergrendeld, opent de actie de beveiligingsinstellingen. Suggestiehandelingen die vóór de update zijn gestart, behouden hun opgeslagen voortgang en kunnen met de huidige rechten verdergaan. De import verwijdert de oorspronkelijke opmerkingsbestanden niet.

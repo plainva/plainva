@@ -18,8 +18,8 @@ import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
-import { createLocalCommentStore } from "../services/localComments";
-import { WorkspaceCommentStore } from "../services/workspaceCommentStore";
+import { createDesktopCommentStore } from "../services/workspaceCommentStore";
+import { CommentStoreLockedError } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
 import { installCommentFaultReporter } from "../services/commentFaults";
@@ -2935,29 +2935,21 @@ export const VaultProvider: React.FC<{
   syncWorkerRef.current = state.syncWorker;
   const commentStoreMemo = useMemo((): CommentStore | null => {
     const vaultPath = state.vaultPath;
-    if (!vaultPath) return null;
-    if (state.workspaceSecurityStatus) {
-      const workspaceId = state.workspaceSecurityStatus.workspaceId;
-      return new WorkspaceCommentStore({
-        plane: () => {
-          const { runtime, workspaceState } = workspaceControlPlane();
-          if (runtime.workspaceId !== workspaceId) throw new Error("workspace-comment-runtime-changed");
-          return { runtime, workspaceState };
-        },
-        worker: () => syncWorkerRef.current as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
-        changed: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
-      });
-    }
-    if (!state.backupAdapter) return null;
-    return createLocalCommentStore(vaultPath, state.backupAdapter, async () => (await getSettingsStore()).get<string>(verifierNameKey(vaultPath)), (path) => {
-      // On disk already; the sideband carries it with the next cycle, which is
-      // triggered right away so a reply does not wait a whole interval.
-      syncWorkerRef.current?.triggerImmediate();
-      window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } }));
+    if (!vaultPath || !state.backupAdapter) return null;
+    return createDesktopCommentStore({
+      vaultPath, raw: state.backupAdapter, workspaceId: state.workspaceSecurityStatus?.workspaceId,
+      authorName: async () => (await getSettingsStore()).get<string>(verifierNameKey(vaultPath)),
+      plane: () => {
+        if (workspacePlaneVaultRef.current !== vaultPath) throw new Error("workspace-comment-runtime-changed");
+        const runtime = workspaceRuntimeRef.current, workspaceState = workspaceStateRef.current;
+        if (!runtime || !workspaceState) throw new CommentStoreLockedError();
+        return { runtime, workspaceState };
+      },
+      worker: () => syncWorkerRef.current as (VaultSyncWorker & { publishQueuedComments?: () => Promise<void> }) | null,
+      changed: (path) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path } })),
     });
     // The store is chosen by these three and nothing else; the control plane
     // reads its runtime through refs at call time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.backupAdapter, state.workspaceSecurityStatus]);
   const commentStore = (): CommentStore | null => commentStoreMemo;
 

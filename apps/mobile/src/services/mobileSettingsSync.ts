@@ -1016,6 +1016,7 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       if (!ring && (await raw.exists(KEYFILE_PATH))) return null;
       return new CommentsSyncStep({
         vaultKey: vaultId,
+        downloadOnly: !!vault.workspaceState,
         // One file per device (N2): the same id the store writes as the author.
         deviceId: device,
         crypto: ring

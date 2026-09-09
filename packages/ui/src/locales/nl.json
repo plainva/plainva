@@ -3261,6 +3261,11 @@
     "passwordMissing": "Benodigde inloggegevens ontbreken. Verbind de betrokken dienst opnieuw."
   },
   "comments": {
+    "workspaceLocked": "Deze werkruimte is vergrendeld op dit apparaat. Open de beveiligingsinstellingen om deze te ontgrendelen en opmerkingen te lezen of te schrijven.",
+    "legacyOrigin": "Uit eerdere geschiedenis",
+    "legacyOriginDetail": "De naam en datum zijn oorspronkelijke vermeldingen uit een oudere, niet ondertekende geschiedenis. De handtekening van de werkruimte bevestigt de import.",
+    "legacyImportPending": "De import in de werkruimte is nog niet voltooid. De oorspronkelijke opmerking blijft bewaard.",
+    "legacyHistoryLocked": "Oudere opmerkingen zijn vergrendeld. Ontgrendel de geschiedenis met je synchronisatiewachtzin. Je kunt nog steeds nieuwe opmerkingen in de werkruimte schrijven.",
     "comment": "Reageren",
     "suggest": "Wijzigingen voorstellen",
     "comments": "Opmerkingen",

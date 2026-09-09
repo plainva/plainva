@@ -1,4 +1,4 @@
-import { createCommentOperationService, type CommentOperationInput, type CommentOperationService, type CommentStore, type IVaultAdapter } from "@plainva/core";
+import { commentOperationStore, createCommentOperationService, type CommentOperation, type CommentOperationInput, type CommentOperationService, type CommentStore, type IVaultAdapter } from "@plainva/core";
 import { applyTextShape, readTextShape } from "@plainva/ui";
 import { desktopCommentOperationJournal } from "./commentOperationJournal";
 import { withPendingWrite } from "./pendingWrites";
@@ -13,11 +13,16 @@ export function desktopCommentOperations(deps: {
   noteWritten(path: string): Promise<void>;
 }): CommentOperationService {
   const { vaultPath, adapter, store } = deps;
+  const journal = desktopCommentOperationJournal(vaultPath);
+  const route = async (operation?: CommentOperation) => {
+    deps.assertCurrent();
+    return commentOperationStore(store, journal, operation);
+  };
   const paths = new Map<string, string>();
   return createCommentOperationService({
     contextKey: vaultPath,
-    journal: desktopCommentOperationJournal(vaultPath),
-    authorKey: async () => { deps.assertCurrent(); return store.writerKey(); },
+    journal,
+    authorKey: async operation => (await route(operation)).writerKey(),
     prepareMarkers: async (input) => {
       await deps.ensureAuthorName(input);
       deps.assertCurrent();
@@ -28,7 +33,7 @@ export function desktopCommentOperations(deps: {
       });
     },
     resolvePath: async (operation) => {
-      const path = await store.resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId);
+      const path = await (await route(operation)).resolvePath(operation.notePath, operation.createdAt, operation.markers[0].targetObjectId);
       paths.set(operation.operationId, path);
       return path;
     },
@@ -42,7 +47,7 @@ export function desktopCommentOperations(deps: {
       try { await deps.noteWritten(path); }
       catch (error) { console.error("Could not refresh the note index after a comment operation", error); }
     },
-    post: (marker) => store.post(marker),
+    post: async (marker, operation) => (await route(operation)).post(marker),
     changed: (operation) => {
       const path = paths.get(operation.operationId) ?? operation.notePath;
       window.dispatchEvent(new CustomEvent("plainva-comment-operation-changed", { detail: { vaultPath, path, operation } }));

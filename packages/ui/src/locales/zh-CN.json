@@ -3229,6 +3229,11 @@
     "passwordMissing": "缺少必要的凭据。请重新连接相关服务。"
   },
   "comments": {
+    "workspaceLocked": "此工作区在这台设备上已锁定。打开安全设置以解锁工作区，然后即可阅读或撰写批注。",
+    "legacyOrigin": "来自旧记录",
+    "legacyOriginDetail": "姓名和日期是旧版未签名记录中的原始信息。工作区签名仅确认导入操作。",
+    "legacyImportPending": "导入工作区的操作尚未完成。原始评论仍会保留。",
+    "legacyHistoryLocked": "旧评论已锁定。请使用同步口令解锁旧记录。你仍可在工作区中撰写新评论。",
     "comment": "评论",
     "suggest": "建议修改",
     "comments": "评论",

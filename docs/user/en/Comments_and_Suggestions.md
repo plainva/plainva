@@ -61,3 +61,11 @@ Plainva records progress for each comment operation on this device. If the text 
 If the note changed before its text was confirmed, open **Compare text**. Compare the planned change with the current text and edit the note yourself if needed. Retrying checks again; different text is never replaced with the old version.
 
 If devices report different decisions, the card shows **Conflicting decisions**. Use **Review decision** to compare the proposal with the current note. **Confirm as applied** or **Confirm as declined** confirms this text and replaces only decisions already known here. It does not insert the proposal again. A previously unknown opposing decision arriving later can show a conflict again.
+
+## Older comments in a workspace
+
+Desktop and mobile use the same signed comment store in an encrypted workspace. Comments written offline remain in the outbox. After a sending failure, you can retry the same comment without duplicating a comment already saved.
+
+Older comments in the previous comment files are preserved and imported with workspace management and comment permissions. **From earlier history** keeps the original name and date. Those claims do not retroactively establish workspace membership; the new signature confirms the import. If permissions, the synced target note or a successful save are missing, the old comment stays visible. Reply, delete and suggestion actions remain unavailable until its target is durably assigned. Importing old history does not send its notifications again.
+
+If only the older history is locked, **Unlock** opens the sync-passphrase flow; new workspace comments remain available. If the workspace itself is locked, the action opens Security settings. Suggestion operations started before the update keep their saved progress and can resume with current permissions. Importing does not remove the original comment files.

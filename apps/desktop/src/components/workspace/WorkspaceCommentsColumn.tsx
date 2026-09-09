@@ -1,10 +1,12 @@
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { CommentLegacyLock } from "@plainva/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Send, Share2, Trash2, X } from "lucide-react";
+import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Share2, Trash2, X } from "lucide-react";
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread } from "@plainva/ui";
-import { CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -113,7 +115,8 @@ export interface WorkspaceCommentsColumnProps {
    * one must not be written. The column says so and offers the way out,
    * instead of an empty list that reads as "nobody wrote anything".
    */
-  locked?: { onUnlock(): void };
+  locked?: { onUnlock(): void; workspace?: boolean };
+  legacyLocked?: { onUnlock(): void };
 }
 
 /**
@@ -129,7 +132,7 @@ export interface WorkspaceCommentsColumnProps {
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
   operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
-  publicationComments = [], muted, onToggleMute, locked,
+  publicationComments = [], muted, onToggleMute, locked, legacyLocked,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
   /** "Open" hides what is settled; "all" brings resolved threads back (K3). */
@@ -144,7 +147,7 @@ export function WorkspaceCommentsColumn({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   /** The remark whose deletion is being confirmed, in its own card (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
+  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending && ((!record.legacyOrigin && record.authorMemberId === selfMemberId) || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton
       size="sm"
@@ -217,7 +220,7 @@ export function WorkspaceCommentsColumn({
   const authorOf = (comment: WorkspaceCommentRecord): string => commentAuthorLabel(comment, memberNames, selfMemberId, t);
   /** A round is named by its first block: the record knows which store it came from. */
   const roundAuthor = (round: { authorMemberId: string; blocks: Array<{ root: WorkspaceCommentRecord }> }): string =>
-    commentAuthorLabel({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId }, memberNames, selfMemberId, t);
+    commentAuthorLabel(round.blocks[0].root, memberNames, selfMemberId, t);
 
   /**
    * The returns, grouped by the publication they arrived through.
@@ -269,27 +272,7 @@ export function WorkspaceCommentsColumn({
   };
 
   /** The sending / not-sent line of a queued remark (K6); null once it has landed. */
-  const pendingState = (record: WorkspaceCommentRecord, own: boolean) => {
-    if (!record.pending) return null;
-    if (record.pending.lastError === null) {
-      return <span className="pv-comment-card__state" data-state="sending"><Send size={ICON.meta} /> {t("comments.commentSending")}</span>;
-    }
-    return (
-      <>
-        <span className="pv-comment-card__state" data-state="error"><AlertCircle size={ICON.meta} /> {t("comments.commentSendFailed", { reason: record.pending.lastError })}</span>
-        {own && onRetryPending && (
-          <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onRetryPending(record.pending!.outboxId); }}>
-            {t("comments.commentSendRetry")}
-          </Button>
-        )}
-        {own && onDiscardPending && (
-          <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onDiscardPending(record.pending!.outboxId); }}>
-            {t("comments.commentSendDiscard")}
-          </Button>
-        )}
-      </>
-    );
-  };
+  const pendingState = (record: WorkspaceCommentRecord, own: boolean) => <CommentDeliveryState comment={record} own={own} onRetry={onRetryPending} onDiscard={onDiscardPending} />;
 
   const anchorNote = (comment: WorkspaceCommentRecord) => {
     if (!comment.anchor) return null;
@@ -380,7 +363,7 @@ export function WorkspaceCommentsColumn({
               <AtSign size={ICON.meta} /> {t("comments.commentMentionsYou")}
             </span>
           )}
-          {root.suggestionDecision?.status === "conflict" && <CommentDecisionConflict onReview={canComment && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
+          {root.suggestionDecision?.status === "conflict" && <CommentDecisionConflict onReview={canComment && !root.legacyPending && !root.pending && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
           {anchorNote(root)}
           <CommentBody comment={root} author={authorOf(root)} names={memberNames} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
           {replies.map((reply) => (
@@ -391,7 +374,7 @@ export function WorkspaceCommentsColumn({
               {confirmBox(reply, 0)}
             </div>
           ))}
-          {root.pending ? (
+          {root.pending || root.legacyPending ? (
             // Still on its way (or stuck): no reply, resolve or task yet - each
             // of those would queue behind a remark that may never land.
             <div className="pv-comment-card__actions">{pendingState(root, root.authorMemberId === selfMemberId)}</div>
@@ -520,9 +503,10 @@ export function WorkspaceCommentsColumn({
       </div>
       <div className="pv-comment-column__body">
         {operationStatus}
+      {legacyLocked && <CommentLegacyLock onUnlock={legacyLocked.onUnlock} />}
       {locked && (
         <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>} >
-          {t("comments.commentsLocked")}
+          {t(locked.workspace ? "comments.workspaceLocked" : "comments.commentsLocked")}
         </EmptyState>
       )}
       {!locked && kind === "comments" && grouped.threads.length === 0 && publicationComments.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
@@ -533,12 +517,12 @@ export function WorkspaceCommentsColumn({
           <section key={round.batchId} className="pv-comment-round" aria-label={t("comments.suggestRound", { name: roundAuthor(round) })}>
             {!round.batchId.startsWith("single:") && (
             <div className="pv-comment-round__head">
-              <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(round.authorMemberId) ?? roundAuthor(round))} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+              <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(commentAuthorKey(round.blocks[0].root)) ?? roundAuthor(round))} memberId={commentAuthorKey(round.blocks[0].root)} createdAt={round.createdAt} locale={i18n.language} />
               <p className="pv-comment-round__meta">
                 {round.note ? <em>„{round.note}“ · </em> : null}
                 {t("comments.suggestRoundCount", { n: round.blocks.length })}
               </p>
-              {open.length > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict") && (
+              {open.length > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict" || block.root.legacyPending || block.root.pending) && (
                 <div className="pv-comment-card__actions">
                   {canWrite && onApplyRound && (
                     <Button variant="ghost" size="sm" onClick={() => onApplyRound(round.batchId)} data-testid={`round-apply-${round.batchId}`}>
@@ -602,10 +586,10 @@ export function WorkspaceCommentsColumn({
                 {root.suggestion
                   ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
                   : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
-                <CommentBody comment={root} author={group.names.get(root.authorMemberId) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                <CommentBody comment={root} author={group.names.get(commentAuthorKey(root)) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentBody comment={reply} author={group.names.get(reply.authorMemberId) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                    <CommentBody comment={reply} author={group.names.get(commentAuthorKey(reply)) ?? t("comments.commentUnknownAuthor")} names={group.names} locale={i18n.language} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                   </div>
                 ))}
                 {/* Both lines state a fact about the record, not a failure: the
@@ -649,7 +633,8 @@ function CommentBody({
 }) {
   return (
     <>
-      <CommentCardHead name={author} initials={authorInitials(names.get(comment.authorMemberId) ?? author)} memberId={comment.authorMemberId} createdAt={comment.createdAt} locale={locale} />
+      <CommentCardHead name={author} initials={authorInitials(names.get(commentAuthorKey(comment)) ?? author)} memberId={commentAuthorKey(comment)} createdAt={commentCreatedAt(comment)} locale={locale} />
+      <CommentProvenance comment={comment} />
       <SharedCommentBody body={comment.body} names={names} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
     </>
   );

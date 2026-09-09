@@ -61,3 +61,11 @@ Plainva hält den Abschluss eines Kommentarvorgangs auf diesem Gerät fest. Ist 
 Hat sich die Notiz vor der Textbestätigung geändert, öffne **Text vergleichen**. Vergleiche die geplante Änderung mit dem aktuellen Text und bearbeite die Notiz bei Bedarf selbst. Eine Wiederholung prüft erneut; abweichender Text wird nicht durch die alte Fassung ersetzt.
 
 Melden Geräte unterschiedliche Entscheidungen, zeigt die Karte **Widersprüchliche Entscheidungen**. Über **Entscheidung prüfen** vergleichst Du den Vorschlag mit der aktuellen Notiz. **Als übernommen bestätigen** oder **Als abgelehnt bestätigen** bestätigt diesen Text und ersetzt nur die hier bereits bekannten Entscheidungen. Der Vorschlag wird dabei nicht nochmals eingefügt. Eine später eintreffende unbekannte Gegenentscheidung kann erneut einen Konflikt anzeigen.
+
+## Ältere Anmerkungen im Workspace
+
+Desktop und Mobil verwenden in einem verschlüsselten Workspace denselben signierten Kommentarspeicher. Offline geschriebene Beiträge bleiben im Ausgangskorb erhalten. Bei einem Sendefehler kannst Du denselben Beitrag erneut senden; bereits gespeicherte Beiträge werden dabei nicht verdoppelt.
+
+Ältere Anmerkungen aus den bisherigen Kommentardateien bleiben erhalten und werden mit Verwaltungs- und Kommentierrechten übernommen. **Aus älterem Bestand** nennt weiterhin den ursprünglichen Namen und das ursprüngliche Datum. Diese Angaben sind keine nachträglich bestätigte Workspace-Mitgliedschaft; die neue Signatur bestätigt die Übernahme. Fehlen Rechte, die zugehörige synchronisierte Notiz oder ein erfolgreicher Speichervorgang, bleibt der Altbeitrag sichtbar. Bis zur dauerhaften Zuordnung bietet er keine Antwort-, Lösch- oder Vorschlagsaktionen. Eine Übernahme löst keine erneuten Benachrichtigungen für die alte Historie aus.
+
+Ist nur der ältere Bestand gesperrt, führt **Entsperren** zur Sync-Passphrase; neue Workspace-Kommentare bleiben möglich. Ist der Workspace selbst gesperrt, führt die Aktion in die Sicherheitseinstellungen. Bereits vor dem Update begonnene Vorschlagsvorgänge behalten ihren gespeicherten Fortschritt und können mit den heutigen Rechten fortgesetzt werden. Die ursprünglichen Kommentardateien werden durch die Übernahme nicht entfernt.

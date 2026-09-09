@@ -3293,6 +3293,11 @@
     "passwordMissing": "Un identifiant requis est manquant. Reconnecte le service concerné."
   },
   "comments": {
+    "workspaceLocked": "Cet espace de travail est verrouillé sur cet appareil. Ouvre les paramètres de sécurité pour le déverrouiller et lire ou écrire des remarques.",
+    "legacyOrigin": "De l’ancien historique",
+    "legacyOriginDetail": "Le nom et la date sont les indications d’origine d’un ancien historique non signé. La signature de l’espace de travail confirme l’importation.",
+    "legacyImportPending": "L’importation dans l’espace de travail est encore en attente. Le commentaire d’origine est conservé.",
+    "legacyHistoryLocked": "Les anciens commentaires sont verrouillés. Déverrouillez l’historique avec votre phrase secrète de synchronisation. Vous pouvez toujours écrire de nouveaux commentaires dans l’espace de travail.",
     "comment": "Commenter",
     "suggest": "Suggérer des modifications",
     "comments": "Commentaires",

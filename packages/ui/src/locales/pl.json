@@ -3325,6 +3325,11 @@
     "passwordMissing": "Brakuje wymaganych danych logowania. Połącz ponownie daną usługę."
   },
   "comments": {
+    "workspaceLocked": "Ten obszar roboczy jest zablokowany na tym urządzeniu. Otwórz ustawienia zabezpieczeń, aby go odblokować i czytać lub pisać uwagi.",
+    "legacyOrigin": "Z wcześniejszej historii",
+    "legacyOriginDetail": "Nazwa i data to oryginalne informacje ze starszej, niepodpisanej historii. Podpis obszaru roboczego potwierdza import.",
+    "legacyImportPending": "Import do obszaru roboczego jeszcze się nie zakończył. Oryginalny komentarz zostaje zachowany.",
+    "legacyHistoryLocked": "Starsze komentarze są zablokowane. Odblokuj historię za pomocą hasła synchronizacji. Nadal możesz pisać nowe komentarze w obszarze roboczym.",
     "comment": "Komentowanie",
     "suggest": "Sugerowanie zmian",
     "comments": "Komentarze",

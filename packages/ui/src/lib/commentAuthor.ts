@@ -6,6 +6,8 @@
  * nobody asked for. The hue is derived from the member id, so the same person
  * keeps the same colour on every device without anything being stored.
  */
+import { commentAuthorKey, type WorkspaceCommentRecord } from "@plainva/core";
+
 export const AUTHOR_HUES = 6;
 
 export function authorInitials(name: string): string {
@@ -26,6 +28,7 @@ export function authorHue(memberId: string): number {
 export interface CommentAuthorRef {
   authorMemberId: string;
   targetRevisionId?: string;
+  legacyOrigin?: WorkspaceCommentRecord["legacyOrigin"];
 }
 
 /**
@@ -46,6 +49,7 @@ export function commentAuthorLabel(
   selfId: string | null,
   t: (key: string) => string,
 ): string {
+  if (ref.legacyOrigin) return ref.legacyOrigin.authorName || names.get(commentAuthorKey(ref)) || t("comments.commentUnnamedDevice");
   if (selfId && ref.authorMemberId === selfId) return t("comments.commentAuthorYou");
   const name = names.get(ref.authorMemberId);
   if (name) return name;

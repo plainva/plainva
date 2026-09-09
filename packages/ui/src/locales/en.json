@@ -3261,6 +3261,11 @@
     "passwordMissing": "A required credential is missing. Reconnect the affected service."
   },
   "comments": {
+    "workspaceLocked": "This workspace is locked on this device. Open the security settings to unlock it and read or write remarks.",
+    "legacyOrigin": "From earlier history",
+    "legacyOriginDetail": "The name and date are original claims from an older, unsigned history. The workspace signature confirms the import.",
+    "legacyImportPending": "Import into the workspace is still pending. The original comment is preserved.",
+    "legacyHistoryLocked": "Older comments are locked. Unlock the history with your sync passphrase. You can still write new workspace comments.",
     "comment": "Comment",
     "suggest": "Suggest changes",
     "comments": "Comments",

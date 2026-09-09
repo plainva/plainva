@@ -3293,6 +3293,11 @@
     "passwordMissing": "Manca una credenziale necessaria. Ricollega il servizio interessato."
   },
   "comments": {
+    "workspaceLocked": "Questo spazio di lavoro è bloccato su questo dispositivo. Apri le impostazioni di sicurezza per sbloccarlo e leggere o scrivere annotazioni.",
+    "legacyOrigin": "Dalla cronologia precedente",
+    "legacyOriginDetail": "Il nome e la data sono le indicazioni originali di una cronologia precedente non firmata. La firma dello spazio di lavoro conferma l’importazione.",
+    "legacyImportPending": "L’importazione nello spazio di lavoro è ancora in sospeso. Il commento originale viene conservato.",
+    "legacyHistoryLocked": "I commenti precedenti sono bloccati. Sblocca la cronologia con la passphrase di sincronizzazione. Puoi continuare a scrivere nuovi commenti nello spazio di lavoro.",
     "comment": "Commenta",
     "suggest": "Suggerisci modifiche",
     "comments": "Commenti",

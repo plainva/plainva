@@ -1,7 +1,9 @@
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { CommentLegacyLock } from "@plainva/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
+import { CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -32,6 +34,8 @@ export interface CommentsSheetProps {
   propertyResolutions?: ReadonlyMap<string, WorkspacePropertyAnchorResolution>;
   canComment: boolean;
   canWrite: boolean;
+  onRetryPending?(outboxId: string): void;
+  onDiscardPending?(outboxId: string): void;
   onSubmit(body: string, parentCommentId: string | null): Promise<void>;
   onResolve(commentId: string): void;
   onReviewDecision?(comment: WorkspaceCommentRecord): void;
@@ -83,7 +87,8 @@ export interface CommentsSheetProps {
    * unlocked key here. The sheet says so and offers the way out, instead of an
    * empty list that reads as "nobody wrote anything".
    */
-  locked?: { onUnlock(): void };
+  locked?: { onUnlock(): void; workspace?: boolean };
+  legacyLocked?: { onUnlock(): void };
 }
 
 /**
@@ -119,6 +124,8 @@ export function CommentsSheet({
   onOpenNote,
   onOpenUrl,
   onDelete,
+  onRetryPending,
+  onDiscardPending,
   canModerate,
   inlineSuggestions,
   onToggleInlineSuggestions,
@@ -130,6 +137,7 @@ export function CommentsSheet({
   muted,
   onToggleMute,
   locked,
+  legacyLocked,
 }: CommentsSheetProps) {
   const { t, i18n } = useTranslation();
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -175,10 +183,10 @@ export function CommentsSheet({
   }, [activeCommentId, kind, filter]);
   const nameOf = (ref: { authorMemberId: string; targetRevisionId?: string }) => commentAuthorLabel(ref, memberNames, selfMemberId, t);
   const roundAuthor = (round: { authorMemberId: string; blocks: Array<{ root: WorkspaceCommentRecord }> }) =>
-    nameOf({ authorMemberId: round.authorMemberId, targetRevisionId: round.blocks[0]?.root.targetRevisionId });
+    nameOf(round.blocks[0].root);
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && (record.authorMemberId === selfMemberId || canModerate === true);
+  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending && ((!record.legacyOrigin && record.authorMemberId === selfMemberId) || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton label={t("comments.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
       <Trash2 size={ICON.touch} />
@@ -248,7 +256,9 @@ export function CommentsSheet({
             const state = suggestionState(root);
             return (
               <div key={root.commentId} ref={activeCommentId === root.commentId ? activeCardRef : undefined} className={`pv-comment-card${activeCommentId === root.commentId ? " is-active" : ""}`}>
-                <CommentCardHead name={nameOf(root)} initials={authorInitials(memberNames.get(root.authorMemberId) ?? nameOf(root))} memberId={root.authorMemberId} createdAt={root.createdAt} locale={i18n.language} />
+                <CommentCardHead name={nameOf(root)} initials={authorInitials(memberNames.get(commentAuthorKey(root)) ?? nameOf(root))} memberId={commentAuthorKey(root)} createdAt={commentCreatedAt(root)} locale={i18n.language} />
+                    <CommentProvenance comment={root} />
+                    <CommentDeliveryState comment={root} own={root.authorMemberId === selfMemberId} onRetry={onRetryPending} onDiscard={onDiscardPending} />
                 {addressed && (
                   <span className="pv-comment-card__state">
                     <AtSign size={ICON.meta} aria-hidden="true" /> {t("comments.commentMentionsYou")}
@@ -272,23 +282,25 @@ export function CommentsSheet({
                 )}
                 {replies.map((reply) => (
                   <div key={reply.commentId} className="pv-comment-card__reply">
-                    <CommentCardHead name={nameOf(reply)} initials={authorInitials(memberNames.get(reply.authorMemberId) ?? nameOf(reply))} memberId={reply.authorMemberId} createdAt={reply.createdAt} locale={i18n.language} />
+                    <CommentCardHead name={nameOf(reply)} initials={authorInitials(memberNames.get(commentAuthorKey(reply)) ?? nameOf(reply))} memberId={commentAuthorKey(reply)} createdAt={commentCreatedAt(reply)} locale={i18n.language} />
+                    <CommentProvenance comment={reply} />
+                    <CommentDeliveryState comment={reply} own={reply.authorMemberId === selfMemberId} onRetry={onRetryPending} onDiscard={onDiscardPending} />
                     <CommentBody body={reply.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                     {mayDelete(reply) && <div className="pv-comment-card__actions">{deleteControl(reply)}</div>}
                     {confirmBox(reply, 0)}
                   </div>
                 ))}
-                {state === "conflict" && <CommentDecisionConflict onReview={canComment && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
-                {state === "open" && canWrite && (
+                {state === "conflict" && <CommentDecisionConflict onReview={canComment && !root.legacyPending && !root.pending && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
+                {state === "open" && !root.legacyPending && !root.pending && (canWrite || canComment) && (
                   // The decision is its own row (finding 2026-09-03, desktop
                   // parity): accept and decline side by side, never wrapped apart.
                   <div className="pv-comment-card__decision">
-                    <Button size="sm" onClick={() => onApplySuggestion(root)}>
+                    {canWrite && <Button size="sm" onClick={() => onApplySuggestion(root)}>
                       {t("comments.suggestionApply")}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => onDeclineSuggestion(root)}>
+                    </Button>}
+                    {canComment && <Button size="sm" variant="ghost" onClick={() => onDeclineSuggestion(root)}>
                       {t("comments.suggestionDecline")}
-                    </Button>
+                    </Button>}
                   </div>
                 )}
                 <div className="pv-comment-card__actions">
@@ -298,7 +310,7 @@ export function CommentsSheet({
                   {state === "declined" && (
                     <span className="pv-comment-card__state">{t("comments.suggestionDeclined")}</span>
                   )}
-                  {canComment && (
+                  {canComment && !root.legacyPending && !root.pending && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => setReplyTo(root.commentId)}>
                         {t("comments.commentReply")}
@@ -371,9 +383,10 @@ export function CommentsSheet({
           )}
         </div>
         {operationStatus}
+        {legacyLocked && <CommentLegacyLock onUnlock={legacyLocked.onUnlock} />}
         {locked && (
           <EmptyState icon={<Lock size={ICON.empty} />} action={<Button size="sm" onClick={locked.onUnlock} data-testid="comments-unlock">{t("comments.commentsUnlock")}</Button>}>
-            {t("comments.commentsLocked")}
+            {t(locked.workspace ? "comments.workspaceLocked" : "comments.commentsLocked")}
           </EmptyState>
         )}
         {!locked && kind === "comments" && grouped.threads.length === 0 && <p className="pv-comment-column__empty">{t("comments.commentsNone")}</p>}
@@ -383,9 +396,9 @@ export function CommentsSheet({
             <section key={round.batchId} className="pv-comment-round">
               {!round.batchId.startsWith("single:") && (
                 <div className="pv-comment-round__head">
-                  <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(round.authorMemberId) ?? roundAuthor(round))} memberId={round.authorMemberId} createdAt={round.createdAt} locale={i18n.language} />
+                  <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(commentAuthorKey(round.blocks[0].root)) ?? roundAuthor(round))} memberId={commentAuthorKey(round.blocks[0].root)} createdAt={round.createdAt} locale={i18n.language} />
                   <p className="pv-comment-round__meta">{round.note ? <em>„{round.note}“ · </em> : null}{t("comments.suggestRoundCount", { n: round.blocks.length })}</p>
-                  {round.open > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict") && (
+                  {round.open > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict" || block.root.legacyPending || block.root.pending) && (
                     <div className="pv-comment-card__actions">
                       {canWrite && onApplyRound && <Button size="sm" onClick={() => onApplyRound(round.batchId)}>{t("comments.suggestApplyAll")}</Button>}
                       {canComment && onDeclineRound && <Button size="sm" variant="ghost" onClick={() => onDeclineRound(round.batchId)}>{t("comments.suggestDeclineAll")}</Button>}

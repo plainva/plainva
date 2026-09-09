@@ -630,24 +630,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
-    id: "workspace-comment-store-mobile",
-    title: "Comments inside an encrypted workspace on the phone",
-    area: "security",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop serves an encrypted workspace's comments from the signed " +
-      "objects (WorkspaceCommentStore: outbox, sealed upload, quarantine). The " +
-      "phone has no such store and keeps writing the sideband bundle even " +
-      "there, which the desktop never reads in a workspace - so a remark " +
-      "written on the phone in an encrypted workspace stays on the phone. " +
-      "Found while lifting the store contract (Nachschaerfung N0, 2026-09-07); " +
-      "closing it means the outbox and the sealed publisher on the phone, " +
-      "listed in the Sammelplan (section 3.22).",
-    verified: "2026-09-07",
-  },
-  {
     id: "workspace-passphrase-change",
     title: "Change the passphrase that seals the keys on this device",
     area: "security",

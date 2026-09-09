@@ -7,7 +7,7 @@
  * What stays here is only what must: where this device caches its master key,
  * which settings store holds its id and the reviewer name.
  */
-import { BundleCommentStore, type BundleCommentsMode, type CommentStore, type IVaultAdapter } from "@plainva/core";
+import { BundleCommentStore, type BundleCommentsMode, type IVaultAdapter } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { hasLocalKeyfile, loadCachedMasterKey } from "./encryptionSession";
 import { commentsCryptoFor, getDeviceId } from "./settingsProfile";
@@ -55,7 +55,7 @@ export function createLocalCommentStore(
   authorName: () => Promise<string | null | undefined>,
   /** Runs after every write: the context kicks the sideband and tells the column. */
   written: (path: string) => void,
-): CommentStore {
+): BundleCommentStore {
   return new BundleCommentStore({
     vault: raw,
     vaultKey: vaultPath,

@@ -1,3 +1,4 @@
+import { clearMobileCommentWorker, setMobileCommentWorker } from "./commentWorker";
 import {
   DriveSyncTarget,
   DropboxSyncTarget,
@@ -432,6 +433,7 @@ export function syncSoon(): void {
 }
 
 export function stopSync(): void {
+  clearMobileCommentWorker();
   worker?.stop();
   worker = null;
   deletionJournal = null;
@@ -443,6 +445,7 @@ export function stopSync(): void {
  * still downloading/writing must finish (or abort) first.
  */
 export async function stopSyncAndDrain(): Promise<void> {
+  clearMobileCommentWorker();
   const w = worker;
   worker = null;
   deletionJournal = null;
@@ -748,6 +751,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     worker = encrypted;
+    setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
     encrypted.start();
     encrypted.triggerImmediate();

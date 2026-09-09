@@ -61,3 +61,11 @@ Plainva registra su questo dispositivo l’avanzamento di ogni operazione sui co
 Se la nota è cambiata prima della conferma del testo, apri **Confronta il testo**. Confronta la modifica prevista con il testo attuale e modifica la nota se necessario. Il nuovo tentativo verifica di nuovo; un testo diverso non viene sostituito con la vecchia versione.
 
 Se i dispositivi comunicano decisioni diverse, la scheda mostra **Decisioni in conflitto**. Usa **Rivedi la decisione** per confrontare la proposta con la nota attuale. **Conferma come applicato** o **Conferma come rifiutato** conferma questo testo e sostituisce solo le decisioni già note qui. La proposta non viene inserita di nuovo. Una decisione contraria prima sconosciuta che arriva in seguito può generare un nuovo conflitto.
+
+## Commenti precedenti in uno spazio di lavoro
+
+Desktop e mobile usano lo stesso archivio di commenti firmati in uno spazio di lavoro cifrato. I commenti scritti offline rimangono nella posta in uscita. Dopo un errore di invio puoi riprovare lo stesso commento senza duplicare quelli già salvati.
+
+I commenti nei file precedenti vengono conservati e importati con i permessi di gestione e di commento. **Dalla cronologia precedente** mantiene il nome e la data originali. Queste indicazioni non attestano retroattivamente l’appartenenza allo spazio di lavoro; la nuova firma conferma l’importazione. Se mancano i permessi, la nota di destinazione sincronizzata o un salvataggio riuscito, il commento precedente resta visibile. Le azioni di risposta, eliminazione e suggerimento restano indisponibili finché la destinazione non viene assegnata in modo duraturo. L’importazione non invia nuovamente le notifiche della cronologia precedente.
+
+Se è bloccata solo la cronologia precedente, l’azione di sblocco apre il flusso della passphrase di sincronizzazione; i nuovi commenti restano disponibili. Se è bloccato lo spazio di lavoro stesso, apre le impostazioni di sicurezza. Le operazioni sui suggerimenti iniziate prima dell’aggiornamento mantengono i progressi salvati e possono riprendere con i permessi attuali. L’importazione non rimuove i file originali dei commenti.

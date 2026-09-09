@@ -3261,6 +3261,11 @@
     "passwordMissing": "Ein benötigter Zugang fehlt. Verbinde den betroffenen Dienst erneut."
   },
   "comments": {
+    "workspaceLocked": "Dieser Workspace ist auf diesem Gerät gesperrt. Öffne die Sicherheitseinstellungen, um ihn zu entsperren und Anmerkungen zu lesen oder zu schreiben.",
+    "legacyOrigin": "Aus älterem Bestand",
+    "legacyOriginDetail": "Name und Datum sind ursprüngliche Angaben aus einem älteren, unsignierten Bestand. Die Workspace-Signatur bestätigt die Übernahme.",
+    "legacyImportPending": "Die Übernahme in den Workspace ist noch offen. Der ursprüngliche Beitrag bleibt erhalten.",
+    "legacyHistoryLocked": "Ältere Anmerkungen sind gesperrt. Entsperre den Bestand mit Deiner Sync-Passphrase. Neue Workspace-Anmerkungen kannst Du weiterhin schreiben.",
     "comment": "Kommentieren",
     "suggest": "Änderungen vorschlagen",
     "comments": "Kommentare",

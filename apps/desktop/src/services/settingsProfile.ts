@@ -83,6 +83,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
+import { getWorkspaceSecurityStatus } from "./workspaceSecurity/workspaceKeychain";
 import { hasLocalKeyfile, loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
 import {
   GUARD_VERSION,
@@ -1224,6 +1225,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       }
       return new CommentsSyncStep({
         vaultKey: vaultPath,
+        downloadOnly: !!(await getWorkspaceSecurityStatus(vaultPath)),
         // One file per device (N2): the same id the store writes as the author.
         deviceId: await getDeviceId(),
         crypto: mk ? commentsCryptoFor(mk) : undefined,
