@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -46,7 +46,9 @@ When another device's file arrives through a foreign sync, the desktop shows it 
 
 When the vault has a sync passphrase that has not been entered on this device, the remarks are **locked**: column, sheet and overview say so and offer **Unlock**. Nothing is read or written until then — a locked device never puts a plaintext file beside the sealed one.
 
-When you rename or move a note (or a whole folder), its remarks follow. If the move cannot be recorded, the rename stands and Plainva says so; the remarks then sit under the old name in **Open comments**.
+When you rename or move a note (or a whole folder) in Plainva, its remarks follow. Plainva also remembers the move before the first comment arrives or while the older history is locked. After reopening or unlocking, late comments can follow the saved path changes. If you reuse the old filename for a new note, newer remarks on that note stay there.
+
+These local records contain only path changes and their original times. They are kept if a comment file is damaged or cannot be updated; syncing carries the markers in the usual comment bundle, encrypted when a passphrase is active. If the local record itself cannot be saved, the rename still stands and Plainva warns you. Check storage and file access; remarks may remain under the old name in **Open comments**.
 
 A remarks file that cannot be read is never overwritten: this device's own file is set aside untouched (`comments.<device>.broken-<time>.json`), another device's stays where it is. Plainva reports the reason once and offers **Export diagnosis** — paths and reasons, never comment text.
 

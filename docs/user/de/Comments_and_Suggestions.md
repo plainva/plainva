@@ -1,6 +1,6 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
@@ -46,7 +46,9 @@ Kommt die Datei eines anderen Geräts über einen fremden Sync an, siehst Du sie
 
 Hat der Vault eine Sync-Passphrase und ist sie auf diesem Gerät nicht eingegeben, sind die Anmerkungen **gesperrt**: Spalte, Blatt und Übersicht sagen das und bieten **Entsperren** an. Gelesen und geschrieben wird erst nach dem Entsperren — ein gesperrtes Gerät legt nie eine Klartextdatei neben die versiegelte.
 
-Benennst Du eine Notiz um oder verschiebst sie (auch einen ganzen Ordner), folgen ihre Anmerkungen. Kann die Verschiebung nicht vermerkt werden, bleibt die Umbenennung bestehen und Plainva sagt es; die Anmerkungen liegen dann unter dem alten Namen in **Offene Kommentare**.
+Benennst Du in Plainva eine Notiz um oder verschiebst sie (auch einen ganzen Ordner), folgen ihre Anmerkungen. Plainva merkt sich die Verschiebung auch vor dem ersten Kommentar oder bei gesperrter älterer Historie. Nach dem erneuten Öffnen oder Entsperren können spät eintreffende Kommentare den gespeicherten Pfadwechseln folgen. Verwendest Du den alten Dateinamen für eine neue Notiz, bleiben neuere Anmerkungen zu dieser Notiz dort.
+
+Diese lokalen Nachweise enthalten nur Pfadwechsel und deren ursprünglichen Zeitpunkt. Sie bleiben erhalten, wenn eine Kommentardatei beschädigt ist oder nicht aktualisiert werden kann. Der Sync überträgt die Marker im üblichen Kommentar-Bündel, bei aktiver Passphrase verschlüsselt. Lässt sich schon der lokale Nachweis nicht speichern, bleibt die Umbenennung bestehen und Plainva warnt Dich. Prüfe Speicherplatz und Dateizugriff; Anmerkungen können unter dem alten Namen in **Offene Kommentare** verbleiben.
 
 Lässt sich eine Anmerkungsdatei nicht lesen, wird sie nie überschrieben: Die eigene Datei dieses Geräts wird unverändert beiseitegelegt (`comments.<gerät>.broken-<zeit>.json`), die eines anderen Geräts bleibt, wo sie ist. Plainva meldet den Grund einmal und bietet **Diagnose exportieren** an — Pfade und Ursachen, nie Kommentartext.
 

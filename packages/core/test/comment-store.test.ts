@@ -264,16 +264,22 @@ describe("move markers", () => {
     expect([...(await store.listAll()).keys()]).toEqual(["Notes/Roadmap.md"]);
   });
 
-  it("writes no bundle for a rename in a vault that never carried a remark", async () => {
+  it("keeps a local proof and transport marker before the first remark arrives", async () => {
     const vault = new FakeVault();
     const store = storeFor(vault, { kind: "plain" });
     await store.recordMoves([{ from: "A.md", to: "B.md" }]);
-    expect(vault.files.size).toBe(0);
+    expect([...vault.files.keys()].some(path => path.startsWith('.plainva/comment-moves.'))).toBe(true);
+    expect(Object.values(parseCommentsBundle(vault.files.get(OWN_PLAIN)!)!.moves!)[0]).toMatchObject({ from: 'A.md', to: 'B.md' });
   });
 
-  it("refuses on a locked device rather than writing a plaintext marker", async () => {
-    const store = storeFor(new FakeVault(), { kind: "locked" });
-    await expect(store.recordMoves([{ from: "A.md", to: "B.md" }])).rejects.toBeInstanceOf(CommentStoreLockedError);
+  it("records a locked rename locally without creating unsealed transport history", async () => {
+    const vault = new FakeVault();
+    const store = storeFor(vault, { kind: "locked" });
+    await store.recordMoves([{ from: "A.md", to: "B.md" }]);
+    expect(vault.files.size).toBe(1);
+    expect([...vault.files.keys()][0]).toMatch(/^\.plainva\/comment-moves\./);
+    expect(vault.files.has(OWN_PLAIN)).toBe(false);
+    expect(await store.listAll()).toEqual(new Map());
   });
 
   it("survives the union merge and serializes byte-identically without moves", () => {

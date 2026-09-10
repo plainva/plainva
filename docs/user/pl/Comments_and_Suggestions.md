@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -46,7 +46,9 @@ Gdy plik innego urządzenia nadejdzie przez obcą synchronizację, komputer poka
 
 Jeśli sejf ma hasło synchronizacji, którego nie wpisano na tym urządzeniu, uwagi są **zablokowane**: kolumna, arkusz i przegląd mówią o tym i oferują **Odblokuj**. Do tego czasu nic nie jest czytane ani zapisywane — zablokowane urządzenie nigdy nie kładzie pliku jawnego obok zapieczętowanego.
 
-Gdy zmieniasz nazwę notatki lub ją przenosisz (także cały folder), jej uwagi podążają za nią. Jeśli przeniesienia nie da się odnotować, zmiana nazwy pozostaje, a Plainva o tym mówi; uwagi leżą wtedy pod starą nazwą w **Otwarte komentarze**.
+Gdy zmieniasz nazwę notatki lub ją przenosisz (także cały folder) w Plainva, jej uwagi podążają za nią. Plainva zapamiętuje przeniesienie również przed nadejściem pierwszego komentarza lub gdy starsza historia jest zablokowana. Po ponownym otwarciu lub odblokowaniu spóźnione komentarze mogą podążyć za zapisanymi zmianami ścieżek. Jeśli użyjesz starej nazwy dla nowej notatki, nowsze uwagi do tej notatki pozostaną przy niej.
+
+Te lokalne zapisy zawierają tylko zmiany ścieżek i ich pierwotne daty. Są zachowywane, gdy plik komentarzy jest uszkodzony lub nie można go zaktualizować; synchronizacja przesyła znaczniki w zwykłym pakiecie komentarzy, zaszyfrowanym przy aktywnej frazie szyfrującej. Jeśli nie można zapisać samego lokalnego potwierdzenia, zmiana nazwy pozostaje, a Plainva ostrzega. Sprawdź miejsce na dysku i dostęp do plików; uwagi mogą pozostać pod starą nazwą w **Otwarte komentarze**.
 
 Plik uwag, którego nie da się odczytać, nigdy nie jest nadpisywany: własny plik tego urządzenia zostaje odłożony bez zmian (`comments.<urządzenie>.broken-<czas>.json`), plik innego urządzenia zostaje tam, gdzie jest. Plainva zgłasza przyczynę raz i oferuje **Eksportuj diagnostykę** — ścieżki i przyczyny, nigdy treść komentarzy.
 

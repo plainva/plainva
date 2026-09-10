@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { BackupVaultAdapter, commentsDevicePath, parseCommentsBundle, type CommentBundleFault, type CommentStore } from "@plainva/core";
+import { BackupVaultAdapter, commentsDevicePath, parseCommentsBundle, serializeCommentsBundle, emptyCommentsBundle, type CommentBundleFault, type CommentStore } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { mobileCommentStore } from "./mobileComments";
 import type { MobileVault } from "./vaultService";
@@ -32,6 +32,27 @@ describe("mobile comment store coordination", () => {
   function makeStore(): CommentStore {
     return mobileCommentStore({ vaultId: root, adapter: new BackupVaultAdapter(raw) } as unknown as MobileVault);
   }
+  it.each([false, true])("records a first rename through the actual shell store and reopens with late history (locked: %s)", async locked => {
+    const mode = vi.spyOn(await import("./mobileSettingsSync"), "mobileCommentsMode").mockResolvedValue(locked ? { kind: "locked" } : { kind: "plain" });
+    await raw.writeTextFile("Old.md", "actual note");
+    await raw.renameItem("Old.md", "New.md");
+    await makeStore().recordMoves([{ from: "Old.md", to: "New.md", at: "2026-09-10T10:01:00.000Z" }]);
+    const journals = (await raw.listDir(".plainva", false)).filter(f => f.name.startsWith("comment-moves."));
+    expect(journals).toHaveLength(1);
+    const proof = parseCommentsBundle(await raw.readTextFile(journals[0].path))!;
+    expect(Object.values(proof.moves!)[0].at).toBe("2026-09-10T10:01:00.000Z");
+    expect(proof.comments).toEqual({});
+    if (locked) expect(await raw.exists(commentsDevicePath("device", false))).toBe(false);
+    mode.mockRestore();
+    await raw.writeTextFile(commentsDevicePath("remote", false), serializeCommentsBundle({
+      ...emptyCommentsBundle("2026-09-10T10:02:00.000Z"), comments: { ["01".repeat(16)]: {
+        commentId: "01".repeat(16), path: "Old.md", body: "late remark", createdAt: "2026-09-10T10:00:00.000Z",
+        authorDeviceId: "remote", parentCommentId: null, resolvedCommentId: null, suggestionOutcome: null, anchor: null, suggestion: null,
+      } },
+    }));
+    expect((await makeStore().list("New.md")).map(r => r.body)).toEqual(["late remark"]);
+    expect(await raw.readTextFile("New.md")).toBe("actual note");
+  });
   it("shares one writer across rebuilt vault/store instances", async () => {
     const a = makeStore(), b = makeStore();
     await a.post({ path: "Note.md", body: "seed" });

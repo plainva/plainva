@@ -23,6 +23,7 @@ import type { WorkspaceCapability } from "../workspace/documents.js";
 import type { WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
 import type { WorkspaceCommentRecord } from "../workspace/state.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";
+import { persistCommentMoves } from "./commentMoveJournal.js";
 import { commentWriteIdentity, type CommentWriteIdentity } from "./commentIdentity.js";
 import { appendLocalComment, appendLocalMoves, readAllComments, type CommentBundleFault, type CommentsCrypto } from "./CommentsSyncStep.js";
 import { commentPathsToCheck, localCommentAuthorNames, localCommentsByPath, localCommentsForPath, resolveCommentPath, sortedCommentMoves, type CommentsBundle, type LocalCommentRecord, type LocalMoveRecord } from "./commentsBundle.js";
@@ -87,6 +88,8 @@ export interface CommentPostInput {
 
 /** A note or folder that changed its path - what the rename paths of both shells report (N1). */
 export interface CommentPathMove {
+  /** Captured when the rename event arrives, before an owner-window round trip. */
+  at?: string;
   from: string;
   to: string;
   /** A folder: every path under `from` moved with it. */
@@ -355,10 +358,8 @@ export class BundleCommentStore implements CommentStore {
   async discard(): Promise<void> {}
 
   async recordMoves(moves: readonly CommentPathMove[]): Promise<void> {
-    const real = moves.filter((move) => move.from && move.to && move.from !== move.to);
+    const real = moves.filter((move) => move.from && move.to && move.from !== move.to).map(move => ({ ...move }));
     if (real.length === 0) return;
-    const mode = await this.deps.mode();
-    if (mode.kind === "locked") throw new CommentStoreLockedError();
     const now = this.deps.now?.() ?? new Date().toISOString();
     const deviceId = await this.deps.deviceId();
     const records: LocalMoveRecord[] = real.map((move) => ({
@@ -367,16 +368,17 @@ export class BundleCommentStore implements CommentStore {
       to: move.to,
       folder: move.folder === true,
       deviceId,
-      at: now,
+      at: move.at ?? now,
     }));
-    // A vault that never carried a remark gets no file for a rename alone:
-    // the marker only matters once there is something to keep in place - and
-    // that something may sit in another device's file.
+    await persistCommentMoves(this.deps.vault, records, { deviceId, vaultKey: this.deps.vaultKey, now });
     const faults: CommentBundleFault[] = [];
-    if (!(await readAllComments(this.deps.vault, deviceId, cryptoOf(mode), { faults, now, vaultKey: this.deps.vaultKey }))) { this.report(faults); return; }
     try {
+      const mode = await this.deps.mode();
+      if (mode.kind === "locked") return;
       await appendLocalMoves(this.deps.vault, records, { deviceId, crypto: cryptoOf(mode), now, faults, vaultKey: this.deps.vaultKey, resolveCrypto: () => this.writeCrypto() });
-    } finally { this.report(faults); }
-    this.deps.written?.(real.length === 1 && !real[0].folder ? real[0].to : "*");
+    } finally {
+      this.report(faults);
+      this.deps.written?.(real.length === 1 && !real[0].folder ? real[0].to : "*");
+    }
   }
 }

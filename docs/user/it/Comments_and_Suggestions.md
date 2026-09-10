@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -46,7 +46,9 @@ Quando il file di un altro dispositivo arriva tramite una sincronizzazione ester
 
 Se il vault ha una passphrase di sincronizzazione non inserita su questo dispositivo, le annotazioni sono **bloccate**: colonna, foglio e panoramica lo dicono e offrono **Sblocca**. Fino ad allora nulla viene letto o scritto — un dispositivo bloccato non mette mai un file in chiaro accanto a quello sigillato.
 
-Se rinomini o sposti una nota (o un’intera cartella), le sue annotazioni la seguono. Se lo spostamento non può essere registrato, la rinomina resta e Plainva lo dice; le annotazioni restano allora sotto il vecchio nome in **Commenti aperti**.
+Se rinomini o sposti una nota (o un’intera cartella) in Plainva, le sue annotazioni la seguono. Plainva ricorda lo spostamento anche prima del primo commento o quando la cronologia precedente è bloccata. Dopo la riapertura o lo sblocco, i commenti arrivati in ritardo possono seguire i cambi di percorso salvati. Se riutilizzi il vecchio nome per una nuova nota, le annotazioni più recenti di quella nota rimangono lì.
+
+Questi registri locali contengono solo cambi di percorso e le date originali. Restano conservati se un file di commenti è danneggiato o non può essere aggiornato; la sincronizzazione trasporta i marcatori nel consueto pacchetto di commenti, cifrato quando è attiva una passphrase. Se non è possibile salvare il registro locale, la rinomina resta valida e Plainva avvisa. Controlla lo spazio e l’accesso ai file; le annotazioni possono restare sotto il vecchio nome in **Commenti aperti**.
 
 Un file di annotazioni illeggibile non viene mai sovrascritto: il file di questo dispositivo viene messo da parte intatto (`comments.<dispositivo>.broken-<ora>.json`), quello di un altro dispositivo resta dov’è. Plainva segnala il motivo una volta e offre **Esporta diagnosi** — percorsi e motivi, mai il testo dei commenti.
 

@@ -1,6 +1,6 @@
 # Commentaires et suggestions
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
@@ -46,7 +46,9 @@ Quand le fichier d’un autre appareil arrive par une synchronisation tierce, le
 
 Si le coffre a une phrase secrète de synchronisation qui n’a pas été saisie sur cet appareil, les annotations sont **verrouillées** : la colonne, la feuille et la vue d’ensemble le disent et proposent **Déverrouiller**. Rien n’est lu ni écrit avant — un appareil verrouillé ne pose jamais un fichier en clair à côté du fichier scellé.
 
-Quand vous renommez ou déplacez une note (ou un dossier entier), ses annotations la suivent. Si le déplacement ne peut pas être enregistré, le renommage est conservé et Plainva le dit ; les annotations restent alors sous l’ancien nom dans **Commentaires ouverts**.
+Quand vous renommez ou déplacez une note (ou un dossier entier) dans Plainva, ses annotations la suivent. Plainva mémorise le déplacement même avant le premier commentaire ou lorsque l’ancien historique est verrouillé. Après réouverture ou déverrouillage, les commentaires arrivés tardivement peuvent suivre les changements de chemin enregistrés. Si vous réutilisez l’ancien nom pour une nouvelle note, les annotations plus récentes de cette note y restent.
+
+Ces traces locales contiennent uniquement les changements de chemin et leurs dates d’origine. Elles sont conservées si un fichier de commentaires est endommagé ou ne peut pas être mis à jour ; la synchronisation transporte les marqueurs dans le paquet habituel de commentaires, chiffré lorsqu’une phrase secrète est active. Si la trace locale elle-même ne peut pas être enregistrée, le renommage est conservé et Plainva vous avertit. Vérifiez le stockage et l’accès aux fichiers ; les annotations peuvent rester sous l’ancien nom dans **Commentaires ouverts**.
 
 Un fichier d’annotations illisible n’est jamais écrasé : le fichier de cet appareil est mis de côté tel quel (`comments.<appareil>.broken-<heure>.json`), celui d’un autre appareil reste où il est. Plainva signale la raison une fois et propose **Exporter le diagnostic** — chemins et raisons, jamais le texte des commentaires.
 

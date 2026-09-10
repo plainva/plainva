@@ -2965,6 +2965,8 @@ export const VaultProvider: React.FC<{
    */
   const recordCommentMoves = async (moves: CommentPathMove[]): Promise<void> => {
     if (moves.length === 0) return;
+    const at = new Date().toISOString();
+    moves = moves.map(move => ({ ...move, at: move.at ?? at }));
     if (isClient) {
       const bus = await getWindowBus();
       await bus.request("comment-move", { moves });

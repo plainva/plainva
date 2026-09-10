@@ -32,6 +32,7 @@
  * origin as a deletion - and reported with a reason code (N3).
  */
 import { withCommentsWrite, withCommentsSync } from "./commentsCoordinator.js";
+import { readCommentMoveJournals } from "./commentMoveJournal.js";
 import { CommentIdentityConflictError, sameCommentContent } from "./commentIdentity.js";
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
@@ -336,7 +337,7 @@ async function readAllCommentsUnlocked(
   const now = options.now ?? new Date().toISOString();
   const ownName = commentsDeviceFileName(deviceId, !!crypto);
   const files = await listCommentsFiles(vault, options.faults);
-  let merged: CommentsBundle | null = null;
+  let merged = await readCommentMoveJournals(vault, deviceId, now, options.faults);
   let sawOwn = false;
   const readOwnForDisplay = async () => {
     try { return await readOwnCommentsUnlocked(vault, deviceId, crypto, options); }

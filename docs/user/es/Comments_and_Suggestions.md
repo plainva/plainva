@@ -1,6 +1,6 @@
 # Comentarios y sugerencias
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Los comentarios y las sugerencias existen en **todo** vault — con o sin sincronización, con o sin cifrado. En un workspace cifrado son objetos firmados (ver [Seguridad y uso compartido](Security_and_Sharing.md)); en todos los demás llevan el nombre de **Tu nombre (anotaciones y revisiones)** en los ajustes. Una sugerencia es un comentario con un texto de reemplazo: ambos pasan por el mismo almacén, la misma columna, la misma hoja. Si falta el nombre, Plainva lo pregunta una vez en el primer comentario; sin respuesta, el dispositivo firma con su propia etiqueta (por ejemplo «Dispositivo Windows 4f3a»). Tus propias anotaciones aparecen como **Tú**.
 
@@ -46,7 +46,9 @@ Cuando llega el archivo de otro dispositivo por una sincronización externa, el 
 
 Si el vault tiene una frase de contraseña de sincronización que no se ha introducido en este dispositivo, las anotaciones están **bloqueadas**: columna, hoja y resumen lo dicen y ofrecen **Desbloquear**. Hasta entonces no se lee ni se escribe nada — un dispositivo bloqueado nunca pone un archivo en claro junto al sellado.
 
-Si renombras o mueves una nota (o una carpeta entera), sus anotaciones la siguen. Si el movimiento no puede registrarse, el cambio de nombre se mantiene y Plainva lo dice; las anotaciones quedan entonces bajo el nombre anterior en **Comentarios abiertos**.
+Si renombras o mueves una nota (o una carpeta entera) en Plainva, sus anotaciones la siguen. Plainva recuerda el movimiento incluso antes del primer comentario o mientras el historial anterior está bloqueado. Al volver a abrir o desbloquear, los comentarios que lleguen tarde pueden seguir los cambios de ruta guardados. Si reutilizas el nombre anterior para una nota nueva, las anotaciones más recientes de esa nota permanecen allí.
+
+Estos registros locales contienen solo cambios de ruta y sus fechas originales. Se conservan si un archivo de comentarios está dañado o no puede actualizarse; la sincronización transporta los marcadores en el paquete habitual de comentarios, cifrado cuando hay una frase de contraseña activa. Si no se puede guardar el registro local, el cambio de nombre se mantiene y Plainva avisa. Comprueba el almacenamiento y el acceso a archivos; las anotaciones pueden permanecer bajo el nombre anterior en **Comentarios abiertos**.
 
 Un archivo de anotaciones que no se puede leer nunca se sobrescribe: el propio archivo de este dispositivo se aparta intacto (`comments.<dispositivo>.broken-<hora>.json`), el de otro dispositivo se queda donde está. Plainva informa del motivo una vez y ofrece **Exportar diagnóstico** — rutas y motivos, nunca el texto de los comentarios.
 

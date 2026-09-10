@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-09-09
+Stand: 2026-09-10
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -46,7 +46,9 @@ Komt het bestand van een ander apparaat via een vreemde synchronisatie aan, dan 
 
 Heeft de kluis een synchronisatie-wachtwoordzin die op dit apparaat niet is ingevoerd, dan zijn de opmerkingen **vergrendeld**: kolom, blad en overzicht zeggen dat en bieden **Ontgrendelen** aan. Tot dan wordt niets gelezen of geschreven — een vergrendeld apparaat zet nooit een bestand in klare tekst naast het verzegelde.
 
-Hernoem of verplaats je een notitie (of een hele map), dan gaan haar opmerkingen mee. Kan de verplaatsing niet worden vastgelegd, dan blijft de hernoeming staan en zegt Plainva dat; de opmerkingen staan dan onder de oude naam in **Openstaande opmerkingen**.
+Hernoem of verplaats je een notitie (of een hele map) in Plainva, dan gaan haar opmerkingen mee. Plainva onthoudt de verplaatsing ook voordat de eerste opmerking aankomt of terwijl de oudere geschiedenis vergrendeld is. Na opnieuw openen of ontgrendelen kunnen late opmerkingen de opgeslagen padwijzigingen volgen. Gebruik je de oude bestandsnaam voor een nieuwe notitie, dan blijven nieuwere opmerkingen bij die notitie.
+
+Deze lokale gegevens bevatten alleen padwijzigingen en hun oorspronkelijke tijdstippen. Ze blijven behouden als een opmerkingenbestand beschadigd is of niet kan worden bijgewerkt; synchronisatie verstuurt de markeringen in de gebruikelijke opmerkingenbundel, versleuteld wanneer een wachtzin actief is. Als de lokale registratie zelf niet kan worden opgeslagen, blijft de hernoeming staan en waarschuwt Plainva je. Controleer de opslagruimte en bestandstoegang; opmerkingen kunnen onder de oude naam in **Openstaande opmerkingen** blijven staan.
 
 Een opmerkingenbestand dat niet kan worden gelezen, wordt nooit overschreven: het eigen bestand van dit apparaat wordt ongewijzigd opzijgezet (`comments.<apparaat>.broken-<tijd>.json`), dat van een ander apparaat blijft waar het is. Plainva meldt de reden één keer en biedt **Diagnose exporteren** aan — paden en redenen, nooit de tekst van opmerkingen.
 
