@@ -36,6 +36,8 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     statusSkipped: pick('statusSkipped', d.statusSkipped),
     statusDegraded: pick('statusDegraded', d.statusDegraded),
     renamedToAvoidOverwrite: pick('renamed', d.renamedToAvoidOverwrite),
+    noAvailableName: pick('noAvailableName', d.noAvailableName),
+    reservedPathOccupied: pick('reservedPathOccupied', d.reservedPathOccupied),
     viewTable: t('database.viewTable', { defaultValue: d.viewTable }) as string,
     viewList: t('database.viewList', { defaultValue: d.viewList }) as string,
     viewBoard: t('database.viewBoard', { defaultValue: d.viewBoard }) as string,

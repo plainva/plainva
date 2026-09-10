@@ -217,6 +217,8 @@
       "statusDegraded": "INCOMPLETO",
       "renamed": "renomeado para não sobrescrever uma nota existente",
       "entryFailed": "não foi possível importar",
+      "noAvailableName": "nenhum nome de arquivo livre entre 1000 variantes; os arquivos existentes foram preservados",
+      "reservedPathOccupied": "o nome de arquivo reservado agora está ocupado; o arquivo existente foi preservado",
       "runStopped": "a importação parou antes do previsto — tudo até este ponto já foi salvo",
       "skippedDuplicate": "a mesma nota está duas vezes na exportação — importada uma vez, como",
       "skippedTrashed": "na lixeira — não importado",

@@ -215,6 +215,8 @@
       "statusDegraded": "ONVOLLEDIG",
       "renamed": "hernoemd zodat een bestaande notitie niet werd overschreven",
       "entryFailed": "kon niet worden geïmporteerd",
+      "noAvailableName": "geen vrije bestandsnaam onder 1000 varianten; bestaande bestanden zijn behouden",
+      "reservedPathOccupied": "de gereserveerde bestandsnaam is inmiddels bezet; het bestaande bestand is behouden",
       "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
       "skippedDuplicate": "dezelfde notitie staat twee keer in de export — één keer geïmporteerd, als",
       "skippedTrashed": "in de prullenbak — niet geïmporteerd",

@@ -167,3 +167,7 @@ Ganz unten steht, wie Du den Import **rückgängig** machst: Alles aus einem Lau
 ## Größengrenzen beim Entpacken
 
 ZIP-Dateien werden mit Grenzen pro Datei, für die Gesamtmenge und für die Anzahl der übernommenen Einträge verarbeitet. Auf dem Telefon werden diese Grenzen jetzt auch während des tatsächlichen Entpackens geprüft; falsche Größenangaben im Archiv umgehen sie nicht. Zu große, unsichere oder nicht lesbare Einträge werden im Ergebnis genannt. Ein strukturell defektes Archiv wird als Fehler gemeldet. Der ursprüngliche Export bleibt erhalten.
+
+## Belegte Dateinamen
+
+Der Import prüft bis zu 1000 Dateinamensvarianten. Ist keine frei, lässt sich ein Ziel nicht prüfen oder ist ein reservierter Name inzwischen belegt, wird dieser Eintrag mit Begründung ausgelassen. Andere Einträge werden weiter importiert. Bei Notion bleiben Links nach einer gescheiterten Reservierung bei der ursprünglichen Quelle, statt ein lokales Ziel zuzuweisen. Findet auch der Bericht keinen freien Namen, zeigt der Import einen Fehler; bereits importierte Dateien bleiben im Zielordner.

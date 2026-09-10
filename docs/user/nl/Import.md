@@ -167,3 +167,7 @@ Helemaal onderaan staat hoe je de import **ongedaan maakt**: alles uit één uit
 ## Groottelimieten tijdens het uitpakken
 
 ZIP-bestanden worden verwerkt met limieten per bestand, voor de totale grootte en voor het aantal geaccepteerde items. Op de telefoon worden deze limieten ook tijdens het daadwerkelijke uitpakken gecontroleerd; onjuiste opgegeven groottes kunnen ze niet omzeilen. Te grote, onveilige of onleesbare items staan in het resultaat. Een archief met een beschadigde structuur wordt als fout gemeld. De oorspronkelijke export blijft behouden.
+
+## Bezette bestandsnamen
+
+De import controleert maximaal 1000 naamvarianten. Als geen naam vrij is, een doel niet kan worden gecontroleerd of een gereserveerde naam inmiddels bezet is, wordt die vermelding overgeslagen met een reden. Andere vermeldingen gaan door. Bij Notion blijven koppelingen na een mislukte reservering naar de oorspronkelijke bron wijzen in plaats van een lokaal doel toe te wijzen. Als ook het rapport geen vrije naam krijgt, toont de import een fout; al geïmporteerde bestanden blijven in de doelmap.

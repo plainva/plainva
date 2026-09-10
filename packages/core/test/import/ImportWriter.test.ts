@@ -26,6 +26,88 @@ function fakeVault(seed: Record<string, string> = {}) {
 }
 
 describe('ImportWriter — never overwrites', () => {
+  const numbered = (name: string, n: number) => n === 1 ? `${name}.md` : `${name} (${n}).md`;
+
+  it('checks the thousandth candidate and preserves every occupied file', async () => {
+    const seed = Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [numbered('A', i + 1), `old ${i}`]));
+    const vaultAdapter = fakeVault(seed);
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    await expect(writer.writeNote('A.md', 'new')).rejects.toThrow(DEFAULT_IMPORT_LABELS.noAvailableName);
+    expect(Object.fromEntries(vaultAdapter.files)).toEqual(seed);
+  });
+
+  it('uses the thousandth candidate when it is actually free', async () => {
+    const vaultAdapter = fakeVault(Object.fromEntries(Array.from({ length: 999 }, (_, i) => [numbered('A', i + 1), 'old'])));
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    expect(await writer.writeNote('A.md', 'new')).toBe('A (1000).md');
+    expect(vaultAdapter.files.get('A (999).md')).toBe('old');
+    expect(vaultAdapter.files.get('A (1000).md')).toContain('new');
+  });
+
+  it('serializes concurrent reservations and writes without losing their assigned names', async () => {
+    const vaultAdapter = fakeVault();
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    const reserved = await Promise.all(Array.from({ length: 12 }, () => writer.reserve('A.md')));
+    expect(new Set(reserved).size).toBe(12);
+    const written = await Promise.all(Array.from({ length: 13 }, (_, i) => writer.writeNote('A.md', `body ${i}`)));
+    expect(written.slice(0, 12)).toEqual(reserved);
+    expect(written[12]).toBe('A (13).md');
+    for (let i = 0; i < written.length; i++) expect(vaultAdapter.files.get(written[i])).toContain(`body ${i}`);
+  });
+
+  it('coordinates a reservation racing a direct write', async () => {
+    const vaultAdapter = fakeVault();
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    const [written, reserved] = await Promise.all([writer.writeNote('A.md', 'direct'), writer.reserve('A.md')]);
+    expect(written).toBe('A.md');
+    expect(reserved).toBe('A (2).md');
+    expect(await writer.writeNote('A.md', 'reserved')).toBe(reserved);
+    expect(vaultAdapter.files.get(written)).toContain('direct');
+  });
+
+  it('consumes an occupied reservation without overwriting it or shifting the next item', async () => {
+    const vaultAdapter = fakeVault();
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    await writer.reserve('A.md');
+    await writer.reserve('A.md');
+    vaultAdapter.files.set('A.md', 'arrived since reservation');
+    await expect(writer.writeNote('A.md', 'first')).rejects.toThrow(DEFAULT_IMPORT_LABELS.reservedPathOccupied);
+    expect(await writer.writeNote('A.md', 'second')).toBe('A (2).md');
+    expect(vaultAdapter.files.get('A.md')).toBe('arrived since reservation');
+  });
+
+  it('preserves an earlier reservation when allocating the next one fails', async () => {
+    const vaultAdapter = fakeVault();
+    const exists = vaultAdapter.exists;
+    vaultAdapter.exists = async path => { if (path === 'A (2).md') throw new Error('access denied'); return exists(path); };
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    await writer.reserve('A.md');
+    await expect(writer.reserve('A.md')).rejects.toThrow('access denied');
+    expect(await writer.writeNote('A.md', 'first')).toBe('A.md');
+  });
+
+  it('reports an unreadable target and continues with the next source entry', async () => {
+    const vaultAdapter = fakeVault({ 'Bad.md': 'private old note' });
+    const exists = vaultAdapter.exists;
+    vaultAdapter.exists = async path => { if (path === 'Bad.md') throw new Error('access denied'); return exists(path); };
+    const report = await new GenericMarkdownImporter().run([
+      { relativePath: 'Bad.md', content: 'new' }, { relativePath: 'Good.md', content: 'healthy' },
+    ], { targetVaultPath: '/v', vaultAdapter });
+    expect(report.skippedCount).toBe(1);
+    expect(report.importedNotesCount).toBe(1);
+    expect(report.summaryMarkdown).toContain('access denied');
+    expect(vaultAdapter.files.get('Bad.md')).toBe('private old note');
+    expect(vaultAdapter.files.get('Good.md')).toContain('healthy');
+  });
+
+  it('never overwrites any of a thousand reports when the report name is exhausted', async () => {
+    const seed = Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [numbered('Import report', i + 1), `report ${i}`]));
+    const vaultAdapter = fakeVault(seed);
+    const writer = new ImportWriter({ targetVaultPath: '/v', vaultAdapter }, DEFAULT_IMPORT_LABELS);
+    await expect(writer.finish({ id: 'generic_markdown', name: 'Markdown' }, Date.now())).rejects.toThrow(DEFAULT_IMPORT_LABELS.noAvailableName);
+    expect(Object.fromEntries(vaultAdapter.files)).toEqual(seed);
+  });
+
   it('numbers a note whose name is already taken in the vault', async () => {
     const vaultAdapter = fakeVault({ 'Imported/Meeting.md': 'PRECIOUS EXISTING CONTENT' });
     const writer = new ImportWriter(

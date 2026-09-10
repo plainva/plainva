@@ -167,3 +167,7 @@ Na samym dole znajduje się informacja, jak **cofnąć** import: wszystko z jedn
 ## Limity rozmiaru podczas rozpakowywania
 
 Pliki ZIP są przetwarzane z limitami rozmiaru pojedynczego pliku, łącznego rozmiaru oraz liczby przyjętych wpisów. Na telefonie limity są sprawdzane także podczas faktycznego rozpakowywania; błędne deklaracje rozmiaru nie pozwalają ich obejść. Wynik wymienia wpisy zbyt duże, niebezpieczne lub nieczytelne. Archiwum z uszkodzoną strukturą jest zgłaszane jako błąd. Oryginalny eksport pozostaje zachowany.
+
+## Zajęte nazwy plików
+
+Importer sprawdza do 1000 wariantów nazwy. Jeśli żaden nie jest wolny, nie można sprawdzić celu lub zarezerwowana nazwa została zajęta, pomija ten element i podaje przyczynę. Pozostałe elementy są importowane dalej. W imporcie z Notion nieudana rezerwacja pozostawia linki do oryginalnego źródła zamiast przypisywać cel lokalny. Jeśli raport również nie znajdzie wolnej nazwy, import wyświetla błąd; już zaimportowane pliki pozostają w folderze docelowym.

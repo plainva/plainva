@@ -167,3 +167,7 @@ Bem no final está como **desfazer** a importação: tudo de uma execução fica
 ## Limites de tamanho durante a extração
 
 Os arquivos ZIP são processados com limites por arquivo, para o tamanho total e para o número de entradas aceitas. No celular, os limites também são verificados durante a descompactação real; tamanhos declarados incorretamente não podem contorná-los. Entradas grandes demais, inseguras ou ilegíveis aparecem no resultado. Um arquivo com estrutura danificada é informado como erro. A exportação original é preservada.
+
+## Nomes de arquivo ocupados
+
+O importador verifica até 1000 variantes do nome. Se nenhuma estiver livre, não for possível verificar o destino ou um nome reservado tiver sido ocupado, essa entrada será ignorada com uma explicação. As demais continuam. No Notion, uma reserva malsucedida mantém os links para a fonte original em vez de atribuir um destino local. Se o relatório também não conseguir um nome livre, a importação exibirá um erro; os arquivos já importados permanecerão na pasta de destino.

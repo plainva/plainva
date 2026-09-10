@@ -215,6 +215,8 @@
       "statusDegraded": "INCOMPLETE",
       "renamed": "renamed so an existing note was not overwritten",
       "entryFailed": "could not be imported",
+      "noAvailableName": "no free filename among 1000 variants; existing files were preserved",
+      "reservedPathOccupied": "the reserved filename is now occupied; the existing file was preserved",
       "runStopped": "the import stopped early — everything up to this point was written",
       "skippedDuplicate": "the same note is in the export twice — imported once, as",
       "skippedTrashed": "in the trash — not imported",

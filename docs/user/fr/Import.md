@@ -167,3 +167,7 @@ Tout en bas figure la façon d'**annuler** l'import : tout ce qui provient d'une
 ## Limites de taille pendant l’extraction
 
 Les fichiers ZIP sont traités avec des limites par fichier, de taille totale et de nombre d’entrées acceptées. Sur le téléphone, ces limites sont aussi vérifiées pendant la décompression réelle ; des tailles déclarées incorrectes ne permettent pas de les contourner. Le résultat indique les entrées trop volumineuses, dangereuses ou illisibles. Une archive dont la structure est endommagée est signalée comme erreur. L’export original est conservé.
+
+## Noms de fichiers occupés
+
+L’importateur vérifie jusqu’à 1000 variantes du nom. Si aucune n’est libre, si la cible ne peut pas être vérifiée ou si un nom réservé est désormais occupé, l’entrée est ignorée avec une explication. Les autres sont importées. Pour Notion, une réservation échouée conserve les liens vers la source d’origine au lieu d’attribuer une cible locale. Si le rapport ne trouve pas non plus de nom libre, l’import affiche une erreur ; les fichiers déjà importés restent dans le dossier cible.

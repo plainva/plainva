@@ -167,3 +167,7 @@ At the bottom it says how to **undo** the import: everything from one run sits i
 ## Size limits during extraction
 
 ZIP files are processed with limits per file, for the total size and for the number of accepted entries. On the phone, these limits are also checked during actual decompression; incorrect size declarations cannot bypass them. Oversized, unsafe or unreadable entries are listed in the result. A structurally broken archive is reported as an error. The original export is kept.
+
+## Occupied filenames
+
+The importer checks up to 1000 filename variants. If none is free, a target cannot be checked, or a reserved name has since been occupied, that entry is skipped with a reason. Other entries continue. In a Notion import, a failed reservation keeps links to the original source instead of assigning a local target. If the report itself cannot get a free name, the import shows an error; files already imported remain in the target folder.

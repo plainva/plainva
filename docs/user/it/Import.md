@@ -167,3 +167,7 @@ In fondo è indicato come **annullare** l'importazione: tutto ciò che proviene 
 ## Limiti di dimensione durante l’estrazione
 
 I file ZIP vengono elaborati con limiti per file, per la dimensione totale e per il numero di voci accettate. Sul telefono, i limiti vengono verificati anche durante la decompressione effettiva; dimensioni dichiarate errate non consentono di aggirarli. Il risultato elenca le voci troppo grandi, non sicure o illeggibili. Un archivio con struttura danneggiata viene segnalato come errore. L’esportazione originale viene conservata.
+
+## Nomi di file occupati
+
+L’importatore verifica fino a 1000 varianti del nome. Se nessuna è libera, non è possibile verificare la destinazione o un nome riservato è stato occupato, salta quella voce indicando il motivo. Le altre vengono importate. In Notion, una prenotazione non riuscita mantiene i collegamenti alla fonte originale anziché assegnare una destinazione locale. Se anche il rapporto non trova un nome libero, l’importazione mostra un errore; i file già importati restano nella cartella di destinazione.

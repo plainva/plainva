@@ -35,6 +35,43 @@ const base = (vaultAdapter: ReturnType<typeof fakeVault>) => ({
 });
 
 describe('Notion CSV — reading the table', () => {
+  it.each(['occupied', 'unreadable'])('continues the file import after an %s reservation and keeps the original unresolved link', async mode => {
+    const vault = fakeVault();
+    const exists = vault.exists;
+    vault.exists = async path => {
+      if (/^Import\/Bad(?: \(\d+\))?\.md$/.test(path)) {
+        if (mode === 'unreadable') throw new Error('access denied');
+        return true;
+      }
+      return exists(path);
+    };
+    vault.files.set('Import/Bad.md', 'old note');
+    const original = 'Bad 1234567890abcdef1234567890abcdef.md';
+    const report = await new NotionImporter().run([
+      { relativePath: original, content: '# Bad\nnew text' },
+      { relativePath: 'Good.md', content: `# Good\n[Bad](${original.replace(/ /g, '%20')})` },
+    ], base(vault));
+    expect(report.skippedCount).toBe(1);
+    expect(report.importedNotesCount).toBe(1);
+    expect(report.summaryMarkdown).toContain(mode === 'occupied' ? DEFAULT_IMPORT_LABELS.noAvailableName : 'access denied');
+    expect(vault.files.get('Import/Bad.md')).toBe('old note');
+    expect(vault.files.get('Import/Good.md')).toContain(original.replace(/ /g, '%20'));
+  });
+
+  it('continues with later CSV rows and the database after one target cannot be checked', async () => {
+    const vault = fakeVault();
+    const exists = vault.exists;
+    vault.exists = async path => { if (path === 'Import/Tasks/Bad.md') throw new Error('access denied'); return exists(path); };
+    const report = await new NotionImporter().run([
+      { relativePath: 'Tasks.csv', content: 'Name,Status\nBad,Open\nGood,Done\n' },
+    ], base(vault));
+    expect(report.skippedCount).toBe(1);
+    expect(report.importedNotesCount).toBe(1);
+    expect(report.importedDatabasesCount).toBe(1);
+    expect(vault.files.get('Import/Tasks/Good.md')).toContain('Good');
+    expect(vault.files.has('Import/Tasks/Bad.md')).toBe(false);
+  });
+
   it('keeps a quoted field with a comma, a newline and a doubled quote intact', () => {
     const text = 'Name,Note\n"Smith, John","He said ""hi""\nagain"\n';
     const table = parseCsvTable(text);

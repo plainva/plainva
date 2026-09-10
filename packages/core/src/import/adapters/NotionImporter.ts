@@ -70,11 +70,20 @@ interface NotionWorkspaceItem {
    * title stays `title`, because the note is still called "Meeting".
    */
   linkTitle?: string;
+  /** Keep the hierarchy, but do not link a skipped item to an existing local note. */
+  importSkipped?: boolean;
 }
 
 /** The name to put inside `[[…]]` for an item — never the raw title. */
 function linkTargetOf(item: NotionWorkspaceItem): string {
   return item.linkTitle ?? item.title;
+}
+
+function itemLink(item: NotionWorkspaceItem, embedDatabase = false): string {
+  if (item.importSkipped) {
+    return `[${item.title.replace(/[[\]\\]/g, '\\$&')}](https://www.notion.so/${normId(item.id)})`;
+  }
+  return embedDatabase ? `![[${linkTargetOf(item)}.base]]` : `[[${linkTargetOf(item)}]]`;
 }
 
 function normId(id: string): string {
@@ -219,7 +228,8 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
     if (t.type === 'mention' && t.mention?.type === 'page' && t.mention.page?.id) {
       const pageId = normId(t.mention.page.id);
       const targetItem = itemMap?.get(pageId);
-      const title = targetItem ? linkTargetOf(targetItem) : plain || 'Notion page';
+      if (targetItem) return itemLink(targetItem);
+      const title = plain || 'Notion page';
       return `[[${title}]]`;
     }
 
@@ -230,7 +240,7 @@ function convertNotionRichTextToMarkdown(richTextArray: any[], itemMap?: Map<str
         const rawTargetId = t.href.split('/').pop()?.split('#')[0] || '';
         const targetId = normId(rawTargetId);
         const targetItem = itemMap?.get(targetId);
-        if (targetItem) plain = `[[${linkTargetOf(targetItem)}]]`;
+        if (targetItem) plain = itemLink(targetItem);
       }
     }
 
@@ -324,7 +334,7 @@ function extractNotionPropertyValue(pVal: any, itemMap?: Map<string, NotionWorks
         for (const rItem of pVal.relation) {
           const targetObj = itemMap?.get(normId(rItem.id));
           if (targetObj && targetObj.title) {
-            relLinks.push(`[[${linkTargetOf(targetObj)}]]`);
+            relLinks.push(itemLink(targetObj));
           }
         }
         if (relLinks.length > 0) {
@@ -513,7 +523,7 @@ export class NotionFileImporter implements ImportSource {
     // which vault path. The export's own links address the ID-carrying paths,
     // so without this table every internal link would keep pointing at a file
     // that no longer exists under that name.
-    const finalPaths: string[] = [];
+    const finalPaths: Array<string | null> = [];
     const linkMap = new Map<string, string>(attachments.linkMap);
     for (const page of pages) {
       const rel = page.relativePath || `${page.title}.md`;
@@ -522,6 +532,7 @@ export class NotionFileImporter implements ImportSource {
           ? rel.replace(/\.csv$/, '.base')
           : `${rel}.base`
         : rel;
+      try {
       const claimed = await writer.reserve(intended);
       // Reservations are vault paths; the links are written relative to the
       // import folder, so drop the prefix again.
@@ -530,12 +541,18 @@ export class NotionFileImporter implements ImportSource {
         : claimed;
       finalPaths.push(importRelative);
       if (page.originalPath) linkMap.set(normalizePath(page.originalPath), importRelative);
+      } catch (error) {
+        finalPaths.push(null);
+        writer.recordFailure(rel, error);
+      }
     }
 
     return writer.runGuarded(this, startTime, async () => {
     for (let i = 0; i < pages.length; i++) {
       writer.abortIfRequested();
       const page = pages[i];
+      const finalPath = finalPaths[i];
+      if (finalPath === null) continue;
       const rel = page.relativePath || `${page.title}.md`;
       const isDb = !!page.isDatabase;
       const times = timesFromFile({ mtimeMs: page.mtimeMs });
@@ -584,7 +601,11 @@ export class NotionFileImporter implements ImportSource {
               `# ${title}\n`,
               csvRowFrontmatter(db.columns, db.rows[r])
             );
-            await writer.writeNote(`${db.stem}/${safeTitle}.md`, body, { times });
+            try {
+              await writer.writeNote(`${db.stem}/${safeTitle}.md`, body, { times });
+            } catch (error) {
+              writer.recordFailure(`${db.stem}/${safeTitle}.md`, error);
+            }
           }
         }
 
@@ -603,7 +624,7 @@ export class NotionFileImporter implements ImportSource {
           ? page.markdownContent
           : `# ${page.title}\n\n${page.markdownContent}`;
         const rewrite = page.originalPath
-          ? rewriteNotionLinks(raw, page.originalPath, finalPaths[i], linkMap)
+          ? rewriteNotionLinks(raw, page.originalPath, finalPath, linkMap)
           : { content: raw, rewritten: 0, unresolved: 0 };
         // A row page has its text but never its properties — those live only
         // in the CSV beside the folder.
@@ -946,11 +967,15 @@ export class NotionApiImporter implements ImportSource {
           case 'callout': if (text) lines.push(`> [!NOTE]\n> ${text}`); break;
           case 'toggle': if (text) lines.push(`> ${text}`); break;
           case 'child_page': {
+            const target = itemMap?.get(normId(block.id));
+            if (target) { lines.push(itemLink(target)); break; }
             const childTitle = info.title || 'Page';
             lines.push(`[[${childTitle}]]`);
             break;
           }
           case 'child_database': {
+            const target = itemMap?.get(normId(block.id));
+            if (target) { lines.push(itemLink(target, true)); break; }
             const resolvedTitle = resolveDatabaseTitle(block.id, info.title, undefined, currentPageTitle, currentSectionHeading, itemMap);
             const safeDbTitle = resolvedTitle.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 60);
             lines.push(`![[${safeDbTitle}.base]]`);
@@ -964,9 +989,9 @@ export class NotionApiImporter implements ImportSource {
 
             if (targetObj) {
               if (targetObj.type === 'database') {
-                lines.push(`![[${linkTargetOf(targetObj)}.base]]`);
+                lines.push(itemLink(targetObj, true));
               } else {
-                lines.push(`[[${linkTargetOf(targetObj)}]]`);
+                lines.push(itemLink(targetObj));
               }
             } else if (rawTargetId) {
               const resolvedTitle = resolveDatabaseTitle(block.id, undefined, rawTargetId, currentPageTitle, currentSectionHeading, itemMap);
@@ -1115,6 +1140,14 @@ export class NotionApiImporter implements ImportSource {
       const dot = base.lastIndexOf('.');
       return dot > 0 ? base.slice(0, dot) : base;
     };
+    const reserveItem = async (item: NotionWorkspaceItem, path: string): Promise<void> => {
+      try {
+        item.linkTitle = nameOf(await writer.reserve(path));
+      } catch (error) {
+        item.importSkipped = true;
+        writer.recordFailure(path, error);
+      }
+    };
     for (const item of items) {
       const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
       const relFolder = this.buildFolderPath(item.id, itemMap) || '';
@@ -1122,18 +1155,18 @@ export class NotionApiImporter implements ImportSource {
       if (item.type === 'database') {
         const dbFolderRel = relFolder ? `${relFolder}/${safeTitle}` : safeTitle;
         // Reserved for the `.base` itself, so `![[Name.base]]` embeds match.
-        item.linkTitle = nameOf(await writer.reserve(`${dbFolderRel}.base`));
+        await reserveItem(item, `${dbFolderRel}.base`);
 
         for (const row of cachedDbRows.get(item.id)?.rows ?? []) {
           const rowItem = itemMap.get(normId(row.id));
           if (!rowItem) continue;
           const safeRowTitle = rowItem.title.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 80);
-          rowItem.linkTitle = nameOf(await writer.reserve(`${dbFolderRel}/${safeRowTitle}.md`));
+          await reserveItem(rowItem, `${dbFolderRel}/${safeRowTitle}.md`);
         }
       } else {
         const safeNoteTitle = safeTitle.endsWith('.md') ? safeTitle : `${safeTitle}.md`;
         const noteRel = relFolder ? `${relFolder}/${safeNoteTitle}` : safeNoteTitle;
-        item.linkTitle = nameOf(await writer.reserve(noteRel));
+        await reserveItem(item, noteRel);
       }
     }
 
@@ -1142,6 +1175,7 @@ export class NotionApiImporter implements ImportSource {
     for (let i = 0; i < items.length; i++) {
       writer.abortIfRequested();
       const item = items[i];
+      if (item.importSkipped && item.type !== 'database') continue;
       const safeTitle = (item.title || `Notion_${item.id}`).replace(/[/\\?%*:|"<>]/g, '_').slice(0, 100);
       const folderRelPath = this.buildFolderPath(item.id, itemMap);
       // Paths handed to the writer are relative to the import subfolder; the
@@ -1214,18 +1248,27 @@ export class NotionApiImporter implements ImportSource {
           if (typeof opts.serializeBase !== 'function') baseNotes.push(labels.degradedBaseSerializer);
           if (queried.truncated) baseNotes.push(labels.degradedNotionRowsTruncated);
 
-          await writer.writeFile(
-            `${dbFolderRel}.base`,
-            serializeBaseFile(baseConfig, opts),
-            'database',
-            baseNotes.length > 0 ? baseNotes.join(' · ') : undefined
-          );
+          if (!item.importSkipped) {
+            try {
+              await writer.writeFile(
+                `${dbFolderRel}.base`,
+                serializeBaseFile(baseConfig, opts),
+                'database',
+                baseNotes.length > 0 ? baseNotes.join(' · ') : undefined
+              );
+            } catch (error) {
+              item.importSkipped = true;
+              writer.recordFailure(`${dbFolderRel}.base`, error);
+            }
+          }
           if (queried.truncated) writer.noteLimitation(labels.degradedNotionRowsTruncated);
 
           // Rows were already read in PASS 1 — asking Notion a second time was
           // a full paginated query per database for a result we were holding.
           const dbRows = queried.rows;
           for (const row of dbRows) {
+            if (itemMap.get(normId(row.id))?.importSkipped) continue;
+            try {
             let rowTitle = 'Entry';
             const rowFrontmatter: Record<string, any> = {};
 
@@ -1274,6 +1317,9 @@ export class NotionApiImporter implements ImportSource {
               }),
             });
             if (rowBlocks.nestedBlocksSkipped > 0) writer.noteLimitation(labels.degradedNotionNestedBlocks);
+            } catch (error) {
+              writer.recordFailure(`${dbFolderRel}/${itemMap.get(normId(row.id))?.title ?? row.id}`, error);
+            }
           }
         }
       } else {

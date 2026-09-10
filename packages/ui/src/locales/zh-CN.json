@@ -213,6 +213,8 @@
       "statusDegraded": "不完整",
       "renamed": "已重命名，以免覆盖已有笔记",
       "entryFailed": "无法导入",
+      "noAvailableName": "1000 个候选文件名中没有可用名称；已保留现有文件",
+      "reservedPathOccupied": "预留的文件名现已被占用；已保留现有文件",
       "runStopped": "导入已提前终止——此前的内容均已写入",
       "skippedDuplicate": "同一篇笔记在导出中出现了两次——只导入一次，位置为",
       "skippedTrashed": "回收站——未导入",

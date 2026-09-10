@@ -219,6 +219,8 @@
       "statusDegraded": "NIEKOMPLETNE",
       "renamed": "zmieniono nazwę, aby nie nadpisać istniejącej notatki",
       "entryFailed": "nie udało się zaimportować",
+      "noAvailableName": "brak wolnej nazwy pliku wśród 1000 wariantów; zachowano istniejące pliki",
+      "reservedPathOccupied": "zarezerwowana nazwa pliku jest już zajęta; zachowano istniejący plik",
       "runStopped": "import został przerwany przedwcześnie — wszystko do tego miejsca zostało już zapisane",
       "skippedDuplicate": "ta sama notatka jest w eksporcie dwa razy — zaimportowana raz, jako",
       "skippedTrashed": "w koszu — niezaimportowany",

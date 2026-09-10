@@ -125,6 +125,8 @@ export interface ImportLabels {
   statusSkipped: string;
   statusDegraded: string;
   renamedToAvoidOverwrite: string;
+  noAvailableName: string;
+  reservedPathOccupied: string;
   /** Names of the views generated for an imported database — these land in the user's `.base` file. */
   viewTable: string;
   viewList: string;
@@ -189,6 +191,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   statusSkipped: 'SKIPPED',
   statusDegraded: 'INCOMPLETE',
   renamedToAvoidOverwrite: 'renamed so an existing note was not overwritten',
+  noAvailableName: 'no free filename among 1000 variants; existing files were preserved',
+  reservedPathOccupied: 'the reserved filename is now occupied; the existing file was preserved',
   viewTable: 'Table',
   viewList: 'List',
   viewBoard: 'Board',

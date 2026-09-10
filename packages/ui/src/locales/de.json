@@ -215,6 +215,8 @@
       "statusDegraded": "UNVOLLSTÄNDIG",
       "renamed": "umbenannt, damit keine vorhandene Notiz überschrieben wird",
       "entryFailed": "konnte nicht importiert werden",
+      "noAvailableName": "kein freier Dateiname unter 1000 Varianten; vorhandene Dateien wurden erhalten",
+      "reservedPathOccupied": "der reservierte Dateiname ist inzwischen belegt; die vorhandene Datei wurde erhalten",
       "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
       "skippedDuplicate": "dieselbe Notiz steht zweimal im Export — einmal importiert, als",
       "skippedTrashed": "im Papierkorb — nicht importiert",

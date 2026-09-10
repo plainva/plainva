@@ -61,6 +61,13 @@ export class ImportWriter {
    * The writes consume them in the order they were reserved.
    */
   private readonly reservations = new Map<string, string[]>();
+  private allocation: Promise<unknown> = Promise.resolve();
+
+  private withAllocation<T>(body: () => Promise<T>): Promise<T> {
+    const next = this.allocation.then(body);
+    this.allocation = next.catch(() => undefined);
+    return next;
+  }
 
   private notes = 0;
   private attachments = 0;
@@ -114,35 +121,41 @@ export class ImportWriter {
    * same-named source notes cannot overwrite each other either.
    */
   private async claimPath(relativePath: string): Promise<{ path: string; renamed: boolean }> {
-    const full = `${this.prefix}${relativePath}`;
+    return this.withAllocation(async () => {
+      const full = `${this.prefix}${relativePath}`;
 
-    // A reserved name was already decided (and already counted as taken) in an
-    // earlier pass, so the write must use exactly that one — re-claiming would
-    // hand out a second, different number.
-    const queue = this.reservations.get(full);
-    if (queue && queue.length > 0) {
-      const reserved = queue.shift()!;
-      if (queue.length === 0) this.reservations.delete(full);
-      return { path: reserved, renamed: reserved !== full };
-    }
+      // A reserved name was already decided (and already counted as taken) in an
+      // earlier pass, so the write must use exactly that one — re-claiming would
+      // hand out a second, different number.
+      const queue = this.reservations.get(full);
+      if (queue && queue.length > 0) {
+        const reserved = queue.shift()!;
+        if (queue.length === 0) this.reservations.delete(full);
+        if (await this.pathExists(reserved)) {
+          throw new Error(`${this.labels.reservedPathOccupied}: ${reserved}`);
+        }
+        return { path: reserved, renamed: reserved !== full };
+      }
 
+      return this.allocatePath(full);
+    });
+  }
+
+  /** Called only under the allocation gate; never consumes a reservation. */
+  private async allocatePath(full: string): Promise<{ path: string; renamed: boolean }> {
     const dot = full.lastIndexOf('.');
     const slash = full.lastIndexOf('/');
     const hasExt = dot > slash;
     const stem = hasExt ? full.slice(0, dot) : full;
     const ext = hasExt ? full.slice(dot) : '';
 
-    let candidate = full;
-    let counter = 1;
-    // Cap the search so a pathological vault cannot spin here forever; the
-    // suffix stays unique because the counter keeps climbing.
-    while (counter < 1000 && (this.takenPaths.has(candidate) || (await this.pathExists(candidate)))) {
-      counter += 1;
-      candidate = `${stem} (${counter})${ext}`;
+    for (let counter = 1; counter <= 1000; counter += 1) {
+      const candidate = counter === 1 ? full : `${stem} (${counter})${ext}`;
+      if (this.takenPaths.has(candidate) || (await this.pathExists(candidate))) continue;
+      this.takenPaths.add(candidate);
+      return { path: candidate, renamed: candidate !== full };
     }
-
-    this.takenPaths.add(candidate);
-    return { path: candidate, renamed: candidate !== full };
+    throw new Error(`${this.labels.noAvailableName}: ${full}`);
   }
 
   /**
@@ -156,24 +169,19 @@ export class ImportWriter {
    * reservation instead of numbering a second time.
    */
   async reserve(relativePath: string): Promise<string> {
-    const full = `${this.prefix}${relativePath}`;
-    // Deliberately NOT memoized by intended path: two source notes may want the
-    // same name, and each has to learn its own.
-    const queue = this.reservations.get(full);
-    const held = queue ? [...queue] : [];
-    this.reservations.delete(full);
-    const { path } = await this.claimPath(relativePath);
-    this.reservations.set(full, [...held, path]);
-    return path;
+    return this.withAllocation(async () => {
+      const full = `${this.prefix}${relativePath}`;
+      // Deliberately NOT memoized by intended path: two source notes may want the
+      // same name, and each has to learn its own.
+      const { path } = await this.allocatePath(full);
+      this.reservations.set(full, [...(this.reservations.get(full) ?? []), path]);
+      return path;
+    });
   }
 
   private async pathExists(path: string): Promise<boolean> {
     if (!this.adapter || typeof this.adapter.exists !== 'function') return false;
-    try {
-      return await this.adapter.exists(path);
-    } catch {
-      return false;
-    }
+    return await this.adapter.exists(path);
   }
 
   /**

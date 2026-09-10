@@ -162,6 +162,66 @@ describe('NotionHttp — rate limits and retries', () => {
 });
 
 describe('NotionApiImporter — attachments', () => {
+  it.each(['occupied', 'unreadable'])('continues after an %s reservation and preserves links to the original Notion item', async mode => {
+    const vault = fakeVault();
+    const exists = vault.exists;
+    vault.exists = async path => {
+      if (/^Import Notion\/Bad(?: \(\d+\))?\.md$/.test(path)) {
+        if (mode === 'unreadable') throw new Error('access denied');
+        return true;
+      }
+      return exists(path);
+    };
+    vault.files.set('Import Notion/Bad.md', 'old note');
+    const { fetchFn, calls } = mockFetch([
+      ['/v1/search', { body: searchResult([page('bad', 'Bad'), page('good', 'Good')]) }],
+      ['/blocks/good/children', { body: blockList([
+        { type: 'link_to_page', link_to_page: { page_id: 'bad' } },
+        { type: 'child_page', id: 'bad', child_page: { title: 'Bad' } },
+        { type: 'paragraph', paragraph: { rich_text: [
+          { type: 'mention', mention: { type: 'page', page: { id: 'bad' } } },
+          { type: 'text', plain_text: 'Bad', href: '/bad' },
+        ] } },
+      ]) }],
+    ]);
+    const report = await new NotionApiImporter().run([{ token: 'secret' }], opts(vault, fetchFn));
+    expect(report.skippedCount).toBe(1);
+    expect(report.importedNotesCount).toBe(1);
+    expect(report.summaryMarkdown).toContain(mode === 'occupied' ? DEFAULT_IMPORT_LABELS.noAvailableName : 'access denied');
+    expect(vault.files.get('Import Notion/Bad.md')).toBe('old note');
+    expect(vault.files.get('Import Notion/Good.md')?.match(/https:\/\/www.notion.so\/bad/g)).toHaveLength(4);
+    expect(vault.files.get('Import Notion/Good.md')).not.toContain('[[Bad]]');
+    expect(calls.some(url => url.includes('/blocks/bad/'))).toBe(false);
+  });
+
+  it.each([
+    ['Tasks/Bad.md', false], ['Tasks.base', false], ['Tasks/Bad.md', true], ['Tasks.base', true],
+  ] as const)('imports healthy database rows when %s is blocked (after reservation: %s)', async (badPath, late) => {
+    const vault = fakeVault();
+    const exists = vault.exists;
+    let checks = 0;
+    vault.exists = async path => {
+      if (path === `Import Notion/${badPath}` && (!late || ++checks > 1)) throw new Error('access denied');
+      return exists(path);
+    };
+    const database = { object: 'database', id: 'db1', title: [{ plain_text: 'Tasks' }] };
+    const good = page('good', 'Good');
+    good.properties['Related' as 'Name'] = { type: 'relation', relation: [{ id: 'bad' }] } as any;
+    const { fetchFn } = mockFetch([
+      ['/v1/search', { body: searchResult([database]) }],
+      ['/databases/db1/query', { body: searchResult([page('bad', 'Bad'), good]) }],
+      ['/v1/databases/db1', { body: { properties: {} } }],
+      ['/blocks/good/children', { body: blockList([]) }],
+      ['/blocks/bad/children', { body: blockList([]) }],
+    ]);
+    const report = await new NotionApiImporter().run([{ token: 'secret' }], opts(vault, fetchFn));
+    expect(report.skippedCount).toBe(1);
+    expect(report.importedNotesCount).toBe(badPath.endsWith('.base') ? 2 : 1);
+    expect(vault.files.get('Import Notion/Tasks/Good.md')).toContain('Good');
+    expect(vault.files.has(`Import Notion/${badPath}`)).toBe(false);
+    if (badPath.endsWith('.md') && !late) expect(vault.files.get('Import Notion/Tasks/Good.md')).toContain('https://www.notion.so/bad');
+  });
+
   it('downloads a Notion-hosted image and embeds the path it was actually written to', async () => {
     const vault = fakeVault();
     const { fetchFn, calls } = mockFetch([
