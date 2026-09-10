@@ -106,6 +106,12 @@ export default defineConfig(async () => ({
   },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // The three suites run side by side under turbo (the pre-commit hook, the
+    // pre-push, CI). A test that finishes in 200 ms alone — a first real
+    // SQLite load, a crypto fixture — crosses the 5 s default under that load
+    // and fails as "timed out", a different one on every run (2026-09-10:
+    // three hook runs, three different sets). 20 s still catches a hang.
+    testTimeout: 20_000,
     // test-localstorage repairs Node >= 25's broken ambient localStorage and
     // must run FIRST; test-setup loads every locale bundle eagerly for tests —
     // the app itself lazy-loads them (P2.8) and tests would otherwise assert
@@ -114,6 +120,9 @@ export default defineConfig(async () => ({
     // B3 (code review): Node's experimental web storage prints a
     // "--localstorage-file" warning at every worker start and shadows jsdom's
     // storage; the workers run without it, the setup file covers the rest.
-    poolOptions: { forks: { execArgv: ['--no-experimental-webstorage'] } },
+    // Vitest 4 moved the pool options to the top level — `poolOptions` is
+    // ignored there with a deprecation notice, so the flag never reached the
+    // workers (found 2026-09-10 while closing the same class on the phone).
+    execArgv: ['--no-experimental-webstorage'],
   },
 } as any));

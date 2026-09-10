@@ -13,6 +13,16 @@ export default defineConfig({
     // Scoped to src on purpose: `e2e-prod` holds a PLAYWRIGHT spec, and an
     // unrestricted vitest run would try to execute it and fail on the import.
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // See the desktop config: the suites run side by side under turbo, and a
+    // real-SQLite test that takes 200 ms alone timed out at 5 s in the hook.
+    testTimeout: 20_000,
+    // Same repair as the desktop's (code review B3): Node >= 25 ships an
+    // ambient localStorage whose methods are all missing, and its workers
+    // print a "--localstorage-file" warning on every start. vaultBackup's
+    // `localStorage.clear()` threw on the harness while CI's Node 22 stayed
+    // green (2026-09-10); the shim and the flag close the class here too.
+    setupFiles: ["./src/test-localstorage.ts"],
+    execArgv: ["--no-experimental-webstorage"],
   },
   build: {
     /**
