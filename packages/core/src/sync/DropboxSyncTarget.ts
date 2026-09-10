@@ -1,3 +1,4 @@
+import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -130,21 +131,12 @@ export class DropboxSyncTarget implements ISyncTarget {
   }
 
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchFn(url, { ...init, method, signal: controller.signal });
+      return await fetchWithTransferTimeout(this.fetchFn, url, { ...init, method }, this.timeoutMs);
     } catch (err) {
-      const reason =
-        (err as any)?.name === "AbortError"
-          ? `timeout after ${this.timeoutMs}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err);
+      const reason = err instanceof Error ? (err.message || String(err)) : String(err);
       console.error(`[Dropbox] ${method} ${url} failed: ${reason}`);
       throw err instanceof Error ? err : new Error(reason);
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -214,6 +206,7 @@ export class DropboxSyncTarget implements ISyncTarget {
         })
       : await fetchWithRetry(() => this.request("POST", url, { ...init, headers }), kind);
     if (res.status === 401 && !isRetry) {
+      discardResponse(res);
       await this.refreshAccessToken();
       return this.authedFetch(url, init, true, stream);
     }

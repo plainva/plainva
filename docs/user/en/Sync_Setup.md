@@ -170,3 +170,7 @@ The new sign-in does not cover every service. Your existing sign-ins were kept. 
 ## Google Drive: incomplete downloads
 
 When Google Drive temporarily limits requests, Plainva retries the download with a delay. A failed download is not treated as a missing file or a completed change. Existing local content and the confirmed sync state are kept; the next cycle retries the outstanding change. Other files that downloaded successfully remain available. Missing permissions or other permanent refusals appear as errors with the file path and cause. This applies on desktop and mobile.
+
+## Interrupted file transfers
+
+Timeouts also cover receiving file contents from WebDAV, Dropbox, OneDrive, S3 and Google Drive. When a streamed response stops delivering data, Plainva ends that attempt and retries reads a limited number of times with a new request. Progress keeps a streamed download active even when the whole file takes longer than the base timeout. Native mobile requests also have their own time limits. An incomplete download never replaces the existing local file or confirms its sync progress. Large uploads retain their size-based time budget; an unclear upload result is left to the normal sync recovery rather than blindly sent again.

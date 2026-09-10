@@ -1,3 +1,4 @@
+import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
@@ -110,21 +111,12 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchFn(url, { ...init, method, signal: controller.signal });
+      return await fetchWithTransferTimeout(this.fetchFn, url, { ...init, method }, this.timeoutMs);
     } catch (err) {
-      const reason =
-        (err as any)?.name === "AbortError"
-          ? `timeout after ${this.timeoutMs}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err);
+      const reason = err instanceof Error ? (err.message || String(err)) : String(err);
       console.error(`[OneDrive] ${method} ${url} failed: ${reason}`);
       throw err instanceof Error ? err : new Error(reason);
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -194,6 +186,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
       method === "GET" ? "read" : "write"
     );
     if (res.status === 401 && !isRetry) {
+      discardResponse(res);
       // force: a broker-cached token the server just rejected must not be
       // handed back to us a second time.
       await this.refreshAccessToken(true);

@@ -1,7 +1,7 @@
+import { fetchWithTransferTimeout } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
-import { timeoutForBody } from "./transferTimeout.js";
 import { streamUpload } from "./streamUpload.js";
 
 export interface WebDavCredentials {
@@ -138,22 +138,12 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   private async singleRequest(method: string, url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    // The timeout covers the body as well, so it has to grow with it — a flat
-    // budget turned a large upload into a network error the write path never
-    // retries (issue #48).
-    const budget = timeoutForBody(this.timeoutMs, init?.body);
-    const timer = setTimeout(() => controller.abort(), budget);
     try {
-      return await this.fetchFn(url, { ...init, method, signal: controller.signal });
+      return await fetchWithTransferTimeout(this.fetchFn, url, { ...init, method }, this.timeoutMs);
     } catch (err) {
-      const reason = (err as any)?.name === "AbortError"
-        ? `timeout after ${budget}ms`
-        : (err instanceof Error ? err.message : String(err));
+      const reason = err instanceof Error ? (err.message || String(err)) : String(err);
       console.error(`[WebDAV] ${method} ${url} failed: ${reason}`);
       throw err instanceof Error ? err : new Error(reason);
-    } finally {
-      clearTimeout(timer);
     }
   }
 

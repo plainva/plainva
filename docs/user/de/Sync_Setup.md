@@ -170,3 +170,7 @@ Die neue Anmeldung deckt nicht alle Dienste ab. Deine bisherigen Zugänge bleibe
 ## Google Drive: offene Downloads
 
 Wenn Google Drive vorübergehend zu viele Anfragen meldet, versucht Plainva den Download mit Abstand erneut. Bleibt ein Download erfolglos, wird er nicht als fehlende Datei oder erledigte Änderung gewertet. Der vorhandene lokale Inhalt und der bestätigte Sync-Stand bleiben erhalten; der nächste Durchlauf versucht die offene Änderung erneut. Erfolgreich geladene Nachbardateien bleiben verfügbar. Fehlende Rechte oder andere dauerhafte Ablehnungen erscheinen mit Dateipfad und Ursache als Fehler. Das gilt auf Desktop und Mobilgeräten.
+
+## Unterbrochene Dateiübertragungen
+
+Zeitlimits gelten auch für den Empfang von Dateiinhalten über WebDAV, Dropbox, OneDrive, S3 und Google Drive. Liefert eine schrittweise empfangene Antwort keine weiteren Daten, beendet Plainva den Versuch und wiederholt Lesezugriffe begrenzt mit einer neuen Anfrage. Fortschritt hält einen solchen Download aktiv, auch wenn die gesamte Datei länger als das Grundzeitlimit braucht. Native Mobil-Anfragen haben zusätzlich eigene Zeitgrenzen. Ein unvollständiger Download ersetzt niemals die vorhandene lokale Datei und bestätigt keinen Sync-Fortschritt. Große Uploads behalten ihr größenabhängiges Zeitbudget; ein unklarer Upload-Abschluss wird durch die normale Sync-Wiederaufnahme behandelt und nicht blind erneut gesendet.

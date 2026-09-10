@@ -1,8 +1,8 @@
+import { fetchWithTransferTimeout } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
-import { timeoutForBody } from "./transferTimeout.js";
 import { streamUpload } from "./streamUpload.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 import { parseListingRoot } from "./xmlListing.js";
@@ -148,24 +148,12 @@ export class S3SyncTarget implements ISyncTarget {
   }
 
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    // Grows with the body: the budget is wall clock over the whole exchange, so
-    // a flat one silently demands a minimum upload speed (issue #48).
-    const budget = timeoutForBody(this.timeoutMs, init?.body);
-    const timer = setTimeout(() => controller.abort(), budget);
     try {
-      return await this.fetchFn(url, { ...init, method, signal: controller.signal });
+      return await fetchWithTransferTimeout(this.fetchFn, url, { ...init, method }, this.timeoutMs);
     } catch (err) {
-      const reason =
-        (err as any)?.name === "AbortError"
-          ? `timeout after ${budget}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err);
+      const reason = err instanceof Error ? (err.message || String(err)) : String(err);
       console.error(`[S3] ${method} ${url} failed: ${reason}`);
       throw err instanceof Error ? err : new Error(reason);
-    } finally {
-      clearTimeout(timer);
     }
   }
 

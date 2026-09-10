@@ -7,6 +7,15 @@ const res = (status: number, headers: Record<string, string> = {}) =>
 const instant = { sleep: async () => {}, random: () => 0.5 };
 
 describe("httpRetry", () => {
+  it.each([429, 503])("releases an unused %s body before backoff, without waiting for a broken cleanup", async status => {
+    const cancel = vi.fn(() => new Promise<void>(() => {}));
+    const failed = new Response(new ReadableStream({ cancel }), { status });
+    const doFetch = vi.fn().mockResolvedValueOnce(failed).mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const sleep = vi.fn(async () => { expect(cancel).toHaveBeenCalledTimes(1); });
+    expect((await fetchWithRetry(doFetch, "read", { sleep })).status).toBe(204);
+    expect(sleep).toHaveBeenCalledTimes(1);
+  });
+
   it("parses Retry-After as delta-seconds and as an HTTP date", () => {
     expect(parseRetryAfterMs("2")).toBe(2000);
     expect(parseRetryAfterMs("0")).toBe(0);

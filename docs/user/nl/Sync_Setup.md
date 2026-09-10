@@ -170,3 +170,7 @@ De nieuwe aanmelding dekt niet alle diensten. Je bestaande aanmeldingen zijn beh
 ## Google Drive: onvolledige downloads
 
 Wanneer Google Drive tijdelijk verzoeken beperkt, probeert Plainva de download na een pauze opnieuw. Een mislukte download telt niet als een ontbrekend bestand of een voltooide wijziging. De bestaande lokale inhoud en de bevestigde synchronisatiestatus blijven behouden; de volgende cyclus probeert de openstaande wijziging opnieuw. Andere succesvol gedownloade bestanden blijven beschikbaar. Ontbrekende rechten en andere blijvende weigeringen verschijnen als fouten met het bestandspad en de oorzaak. Dit geldt op desktop en mobiel.
+
+## Onderbroken bestandsoverdrachten
+
+Tijdslimieten gelden ook voor het ontvangen van bestanden via WebDAV, Dropbox, OneDrive, S3 en Google Drive. Als een antwoord dat in delen binnenkomt geen gegevens meer levert, beëindigt Plainva die poging en herhaalt het lezen een beperkt aantal keren met een nieuw verzoek. Voortgang houdt zo’n download actief, ook als het hele bestand langer duurt dan de basislimiet. Native mobiele verzoeken hebben ook eigen tijdslimieten. Een onvolledige download vervangt nooit het bestaande lokale bestand en bevestigt geen synchronisatievoortgang. Grote uploads behouden een tijdsbudget op basis van hun grootte; een onduidelijk uploadresultaat wordt via het normale synchronisatieherstel afgehandeld en niet blind opnieuw verstuurd.

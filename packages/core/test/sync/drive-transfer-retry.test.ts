@@ -16,7 +16,7 @@ afterEach(async () => { vi.restoreAllMocks(); await Promise.all(cleanups.splice(
 function refusal(reasons: string[], status = 403) {
   return Response.json({ error: { errors: reasons.map(reason => ({ reason })) } }, { status, headers: { "Retry-After": "0" } });
 }
-function driveFixture() {
+function driveFixture(timeout = 30000) {
   const files = ["a.md", "b.md"].map((name, index) => ({ id: "file-" + index, name, md5Checksum: "revision-1", mimeType: "text/markdown", parents: ["vault-root"] }));
   let content: (name: string) => Response = name => new Response("Remote " + name);
   let writeResponse = () => Response.json({ id: "file-0", md5Checksum: "written" });
@@ -41,7 +41,7 @@ function driveFixture() {
     }
     throw new Error("Unexpected Drive request " + init?.method + " " + url.pathname);
   });
-  const target = new DriveSyncTarget({ clientId: "fixture", clientSecret: "fixture", refreshToken: "fixture", accessToken: "fixture" }, fetchFn);
+  const target = new DriveSyncTarget({ clientId: "fixture", clientSecret: "fixture", refreshToken: "fixture", accessToken: "fixture" }, fetchFn, timeout);
   return { target, calls, cursors, files, fetchFn, setContent(fn: typeof content) { content = fn; }, setWrite(fn: typeof writeResponse) { writeResponse = fn; } };
 }
 
@@ -83,8 +83,8 @@ describe("Drive download causes", () => {
   });
 });
 
-async function workerFixture() {
-  const d = driveFixture(), db = await realSqlite(), dir = await mkdtemp(join(tmpdir(), "plainva-drive-retry-"));
+async function workerFixture(timeout = 30000) {
+  const d = driveFixture(timeout), db = await realSqlite(), dir = await mkdtemp(join(tmpdir(), "plainva-drive-retry-"));
   const raw = new LocalVaultAdapter(dir); await raw.initialize();
   const state = new SyncStateRepository(db), queue = new SyncQueue(db), engine = new SyncEngine(queue, d.target, raw);
   const worker = new SyncWorker(engine, d.target, state, raw, queue, 1000);
@@ -97,6 +97,36 @@ async function workerFixture() {
 }
 
 describe("Drive and the actual worker with files and SQLite", () => {
+  it("keeps the old file, baseline and cursor after a partial stream times out, then completes the same change", async () => {
+    const w = await workerFixture(50);
+    await w.worker.runCycle();
+    const original = await w.state.getSyncState("b.md");
+    const cancelled = vi.fn();
+    for (const file of w.files) file.md5Checksum = "revision-2";
+    w.setContent(name => name === "b.md" ? new Response(new ReadableStream({
+      start(c) { c.enqueue(new TextEncoder().encode("PARTIAL, MUST NOT REPLACE THE NOTE")); }, cancel: cancelled,
+    })) : new Response("Updated " + name));
+    vi.useFakeTimers(); vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      let done = false;
+      const cycle = w.worker.runCycle().finally(() => { done = true; });
+      await vi.waitFor(async () => { await vi.runAllTimersAsync(); expect(done).toBe(true); }, { interval: 10, timeout: 1000 });
+      await cycle;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+    expect(cancelled).toHaveBeenCalledTimes(4);
+    expect(await w.raw.readTextFile("a.md")).toBe("Updated a.md");
+    expect(await w.raw.readTextFile("b.md")).toBe("Remote b.md");
+    expect(await w.state.getSyncState("b.md")).toEqual(original);
+    expect(w.worker["cursor"]).toBe("c0");
+    expect(w.statuses.at(-1)).toMatchObject({ status: "retrying", detail: expect.stringContaining("timed out") });
+    w.setContent(name => new Response("Updated " + name));
+    await w.worker.runCycle();
+    expect(w.cursors).toEqual(["c0", "c0"]); expect(w.worker["cursor"]).toBe("c1");
+    expect(await w.raw.readTextFile("b.md")).toBe("Updated b.md");
+    expect((await w.state.getSyncState("b.md"))?.base_etag).toBe("revision-2");
+  });
+
   it("preserves the refused cause when consecutive file failures abort the cycle", async () => {
     const w = await workerFixture();
     for (let i = 2; i < 12; i++) w.files.push({ ...w.files[0], id: `file-${i}`, name: `note-${i}.md` });

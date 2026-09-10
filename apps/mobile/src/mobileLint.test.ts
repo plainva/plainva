@@ -3167,6 +3167,18 @@ describe("the request timeout hierarchy", () => {
     ).toBeGreaterThanOrEqual(appMs);
   });
 
+  it("bounds abandoned native calls beyond their per-read timeout on both platforms", () => {
+    const java = readFileSync(join(SRC, "..", "android", "app", "src", "main", "java", "com", "plainva", "app", "WebDavHttpPlugin.java"), "utf8");
+    const swift = readFileSync(join(SRC, "..", "ios", "App", "App", "WebDavHttpPlugin.swift"), "utf8");
+    const android = /\.callTimeout\((\d+),\s*TimeUnit\.MINUTES\)/.exec(java);
+    const ios = /timeoutIntervalForResource\s*=\s*(\d+)/.exec(swift);
+    expect(android, "OkHttp defaults to an unbounded call without an explicit total timeout").not.toBeNull();
+    expect(ios, "the native operation must finish even after JavaScript discards its result").not.toBeNull();
+    expect(Number(android![1]) * 60_000).toBeGreaterThan(appMs);
+    expect(Number(ios![1]) * 1000).toBeGreaterThan(appMs);
+    expect(Number(android![1]) * 60).toBe(Number(ios![1]));
+  });
+
   it("keeps both shells on the same number", () => {
     // The plan named only iOS. Android carried the identical 60 s, and fixing
     // one shell alone is exactly the asymmetry the parity rule exists to stop.

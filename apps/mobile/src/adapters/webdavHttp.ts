@@ -90,8 +90,12 @@ function abortError(signal: AbortSignal): Error {
  */
 function raceAbort<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(abortError(signal));
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(abortError(signal));
+    };
     signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
     call.then(
       (value) => {
         signal.removeEventListener("abort", onAbort);
@@ -140,6 +144,9 @@ const nativeFetch: typeof fetch = async (input, init) => {
     throw new Error("unsupported request body type for native WebDAV fetch");
   }
 
+  // A Blob may have yielded while converting its body. Do not start a native
+  // write after the request was cancelled during that preparation.
+  if (signal?.aborted) throw abortError(signal);
   const call = WebDavHttp.request({ url, method, headers, body, bodyBase64 });
   const res = signal ? await raceAbort(call, signal) : await call;
   const bytes = b64ToBytes(res.bodyBase64);

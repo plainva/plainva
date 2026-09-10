@@ -170,3 +170,7 @@ La nouvelle connexion ne couvre pas tous les services. Tes accès précédents s
 ## Google Drive : téléchargements incomplets
 
 Lorsque Google Drive limite temporairement les requêtes, Plainva réessaie le téléchargement après un délai. Un téléchargement échoué ne signifie ni fichier absent ni modification terminée. Le contenu local et le dernier état de synchronisation confirmé sont conservés ; le cycle suivant réessaie la modification en attente. Les autres fichiers téléchargés restent disponibles. Les autorisations manquantes et les refus permanents apparaissent comme des erreurs avec le chemin du fichier et la cause. Cela vaut sur ordinateur et sur mobile.
+
+## Transferts de fichiers interrompus
+
+Les délais couvrent aussi la réception des fichiers depuis WebDAV, Dropbox, OneDrive, S3 et Google Drive. Si une réponse reçue par morceaux ne fournit plus de données, Plainva termine cette tentative et répète les lectures un nombre limité de fois avec une nouvelle requête. La progression maintient ce téléchargement actif même si le fichier prend plus longtemps que le délai de base. Les requêtes mobiles natives ont aussi leurs propres limites. Un téléchargement incomplet ne remplace jamais le fichier local existant et ne confirme aucune progression de synchronisation. Les envois volumineux conservent un délai adapté à leur taille ; un résultat incertain est traité par la reprise normale de la synchronisation, sans renvoi aveugle.

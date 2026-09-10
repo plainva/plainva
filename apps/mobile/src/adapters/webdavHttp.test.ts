@@ -58,6 +58,38 @@ describe("webdavFetch (native bridge)", () => {
     expect(mocks.request).not.toHaveBeenCalled();
   });
 
+  it("does not start a native write if cancelled while preparing a Blob", async () => {
+    mocks.request.mockClear();
+    const controller = new AbortController();
+    const blob = new Blob(["upload"]);
+    let ready!: (value: ArrayBuffer) => void;
+    const read = vi.spyOn(blob, "arrayBuffer").mockReturnValue(new Promise(resolve => { ready = resolve; }));
+    try {
+      const pending = webdavFetch("https://example.com/upload", { method: "PUT", body: blob, signal: controller.signal }).catch(e => e);
+      controller.abort(); ready(new ArrayBuffer(1));
+      expect(await pending).toMatchObject({ name: "AbortError" });
+      expect(mocks.request).not.toHaveBeenCalled();
+    } finally { read.mockRestore(); }
+  });
+
+  it("observes an abort that happens as the plugin call is dispatched", async () => {
+    const controller = new AbortController();
+    mocks.request.mockImplementationOnce(async () => { controller.abort(); return { status: 200, headers: {}, bodyBase64: btoa("late") }; });
+    await expect(webdavFetch("https://example.com/race", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("removes the listener on abort and discards a later native failure", async () => {
+    const controller = new AbortController();
+    const removed = vi.spyOn(controller.signal, "removeEventListener");
+    let fail!: (reason: Error) => void;
+    mocks.request.mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
+    const pending = webdavFetch("https://example.com/late", { signal: controller.signal }).catch(e => e);
+    controller.abort(); expect(await pending).toMatchObject({ name: "AbortError" });
+    expect(removed).toHaveBeenCalledWith("abort", expect.any(Function));
+    fail(new Error("native call eventually failed")); await Promise.resolve();
+    removed.mockRestore();
+  });
+
   it("still resolves normally when a signal is present but never aborts", async () => {
     mocks.request.mockResolvedValueOnce({ status: 204, headers: {}, bodyBase64: "" });
     const controller = new AbortController();

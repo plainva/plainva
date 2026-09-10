@@ -15,6 +15,8 @@
  * server sent one.
  */
 
+import { discardResponse, TransferCancelledError } from "./transferTimeout.js";
+
 export type HttpOpKind = "read" | "write";
 
 export interface HttpRetryOptions {
@@ -73,6 +75,7 @@ export async function fetchWithRetry(
     try {
       res = await doFetch();
     } catch (err) {
+      if (err instanceof TransferCancelledError) throw err;
       // Network-level failure: the request may never have left — but for a
       // write we cannot know, so only reads retry.
       if (kind === "read" && attempt < maxAttempts) {
@@ -82,10 +85,12 @@ export async function fetchWithRetry(
       throw err;
     }
     if (res.status === 429 && attempt < maxAttempts) {
+      discardResponse(res);
       await sleep(retryDelayMs(attempt, res.headers?.get?.("Retry-After") ?? null, opts));
       continue;
     }
     if (kind === "read" && attempt < maxAttempts && (RETRYABLE_READ_STATUS.has(res.status) || await opts.retryableReadResponse?.(res))) {
+      discardResponse(res);
       await sleep(retryDelayMs(attempt, res.headers?.get?.("Retry-After") ?? null, opts));
       continue;
     }

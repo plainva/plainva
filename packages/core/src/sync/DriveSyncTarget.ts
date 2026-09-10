@@ -1,3 +1,4 @@
+import { fetchWithTransferTimeout, TransferCancelledError, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
@@ -164,24 +165,15 @@ export class DriveSyncTarget implements ISyncTarget {
   }
 
   private async request(method: string, url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      return await this.fetchFn(url, { ...init, method, signal: controller.signal });
+      return await fetchWithTransferTimeout(this.fetchFn, url, { ...init, method }, this.timeoutMs);
     } catch (err) {
-      const reason =
-        (err as any)?.name === "AbortError"
-          ? `request timed out after ${Math.round(this.timeoutMs / 1000)}s`
-          : err instanceof Error
-            ? (err.message || String(err))
-            : String(err);
+      const reason = (err as { name?: string; message?: string })?.name === "AbortError" && !(err as { message?: string })?.message
+        ? `request timed out after ${Math.round(this.timeoutMs / 1000)}s`
+        : err instanceof Error ? (err.message || String(err)) : String(err);
       console.error(`[Drive] ${method} ${url} failed: ${reason}`);
-      // Always surface the computed reason: an AbortError's own .message is
-      // typically empty on the WebView runtime, which showed as a meaningless
-      // "Unbekannter Fehler" in the sync error dialog. Keep the original as cause.
+      if (err instanceof TransferCancelledError) throw err;
       throw new Error(`Google Drive ${reason}`, { cause: err });
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -216,6 +208,7 @@ export class DriveSyncTarget implements ISyncTarget {
           { retryableReadResponse: async response => response.status === 403 && (await driveFailure(response)).rateLimited },
         );
     if (res.status === 401 && !isRetry) {
+      discardResponse(res);
       // force: the server has just rejected this token, so a broker must not
       // hand the same cached one back.
       await this.refreshAccessToken(true);

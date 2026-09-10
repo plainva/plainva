@@ -170,3 +170,7 @@ O novo login não abrange todos os serviços. Seus acessos anteriores foram mant
 ## Google Drive: downloads incompletos
 
 Quando o Google Drive limita temporariamente as solicitações, o Plainva tenta baixar novamente após uma pausa. Um download malsucedido não conta como arquivo ausente nem como alteração concluída. O conteúdo local e o estado de sincronização confirmado são preservados; o próximo ciclo tenta novamente a alteração pendente. Outros arquivos baixados com sucesso continuam disponíveis. Permissões ausentes e outras recusas permanentes aparecem como erros com o caminho do arquivo e a causa. Isso vale no desktop e em dispositivos móveis.
+
+## Transferências de arquivos interrompidas
+
+Os limites de tempo também cobrem o recebimento de arquivos do WebDAV, Dropbox, OneDrive, S3 e Google Drive. Se uma resposta recebida em partes deixar de fornecer dados, o Plainva encerra a tentativa e repete as leituras um número limitado de vezes com uma nova solicitação. O progresso mantém esse download ativo mesmo quando o arquivo inteiro demora mais que o limite básico. As solicitações móveis nativas também têm seus próprios limites. Um download incompleto nunca substitui o arquivo local existente nem confirma o progresso da sincronização. Uploads grandes mantêm um prazo baseado no tamanho; um resultado incerto é tratado pela recuperação normal da sincronização, sem reenviar às cegas.

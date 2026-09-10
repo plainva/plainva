@@ -170,3 +170,7 @@ El nuevo acceso no cubre todos los servicios. Se conservaron tus accesos anterio
 ## Google Drive: descargas pendientes
 
 Cuando Google Drive limita temporalmente las solicitudes, Plainva vuelve a intentar la descarga tras una pausa. Una descarga fallida no se considera un archivo ausente ni un cambio completado. Se conservan el contenido local y el estado de sincronización confirmado; el siguiente ciclo vuelve a intentar el cambio pendiente. Los demás archivos descargados siguen disponibles. Los permisos insuficientes u otros rechazos permanentes aparecen como errores con la ruta y la causa. Esto se aplica en escritorio y móvil.
+
+## Transferencias de archivos interrumpidas
+
+Los límites de tiempo también cubren la recepción de archivos desde WebDAV, Dropbox, OneDrive, S3 y Google Drive. Si una respuesta transmitida por partes deja de entregar datos, Plainva termina ese intento y repite las lecturas un número limitado de veces con una solicitud nueva. El progreso mantiene activa esa descarga aunque el archivo tarde más que el límite básico. Las solicitudes móviles nativas también tienen sus propios límites. Una descarga incompleta nunca sustituye el archivo local existente ni confirma el avance de la sincronización. Las subidas grandes conservan su margen de tiempo según el tamaño; un resultado incierto se gestiona mediante la recuperación normal de la sincronización, sin reenviarlo a ciegas.

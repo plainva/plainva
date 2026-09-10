@@ -170,3 +170,7 @@ Nowe logowanie nie obejmuje wszystkich usług. Zachowano Twój dotychczasowy dos
 ## Google Drive: nieukończone pobieranie
 
 Gdy Google Drive tymczasowo ogranicza żądania, Plainva ponawia pobieranie po przerwie. Nieudane pobranie nie jest traktowane jako brak pliku ani ukończona zmiana. Lokalna treść i potwierdzony stan synchronizacji pozostają zachowane; następny cykl ponawia oczekującą zmianę. Inne poprawnie pobrane pliki nadal są dostępne. Brak uprawnień i inne trwałe odmowy pojawiają się jako błędy ze ścieżką pliku i przyczyną. Dotyczy to komputera i urządzeń mobilnych.
+
+## Przerwane przesyłanie plików
+
+Limity czasu obejmują także odbieranie plików z WebDAV, Dropbox, OneDrive, S3 i Google Drive. Jeśli odpowiedź przesyłana częściami przestaje dostarczać dane, Plainva kończy próbę i ponawia odczyt ograniczoną liczbę razy przy użyciu nowego żądania. Postęp utrzymuje takie pobieranie aktywne, nawet gdy cały plik wymaga więcej czasu niż limit podstawowy. Natywne żądania mobilne mają również własne limity. Niepełne pobranie nigdy nie zastępuje istniejącego pliku lokalnego ani nie potwierdza postępu synchronizacji. Duże wysyłane pliki zachowują czas dostosowany do rozmiaru; niepewny wynik wysyłania jest obsługiwany przez zwykłe wznawianie synchronizacji, bez ponownego wysyłania w ciemno.
