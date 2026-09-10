@@ -1573,7 +1573,7 @@
     "mContextCopy": "Il menu di copia / taglia / incolla proprio di Plainva",
     "mPeek": "Trascina l'intestazione per spostarla, l'angolo per ridimensionarla; ◀ ▶ hanno una cronologia propria",
     "mResize": "Ridimensiona le barre laterali e le viste divise",
-    "mCalendar": "Nome del mese = scegli mese/anno; giorno = nota giornaliera",
+    "mCalendar": "Titolo o nome del mese = vai a una data; giorno = nota giornaliera",
     "mImageEditor": "Disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti",
     "catWindows": "Finestre",
     "catMail": "E-mail",
@@ -1595,6 +1595,10 @@
     "noteWindowDedup": "Un contenuto è aperto in una sola finestra; richiederlo porta quella finestra in primo piano."
   },
   "calendar": {
+    "jumpToDate": "Vai a una data",
+    "pickDay": "Scegli un giorno",
+    "pickMonth": "Scegli un mese",
+    "pickerHint": "Frecce: giorno · PgSu/PgGiù: mese · Invio: vai",
     "prevMonth": "Mese precedente",
     "nextMonth": "Mese successivo",
     "today": "Oggi",

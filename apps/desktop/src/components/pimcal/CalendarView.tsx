@@ -4,7 +4,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, type WeekStartDay, logDiagnostic } from "@plainva/ui";
+import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -15,7 +15,6 @@ import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
 import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
-import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { consumePendingNew, localIsoKey } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
@@ -118,22 +117,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     }
   }, [viewMode]);
   // App-wide first-day-of-week (settings; shared with the sidebar widget).
-  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1);
-  useEffect(() => {
-    let alive = true;
-    const load = () =>
-      void getWeekStartSetting()
-        .then((s) => {
-          if (alive) setWeekStartDay(weekStartDayOf(s));
-        })
-        .catch(() => {});
-    load();
-    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
-    return () => {
-      alive = false;
-      window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
-    };
-  }, []);
+  const weekStartDay = useWeekStartDay();
+  // The date jump picker under the title (plan Kalender 2026-09-10, P2).
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const titleRef = useRef<HTMLButtonElement>(null);
+  const closeJump = useCallback(() => setJumpOpen(false), []);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
   const [events, setEvents] = useState<PimEventRow[]>([]);
@@ -196,18 +184,20 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // Sidebar calendar hand-off: "show this day in the calendar tab". A freshly
   // mounting tab consumes the parked day (the event fired before the listener
   // existed); an already-open tab reacts to the event directly.
+  // ONE way to land on a day — the sidebar hand-off, the goto event and the
+  // date jump picker all call it, so every view reacts the same way.
+  const applyDay = useCallback((key: unknown) => {
+    if (typeof key !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
+    setSelectedDay(key);
+    const [y, m] = key.split("-").map(Number);
+    setViewDate(new Date(y, (m ?? 1) - 1, 1));
+  }, []);
   useEffect(() => {
-    const applyDay = (key: unknown) => {
-      if (typeof key !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(key)) return;
-      setSelectedDay(key);
-      const [y, m] = key.split("-").map(Number);
-      setViewDate(new Date(y, (m ?? 1) - 1, 1));
-    };
     applyDay(consumePendingCalendarDay());
     const onGoto = (e: Event) => applyDay((e as CustomEvent).detail?.dayKey);
     window.addEventListener(CALENDAR_GOTO_EVENT, onGoto);
     return () => window.removeEventListener(CALENDAR_GOTO_EVENT, onGoto);
-  }, []);
+  }, [applyDay]);
 
   // Cache re-query: worker cycles announce fresh data over the window event.
   useEffect(() => {
@@ -1498,9 +1488,34 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             <ChevronLeft size={ICON.ui} />
           </IconButton>
         )}
-        <h2 data-testid="calendar-month-title" style={{ margin: 0, fontSize: "var(--text-md)", fontWeight: 600, minWidth: 170 }}>
-          {periodTitle}
-        </h2>
+        {/* The title IS the date jump (plan Kalender 2026-09-10, P2): a
+            button that opens the shared picker; a picked day goes through the
+            same applyDay as the sidebar hand-off, so every view lands right. */}
+        <DateJumpTrigger
+          label={periodTitle}
+          open={jumpOpen}
+          onClick={() => setJumpOpen((o) => !o)}
+          tip={t("calendar.jumpToDate", { defaultValue: "Zu Datum springen" })}
+          testId="calendar-month-title"
+          buttonRef={titleRef}
+          className="pv-cal-title"
+        />
+        <DateJumpPopover open={jumpOpen} anchorRef={titleRef} onClose={closeJump} ariaLabel={t("calendar.jumpToDate", { defaultValue: "Zu Datum springen" })} testId="calendar-jump-picker">
+          <DateJumpPicker
+            value={selectedDay}
+            weekStart={weekStartDay}
+            band={
+              (viewMode === "week" || viewMode === "3day") && gridDays.length > 0
+                ? { from: localIsoKey(gridDays[0]), to: localIsoKey(gridDays[gridDays.length - 1]) }
+                : null
+            }
+            onPick={(key) => { applyDay(key); setJumpOpen(false); titleRef.current?.focus(); }}
+            onToday={() => { applyDay(localIsoKey(new Date())); setJumpOpen(false); titleRef.current?.focus(); }}
+            onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
+            autoFocus
+            testId="calendar-jump"
+          />
+        </DateJumpPopover>
         {viewMode !== "agenda" && (
           <IconButton label={t("pim.nextPeriod", { defaultValue: "Weiter" })} onClick={() => navPeriod(1)} data-testid="calendar-next">
             <ChevronRight size={ICON.ui} />

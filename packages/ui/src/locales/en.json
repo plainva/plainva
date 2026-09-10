@@ -1566,7 +1566,7 @@
     "mContextCopy": "Plainva's own copy / cut / paste menu",
     "mPeek": "Header drags, corner grip resizes; ◀ ▶ its own history",
     "mResize": "Resize sidebars and split panes",
-    "mCalendar": "Month name = pick month/year; day = daily note",
+    "mCalendar": "Title or month name = jump to a date; day = daily note",
     "mImageEditor": "Draw with the mouse (pen/arrow/rect/text/crop); zoom via buttons",
     "catWindows": "Windows",
     "catMail": "Email",
@@ -1588,6 +1588,10 @@
     "noteWindowDedup": "A piece of content is only ever open in one window; asking again brings that window forward."
   },
   "calendar": {
+    "jumpToDate": "Jump to date",
+    "pickDay": "Pick a day",
+    "pickMonth": "Pick a month",
+    "pickerHint": "Arrows: day · PgUp/PgDn: month · Enter: jump",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "today": "Today",

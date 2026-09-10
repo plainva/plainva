@@ -1559,7 +1559,7 @@
     "mContextCopy": "Plainva自带的复制 / 剪切 / 粘贴菜单",
     "mPeek": "拖动顶部可移动，拖动边角可调整大小；◀ ▶ 有独立的浏览历史",
     "mResize": "调整侧边栏和拆分窗格的大小",
-    "mCalendar": "月份名称：选择月/年；日期：打开日记",
+    "mCalendar": "标题或月份名称：跳转到日期；日期：打开日记",
     "mImageEditor": "用鼠标绘制（画笔/箭头/矩形/文字/裁剪）；通过按钮缩放",
     "catWindows": "窗口",
     "catMail": "邮件",
@@ -1581,6 +1581,10 @@
     "noteWindowDedup": "同一内容始终只在一个窗口中打开；再次打开会把那个窗口带到最前。"
   },
   "calendar": {
+    "jumpToDate": "跳转到日期",
+    "pickDay": "选择日期",
+    "pickMonth": "选择月份",
+    "pickerHint": "方向键：日 · PgUp/PgDn：月 · Enter：跳转",
     "prevMonth": "上个月",
     "nextMonth": "下个月",
     "today": "今天",

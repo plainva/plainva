@@ -127,7 +127,8 @@ const BUDGET: Record<string, Counts> = {
   "components/BasePicker.tsx": {nakedInput:1,nakedButton:2,rawSpacing:5},
   "components/BaseViewer.tsx": {nakedButton:7,rawSpacing:7},
   "components/BookmarksList.tsx": {nakedButton:1,rawSpacing:2},
-  "components/CalendarWidget.tsx": {nakedInput:1,nakedButton:9,rawSpacing:20},
+  // The month picker moved into the shared DateJumpPicker (plan Kalender 2026-09-10, P1).
+  "components/CalendarWidget.tsx": {nakedInput:1,nakedButton:5,rawSpacing:12},
   "components/CascadeDeleteModal.tsx": {nakedButton:1},
   "components/CodeBlock.tsx": {nakedButton:1,rawSpacing:3},
   "components/ColumnSchemaEditor.tsx": {nakedInput:7,nakedButton:2,rawSpacing:9},
@@ -135,7 +136,9 @@ const BUDGET: Record<string, Counts> = {
   "components/CompareModal.tsx": {nakedButton:1,rawSpacing:20},
   "components/DatabaseSourceConfig.tsx": {rawSpacing:9},
   "components/DatabasesList.tsx": {nakedButton:1,rawSpacing:5},
-  "components/DatePicker.tsx": {nakedInput:1,nakedButton:4,rawSpacing:9},
+  // The grid moved into the shared DateJumpPicker (plan Kalender 2026-09-10,
+  // P1); what stays is the native time input and the confirm button.
+  "components/DatePicker.tsx": {nakedInput:1,nakedButton:1},
   "components/DeletedFilesModal.tsx": {rawSpacing:1},
   "components/DocumentHeaderRead.tsx": {rawSpacing:1},
   "components/Editor.tsx": {nakedButton:15,rawSpacing:13},

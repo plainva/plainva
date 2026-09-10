@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-07
+Última actualización: 2026-09-10
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -118,7 +118,7 @@ El **Enfoque** también puede activarse desde el menú del nodo: el mapa entonce
 
 ## Calendario y eventos
 
-El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Cada columna de día muestra arriba su **día de la semana y su fecha**, y debajo una franja para los **eventos de todo el día** de esa jornada; ambos se desplazan con la cuadrícula en lugar de ocupar espacio de forma permanente. Tocar un evento abre la **vista previa del evento** como hoja — la misma superficie que la ventana flotante del escritorio: franja horaria, lugar, descripción, asistentes con sus respuestas y, si pertenece a una serie, su ritmo junto con la próxima cita. Para una invitación ofrece **Aceptar**, **Provisional** y **Rechazar**, y debajo **Editar evento**, **Nota de reunión** y **Eliminar evento**. Deslizar hacia abajo cierra la hoja. Las notas diarias no están aquí: viven en **Hoy**.
+El área **Calendario** muestra tus calendarios conectados en las vistas **Día**, **3 días** y **Agenda** — el mismo modelo de cuentas que en el escritorio. Llegas a ella desde la barra de navegación o mediante **Áreas**. Cada columna de día muestra arriba su **día de la semana y su fecha**, y debajo una franja para los **eventos de todo el día** de esa jornada; ambos se desplazan con la cuadrícula en lugar de ocupar espacio de forma permanente. Tocar un evento abre la **vista previa del evento** como hoja — la misma superficie que la ventana flotante del escritorio: franja horaria, lugar, descripción, asistentes con sus respuestas y, si pertenece a una serie, su ritmo junto con la próxima cita. Para una invitación ofrece **Aceptar**, **Provisional** y **Rechazar**, y debajo **Editar evento**, **Nota de reunión** y **Eliminar evento**. Deslizar hacia abajo cierra la hoja. Las notas diarias no están aquí: viven en **Hoy**. **Al tocar el período** bajo el título se abre el selector de fecha como hoja: año, mes, día, **Hoy**; un día salta allí.
 
 Tocar un recordatorio de evento abre el propio evento: la vista de día en su fecha, con el evento abierto. La vista que tenías por última vez (día, 3 días, agenda) se recuerda en el dispositivo, como en el escritorio.
 

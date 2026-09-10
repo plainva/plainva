@@ -238,6 +238,7 @@ export * from "./platform/services";
 // React primitives and shared hooks
 export * from "./components/ui/index";
 export * from "./components/ui/useFixedPopover";
+export * from "./components/ui/useWeekStartDay";
 export * from "./components/ui/ToastHost";
 export * from "./components/NoteCardBody";
 export * from "./components/PlainvaLogo";

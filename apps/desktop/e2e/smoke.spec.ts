@@ -1090,7 +1090,7 @@ test('Calendar: today button, month/year quick-select and week numbers', async (
   const picker = page.getByTestId('calendar-month-picker');
   await expect(picker).toBeVisible();
   await page.getByTestId('calendar-picker-prev-year').click();
-  await page.getByTestId('calendar-pick-month-0').click();
+  await page.getByTestId('calendar-picker-month-0').click();
   await expect(picker).not.toBeVisible();
   expect(((await label.textContent()) || '').trim()).not.toBe(initial);
 

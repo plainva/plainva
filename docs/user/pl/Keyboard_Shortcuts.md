@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-09-06
+Stan na: 2026-09-10
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -128,7 +128,7 @@ Mysz: **przewijanie kółkiem** zmienia powiększenie; **przeciąganie środkowy
 - **Linki:** kliknięcie linku wewnętrznego lub linku Markdown otwiera go (`Ctrl`+klik w nowej karcie).
 - **Kliknięcie prawym przyciskiem** na zaznaczeniu lub polu otwiera własne menu kontekstowe Plainva: kopiuj / wytnij / wklej. `F5` i `Ctrl+R` **nie** odświeżają (utraciłyby karty i niezapisane bufory) — zamiast tego wczytują ponownie **vault**.
 - **Okno podglądu:** przeciąganie nagłówka przesuwa je, uchwyt w rogu zmienia rozmiar; `◀ ▶` ma własną historię.
-- **Kalendarz:** kliknięcie nazwy miesiąca wybiera miesiąc/rok; kliknięcie dnia otwiera jego notatkę dzienną.
+- **Kalendarz:** kliknięcie tytułu w karcie kalendarza lub nazwy miesiąca na pasku bocznym (albo `Tab` i `Enter`) otwiera wybór daty — strzałki poruszają się po siatce, `PgUp/PgDn` przewijają miesiące, `Enter` przechodzi, `Esc` zamyka; kliknięcie dnia otwiera jego notatkę dzienną.
 - **Edytor obrazów:** rysowanie myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków.
 
 ## Zobacz też

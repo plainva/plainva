@@ -76,15 +76,13 @@ import {
   stepCursor,
   stepWindow,
   timeLabel,
-  WEEK_START_CHANGED_EVENT,
-  weekStartDayOf,
-  getWeekStartSetting,
+  DateJumpPicker,
+  useWeekStartDay,
   layoutSpanningEvents,
   windowAround,
   windowDays,
   type CalendarCursor,
   type TimelineWindow,
-  type WeekStartDay,
 } from "@plainva/ui";
 import { createPimEvent, listPimAccounts, listPimCalendars } from "../../services/pim/pimService";
 import { buildEntryPeek } from "./entryPeek";
@@ -172,13 +170,10 @@ export function BaseScreen({
   // The same week start the calendar area uses — a database calendar that
   // begins on a different day than the calendar next to it would be two
   // truths about the same week.
-  const [weekStart, setWeekStart] = useState<WeekStartDay>(1);
-  useEffect(() => {
-    const load = () => void getWeekStartSetting().then((v) => setWeekStart(weekStartDayOf(v)));
-    load();
-    globalThis.addEventListener(WEEK_START_CHANGED_EVENT, load);
-    return () => globalThis.removeEventListener(WEEK_START_CHANGED_EVENT, load);
-  }, []);
+  const weekStart = useWeekStartDay();
+  // The date jump sheet behind the calendar view's title (plan Kalender
+  // 2026-09-10, P3) — the same picker as the calendar area's.
+  const [calJumpOpen, setCalJumpOpen] = useState(false);
   // Real appointments behind the calendar view (S18b). Device-local: a way of
   // looking, not part of the database.
   const [showEvents, setShowEvents] = useState(false);
@@ -1411,7 +1406,17 @@ export function BaseScreen({
     return (
       <>
         <div className="m-cal-head">
-          <span className="m-cal-month">{monthLabel}</span>
+          <button
+            type="button"
+            className="m-cal-month m-cal-month--btn"
+            data-testid="base-cal-title"
+            aria-haspopup="dialog"
+            aria-expanded={calJumpOpen}
+            onClick={() => setCalJumpOpen(true)}
+          >
+            <span>{monthLabel}</span>
+            <ChevronDown size={ICON.meta} aria-hidden="true" />
+          </button>
           <span className="m-headactions">
             <IconButton
               label={t("calendar.prevMonth")}
@@ -1980,6 +1985,23 @@ export function BaseScreen({
       )}
       </div>
 
+      {calJumpOpen && (
+        <div className="m-sheet-backdrop" onClick={() => setCalJumpOpen(false)}>
+          <div className="pv-sheet m-sheet" data-testid="base-cal-jump-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setCalJumpOpen(false)} />
+            <p className="m-sheet-title">{t("calendar.jumpToDate")}</p>
+            <DateJumpPicker
+              value={calCursor.day}
+              weekStart={weekStart}
+              size="sheet"
+              onPick={(key) => { setCalCursor((c) => ({ ...c, day: key })); setCalJumpOpen(false); }}
+              onToday={() => { setCalCursor((c) => ({ ...c, day: dayKey(new Date()) })); setCalJumpOpen(false); }}
+              onClose={() => setCalJumpOpen(false)}
+              testId="base-cal-jump"
+            />
+          </div>
+        </div>
+      )}
       {daySheet && (
         <div className="m-sheet-backdrop" onClick={() => setDaySheet(null)}>
           <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>

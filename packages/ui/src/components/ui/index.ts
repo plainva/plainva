@@ -39,3 +39,4 @@ export { FontField, type FontFieldProps } from "./FontField";
 export { Swatch, SwatchGrid, type SwatchProps, type SwatchGridProps, type SwatchGridNone, type SwatchGridFree } from "./SwatchGrid";
 export { GroupCard, Row, RowList, SectionLabel, SettingField } from "./GroupedRows";
 export { cx } from "./cx";
+export { DateJumpPicker, DateJumpTrigger, DateJumpPopover, type DateJumpPickerProps } from "./DateJumpPicker";

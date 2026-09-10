@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-09-06
+Dernière mise à jour : 2026-09-10
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -128,7 +128,7 @@ Souris : la **molette** zoome ; le **clic molette + glisser** ou `Ctrl`+glisser 
 - **Liens :** cliquer sur un lien interne / Markdown pour l'ouvrir (`Ctrl`+clic pour un nouvel onglet).
 - **Clic droit** sur une sélection ou un champ pour le menu copier / couper / coller propre à Plainva. `F5` et `Ctrl+R` ne rechargent **pas** l'application (cela ferait perdre les onglets et les brouillons non enregistrés) — ils relisent plutôt le **vault**.
 - **Fenêtre d'aperçu :** en-tête pour déplacer, angle pour redimensionner ; `◀ ▶` est son propre historique.
-- **Calendrier :** cliquer sur le nom du mois pour choisir le mois ou l'année ; cliquer sur un jour pour sa note quotidienne.
+- **Calendrier :** cliquer sur le titre de l'onglet calendrier ou sur le nom du mois dans la barre latérale (ou l'atteindre avec `Tab` et appuyer sur `Entrée`) pour le sélecteur de date — les flèches se déplacent dans la grille, `Pg.préc/suiv` changent de mois, `Entrée` saute, `Échap` ferme ; cliquer sur un jour pour sa note quotidienne.
 - **Éditeur d'image :** dessiner avec la souris (crayon/flèche/rectangle/texte/rognage) ; zoomer avec les boutons.
 
 ## Voir aussi

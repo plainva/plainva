@@ -2398,3 +2398,24 @@ test('Base list: the card checkbox selects without opening the note', async ({ p
   // The peek did NOT open: the checkbox is its own target, not the title.
   await expect(page.locator('.pv-peek-card')).toHaveCount(0);
 });
+
+test('the calendar view title opens the date jump picker, and a picked day is shown (plan Kalender 2026-09-10)', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.locator('[data-tree-path="Cal.base"]')).toBeVisible({ timeout: 10000 });
+  await aside.locator('[data-tree-path="Cal.base"]').click();
+
+  const title = page.getByTestId('base-cal-title');
+  await expect(title).toBeVisible({ timeout: 10000 });
+  const before = (await title.textContent())!.trim();
+  await title.click();
+  await expect(page.getByTestId('base-cal-jump-picker')).toBeVisible();
+
+  const year = new Date().getFullYear() + 1;
+  await page.getByTestId('base-cal-jump-next-year').click();
+  await page.getByTestId('base-cal-jump-month-2').click();
+  await page.getByTestId(`base-cal-jump-day-${year}-03-03`).click();
+  await expect(page.getByTestId('base-cal-jump-picker')).toHaveCount(0);
+  await expect(title).not.toHaveText(before);
+  await expect(page.getByTestId(`base-day-${year}-03-03`)).toBeVisible();
+});

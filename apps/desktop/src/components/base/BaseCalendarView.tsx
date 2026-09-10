@@ -6,15 +6,16 @@ import {
   entryDayKeys,
   rowDueTone,
   type TaskCompletionModel,
-  getWeekStartSetting,
+  DateJumpPicker,
+  DateJumpPopover,
+  DateJumpTrigger,
   layoutSpanningEvents,
   rangeRows,
   stepCursor,
   timeLabel,
-  weekStartDayOf,
-  WEEK_START_CHANGED_EVENT,
+  useWeekStartDay,
+  weekdayShortNames,
   type CalendarCursor,
-  type WeekStartDay,
 } from "@plainva/ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -62,23 +63,11 @@ export function BaseCalendarView({
 
   // The same week-start setting the real calendar honours — a vault set to
   // Sunday must not get a Monday week inside its databases.
-  const [weekStartDay, setWeekStartDay] = React.useState<WeekStartDay>(1);
-  React.useEffect(() => {
-    let alive = true;
-    const read = () => {
-      void getWeekStartSetting()
-        .then((v) => {
-          if (alive) setWeekStartDay(weekStartDayOf(v));
-        })
-        .catch(() => {});
-    };
-    read();
-    window.addEventListener(WEEK_START_CHANGED_EVENT, read);
-    return () => {
-      alive = false;
-      window.removeEventListener(WEEK_START_CHANGED_EVENT, read);
-    };
-  }, []);
+  const weekStartDay = useWeekStartDay();
+  // The date jump picker under the title (plan Kalender 2026-09-10, P2).
+  const [jumpOpen, setJumpOpen] = React.useState(false);
+  const titleRef = React.useRef<HTMLButtonElement>(null);
+  const closeJump = React.useCallback(() => setJumpOpen(false), []);
 
   const rows = React.useMemo(() => rangeRows(cursor, weekStartDay), [cursor, weekStartDay]);
   const anchorDate = React.useMemo(() => new Date(`${cursor.day}T00:00:00`), [cursor.day]);
@@ -120,8 +109,7 @@ export function BaseCalendarView({
 
   const today = new Date();
   const locale = i18n.language || "de";
-  // 2024-01-01 was a Monday: offsetting by the week-start day names the columns right.
-  const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + ((i + weekStartDay - 1 + 7) % 7)).toLocaleDateString(locale, { weekday: "short" }));
+  const weekdays = weekdayShortNames(locale, weekStartDay);
   const isToday = (key: string) => key === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const periodLabel =
@@ -214,7 +202,28 @@ export function BaseCalendarView({
         <>
           <div className="base-period-toolbar">
             <button onClick={() => setCursor((c) => stepCursor(c, -1))} className="base-nav-btn" aria-label={t("database.prevPeriod", "Zurück")} data-tip={t("database.prevPeriod", "Zurück")}><ChevronLeft size={ICON.ui} /></button>
-            <span style={{ fontWeight: 600, minWidth: 150, textAlign: "center" }}>{periodLabel}</span>
+            {/* The title opens the shared date jump picker (plan Kalender 2026-09-10, P2). */}
+            <DateJumpTrigger
+              label={periodLabel}
+              open={jumpOpen}
+              onClick={() => setJumpOpen((o) => !o)}
+              tip={t("calendar.jumpToDate", "Zu Datum springen")}
+              testId="base-cal-title"
+              buttonRef={titleRef}
+              className="pv-cal-title"
+            />
+            <DateJumpPopover open={jumpOpen} anchorRef={titleRef} onClose={closeJump} ariaLabel={t("calendar.jumpToDate", "Zu Datum springen")} testId="base-cal-jump-picker">
+              <DateJumpPicker
+                value={cursor.day}
+                weekStart={weekStartDay}
+                band={cursor.range === "week" && rows[0]?.[0] && rows[0]?.[6] ? { from: rows[0][0], to: rows[0][6] } : null}
+                onPick={(key) => { setCursor((c) => ({ ...c, day: key })); setJumpOpen(false); titleRef.current?.focus(); }}
+                onToday={() => { setCursor((c) => ({ ...c, day: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}` })); setJumpOpen(false); titleRef.current?.focus(); }}
+                onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
+                autoFocus
+                testId="base-cal-jump"
+              />
+            </DateJumpPopover>
             <button onClick={() => setCursor((c) => stepCursor(c, 1))} className="base-nav-btn" aria-label={t("database.nextPeriod", "Weiter")} data-tip={t("database.nextPeriod", "Weiter")}><ChevronRight size={ICON.ui} /></button>
             <button onClick={() => setCursor((c) => ({ ...c, day: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}` }))} className="base-today-btn">{t("database.today", "Heute")}</button>
             <Segmented

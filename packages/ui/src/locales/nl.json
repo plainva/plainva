@@ -1566,7 +1566,7 @@
     "mContextCopy": "Plainva's eigen kopieer-/knip-/plakmenu",
     "mPeek": "Kop = slepen, hoekgreep = formaat wijzigen; ◀ ▶ eigen geschiedenis",
     "mResize": "Zijbalken en gesplitste panelen aanpassen",
-    "mCalendar": "Maandnaam = maand/jaar kiezen; dag = dagnotitie",
+    "mCalendar": "Titel of maandnaam = naar een datum springen; dag = dagnotitie",
     "mImageEditor": "Tekenen met de muis (pen/pijl/rechthoek/tekst/bijsnijden); zoomen via de knoppen",
     "catWindows": "Vensters",
     "catMail": "E-mail",
@@ -1588,6 +1588,10 @@
     "noteWindowDedup": "Inhoud staat altijd maar in één venster open; nog een keer vragen haalt dat venster naar voren."
   },
   "calendar": {
+    "jumpToDate": "Naar datum springen",
+    "pickDay": "Dag kiezen",
+    "pickMonth": "Maand kiezen",
+    "pickerHint": "Pijlen: dag · PgUp/PgDn: maand · Enter: springen",
     "prevMonth": "Vorige maand",
     "nextMonth": "Volgende maand",
     "today": "Vandaag",

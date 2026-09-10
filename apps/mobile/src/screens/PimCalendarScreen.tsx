@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
-import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, WEEK_START_CHANGED_EVENT, type WeekStartDay, weekStartDayOf, getWeekStartSetting, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
+import { ChevronDown, ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
+import { SheetGrip } from "../components/SheetGrip";
+import { haptics } from "../services/haptics";
+import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -134,7 +136,7 @@ export function PimCalendarScreen({
 
   // The week and the month follow the SHARED first-day-of-week setting (S26):
   // a vault whose week starts on Sunday must start on Sunday everywhere.
-  const [weekStart, setWeekStart] = useState<WeekStartDay>(1);
+  const weekStart = useWeekStartDay();
 
   // Database views shown alongside the appointments (S18b, plan P9a). The
   // selection is a vault setting and arrives through the settings sync — who
@@ -142,12 +144,9 @@ export function PimCalendarScreen({
   const [ovCands, setOvCands] = useState<OverlayCandidate[]>([]);
   const [ovKeys, setOvKeys] = useState<string[]>([]);
   const [ovEntries, setOvEntries] = useState<OverlayEntry[]>([]);
-  useEffect(() => {
-    const load = () => void getWeekStartSetting().then((v) => setWeekStart(weekStartDayOf(v)));
-    load();
-    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
-    return () => window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
-  }, []);
+  // The date jump sheet under the app bar's period (plan Kalender 2026-09-10,
+  // P3): the same picker the desktop opens under its title.
+  const [jumpOpen, setJumpOpen] = useState(false);
 
   /**
    * The banner's own action (N9.3). It used to call `onOpenSettings()` — the
@@ -395,6 +394,28 @@ export function PimCalendarScreen({
     return `${d.format(first)}.–${dm.format(last)}`;
   };
 
+  // The period is a BUTTON in the bar's subtitle slot (N5.1 put the period
+  // there; P3 makes it the way to the date jump). It stays the subtitle: the
+  // toolbar below has no room for it, and the bar answers "where am I".
+  const periodNode = (
+    <button
+      type="button"
+      className="m-appbar-sub-btn"
+      data-testid="pim-title"
+      aria-haspopup="dialog"
+      aria-expanded={jumpOpen}
+      onClick={() => setJumpOpen(true)}
+    >
+      <span>{periodTitle()}</span>
+      <ChevronDown size={ICON.meta} aria-hidden="true" />
+    </button>
+  );
+  const jumpTo = (d: Date) => {
+    setAnchor(d);
+    haptics.light();
+    setJumpOpen(false);
+  };
+
   const hours = useMemo(() => Array.from({ length: 24 }, (_, h) => h), []);
 
   // Auto-scroll to ~07:00 (or now) when the day set changes.
@@ -418,9 +439,27 @@ export function PimCalendarScreen({
            two arrows, "today" and two more buttons beside it, and a German
            weekday date was being cut to "Sonnt…" there. Here it has the width
            it needs, and it answers the bar's question — where am I. */
-        subtitle={periodTitle()}
+        subtitle={periodNode}
         title={t("mobile.tabCalendar", { defaultValue: "Kalender" })}
       />
+      {jumpOpen && (
+        <div className="m-sheet-backdrop" onClick={() => setJumpOpen(false)}>
+          <div className="pv-sheet m-sheet" data-testid="pim-jump-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setJumpOpen(false)} />
+            <p className="m-sheet-title">{t("calendar.jumpToDate")}</p>
+            <DateJumpPicker
+              value={isoOf(anchor)}
+              weekStart={weekStart}
+              size="sheet"
+              band={(view === "week" || view === "3day") && days.length > 0 ? { from: isoOf(days[0]), to: isoOf(days[days.length - 1]) } : null}
+              onPick={(key) => jumpTo(new Date(`${key}T00:00:00`))}
+              onToday={() => jumpTo(new Date())}
+              onClose={() => setJumpOpen(false)}
+              testId="pim-jump"
+            />
+          </div>
+        </div>
+      )}
       <div className="m-pimbar">
         <IconButton label={t("pim.prevPeriod", { defaultValue: "Zurück" })} onClick={() => navPeriod(-1)}>
           <ChevronLeft size={ICON.head} />

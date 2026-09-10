@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay } from "date-fns";
-import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { ICON, formatDateValue } from "@plainva/ui";
+import { DateJumpPicker, formatDateValue, localIsoKey, useWeekStartDay } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -15,18 +13,25 @@ interface Props {
   onClose?: () => void;
 }
 
+/**
+ * The date field of a database cell or a property. The grid inside is the
+ * shared DateJumpPicker (plan Kalender 2026-09-10, P1): this field used to
+ * carry its own 6x7 grid with "Mo Di Mi …" hard-coded in every language, the
+ * month title fixed to German, and Monday as the week start whatever the
+ * setting said. The field, the time row and the confirm button stay.
+ */
 export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClose }: Props) {
   const [isOpen, setIsOpen] = useState(!!autoOpen);
-  
+  const weekStart = useWeekStartDay();
+
   // Parse initial value or default to now
   let initialDate = new Date();
   if (value) {
     const d = new Date(value);
     if (!isNaN(d.getTime())) initialDate = d;
   }
-  
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(initialDate));
-  const [selectedDate, setSelectedDate] = useState(initialDate);
+
+  const [selectedDay, setSelectedDay] = useState(localIsoKey(initialDate));
   const [timeStr, setTimeStr] = useState(format(initialDate, "HH:mm"));
 
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -41,9 +46,9 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
     const el = anchorRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const POPOVER_HEIGHT = 400;
+    const POPOVER_HEIGHT = 420;
     const openUp = window.innerHeight - r.bottom < POPOVER_HEIGHT && r.top > window.innerHeight - r.bottom;
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - 258));
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 308));
     setPos(openUp ? { left, bottom: window.innerHeight - r.top + 4 } : { left, top: r.bottom + 4 });
   };
   useLayoutEffect(() => {
@@ -76,15 +81,10 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
-  // Generate calendar days
-  const startDate = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
-  const endDate = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-  const handleDayClick = (day: Date) => {
-    setSelectedDate(day);
+  const handleDayPick = (day: string) => {
+    setSelectedDay(day);
     if (!includeTime) {
-      onChange(format(day, "yyyy-MM-dd"));
+      onChange(day);
       setIsOpen(false);
     }
   };
@@ -92,12 +92,9 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
   const handleConfirm = () => {
     if (includeTime) {
       const [hh, mm] = timeStr.split(":");
-      const d = new Date(selectedDate);
-      d.setHours(parseInt(hh || "0", 10));
-      d.setMinutes(parseInt(mm || "0", 10));
-      onChange(format(d, "yyyy-MM-dd'T'HH:mm"));
+      onChange(`${selectedDay}T${String(parseInt(hh || "0", 10)).padStart(2, "0")}:${String(parseInt(mm || "0", 10)).padStart(2, "0")}`);
     } else {
-      onChange(format(selectedDate, "yyyy-MM-dd"));
+      onChange(selectedDay);
     }
     setIsOpen(false);
   };
@@ -120,60 +117,29 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
       {isOpen && pos && (
         <div
           ref={popoverRef}
-          className="pv-popover pv-popover--fixed"
+          className="pv-popover pv-popover--fixed pv-datejump-pop"
+          data-testid="date-field-picker"
           style={{
             left: pos.left,
             top: pos.top,
             bottom: pos.bottom,
-            maxHeight: 400,
-            padding: "0.75rem",
-            width: "250px",
             color: "var(--text-main)",
             visibility: "visible",
           }}
         >
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronLeft size={ICON.ui} /></button>
-            <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{format(currentMonth, "MMMM yyyy", { locale: de })}</div>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="pv-iconbtn pv-iconbtn--sm"><ChevronRight size={ICON.ui} /></button>
-          </div>
-
-          {/* Weekday Labels */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", fontSize: "var(--text-sm)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600 }}>
-            <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
-          </div>
-
-          {/* Days Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" }}>
-            {days.map(day => {
-              const isSelected = isSameDay(day, selectedDate);
-              const isCurrentMonth = isSameMonth(day, currentMonth);
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => handleDayClick(day)}
-                  className="pv-rowhover"
-                  style={{
-                    padding: "6px 0",
-                    background: isSelected ? "var(--accent-color)" : undefined,
-                    color: isSelected ? "var(--accent-on)" : (isCurrentMonth ? "var(--text-main)" : "var(--text-faint)"),
-                    border: "none",
-                    borderRadius: "var(--radius-xs)",
-                    cursor: "pointer",
-                    fontSize: "var(--text-md)",
-                    fontWeight: isSelected ? 600 : 400
-                  }}
-                >
-                  {format(day, "d")}
-                </button>
-              )
-            })}
-          </div>
+          <DateJumpPicker
+            value={selectedDay}
+            weekStart={weekStart}
+            onPick={handleDayPick}
+            onToday={() => handleDayPick(localIsoKey(new Date()))}
+            onClose={() => { setIsOpen(false); onClose?.(); }}
+            autoFocus
+            testId="date-field"
+          />
 
           {/* Time Picker */}
           {includeTime && (
-            <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem" }}>
+            <div style={{ marginTop: "var(--space-3)", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border-color)", paddingTop: "var(--space-3)" }}>
               <span style={{ fontSize: "var(--text-md)", color: "var(--text-muted)" }}>{t("editor.time", "Uhrzeit")}</span>
               <input
                 type="time"
@@ -187,7 +153,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
 
           {/* Confirm Button */}
           {includeTime && (
-            <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ marginTop: "var(--space-3)", display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={handleConfirm}
                 className="pv-btn pv-btn--primary"

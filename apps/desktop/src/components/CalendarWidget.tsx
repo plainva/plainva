@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarCheck, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Sun } from "lucide-react";
+import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { buildMonthCells, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, type WeekStartDay } from "@plainva/ui";
+import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useWeekStartDay, weekdayShortNames } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
 import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
-import { getWeekStartSetting, weekStartDayOf, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 
 /**
  * Sidebar calendar. Since the PIM calendar exists this widget is a day
@@ -52,9 +51,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const [viewDate, setViewDate] = useState<Date>(startOfMonth(today));
   const [marked, setMarked] = useState<Set<string>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(() => today.getFullYear());
   const [showWeeks, setShowWeeks] = useState(() => localStorage.getItem(SHOW_WEEKS_KEY) === "true");
-  const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(1);
+  const weekStartDay = useWeekStartDay();
   const [menu, setMenu] = useState<{ dayKey: string; at: { x: number; y: number } } | null>(null);
   const [pimTick, setPimTick] = useState(0);
   const [events, setEvents] = useState<PimEventRow[]>([]);
@@ -65,29 +63,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
 
   const monthLabel = new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(viewDate);
 
-  useEffect(() => {
-    let alive = true;
-    const load = () =>
-      void getWeekStartSetting()
-        .then((s) => {
-          if (alive) setWeekStartDay(weekStartDayOf(s));
-        })
-        .catch(() => {});
-    load();
-    window.addEventListener(WEEK_START_CHANGED_EVENT, load);
-    return () => {
-      alive = false;
-      window.removeEventListener(WEEK_START_CHANGED_EVENT, load);
-    };
-  }, []);
-
-  // Weekday headers rotated to the chosen week start (2024-01-01 was a Monday).
-  const weekdays = useMemo(() => {
-    const fmt = new Intl.DateTimeFormat(lang, { weekday: "short" });
-    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + ((weekStartDay - 1 + 7 + i) % 7))));
-  }, [lang, weekStartDay]);
-  const monthFmt = new Intl.DateTimeFormat(lang, { month: "short" });
-  const monthNames = Array.from({ length: 12 }, (_, i) => monthFmt.format(new Date(2024, i, 1)));
+  // Weekday headers rotated to the chosen week start — the shared helper,
+  // the same names the date jump picker shows.
+  const weekdays = useMemo(() => weekdayShortNames(lang, weekStartDay), [lang, weekStartDay]);
 
   const monthCells = useMemo(() => buildMonthCells(viewDate, weekStartDay), [viewDate, weekStartDay]);
   /**
@@ -115,10 +93,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const prevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
   const goToday = () => { setViewDate(startOfMonth(today)); setPickerOpen(false); };
-  const togglePicker = () => {
-    setPickerYear(viewDate.getFullYear());
-    setPickerOpen((o) => !o);
-  };
+  const togglePicker = () => setPickerOpen((o) => !o);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
   const toggleWeeks = () => {
     setShowWeeks((v) => {
       const next = !v;
@@ -126,24 +102,6 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       return next;
     });
   };
-
-  // Close the month/year picker on outside click / Escape.
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const onDown = (e: MouseEvent) => {
-      const tgt = e.target as Node;
-      if (navRef.current && !navRef.current.contains(tgt)) setPickerOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPickerOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [pickerOpen]);
 
   // Mark days that already have a daily note (tiny sunrise under the number).
   useEffect(() => {
@@ -306,62 +264,39 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       )}
       <div ref={navRef} hidden={weekRow} style={{ position: "relative", display: weekRow ? "none" : "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem", gap: "2px" }}>
         <button onClick={prevMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevMonth")} data-tip={t("calendar.prevMonth")}><ChevronLeft size={ICON.ui} /></button>
-        <button
+        <DateJumpTrigger
+          label={monthLabel}
+          open={pickerOpen}
           onClick={togglePicker}
-          data-testid="calendar-month-label"
-          aria-expanded={pickerOpen}
-          data-tip={t("calendar.selectMonthYear")}
-          style={{ background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", fontSize: "var(--text-md)", fontWeight: 600, textTransform: "capitalize", flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}
-        >
-          <span style={{ minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{monthLabel}</span>
-          <ChevronDown size={ICON.meta} style={{ flexShrink: 0, opacity: 0.6 }} aria-hidden="true" />
-        </button>
+          tip={t("calendar.selectMonthYear")}
+          testId="calendar-month-label"
+          className="pv-sidecal-title"
+        />
         <button onClick={nextMonth} className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextMonth")} data-tip={t("calendar.nextMonth")}><ChevronRight size={ICON.ui} /></button>
         <button onClick={goToday} data-testid="calendar-today" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.today")} data-tip={t("calendar.today")}><CalendarCheck size={ICON.ui} /></button>
 
-        {pickerOpen && (
-          <div
-            data-testid="calendar-month-picker"
-            style={{
-              position: "absolute", top: "100%", left: 0, right: 0, marginTop: "4px", zIndex: "var(--z-menu)",
-              background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)",
-              boxShadow: "var(--shadow-2)", padding: "0.5rem",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-              <button onClick={() => setPickerYear((y) => y - 1)} data-testid="calendar-picker-prev-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.prevYear")} data-tip={t("calendar.prevYear")}><ChevronLeft size={ICON.ui} /></button>
-              <span data-testid="calendar-picker-year" style={{ fontSize: "var(--text-md)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{pickerYear}</span>
-              <button onClick={() => setPickerYear((y) => y + 1)} data-testid="calendar-picker-next-year" className="pv-iconbtn pv-iconbtn--sm" aria-label={t("calendar.nextYear")} data-tip={t("calendar.nextYear")}><ChevronRight size={ICON.ui} /></button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "2px" }}>
-              {monthNames.map((m, i) => {
-                const isCurrent = i === viewDate.getMonth() && pickerYear === viewDate.getFullYear();
-                return (
-                  <button
-                    key={i}
-                    data-testid={`calendar-pick-month-${i}`}
-                    onClick={() => { setViewDate(new Date(pickerYear, i, 1)); setPickerOpen(false); }}
-                    className="pv-rowhover"
-                    style={{
-                      padding: "0.35rem 0.2rem", fontSize: "var(--text-sm)", border: "none", borderRadius: "var(--radius-xs)", cursor: "pointer",
-                      textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      background: isCurrent ? "var(--accent-color)" : undefined,
-                      color: isCurrent ? "var(--accent-on)" : "var(--text-main)",
-                    }}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
-            </div>
-            {weekStartDay === 1 && (
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "0.5rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", cursor: "pointer" }}>
-                <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
-                {t("calendar.showWeeks")}
-              </label>
-            )}
-          </div>
-        )}
+        {/* The shared date jump picker in its sidebar variant (plan Kalender
+            2026-09-10, P1): year and months only — the month itself is the
+            grid right underneath, so a second day grid would repeat it. */}
+        <DateJumpPopover open={pickerOpen} anchorRef={navRef} onClose={closePicker} ariaLabel={t("calendar.selectMonthYear")} testId="calendar-month-picker">
+          <DateJumpPicker
+            value={localIsoKey(viewDate)}
+            weekStart={weekStartDay}
+            showDays={false}
+            onPick={() => {}}
+            onPickMonth={(y, m) => { setViewDate(new Date(y, m, 1)); setPickerOpen(false); }}
+            onClose={closePicker}
+            testId="calendar-picker"
+            footer={
+              weekStartDay === 1 ? (
+                <label className="pv-sidecal-weeks">
+                  <input type="checkbox" className="pv-check" data-testid="calendar-show-weeks" checked={showWeeks} onChange={toggleWeeks} />
+                  {t("calendar.showWeeks")}
+                </label>
+              ) : undefined
+            }
+          />
+        </DateJumpPopover>
       </div>
       {/* container-type scopes the day-dot container query to the grid only —
           never the widget root, whose fixed context menu must not be clipped. */}

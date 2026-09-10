@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-07
+Stand: 2026-09-10
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -118,7 +118,7 @@ Der **Fokus** setzt sich auch über das Knotenmenü: die Karte zeigt dann nur no
 
 ## Kalender und Termine
 
-Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Jede Tagesspalte trägt oben ihren **Wochentag und das Datum**, darunter einen Streifen für die **ganztägigen Termine** des Tages; beides scrollt mit dem Raster, statt Platz dauerhaft zu belegen. Ein Tipp auf einen Termin öffnet die **Termin-Vorschau** als Blatt — dieselbe Fläche wie das freischwebende Fenster am Desktop: Zeitraum, Ort, Beschreibung, Teilnehmende mit ihren Antworten, und bei einer Serie ihr Rhythmus samt nächstem Termin. Bei einer Einladung stehen dort **Zusagen**, **Vorläufig** und **Absagen**, darunter **Termin bearbeiten**, **Meeting-Notiz** und **Termin löschen**. Wischen nach unten schließt das Blatt. Tagesnotizen liegen nicht hier, sondern in **Heute**.
+Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag**, **3 Tage** und **Agenda** — dasselbe Konten-Modell wie am Desktop. Du erreichst ihn über die Navigationsleiste oder über **Bereiche**. Jede Tagesspalte trägt oben ihren **Wochentag und das Datum**, darunter einen Streifen für die **ganztägigen Termine** des Tages; beides scrollt mit dem Raster, statt Platz dauerhaft zu belegen. Ein Tipp auf einen Termin öffnet die **Termin-Vorschau** als Blatt — dieselbe Fläche wie das freischwebende Fenster am Desktop: Zeitraum, Ort, Beschreibung, Teilnehmende mit ihren Antworten, und bei einer Serie ihr Rhythmus samt nächstem Termin. Bei einer Einladung stehen dort **Zusagen**, **Vorläufig** und **Absagen**, darunter **Termin bearbeiten**, **Meeting-Notiz** und **Termin löschen**. Wischen nach unten schließt das Blatt. Tagesnotizen liegen nicht hier, sondern in **Heute**. **Ein Tipp auf den Zeitraum** unter dem Titel öffnet die Datumsauswahl als Sheet: Jahr, Monat, Tag, **Heute** — ein Tag springt hin.
 
 Ein Tipp auf eine Termin-Erinnerung öffnet den Termin selbst — die Tagesansicht an seinem Tag, den Termin geöffnet. Welche Ansicht Du zuletzt hattest (Tag, 3 Tage, Agenda), merkt sich das Gerät, wie am Desktop.
 

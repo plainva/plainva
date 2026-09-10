@@ -808,3 +808,20 @@
 [data-theme-name="lcars"] .pv-comment-card.is-active {
   border-left-color: var(--lcars-4);
 }
+
+/* Date jump picker: square tiles, the selected day as a colour block, month
+   names in the console's caps. */
+[data-theme-name="lcars"] .pv-datejump-day,
+[data-theme-name="lcars"] .pv-datejump-month,
+[data-theme-name="lcars"] .pv-datejump-trigger {
+  border-radius: 0;
+}
+[data-theme-name="lcars"] .pv-datejump-month,
+[data-theme-name="lcars"] .pv-datejump-wd {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-theme-name="lcars"] .pv-datejump-day[aria-pressed="true"] {
+  background: var(--lcars-1);
+  color: #000000;
+}

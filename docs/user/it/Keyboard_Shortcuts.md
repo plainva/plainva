@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-09-06
+Ultimo aggiornamento: 2026-09-10
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -128,7 +128,7 @@ Mouse: **scorri** per lo zoom; **trascinamento con il tasto centrale** o `Ctrl`+
 - **Link:** fai clic su un link interno / Markdown per aprirlo (`Ctrl`+clic per una nuova scheda).
 - **Clic destro** su una selezione o un campo per il menu di copia / taglia / incolla proprio di Plainva. `F5` e `Ctrl+R` **non** ricaricano (perderesti le schede e i buffer non salvati) — rileggono invece il **vault**.
 - **Finestra di anteprima:** trascina l'intestazione per spostarla, l'angolo per ridimensionarla; `◀ ▶` hanno una cronologia propria.
-- **Calendario:** fai clic sul nome del mese per scegliere mese/anno; fai clic su un giorno per la sua nota giornaliera.
+- **Calendario:** fai clic sul titolo nella scheda calendario o sul nome del mese nella barra laterale (o raggiungilo con `Tab` e premi `Invio`) per il selettore di data: le frecce si muovono nella griglia, `PgSu/PgGiù` cambiano mese, `Invio` salta, `Esc` chiude; fai clic su un giorno per la sua nota giornaliera.
 - **Editor di immagini:** disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti.
 
 ## Vedi anche

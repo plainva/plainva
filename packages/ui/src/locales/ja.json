@@ -1559,7 +1559,7 @@
     "mContextCopy": "Plainva独自のコピー / 切り取り / 貼り付けメニュー",
     "mPeek": "ヘッダーのドラッグで移動、角のグリップでサイズ変更、◀ ▶ は専用の履歴",
     "mResize": "サイドバーと分割ペインのサイズを変更",
-    "mCalendar": "月名 = 月/年を選択、日 = デイリーノート",
+    "mCalendar": "タイトルまたは月名 = 日付へ移動、日 = デイリーノート",
     "mImageEditor": "マウスで描画（ペン/矢印/長方形/テキスト/切り抜き）、ボタンでズーム",
     "catWindows": "ウィンドウ",
     "catMail": "メール",
@@ -1581,6 +1581,10 @@
     "noteWindowDedup": "1 つの内容が開くウィンドウは常に 1 つだけです。もう一度開くと、そのウィンドウが前面に出ます。"
   },
   "calendar": {
+    "jumpToDate": "日付へ移動",
+    "pickDay": "日を選択",
+    "pickMonth": "月を選択",
+    "pickerHint": "矢印: 日 · PgUp/PgDn: 月 · Enter: 移動",
     "prevMonth": "前の月",
     "nextMonth": "次の月",
     "today": "今日",

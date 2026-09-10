@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-09-07
+Dernière mise à jour : 2026-09-10
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -118,7 +118,7 @@ Le **Focus** se règle aussi depuis le menu du nœud : la carte ne montre alors 
 
 ## Calendrier et événements
 
-La zone **Calendrier** affiche vos calendriers connectés dans les vues **Jour**, **3 jours** et **Agenda** — le même modèle de compte que sur le bureau. Vous y accédez depuis la barre de navigation ou via **Rubriques**. Chaque colonne de jour affiche en haut son **jour de la semaine et sa date**, et en dessous une bande pour les **événements toute la journée** de ce jour ; les deux défilent avec la grille au lieu d'occuper de la place en permanence. Toucher un événement ouvre l'**aperçu de l'événement** sous forme de feuille — la même surface que la fenêtre flottante du bureau : plage horaire, lieu, description, participants avec leurs réponses, et pour une série son rythme ainsi que la prochaine occurrence. Pour une invitation, elle propose **Accepter**, **Provisoire** et **Refuser**, puis **Modifier l'événement**, **Note de réunion** et **Supprimer l'événement**. Un balayage vers le bas ferme la feuille. Les notes quotidiennes ne se trouvent pas ici : elles vivent dans **Aujourd'hui**.
+La zone **Calendrier** affiche vos calendriers connectés dans les vues **Jour**, **3 jours** et **Agenda** — le même modèle de compte que sur le bureau. Vous y accédez depuis la barre de navigation ou via **Rubriques**. Chaque colonne de jour affiche en haut son **jour de la semaine et sa date**, et en dessous une bande pour les **événements toute la journée** de ce jour ; les deux défilent avec la grille au lieu d'occuper de la place en permanence. Toucher un événement ouvre l'**aperçu de l'événement** sous forme de feuille — la même surface que la fenêtre flottante du bureau : plage horaire, lieu, description, participants avec leurs réponses, et pour une série son rythme ainsi que la prochaine occurrence. Pour une invitation, elle propose **Accepter**, **Provisoire** et **Refuser**, puis **Modifier l'événement**, **Note de réunion** et **Supprimer l'événement**. Un balayage vers le bas ferme la feuille. Les notes quotidiennes ne se trouvent pas ici : elles vivent dans **Aujourd'hui**. **Toucher la période** sous le titre ouvre le sélecteur de date dans une feuille : année, mois, jour, **Aujourd'hui** — un jour y saute.
 
 Toucher un rappel d’événement ouvre l’événement lui-même — la vue du jour à sa date, l’événement ouvert. La dernière vue utilisée (jour, 3 jours, agenda) est mémorisée sur l’appareil, comme sur l’ordinateur.
 

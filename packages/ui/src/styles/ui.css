@@ -3263,3 +3263,52 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   color: var(--text-muted);
   font-size: var(--text-ui);
 }
+
+/* ---- Date jump picker (plan Kalender, Anker-Links, Dependabot 2026-09-10, P1) ----
+   ONE day grid wherever a person picks a date to go to: the calendar tab's
+   title popover (desktop) and sheet (phone), the sidebar calendar's month
+   picker, the database calendars' title, the date field of a cell or a
+   property. Month/weekday names come from Intl, the week starts where the
+   setting says, the grid is one Tab stop (roving tabindex). */
+.pv-datejump { display: grid; gap: var(--space-2); color: var(--text-main); font-size: var(--text-sm); min-width: 0; }
+.pv-datejump-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
+.pv-datejump-label { font-size: var(--text-md); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pv-datejump-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
+.pv-datejump-month { border: none; background: transparent; color: var(--text-main); border-radius: var(--radius-xs); padding: var(--space-1) 2px; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 500; line-height: 1.2; cursor: pointer; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pv-datejump-month:hover { background: var(--state-hover); }
+.pv-datejump-month[aria-pressed="true"] { background: var(--accent-container); color: var(--on-accent-container); }
+.pv-datejump-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+.pv-datejump-days.has-weeks { grid-template-columns: auto repeat(7, minmax(0, 1fr)); }
+.pv-datejump-wd { font-size: var(--text-xs); color: var(--text-faint); text-align: center; padding: 2px 0; text-transform: uppercase; overflow: hidden; white-space: nowrap; }
+.pv-datejump-wk { display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); color: var(--text-faint); font-variant-numeric: tabular-nums; padding-right: var(--space-1); margin-right: 2px; border-right: 1px solid var(--border-color-light); }
+.pv-datejump-day { position: relative; border: none; background: transparent; color: var(--text-main); border-radius: var(--radius-xs); height: var(--control-md); min-width: 0; padding: 0; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; cursor: pointer; }
+.pv-datejump-day:hover { background: var(--state-hover); }
+.pv-datejump-day.is-outside { color: var(--text-faint); }
+.pv-datejump-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent-color); font-weight: 600; }
+.pv-datejump-day.in-band { background: var(--accent-container); color: var(--on-accent-container); }
+.pv-datejump-day[aria-pressed="true"] { background: var(--accent-color); color: var(--accent-on); font-weight: 600; }
+.pv-datejump-day.has-mark::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; border-radius: var(--radius-pill); background: var(--accent-color); transform: translateX(-50%); }
+.pv-datejump-day[aria-pressed="true"].has-mark::after { background: var(--accent-on); }
+.pv-datejump-day:focus-visible, .pv-datejump-month:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+.pv-datejump-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-1); border-top: 1px solid var(--border-color-light); }
+.pv-datejump-hint { font-size: var(--text-xs); color: var(--text-faint); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Touch variant (the phone's sheet): rows at touch height, one type step up. */
+.pv-datejump--sheet { gap: var(--space-3); }
+.pv-datejump--sheet .pv-datejump-day { height: var(--touch-sm); font-size: var(--text-md); }
+.pv-datejump--sheet .pv-datejump-month { padding: var(--space-2) 2px; font-size: var(--text-md); }
+.pv-datejump--sheet .pv-datejump-wd, .pv-datejump--sheet .pv-datejump-wk { font-size: var(--text-sm); }
+/* The desktop hull: the popover contract, widened for a seven-column grid. */
+.pv-datejump-pop { width: 300px; max-width: none; max-height: none; padding: var(--space-3); }
+/* The title that opens it: the period label with a chevron; the accent pair
+   while the popover is up, exactly like an active toggle. */
+.pv-datejump-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 3px; border: none; background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-md); font-weight: 600; line-height: 1.2; padding: var(--space-1) var(--space-2); border-radius: var(--radius-xs); cursor: pointer; min-width: 0; text-transform: capitalize; }
+.pv-datejump-trigger:hover { background: var(--state-hover); }
+.pv-datejump-trigger[aria-expanded="true"] { background: var(--accent-container); color: var(--on-accent-container); }
+.pv-datejump-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-datejump-trigger > svg { flex-shrink: 0; opacity: 0.6; }
+/* The sidebar calendar's use of the trigger: it grows between the month
+   arrows; the week-number checkbox is the picker's footer row there. */
+.pv-sidecal-title { flex: 1; }
+.pv-sidecal-weeks { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); cursor: pointer; }
+/* The calendar tab keeps its title at a steady width, so the arrows beside it do not walk with the month name. */
+.pv-cal-title { min-width: 170px; }

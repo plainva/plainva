@@ -1173,3 +1173,50 @@ test('a database calendar view can show real appointments in the background (pla
   await expect(backdrop).toBeVisible();
   await expect(backdrop).not.toHaveAttribute('data-testid', 'base-row');
 });
+
+/* ---------------------------------------------------------------- plan Kalender, Anker-Links, Dependabot 2026-09-10 (P2): the title is the date jump */
+
+test('the title opens the date jump picker: a picked day lands, the keyboard reaches it, the week is a band', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  const title = page.getByTestId('calendar-month-title');
+  const before = (await title.textContent())!.trim();
+
+  // Click: the picker opens under the title with the selected day focused —
+  // the ONE Tab stop of the grid.
+  await title.click();
+  const picker = page.getByTestId('calendar-jump-picker');
+  await expect(picker).toBeVisible();
+  await expect(page.locator('.pv-datejump-day[tabindex="0"]')).toBeFocused();
+
+  // Next year, March, the 3rd: the month grid follows and the day is selected.
+  const year = new Date().getFullYear() + 1;
+  await page.getByTestId('calendar-jump-next-year').click();
+  await page.getByTestId('calendar-jump-month-2').click();
+  await page.getByTestId(`calendar-jump-day-${year}-03-03`).click();
+  await expect(picker).toHaveCount(0);
+  await expect(title).not.toHaveText(before);
+  await expect(title).toContainText(String(year));
+  await expect(page.getByTestId(`calendar-day-${year}-03-03`)).toBeVisible();
+
+  // Keyboard: Tab from the previous-period arrow lands on the title, Enter
+  // opens, Escape closes and hands the focus back.
+  await page.getByTestId('calendar-prev').focus();
+  await page.keyboard.press('Tab');
+  await expect(title).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('calendar-jump-picker')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('calendar-jump-picker')).toHaveCount(0);
+  await expect(title).toBeFocused();
+
+  // Week view: the shown week is a band of seven; "Today" brings today's week back.
+  await page.getByTestId('calendar-mode-week').click();
+  await title.click();
+  await expect(page.locator('.pv-datejump-day.in-band')).toHaveCount(7);
+  await page.getByTestId('calendar-jump-today').click();
+  await expect(page.getByTestId('calendar-jump-picker')).toHaveCount(0);
+  await expect(page.getByTestId(`calendar-timecol-${todayKey}`)).toBeVisible();
+});

@@ -1042,9 +1042,12 @@ describe("editing an event keeps what it did not touch", () => {
  */
 describe("the week starts on the same day everywhere", () => {
   it("reads the shared setting rather than assuming Monday", () => {
+    // Since the date jump (plan Kalender 2026-09-10, P1) the setting and its
+    // change event live in ONE hook, `useWeekStartDay`, so a surface cannot
+    // read the value and forget the listener.
     const screen = stripComments(readFileSync(join(SRC, "screens/PimCalendarScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/getWeekStartSetting\(/);
-    expect(screen).toMatch(/WEEK_START_CHANGED_EVENT/);
+    expect(screen).toMatch(/const weekStart = useWeekStartDay\(\)/);
+    expect(stripComments(readFileSync(join(SRC, "screens/base/BaseScreen.tsx"), "utf8"))).toMatch(/const weekStart = useWeekStartDay\(\)/);
     // The template engine had the same gap: `{{weekday:…}}` fell back to Monday.
     const tpl = stripComments(readFileSync(join(SRC, "services/templateInteractive.ts"), "utf8"));
     expect(tpl).toMatch(/weekStart = weekStartDayOf\(/);
@@ -1847,8 +1850,11 @@ describe("empty states", () => {
 
     // The calendar's period moved OUT of the toolbar, where five controls beside
     // it cut a German weekday date down to "Sonnt…".
+    // Since the date jump (plan Kalender 2026-09-10, P3) the period is a
+    // BUTTON in that slot — still the subtitle, now the way to the picker.
     const cal = src("screens", "PimCalendarScreen.tsx");
-    expect(cal).toMatch(/subtitle=\{periodTitle\(\)\}/);
+    expect(cal).toMatch(/const periodNode = \([\s\S]*?className="m-appbar-sub-btn"[\s\S]*?\{periodTitle\(\)\}/);
+    expect(cal).toMatch(/subtitle=\{periodNode\}/);
     expect(cal, "the period is still in the toolbar too").not.toMatch(/m-pimbar-title/);
 
     expect(src("screens", "ImportWizardScreen.tsx")).toMatch(/mobile\.stepOf/);

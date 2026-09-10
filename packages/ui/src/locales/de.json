@@ -1566,7 +1566,7 @@
     "mContextCopy": "Plainvas eigenes Kopieren / Ausschneiden / Einfügen-Menü",
     "mPeek": "Kopf ziehen = verschieben, Ecke = Größe; ◀ ▶ eigener Verlauf",
     "mResize": "Seitenleisten und geteilte Bereiche anpassen",
-    "mCalendar": "Monatsname = Monat/Jahr wählen; Tag = Tagesnotiz",
+    "mCalendar": "Titel oder Monatsname = Datum wählen; Tag = Tagesnotiz",
     "mImageEditor": "Mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom per Knopf",
     "catWindows": "Fenster",
     "catMail": "E-Mail",
@@ -1588,6 +1588,10 @@
     "noteWindowDedup": "Ein Inhalt ist immer nur in einem Fenster offen; ein zweiter Aufruf holt dieses Fenster nach vorn."
   },
   "calendar": {
+    "jumpToDate": "Zu Datum springen",
+    "pickDay": "Tag wählen",
+    "pickMonth": "Monat wählen",
+    "pickerHint": "Pfeile: Tag · Bild↑/↓: Monat · Enter: springen",
     "prevMonth": "Vorheriger Monat",
     "nextMonth": "Nächster Monat",
     "today": "Heute",

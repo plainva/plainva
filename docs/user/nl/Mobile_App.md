@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-07
+Laatst bijgewerkt: 2026-09-10
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -118,7 +118,7 @@ De **focus** kun je ook vanuit het menu van de node instellen: de kaart toont da
 
 ## Kalender en afspraken
 
-Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Elke dagkolom toont bovenaan zijn **weekdag en datum**, en daaronder een balk voor de **hele-dag-afspraken** van die dag; beide scrollen mee met het rooster in plaats van blijvend ruimte in te nemen. Een tik op een afspraak opent het **afspraakvoorbeeld** als blad — hetzelfde vlak als het zwevende venster op de desktop: tijdvak, locatie, beschrijving, deelnemers met hun antwoorden en, bij een reeks, het ritme met de volgende afspraak. Bij een uitnodiging staan daar **Accepteren**, **Voorlopig** en **Weigeren**, daaronder **Afspraak bewerken**, **Vergadernotitie** en **Afspraak verwijderen**. Naar beneden vegen sluit het blad. Dagnotities staan hier niet — die vind je in **Vandaag**.
+Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**, **3 dagen** en **Agenda** — hetzelfde accountmodel als op de desktop. Je bereikt het via de navigatiebalk of via **Onderdelen**. Elke dagkolom toont bovenaan zijn **weekdag en datum**, en daaronder een balk voor de **hele-dag-afspraken** van die dag; beide scrollen mee met het rooster in plaats van blijvend ruimte in te nemen. Een tik op een afspraak opent het **afspraakvoorbeeld** als blad — hetzelfde vlak als het zwevende venster op de desktop: tijdvak, locatie, beschrijving, deelnemers met hun antwoorden en, bij een reeks, het ritme met de volgende afspraak. Bij een uitnodiging staan daar **Accepteren**, **Voorlopig** en **Weigeren**, daaronder **Afspraak bewerken**, **Vergadernotitie** en **Afspraak verwijderen**. Naar beneden vegen sluit het blad. Dagnotities staan hier niet — die vind je in **Vandaag**. **Tik op de periode** onder de titel om de datumkiezer als blad te openen: jaar, maand, dag, **Vandaag** — een dag springt erheen.
 
 Tik op een afspraakherinnering en de afspraak zelf opent — de dagweergave op die dag, de afspraak geopend. De weergave die je het laatst had (dag, 3 dagen, agenda) wordt op het apparaat onthouden, zoals op de desktop.
 

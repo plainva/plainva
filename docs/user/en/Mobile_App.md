@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-07
+Last updated: 2026-09-10
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -118,7 +118,7 @@ The **Clean up** chip opens the cleanup list: **orphans** (notes nothing points 
 
 ## Calendar and events
 
-The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Each day column carries its **weekday and date** at the top, and below it a strip for that day's **all-day events**; both scroll away with the grid rather than holding space permanently. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**.
+The **Calendar** area shows your connected calendars in the **Day**, **3 days** and **Agenda** views — the same account model as on the desktop. You reach it from the navigation bar or through **Areas**. Each day column carries its **weekday and date** at the top, and below it a strip for that day's **all-day events**; both scroll away with the grid rather than holding space permanently. Tapping an event opens the **event preview** as a sheet — the same surface as the floating window on the desktop: time span, location, description, attendees with their answers, and for a series its rhythm along with the next occurrence. For an invitation it offers **Accept**, **Tentative** and **Decline**, with **Edit event**, **Meeting note** and **Delete event** below. Swipe down to close the sheet. Daily notes do not live here — they live in **Today**. **Tapping the period** under the title opens the date picker as a sheet: year, month, day, **Today** — a day jumps there.
 
 Tapping an event reminder opens the event itself — the day view on its day, the event open. The view you last had (day, 3 days, agenda) is remembered on the device, as on the desktop.
 

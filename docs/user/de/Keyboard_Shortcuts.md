@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-09-06
+Stand: 2026-09-10
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -128,7 +128,7 @@ Maus: **Mausrad** zoomt; **mittlere Maustaste + ziehen** oder `Strg`+ziehen vers
 - **Links:** einen Wiki-/Markdown-Link anklicken zum Öffnen (`Strg`+Klick für neuen Tab).
 - **Rechtsklick** auf eine Auswahl oder ein Feld öffnet Plainvas eigenes Kopieren-/Ausschneiden-/Einfügen-Menü. `F5` und `Strg+R` laden **nicht** die App neu (das würde Tabs und ungespeicherte Puffer verwerfen) — sie lesen stattdessen den **Vault neu ein**.
 - **Peek-Fenster:** Kopf ziehen zum Verschieben, Eck-Griff zum Anpassen der Größe; `◀ ▶` ist ein eigener Verlauf.
-- **Kalender:** Monatsnamen anklicken für Monat/Jahr; einen Tag anklicken für seine Tagesnotiz.
+- **Kalender:** Titel im Kalender-Tab oder Monatsnamen in der Seitenleiste anklicken (oder mit `Tab` erreichen und `Enter` drücken) für die Datumsauswahl — Pfeiltasten bewegen im Raster, `Bild↑/↓` blättern Monate, `Enter` springt, `Esc` schließt; einen Tag anklicken für seine Tagesnotiz.
 - **Bild-Editor:** mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom über die Knöpfe.
 
 ## Siehe auch

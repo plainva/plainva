@@ -664,3 +664,19 @@
     inset 1px 1px 0 #808080,
     inset -1px -1px 0 #FFFFFF;
 }
+
+/* Date jump picker: the navy selection bar on the picked day and the current
+   month, flat tiles otherwise. */
+[data-theme-name="win95"] .pv-datejump-day,
+[data-theme-name="win95"] .pv-datejump-month,
+[data-theme-name="win95"] .pv-datejump-trigger {
+  border-radius: 0;
+}
+[data-theme-name="win95"] .pv-datejump-day[aria-pressed="true"],
+[data-theme-name="win95"] .pv-datejump-month[aria-pressed="true"] {
+  background: #000080;
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-datejump-day.is-today {
+  box-shadow: inset 0 0 0 1px #000080;
+}

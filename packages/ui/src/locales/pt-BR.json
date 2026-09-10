@@ -1573,7 +1573,7 @@
     "mContextCopy": "Menu próprio do Plainva para copiar / recortar / colar",
     "mPeek": "Arrastar o cabeçalho move a janela; a alça no canto redimensiona; ◀ ▶ tem histórico próprio",
     "mResize": "Redimensionar barras laterais e painéis divididos",
-    "mCalendar": "Nome do mês = escolher mês/ano; dia = nota diária",
+    "mCalendar": "Título ou nome do mês = ir para uma data; dia = nota diária",
     "mImageEditor": "Desenhar com o mouse (caneta/seta/retângulo/texto/cortar); zoom pelos botões",
     "catWindows": "Janelas",
     "catMail": "E-mail",
@@ -1595,6 +1595,10 @@
     "noteWindowDedup": "Um conteúdo só fica aberto em uma janela; pedir de novo traz essa janela para frente."
   },
   "calendar": {
+    "jumpToDate": "Ir para a data",
+    "pickDay": "Escolher um dia",
+    "pickMonth": "Escolher um mês",
+    "pickerHint": "Setas: dia · PgUp/PgDn: mês · Enter: ir",
     "prevMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
     "today": "Hoje",

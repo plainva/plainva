@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-09-07
+Ultimo aggiornamento: 2026-09-10
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -118,7 +118,7 @@ Il **Focus** si può attivare anche dal menu del nodo: la mappa mostra quindi so
 
 ## Calendario ed eventi
 
-L'area **Calendario** mostra i tuoi calendari collegati nelle viste **Giorno**, **3 giorni** e **Agenda** — lo stesso modello di account del desktop. Vi accedi dalla barra di navigazione o tramite **Aree**. Ogni colonna del giorno riporta in alto il suo **giorno della settimana e la data**, e sotto una striscia per gli **eventi di tutto il giorno** di quella giornata; entrambi scorrono insieme alla griglia invece di occupare spazio in modo permanente. Toccare un evento apre l'**anteprima dell'evento** come foglio — la stessa superficie della finestra flottante del desktop: intervallo orario, luogo, descrizione, partecipanti con le loro risposte e, se appartiene a una serie, il suo ritmo insieme al prossimo appuntamento. Per un invito offre **Accetta**, **Provvisorio** e **Rifiuta**, e sotto **Modifica evento**, **Nota della riunione** ed **Elimina evento**. Scorrendo verso il basso il foglio si chiude. Le note giornaliere non si trovano qui: vivono in **Oggi**.
+L'area **Calendario** mostra i tuoi calendari collegati nelle viste **Giorno**, **3 giorni** e **Agenda** — lo stesso modello di account del desktop. Vi accedi dalla barra di navigazione o tramite **Aree**. Ogni colonna del giorno riporta in alto il suo **giorno della settimana e la data**, e sotto una striscia per gli **eventi di tutto il giorno** di quella giornata; entrambi scorrono insieme alla griglia invece di occupare spazio in modo permanente. Toccare un evento apre l'**anteprima dell'evento** come foglio — la stessa superficie della finestra flottante del desktop: intervallo orario, luogo, descrizione, partecipanti con le loro risposte e, se appartiene a una serie, il suo ritmo insieme al prossimo appuntamento. Per un invito offre **Accetta**, **Provvisorio** e **Rifiuta**, e sotto **Modifica evento**, **Nota della riunione** ed **Elimina evento**. Scorrendo verso il basso il foglio si chiude. Le note giornaliere non si trovano qui: vivono in **Oggi**. **Un tocco sul periodo** sotto il titolo apre il selettore di data come foglio: anno, mese, giorno, **Oggi** — un giorno salta lì.
 
 Un tocco su un promemoria di evento apre l’evento stesso: la vista giorno alla sua data, con l’evento aperto. L’ultima vista usata (giorno, 3 giorni, agenda) viene ricordata sul dispositivo, come sul desktop.
 

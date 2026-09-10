@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-07
+Stan na: 2026-09-10
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -118,7 +118,7 @@ Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na któr
 
 ## Kalendarz i wydarzenia
 
-**Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Każda kolumna dnia niesie u góry swój **dzień tygodnia i datę**, a pod nią pasek dla **wydarzeń całodniowych** tego dnia; oba przewijają się razem z siatką, zamiast zajmować miejsce na stałe. Dotknięcie wydarzenia otwiera **podgląd wydarzenia** jako arkusz — tę samą powierzchnię co pływające okno na komputerze: przedział czasu, miejsce, opis, uczestników wraz z ich odpowiedziami, a przy serii jej rytm oraz najbliższy termin. Przy zaproszeniu są tam **Zaakceptuj**, **Wstępnie** i **Odrzuć**, a poniżej **Edytuj wydarzenie**, **Notatka ze spotkania** i **Usuń wydarzenie**. Przeciągnięcie w dół zamyka arkusz. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**.
+**Kalendarz** pokazuje Twoje połączone kalendarze w widokach **Dzień**, **3 dni** i **Agenda** — ten sam model kont co na komputerze. Docierasz do niego z paska nawigacji lub przez **Obszary**. Każda kolumna dnia niesie u góry swój **dzień tygodnia i datę**, a pod nią pasek dla **wydarzeń całodniowych** tego dnia; oba przewijają się razem z siatką, zamiast zajmować miejsce na stałe. Dotknięcie wydarzenia otwiera **podgląd wydarzenia** jako arkusz — tę samą powierzchnię co pływające okno na komputerze: przedział czasu, miejsce, opis, uczestników wraz z ich odpowiedziami, a przy serii jej rytm oraz najbliższy termin. Przy zaproszeniu są tam **Zaakceptuj**, **Wstępnie** i **Odrzuć**, a poniżej **Edytuj wydarzenie**, **Notatka ze spotkania** i **Usuń wydarzenie**. Przeciągnięcie w dół zamyka arkusz. Notatki dzienne nie znajdują się tutaj — są w **Dzisiaj**. **Dotknięcie okresu** pod tytułem otwiera wybór daty jako arkusz: rok, miesiąc, dzień, **Dziś** — dzień przenosi tam.
 
 Dotknięcie przypomnienia o wydarzeniu otwiera samo wydarzenie — widok dnia w jego dacie, z otwartym wydarzeniem. Ostatnio używany widok (dzień, 3 dni, agenda) jest zapamiętywany na urządzeniu, jak na komputerze.
 

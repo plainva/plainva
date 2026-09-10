@@ -59,3 +59,20 @@ export function isoWeeksForCells(cells: Date[]): number[] {
   for (let r = 0; r + 6 < cells.length; r += 7) weeks.push(getISOWeek(cells[r]));
   return weeks;
 }
+
+/**
+ * Short weekday names in the app language, rotated to the chosen week start
+ * (2024-01-01 was a Monday). One implementation for the calendar tab, the
+ * sidebar widget and the date jump picker — the date field used to carry
+ * German literals in every language (plan Kalender 2026-09-10, P1).
+ */
+export function weekdayShortNames(lang: string, weekStart: WeekStartDay = 1): string[] {
+  const fmt = new Intl.DateTimeFormat(lang, { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + ((weekStart - 1 + 7 + i) % 7))));
+}
+
+/** Short month names (Jan … Dec) in the app language. */
+export function monthShortNames(lang: string): string[] {
+  const fmt = new Intl.DateTimeFormat(lang, { month: "short" });
+  return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2024, i, 1)));
+}

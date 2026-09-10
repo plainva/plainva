@@ -4546,3 +4546,56 @@ textarea {
   font-size: var(--text-ui);
   font-weight: 500;
 }
+
+/* The period under the app bar's title is a BUTTON (plan Kalender 2026-09-10,
+   P3): the same look as .m-appbar-sub, plus a chevron, and the accent pair
+   while its sheet is up. It stays in the subtitle slot — the toolbar below
+   never had room for a German weekday date (N5.1). */
+.m-appbar-sub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  margin: 0 0 0 calc(-1 * var(--space-1));
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+  min-height: var(--touch-sm);
+}
+.m-appbar-sub-btn > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-appbar-sub-btn > svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.m-appbar-sub-btn[aria-expanded="true"] {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}
+/* The database calendar's month title carries the same chevron. */
+.m-cal-month--btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: left;
+}
+.m-cal-month--btn > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-cal-month--btn[aria-expanded="true"] {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+}

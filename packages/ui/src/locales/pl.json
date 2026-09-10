@@ -1580,7 +1580,7 @@
     "mContextCopy": "Własne menu kontekstowe Plainva: kopiuj / wytnij / wklej",
     "mPeek": "Nagłówek przeciąga, uchwyt w rogu zmienia rozmiar; ◀ ▶ własna historia",
     "mResize": "Zmień rozmiar paneli bocznych i podzielonych obszarów",
-    "mCalendar": "Nazwa miesiąca = wybór miesiąca/roku; dzień = notatka dzienna",
+    "mCalendar": "Tytuł lub nazwa miesiąca = przejście do daty; dzień = notatka dzienna",
     "mImageEditor": "Rysuj myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków",
     "catWindows": "Okna",
     "catMail": "E-mail",
@@ -1602,6 +1602,10 @@
     "noteWindowDedup": "Treść jest otwarta tylko w jednym oknie; kolejna prośba przywołuje to okno na wierzch."
   },
   "calendar": {
+    "jumpToDate": "Przejdź do daty",
+    "pickDay": "Wybierz dzień",
+    "pickMonth": "Wybierz miesiąc",
+    "pickerHint": "Strzałki: dzień · PgUp/PgDn: miesiąc · Enter: przejdź",
     "prevMonth": "Poprzedni miesiąc",
     "nextMonth": "Następny miesiąc",
     "today": "Dziś",
