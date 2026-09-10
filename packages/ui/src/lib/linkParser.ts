@@ -1,11 +1,13 @@
+import { splitLinkAnchor } from './linkAnchor';
+
 export type ParsedLink =
-  | { type: 'wiki', target: string }
+  | { type: 'wiki', target: string, anchor?: string }
   | { type: 'markdown', target: string, text: string }
   | { type: 'url', target: string };
 
 export type InlineSegment =
   | { type: 'text', text: string }
-  | { type: 'wiki', target: string, display: string }
+  | { type: 'wiki', target: string, display: string, anchor?: string }
   | { type: 'markdown', target: string, text: string }
   | { type: 'url', target: string };
 
@@ -24,8 +26,10 @@ export function segmentInlineText(text: string): InlineSegment[] {
     if (m.index > last) segments.push({ type: 'text', text: text.slice(last, m.index) });
     if (m[1] !== undefined) {
       const [rawTarget, alias] = m[1].split('|');
-      const target = rawTarget.split('#')[0].trim();
-      segments.push({ type: 'wiki', target, display: (alias ?? rawTarget).trim() || target });
+      const { target, anchor } = splitLinkAnchor(rawTarget);
+      const seg: InlineSegment = { type: 'wiki', target, display: (alias ?? rawTarget).trim() || target };
+      if (anchor) seg.anchor = anchor;
+      segments.push(seg);
     } else if (m[3] !== undefined) {
       segments.push({ type: 'markdown', target: m[3], text: m[2] });
     } else {
@@ -47,9 +51,10 @@ export function findLinkAtOffset(text: string, offset: number): ParsedLink | nul
   let m;
   while ((m = wikiRegex.exec(text)) !== null) {
     if (offset >= m.index && offset <= m.index + m[0].length) {
-      let linkTarget = m[1].split('|')[0];
-      linkTarget = linkTarget.split('#')[0]; // ignore header/anchor for now
-      return { type: 'wiki', target: linkTarget };
+      // The anchor (`#Heading`, `^block`) stays with the link (issue #92);
+      // the shell resolves it after the note is open.
+      const { target, anchor } = splitLinkAnchor(m[1].split('|')[0]);
+      return anchor ? { type: 'wiki', target, anchor } : { type: 'wiki', target };
     }
   }
 

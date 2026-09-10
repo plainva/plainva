@@ -31,6 +31,8 @@ import { resolveOpenAction } from "./openTarget";
 export interface RelativeTarget {
   kind: "file" | "folder";
   path: string; // vault-relative, "" = vault root (folders only)
+  /** The `#fragment` behind the path (issue #92, P5), marker included; absent without one. */
+  anchor?: string;
 }
 
 /**
@@ -46,6 +48,10 @@ export function resolveRelativeTarget(sourcePath: string, href: string): Relativ
   // decode for `%23`/`%3F`/`%28`/`%29` (link-encoding, 2026-09-04).
   const raw = decodeMarkdownLinkTarget(href.split("#")[0]);
   if (!raw) return null;
+  // The fragment travels with the path (issue #92): `other.md#heading` opens
+  // the note AND lands on the heading; the caller does the second half.
+  const hashAt = href.indexOf("#");
+  const anchor = hashAt >= 0 && href.length > hashAt + 1 ? href.slice(hashAt).trim() : undefined;
   const isFolder = raw.endsWith("/");
   const rootRelative = raw.startsWith("/");
   const segs = rootRelative || !sourcePath.includes("/")
@@ -61,7 +67,9 @@ export function resolveRelativeTarget(sourcePath: string, href: string): Relativ
     segs.push(part);
   }
   if (segs.length === 0) return isFolder ? { kind: "folder", path: "" } : null;
-  return { kind: isFolder ? "folder" : "file", path: segs.join("/") };
+  const out: RelativeTarget = { kind: isFolder ? "folder" : "file", path: segs.join("/") };
+  if (anchor && !isFolder) out.anchor = anchor;
+  return out;
 }
 
 /**

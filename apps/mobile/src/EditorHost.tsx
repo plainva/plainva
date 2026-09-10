@@ -28,7 +28,7 @@ import {
   Pencil,
   TextSelect,
 } from "lucide-react";
-import { registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, findFirstMatch, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -272,10 +272,40 @@ export function EditorHost({
     }
   });
 
+  /**
+   * Go to an anchor in THIS note (issue #92): the literal heading, then the
+   * GitHub slug, then a block id — the same resolver the desktop uses — and
+   * the same selection-plus-scroll the outline sheet's line jump does. A miss
+   * says so; before this a tap on `[[#Heading]]` did nothing.
+   */
+  const jumpAnchor = useStableHandler((anchor: string) => {
+    const view = sessionRef.current?.view;
+    if (!view) return;
+    const hit = resolveAnchor(view.state.doc.toString(), anchor);
+    if (!hit) {
+      toast.warning(t("dialogs.anchorNotFoundMsg", { anchor: anchor.replace(/^#/, ""), defaultValue: "Section \"{{anchor}}\" not found." }));
+      return;
+    }
+    const l = view.state.doc.line(Math.min(Math.max(hit.line, 1), view.state.doc.lines));
+    view.dispatch({ selection: { anchor: l.from }, scrollIntoView: true });
+  });
+  useEffect(() => {
+    const onAnchor = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { path?: string } | undefined;
+      if (!detail?.path || detail.path !== path) return;
+      const a = consumePendingAnchorJump(path);
+      if (a) jumpAnchor(a);
+    };
+    window.addEventListener(ANCHOR_JUMP_EVENT, onAnchor);
+    return () => window.removeEventListener(ANCHOR_JUMP_EVENT, onAnchor);
+  }, [path, jumpAnchor]);
+
   const depsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
   useLayoutEffect(() => {
     depsRef.current = {
       queryService: vault.queryService,
+      // The `[[Note#` completion lists that note's headings (issue #92).
+      readNote: (p) => vaultOps.read(vault, p).catch(() => null),
       vaultContext: null,
       hostPath: path,
       // Stufe E (E4): without these two the selection bubble is INERT on the
@@ -289,9 +319,23 @@ export function EditorHost({
       onSuggestionApply: onSuggestionApply ? (commentId) => onSuggestionApply(commentId) : undefined,
       onSuggestionDecline: onSuggestionDecline ? (commentId) => onSuggestionDecline(commentId) : undefined,
       onOpenPath: (p) => onOpenNote(p),
-      openWikiTarget: (target, _newTab, kind) => {
+      openWikiTarget: (rawTarget, _newTab, kind, anchorArg) => {
+        // The anchor (issue #92) either arrives split off (the wiki-link
+        // plugin) or still sits in the text; `[[#Heading]]` is a place HERE.
+        const split = splitLinkAnchor(rawTarget);
+        const anchor = anchorArg ?? split.anchor;
+        const target = split.target;
+        if (!target) {
+          if (anchor) jumpAnchor(anchor);
+          return;
+        }
         void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
-          if (resolved) { onOpenNote(resolved); return; }
+          if (resolved) {
+            // Parked under the path: the host that mounts for the note takes it.
+            if (anchor) requestAnchorJump(resolved, anchor);
+            onOpenNote(resolved);
+            return;
+          }
           // A relative markdown link is a PATH, and a path that resolves to
           // nothing is a missing file — not an invitation to create a note
           // named after it (issue #61: `../_resources/x.mp3` gained a `.md` on
@@ -516,6 +560,10 @@ export function EditorHost({
       touchInput: true,
     });
     sessionRef.current = session;
+    // A link that opened this note with an anchor (issue #92) parked it under
+    // the path; take it once the view has laid the document out.
+    const parkedAnchor = consumePendingAnchorJump(path);
+    if (parkedAnchor) requestAnimationFrame(() => { if (sessionRef.current === session) jumpAnchor(parkedAnchor); });
     // Where you were (feedback round 2026-09-01, A5/E7): the scroll position
     // per file, device-local, restored once the view has laid the document
     // out, and remembered on the way out and while scrolling.

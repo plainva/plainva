@@ -1,3 +1,4 @@
+import { splitLinkAnchor } from "./linkAnchor";
 /**
  * Minimal inline-markdown renderer for widget content (P4, 2026-07-05).
  *
@@ -14,7 +15,7 @@ export type InlineNode =
   | { kind: "br" }
   | { kind: "code"; text: string }
   | { kind: "strong" | "em" | "strongEm" | "strike" | "highlight"; children: InlineNode[] }
-  | { kind: "wikiLink"; target: string; display: string }
+  | { kind: "wikiLink"; target: string; display: string; anchor?: string }
   | { kind: "link"; href: string; label: string; external: boolean }
   | { kind: "url"; href: string };
 
@@ -83,9 +84,11 @@ function parseRange(text: string, depth: number): InlineNode[] {
     } else if (/^!?\[\[/.test(tok)) {
       const inner = tok.replace(/^!?\[\[/, "").slice(0, -2);
       const [rawTarget, ...aliasParts] = inner.split("|");
-      const target = rawTarget.split("#")[0].trim();
+      // The anchor stays with the link (issue #92): `[[#Heading]]` is a link
+      // to a place in the same note, not text.
+      const { target, anchor } = splitLinkAnchor(rawTarget);
       const display = (aliasParts.join("|") || rawTarget).trim() || target;
-      if (target) out.push({ kind: "wikiLink", target, display });
+      if (target || anchor) out.push(anchor ? { kind: "wikiLink", target, display, anchor } : { kind: "wikiLink", target, display });
       else pushText(out, tok);
     } else if (/^!?\[/.test(tok)) {
       const lm = /^!?\[([^\]\n]*?)\]\(([^)\n]+?)\)$/.exec(tok);

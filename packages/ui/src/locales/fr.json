@@ -616,6 +616,7 @@
     "fontsDeviceHint": "S'applique à cet appareil — les polices installées varient d'un appareil à l'autre."
   },
   "editor": {
+    "completionHeadings": "Titres",
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",
     "fileNotFound": "Fichier introuvable",
     "loading": "Chargement...",
@@ -1329,6 +1330,7 @@
     "folderExists": "Un dossier portant ce nom existe déjà."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Section « {{anchor}} » introuvable.",
     "createNoteFromLinkTitle": "Créer la note ?",
     "createNoteFromLinkMsg": "« {{title}} » n'existe pas encore. La créer maintenant ?",
     "createNoteFromLinkConfirm": "Créer",

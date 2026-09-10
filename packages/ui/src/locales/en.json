@@ -614,6 +614,7 @@
     "fontsDeviceHint": "Applies to this device — installed fonts differ from device to device."
   },
   "editor": {
+    "completionHeadings": "Headings",
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
     "fileNotFound": "File not found",
     "loading": "Loading...",
@@ -1322,6 +1323,7 @@
     "folderExists": "A folder with this name already exists."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Section “{{anchor}}” not found.",
     "createNoteFromLinkTitle": "Create note?",
     "createNoteFromLinkMsg": "“{{title}}” doesn't exist yet. Create it now?",
     "createNoteFromLinkConfirm": "Create",

@@ -19,6 +19,8 @@ interface BacklinkItem {
   target_path: string;
   link_type: string;
   line_number?: number | null;
+  /** The heading or block the link points at (issue #92) — the index keeps it. */
+  anchor?: string | null;
 }
 
 export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange }: BacklinksPanelProps) {
@@ -35,6 +37,12 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
   // One row per linking file — repeated links inside the same note collapse
   // into a single entry with an occurrence badge (maintainer request 2026-07-04).
   const grouped = useMemo(() => groupBacklinks(backlinks), [backlinks]);
+  // Which place links to WHICH heading (issue #92): the anchor per source line.
+  const anchorAt = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of backlinks) if (b.anchor && b.line_number) m.set(`${b.source_path}:${b.line_number}`, b.anchor);
+    return m;
+  }, [backlinks]);
 
   useEffect(() => { onCountChange?.(grouped.length); }, [grouped, onCountChange]);
 
@@ -138,6 +146,9 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chain}</div>
                 )}
                 <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ctx.lineText}</div>
+                {anchorAt.get(`${link.source_path}:${ctx.line}`) && (
+                  <div data-testid="backlink-anchor" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>→ {anchorAt.get(`${link.source_path}:${ctx.line}`)}</div>
+                )}
               </div>
             );
           })}

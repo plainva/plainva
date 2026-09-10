@@ -612,6 +612,7 @@
     "fontsDeviceHint": "この端末に適用されます — インストール済みのフォントは端末ごとに異なります。"
   },
   "editor": {
+    "completionHeadings": "見出し",
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
     "fileNotFound": "ファイルが見つかりません",
     "loading": "読み込み中...",
@@ -1315,6 +1316,7 @@
     "folderExists": "同じ名前のフォルダーが既に存在します。"
   },
   "dialogs": {
+    "anchorNotFoundMsg": "セクション「{{anchor}}」が見つかりません。",
     "createNoteFromLinkTitle": "ノートを作成しますか？",
     "createNoteFromLinkMsg": "「{{title}}」はまだ存在しません。今すぐ作成しますか？",
     "createNoteFromLinkConfirm": "作成",

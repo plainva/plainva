@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-01
+Stan na: 2026-09-10
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Linki
 
-- **Link wiki:** `[[Nazwa notatki]]` — rozwiązywany według nazwy notatki w całym vaulcie. Z kotwicą nagłówka: `[[Notatka#Sekcja]]`. Z tekstem wyświetlanym: `[[Notatka|pokazywany tekst]]`.
-- **Link Markdown:** `[tekst](względna/ścieżka.md)` również działa.
+- **Link wiki:** `[[Nazwa notatki]]` — rozwiązywany według nazwy notatki w całym vaulcie. Z kotwicą nagłówka: `[[Notatka#Sekcja]]` — kliknięcie otwiera notatkę **przy tym nagłówku**; `[[#Sekcja]]` przeskakuje w bieżącej notatce, a slug w stylu GitHuba (`[[Notatka#cool-header]]`) również jest rozwiązywany. Z odwołaniem do bloku: `[[Notatka#^id]]` dla wiersza kończącego się na `^id`. Z tekstem wyświetlanym: `[[Notatka|pokazywany tekst]]`.
+- **Link Markdown:** `[tekst](względna/ścieżka.md)` również działa. Z fragmentem (`[tekst](#cool-header)`, `[tekst](inna.md#cool-header)`) kliknięcie trafia na nagłówek.
 - **Linki zwrotne** są wyprowadzane automatycznie, także z linków wiki we frontmatter (to właśnie sprawia, że relacje pojawiają się jako linki zwrotne).
 
 ---

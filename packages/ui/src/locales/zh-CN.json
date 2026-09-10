@@ -612,6 +612,7 @@
     "fontsDeviceHint": "适用于此设备——已安装的字体因设备而异。"
   },
   "editor": {
+    "completionHeadings": "标题",
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
     "fileNotFound": "未找到文件",
     "loading": "加载中…",
@@ -1315,6 +1316,7 @@
     "folderExists": "已存在同名文件夹。"
   },
   "dialogs": {
+    "anchorNotFoundMsg": "未找到章节“{{anchor}}”。",
     "createNoteFromLinkTitle": "新建笔记？",
     "createNoteFromLinkMsg": "“{{title}}”尚不存在。现在新建吗？",
     "createNoteFromLinkConfirm": "创建",

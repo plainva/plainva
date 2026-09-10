@@ -614,6 +614,7 @@
     "fontsDeviceHint": "Geldt voor dit apparaat — geïnstalleerde lettertypen verschillen per apparaat."
   },
   "editor": {
+    "completionHeadings": "Koppen",
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
     "fileNotFound": "Bestand niet gevonden",
     "loading": "Laden...",
@@ -1322,6 +1323,7 @@
     "folderExists": "Er bestaat al een map met deze naam."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Sectie ‘{{anchor}}’ niet gevonden.",
     "createNoteFromLinkTitle": "Notitie aanmaken?",
     "createNoteFromLinkMsg": "\"{{title}}\" bestaat nog niet. Nu aanmaken?",
     "createNoteFromLinkConfirm": "Aanmaken",

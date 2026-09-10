@@ -39,7 +39,11 @@ describe("parseInlineMarkdown", () => {
   it("parses wiki links with alias and anchor", () => {
     expect(parseInlineMarkdown("[[Ziel|Alias]]")).toEqual([{ kind: "wikiLink", target: "Ziel", display: "Alias" }]);
     expect(parseInlineMarkdown("[[Ziel#Abschnitt]]")).toEqual([
-      { kind: "wikiLink", target: "Ziel", display: "Ziel#Abschnitt" },
+      { kind: "wikiLink", target: "Ziel", display: "Ziel#Abschnitt", anchor: "#Abschnitt" },
+    ]);
+    // A place in the same note (issue #92) is a link, not text.
+    expect(parseInlineMarkdown("[[#Abschnitt]]")).toEqual([
+      { kind: "wikiLink", target: "", display: "#Abschnitt", anchor: "#Abschnitt" },
     ]);
     // Embed prefix is tolerated and treated as a link to the target.
     expect(parseInlineMarkdown("![[Bild.png]]")).toEqual([{ kind: "wikiLink", target: "Bild.png", display: "Bild.png" }]);

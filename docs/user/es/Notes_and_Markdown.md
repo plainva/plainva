@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-09-04
+Última actualización: 2026-09-10
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -54,6 +54,7 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 ## Enlaces y retroenlaces
 
 - **Enlaces internos**: `[[Nombre de la nota]]` (enlace interno) — mediante el menú de barra oblicua o `@` con búsqueda integrada de notas. Los enlaces clásicos de Markdown `[texto](ruta.md)` también funcionan.
+- **Enlaces a una sección**: `[[Nota#Encabezado]]` abre la nota en ese encabezado, `[[#Encabezado]]` salta dentro de la nota actual, y `[texto](#encabezado)` al estilo de GitHub hace lo mismo: se resuelven tanto el texto literal del encabezado como el slug (`cool-header`); `[[Nota#^id]]` llega a una línea que termina en `^id`. Al escribir `[[Nota#` se ofrecen los encabezados de la nota. Un encabezado que ya no existe lo dice en un mensaje en lugar de no hacer nada.
 - **Destinos que aún no existen**: un enlace interno a una nota que todavía no se ha creado se muestra **atenuado y con un subrayado discontinuo** (tanto en la vista previa en vivo como en el modo lectura). **Hacer clic en él crea la nota** y la abre — se coloca en la carpeta de la nota actual (o en la ruta indicada si el enlace la incluye, por ejemplo `[[Carpeta/Nueva nota]]`). Para que se te pregunte primero, activa **Configuración → App → Editor y notas → Preguntar antes de crear enlaces vacíos**.
 - **Retroenlaces**: La sección **Retroenlaces** de la barra lateral derecha muestra qué notas enlazan a la activa — agrupadas por archivo de origen, con un contador para varias apariciones. Debajo de cada archivo aparece cada aparición con los encabezados y elementos de lista que la preceden y la propia línea; un clic salta justo ahí. En el teléfono, la hoja de contexto de la nota muestra los mismos lugares.
 - **Renombrar con cuidado de los enlaces**: Cuando renombras un archivo en el árbol de archivos, Plainva actualiza cada enlace hacia él en todo el vault (los anclajes como `#Sección` se conservan) e informa: "N enlace(s) en M archivo(s) se actualizaron al nuevo nombre".

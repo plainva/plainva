@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-04
+Stand: 2026-09-10
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -54,6 +54,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 ## Links und Backlinks
 
 - **Interne Links**: `[[Notizname]]` (Wiki-Link) — per Slash-Menü oder `@` mit eingebauter Notiz-Suche. Klassische Markdown-Links `[Text](Pfad.md)` funktionieren ebenso.
+- **Links auf einen Abschnitt**: `[[Notiz#Überschrift]]` öffnet die Notiz an dieser Überschrift, `[[#Überschrift]]` springt innerhalb der aktuellen Notiz, und `[Text](#überschrift)` im GitHub-Stil tut dasselbe — der wörtliche Überschriftentext und der Slug (`cool-header`) werden beide aufgelöst; `[[Notiz#^id]]` erreicht eine Zeile, die auf `^id` endet. Beim Tippen von `[[Notiz#` werden die Überschriften der Notiz angeboten. Eine Überschrift, die es nicht mehr gibt, meldet sich mit einer Nachricht, statt nichts zu tun.
 - **Noch nicht angelegte Ziele**: Ein Wiki-Link auf eine Notiz, die es noch nicht gibt, wird **gedämpft und gestrichelt** dargestellt (in der Live-Vorschau wie im Lesemodus). Ein **Klick legt die Notiz an** und öffnet sie — sie liegt im Ordner der aktuellen Notiz (bzw. im angegebenen Pfad, wenn der Link einen enthält, z. B. `[[Ordner/Neue Notiz]]`). Möchtest Du vorher gefragt werden, aktiviere **Einstellungen → App → Editor & Notizen → Vor dem Anlegen leerer Links fragen**.
 - **Backlinks**: Der Abschnitt **Backlinks** in der rechten Seitenleiste zeigt, welche Notizen auf die aktive verlinken — pro Quelldatei zusammengefasst, mit Zähler bei mehreren Vorkommen. Unter jeder Datei steht jede Fundstelle mit den Überschriften und Listenpunkten darüber und der Zeile selbst; ein Klick springt genau dorthin. Am Telefon zeigt das Kontext-Blatt der Notiz dieselben Fundstellen.
 - **Umbenennen mit Link-Pflege**: Benennst Du eine Datei im Dateibaum um, aktualisiert Plainva alle Links darauf im ganzen Vault (Anker wie `#Abschnitt` bleiben erhalten) und meldet: „N Link(s) in M Datei(en) wurden auf den neuen Namen aktualisiert."

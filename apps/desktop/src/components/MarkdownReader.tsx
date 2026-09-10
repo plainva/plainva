@@ -8,13 +8,13 @@ import { stripAnchorMarkers } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { toast } from '@plainva/ui';
+import { parseHeadings, requestAnchorJump, slugify, splitLinkAnchor } from '@plainva/ui';
 import { isWikiTargetResolved, planRelativeLinkOpen } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import { calloutColor, calloutColorKey, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';
-import { slugify } from '../services/outline';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
@@ -330,7 +330,11 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     const outcome = vaultAdapter
       ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
       : { action: "notFound" as const, path: target.path };
-    if (outcome.action === "open") { onOpenPath?.(outcome.path, newTab); return; }
+    if (outcome.action === "open") {
+      onOpenPath?.(outcome.path, newTab);
+      if (target.anchor) requestAnchorJump(outcome.path, target.anchor);
+      return;
+    }
     if (outcome.action === "revealFolder") {
       window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
       return;
@@ -354,11 +358,15 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
 
 
 
-  const handleWikiLinkClick = async (target: string, newTab: boolean) => {
+  const handleWikiLinkClick = async (rawTarget: string, newTab: boolean) => {
     if (!queryService || !onOpenPath) return;
 
-    let searchTarget = target.trim();
-    searchTarget = searchTarget.split("#")[0];
+    // The anchor (issue #92) rides along; `[[#Heading]]` is a place in THIS note.
+    const { target: searchTarget, anchor } = splitLinkAnchor(rawTarget);
+    if (!searchTarget) {
+      if (anchor && sourcePath) requestAnchorJump(sourcePath, anchor);
+      return;
+    }
 
     const sql = `
       SELECT path FROM files
@@ -370,6 +378,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
     if (rows && rows.length > 0) {
       onOpenPath(rows[0].path, newTab);
+      if (anchor) requestAnchorJump(rows[0].path, anchor);
     } else {
       // Not created yet — create the note (Obsidian parity, maintainer 2026-07-18).
       window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: sourcePath, newTab } }));
@@ -419,7 +428,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
         target = parts[0];
         display = parts[1];
       }
-      target = target.split("#")[0]; // ignore headers for the file path
+      // The anchor stays in the target (issue #92); the click splits it.
       return `[${display}](wiki://${encodeWikiTarget(target)})`;
     });
     // Dynamic date tokens @YYYY-MM-DD -> relative word (Heute/Morgen/… or date).
@@ -430,6 +439,12 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
 
   if (embedDepth > 2) return <div style={{ color: 'var(--text-muted)', padding: '0.5rem' }}>Max embed depth reached</div>;
 
+  // The reading view's heading ids are the outline's slugs, looked up by the
+  // heading's source line (issue #92): the second "Heading" is `heading-1`
+  // here as it is there. By LINE, not by a counter — React may render one
+  // heading component more than once, and a counter would drift.
+  const headingIdByLine = new Map(parseHeadings(processedContent).map((h) => [h.line, h.slug] as const));
+  const headingId = (node: any): string => headingIdByLine.get(node?.position?.start?.line) ?? slugify(hastText(node));
   return (
     <div className="markdown-reader" style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
@@ -476,6 +491,19 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                     e.preventDefault();
                     openUrl(href).catch(console.error);
                   }}
+                  style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  {children}
+                </a>
+              );
+            }
+            // A fragment alone (issue #92, GitHub style): a place in this note —
+            // intercepted, so the WebView never touches its location hash.
+            if (href?.startsWith('#')) {
+              return (
+                <a
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if (sourcePath) requestAnchorJump(sourcePath, href); }}
                   style={{ color: 'var(--accent-color)', textDecoration: 'underline', cursor: 'pointer' }}
                 >
                   {children}
@@ -541,12 +569,12 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             }
             return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: "var(--radius-xs)" }} {...props} />;
           },
-          h1: ({ node, ...props }) => <h1 id={slugify(hastText(node))} style={{ fontSize: '2em', marginTop: '0.67em', marginBottom: '0.4em', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.2em' }} {...props} />,
-          h2: ({ node, ...props }) => <h2 id={slugify(hastText(node))} style={{ fontSize: '1.5em', marginTop: '0.83em', marginBottom: '0.4em', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '0.2em' }} {...props} />,
-          h3: ({ node, ...props }) => <h3 id={slugify(hastText(node))} style={{ fontSize: '1.17em', marginTop: '1em', marginBottom: '0.4em', color: 'var(--text-main)' }} {...props} />,
-          h4: ({ node, ...props }) => <h4 id={slugify(hastText(node))} style={{ fontSize: '1em', marginTop: '1.1em', marginBottom: '0.4em', color: 'var(--text-main)' }} {...props} />,
-          h5: ({ node, ...props }) => <h5 id={slugify(hastText(node))} style={{ fontSize: '0.9em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
-          h6: ({ node, ...props }) => <h6 id={slugify(hastText(node))} style={{ fontSize: '0.85em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
+          h1: ({ node, ...props }) => <h1 id={headingId(node)} style={{ fontSize: '2em', marginTop: '0.67em', marginBottom: '0.4em', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.2em' }} {...props} />,
+          h2: ({ node, ...props }) => <h2 id={headingId(node)} style={{ fontSize: '1.5em', marginTop: '0.83em', marginBottom: '0.4em', color: 'var(--text-main)', borderBottom: '1px solid var(--border-color-light)', paddingBottom: '0.2em' }} {...props} />,
+          h3: ({ node, ...props }) => <h3 id={headingId(node)} style={{ fontSize: '1.17em', marginTop: '1em', marginBottom: '0.4em', color: 'var(--text-main)' }} {...props} />,
+          h4: ({ node, ...props }) => <h4 id={headingId(node)} style={{ fontSize: '1em', marginTop: '1.1em', marginBottom: '0.4em', color: 'var(--text-main)' }} {...props} />,
+          h5: ({ node, ...props }) => <h5 id={headingId(node)} style={{ fontSize: '0.9em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
+          h6: ({ node, ...props }) => <h6 id={headingId(node)} style={{ fontSize: '0.85em', marginTop: '1.2em', marginBottom: '0.4em', color: 'var(--text-muted)' }} {...props} />,
           p: ({ node: _node, ...props }) => <p style={{ margin: '0.6em 0', color: 'var(--text-main)' }} {...props} />,
           hr: ({ node: _node, ...props }) => <hr style={{ border: 'none', borderTop: '2px solid var(--border-color)', margin: '1.5em 0' }} {...props} />,
           ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,

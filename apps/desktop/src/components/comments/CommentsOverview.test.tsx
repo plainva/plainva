@@ -53,7 +53,7 @@ vi.mock("../../contexts/VaultContext", () => ({
 // Load the screen once, outside anybody's assertion budget: the first test
 // would otherwise pay for compiling the whole module graph (see the same
 // hook in securitySharingPage.test.tsx).
-beforeAll(async () => { await import("./CommentsOverview"); }, 30000);
+beforeAll(async () => { await import("./CommentsOverview"); }, 90000);
 
 describe("the comments overview, locked", () => {
   it("explains, offers the unlock, and asks for the prompt by force", async () => {

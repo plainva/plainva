@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-04
+Laatst bijgewerkt: 2026-09-10
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -54,6 +54,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 ## Links en backlinks
 
 - **Interne links**: `[[Notitienaam]]` (wiki-link) — via het slash-menu of `@` met ingebouwde notitiezoekfunctie. Klassieke Markdown-links `[tekst](pad.md)` werken ook.
+- **Links naar een sectie**: `[[Notitie#Kop]]` opent de notitie bij die kop, `[[#Kop]]` springt binnen de huidige notitie, en `[tekst](#kop)` in GitHub-stijl doet hetzelfde — zowel de letterlijke koptekst als de slug (`cool-header`) worden opgelost; `[[Notitie#^id]]` bereikt een regel die eindigt op `^id`. Bij het typen van `[[Notitie#` worden de koppen van de notitie aangeboden. Een kop die niet meer bestaat zegt dat in een melding in plaats van niets te doen.
 - **Doelen die nog niet bestaan**: Een wiki-link naar een notitie die nog niet is aangemaakt, wordt **gedempt met een gestreepte onderstreping** weergegeven (zowel in het live-voorbeeld als in de leesmodus). **Erop klikken maakt de notitie aan** en opent hem — in de map van de huidige notitie (of op het opgegeven pad als de link er een bevat, bijv. `[[Map/Nieuwe notitie]]`). Om eerst te worden gevraagd, schakel je **Instellingen → App → Editor en notities → Vragen voordat lege links worden aangemaakt** in.
 - **Backlinks**: De sectie **Backlinks** in de rechterzijbalk toont welke notities naar de actieve notitie linken — gegroepeerd per bronbestand, met een teller bij meerdere voorkomens. Onder elk bestand staat elk voorkomen met de koppen en lijstitems erboven en de regel zelf; een klik springt er direct heen. Op de telefoon toont het contextblad van de notitie dezelfde plekken.
 - **Hernoemen met linkzorg**: Wanneer je een bestand hernoemt in de bestandsboom, werkt Plainva elke link ernaartoe bij in de hele vault (ankers zoals `#Sectie` blijven behouden) en meldt: "N link(s) in M bestand(en) zijn bijgewerkt naar de nieuwe naam."

@@ -79,7 +79,7 @@ import {
   notifyFileOps,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen } from "@plainva/ui";
+import { rememberLastOpen, splitLinkAnchor } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -1172,7 +1172,7 @@ export const vaultOps = {
     // `Report.pdf.md`. Notes keep precedence: the loop below runs over notes
     // first and only then considers attachments, so a note called "Report"
     // still wins over a file called "Report".
-    const name = target.split("#")[0].split("|")[0].trim().toLowerCase();
+    const name = splitLinkAnchor(target).target.split("|")[0].trim().toLowerCase();
     const all = await v.files.listDir("", true);
     const files = all.filter((e) => !e.isDirectory);
     for (const e of files) {

@@ -33,6 +33,9 @@ describe("resolveRelativeTarget", () => {
 
   it("leaves anchors, schemes and vault-escaping paths alone", () => {
     expect(resolveRelativeTarget("a/index.md", "#heading")).toBeNull();
+    // A fragment behind a path rides along (issue #92).
+    expect(resolveRelativeTarget("a/index.md", "b.md#heading")).toEqual({ kind: "file", path: "a/b.md", anchor: "#heading" });
+    expect(resolveRelativeTarget("a/index.md", "b.md#")).toEqual({ kind: "file", path: "a/b.md" });
     expect(resolveRelativeTarget("a/index.md", "https://example.org")).toBeNull();
     expect(resolveRelativeTarget("a/index.md", "wiki://Notiz")).toBeNull();
     expect(resolveRelativeTarget("a/index.md", "mailto:x@y.z")).toBeNull();

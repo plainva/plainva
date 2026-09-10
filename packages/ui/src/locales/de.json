@@ -614,6 +614,7 @@
     "fontsDeviceHint": "Gilt für dieses Gerät — installierte Schriften sind je Gerät verschieden."
   },
   "editor": {
+    "completionHeadings": "Überschriften",
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
     "fileNotFound": "Datei nicht gefunden",
     "loading": "Laden...",
@@ -1322,6 +1323,7 @@
     "folderExists": "Ein Ordner mit diesem Namen existiert bereits."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Abschnitt „{{anchor}}“ nicht gefunden.",
     "createNoteFromLinkTitle": "Notiz anlegen?",
     "createNoteFromLinkMsg": "„{{title}}“ existiert noch nicht. Jetzt anlegen?",
     "createNoteFromLinkConfirm": "Anlegen",

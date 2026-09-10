@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-09-01
+Dernière mise à jour : 2026-09-10
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Liens
 
-- **Lien wiki :** `[[Nom de la note]]` — résolu par nom de note à travers tout le vault. Avec une ancre de titre : `[[Note#Section]]`. Avec un texte d'affichage : `[[Note|texte affiché]]`.
-- **Lien Markdown :** `[texte](chemin/relatif.md)` fonctionne aussi.
+- **Lien wiki :** `[[Nom de la note]]` — résolu par nom de note à travers tout le vault. Avec une ancre de titre : `[[Note#Section]]` — un clic ouvre la note **à ce titre** ; `[[#Section]]` saute dans la note courante, et un slug à la GitHub (`[[Note#cool-header]]`) se résout aussi. Avec une référence de bloc : `[[Note#^id]]` pour une ligne qui se termine par `^id`. Avec un texte d'affichage : `[[Note|texte affiché]]`.
+- **Lien Markdown :** `[texte](chemin/relatif.md)` fonctionne aussi. Avec un fragment (`[texte](#cool-header)`, `[texte](autre.md#cool-header)`) le clic arrive sur le titre.
 - **Les backlinks** sont dérivés automatiquement, y compris depuis les liens wiki du frontmatter (c'est ce qui fait apparaître les relations comme des backlinks).
 
 ---

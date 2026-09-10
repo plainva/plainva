@@ -2,6 +2,7 @@ import { CompletionContext, CompletionResult, Completion, pickedCompletion } fro
 import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
 import { searchEmoji } from "./emojiData";
+import { parseHeadings } from "../lib/outline";
 
 // `[[` note-link and `#` tag autocomplete (#10), combined into the editor's
 // single autocompletion (see editorCompletion.ts). Both are completion *sources*.
@@ -33,6 +34,8 @@ export interface EditorTriggerDeps {
     db: { query: (sql: string, params?: any[]) => Promise<any[]> };
     getAllTags: () => Promise<{ tag: string; count: number }[]>;
   } | null;
+  /** A note's text, for the headings behind `[[Note#` (issue #92); absent = no heading completion for other notes. */
+  readNote?: (path: string) => Promise<string | null>;
 }
 
 type TriggerCompletion = Completion & { description?: string };
@@ -54,6 +57,47 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
     if (!qs) return null;
     const term = word.text.slice(2).trim(); // drop the leading [[
     if (term.length > 80) return null;
+    // `[[Note#` and `[[#` (issue #92): the headings of that note — or of
+    // this one — instead of a note search that the `#` could never match.
+    // Inserted as Obsidian writes them (the heading's text), which is also
+    // what the resolver reads first.
+    const hashAt = term.indexOf("#");
+    if (hashAt >= 0) {
+      try {
+        const notePart = term.slice(0, hashAt).trim();
+        const headPart = term.slice(hashAt + 1).trim().toLowerCase();
+        let content: string | null = null;
+        let noteLabel = "";
+        if (!notePart) {
+          content = context.state.doc.toString();
+        } else {
+          const rows = await qs.db.query(
+            `SELECT path, title FROM files WHERE title = ? COLLATE NOCASE OR path = ? COLLATE NOCASE OR path = ? COLLATE NOCASE LIMIT 1`,
+            [notePart, notePart, `${notePart}.md`],
+          );
+          const row = rows?.[0];
+          if (!row || !deps.readNote) return null;
+          noteLabel = row.title || notePart;
+          content = await deps.readNote(row.path);
+        }
+        if (!content) return null;
+        const headings = parseHeadings(content).filter((h) => !headPart || h.text.toLowerCase().includes(headPart)).slice(0, 12);
+        if (headings.length === 0) return null;
+        return {
+          from: word.from,
+          filter: false,
+          options: headings.map((h) => ({
+            label: h.text,
+            detail: "#".repeat(h.level),
+            apply: applyLinkText(`[[${noteLabel}#${h.text}]]`),
+            type: "wikilink",
+            section: { name: i18n.t("editor.completionHeadings", { defaultValue: "Headings" }), rank: 0 },
+          })),
+        };
+      } catch {
+        return null;
+      }
+    }
     const like = `%${term}%`;
     try {
       const rows = await qs.db.query(

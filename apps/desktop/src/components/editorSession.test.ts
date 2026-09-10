@@ -466,6 +466,20 @@ describe("wiki link taps (read mode)", () => {
     );
   });
 
+  // Issue #92: the anchor reaches the shell as a fourth argument — only when
+  // there is one, so a plain link still arrives with the three it always had.
+  it("hands the heading anchor to the shell, and a same-note anchor without a target", () => {
+    const { session, deps } = makeSession("live", "- [[Alpha#Two]]\n- [[#Here]]\n", false);
+    const spans = [...session.view.contentDOM.querySelectorAll<HTMLElement>(".cm-wiki-link")];
+    expect(spans.map((s) => s.getAttribute("data-link-anchor"))).toEqual(["#Two", "#Here"]);
+    // The rendered text keeps the anchor (Obsidian shows "Alpha#Two" too);
+    // what reaches the shell is the split pair.
+    clickLink(session, "Alpha#Two");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("Alpha", false, "wiki", "#Two");
+    clickLink(session, "#Here");
+    expect(deps.current.openWikiTarget).toHaveBeenLastCalledWith("", false, "wiki", "#Here");
+  });
+
   it("does not navigate from a link tap while the note is editable", () => {
     const { session, deps } = makeSession("live", "- [[Alpha]]\n", true);
     session.view.contentDOM

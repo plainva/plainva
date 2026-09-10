@@ -1,4 +1,5 @@
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
+import { splitLinkAnchor } from "../lib/linkAnchor";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
@@ -45,7 +46,7 @@ export type LinkKind = "wiki" | "markdown" | "url";
  * creates a missing note and gained a `.md`. Optional so existing callers keep
  * compiling; both shells pass it.
  */
-export type OpenLinkFn = (linkText: string, newTab: boolean, kind?: LinkKind) => void;
+export type OpenLinkFn = (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => void;
 
 /** Opens a resolved (type, target). Wiki + relative markdown links navigate
  * in-app via onOpenPath; http(s) links and bare URLs go to the system browser.
@@ -57,13 +58,18 @@ function openParsedLink(
   newTab: boolean,
   onOpenPath: OpenLinkFn,
   timeStamp: number,
+  anchor?: string | null,
 ): boolean {
   const last = lastLinkNav.get(view);
-  if (last && last.target === target && timeStamp - last.at < 900) {
+  const navKey = anchor ? `${target}${anchor}` : target;
+  if (last && last.target === navKey && timeStamp - last.at < 900) {
     return true; // duplicate event of the same physical tap — swallow, don't re-open
   }
   if (type === "wiki") {
-    onOpenPath(target, newTab, "wiki");
+    // The anchor (issue #92) rides along only when there is one, so a plain
+    // link still reaches the shell with the three arguments it always had.
+    if (anchor) onOpenPath(target, newTab, "wiki", anchor);
+    else onOpenPath(target, newTab, "wiki");
   } else if (type === "markdown") {
     if (target.startsWith("http://") || target.startsWith("https://")) {
       getPlatformServices().openExternal(target).catch((err) => {
@@ -82,7 +88,7 @@ function openParsedLink(
   } else {
     return false;
   }
-  lastLinkNav.set(view, { at: timeStamp, target });
+  lastLinkNav.set(view, { at: timeStamp, target: navKey });
   return true;
 }
 
@@ -105,10 +111,12 @@ function openLinkFromEl(
     : null;
   const span = el ? el.closest<HTMLElement>(".cm-wiki-link") : null;
   if (!span) return false;
-  const target = span.getAttribute("data-link-target");
+  const target = span.getAttribute("data-link-target") ?? "";
+  const anchor = span.getAttribute("data-link-anchor");
   const type = span.getAttribute("data-link-type") as LinkKind | null;
-  if (!target || !type) return false;
-  return openParsedLink(view, type, target, newTab, onOpenPath, timeStamp);
+  // `[[#Heading]]` has no target and IS a link (issue #92): to a place here.
+  if (!type || (!target && !anchor)) return false;
+  return openParsedLink(view, type, target, newTab, onOpenPath, timeStamp, anchor);
 }
 
 /** FALLBACK path: resolve the link under (x, y) by document offset. Kept for
@@ -127,7 +135,7 @@ function openLinkAtCoords(
   const line = view.state.doc.lineAt(pos);
   const link = findLinkAtOffset(line.text, pos - line.from);
   if (!link) return false;
-  return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp);
+  return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp, link.type === "wiki" ? link.anchor : undefined);
 }
 
 export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
@@ -171,7 +179,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
 
           // Collect all link matches first
           // We need start, end, and ranges to hide
-          const matches: { start: number, end: number, type: LinkKind, target: string, hideRanges?: {start: number, end: number}[] }[] = [];
+          const matches: { start: number, end: number, type: LinkKind, target: string, anchor?: string | null, hideRanges?: {start: number, end: number}[] }[] = [];
 
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.sliceDoc(from, to);
@@ -202,9 +210,9 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
               hideRanges.push({ start: matchStart, end: matchStart + 2 });
               hideRanges.push({ start: matchEnd - 2, end: matchEnd });
             }
-            const target = rawTarget.split("#")[0];
-            
-            matches.push({ start: matchStart, end: matchEnd, type: "wiki", target, hideRanges });
+            const { target, anchor } = splitLinkAnchor(rawTarget);
+
+            matches.push({ start: matchStart, end: matchEnd, type: "wiki", target, anchor, hideRanges });
           }
           
           // Match Standard Links: [text](url). The link TEXT must not contain a
@@ -277,6 +285,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
           const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver);
           const linkClass = unresolved ? "cm-wiki-link cm-wiki-link--unresolved" : "cm-wiki-link";
           const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
+          if (m.anchor) linkAttrs["data-link-anchor"] = m.anchor;
           if (unresolved) linkAttrs.title = i18n.t("editor.unresolvedLinkTip", "Note doesn't exist yet — click to create");
 
           if (hideSyntax && !(isFocused && editable) && m.hideRanges && m.hideRanges.length === 2) {

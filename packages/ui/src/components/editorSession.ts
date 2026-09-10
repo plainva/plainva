@@ -129,7 +129,9 @@ export interface EditorSessionDeps {
    * index resolves; a miss may create the note) from a relative markdown target
    * (a PATH relative to the host note; a miss is a missing file) — issue #61.
    */
-  openWikiTarget: (linkText: string, newTab: boolean, kind?: LinkKind) => void;
+  openWikiTarget: (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => void;
+  /** Reads a note's text — the `[[Note#` completion lists that note's headings (issue #92). */
+  readNote?: (path: string) => Promise<string | null>;
   openExternalUrl: (url: string) => void;
   handlePaste: (event: ClipboardEvent, view: EditorView) => boolean;
   /** OS file drop onto the editor (P3.2): images embed, other files link. */
@@ -340,7 +342,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         () => deps.current.imageLookup?.() ?? { notePath: "" },
       ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
-      wikiLinkPlugin((target, newTab, kind) => deps.current.openWikiTarget(target, newTab, kind), isLive),
+      wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive),
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on
       // screen, so copying the raw doc slice pastes Markdown noise. Strip it on
       // the way to the clipboard (covers Ctrl+C, Cut and drag). Source mode
@@ -515,7 +517,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // Block handles (#7): grip per block; click opens the menu, drag reorders.
     blockHandles(),
     markdownTheme(),
-    editorCompletion({ getQueryService: () => deps.current.queryService }),
+    editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null) }),
     // Rendered table cells share the note-link semantics of the wiki link plugin.
     tableLinkHandlers.of({
       onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),

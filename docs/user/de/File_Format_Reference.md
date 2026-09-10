@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-01
+Stand: 2026-09-10
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Links
 
-- **Wiki-Link:** `[[Notizname]]` — über den Notiznamen vault-weit aufgelöst. Mit Überschriften-Anker: `[[Notiz#Abschnitt]]`. Mit Anzeigetext: `[[Notiz|angezeigter Text]]`.
-- **Markdown-Link:** `[Text](relativer/pfad.md)` funktioniert ebenso.
+- **Wiki-Link:** `[[Notizname]]` — über den Notiznamen vault-weit aufgelöst. Mit Überschriften-Anker: `[[Notiz#Abschnitt]]` — ein Klick öffnet die Notiz **an dieser Überschrift**; `[[#Abschnitt]]` springt innerhalb der aktuellen Notiz, und ein Slug im GitHub-Stil (`[[Notiz#cool-header]]`) wird ebenfalls aufgelöst. Mit Block-Referenz: `[[Notiz#^id]]` für eine Zeile, die auf `^id` endet. Mit Anzeigetext: `[[Notiz|angezeigter Text]]`.
+- **Markdown-Link:** `[Text](relativer/pfad.md)` funktioniert ebenso. Mit Fragment (`[Text](#cool-header)`, `[Text](andere.md#cool-header)`) landet der Klick an der Überschrift.
 - **Backlinks** werden automatisch abgeleitet, auch aus Frontmatter-Wiki-Links (deshalb tauchen Relationen als Backlinks auf).
 
 ---

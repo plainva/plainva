@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-01
+Última revisão: 2026-09-10
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Links
 
-- **Link wiki:** `[[Nome da nota]]` — resolvido pelo nome da nota em todo o vault. Com âncora de título: `[[Nota#Seção]]`. Com texto de exibição: `[[Nota|texto exibido]]`.
-- **Link Markdown:** `[texto](caminho/relativo.md)` também funciona.
+- **Link wiki:** `[[Nome da nota]]` — resolvido pelo nome da nota em todo o vault. Com âncora de título: `[[Nota#Seção]]` — um clique abre a nota **naquele título**; `[[#Seção]]` salta dentro da nota atual, e um slug no estilo do GitHub (`[[Nota#cool-header]]`) também é resolvido. Com referência de bloco: `[[Nota#^id]]` para uma linha que termina em `^id`. Com texto de exibição: `[[Nota|texto exibido]]`.
+- **Link Markdown:** `[texto](caminho/relativo.md)` também funciona. Com um fragmento (`[texto](#cool-header)`, `[texto](outra.md#cool-header)`) o clique cai no título.
 - **Backlinks** são derivados automaticamente, inclusive a partir de links wiki no frontmatter (é isso que faz relações aparecerem como backlinks).
 
 ---

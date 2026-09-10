@@ -616,6 +616,7 @@
     "fontsDeviceHint": "Se aplica a este dispositivo — las fuentes instaladas varían de un dispositivo a otro."
   },
   "editor": {
+    "completionHeadings": "Encabezados",
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",
     "fileNotFound": "Archivo no encontrado",
     "loading": "Cargando...",
@@ -1329,6 +1330,7 @@
     "folderExists": "Ya existe una carpeta con este nombre."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Sección «{{anchor}}» no encontrada.",
     "createNoteFromLinkTitle": "¿Crear la nota?",
     "createNoteFromLinkMsg": "“{{title}}” aún no existe. ¿Crearla ahora?",
     "createNoteFromLinkConfirm": "Crear",

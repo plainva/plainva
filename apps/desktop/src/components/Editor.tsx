@@ -19,6 +19,7 @@ import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
 import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
+import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
@@ -1188,29 +1189,78 @@ export const Editor: React.FC<{
   // Jump to a heading (outline click, #10). Only the active pane responds so a
   // split doesn't scroll both editors; live/source scroll the CodeMirror view,
   // read mode scrolls the heading element within THIS pane's container (#4).
+  // Returns false when the place is not there yet (read view not painted,
+  // session not mounted) so a caller may retry a frame later.
+  const jumpToHeading = useCallback((line?: number, slug?: string): boolean => {
+    if (viewMode === 'read') {
+      if (!slug || !readScrollRef.current) return false;
+      const escaped = slug.replace(/["\\]/g, "\\$&");
+      const el = readScrollRef.current.querySelector(`[id="${escaped}"]`);
+      if (!el) return false;
+      (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
+      return true;
+    }
+    const view = sessionRef.current?.view;
+    if (!view || !line) return false;
+    const ln = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
+    view.dispatch({ selection: { anchor: ln.from }, effects: EditorView.scrollIntoView(ln.from, { y: "start" }) });
+    view.focus();
+    return true;
+  }, [viewMode]);
   useEffect(() => {
     const onGoto = (e: Event) => {
       if (!isActivePane) return;
       const detail = (e as CustomEvent).detail || {};
-      const line = detail.line as number | undefined;
-      const slug = detail.slug as string | undefined;
-      if (viewMode === 'read') {
-        if (slug && readScrollRef.current) {
-          const escaped = slug.replace(/["\\]/g, "\\$&");
-          const el = readScrollRef.current.querySelector(`[id="${escaped}"]`);
-          if (el) (el as HTMLElement).scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-        return;
-      }
-      const view = sessionRef.current?.view;
-      if (!view || !line) return;
-      const ln = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
-      view.dispatch({ selection: { anchor: ln.from }, effects: EditorView.scrollIntoView(ln.from, { y: "start" }) });
-      view.focus();
+      jumpToHeading(detail.line as number | undefined, detail.slug as string | undefined);
     };
     window.addEventListener("plainva-goto-heading", onGoto);
     return () => window.removeEventListener("plainva-goto-heading", onGoto);
-  }, [isActivePane, viewMode]);
+  }, [isActivePane, jumpToHeading]);
+
+  // An anchor link (issue #92): `[[Note#Heading]]`, `[[#Heading]]`,
+  // `[text](#heading)`, `[[Note#^block]]`. Resolved against THIS pane's
+  // text — the literal heading, then the GitHub slug, then the block id — and
+  // taken to the outline's own jump. A miss says so; before this a click on
+  // `[[#Heading]]` did nothing at all. Retries a few frames, because the
+  // note may still be painting when the park is consumed.
+  const anchorRafRef = useRef(0);
+  const applyAnchor = useCallback((anchor: string) => {
+    const text = sessionRef.current?.view.state.doc.toString() ?? contentRef.current;
+    const hit = resolveAnchor(text, anchor);
+    if (!hit) {
+      toast.warning(t("dialogs.anchorNotFoundMsg", { anchor: anchor.replace(/^#/, ""), defaultValue: 'Section "{{anchor}}" not found.' }));
+      return;
+    }
+    cancelAnimationFrame(anchorRafRef.current);
+    const tick = (left: number) => {
+      if (jumpToHeading(hit.line, hit.slug ?? undefined) || left <= 0) return;
+      anchorRafRef.current = requestAnimationFrame(() => tick(left - 1));
+    };
+    tick(60);
+  }, [jumpToHeading, t]);
+  useEffect(() => {
+    if (!isActivePane) return;
+    const onAnchor = (e: Event) => {
+      const d = (e as CustomEvent).detail as { path?: string } | undefined;
+      if (!d?.path || d.path !== activePath) return;
+      const a = consumePendingAnchorJump(d.path);
+      if (a) applyAnchor(a);
+    };
+    window.addEventListener(ANCHOR_JUMP_EVENT, onAnchor);
+    return () => window.removeEventListener(ANCHOR_JUMP_EVENT, onAnchor);
+  }, [isActivePane, activePath, applyAnchor]);
+  useEffect(() => {
+    if (!isActivePane || isLoading || !activePath) return;
+    const a = consumePendingAnchorJump(activePath);
+    if (!a) return;
+    let tries = 120;
+    const wait = () => {
+      if (loadedPathRef.current !== activePath && tries-- > 0) { anchorRafRef.current = requestAnimationFrame(wait); return; }
+      applyAnchor(a);
+    };
+    anchorRafRef.current = requestAnimationFrame(wait);
+  }, [isActivePane, isLoading, activePath, applyAnchor]);
+  useEffect(() => () => cancelAnimationFrame(anchorRafRef.current), []);
 
   // Print via the command palette (P3.10): the palette dispatches one window
   // event; only the active pane prints, like the outline jump above.
@@ -1347,8 +1397,18 @@ export const Editor: React.FC<{
   // 2026-07-18). A relative MARKDOWN target is a path on disk: it gets resolved
   // against this note's folder, and a miss is a missing file — never a new note
   // called `../_resources/x.mp3.md`.
-  const openWikiTarget = async (linkText: string, newTab: boolean, kind?: LinkKind) => {
+  const openWikiTarget = async (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => {
     if (!onOpenPath || !queryService) return;
+
+    // The anchor (issue #92) either arrives separately (the wiki-link plugin
+    // splits it) or still sits in the text (a table cell, a markdown href).
+    const split = splitLinkAnchor(linkText);
+    const anchorPart = anchor ?? split.anchor;
+    // `[[#Heading]]`, `[text](#heading)`: a place in THIS note.
+    if (!split.target && anchorPart) {
+      applyAnchor(anchorPart);
+      return;
+    }
 
     if (kind === "markdown" && activePath && isVaultPathLink(linkText)) {
       const target = resolveRelativeTarget(activePath, linkText);
@@ -1357,15 +1417,17 @@ export const Editor: React.FC<{
         const outcome = vaultAdapter
           ? await planRelativeLinkOpen(target, (p) => vaultAdapter.exists(p))
           : { action: "notFound" as const, path: target.path };
-        if (outcome.action === "open") onOpenPath(outcome.path, newTab);
+        if (outcome.action === "open") {
+          onOpenPath(outcome.path, newTab);
+          if (target.anchor) requestAnchorJump(outcome.path, target.anchor);
+        }
         else if (outcome.action === "revealFolder") window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: outcome.path } }));
         else toast.warning(t("dialogs.linkNotFoundMsg", { target: outcome.path }));
         return;
       }
     }
 
-    // If there's a header like [[target#header]], discard the header for the file search
-    const searchTarget = linkText.trim().split("#")[0];
+    const searchTarget = split.target;
 
     const sql = `
       SELECT path FROM files
@@ -1377,6 +1439,9 @@ export const Editor: React.FC<{
     const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
     if (rows && rows.length > 0) {
       onOpenPath(rows[0].path, newTab);
+      // Parked under the path: the pane that shows the note — this one after
+      // the switch, or a fresh tab — takes it once the text is in.
+      if (anchorPart) requestAnchorJump(rows[0].path, anchorPart);
     } else {
       // Target note doesn't exist yet — create it (Obsidian parity, maintainer
       // 2026-07-18). App owns the write/index/open (+ optional confirm).
@@ -2034,7 +2099,7 @@ export const Editor: React.FC<{
       vaultContext,
       hostPath: activePath ?? undefined,
       onOpenPath,
-      openWikiTarget: (target, newTab, kind) => { void openWikiTarget(target, newTab, kind); },
+      openWikiTarget: (target, newTab, kind, anchor) => { void openWikiTarget(target, newTab, kind, anchor); },
       openExternalUrl,
       handlePaste,
       handleDrop,
@@ -2066,6 +2131,8 @@ export const Editor: React.FC<{
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
       readBinaryFile: (absolutePath) => readFile(absolutePath),
+      // The `[[Note#` completion lists that note's headings (issue #92).
+      readNote: (p) => (vaultAdapter ? vaultAdapter.readTextFile(p).catch(() => null) : Promise.resolve(null)),
       // Where an embed may point (P3, Build-91 feedback): beside the note or,
       // as Obsidian writes it, by bare basename anywhere in the vault.
       imageLookup: () => ({

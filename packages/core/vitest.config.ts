@@ -8,5 +8,7 @@ export default defineConfig({
     // default under that load, a different set on every run (2026-09-10).
     // 20 s still catches a hang; the desktop and the phone carry the same.
     testTimeout: 20_000,
+    // See the desktop config: PLAINVA_TEST_WORKERS=<n> caps the workers on a loaded machine.
+    ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
   },
 });

@@ -618,6 +618,7 @@
     "fontsDeviceHint": "Dotyczy tego urządzenia — zainstalowane czcionki różnią się w zależności od urządzenia."
   },
   "editor": {
+    "completionHeadings": "Nagłówki",
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
     "fileNotFound": "Nie znaleziono pliku",
     "loading": "Ładowanie...",
@@ -1336,6 +1337,7 @@
     "folderExists": "Folder o tej nazwie już istnieje."
   },
   "dialogs": {
+    "anchorNotFoundMsg": "Nie znaleziono sekcji „{{anchor}}”.",
     "createNoteFromLinkTitle": "Utworzyć notatkę?",
     "createNoteFromLinkMsg": "„{{title}}” jeszcze nie istnieje. Utworzyć ją teraz?",
     "createNoteFromLinkConfirm": "Utwórz",

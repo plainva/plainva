@@ -21,6 +21,22 @@ export function slugify(text: string): string {
 }
 
 /**
+ * Unique slugs in document order, the way GitHub numbers them: the second
+ * "Heading" is `heading-1`, the third `heading-2` (issue #92, P5). The
+ * outline and the reading view's heading ids share one slugger per
+ * document, so `[[Note#heading-1]]` and the id it scrolls to agree.
+ */
+export function createSlugger(): (text: string) => string {
+  const seen = new Map<string, number>();
+  return (text) => {
+    const base = slugify(text);
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  };
+}
+
+/**
  * What stands above a line (TestFlight feedback Build 91, P7): the heading
  * chain from the document's top down to the line, and the list items the line
  * is nested under. A backlink or a search hit shown with this is readable
@@ -86,6 +102,7 @@ export function parseHeadings(content: string): Heading[] {
   const out: Heading[] = [];
   let inFence = false;
   let inFrontmatter = false;
+  const slug = createSlugger();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (i === 0 && line.trim() === "---") { inFrontmatter = true; continue; }
@@ -95,7 +112,7 @@ export function parseHeadings(content: string): Heading[] {
     const m = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
     if (m) {
       const text = m[2].trim();
-      out.push({ level: m[1].length, text, line: i + 1, slug: slugify(text) });
+      out.push({ level: m[1].length, text, line: i + 1, slug: slug(text) });
     }
   }
   return out;

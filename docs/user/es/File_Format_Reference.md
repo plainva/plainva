@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-09-01
+Última actualización: 2026-09-10
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Enlaces
 
-- **Wiki-link:** `[[Nombre de la nota]]` — resuelto por nombre de nota en todo el vault. Con ancla de encabezado: `[[Nota#Sección]]`. Con texto mostrado: `[[Nota|texto mostrado]]`.
-- **Enlace Markdown:** `[texto](ruta/relativa.md)` también funciona.
+- **Wiki-link:** `[[Nombre de la nota]]` — resuelto por nombre de nota en todo el vault. Con ancla de encabezado: `[[Nota#Sección]]` — un clic abre la nota **en ese encabezado**; `[[#Sección]]` salta dentro de la nota actual, y un slug al estilo de GitHub (`[[Nota#cool-header]]`) también se resuelve. Con referencia de bloque: `[[Nota#^id]]` para una línea que termina en `^id`. Con texto mostrado: `[[Nota|texto mostrado]]`.
+- **Enlace Markdown:** `[texto](ruta/relativa.md)` también funciona. Con fragmento (`[texto](#cool-header)`, `[texto](otra.md#cool-header)`) el clic aterriza en el encabezado.
 - Los **retroenlaces** se derivan automáticamente, incluso desde wiki-links en frontmatter (eso es lo que hace que las relaciones aparezcan como retroenlaces).
 
 ---

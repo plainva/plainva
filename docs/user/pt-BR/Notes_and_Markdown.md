@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-04
+Última revisão: 2026-09-10
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -54,6 +54,7 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 ## Links e backlinks
 
 - **Links internos**: `[[Nome da nota]]` (link wiki) — pelo menu de barra ou por `@` com busca de notas embutida. Links clássicos do Markdown `[texto](caminho.md)` também funcionam.
+- **Links para uma seção**: `[[Nota#Título]]` abre a nota naquele título, `[[#Título]]` salta dentro da nota atual, e `[texto](#título)` no estilo do GitHub faz o mesmo — tanto o texto literal do título quanto o slug (`cool-header`) são resolvidos; `[[Nota#^id]]` alcança uma linha que termina em `^id`. Ao digitar `[[Nota#` os títulos da nota são oferecidos. Um título que não existe mais avisa com uma mensagem em vez de não fazer nada.
 - **Destinos que ainda não existem**: um link wiki para uma nota que ainda não foi criada aparece **esmaecido, com sublinhado tracejado** (tanto na Visualização ao vivo quanto no modo de leitura). **Clicar nele cria a nota** e a abre — colocada na pasta da nota atual (ou no caminho indicado, se o link contiver um, por exemplo `[[Folder/New note]]`). Para ser perguntado antes, ative **Configurações → App → Editor e notas → Perguntar antes de criar links vazios**.
 - **Backlinks**: a seção **Backlinks** na barra lateral direita mostra quais notas fazem link para a ativa — agrupadas por arquivo de origem, com um contador para ocorrências múltiplas. Abaixo de cada arquivo, cada ocorrência aparece com os títulos e itens de lista acima dela e a própria linha; um clique leva exatamente até lá. No celular, a folha de contexto da nota mostra os mesmos lugares.
 - **Renomear com cuidado dos links**: ao renomear um arquivo na árvore de arquivos, o Plainva atualiza todo link para ele em todo o vault (âncoras como `#Seção` são preservadas) e reporta: "N link(s) em M arquivo(s) foram atualizados para o novo nome."

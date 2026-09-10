@@ -112,6 +112,10 @@ export default defineConfig(async () => ({
     // and fails as "timed out", a different one on every run (2026-09-10:
     // three hook runs, three different sets). 20 s still catches a hang.
     testTimeout: 20_000,
+    // A loaded machine (the app, a browser, another agent's suite beside this
+    // one) turns worker contention into hook timeouts; PLAINVA_TEST_WORKERS=<n>
+    // caps the workers for such a run and changes nothing when it is unset.
+    ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
     // test-localstorage repairs Node >= 25's broken ambient localStorage and
     // must run FIRST; test-setup loads every locale bundle eagerly for tests —
     // the app itself lazy-loads them (P2.8) and tests would otherwise assert

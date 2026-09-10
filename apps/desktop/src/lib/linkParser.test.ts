@@ -11,9 +11,12 @@ describe('findLinkAtOffset', () => {
     expect(findLinkAtOffset(text, 19)).toEqual(null); // after (l)
   });
 
-  it('should parse wikilinks with alias and header', () => {
+  it('keeps the heading anchor of a wikilink (issue #92)', () => {
     const text = "Go to [[Page#Section|Alias]] here.";
-    expect(findLinkAtOffset(text, 15)).toEqual({ type: 'wiki', target: 'Page' });
+    expect(findLinkAtOffset(text, 15)).toEqual({ type: 'wiki', target: 'Page', anchor: '#Section' });
+    // A place in the same note: no target, an anchor.
+    expect(findLinkAtOffset("See [[#Section]] here", 6)).toEqual({ type: 'wiki', target: '', anchor: '#Section' });
+    expect(findLinkAtOffset("See [[Page#^abc]]", 6)).toEqual({ type: 'wiki', target: 'Page', anchor: '#^abc' });
   });
 
   it('should find standard markdown links', () => {
@@ -62,8 +65,9 @@ describe('segmentInlineText', () => {
 
   it('handles alias and anchor in wikilinks', () => {
     expect(segmentInlineText('[[Seite#Abschnitt|Anzeige]]')).toEqual([
-      { type: 'wiki', target: 'Seite', display: 'Anzeige' },
+      { type: 'wiki', target: 'Seite', display: 'Anzeige', anchor: '#Abschnitt' },
     ]);
+    expect(segmentInlineText('[[#Abschnitt]]')).toEqual([{ type: 'wiki', target: '', display: '#Abschnitt', anchor: '#Abschnitt' }]);
   });
 
   it('splits markdown links and bare urls', () => {

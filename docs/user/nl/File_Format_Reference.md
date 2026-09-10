@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-09-01
+Laatst bijgewerkt: 2026-09-10
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Links
 
-- **Wiki-link:** `[[Notitienaam]]` — vault-breed opgelost via de notitienaam. Met een kop-anker: `[[Notitie#Sectie]]`. Met weergavetekst: `[[Notitie|getoonde tekst]]`.
-- **Markdown-link:** `[tekst](relatief/pad.md)` werkt ook.
+- **Wiki-link:** `[[Notitienaam]]` — vault-breed opgelost via de notitienaam. Met een kop-anker: `[[Notitie#Sectie]]` — een klik opent de notitie **bij die kop**; `[[#Sectie]]` springt binnen de huidige notitie, en een slug in GitHub-stijl (`[[Notitie#cool-header]]`) wordt ook opgelost. Met een blokverwijzing: `[[Notitie#^id]]` voor een regel die eindigt op `^id`. Met weergavetekst: `[[Notitie|getoonde tekst]]`.
+- **Markdown-link:** `[tekst](relatief/pad.md)` werkt ook. Met een fragment (`[tekst](#cool-header)`, `[tekst](andere.md#cool-header)`) landt de klik op de kop.
 - **Backlinks** worden automatisch afgeleid, ook uit frontmatter-wiki-links (dat is wat relaties als backlinks laat verschijnen).
 
 ---

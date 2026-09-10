@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-09-04
+Dernière mise à jour : 2026-09-10
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -54,6 +54,7 @@ Tapez `/` en début de ligne pour ouvrir le menu d'insertion. Il est organisé e
 ## Liens et backlinks
 
 - **Liens internes** : `[[Nom de la note]]` (lien wiki) — via le menu slash ou `@` avec recherche de notes intégrée. Les liens Markdown classiques `[texte](chemin.md)` fonctionnent également.
+- **Liens vers une section** : `[[Note#Titre]]` ouvre la note à ce titre, `[[#Titre]]` saute dans la note courante, et `[texte](#titre)` à la GitHub fait de même — le texte littéral du titre et le slug (`cool-header`) se résolvent tous deux ; `[[Note#^id]]` atteint une ligne qui se termine par `^id`. Taper `[[Note#` propose les titres de la note. Un titre qui n'existe plus le dit dans un message au lieu de ne rien faire.
 - **Cibles qui n'existent pas encore** : un lien wiki vers une note qui n'a pas encore été créée s'affiche **atténué, avec un soulignement en tirets** (aussi bien en aperçu en direct qu'en mode lecture). **Cliquer dessus crée la note** et l'ouvre — elle est placée dans le dossier de la note actuelle (ou au chemin indiqué si le lien en contient un, par exemple `[[Dossier/Nouvelle note]]`). Pour être invité au préalable, activez **Paramètres → App → Éditeur et notes → Demander avant de créer des liens vides**.
 - **Backlinks** : la section **Backlinks** dans la barre latérale droite montre quelles notes renvoient à la note active — regroupées par fichier source, avec un compteur pour les occurrences multiples. Sous chaque fichier, chaque occurrence est listée avec les titres et éléments de liste qui la précèdent et la ligne elle-même ; un clic y mène directement. Sur le téléphone, la feuille de contexte de la note montre les mêmes emplacements.
 - **Renommer avec soin des liens** : quand vous renommez un fichier dans l'arborescence de fichiers, Plainva met à jour tous les liens qui pointent vers lui dans tout le vault (les ancres comme `#Section` sont conservées) et signale : « N lien(s) dans M fichier(s) ont été mis à jour vers le nouveau nom. »

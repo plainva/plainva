@@ -53,7 +53,7 @@ vi.mock("../lib/usePullToRefresh", () => ({
 // Load the screen once, outside anybody's assertion budget: the first test
 // would otherwise pay for compiling the whole module graph (see the same
 // hook in securitySharingPage.test.tsx).
-beforeAll(async () => { await import("./CommentsScreen"); }, 30000);
+beforeAll(async () => { await import("./CommentsScreen"); }, 90000);
 
 describe("the comments screen, locked", () => {
   it("explains, offers the unlock, and asks the shell for the sync screen", async () => {

@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-09-01
+Last reviewed: 2026-09-10
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -162,8 +162,8 @@ plainva:
 
 ### Links
 
-- **Wiki link:** `[[Note name]]` — resolved by note name across the vault. With a heading anchor: `[[Note#Section]]`. With display text: `[[Note|shown text]]`.
-- **Markdown link:** `[text](relative/path.md)` also works.
+- **Wiki link:** `[[Note name]]` — resolved by note name across the vault. With a heading anchor: `[[Note#Section]]` — a click opens the note **at that heading**; `[[#Section]]` jumps within the current note, and a GitHub-style slug (`[[Note#cool-header]]`) resolves as well. With a block reference: `[[Note#^id]]` for a line that ends in `^id`. With display text: `[[Note|shown text]]`.
+- **Markdown link:** `[text](relative/path.md)` also works. With a fragment (`[text](#cool-header)`, `[text](other.md#cool-header)`) the click lands on the heading.
 - **Backlinks** are derived automatically, including from frontmatter wiki-links (that is what makes relations show up as backlinks).
 
 ---
