@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import { haptics } from "../services/haptics";
+import { SWIPE_SLOP as SLOP } from "../lib/gestureConstants";
 
 export interface SwipeAction {
   icon: ReactNode;
@@ -11,8 +12,6 @@ export interface SwipeAction {
 
 /** One action slot's width, mirrored by `--m-swipe-slot` in mobile.css. */
 const SLOT = 66;
-/** Below this the finger is still deciding between scrolling and swiping. */
-const SLOP = 10;
 
 /**
  * A list row with actions behind it (S12, mockup "Ordner mit Wischaktion").

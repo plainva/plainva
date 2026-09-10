@@ -116,3 +116,71 @@ test("a touch drag opens a swipe row's actions", async ({ page }) => {
  * one axis arbitration — and `swipeCoverage.test.ts` pins that the task rows
  * are wrapped in it.
  */
+
+/**
+ * The calendar's page swipe (plan Kalender, Anker-Links, Dependabot
+ * 2026-09-10, P4) has to answer a real finger for the same reason: `.m-pager`
+ * declares `touch-action: pan-y`, and a mouse never asks. Three halves: a
+ * horizontal drag pages the period, a vertical one does not, and a drag that
+ * starts on the chip row — which scrolls sideways itself — does not either.
+ */
+test("a touch drag pages the calendar; a vertical drag does not", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "CapacitorStorage.mobile-settings",
+      JSON.stringify({ onboarded: true, language: "en", motion: "off" }),
+    );
+  });
+  await page.goto("/");
+  await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+  await page.waitForTimeout(1500);
+  const whatsNew = page.locator('[data-testid="whats-new-sheet"]');
+  if (await whatsNew.count()) {
+    await whatsNew.locator('[data-testid="whats-new-close"]').click({ timeout: 5000 });
+  }
+  await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
+
+  const tab = page.locator(".m-tabbar .m-tab", { hasText: /^Calendar$/ });
+  if (await tab.count()) {
+    await tab.first().click();
+  } else {
+    await page.locator('[data-testid="tab-areas"]').click();
+    await page.getByRole("button", { name: /^Calendar$/ }).first().click();
+  }
+  const title = page.locator('[data-testid="pim-title"]');
+  await expect(title).toBeVisible({ timeout: 20000 });
+  const pager = page.locator('[data-testid="pim-pager"]');
+  await expect(pager).toBeVisible();
+  const before = (await title.textContent())!.trim();
+
+  await page.evaluate(() => {
+    (globalThis as unknown as { __pev: string[] }).__pev = [];
+    for (const type of ["pointerdown", "pointermove", "pointercancel", "pointerup"]) {
+      window.addEventListener(type, () => (globalThis as unknown as { __pev: string[] }).__pev.push(type), true);
+    }
+  });
+
+  // Horizontal, well inside the surface (clear of any edge zone): pages.
+  const box = (await pager.boundingBox())!;
+  await touchDrag(page, box.x + box.width - 40, box.y + box.height / 2, -Math.round(box.width * 0.6));
+  await page.waitForTimeout(600);
+  const seen = await page.evaluate(() => (globalThis as unknown as { __pev: string[] }).__pev);
+  expect(seen, `the browser cancelled the drag — is \`touch-action\` missing on .m-pager? events: ${seen.join(" ")}`).not.toContain("pointercancel");
+  await expect(title).not.toHaveText(before);
+  const paged = (await title.textContent())!.trim();
+
+  // Vertical: the scroller keeps it, the period stays.
+  const cdp = await page.context().newCDPSession(page);
+  const point = (x: number, y: number) => ({ x, y, radiusX: 12, radiusY: 12, force: 1 });
+  const x = box.x + box.width / 2;
+  const y0 = box.y + box.height * 0.6;
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point(x, y0)] });
+  for (let i = 1; i <= 12; i++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point(x, y0 - (140 * i) / 12)] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+  await page.waitForTimeout(400);
+  await expect(title).toHaveText(paged);
+});

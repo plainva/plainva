@@ -7,6 +7,7 @@ import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, 
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import {
   subscribePimStatus,
@@ -415,6 +416,9 @@ export function PimCalendarScreen({
     haptics.light();
     setJumpOpen(false);
   };
+  // A horizontal drag on the calendar page means paging (P4) — the same
+  // step the arrows take, through the same navPeriod.
+  const [swipe, swipeHandlers] = usePageSwipe(navPeriod);
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, h) => h), []);
 
@@ -545,6 +549,16 @@ export function PimCalendarScreen({
         </ScrollEdge>
       )}
 
+      {/* The paging surface (P4): a horizontal drag pages to the neighbouring
+          period — what the arrows do — and the page follows the finger. It
+          wraps every state, so a phone without accounts pages the period
+          exactly as its arrows already do. */}
+      <div
+        className={`m-pager${swipe.settling ? " is-settling" : ""}`}
+        data-testid="pim-pager"
+        style={{ transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined }}
+        {...swipeHandlers}
+      >
       {hasAccounts === false ? (
         <EmptyState
           icon={<CalendarPlus size={ICON.empty} />}
@@ -846,6 +860,7 @@ export function PimCalendarScreen({
           </div>
         </div>
       )}
+      </div>
 
       {editor.element}
     </div>

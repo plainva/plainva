@@ -24,6 +24,7 @@ import { useVault } from "../../contexts/VaultContext";
 import { loadEventBackdrop, type BackdropDay } from "../../services/pim/eventBackdrop";
 import { useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
+import { usePageWheel } from "../pimcal/pageWheel";
 import type { BaseCells } from "./useBaseCells";
 
 // Calendar view of the BaseViewer (structural split, plan C3; three periods
@@ -68,6 +69,8 @@ export function BaseCalendarView({
   const [jumpOpen, setJumpOpen] = React.useState(false);
   const titleRef = React.useRef<HTMLButtonElement>(null);
   const closeJump = React.useCallback(() => setJumpOpen(false), []);
+  // The trackpad's page gesture (P4, decision E4): the same step as the arrows.
+  const onPageWheel = usePageWheel(React.useCallback((dir: -1 | 1) => setCursor((c) => stepCursor(c, dir)), [setCursor]));
 
   const rows = React.useMemo(() => rangeRows(cursor, weekStartDay), [cursor, weekStartDay]);
   const anchorDate = React.useMemo(() => new Date(`${cursor.day}T00:00:00`), [cursor.day]);
@@ -195,7 +198,7 @@ export function BaseCalendarView({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+    <div onWheel={onPageWheel} style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       {!dateProp ? (
         <div style={{ padding: "1rem", color: "var(--text-muted)" }}>{t("database.noDateField", "Kein Datumsfeld konfiguriert. Bitte oben ein Feld wählen.")}</div>
       ) : (

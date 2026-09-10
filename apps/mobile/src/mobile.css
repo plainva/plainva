@@ -4599,3 +4599,26 @@ textarea {
   background: var(--accent-container);
   color: var(--on-accent-container);
 }
+
+/* The calendar's paging surface (plan Kalender 2026-09-10, P4): a horizontal
+   drag pages to the neighbouring period, and the page follows the finger
+   (usePageSwipe). `touch-action: pan-y` is load-bearing exactly as it is on
+   .m-swipe-front: without it the WebView claims the drag for scrolling after
+   two moves and the page never moves — the vertical axis stays with the
+   scroller inside, the horizontal one comes here. */
+.m-pager {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  touch-action: pan-y;
+  will-change: transform;
+}
+.m-pager.is-settling {
+  transition: transform var(--dur-2) var(--ease-1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-pager.is-settling {
+    transition: none;
+  }
+}

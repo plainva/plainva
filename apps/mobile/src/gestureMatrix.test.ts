@@ -100,3 +100,38 @@ describe("the written rule matches the code", () => {
     expect(dl).toMatch(/needs its SHEET first/);
   });
 });
+
+/**
+ * A horizontal drag on a calendar page means PAGING (plan Kalender,
+ * Anker-Links, Dependabot 2026-09-10, P4) — the first page gesture of the
+ * app, and it must mean the same on every calendar page and nothing else in
+ * the calendar. Read from the source, like the rules above: the defect this
+ * guards is a surface that wires the drag to something other than the step
+ * its arrows take, or one that forgets the `touch-action` that lets the
+ * WebView hand the drag over at all.
+ */
+describe("a horizontal drag on a calendar page means paging", () => {
+  const cal = strip(read("screens", "PimCalendarScreen.tsx"));
+  const base = strip(read("screens", "base", "BaseScreen.tsx"));
+  const css = read("mobile.css");
+
+  it("the calendar area pages through the same step as its arrows", () => {
+    expect(cal).toMatch(/usePageSwipe\(navPeriod\)/);
+    expect(cal).toMatch(/className=\{`m-pager/);
+  });
+
+  it("the database calendar pages through the same step as its head", () => {
+    expect(base).toMatch(/usePageSwipe\(\(dir\) => setCalCursor\(\(c\) => stepCursor\(c, dir\)\)\)/);
+    expect(base).toMatch(/className=\{`m-pager/);
+  });
+
+  it("the paging surface hands the vertical axis to the scroller", () => {
+    const block = css.slice(css.indexOf(".m-pager {"));
+    expect(block.slice(0, block.indexOf("}"))).toMatch(/touch-action: pan-y;/);
+  });
+
+  it("one gesture engine: the page swipe and the swipe row share the dead zone", () => {
+    expect(read("lib", "usePageSwipe.ts")).toMatch(/import \{ SWIPE_SLOP \} from "\.\/gestureConstants"/);
+    expect(read("components", "SwipeRow.tsx")).toMatch(/from "\.\.\/lib\/gestureConstants"/);
+  });
+});

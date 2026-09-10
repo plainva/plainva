@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
+import { usePageSwipe } from "../../lib/usePageSwipe";
 import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
@@ -174,6 +175,9 @@ export function BaseScreen({
   // The date jump sheet behind the calendar view's title (plan Kalender
   // 2026-09-10, P3) — the same picker as the calendar area's.
   const [calJumpOpen, setCalJumpOpen] = useState(false);
+  // A horizontal drag on the calendar view pages the period (P4) — the same
+  // step the head's arrows take.
+  const [calSwipe, calSwipeHandlers] = usePageSwipe((dir) => setCalCursor((c) => stepCursor(c, dir)));
   // Real appointments behind the calendar view (S18b). Device-local: a way of
   // looking, not part of the database.
   const [showEvents, setShowEvents] = useState(false);
@@ -1465,6 +1469,12 @@ export function BaseScreen({
           value={calCursor.range}
           onChange={(v) => setCalCursor((c) => ({ ...c, range: v as CalendarCursor["range"] }))}
         />
+        <div
+          className={`m-pager${calSwipe.settling ? " is-settling" : ""}`}
+          data-testid="base-cal-pager"
+          style={{ transform: calSwipe.offset ? `translateX(${calSwipe.offset}px)` : undefined }}
+          {...calSwipeHandlers}
+        >
         {calCursor.range === "month" ? (
           <div className="m-cal-grid">
             {cells.slice(0, 7).map((d) => (
@@ -1560,6 +1570,7 @@ export function BaseScreen({
             })}
           </div>
         )}
+        </div>
         {/* A legend, and it says so. It was the bare frontmatter key under the
             grid — "Faellig", capitalised by the label helper and surrounded by
             nothing — which reads as a stray word rather than as the answer to

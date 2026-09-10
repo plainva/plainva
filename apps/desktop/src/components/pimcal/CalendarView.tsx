@@ -15,6 +15,7 @@ import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
 import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
+import { usePageWheel } from "./pageWheel";
 import { consumePendingNew, localIsoKey } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
@@ -589,6 +590,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     },
     [viewMode, selectedDate]
   );
+
+  // The trackpad's page gesture (P4, decision E4): a horizontal two-finger
+  // swipe pages like the arrows; the agenda has no period to page.
+  const onPageWheel = usePageWheel(useCallback((dir: -1 | 1) => { if (viewMode !== "agenda") navPeriod(dir); }, [viewMode, navPeriod]));
 
   const refresh = useCallback(() => {
     pimRuntime?.worker.triggerImmediate().catch(() => undefined);
@@ -1480,7 +1485,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }
 
   return (
-    <div data-testid="calendar-view" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
+    <div data-testid="calendar-view" onWheel={onPageWheel} style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
       {/* Header: view segment + period navigation + status + refresh */}
       <div className="pv-appbar">
         {viewMode !== "agenda" && (

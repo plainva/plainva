@@ -1220,3 +1220,30 @@ test('the title opens the date jump picker: a picked day lands, the keyboard rea
   await expect(page.getByTestId('calendar-jump-picker')).toHaveCount(0);
   await expect(page.getByTestId(`calendar-timecol-${todayKey}`)).toBeVisible();
 });
+
+test('a horizontal wheel over the calendar pages once per gesture (plan Kalender 2026-09-10, P4)', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  const title = page.getByTestId('calendar-month-title');
+  const before = (await title.textContent())!.trim();
+
+  const grid = page.getByTestId('calendar-grid');
+  const box = (await grid.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+  // A trackpad swipe arrives as a burst: the first event pages, the rest of
+  // the same swipe is quiet.
+  await page.mouse.wheel(120, 0);
+  await page.mouse.wheel(120, 0);
+  await expect(title).not.toHaveText(before);
+  const after = (await title.textContent())!.trim();
+  await page.waitForTimeout(450);
+  await page.mouse.wheel(-120, 0);
+  await expect(title).toHaveText(before);
+  expect(after).not.toBe(before);
+
+  // A mostly vertical wheel is scrolling, never paging.
+  await page.mouse.wheel(10, 200);
+  await expect(title).toHaveText(before);
+});
