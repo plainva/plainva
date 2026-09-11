@@ -27,54 +27,80 @@ const RESERVE_WIZARD = "16px";
 test("only pages without their own bottom edge reserve the floating strip", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(".m-tabbar:not(.m-tabbar--rail)")).toBeVisible();
 
   const measured = await page.evaluate(() => {
     const root = document.documentElement;
     const previous = root.getAttribute("data-window");
+    const previousFont = root.style.getPropertyValue("--text-xs");
+    const previousFontPriority = root.style.getPropertyPriority("--text-xs");
+    const bar = document.querySelector<HTMLElement>(".m-tabbar:not(.m-tabbar--rail)")!;
+    const transitions = [...bar.querySelectorAll<HTMLElement>("*"), bar].map(el => [el, el.style.transition] as const);
+    for (const [el] of transitions) el.style.transition = "none";
     const host = document.createElement("div");
     host.style.cssText = "position:fixed;left:-9999px;top:0";
     document.body.appendChild(host);
 
     const variants = ["", "m-page--note", "m-page--pimcal", "m-page--basegraph", "m-page--wizard"];
-    const out: Record<string, string> = {};
-    for (const win of ["compact", "medium", "expanded"]) {
-      root.setAttribute("data-window", win);
-      for (const fab of [false, true]) {
-        const app = document.createElement("div");
-        app.className = fab ? "m-app has-fab" : "m-app";
-        host.appendChild(app);
-        for (const variant of variants) {
-          const el = document.createElement("div");
-          el.className = variant ? `m-page ${variant}` : "m-page";
-          app.appendChild(el);
-          out[`${win}|${fab ? "fab" : "nofab"}|${variant || "plain"}`] =
-            getComputedStyle(el).paddingBottom;
+    const out: Record<string, { padding: Record<string, string>; occupied: number }> = {};
+    for (const font of ["default", "large"]) {
+      if (font === "large") root.style.setProperty("--text-xs", "24px");
+      root.setAttribute("data-window", "compact");
+      const occupied = window.innerHeight - bar.getBoundingClientRect().top;
+      const padding: Record<string, string> = {};
+      for (const win of ["compact", "medium", "expanded"]) {
+        root.setAttribute("data-window", win);
+        for (const fab of [false, true]) {
+          const app = document.createElement("div");
+          app.className = fab ? "m-app has-fab" : "m-app";
+          host.appendChild(app);
+          for (const variant of variants) {
+            const el = document.createElement("div");
+            el.className = variant ? `m-page ${variant}` : "m-page";
+            app.appendChild(el);
+            padding[`${win}|${fab ? "fab" : "nofab"}|${variant || "plain"}`] =
+              getComputedStyle(el).paddingBottom;
+          }
         }
       }
+      out[font] = { padding, occupied };
+      host.replaceChildren();
     }
 
     host.remove();
     if (previous) root.setAttribute("data-window", previous);
+    else root.removeAttribute("data-window");
+    if (previousFont) root.style.setProperty("--text-xs", previousFont, previousFontPriority);
+    else root.style.removeProperty("--text-xs");
+    for (const [el, transition] of transitions) el.style.transition = transition;
     return out;
   });
 
-  // A scrolling page keeps reserving what floats over its end — unchanged.
-  expect(measured["compact|nofab|plain"]).toBe("92px"); // --m-bar-space
-  expect(measured["compact|fab|plain"]).toBe("164px"); // --m-fab-space
-  expect(measured["medium|nofab|plain"]).toBe("64px"); // bar stands aside
-  expect(measured["medium|fab|plain"]).toBe("84px"); // only the FAB overhangs
-  expect(measured["expanded|nofab|plain"]).toBe("64px");
-  expect(measured["expanded|fab|plain"]).toBe("84px");
+  for (const { padding, occupied } of Object.values(measured)) {
+    // Clear the actual rendered bar, with a small gap. Its height follows the
+    // label font, so a fixed pixel expectation would reject correct layouts.
+    const compact = parseFloat(padding["compact|nofab|plain"]);
+    expect(compact).toBeGreaterThanOrEqual(occupied);
+    expect(compact - occupied).toBeLessThanOrEqual(16);
+    // The capture button adds its 56px touch surface and 16px spacing.
+    expect(parseFloat(padding["compact|fab|plain"]) - compact).toBeCloseTo(72, 1);
+    expect(padding["medium|nofab|plain"]).toBe("64px"); // bar stands aside
+    expect(padding["medium|fab|plain"]).toBe("84px"); // only the FAB overhangs
+    expect(padding["expanded|nofab|plain"]).toBe("64px");
+    expect(padding["expanded|fab|plain"]).toBe("84px");
 
-  // The four surfaces that end flush keep their own edge in EVERY combination.
-  for (const win of ["compact", "medium", "expanded"]) {
-    for (const fab of ["nofab", "fab"]) {
-      expect(measured[`${win}|${fab}|m-page--note`]).toBe(RESERVE_NONE);
-      expect(measured[`${win}|${fab}|m-page--pimcal`]).toBe(RESERVE_NONE);
-      expect(measured[`${win}|${fab}|m-page--basegraph`]).toBe(RESERVE_NONE);
-      expect(measured[`${win}|${fab}|m-page--wizard`]).toBe(RESERVE_WIZARD);
+    // The four surfaces keep their own edge in EVERY combination and font size.
+    for (const win of ["compact", "medium", "expanded"]) {
+      for (const fab of ["nofab", "fab"]) {
+        expect(padding[`${win}|${fab}|m-page--note`]).toBe(RESERVE_NONE);
+        expect(padding[`${win}|${fab}|m-page--pimcal`]).toBe(RESERVE_NONE);
+        expect(padding[`${win}|${fab}|m-page--basegraph`]).toBe(RESERVE_NONE);
+        expect(padding[`${win}|${fab}|m-page--wizard`]).toBe(RESERVE_WIZARD);
+      }
     }
   }
+  expect(parseFloat(measured.large.padding["compact|nofab|plain"]))
+    .toBeGreaterThan(parseFloat(measured.default.padding["compact|nofab|plain"]));
 });
 
 /**
