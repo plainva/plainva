@@ -31,9 +31,34 @@ Después de una actualización, el mismo lugar muestra qué ha cambiado: el camb
 Al iniciar, la pantalla de bienvenida te saluda:
 
 - **Abrir vault** — Plainva pregunta primero **"¿Dónde está tu vault?"**: **Carpeta local** abre una carpeta existente con archivos Markdown en este equipo (los vaults de Obsidian funcionan sin más); **Vault en línea** sincroniza un vault existente desde la nube en una carpeta local — los mismos tres pasos para cualquier proveedor (**Conectar**, **elegir la carpeta en la nube**, **elegir la carpeta local**; ver [Configurar la sincronización](Sync_Setup.md)).
-- **Nuevo vault** — la primera pregunta es **"¿Dónde debería estar tu vault?"** (**En este equipo** o **En un servicio en línea**), luego eliges la estructura inicial: empieza vacío o desde una estructura de carpetas preparada; ambos se pueden ajustar en cualquier momento. El **Vault vacío** contiene solo un resumen `index.md`. Plantillas disponibles: **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** y **Proyecto** — cada una crea carpetas, una nota de bienvenida con una guía rápida y resúmenes `index.md` mantenidos automáticamente en el [formato OKF](OKF.md) (los nombres de carpetas y archivos siguen el idioma de la aplicación). La plantilla **Plainva Tour** es el punto de partida recomendado: llena nueve carpetas y siete bases de datos con ejemplos, así que ves cada vista en acción una vez — tablón, calendario, galería, tablero, cronología, tabla y la vista de árbol con subelementos — además de plantillas de nota, reglas de carpetas y una referencia rápida de Markdown. Aquí nada es intocable: borra lo que no necesites y renombra el resto. La plantilla **Journal** además configura las notas diarias del vault. Las plantillas **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** y **Proyecto** también incluyen [bases de datos](Databases_Base.md) ya enlazadas con sus correspondientes plantillas de nota — por ejemplo, proyectos con un tablero de estado y un enlace a su área, o tareas que apuntan a su proyecto. La plantilla **Proyecto** muestra las herramientas de proyecto en acción: cuatro bases de datos conectadas, una columna que cuenta las tareas abiertas de un proyecto, un pie de columna que suma el esfuerzo planificado, dependencias entre tareas e hitos que aparecen como un rombo en la cronología. En la ruta en línea, la conexión sigue los mismos pasos: eliges el proveedor, te conectas, eliges la carpeta en la nube o creas una nueva mediante **Nueva carpeta**, eliges la carpeta local — la estructura elegida se crea en la carpeta local y se sube a la nube en la primera sincronización.
+- **Nuevo vault** — la primera pregunta es **"¿Dónde debería estar tu vault?"** (**En este equipo** o **En un servicio en línea**), luego eliges la estructura inicial: empieza vacío o desde una estructura de carpetas preparada; ambos se pueden ajustar en cualquier momento. El **Vault vacío** contiene solo un resumen `index.md`. Plantillas disponibles: **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** y **Proyecto** — cada una crea carpetas, una nota de bienvenida con una guía rápida y resúmenes `index.md` mantenidos automáticamente en el [formato OKF](OKF.md) (los nombres de carpetas y archivos siguen el idioma de la aplicación). La plantilla **Plainva Tour** es el punto de partida recomendado: llena diez carpetas y siete bases de datos con ejemplos, así que ves cada vista en acción una vez — tablón, calendario, galería, tablero, cronología, tabla y la vista de árbol con subelementos — además de plantillas de nota, reglas de carpetas y una referencia rápida de Markdown. Aquí nada es intocable: borra lo que no necesites y renombra el resto. La plantilla **Journal** además configura las notas diarias del vault. Las plantillas **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** y **Proyecto** también incluyen [bases de datos](Databases_Base.md) ya enlazadas con sus correspondientes plantillas de nota — por ejemplo, proyectos con un tablero de estado y un enlace a su área, o tareas que apuntan a su proyecto. La plantilla **Proyecto** muestra las herramientas de proyecto en acción: cuatro bases de datos conectadas, una columna que cuenta las tareas abiertas de un proyecto, un pie de columna que suma el esfuerzo planificado, dependencias entre tareas e hitos que aparecen como un rombo en la cronología. En la ruta en línea, la conexión sigue los mismos pasos: eliges el proveedor, te conectas, eliges la carpeta en la nube o creas una nueva mediante **Nueva carpeta**, eliges la carpeta local — la estructura elegida se crea en la carpeta local y se sube a la nube en la primera sincronización.
 
 **Vaults recientes** lista todo lo que has abierto antes. **Quitar de la lista** elimina una entrada solo de Plainva — los archivos permanecen en el disco. Activa **Abrir automáticamente el último vault al iniciar** para saltarte la pantalla de bienvenida en el futuro. Al quitarlo, Plainva pregunta si además quieres olvidar todos los datos de la aplicación del vault (índice de búsqueda, ajustes, disposición de la ventana, credenciales de sincronización, calendario y buzones; las copias ZIP automáticas solo mediante la casilla adicional); tu carpeta del vault queda intacta en cualquier caso.
+
+## Plainva Tour · Índice
+
+Empieza con un pequeño ejercicio o abre una base directamente. Las cinco primeras paradas muestran el uso diario; el resto es opcional. Calcula unos 10–15 minutos para una primera visita y todo el tiempo que necesites para probar. Los ejemplos son ficticios y puedes cambiarlos.
+
+**Abrir:** `Recorrido/01 Escribir y enlazar.md`
+
+1. Escribir y enlazar
+2. De una nota a una tarea
+3. Planificar un proyecto
+4. Encontrar y organizar
+5. Organizar un día
+6. Revisar una nota
+7. Comparar versiones
+8. Descubrir a tu ritmo
+9. Cuentas, dispositivos e importación
+10. Compartir y automatizar
+
+El paquete ficticio contiene exactamente dos notas con el tag tour-import y ninguna eliminada. El informe debe mostrar dos notas importadas. Para deshacerlo, elimina solo la nueva subcarpeta.
+
+Los espacios cifrados y sus funciones de compartir son experimentales: necesitan identidades, claves y un servicio conectado. Explora roles, invitaciones y publicaciones con datos de prueba separados. Scripts y automatizaciones exigen configuración y permisos deliberados. La plantilla no ejecuta scripts, contacta servicios ni simula accesos.
+
+Versión de datos: 2026-09-11. Las fechas corresponden a la creación de este Vault. Las actualizaciones de plantillas solo afectan a futuros Vaults nuevos; nunca modifican ni completan este.
+
+Elige una carpeta local nueva y vacía y, para crear en línea, una carpeta de nube vacía. Los Vaults existentes se abren sin aplicar plantillas. Eliminar archivos o cambiar de dispositivo nunca permite aplicarles una actualización de plantilla.
 
 ## La interfaz
 

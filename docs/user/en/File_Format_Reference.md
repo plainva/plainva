@@ -585,3 +585,25 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 - [Notes & Markdown](Notes_and_Markdown.md) — the same material from a writing-by-hand-in-the-app angle
 - [Databases (.base)](Databases_Base.md) — databases explained for everyday use
 - [OKF](OKF.md) — `type`, the bundle version, the trust fields of OKF 0.2, index.md and the vault conversion
+
+## Header color / Icon / Tags · whole note
+
+Filter by header color, icon, tags from the entire note, or the label property selected for a pinboard view. Tag membership is exact: #work does not match #workshop or #work/child. Inline tags and frontmatter tags are combined. Values remain available from the complete source even at zero results; unknown saved icon names are preserved.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `does not contain`: `!file.tags.contains("#work")`
+- `is empty`: `file.tags.isEmpty()`
+- `is not empty`: `!file.tags.isEmpty()`

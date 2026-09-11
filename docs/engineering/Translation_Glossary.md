@@ -1,13 +1,13 @@
 # Translation Glossary
 
-Last reviewed: 2026-07-04. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-09-11. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
 
 ## Supported Languages
 
-Source of truth: `apps/desktop/src/services/languages.ts` (`APP_LANGUAGES`).
+Source of truth: `packages/ui/src/services/languages.ts` (`APP_LANGUAGES`).
 Language code = BCP-47 = locale JSON basename = folder name under `docs/user/`.
 
 ## Invariants (never translate)
@@ -74,6 +74,25 @@ Notes:
 - The README.md of the machine-translated user-guide languages carries a subtle
   marker line ("machine-translated — corrections welcome", in the target
   language); de/en carry none.
-- Vault-template language versions live in `apps/desktop/src/services/vaultTemplates/`
+- Vault-template language versions live in `packages/ui/src/vaultTemplates/`
   as `templates.<code>.ts`; if a language is missing, `getVaultTemplates` falls
   back to en.
+
+## Database metadata and summaries
+
+Use these UI terms in the guide and tour. A summary belongs to the whole visible column; a rollup belongs to one related record. Labels name the pinboard’s configured property, while whole-note tags include inline tags.
+
+| Language | Summary | No summary | Header colour | Whole-note tags |
+|---|---|---|---|---|
+| en | Summary | No summary | Header color | Tags · whole note |
+| de | Zusammenfassung | Keine Zusammenfassung | Farbstreifen | Tags · ganze Notiz |
+| fr | Synthèse | Aucune synthèse | Bande de couleur | Tags · note entière |
+| es | Resumen | Sin resumen | Franja de color | Etiquetas · nota completa |
+| pt-BR | Resumo | Sem resumo | Faixa de cor | Tags · nota inteira |
+| it | Riepilogo | Nessun riepilogo | Fascia di colore | Tag · intera nota |
+| nl | Samenvatting | Geen samenvatting | Kleurstrook | Tags · hele notitie |
+| pl | Podsumowanie | Bez podsumowania | Pasek koloru | Tagi · cała notatka |
+| zh-CN | 汇总 | 不汇总 | 顶部色条 | 标签 · 整篇笔记 |
+| ja | 集計 | 集計なし | ヘッダーの色 | タグ · ノート全体 |
+
+Tour lessons live beside the template modules as `tourLessons.<code>.json`; all ten languages share the builder and creation boundary.

@@ -1,4 +1,5 @@
 import { defineBase } from "./baseBuilders";
+import { addTourLearning, tourLessons } from "./tourLearning";
 import { welcomeBody, DEFAULT_DAILY_NOTE_TYPE, type VaultTemplateBase, type VaultTemplateDefinition, type VaultTemplateNote } from "./types";
 
 /**
@@ -186,7 +187,7 @@ function sampleNote(folder: string, sample: TourSample): VaultTemplateNote {
 /** The PARA+ core: areas (gallery), projects (board + timeline), tasks
  * (board + tree). The relations are wired both ways so the reverse columns show
  * real data the moment the vault is indexed. */
-function coreBases(s: TourStrings): VaultTemplateBase[] {
+function coreBases(s: TourStrings, language: string): VaultTemplateBase[] {
   const f = s.folders;
   const k = s.keys;
   const b = s.baseFiles;
@@ -194,6 +195,7 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
   const [planned, active, waiting, finished] = s.options.projectStatus;
   const [open, doing, done] = s.options.taskStatus;
   const [high, medium, low] = s.options.priority;
+  const labels = tourLessons(language).labels;
 
   return [
     defineBase({
@@ -229,9 +231,12 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
         { key: k.start, input: "date" },
         { key: k.end, input: "date" },
         { key: k.tasks, reverseOf: { base: b.tasks, property: k.project } },
+        { key: "openTasks", displayName: labels.open, rollup: { through: k.tasks, of: k.status, fn: "countWhere", where: { op: "!=", value: done } } },
+        { key: "progress", displayName: labels.progress, rollup: { through: k.tasks, of: k.status, fn: "percentWhere", where: { op: "==", value: done } } },
+        { key: "plannedMinutes", displayName: labels.planned, rollup: { through: k.tasks, of: "effort", fn: "sum" } },
       ],
       views: [
-        { name: v.table, type: "table" },
+        { name: v.table, type: "table", summaries: { plannedMinutes: "Sum" } },
         // Whole-column tint here, chips on the task board — the two modes side
         // by side is the point.
         { name: v.board, type: "board", groupBy: k.status, boardColorMode: "column" },
@@ -258,6 +263,10 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
         },
         { key: k.project, input: "relation", relationBase: b.projects, relationLimit: "one" },
         { key: k.due, input: "date" },
+        { key: k.start, input: "date" },
+        { key: k.end, input: "date" },
+        { key: "effort", input: "number", displayName: labels.effort },
+        { key: "blockedBy", input: "list", displayName: labels.dependencies },
         {
           key: k.priority,
           input: "select",
@@ -272,8 +281,11 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
       ],
       views: [
         { name: v.board, type: "board", groupBy: k.status },
-        { name: v.table, type: "table" },
+        { name: v.table, type: "table", summaries: { effort: "Sum" } },
         { name: v.tree, type: "table", subItemsProperty: "parent" },
+        { name: v.calendar, type: "calendar", dateField: k.due },
+        { name: v.timeline, type: "timeline", dateField: k.start, endField: k.end },
+        { name: labels.graph, type: "graph", graphEdges: [k.project, "parent", "blockedBy"], graphColorBy: k.status, graphShowExternal: true },
       ],
       newItemTemplate: `${f.templates}/${s.templates.task.file}`,
     }),
@@ -282,7 +294,7 @@ function coreBases(s: TourStrings): VaultTemplateBase[] {
 
 /** The four remaining databases: the pinboard of quick notes, the journal on a
  * calendar, resources across three view types, and the archive. */
-function sideBases(s: TourStrings): VaultTemplateBase[] {
+function sideBases(s: TourStrings, language: string): VaultTemplateBase[] {
   const f = s.folders;
   const k = s.keys;
   const b = s.baseFiles;
@@ -290,12 +302,13 @@ function sideBases(s: TourStrings): VaultTemplateBase[] {
   const [good, ok, hard, productive] = s.options.mood;
   const [book, article, video, tool, reference] = s.options.resourceKind;
   const [fresh, seen] = s.options.resourceStatus;
+  const labels = tourLessons(language).labels;
 
   return [
     defineBase({
       path: b.quickNotes,
       sourceFolder: f.quickNotes,
-      columns: [],
+      columns: [{ key: "labels", input: "multiselect", displayName: labels.labels }],
       views: [
         // Label chips come from #tags (the default), so pinboardFilterBy stays
         // unwritten; the pinned set is derived from the samples below.
@@ -305,6 +318,11 @@ function sideBases(s: TourStrings): VaultTemplateBase[] {
           pinboardPinned: s.samples.quickNotes.filter((n) => n.pinned).map((n) => `${f.quickNotes}/${n.title}.md`),
         },
         { name: v.list, type: "list" },
+        { name: v.table, type: "table", summaries: { "file.name": "Filled" } },
+        { name: labels.labels, type: "pinboard", pinboardFilterBy: "labels" },
+        { name: labels.colored, type: "pinboard", filters: { and: ['note.plainva.header_color != ""'] } },
+        { name: labels.tagged, type: "pinboard", filters: { and: ['file.tags.contains("#tour")'] } },
+        { name: labels.icons, type: "pinboard", filters: { and: ['note.plainva.icon != ""'] } },
       ],
       newItemTemplate: `${f.templates}/${s.templates.quickNote.file}`,
     }),
@@ -370,7 +388,7 @@ function sideBases(s: TourStrings): VaultTemplateBase[] {
 }
 
 /** Assembles the tour from one language's strings. */
-export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
+export function buildPlainvaTour(s: TourStrings, language = "en"): VaultTemplateDefinition {
   const f = s.folders;
   const folders = [
     f.quickNotes,
@@ -437,13 +455,13 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
     ...s.samples.archive.map((n) => sampleNote(f.archive, n)),
   ];
 
-  return {
+  return addTourLearning({
     id: "plainva",
     name: s.name,
     description: s.description,
     folders,
     notes,
-    bases: [...coreBases(s), ...sideBases(s)],
+    bases: [...coreBases(s, language), ...sideBases(s, language)],
     rawFiles: [
       { path: `${f.attachments}/skizze.svg`, content: SKETCH_SVG },
       { path: `${f.attachments}/cover.svg`, content: COVER_SVG },
@@ -466,7 +484,7 @@ export function buildPlainvaTour(s: TourStrings): VaultTemplateDefinition {
         { folder: f.quickNotes, template: t.quickNote.file },
       ],
     },
-  };
+  }, s, language);
 }
 
 /** The one note that shows the editor itself: callouts, a table, a diagram, a

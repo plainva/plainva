@@ -6,8 +6,8 @@ import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 /**
  * Shared vault-template scaffolder (M3E package I): the desktop's adapter-
  * abstracted writer, lifted so the mobile shell scaffolds the same starting
- * structures through its own adapter chain. Never overwrites an existing
- * file — scaffolding into a non-empty folder only fills the gaps; generated
+ * structures through its own adapter chain. Only a new, empty vault may be
+ * scaffolded. Existing vaults never receive additions from a template; generated
  * listings are byte-identical to the index.md auto-updater's output.
  */
 
@@ -63,6 +63,7 @@ function interpolateNote(note: VaultTemplateNote, now: Date): VaultTemplateNote 
 
 /** The minimal adapter surface the scaffolder needs (subset of IVaultAdapter). */
 export interface ScaffoldAdapter {
+  listDir(path?: string): Promise<{ name: string }[]>;
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
   writeTextFile(path: string, content: string): Promise<void>;
@@ -86,6 +87,8 @@ export function buildTemplateNoteContent(note: VaultTemplateNote): string {
  */
 export async function scaffoldVaultTemplate(opts: {
   adapter: ScaffoldAdapter;
+  /** Creation-flow intent, never inferred from missing template files. */
+  isNewVault: boolean;
   template: VaultTemplateDefinition | null;
   /** Heading of the root index.md (the vault folder's name). */
   vaultName: string;
@@ -95,6 +98,12 @@ export async function scaffoldVaultTemplate(opts: {
   now?: Date;
 }): Promise<void> {
   const { adapter, template, vaultName, subfoldersHeading } = opts;
+  // Check before ANY write, including settings in the callers. A missing or
+  // unreadable listing is not permission to fill gaps in a user's vault.
+  if (!opts.isNewVault || (await adapter.listDir("")).some((entry) =>
+    ![".ds_store", "thumbs.db", "desktop.ini"].includes(entry.name.toLowerCase()))) {
+    throw new Error("Vault templates can only be used when creating a new, empty vault.");
+  }
   const now = opts.now ?? new Date();
   const folders = template?.folders ?? [];
   // Resolved once, up front: the listings below must show the SAME paths and

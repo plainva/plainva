@@ -31,9 +31,34 @@ Po aktualizacji to samo miejsce pokazuje, co się zmieniło: największa zmiana 
 Po uruchomieniu wita ekran powitalny:
 
 - **Otwórz vault** — Plainva najpierw pyta **„Gdzie znajduje się Twój vault?”**: **Folder lokalny** otwiera istniejący folder z plikami Markdown na tym komputerze (vaulty Obsidian działają od razu); **Vault online** synchronizuje istniejący vault z chmury do lokalnego folderu — te same trzy kroki dla każdego dostawcy (**Połącz**, **Wybierz folder w chmurze**, **Wybierz lub utwórz folder lokalny**; patrz [Konfiguracja synchronizacji](Sync_Setup.md)).
-- **Nowy vault** — najpierw pojawia się pytanie **„Gdzie ma się znajdować Twój vault?”** (**Na tym komputerze** lub **W usłudze online**), a potem wybierasz strukturę początkową: zacznij od pustego vaultu lub od przygotowanej struktury folderów; oba warianty można zmienić w każdej chwili. **Pusty vault** zawiera tylko przegląd `index.md`. Dostępne szablony: **Wycieczka po Plainva**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** i **Projekt** — każdy tworzy foldery, notatkę powitalną z krótką instrukcją oraz automatycznie zarządzane przeglądy `index.md` w [formacie OKF](OKF.md) (nazwy folderów i plików są zgodne z językiem aplikacji). **Wycieczka po Plainva** to zalecane miejsce na start: wypełnia dziewięć folderów i siedem baz danych przykładami, dzięki czemu raz zobaczysz w akcji każdy widok — Tablicę korkową, Kalendarz, Galerię, Tablicę, Oś czasu, Tabelę oraz widok Drzewo z elementami podrzędnymi — a do tego znajdziesz w niej szablony notatek, reguły folderów i ściągawkę Markdown. Nic w niej nie jest święte: usuń, czego nie potrzebujesz, i zmień nazwę reszty. Szablon **Journal** dodatkowo od razu konfiguruje ustawienia notatek dziennych vaultu. Szablony **Wycieczka po Plainva**, **PARA**, **GTD**, **Zettelkasten**, **Journal** i **Projekt** zawierają też gotowe, powiązane ze sobą [bazy danych](Databases_Base.md) wraz z pasującymi szablonami notatek — na przykład projekty z tablicą statusu i linkiem do obszaru albo zadania wskazujące na swój projekt. Szablon **Projekt** pokazuje narzędzia projektowe w działaniu: cztery powiązane ze sobą bazy danych, kolumnę liczącą otwarte zadania projektu, stopkę sumującą zaplanowany nakład pracy, zależności między zadaniami oraz kamienie milowe, które na osi czasu pojawiają się jako romb. Przy ścieżce online po wyborze struktury następuje połączenie: wybierz dostawcę, połącz się, wybierz folder w chmurze lub utwórz nowy przez **Nowy folder**, wybierz folder lokalny — wybrana struktura powstaje w folderze lokalnym i zostaje przesłana do chmury podczas pierwszej synchronizacji.
+- **Nowy vault** — najpierw pojawia się pytanie **„Gdzie ma się znajdować Twój vault?”** (**Na tym komputerze** lub **W usłudze online**), a potem wybierasz strukturę początkową: zacznij od pustego vaultu lub od przygotowanej struktury folderów; oba warianty można zmienić w każdej chwili. **Pusty vault** zawiera tylko przegląd `index.md`. Dostępne szablony: **Wycieczka po Plainva**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** i **Projekt** — każdy tworzy foldery, notatkę powitalną z krótką instrukcją oraz automatycznie zarządzane przeglądy `index.md` w [formacie OKF](OKF.md) (nazwy folderów i plików są zgodne z językiem aplikacji). **Wycieczka po Plainva** to zalecane miejsce na start: wypełnia dziesięć folderów i siedem baz danych przykładami, dzięki czemu raz zobaczysz w akcji każdy widok — Tablicę korkową, Kalendarz, Galerię, Tablicę, Oś czasu, Tabelę oraz widok Drzewo z elementami podrzędnymi — a do tego znajdziesz w niej szablony notatek, reguły folderów i ściągawkę Markdown. Nic w niej nie jest święte: usuń, czego nie potrzebujesz, i zmień nazwę reszty. Szablon **Journal** dodatkowo od razu konfiguruje ustawienia notatek dziennych vaultu. Szablony **Wycieczka po Plainva**, **PARA**, **GTD**, **Zettelkasten**, **Journal** i **Projekt** zawierają też gotowe, powiązane ze sobą [bazy danych](Databases_Base.md) wraz z pasującymi szablonami notatek — na przykład projekty z tablicą statusu i linkiem do obszaru albo zadania wskazujące na swój projekt. Szablon **Projekt** pokazuje narzędzia projektowe w działaniu: cztery powiązane ze sobą bazy danych, kolumnę liczącą otwarte zadania projektu, stopkę sumującą zaplanowany nakład pracy, zależności między zadaniami oraz kamienie milowe, które na osi czasu pojawiają się jako romb. Przy ścieżce online po wyborze struktury następuje połączenie: wybierz dostawcę, połącz się, wybierz folder w chmurze lub utwórz nowy przez **Nowy folder**, wybierz folder lokalny — wybrana struktura powstaje w folderze lokalnym i zostaje przesłana do chmury podczas pierwszej synchronizacji.
 
 **Ostatnie vaulty** pokazują wszystko, co było już wcześniej otwierane. **Usuń z listy** usuwa wpis wyłącznie z Plainva — pliki pozostają na dysku. Włącz opcję **Automatycznie otwieraj ostatni vault przy starcie**, aby w przyszłości pomijać ekran powitalny. Podczas usuwania Plainva pyta, czy dodatkowo zapomnieć wszystkie dane aplikacji vaultu (indeks wyszukiwania, ustawienia, układ okna, dane logowania synchronizacji, kalendarza i skrzynek; automatyczne kopie ZIP tylko przez dodatkowe pole wyboru) — folder vaultu pozostaje w każdym przypadku nietknięty.
+
+## Plainva Tour · Spis treści
+
+Zacznij od małego ćwiczenia lub otwórz od razu bazę danych. Pierwsze pięć etapów pokazuje codzienną pracę; pozostałe są opcjonalne. Na pierwsze zapoznanie przeznacz około 10–15 minut, a na próby tyle czasu, ile chcesz. Przykłady są fikcyjne i możesz je zmieniać.
+
+**Otwórz:** `Przewodnik/01 Pisz i łącz.md`
+
+1. Pisz i łącz
+2. Z notatki do zadania
+3. Zaplanuj projekt
+4. Znajdź i uporządkuj
+5. Zaplanuj dzień
+6. Omów notatkę
+7. Porównaj wersje
+8. Odkryj przydatne możliwości
+9. Konta, urządzenia i import
+10. Udostępniaj i automatyzuj
+
+Fikcyjny pakiet zawiera dokładnie dwie notatki z tagiem tour-import i żadnych usuniętych. Raport powinien pokazać dwie zaimportowane notatki. Aby cofnąć, usuń tylko nowy podfolder.
+
+Szyfrowane przestrzenie i udostępnianie są eksperymentalne: wymagają tożsamości, kluczy i połączonej usługi. Role, zaproszenia i publikacje poznawaj na osobnych danych próbnych. Skrypty i automatyzacje wymagają świadomej konfiguracji i uprawnień. Szablon nie uruchamia skryptów, nie łączy się z usługami i nie udaje dostępu.
+
+Wersja danych: 2026-09-11. Daty odnoszą się do dnia utworzenia tego Vaultu. Aktualizacje szablonów dotyczą wyłącznie przyszłych nowych Vaultów; nigdy nie zmieniają ani nie uzupełniają tego Vaultu.
+
+Wybierz nowy, pusty folder lokalny, a przy tworzeniu online pusty folder chmurowy. Istniejące Vaulty otwierają się bez stosowania szablonu. Usunięcie plików lub zmiana urządzenia nigdy nie pozwala zastosować do nich aktualizacji szablonu.
 
 ## Interfejs
 

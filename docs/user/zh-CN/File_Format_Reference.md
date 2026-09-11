@@ -585,3 +585,25 @@ views:
 - [笔记与Markdown](Notes_and_Markdown.md)——从"在应用中手动书写"这个角度看待同样的内容
 - [数据库（.base）](Databases_Base.md)——面向日常使用讲解的数据库
 - [OKF](OKF.md)——`type`、bundle 版本、OKF 0.2的可信度字段、index.md与仓库转换
+
+## 顶部色条 / 图标 / 标签 · 整篇笔记
+
+可按色条、图标、整篇笔记的标签或便笺板配置的标签属性筛选。标签精确匹配：#work不会匹配#workshop或#work/child。正文和frontmatter中的标签会合并。即使没有结果，可选值仍来自完整数据源；未知的已保存图标名称会保留。
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `不包含`: `!file.tags.contains("#work")`
+- `为空`: `file.tags.isEmpty()`
+- `不为空`: `!file.tags.isEmpty()`

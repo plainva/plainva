@@ -36,6 +36,7 @@ import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "../adapters/Fixt
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   addVault,
+  consumeNewLocalVault,
   getActiveVaultEntry,
   newVaultId,
   removeVault,
@@ -77,6 +78,8 @@ import {
   getPlatformServices,
   noteLargeFileTrimmed,
   notifyFileOps,
+  scaffoldVaultTemplate,
+  type VaultTemplateDefinition,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, splitLinkAnchor } from "@plainva/ui";
@@ -97,6 +100,8 @@ export interface MobileVault {
   vaultId: string;
   /** True when this boot created the vault (first run) — gates the template offer. */
   freshlySeeded: boolean;
+  /** Single-use creation opportunity, consumed before showing the chooser. */
+  claimTemplateCreation(): boolean;
   /** Raw storage adapter (listing, binary reads): the sandbox one, or the external-folder one. */
   adapter: MobileRawAdapter;
   /** The picked folder this vault lives in, or null for a container vault (P4). */
@@ -132,26 +137,6 @@ export interface MobileVault {
 
 const OKF = (type: string, title: string, body: string) =>
   `---\ntype: ${type}\n---\n\n# ${title}\n\n${body}\n`;
-
-const SEEDS: Array<[string, string]> = [
-  [
-    "Willkommen.md",
-    OKF(
-      "Note",
-      "Willkommen",
-      "Dein mobiler Plainva-Vault — echte Dateien in der App-Sandbox.\n\n- Der Editor ist DERSELBE wie am Desktop (`@plainva/ui`).\n- Tippe auf **+** für eine neue Notiz.\n- Wiki-Links funktionieren: [[Plainva Mobile]]\n\n> Sync: Mehr → Vault & Sync (WebDAV/Nextcloud).",
-    ),
-  ],
-  ["Inbox/Erste Idee.md", OKF("Note", "Erste Idee", "Schnell erfasst, später einsortiert.")],
-  [
-    "Projekte/Plainva Mobile.md",
-    OKF(
-      "Note",
-      "Plainva Mobile",
-      "Companion-App: erfassen, lesen, finden.\n\n- [x] M1 Gerüst\n- [x] M2 Adapter\n- [ ] M3 Sync\n\nZurück zu [[Willkommen]].",
-    ),
-  ],
-];
 
 const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
 
@@ -326,11 +311,15 @@ export async function deleteVault(id: string): Promise<void> {
 
 /**
  * Creates a NEW local vault (no provider): a fresh registry entry + its own
- * container, then switches to it. The empty container is seeded on boot
- * (freshlySeeded), so the caller may then offer a structure template.
+ * container. The chosen structure is written before registration and opening;
+ * boot never supplements an existing container from a template.
  */
-export async function createLocalVault(name: string): Promise<string> {
+export async function createLocalVault(name: string, template: VaultTemplateDefinition | null = null): Promise<string> {
   const id = newVaultId();
+  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
+  if (await adapter.exists("")) throw new Error("Vault container already exists");
+  await adapter.initialize();
+  await scaffoldVaultTemplate({ adapter, isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
   await addVault({ id, name });
   await switchVault(id);
   return id;
@@ -429,20 +418,19 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   const adapter: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle)
     : new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
+  const containerExisted = await adapter.exists("");
   await adapter.initialize();
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
   const workspaceRuntime = workspaceStatus ? await loadMobileWorkspaceRuntime(entry.id) : null;
 
-  // A vault seeded THIS boot is brand new — the onboarding may offer the
-  // structure templates (package I); existing installs never get the offer.
-  let freshlySeeded = false;
+  // Registry creation intent AND a previously absent container are required.
+  // Empty existing vaults (also legacy installs) stay empty on every boot.
+  const creationIntent = consumeNewLocalVault(entry.id);
+  const freshlySeeded = isLocal && !isExternalVault(entry) && creationIntent && !containerExisted &&
+    (await adapter.listDir("")).length === 0 && !getMobileSettings().onboarded;
+  let templateCreationClaimed = false;
   // Set when the full index pass is through — see MobileVault.indexSettled.
   let indexPassSettled = false;
-  // A picked folder is the user's: it is never seeded, however empty it is.
-  if (isLocal && !isExternalVault(entry) && (await adapter.listDir("")).length === 0) {
-    for (const [path, text] of SEEDS) await adapter.writeTextFile(path, text);
-    freshlySeeded = true;
-  }
 
   // Enqueue guards mirror the desktop: nothing enqueues before sync is
   // configured, and the initial full index defers new-file pushes until the
@@ -620,6 +608,11 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   const v: MobileVault = {
     vaultId: entry.id,
     freshlySeeded,
+    claimTemplateCreation: () => {
+      if (!freshlySeeded || templateCreationClaimed) return false;
+      templateCreationClaimed = true;
+      return true;
+    },
     adapter,
     external: entry.external ?? null,
     files,

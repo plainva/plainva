@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { ArrowRight, Check, Cloud, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
+import { assertEmptyRemoteVault } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { credentialManager } from "../services/CredentialManager";
 import { authorizeDrive } from "../services/driveAuth";
@@ -11,7 +12,6 @@ import { cancelOAuthLoopback, oauthErrorText } from "../services/oauthLoopback";
 
 /** Providers whose connect step waits on the browser rather than a form. */
 const OAUTH_PROVIDERS = new Set(["drive", "onedrive", "dropbox"]);
-import { appConfirm } from "../services/appDialogs";
 import {
   buildWebDavTarget,
   buildDriveTarget,
@@ -198,17 +198,17 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
     setError(null);
     try {
       if (mode === "create") {
-        if (!(await isVaultFolderEmpty(localDir))) {
-          const proceed = await appConfirm({
-            title: t("splash.newVault"),
-            message: t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }),
-            kind: "warning",
-          });
-          if (!proceed) return;
-        }
+        if (!(await isVaultFolderEmpty(localDir))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }));
+        const folder = cloudFolder?.trim() || undefined;
+        const remote = c.provider === "webdav" ? buildWebDavTarget({ ...c, url: folder ? `${c.url.replace(/\/+$/, "")}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url })
+          : c.provider === "drive" ? buildDriveTarget({ ...c, rootFolderName: folder })
+          : c.provider === "onedrive" ? buildOneDriveTarget({ ...c, rootFolderName: folder }, token => { c.refreshToken = token; })
+          : c.provider === "dropbox" ? buildDropboxTarget({ ...c, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined }, token => { c.refreshToken = token; })
+          : buildS3Target({ ...c.s3, prefix: folder });
+        await assertEmptyRemoteVault(remote);
         const adapter = new TauriVaultAdapter(localDir);
         await adapter.initialize();
-        await scaffoldVaultTemplate({
+        await scaffoldVaultTemplate({ isNewVault: true,
           adapter,
           template,
           vaultName: getBasename(localDir),

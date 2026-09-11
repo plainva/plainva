@@ -947,6 +947,10 @@ textarea {
 .m-row--split .pv-iconbtn {
   align-self: center;
 }
+.m-cfg-property { border-bottom: 1px solid var(--border-color-light); }
+.m-cfg-property .m-row-main { min-width: 0; }
+.m-cfg-property .m-row-main span:first-of-type { overflow-wrap: anywhere; min-width: 0; }
+.m-cfg-property-summary { display: flex; flex-direction: column; gap: var(--space-1); padding: 0 var(--space-3) var(--space-3); color: var(--text-muted); font-size: var(--text-sm); }
 .m-sync-actions--column {
   flex-direction: column;
   align-items: stretch;

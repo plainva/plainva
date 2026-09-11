@@ -53,6 +53,7 @@ import { CardChecklist } from "./CardChecklist";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
 import { BaseConfigSheet } from "./BaseConfigSheet";
+import { ColumnSummaryRow } from "@plainva/ui";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
@@ -356,9 +357,9 @@ export function BaseScreen({
   }, [loaded, path, vault, t]);
 
   const columnsPool = useMemo(() => {
-    const set = new Set<string>(Object.keys(config?.columns ?? {}));
+    const set = new Set<string>(Object.keys(config?.columns ?? {}).filter((key) => key !== "plainva"));
     for (const r of rows ?? []) {
-      for (const k of Object.keys(r)) if (!k.startsWith("file.")) set.add(k);
+      for (const k of Object.keys(r)) if (!k.startsWith("file.") && k !== "plainva") set.add(k);
     }
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [config, rows]);
@@ -1059,6 +1060,7 @@ export function BaseScreen({
             );
           })}
         </tbody>
+        <ColumnSummaryRow rows={rows!} columns={["file.name", ...orderedColumns]} summaries={view?.summaries} selection={rowSel.active} />
       </table>
     </div>
     );

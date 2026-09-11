@@ -18,7 +18,7 @@ import { buildProject, PROJECT_STRINGS_DE } from "./projectTemplate";
  * the databases show real data as soon as the vault is indexed. */
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_DE),
+    buildPlainvaTour(TOUR_STRINGS_DE, "de"),
     buildPara(PARA_STRINGS_DE),
     buildZettelkasten(ZK_STRINGS_DE),
     buildAce(ACE_STRINGS_DE),

@@ -585,3 +585,25 @@ Regras: caminhos fixados não são repetidos em `pinboardOrder`. Cartões que n�
 - [Notas & Markdown](Notes_and_Markdown.md) — o mesmo material sob o ângulo de escrever à mão no app
 - [Bancos de Dados (.base)](Databases_Base.md) — bancos de dados explicados para o uso do dia a dia
 - [OKF](OKF.md) — `type`, a versão do bundle, os campos de confiança do OKF 0.2, index.md e a conversão do vault
+
+## Faixa de cor / Ícone / Tags · nota inteira
+
+Filtre por faixa de cor, ícone, tags da nota inteira ou propriedade de rótulos escolhida para o mural. Tags coincidem exatamente: #work não encontra #workshop nem #work/child. Texto e frontmatter são combinados. Valores ficam disponíveis de toda a fonte mesmo sem resultados; nomes de ícones desconhecidos são preservados.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `não contém`: `!file.tags.contains("#work")`
+- `está vazio`: `file.tags.isEmpty()`
+- `não está vazio`: `!file.tags.isEmpty()`

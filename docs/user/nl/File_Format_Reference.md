@@ -585,3 +585,25 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 - [Notities & Markdown](Notes_and_Markdown.md) — hetzelfde materiaal vanuit de hoek van handmatig schrijven in de app
 - [Databases (.base)](Databases_Base.md) — databases uitgelegd voor alledaags gebruik
 - [OKF](OKF.md) — `type`, de bundleversie, de vertrouwensvelden van OKF 0.2, index.md en de vault-conversie
+
+## Kleurstrook / Pictogram / Tags · hele notitie
+
+Filter op kleurstrook, pictogram, tags van de hele notitie of de labeleigenschap van de prikbordweergave. Tags komen exact overeen: #work vindt niet #workshop of #work/child. Tekst en frontmatter worden samengevoegd. Waarden blijven uit de hele bron beschikbaar, ook zonder resultaten; onbekende pictogramnamen blijven bewaard.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `bevat niet`: `!file.tags.contains("#work")`
+- `is leeg`: `file.tags.isEmpty()`
+- `is niet leeg`: `!file.tags.isEmpty()`

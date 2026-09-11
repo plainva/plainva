@@ -670,7 +670,7 @@ const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_ZH_CN),
+    buildPlainvaTour(TOUR_STRINGS_ZH_CN, "zh-CN"),
     buildPara(PARA_STRINGS_ZH_CN),
     buildZettelkasten(ZK_STRINGS_ZH_CN),
     buildAce(ACE_STRINGS_ZH_CN),

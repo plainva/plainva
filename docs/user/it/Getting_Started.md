@@ -31,9 +31,34 @@ Dopo un aggiornamento, lo stesso punto mostra cosa è cambiato: la novità più 
 All'avvio, la schermata di benvenuto ti accoglie con:
 
 - **Apri vault** — Plainva chiede prima **"Dove si trova il tuo vault?"**: **Cartella locale** apre una cartella esistente di file Markdown su questo computer (anche i vault di Obsidian funzionano immediatamente); **Vault online** sincronizza un vault esistente dal cloud in una cartella locale — con tutti i provider negli stessi tre passaggi (**Connetti**, **scegli la cartella nel cloud**, **scegli la cartella locale**; vedi [Configurare la sincronizzazione](Sync_Setup.md)).
-- **Nuovo vault** — la prima domanda è **"Dove deve trovarsi il tuo vault?"** (**Su questo computer** o **Presso un servizio online**), poi scegli la struttura iniziale: inizia da vuoto o da una struttura di cartelle già pronta; entrambi modificabili in qualsiasi momento. Il **Vault vuoto** contiene solo una panoramica `index.md`. Modelli disponibili: **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** e **Progetto** — ognuno crea cartelle, una nota di benvenuto con una guida rapida e panoramiche `index.md` mantenute automaticamente nel [formato OKF](OKF.md) (i nomi di cartelle e file seguono la lingua dell'app). Il modello **Plainva Tour** è il punto di partenza consigliato: riempie nove cartelle e sette database con esempi, così vedi ogni vista in azione una volta — bacheca, calendario, galleria, board, cronologia, tabella e la vista ad albero con sottoelementi — oltre a modelli di nota, regole per le cartelle e una guida rapida Markdown. Qui non c'è nulla di prezioso: elimina ciò che non ti serve e rinomina il resto. Il modello **Journal** collega inoltre le impostazioni delle note giornaliere del vault. I modelli **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** e **Progetto** includono anche [database](Databases_Base.md) già collegati con modelli di nota corrispondenti — ad esempio progetti con una bacheca di stato e un link all'area, oppure attività che rimandano al loro progetto. Il modello **Progetto** mostra gli strumenti di progetto in azione: quattro database collegati tra loro, una colonna che conta le attività aperte di un progetto, un piè di colonna che somma lo sforzo pianificato, dipendenze tra attività e milestone che appaiono come un rombo nella cronologia. Nel percorso online, dopo il modello segue la connessione: scegli il provider, connettiti, scegli la cartella nel cloud o creane una nuova tramite **Nuova cartella**, scegli la cartella locale — la struttura scelta viene creata nella cartella locale e caricata nel cloud alla prima sincronizzazione.
+- **Nuovo vault** — la prima domanda è **"Dove deve trovarsi il tuo vault?"** (**Su questo computer** o **Presso un servizio online**), poi scegli la struttura iniziale: inizia da vuoto o da una struttura di cartelle già pronta; entrambi modificabili in qualsiasi momento. Il **Vault vuoto** contiene solo una panoramica `index.md`. Modelli disponibili: **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** e **Progetto** — ognuno crea cartelle, una nota di benvenuto con una guida rapida e panoramiche `index.md` mantenute automaticamente nel [formato OKF](OKF.md) (i nomi di cartelle e file seguono la lingua dell'app). Il modello **Plainva Tour** è il punto di partenza consigliato: riempie dieci cartelle e sette database con esempi, così vedi ogni vista in azione una volta — bacheca, calendario, galleria, board, cronologia, tabella e la vista ad albero con sottoelementi — oltre a modelli di nota, regole per le cartelle e una guida rapida Markdown. Qui non c'è nulla di prezioso: elimina ciò che non ti serve e rinomina il resto. Il modello **Journal** collega inoltre le impostazioni delle note giornaliere del vault. I modelli **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** e **Progetto** includono anche [database](Databases_Base.md) già collegati con modelli di nota corrispondenti — ad esempio progetti con una bacheca di stato e un link all'area, oppure attività che rimandano al loro progetto. Il modello **Progetto** mostra gli strumenti di progetto in azione: quattro database collegati tra loro, una colonna che conta le attività aperte di un progetto, un piè di colonna che somma lo sforzo pianificato, dipendenze tra attività e milestone che appaiono come un rombo nella cronologia. Nel percorso online, dopo il modello segue la connessione: scegli il provider, connettiti, scegli la cartella nel cloud o creane una nuova tramite **Nuova cartella**, scegli la cartella locale — la struttura scelta viene creata nella cartella locale e caricata nel cloud alla prima sincronizzazione.
 
 **Vault recenti** elenca tutto ciò che hai già aperto in precedenza. **Rimuovi dalla lista** rimuove una voce solo da Plainva — i file restano sul disco. Attiva **Apri automaticamente l'ultimo vault all'avvio** per saltare la schermata di benvenuto in futuro. Alla rimozione, Plainva chiede se dimenticare anche tutti i dati dell'app del vault (indice di ricerca, impostazioni, layout della finestra, credenziali di sincronizzazione, calendario e caselle di posta; i backup ZIP automatici solo tramite la casella aggiuntiva) — la tua cartella del vault resta comunque intatta.
+
+## Plainva Tour · Indice
+
+Inizia con un piccolo esercizio oppure apri direttamente un database. Le prime cinque tappe mostrano il lavoro quotidiano; il resto è facoltativo. Prevedi circa 10–15 minuti per orientarti e tutto il tempo che vuoi per provare. Gli esempi sono inventati e puoi modificarli.
+
+**Apri:** `Percorso/01 Scrivere e collegare.md`
+
+1. Scrivere e collegare
+2. Da nota ad attività
+3. Pianificare un progetto
+4. Trovare e organizzare
+5. Organizzare una giornata
+6. Rivedere una nota
+7. Confrontare le versioni
+8. Scoprire cosa ti aiuta
+9. Account, dispositivi e importazione
+10. Condividere e automatizzare
+
+Il pacchetto inventato contiene esattamente due note con tag tour-import e nessuna nota eliminata. Il rapporto deve indicare due note importate. Per annullare elimina solo questa nuova sottocartella.
+
+Spazi cifrati e condivisione sono sperimentali: servono identità, chiavi e un servizio connesso. Esplora ruoli, inviti e pubblicazioni con dati dimostrativi separati. Script e automazioni richiedono configurazione e permessi consapevoli. Il modello non esegue script, contatta servizi o simula accessi.
+
+Versione dei dati: 2026-09-11. Le date si riferiscono alla creazione di questo vault. Gli aggiornamenti dei modelli valgono solo per nuovi vault futuri; questo vault non viene mai modificato o integrato da un modello.
+
+Scegli una nuova cartella locale vuota e, per creare online, una cartella cloud vuota. I Vault esistenti si aprono senza applicare modelli. Eliminare file o cambiare dispositivo non consente mai di applicare loro un aggiornamento del modello.
 
 ## L'interfaccia
 

@@ -95,11 +95,11 @@ Relacje łączą notatki ze sobą — jak w Notion, ale zapisywane jako zupełni
 - **W Obsidian** kolumna pozostaje pusta: Obsidian nie zna agregacji i pokazuje bazę danych jako tabelę bez tych wartości. Plik pozostaje prawidłowy, nic nie ginie.
 - **Ograniczenie**: agregacja nie liczy na podstawie innej agregacji. Jeśli wybrany link wskazuje na obliczoną kolumnę, nowa kolumna pozostaje pusta.
 
-## Stopki kolumny
+## Podsumowanie
 
 Pod kolumną tabeli może stać wiersz, który ją podsumowuje — **Suma** nakładu pracy, **Najwcześniejsza** data albo liczba wierszy mających w ogóle jakąś wartość.
 
-- **Ustawianie**: w **Konfiguruj → Kolumny** wybierz **Stopkę kolumny** obok kolumny. **Bez stopki kolumny** usuwa ją ponownie.
+- **Konfiguruj → Właściwości → Podsumowanie**: Nazwa każdej widocznej właściwości pozostaje nad wyborem. Poniżej wybierz podsumowanie; Brak podsumowania je usuwa. Działa na komputerze i telefonie. Własne formuły zachowują nazwę i treść w pliku; Plainva ich nie oblicza.
 - **Obliczenia**: Średnia · Min · Maks · Suma · Rozstęp · Mediana · Odch. std. · Najwcześniejsza · Najpóźniejsza · Zaznaczone · Niezaznaczone · Bez wartości · Z wartością · Różne.
 - **Stopka liczy po wierszach, które pokazuje widok** — a nie po całym vaulcie. Filtr zmienia więc też liczbę poniżej.
 - **Nic do zmierzenia nie oznacza zera**: kolumna bez choćby jednej użytecznej wartości zostawia swoją stopkę pustą, zamiast wskazywać 0. Kolumna bez własnej stopki pozostaje pusta i nigdy nie pożycza liczby sąsiedniej kolumny.
@@ -121,7 +121,7 @@ blockedBy:
 
   Zapisywany jest tylko **jeden** kierunek: zapisana para to dwa fakty, które mogą sobie przeczyć. Oceniany i rysowany jest wyłącznie `FINISHTOSTART`; pozostałe typy pozostają w pliku nietknięte. Cykl jest odrzucany przy zapisie, ze wskazaniem ścieżki, którą by zamknął.
 - **Konflikt jest zgłaszany, nigdy poprawiany.** Jeśli zadanie zaczyna się przed zakończeniem tego, na które czeka, strzałka robi się czerwona i taka zostaje. Daty są Twoim stwierdzeniem — Plainva mówi tylko, że dwie z nich do siebie nie pasują.
-- **Nakład** to zwykła liczba minut we właściwości wedle Twojego wyboru (szablon **Projekt** nazywa ją `effort`). Stopka kolumny go sumuje; podsumowanie zlicza go po zadaniach projektu.
+- **Nakład** to zwykła liczba minut we właściwości wedle Twojego wyboru (szablon **Projekt** nazywa ją `effort`). Podsumowanie go sumuje; podsumowanie zlicza go po zadaniach projektu.
 - **Czas rzeczywisty** *nie* jest zapisywany. Odczytuje się go z wydarzeń, które zadanie zablokowało, więc pozostaje poprawny, gdy przesuniesz lub wydłużysz wydarzenie. Bez konta kalendarza kolumna pokazuje myślnik zamiast zera: „nie zmierzono" i „zmierzono i było zero" to różne stwierdzenia.
 
 ## Do czego należy ta notatka? (kontekst bazy danych)
@@ -281,3 +281,9 @@ Pasek wychodzący poza pokazany zakres jest ucinany przy krawędzi i **nie ma ta
 **Kolor według właściwości:** w Konfiguruj → Widok wybierz przy **Kolor według** właściwość typu wybór, status lub wielokrotny wybór. Paski przyjmą wtedy kolor swojej wartości — ten sam, który nosi jako chip i na tablicy. Bez tego wyboru wszystkie paski zachowują kolor akcentu.
 
 **Zaległe:** w bazie danych, która wie, co oznacza *zrobione* — kolumna pola wyboru albo kolumna statusu z opcjami —, pasek lub romb niedokończonego wpisu, którego dzień już nadszedł, przyjmuje kolor ostrzegawczy, niezależnie od tego, co mówi **Kolor według**. Ta sama reguła wyróżnia chip daty na kartach tablicy i galerii oraz wpis w widoku kalendarza. Ukończony wpis nigdy nie jest wyróżniany, podobnie jak baza danych bez takiej kolumny (na przykład kontakty): urodziny nie bywają zaległe.
+
+## Pasek koloru, Ikona, Tagi · cała notatka
+
+Filtruj według paska koloru, ikony, tagów całej notatki lub właściwości etykiet wybranej dla tablicy. Tagi pasują dokładnie: #work nie pasuje do #workshop ani #work/child. Tekst i frontmatter są łączone. Wartości są dostępne z całego źródła także bez wyników; nieznane nazwy ikon zostają zachowane.
+
+Filtr zmienia widoczny zbiór, nie pliki. Proponowane wartości pochodzą z całego źródła, także przy braku wyników.

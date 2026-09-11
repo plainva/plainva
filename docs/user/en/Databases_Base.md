@@ -95,11 +95,11 @@ A **rollup** computes a value from the notes a link points at — "how many of t
 - **In Obsidian** the column stays empty: Obsidian does not know the rollup and shows the database as a table without those values. The file stays valid, nothing is lost.
 - **Limit**: a rollup does not compute over another rollup. If the chosen link points at a computed column, the new column stays empty.
 
-## Column footers
+## Summary
 
 A table column can carry a line underneath that sums it up — the **Sum** of an effort, the **Earliest** date, how many rows have a value at all.
 
-- **Setting one**: under **Configure → Columns**, pick a **Column footer** next to the column. **No column footer** takes it away again.
+- **Configure → Properties → Summary**: Each visible property keeps its name above the control. Choose a summary below it; No summary removes it. This works on desktop and mobile. Custom formulas keep their name and remain unchanged in the file; Plainva does not calculate them.
 - **Calculations**: Average · Min · Max · Sum · Range · Median · Std dev · Earliest · Latest · Checked · Unchecked · Empty · Filled · Unique.
 - **The footer computes over the rows the view shows** — not over the whole vault. A filter therefore changes the number underneath as well.
 - **Nothing to measure is not zero**: a column without a single usable value leaves its footer blank rather than claiming 0. A column without a footer of its own stays blank and never borrows its neighbour's number.
@@ -281,3 +281,9 @@ A bar that reaches beyond the period shown is cut at the edge and carries **no h
 **Colour by property:** under Configure → View, pick a select, status or multi-select property under **Colour by**. The bars then take the colour of their value — the same one it wears as a chip and on the board. Without that choice every bar keeps the accent colour.
 
 **Overdue:** in a database that knows what *done* means — a checkbox column, or a status column with options — a bar or diamond of an unfinished entry whose day has come takes the warning colour, whatever **Colour by** says. The same rule marks the date chip on board and gallery cards and the entry in the calendar view. A finished entry is never marked, and a database without such a column (contacts, say) never is either: a birthday is not overdue.
+
+## Header color, Icon, Tags · whole note
+
+Filter by header color, icon, tags from the entire note, or the label property selected for a pinboard view. Tag membership is exact: #work does not match #workshop or #work/child. Inline tags and frontmatter tags are combined. Values remain available from the complete source even at zero results; unknown saved icon names are preserved.
+
+A filter changes the visible set, not the files. Available values still come from the whole source, even when a combination has no matches.

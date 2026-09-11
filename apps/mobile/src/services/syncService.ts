@@ -19,6 +19,7 @@ import {
   type NameCollision,
 } from "@plainva/core";
 import { getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
+import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import i18n from "@plainva/ui/i18n";
 import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
@@ -273,19 +274,26 @@ export async function createProviderVault(
   opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
+  if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
+  else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
+  // A creation check has no vault identity yet: use exactly the selected
+  // destination, never a root left in the settings by an earlier probe.
+  await assertEmptyRemoteVault(await buildTarget(p, null));
   const id = newVaultId();
   const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
+  if (await adapter.exists("")) throw new Error("Vault container already exists");
   await adapter.initialize();
   await scaffoldVaultTemplate({
     adapter,
+    isNewVault: true,
     template: opts.template,
     vaultName: opts.vaultName,
     subfoldersHeading: opts.subfoldersHeading,
   });
-  await applyTemplateSettings(opts.template?.settings);
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   await switchVault(id);
+  await applyTemplateSettings(opts.template?.settings);
 }
 
 /**
@@ -479,7 +487,7 @@ function reportRootFolderCreated(name: string): void {
   });
 }
 
-async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: string): Promise<ISyncTarget> {
+async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string): Promise<ISyncTarget> {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson). AWAITED and
   // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
@@ -487,7 +495,9 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
   // surface it as a cycle error now (the in-memory token still works this
   // session, and the next refresh retries the persistence).
   const persistRotation = async () => {
-    await getPlatformServices().credentials.writeSecret(credKey, p);
+    // A creation check keeps rotations in p; successful creation persists
+    // that same object into its newly allocated vault slot afterwards.
+    if (credKey !== null) await getPlatformServices().credentials.writeSecret(credKey, p);
   };
   switch (p.provider) {
     case "s3":
@@ -501,7 +511,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
           // From the settings, not the slot: the slot's copy dies with the
           // account, and the default that took over then created a second
           // folder in the cloud (finding 2026-08-19).
-          rootFolderName: (await readSyncRootFolder(vaultId ?? "", "drive", p)) || undefined,
+          rootFolderName: (credKey === null ? p.creds.rootFolderName : await readSyncRootFolder(vaultId ?? "", "drive", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
@@ -525,7 +535,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
         {
           clientId: p.creds.clientId,
           refreshToken: p.creds.refreshToken,
-          rootFolderName: (await readSyncRootFolder(vaultId ?? "", "onedrive", p)) || undefined,
+          rootFolderName: (credKey === null ? p.creds.rootFolderName : await readSyncRootFolder(vaultId ?? "", "onedrive", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,
@@ -553,7 +563,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string, vaultId?: str
         {
           appKey: p.creds.appKey,
           refreshToken: p.creds.refreshToken,
-          rootPath: (await readSyncRootFolder(vaultId ?? "", "dropbox", p)) || undefined,
+          rootPath: (credKey === null ? p.creds.rootPath : await readSyncRootFolder(vaultId ?? "", "dropbox", p)) || undefined,
         },
         webdavFetch,
         MOBILE_REQUEST_TIMEOUT_MS,

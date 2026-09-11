@@ -31,9 +31,34 @@ After an update the same spot shows what changed: the biggest change of that rel
 On launch, the welcome screen greets you:
 
 - **Open Vault** — Plainva first asks **"Where is your vault?"**: **Local folder** opens an existing folder of Markdown files on this computer (Obsidian vaults work out of the box); **Online vault** syncs an existing vault from the cloud into a local folder — the same three steps for every provider (**Connect**, **choose the folder in the cloud**, **choose the local folder**; see [Sync Setup](Sync_Setup.md)).
-- **New Vault** — the first question is **"Where should your vault live?"** (**On this computer** or **With an online service**), then you pick the starter structure: empty or from a prepared folder structure; both are adjustable anytime. The **Empty vault** contains just an `index.md` overview. Available templates: the **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** and **Project** — each creates folders, a welcome note with a quick guide and automatically maintained `index.md` overviews in the [OKF format](OKF.md) (folder and file names follow the app language). The **Plainva Tour** is the recommended place to start: it fills nine folders and seven databases with examples, so you see every view in action once — pinboard, calendar, gallery, board, timeline, table and the tree view with sub-items — plus note templates, folder rules and a Markdown cheat sheet. Nothing in it is precious: delete what you do not need and rename the rest. The **Journal** template additionally wires up the vault's daily-notes settings. The **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** and **Project** templates also ship ready-linked [databases](Databases_Base.md) with matching note templates — for example projects with a status board and an area link, or tasks that point to their project. The **Project** template shows the project tooling in action: four connected databases, a column that counts a project’s open tasks, a footer that sums the planned effort, dependencies between tasks, and milestones that appear as a diamond on the timeline. On the online path the connection follows the template: pick the provider, connect, choose the folder in the cloud or create a fresh one via **New folder**, pick the local folder — the chosen structure is created in the local folder and uploaded to the cloud by the first sync.
+- **New Vault** — the first question is **"Where should your vault live?"** (**On this computer** or **With an online service**), then you pick the starter structure: empty or from a prepared folder structure; both are adjustable anytime. The **Empty vault** contains just an `index.md` overview. Available templates: the **Plainva Tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** and **Project** — each creates folders, a welcome note with a quick guide and automatically maintained `index.md` overviews in the [OKF format](OKF.md) (folder and file names follow the app language). The **Plainva Tour** is the recommended place to start: it fills ten folders and seven databases with examples, so you see every view in action once — pinboard, calendar, gallery, board, graph, timeline, table and the tree view with sub-items — plus note templates, folder rules and a Markdown cheat sheet. Nothing in it is precious: delete what you do not need and rename the rest. The **Journal** template additionally wires up the vault's daily-notes settings. The **Plainva Tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** and **Project** templates also ship ready-linked [databases](Databases_Base.md) with matching note templates — for example projects with a status board and an area link, or tasks that point to their project. The **Project** template shows the project tooling in action: four connected databases, a column that counts a project’s open tasks, a footer that sums the planned effort, dependencies between tasks, and milestones that appear as a diamond on the timeline. On the online path the connection follows the template: pick the provider, connect, choose the folder in the cloud or create a fresh one via **New folder**, pick the local folder — the chosen structure is created in the local folder and uploaded to the cloud by the first sync.
 
 **Recent Vaults** lists everything you have opened before. **Remove from list** removes an entry from Plainva only — the files stay on disk. Enable **Automatically open the last vault on start** to skip the welcome screen in the future. When removing, Plainva asks whether to additionally forget all of the vault's app data (search index, settings, window layout, credentials for sync, calendar and mailboxes; automatic ZIP backups only via the extra checkbox) — your vault folder always stays untouched.
+
+## Plainva Tour · Overview
+
+Start with the first small exercise, or open a database below and explore. The first five stops introduce everyday work; the rest are optional. Allow roughly 10–15 minutes for a first look and take as much time as you like to try things. All examples are fictional and yours to change.
+
+**Open:** `Tour/01 Write and link.md`
+
+1. Write and link
+2. Turn a note into a task
+3. Plan a project
+4. Find and organize
+5. Plan a day
+6. Review a note
+7. Compare versions and keep files
+8. Explore what helps you
+9. Accounts, devices and import
+10. Sharing and automation
+
+The synthetic package contains exactly two notes tagged tour-import and no deleted notes. The report should show two imported notes; the existing tour files remain separate. Delete only that new subfolder if you want to undo the exercise.
+
+Encrypted workspaces and their sharing flows are experimental and require real identities, keys and a connected service. Use separate demo data to explore roles, invitations and publications. Automation and scripts require deliberate setup and permissions; the template never starts a script, contacts a service, creates credentials or pretends to grant access. Choose one small workflow from the handbook when you need it.
+
+Tour data version: 2026-09-11. Dates belong to the day this vault was created. Template updates apply only to future new vaults; this vault is never updated or supplemented from a template.
+
+Choose a new, empty local folder and, for online creation, an empty cloud folder. Existing vaults are opened without applying a template. Removing files or switching devices never makes an existing vault eligible for a template update.
 
 ## The interface
 

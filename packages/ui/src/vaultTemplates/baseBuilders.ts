@@ -51,7 +51,11 @@ export interface ViewSpec {
   /** Render type. Everything but `table` is a Plainva render mode: on disk the
    * view degrades to `type: table` plus `plainva.render`, so Obsidian shows a
    * plain table instead of rejecting the file. */
-  type: "table" | "board" | "calendar" | "timeline" | "list" | "gallery" | "pinboard";
+  type: "table" | "board" | "calendar" | "timeline" | "list" | "gallery" | "pinboard" | "graph";
+  filters?: { and?: string[]; or?: string[] };
+  graphEdges?: string[];
+  graphColorBy?: string;
+  graphShowExternal?: boolean;
   /** Board grouping column (bare key). */
   groupBy?: string;
   /** Board tinting: "column" tints the whole column, default only the chip. */
@@ -140,6 +144,10 @@ export function defineBase(spec: BaseSpec): VaultTemplateBase {
     if (v.pinboardFilterBy) view.pinboardFilterBy = v.pinboardFilterBy;
     if (v.sort) view.sort = v.sort.map((s) => ({ property: s.property, direction: s.direction }));
     if (v.summaries) view.summaries = { ...v.summaries };
+    if (v.filters) view.filters = structuredClone(v.filters);
+    if (v.graphEdges) view.graphEdges = [...v.graphEdges];
+    if (v.graphColorBy) view.graphColorBy = v.graphColorBy;
+    if (v.graphShowExternal) view.graphShowExternal = true;
     return view;
   });
 

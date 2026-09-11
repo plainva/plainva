@@ -1370,15 +1370,37 @@ test('Online vault: chooser lists all providers; picking one opens the in-splash
   await expect(page.getByPlaceholder('https://s3.eu-central-1.amazonaws.com')).toBeVisible();
 });
 
-test('Create vault online: place -> template -> connect; the template scaffolds into the local folder', async ({ page }) => {
-  await page.addInitScript(() => {
+for (const occupied of [false, true]) test(`Create vault online: ${occupied ? 'an occupied destination rejects the template' : 'an empty destination allows the template'}`, async ({ page }) => {
+  await page.addInitScript((occupied) => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const requests = new Map<number, { url: string; read: boolean }>();
+    let nextRequest = 1;
+    (window as any).__cloudInventoryReads = 0;
     (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
       if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
       if (cmd === 'plugin:dialog|open') return '/new-online-vault';
+      // Exercise the real S3 parser and creation guard through the HTTP plugin
+      // boundary. Both inventories are complete; one contains an existing file.
+      if (cmd === 'plugin:http|fetch') {
+        const id = nextRequest++;
+        requests.set(id, { url: args.clientConfig.url, read: false });
+        if (args.clientConfig.url.includes('list-type=2') && !args.clientConfig.url.includes('delimiter=')) (window as any).__cloudInventoryReads++;
+        return id;
+      }
+      if (cmd === 'plugin:http|fetch_send') {
+        const request = requests.get(args.rid)!;
+        return { status: request.url.includes('list-type=2') ? 200 : 404, statusText: 'OK', url: request.url, headers: [['content-type', 'application/xml']], rid: args.rid };
+      }
+      if (cmd === 'plugin:http|fetch_read_body') {
+        const request = requests.get(args.rid)!;
+        if (request.read) return [1];
+        request.read = true;
+        const xml = `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>vaults</Name><KeyCount>${occupied ? 1 : 0}</KeyCount><IsTruncated>false</IsTruncated>${occupied ? '<Contents><Key>existing.md</Key><ETag>etag</ETag><Size>8</Size></Contents>' : ''}</ListBucketResult>`;
+        return [...new TextEncoder().encode(xml), 0];
+      }
       return orig(cmd, args, options);
     };
-  });
+  }, occupied);
   await page.goto('/');
 
   // Place -> template (the agreed order: Ort -> Vorlage -> Verbindung).
@@ -1400,16 +1422,20 @@ test('Create vault online: place -> template -> connect; the template scaffolds 
   await fields.nth(4).fill('SK');
   await page.getByRole('button', { name: /^(Weiter|Continue)$/ }).click();
 
-  // The cloud folder picker opens against the (unmocked) network — dismiss it
-  // via Escape (a no-op if it already closed itself on the listing error); the
-  // createFolder row itself is unit-tested. The connected screen shows the
-  // chosen starter structure before the local folder is picked.
+  // Dismiss the folder picker and use the bucket root. The creation flow must
+  // then check a complete inventory before scaffolding any local files.
   await expect(page.getByText(/Connected to|verbunden/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByText(/\(PARA\)/)).toBeVisible();
 
   // Local folder -> scaffold runs BEFORE the vault opens.
   await page.getByRole('button', { name: /Lokalen Ordner wählen und öffnen|local folder/i }).click();
+  if (occupied) {
+    await expect(page.getByText('Vault templates require a new, empty cloud folder.')).toBeVisible();
+    expect(await page.evaluate(() => Object.keys((window as any).mockFs).some(p => p.startsWith('/new-online-vault')))).toBe(false);
+    expect(await page.evaluate(() => (window as any).__cloudInventoryReads)).toBeGreaterThan(0);
+    return;
+  }
   await page.waitForFunction(() => !!(window as any).mockFs['/new-online-vault/index.md'], undefined, { timeout: 10000 });
   const files: string[] = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/new-online-vault/')));
   expect(files.some((p) => /^\/new-online-vault\/[^/]+\/index\.md$/.test(p))).toBe(true);
@@ -2478,7 +2504,7 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
   await expect(cards.nth(1)).toHaveText(/Plainva.?(Tour|tour)/);
   await expect(cards.nth(0)).not.toHaveText(/Empfohlen für den Einstieg|Recommended to start/);
 
-  // The card is a teaser, not an inventory: nine folders and seven databases
+  // The card is a teaser, not an inventory: ten folders and seven databases
   // wrapped over four rows and filled half the scroll area, so both lists are
   // capped with a "+N" chip. Two rows keeps the tour the same height as PARA.
   const chipRows = await tour.evaluate((card) => {
@@ -2495,16 +2521,16 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
     Object.keys((window as any).mockFs).filter((p: string) => p.startsWith('/tour-vault/') && !(window as any).mockFs[p].isDir)
   );
 
-  // Nine folders, each with its own managed index.md, and seven databases at
+  // Ten folders, each with its own managed index.md, and seven databases at
   // the vault root — the shape the tour promises on the chooser card.
   const folderIndexes = files.filter((p) => /^\/tour-vault\/[^/]+\/index\.md$/.test(p));
-  expect(folderIndexes.length).toBe(9);
+  expect(folderIndexes.length).toBe(10);
   expect(files.filter((p) => /^\/tour-vault\/[^/]+\.base$/.test(p)).length).toBe(7);
 
-  // Both sample attachments are written byte-for-byte (they are raw files, not
+  // The sketch and three covers are raw files, not
   // notes: no frontmatter is stamped onto them) and never listed in an index.
   const svgs = files.filter((p) => p.endsWith('.svg'));
-  expect(svgs.length).toBe(2);
+  expect(svgs.length).toBe(4);
   const svg = await page.evaluate((p) => (window as any).mockFs[p], svgs[0]);
   expect(String(svg).startsWith('<svg')).toBe(true);
   const attachmentIndex = folderIndexes.find((p) => svgs.some((s) => s.startsWith(p.replace(/index\.md$/, ''))))!;
@@ -2513,7 +2539,7 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
 
   // Scaffold-time tokens resolved, engine tokens survived: the journal samples
   // are named by date, while the daily template still asks the engine for one.
-  expect(files.some((p) => /\/\d{4}-\d{2}-\d{2}\.md$/.test(p))).toBe(true);
+  expect(files.filter((p) => /\/\d{4}-\d{2}-\d{2}\.md$/.test(p))).toHaveLength(7);
   expect(files.some((p) => p.includes('{{'))).toBe(false);
   const dailyTemplate = files.find((p) => /(Tagesnotiz|Daily note)\.md$/i.test(p))!;
   const daily = await page.evaluate((p) => (window as any).mockFs[p], dailyTemplate);
@@ -2526,9 +2552,33 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
   const pinboard = await page.evaluate((p) => (window as any).mockFs[p], pinboardBase);
   expect(String(pinboard)).toContain('type: table');
   expect(String(pinboard)).toContain('render: pinboard');
+  expect(String(pinboard)).toContain('file.tags.contains');
+  expect(files.filter(p => /\/Tour\/\d{2} /.test(p))).toHaveLength(10);
+  const welcome = await page.evaluate((paths) => String((window as any).mockFs[paths.find(p => /\/(Willkommen|Welcome)\.md$/.test(p))!]), files);
+  expect(welcome).toContain('2026-09-11');
+  const sample = await page.evaluate((paths) => JSON.parse((window as any).mockFs[paths.find(p => p.endsWith('/tour-import.json'))!]), files);
+  expect(sample.activeNotes).toHaveLength(2);
 
   // The new vault actually opened.
   await expect(page.locator('aside').first()).toBeVisible({ timeout: 15000 });
+});
+
+test('Create vault: an emptied known vault never receives a newer tour', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).mockFs = { '/test-vault': { isDir: true } };
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'autoOpenLastVault') return [null, false];
+      if (cmd === 'plugin:dialog|open') return '/test-vault';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /^(Neuer Vault|New Vault)$/ }).click();
+  await page.getByRole('button', { name: /Auf diesem Computer|On this computer/ }).click();
+  await page.getByRole('button', { name: /Plainva.?(Tour|tour)/ }).click();
+  await expect(page.getByText(/bereits angelegt|already.*vault|already.*content|new, empty|neuen, leeren/i)).toBeVisible();
+  expect(await page.evaluate(() => Object.keys((window as any).mockFs))).toEqual(['/test-vault']);
 });
 
 /**

@@ -1,5 +1,6 @@
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules } from "./databaseQueryHelpers.js";
+import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
+import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { escapeLikePrefix } from "./VaultIndexer.js";
@@ -978,7 +979,7 @@ export class VaultQueryService {
   /**
    * Executes a dynamic query based on a Database Folder (.base) configuration.
    */
-  async queryDatabaseFiles(config: any): Promise<any[]> {
+  async queryDatabaseFiles(config: any, options: { includeFilterMetadata?: boolean } = {}): Promise<any[]> {
     let sql = `
       SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes
       FROM files f
@@ -1006,18 +1007,15 @@ export class VaultQueryService {
     // 1. Process filters
     const parseFilter = (filter: any): string | null => {
       if (typeof filter === "string") {
-        const folderMatch = filter.match(/file\.folder\s*==\s*"([^"]+)"/);
-        if (folderMatch) {
-          const folder = folderMatch[1];
+        const source = parseDatabaseSourceFilter(filter);
+        if (source?.kind === "folder") {
+          const folder = source.value;
           if (folder === "/") return "1=1";
           return folderPathClause(folder);
         }
         
-        const tagMatch = filter.match(/file\.hasTag\("([^"]+)"\)/);
-        if (tagMatch) {
-          let tag = tagMatch[1];
-          if (tag.startsWith("#")) tag = tag.substring(1);
-          params.push(tag);
+        if (source?.kind === "tag") {
+          params.push(source.value);
           return `EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND t.tag = ?)`;
         }
       } else if (typeof filter === "object" && filter !== null) {
@@ -1147,6 +1145,7 @@ export class VaultQueryService {
           }
         }
       }
+      normalizeDatabaseMetadata(fileData);
       result.push(fileData);
     }
 
@@ -1194,13 +1193,14 @@ export class VaultQueryService {
     // In-memory evaluation of everything NOT pushed to SQL: property rules,
     // nested filter groups (recursive — previously preserved but ignored) and
     // any source condition inside a mixed or-list. `file.hasTag` outside SQL
-    // needs the tag table: loaded in bulk only when such a condition remains.
-    if (residualAnd.length > 0 || residualOr.length > 0) {
+    // needs the tag table. Filter pickers request the same bulk data over the
+    // unfiltered source, so values remain selectable when the view is empty.
+    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata) {
       const rootNode = {
         and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
       };
       let tagsByPath: Map<string, Set<string>> | null = null;
-      if (filterNeedsTags(rootNode) && finalResult.length > 0) {
+      if ((filterNeedsTags(rootNode) || options.includeFilterMetadata) && finalResult.length > 0) {
         tagsByPath = new Map();
         for (let i = 0; i < fileIds.length; i += chunkSize) {
           const chunk = fileIds.slice(i, i + chunkSize);
@@ -1212,11 +1212,14 @@ export class VaultQueryService {
           );
           for (const tr of tagRows) {
             const p = String(tr.path ?? tr.PATH ?? "");
-            const tag = String(tr.tag ?? tr.TAG ?? "");
+            const tag = String(tr.tag ?? tr.TAG ?? "").replace(/^#/, "");
             if (!p || !tag) continue;
             if (!tagsByPath.has(p)) tagsByPath.set(p, new Set());
             tagsByPath.get(p)!.add(tag);
           }
+        }
+        for (const row of finalResult) {
+          row["file.tags"] = [...(tagsByPath.get(String(row["file.path"] ?? "")) ?? [])].map((tag) => `#${tag}`);
         }
       }
       const predicate = buildFilterNodePredicate(rootNode, {

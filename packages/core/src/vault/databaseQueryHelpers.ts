@@ -17,6 +17,8 @@
  * `tags == "x"` on ["x","y"] compared "x,y" with "x" and filtered every row out.
  */
 
+import { databaseFilterValue, normalizeDatabaseFilterValue } from "./databaseMetadata.js";
+
 export type DatabaseRow = Record<string, any>;
 
 const QUOTED = /"((?:[^"\\]|\\.)*)"/.source;
@@ -27,13 +29,19 @@ function unescapeValue(raw: string): string {
 
 /** True for the folder/tag source conditions that the SQL layer already applied. */
 export function isSourceFilter(filter: string): boolean {
-  return /file\.folder\s*==/.test(filter) || /file\.hasTag\(/.test(filter);
+  return parseDatabaseSourceFilter(filter) !== null;
+}
+
+/** Anchored source recognition: a quoted property value is never SQL syntax. */
+export function parseDatabaseSourceFilter(filter: string): { kind: "folder" | "tag"; value: string } | null {
+  const folder = filter.match(SOURCE_FOLDER_RE);
+  if (folder) return { kind: "folder", value: unescapeValue(folder[1]) };
+  const tag = filter.match(SOURCE_TAG_RE);
+  return tag ? { kind: "tag", value: unescapeValue(tag[1]).replace(/^#/, "") } : null;
 }
 
 function rowValue(row: DatabaseRow, col: string): any {
-  if (col in row) return row[col];
-  if (col.startsWith("note.")) return row[col.slice(5)];
-  return undefined;
+  return databaseFilterValue(row, col);
 }
 
 /** Ordered comparison used by > < >= <=; numeric when both sides are numeric. */
@@ -61,15 +69,35 @@ function isEmptyValue(rowVal: any): boolean {
 export function buildPropertyPredicate(filter: string): ((row: DatabaseRow) => boolean) | null {
   if (typeof filter !== "string" || isSourceFilter(filter)) return null;
 
+  // Native list membership / emptiness, especially file.tags. Unlike hasTag,
+  // this matches the complete tag, without implicitly including descendants.
+  const methodContains = filter.match(new RegExp(`^(!?)([\\w.]+)\\.contains\\(${QUOTED}\\)$`));
+  if (methodContains) {
+    const [, negated, column, raw] = methodContains;
+    const value = normalizeDatabaseFilterValue(column, unescapeValue(raw));
+    const hit = (row: DatabaseRow) => {
+      const values = rowValue(row, column);
+      return Array.isArray(values)
+        ? values.some((v) => normalizeDatabaseFilterValue(column, String(v)) === value)
+        : typeof values === "string" && values.includes(value);
+    };
+    return negated ? (row) => !hit(row) : hit;
+  }
+  const methodEmpty = filter.match(/^(!?)([\w.]+)\.isEmpty\(\)$/);
+  if (methodEmpty) return (row) => methodEmpty[1]
+    ? !isEmptyValue(rowValue(row, methodEmpty[2])) : isEmptyValue(rowValue(row, methodEmpty[2]));
+
   const containsMatch = filter.match(new RegExp(`^(!?)contains\\((.+?),\\s*${QUOTED}\\)$`));
   if (containsMatch) {
     const negated = containsMatch[1] === "!";
     const col = containsMatch[2].trim();
-    const val = unescapeValue(containsMatch[3]);
+    const val = normalizeDatabaseFilterValue(col, unescapeValue(containsMatch[3]));
     const hit = (row: DatabaseRow) => {
       const rowVal = rowValue(row, col);
       if (rowVal === undefined || rowVal === null) return false;
-      if (Array.isArray(rowVal)) return rowVal.some((v) => String(v).includes(val));
+      if (Array.isArray(rowVal)) return rowVal.some((v) => col === "file.tags"
+        ? normalizeDatabaseFilterValue(col, String(v)) === val
+        : String(v).includes(val));
       return String(rowVal).includes(val);
     };
     return negated ? (row) => !hit(row) : hit;
@@ -80,7 +108,7 @@ export function buildPropertyPredicate(filter: string): ((row: DatabaseRow) => b
   if (cmpMatch) {
     const col = cmpMatch[1].trim();
     const op = cmpMatch[2];
-    const val = unescapeValue(cmpMatch[3]);
+    const val = normalizeDatabaseFilterValue(col, unescapeValue(cmpMatch[3]));
     // Empty comparisons are the is-empty operators (P11): `col == ""` matches
     // unset/null/empty-list values too — the old string-equality never could.
     if (val === "" && op === "==") return (row) => isEmptyValue(rowValue(row, col));
@@ -128,7 +156,7 @@ export interface FilterEvalContext {
 /** True when a `file.hasTag` condition occurs anywhere in the node tree —
  * the caller then has to provide real tag data in the eval context. */
 export function filterNeedsTags(node: any): boolean {
-  if (typeof node === "string") return /file\.hasTag\(/.test(node);
+  if (typeof node === "string") return /file\.(?:hasTag\(|tags\b)/.test(node);
   if (!node || typeof node !== "object") return false;
   for (const key of ["and", "or", "not"] as const) {
     const list = (node as any)[key];

@@ -699,7 +699,7 @@ const TOUR_STRINGS_PT_BR: TourStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_PT_BR),
+    buildPlainvaTour(TOUR_STRINGS_PT_BR, "pt-BR"),
     buildPara(PARA_STRINGS_PT_BR),
     buildZettelkasten(ZK_STRINGS_PT_BR),
     buildAce(ACE_STRINGS_PT_BR),

@@ -95,11 +95,11 @@ Uma **agregação** calcula um valor a partir das notas para as quais um link ap
 - **No Obsidian** a coluna permanece vazia: o Obsidian não conhece a agregação e mostra o banco de dados como uma tabela sem esses valores. O arquivo permanece válido, nada se perde.
 - **Limite**: uma agregação não calcula sobre outra agregação. Se o link escolhido apontar para uma coluna calculada, a nova coluna permanece vazia.
 
-## Rodapés de coluna
+## Resumo
 
 Uma coluna de tabela pode ter uma linha embaixo que a resume — a **Soma** de um esforço, a data **Mais antiga**, ou quantas linhas têm sequer um valor.
 
-- **Definindo**: em **Configurar → Colunas**, escolha um **Rodapé da coluna** ao lado da coluna. **Sem rodapé de coluna** o remove novamente.
+- **Configurar → Propriedades → Resumo**: O nome de cada propriedade visível fica acima do seletor. Escolha um resumo abaixo; Sem resumo o remove. Funciona no computador e no celular. Fórmulas próprias mantêm nome e conteúdo no arquivo; o Plainva não as calcula.
 - **Cálculos**: Média · Mín · Máx · Soma · Amplitude · Mediana · Desvio padrão · Mais antiga · Mais recente · Marcadas · Não marcadas · Sem valor · Com valor · Distintos.
 - **O rodapé calcula sobre as linhas que a visualização mostra** — não sobre todo o vault. Um filtro, portanto, também altera o número abaixo.
 - **Nada a medir não é zero**: uma coluna sem um único valor utilizável deixa seu rodapé em branco em vez de afirmar 0. Uma coluna sem rodapé próprio permanece em branco e nunca toma emprestado o número da coluna vizinha.
@@ -281,3 +281,9 @@ Uma barra que ultrapassa o período exibido é cortada na borda e ali **não tem
 **Cor por propriedade:** em Configurar → Visualização escolha uma propriedade de seleção, status ou seleção múltipla em **Cor por**. As barras assumem então a cor do seu valor — a mesma que ele usa como chip e no quadro. Sem essa escolha, todas as barras mantêm a cor de destaque.
 
 **Atrasado:** em um banco de dados que sabe o que *feito* significa — uma coluna de caixa de seleção, ou uma coluna de status com opções —, uma barra ou losango de um item não concluído cujo dia já chegou assume a cor de aviso, seja o que for que **Cor por** diga. A mesma regra marca o chip de data nos cartões de quadro e galeria, e o item na visualização de calendário. Um item concluído nunca é marcado, e um banco de dados sem essa coluna (contatos, por exemplo) também não: um aniversário não fica atrasado.
+
+## Faixa de cor, Ícone, Tags · nota inteira
+
+Filtre por faixa de cor, ícone, tags da nota inteira ou propriedade de rótulos escolhida para o mural. Tags coincidem exatamente: #work não encontra #workshop nem #work/child. Texto e frontmatter são combinados. Valores ficam disponíveis de toda a fonte mesmo sem resultados; nomes de ícones desconhecidos são preservados.
+
+O filtro muda a seleção visível, não os arquivos. Os valores vêm de toda a fonte, mesmo quando não há resultados.

@@ -1,10 +1,11 @@
+import { seedExampleNote } from "./exampleVault";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Comments on the phone, in a vault WITHOUT an encrypted workspace
  * (Nachschaerfung, N5) - against the production bundle, like the smoke check
  * beside it, because the web build is the one place a phone flow runs without
- * a device: the welcome vault is seeded, the raw adapter writes the bundle.
+ * a device: explicit note fixtures supply content and the raw adapter writes the bundle.
  *
  * What this pins: the sheet opens from the note menu in a plain vault, a
  * remark is posted and listed, the sheet says "no comments" only while there
@@ -23,6 +24,7 @@ async function pastTheFirstStart(page: Page) {
   });
   await page.goto("/");
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+  await seedExampleNote(page);
   await page.waitForTimeout(1500);
   const whatsNew = page.locator('[data-testid="whats-new-sheet"]');
   if (await whatsNew.count()) {
@@ -41,7 +43,7 @@ async function answerNamePrompt(page: Page) {
   await page.getByRole("button", { name: /^OK$/ }).click();
 }
 
-/** Into the first note. The welcome vault seeds folders and notes; every row is a swipe row, and the first may be a folder. */
+/** Into an explicitly created note; the file list can also contain folders. */
 async function openFirstNote(page: Page) {
   const menu = page.getByTestId("note-menu");
   for (let step = 0; step < 3 && !(await menu.isVisible()); step += 1) {

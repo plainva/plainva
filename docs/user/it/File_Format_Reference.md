@@ -585,3 +585,25 @@ Regole: i percorsi fissati non vengono ripetuti in `pinboardOrder`. Le schede ch
 - [Note e Markdown](Notes_and_Markdown.md) — lo stesso materiale dal punto di vista della scrittura a mano nell'app
 - [Database (.base)](Databases_Base.md) — i database spiegati per l'uso quotidiano
 - [OKF](OKF.md) — `type`, la versione del bundle, i campi di fiducia di OKF 0.2, index.md e la conversione del vault
+
+## Fascia di colore / Icona / Tag · intera nota
+
+Filtra per fascia di colore, icona, tag dell’intera nota o proprietà etichetta scelta per la bacheca. I tag coincidono esattamente: #work non trova #workshop né #work/child. Testo e frontmatter vengono uniti. I valori rimangono disponibili dall’intera sorgente anche senza risultati; i nomi di icone sconosciuti sono conservati.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `non contiene`: `!file.tags.contains("#work")`
+- `è vuoto`: `file.tags.isEmpty()`
+- `non è vuoto`: `!file.tags.isEmpty()`

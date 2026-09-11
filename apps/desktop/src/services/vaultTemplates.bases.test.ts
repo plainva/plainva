@@ -71,6 +71,7 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
           const bases = def.bases!;
           const basePaths = new Set(bases.map((b) => b.path));
           const noteStems = new Set(def.notes.map((n) => stemOf(n.path)));
+          const notePaths = new Set(def.notes.map((n) => n.path.replace(/\.md$/i, "")));
           // path -> parsed on-disk config, plus its resolved source folder.
           const parsedByPath = new Map<string, any>();
           const folderToPath = new Map<string, string>();
@@ -106,7 +107,7 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
               // index.md is dropped in Plainva's query layer, not via a filter.
               expect(obj.filters.and, `${b.path} folder source`).toContain(`file.folder == "${sourceFolderOfConfig(parsedByPath.get(b.path))}"`);
               const serialized = serializeBaseConfig(b.config);
-              expect(serialized, `${b.path} must stay Obsidian-evaluable (no global contains())`).not.toMatch(/\bcontains\(/);
+              expect(serialized, `${b.path} must stay Obsidian-evaluable (no global contains())`).not.toMatch(/(?<![\w.])contains\(/);
             }
           });
 
@@ -149,7 +150,9 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
                 // `plainva` is the app's own frontmatter namespace (icon, header
                 // colour, template markers), never a database column — the base
                 // views filter it out of the property lists for the same reason.
-                if (key === PLAINVA_NAMESPACE_KEY) continue;
+                // Whole-note tags are standard note metadata, even when the
+                // database does not expose a separate frontmatter-tags column.
+                if (key === PLAINVA_NAMESPACE_KEY || key === "tags") continue;
                 const col = cols[key];
                 expect(col, `${note.path}: '${key}' is not a column of ${basePath}`).toBeTruthy();
                 if (Array.isArray(col.options)) {
@@ -168,7 +171,10 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
               for (const value of Object.values(note.properties)) {
                 for (const entry of asList(value)) {
                   const target = wikiTarget(entry);
-                  if (target) expect(noteStems, `${note.path} -> [[${target}]]`).toContain(target);
+                  if (target) {
+                    const normalized = target.replace(/\.md$/i, "");
+                    expect(normalized.includes("/") ? notePaths : noteStems, `${note.path} -> [[${target}]]`).toContain(normalized);
+                  }
                 }
               }
             }

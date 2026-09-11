@@ -39,6 +39,25 @@ export function isSummaryName(v: unknown): v is SummaryName {
   return typeof v === "string" && (SUMMARY_NAMES as readonly string[]).includes(v);
 }
 
+/** Summaries of the filtered view, shared by both shells. Custom formulas are
+ * kept in the configuration but intentionally have no computed value. */
+export function computeColumnSummaries(
+  rows: ReadonlyArray<Record<string, unknown>>,
+  columns: readonly string[],
+  summaries: Readonly<Record<string, string>> = {},
+): Record<string, { name: SummaryName; value: string | number }> {
+  const result: Record<string, { name: SummaryName; value: string | number }> = {};
+  for (const column of columns) {
+    const name = summaries[column] ?? summaries[column.startsWith("note.") ? column.slice(5) : `note.${column}`];
+    if (!isSummaryName(name)) continue;
+    const value = computeSummary(name, rows.map((row) =>
+      column in row ? row[column] : column.startsWith("note.") ? row[column.slice(5)] : undefined,
+    ));
+    if (value !== null) result[column] = { name, value };
+  }
+  return result;
+}
+
 function isEmptyValue(v: unknown): boolean {
   if (v === undefined || v === null) return true;
   if (Array.isArray(v)) return v.length === 0;

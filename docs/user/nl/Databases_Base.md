@@ -95,11 +95,11 @@ Een **aggregatie** berekent een waarde uit de notities waar een link naar verwij
 - **In Obsidian** blijft de kolom leeg: Obsidian kent de aggregatie niet en toont de database als een tabel zonder die waarden. Het bestand blijft geldig, er gaat niets verloren.
 - **Grens**: een aggregatie berekent niet over een andere aggregatie. Wijst de gekozen link naar een berekende kolom, dan blijft de nieuwe kolom leeg.
 
-## Kolomvoeten
+## Samenvatting
 
 Een tabelkolom kan een regel eronder dragen die hem samenvat — de **Som** van een inspanning, de **Vroegste** datum, of hoeveel rijen überhaupt een waarde hebben.
 
-- **Instellen**: kies onder **Configureren → Kolommen** naast de kolom een **Kolomvoet**. **Geen kolomvoet** haalt hem weer weg.
+- **Configureren → Eigenschappen → Samenvatting**: De naam van elke zichtbare eigenschap blijft boven de keuze staan. Kies eronder een samenvatting; Geen samenvatting verwijdert deze. Dit werkt op desktop en mobiel. Eigen formules behouden hun naam en blijven ongewijzigd in het bestand; Plainva berekent ze niet.
 - **Berekeningen**: Gemiddelde · Min · Max · Som · Bereik · Mediaan · Std.afw. · Vroegste · Laatste · Aangevinkt · Niet aangevinkt · Zonder waarde · Met waarde · Verschillend.
 - **De voet rekent over de rijen die de weergave toont** — niet over de hele vault. Een filter verandert dus ook het getal daaronder.
 - **Niets om te meten is geen nul**: een kolom zonder ook maar één bruikbare waarde laat zijn kolomvoet leeg in plaats van 0 te beweren. Een kolom zonder eigen kolomvoet blijft leeg en leent nooit het getal van de buurkolom.
@@ -281,3 +281,9 @@ Een balk die buiten de getoonde periode reikt, wordt aan de rand afgesneden en h
 **Kleur op eigenschap:** kies onder Configureren → Weergave bij **Kleur op** een keuze-, status- of meerkeuze-eigenschap. De balken nemen dan de kleur van hun waarde over — dezelfde die hij als chip en op het bord draagt. Zonder die keuze houden alle balken de accentkleur.
 
 **Achterstallig:** in een database die weet wat *klaar* betekent — een selectievakjekolom, of een statuskolom met opties —, neemt een balk of ruit van een niet-voltooid item waarvan de dag is aangebroken de waarschuwingskleur aan, wat **Kleur op** ook zegt. Dezelfde regel markeert de datumchip op bord- en galerijkaarten en het item in de kalenderweergave. Een voltooid item wordt nooit gemarkeerd, en een database zonder zo'n kolom (contacten, bijvoorbeeld) ook niet: een verjaardag is niet achterstallig.
+
+## Kleurstrook, Pictogram, Tags · hele notitie
+
+Filter op kleurstrook, pictogram, tags van de hele notitie of de labeleigenschap van de prikbordweergave. Tags komen exact overeen: #work vindt niet #workshop of #work/child. Tekst en frontmatter worden samengevoegd. Waarden blijven uit de hele bron beschikbaar, ook zonder resultaten; onbekende pictogramnamen blijven bewaard.
+
+Het filter verandert de zichtbare selectie, niet de bestanden. Keuzewaarden komen uit de hele bron, ook zonder resultaten.

@@ -30,6 +30,7 @@ vi.mock("@tauri-apps/plugin-store", () => {
 vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open: vi.fn(), confirm: vi.fn(async () => true) }));
 
 class FakeAdapter {
+  async listDir() { return [...this.files.keys(), ...this.dirs].map(name => ({ name })); }
   files = new Map<string, string>();
   dirs = new Set<string>();
   async exists(path: string) { return this.files.has(path) || this.dirs.has(path); }
@@ -49,7 +50,7 @@ const plainvaOf = (note: { properties?: Record<string, unknown> }): Record<strin
 
 async function scaffold(def: VaultTemplateDefinition) {
   const adapter = new FakeAdapter();
-  await scaffoldVaultTemplate({ adapter, template: def, vaultName: "Tour", subfoldersHeading: "Unterordner", now: NOW });
+  await scaffoldVaultTemplate({ isNewVault: true, adapter, template: def, vaultName: "Tour", subfoldersHeading: "Unterordner", now: NOW });
   return adapter;
 }
 
@@ -84,7 +85,8 @@ describe("Plainva Tour", () => {
           expect(notePaths.has(path), `pinned card ${path} does not exist`).toBe(true);
         }
         // "tags" is the default label source and must stay unwritten.
-        expect(yaml).not.toContain("pinboardFilterBy");
+        expect(view.pinboardFilterBy).toBeUndefined();
+        expect(yaml).toContain("pinboardFilterBy: labels");
       });
 
       it("card colours are hex values the pinboard can read", () => {
@@ -197,7 +199,7 @@ describe("Plainva Tour", () => {
         const journal = [...adapter.files.keys()].filter(
           (p) => p.startsWith(`${journalFolder}/`) && !p.endsWith("index.md")
         );
-        expect(journal.length).toBe(2);
+        expect(journal.length).toBe(7);
         for (const path of journal) expect(path.slice(journalFolder.length + 1)).toMatch(ISO_DAILY);
         expect(adapter.files.has(`${journalFolder}/2026-07-29.md`)).toBe(true);
         expect(adapter.files.has(`${journalFolder}/2026-07-28.md`)).toBe(true);
@@ -237,12 +239,13 @@ describe("Plainva Tour", () => {
         expect(ruled.has(def.settings!.dailyNotesFolder!)).toBe(false);
       });
 
-      it("writes both attachments verbatim and keeps them out of the listings", async () => {
+      it("writes attachments and the import sample verbatim and keeps them out of the listings", async () => {
         const adapter = await scaffold(def);
-        expect(def.rawFiles).toHaveLength(2);
+        expect(def.rawFiles).toHaveLength(5);
         for (const file of def.rawFiles!) {
           expect(adapter.files.get(file.path), file.path).toBe(file.content);
-          expect(file.content.startsWith("<svg"), `${file.path} should be an SVG`).toBe(true);
+          if (file.path.endsWith(".svg")) expect(file.content.startsWith("<svg"), file.path).toBe(true);
+          else expect(JSON.parse(file.content).activeNotes).toHaveLength(2);
         }
         const folder = def.rawFiles![0].path.split("/")[0];
         const listing = adapter.files.get(`${folder}/index.md`)!;

@@ -672,7 +672,7 @@ const JOURNAL_STRINGS_ES: JournalStrings = {
  * here so the databases show real data as soon as the vault is indexed. */
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_ES),
+    buildPlainvaTour(TOUR_STRINGS_ES, "es"),
     buildPara(PARA_STRINGS_ES),
     buildZettelkasten(ZK_STRINGS_ES),
     buildAce(ACE_STRINGS_ES),

@@ -26,6 +26,7 @@ export * from "./vault/ConflictAwareVaultAdapter.js";
 export * from "./vault/QueueingVaultAdapter.js";
 export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
+export * from "./vault/newVault.js";
 export * from "./vault/VaultQueryService.js";
 export * from "./vault/taskScan.js";
 export * from "./vault/findReplace.js";
@@ -34,6 +35,8 @@ export * from "./vault/GraphService.js";
 export * from "./vault/LinkResolver.js";
 export * from "./vault/rollup.js";
 export * from "./vault/summary.js";
+export * from "./vault/databaseMetadata.js";
+export { parseDatabaseSourceFilter } from "./vault/databaseQueryHelpers.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";

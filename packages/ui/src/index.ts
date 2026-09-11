@@ -196,6 +196,10 @@ export * from "./lib/wordCount";
 // shared so the mobile shell edits databases through the SAME contract
 // (never hand-written YAML).
 export * from "./base/baseConfigCatalog";
+export * from "./base/ColumnSummary";
+export * from "./base/useFilterRuleDraft";
+export * from "./base/baseFilterCatalog";
+export * from "./base/MetadataFilterValue";
 export * from "./base/baseSelectorTypes";
 export * from "./base/baseFormat";
 export * from "./base/baseRelations";

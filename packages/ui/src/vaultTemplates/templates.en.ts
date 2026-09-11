@@ -18,7 +18,7 @@ import { buildProject, PROJECT_STRINGS_EN } from "./projectTemplate";
  * sets mirror. */
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_EN),
+    buildPlainvaTour(TOUR_STRINGS_EN, "en"),
     buildPara(PARA_STRINGS_EN),
     buildZettelkasten(ZK_STRINGS_EN),
     buildAce(ACE_STRINGS_EN),

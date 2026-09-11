@@ -116,6 +116,13 @@ button.base-cell-comments:focus-visible { outline: 2px solid var(--accent-color)
 .base-cfg-wizcols { max-height: 240px; overflow-y: auto; }
 .base-cfg-hint { display: flex; align-items: center; gap: 6px; padding: 0 2px; font-size: var(--text-sm); color: var(--text-muted); }
 .base-cfg-colrow { display: flex; align-items: center; gap: 6px; }
+.base-cfg-colrow--stack { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.base-cfg-colhead { display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.base-cfg-colidentity { flex: 1; min-width: 0; }
+.base-cfg-colidentity .base-cfg-colname { display: block; white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+.base-cfg-colmeta { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.base-cfg-colmeta .base-cfg-badge { margin-left: 0; max-width: 100%; overflow-wrap: anywhere; }
+.base-cfg-colsummary { display: flex; flex-direction: column; gap: var(--space-1); padding-inline-start: var(--space-4); font-size: var(--text-sm); color: var(--text-muted); }
 .base-cfg-badge { font-size: var(--text-xs); color: var(--accent-color); background: var(--bg-hover); padding: 1px 5px; border-radius: var(--radius-xs); margin-left: auto; flex-shrink: 0; }
 .base-cfg-iconbtn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; flex-shrink: 0; }
 .base-cfg-empty { font-size: var(--text-sm); color: var(--text-faint); }

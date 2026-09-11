@@ -51,6 +51,12 @@ const KEY = "vault_registry";
 const PRE_ISOLATION_SECRET_KEYS = ["sync_provider_mobile", "webdav_credentials_mobile"];
 
 let cache: RegistryState | null = null;
+// Creation intent lives for this process only. Reopening a registered vault,
+// including an empty one, must never offer or apply a newer template.
+const newLocalVaults = new Set<string>();
+export function consumeNewLocalVault(id: string): boolean {
+  return newLocalVaults.delete(id);
+}
 
 async function persist(state: RegistryState): Promise<void> {
   cache = state;
@@ -78,6 +84,7 @@ export async function loadRegistry(): Promise<RegistryState> {
     vaults: [{ id: LOCAL_VAULT_ID, name: "" }],
     activeId: LOCAL_VAULT_ID,
   };
+  if (!value) newLocalVaults.add(LOCAL_VAULT_ID);
   await persist(fresh);
   const creds = getPlatformServices().credentials;
   for (const key of PRE_ISOLATION_SECRET_KEYS) {
@@ -97,7 +104,9 @@ export async function getActiveVaultEntry(): Promise<VaultEntry> {
 
 export async function addVault(entry: VaultEntry): Promise<void> {
   const reg = await loadRegistry();
+  if (reg.vaults.some(v => v.id === entry.id)) throw new Error(`vault already registered: ${entry.id}`);
   await persist({ vaults: [...reg.vaults, entry], activeId: reg.activeId });
+  if (!entry.provider && !entry.external) newLocalVaults.add(entry.id);
 }
 
 export async function setActiveVault(id: string): Promise<void> {

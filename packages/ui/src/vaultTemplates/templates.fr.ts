@@ -691,7 +691,7 @@ const JOURNAL_STRINGS_FR: JournalStrings = {
 
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_FR),
+    buildPlainvaTour(TOUR_STRINGS_FR, "fr"),
     buildPara(PARA_STRINGS_FR),
     buildZettelkasten(ZK_STRINGS_FR),
     buildAce(ACE_STRINGS_FR),

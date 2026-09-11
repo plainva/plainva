@@ -585,3 +585,25 @@ Règles : les chemins épinglés ne sont pas répétés dans `pinboardOrder`. Le
 - [Notes & Markdown](Notes_and_Markdown.md) — la même matière sous l'angle de l'écriture à la main dans l'application
 - [Bases de données (.base)](Databases_Base.md) — les bases de données expliquées pour l'usage quotidien
 - [OKF](OKF.md) — `type`, la version du bundle, les champs de confiance d'OKF 0.2, index.md et la conversion du vault
+
+## Bande de couleur / Icône / Tags · note entière
+
+Filtrez par bande de couleur, icône, tags de toute la note ou propriété d’étiquette choisie pour le panneau. Les tags correspondent exactement : #work ne correspond ni à #workshop ni à #work/child. Texte et frontmatter sont réunis. Les valeurs restent disponibles depuis toute la source même sans résultat ; les noms d’icônes inconnus sont conservés.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `ne contient pas`: `!file.tags.contains("#work")`
+- `est vide`: `file.tags.isEmpty()`
+- `n'est pas vide`: `!file.tags.isEmpty()`

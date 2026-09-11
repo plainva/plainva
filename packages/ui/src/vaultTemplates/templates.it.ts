@@ -811,7 +811,7 @@ export const TOUR_STRINGS_IT: TourStrings = {
  * the databases show real data as soon as the vault is indexed. */
 export function templates(): VaultTemplateDefinition[] {
   return [
-    buildPlainvaTour(TOUR_STRINGS_IT),
+    buildPlainvaTour(TOUR_STRINGS_IT, "it"),
     buildPara(PARA_STRINGS_IT),
     buildZettelkasten(ZK_STRINGS_IT),
     buildAce(ACE_STRINGS_IT),

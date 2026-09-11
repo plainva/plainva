@@ -1,3 +1,4 @@
+import { seedExampleNote } from "./exampleVault";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -84,7 +85,7 @@ test("only pages without their own bottom edge reserve the floating strip", asyn
  *
  * This half of the guarantee is measured, not the whole one: swapping the flag
  * for `editable` leaves this test GREEN, because the two only differ on a PLAIN
- * TEXT file, which the seeded vault has none of — a markdown note in read mode
+ * TEXT file, which this fixture has none of — a markdown note in read mode
  * is `editable: false` either way. What pins the coupling itself is the source
  * assertion in `mobileLint.test.ts` (\"lets the same flag decide the bar AND the
  * space it needs\"): the bar and the reserve must hang off ONE flag, so a text
@@ -104,6 +105,8 @@ test("the editor reserves the formatting bar only while it is on screen", async 
   await page.goto("/");
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
 
+  await seedExampleNote(page);
+
   // The release-highlights sheet arrives a moment after the first paint on a
   // fresh profile and covers everything. Settle, dismiss, then insist that no
   // backdrop is left over whichever way the race went.
@@ -114,11 +117,8 @@ test("the editor reserves the formatting bar only while it is on screen", async 
   }
   await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
 
-  // Any seeded note will do — the reserve is a property of the surface, not of
-  // a particular file. The "recently opened" carousel holds one from the moment
-  // the welcome vault is seeded, and unlike the list below it never leads with a
-  // FOLDER, so this stays independent of the seed's shape.
-  const card = page.locator(".m-caro-card").first();
+  // Use the explicit note fixture: opening an empty vault creates no samples.
+  const card = page.locator(".m-swipe-front").filter({ hasText: "Example" }).first();
   await expect(card).toBeVisible({ timeout: 20000 });
   await card.click();
 

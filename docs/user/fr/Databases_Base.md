@@ -95,11 +95,11 @@ Une **agrégation** calcule une valeur à partir des notes vers lesquelles point
 - **Dans Obsidian**, la colonne reste vide : Obsidian ne connaît pas l'agrégation et affiche la base de données comme un tableau sans ces valeurs. Le fichier reste valide, rien n'est perdu.
 - **Limite** : une agrégation ne calcule pas à partir d'une autre agrégation. Si le lien choisi pointe vers une colonne calculée, la nouvelle colonne reste vide.
 
-## Pieds de colonne
+## Synthèse
 
 Une colonne de tableau peut porter une ligne en dessous qui la résume — la **Somme** d'un effort, la date **Plus ancienne**, ou le nombre de lignes qui ont ne serait-ce qu'une valeur.
 
-- **Réglage** : sous **Configurer → Colonnes**, choisissez un **Pied de colonne** à côté de la colonne. **Aucun pied de colonne** l'enlève à nouveau.
+- **Configurer → Propriétés → Synthèse**: Le nom de chaque propriété visible reste au-dessus du choix. Sélectionnez un résumé dessous ; Aucun résumé le retire. Cela fonctionne sur ordinateur et téléphone. Les formules personnalisées conservent leur nom et restent intactes dans le fichier ; Plainva ne les calcule pas.
 - **Calculs** : Moyenne · Min · Max · Somme · Étendue · Médiane · Écart-type · Plus ancienne · Plus récente · Cochées · Non cochées · Sans valeur · Avec valeur · Distinctes.
 - **Le pied calcule sur les lignes que la vue affiche** — pas sur tout le vault. Un filtre modifie donc aussi le nombre en dessous.
 - **Rien à mesurer n'équivaut pas à zéro** : une colonne sans la moindre valeur exploitable laisse son pied de colonne vide au lieu d'afficher 0. Une colonne sans pied de colonne propre reste vide et n'emprunte jamais le nombre de sa colonne voisine.
@@ -281,3 +281,9 @@ Une barre qui dépasse la période affichée est coupée au bord et n'y porte **
 **Couleur selon une propriété :** dans Configurer → Vue, choisissez une propriété de type sélection, statut ou sélection multiple sous **Couleur selon**. Les barres prennent alors la couleur de leur valeur — la même qu'elle porte en pastille et sur le tableau. Sans ce choix, toutes les barres gardent la couleur d'accentuation.
 
 **En retard :** dans une base de données qui sait ce que signifie *terminé* — une colonne de case à cocher, ou une colonne de statut avec des options —, une barre ou un losange d'une entrée non terminée dont le jour est arrivé prend la couleur d'avertissement, quoi que dise **Couleur selon**. La même règle marque la pastille de date sur les cartes de tableau et de galerie, ainsi que l'entrée dans la vue calendrier. Une entrée terminée n'est jamais marquée, et une base de données sans une telle colonne (les contacts, par exemple) non plus : un anniversaire n'est pas en retard.
+
+## Bande de couleur, Icône, Tags · note entière
+
+Filtrez par bande de couleur, icône, tags de toute la note ou propriété d’étiquette choisie pour le panneau. Les tags correspondent exactement : #work ne correspond ni à #workshop ni à #work/child. Texte et frontmatter sont réunis. Les valeurs restent disponibles depuis toute la source même sans résultat ; les noms d’icônes inconnus sont conservés.
+
+Le filtre change l’affichage, pas les fichiers. Les valeurs proposées viennent de la source entière, même sans résultat.

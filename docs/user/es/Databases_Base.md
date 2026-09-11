@@ -95,11 +95,11 @@ Una **agregación** calcula un valor a partir de las notas hacia las que apunta 
 - **En Obsidian** la columna queda vacía: Obsidian no conoce la agregación y muestra la base de datos como una tabla sin esos valores. El archivo sigue siendo válido, no se pierde nada.
 - **Límite**: una agregación no calcula sobre otra agregación. Si el enlace elegido apunta a una columna calculada, la nueva columna queda vacía.
 
-## Pies de columna
+## Resumen
 
 Una columna de tabla puede llevar una línea debajo que la resuma — la **Suma** de un esfuerzo, la fecha **Más temprana**, o cuántas filas tienen siquiera un valor.
 
-- **Definirlo**: en **Configurar → Columnas**, elige un **Pie de columna** junto a la columna. **Sin pie de columna** lo retira de nuevo.
+- **Configurar → Propiedades → Resumen**: El nombre de cada propiedad visible queda encima del selector. Elige un resumen debajo; Sin resumen lo elimina. Funciona en escritorio y móvil. Las fórmulas propias conservan su nombre y el archivo intacto; Plainva no las calcula.
 - **Cálculos**: Promedio · Mín · Máx · Suma · Rango · Mediana · Desv. típica · Más temprana · Más tardía · Marcadas · Sin marcar · Sin valor · Con valor · Distintos.
 - **El pie calcula sobre las filas que muestra la vista** — no sobre todo el vault. Por tanto, un filtro también cambia el número de debajo.
 - **Nada que medir no es cero**: una columna sin un solo valor utilizable deja su pie de columna en blanco en lugar de afirmar 0. Una columna sin pie de columna propio queda en blanco y nunca toma prestado el número de la columna vecina.
@@ -281,3 +281,9 @@ Una barra que sobrepasa el periodo mostrado se corta en el borde y allí **no ll
 **Color según propiedad:** en Configurar → Vista elige una propiedad de selección, estado o selección múltiple en **Color según**. Las barras toman entonces el color de su valor, el mismo que lleva como chip y en el tablero. Sin esa elección, todas las barras conservan el color de acento.
 
 **Vencido:** en una base de datos que sabe qué significa *hecho* — una columna de casilla de verificación, o una columna de estado con opciones —, una barra o un rombo de una entrada sin terminar cuyo día ya ha llegado toma el color de advertencia, sea cual sea lo que diga **Color según**. La misma regla marca el chip de fecha en las tarjetas de tablero y galería, y la entrada en la vista de calendario. Una entrada terminada nunca se marca, y una base de datos sin esa columna (los contactos, por ejemplo) tampoco: un cumpleaños no está vencido.
+
+## Franja de color, Icono, Etiquetas · nota completa
+
+Filtra por franja de color, icono, tags de toda la nota o propiedad de etiquetas elegida para el panel. Los tags coinciden exactamente: #work no coincide con #workshop ni #work/child. Se combinan texto y frontmatter. Los valores siguen disponibles desde toda la fuente incluso sin resultados; se conservan nombres de iconos desconocidos.
+
+El filtro cambia la selección visible, no los archivos. Los valores se ofrecen desde toda la fuente, incluso sin resultados.

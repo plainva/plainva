@@ -585,3 +585,25 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 - [Notizen & Markdown](Notes_and_Markdown.md) — dasselbe Material aus dem Blickwinkel „von Hand in der App schreiben"
 - [Datenbanken (.base)](Databases_Base.md) — Datenbanken für den Alltag erklärt
 - [OKF](OKF.md) — `type`, die Bundle-Version, die Trust-Felder aus OKF 0.2, index.md und die Vault-Konvertierung
+
+## Farbstreifen / Icon / Tags · ganze Notiz
+
+Filtere nach Farbstreifen, Icon, Tags der ganzen Notiz oder der Label-Eigenschaft der Pinnwandansicht. Tags werden als ganze Werte verglichen: #work trifft weder #workshop noch #work/child. Tags aus Text und Frontmatter werden zusammengeführt. Die Wertauswahl bleibt auch bei null Treffern aus der ganzen Quelle verfügbar; unbekannte gespeicherte Icon-Namen bleiben erhalten.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `enthält nicht`: `!file.tags.contains("#work")`
+- `ist leer`: `file.tags.isEmpty()`
+- `ist nicht leer`: `!file.tags.isEmpty()`

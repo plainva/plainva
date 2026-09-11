@@ -585,3 +585,25 @@ views:
 - [ノートとMarkdown](Notes_and_Markdown.md) — アプリ内で手書きするという視点から見た、同じ内容
 - [データベース (.base)](Databases_Base.md) — 日常使いのために説明されたデータベース
 - [OKF](OKF.md) — `type`、バンドルのバージョン、OKF 0.2の信頼フィールド、index.md、そして保管庫の変換
+
+## ヘッダーの色 / アイコン / タグ · ノート全体
+
+色の帯、アイコン、ノート全体のタグ、またはピンボードで設定したラベルのプロパティで絞り込めます。タグは完全一致です。#workは#workshopや#work/childには一致しません。本文とfrontmatterのタグを合わせます。結果が0件でも選択肢は元の全体から取得し、不明なアイコン名も保持します。
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `に次を含まない`: `!file.tags.contains("#work")`
+- `が空である`: `file.tags.isEmpty()`
+- `が空でない`: `!file.tags.isEmpty()`

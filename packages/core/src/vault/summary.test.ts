@@ -1,5 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { computeSummary, isSummaryName, SUMMARY_NAMES } from "./summary.js";
+import { computeColumnSummaries, computeSummary, isSummaryName, SUMMARY_NAMES } from "./summary.js";
+
+describe("filtered column summaries", () => {
+  it("keeps columns aligned and ignores hidden columns and custom formulas", () => {
+    const summaries = { effort: "Sum", status: "customTotal", hidden: "Sum" };
+    expect(computeColumnSummaries([{ effort: 10 }, { effort: 20 }], ["file.name", "effort", "status"], summaries))
+      .toEqual({ effort: { name: "Sum", value: 30 } });
+    expect(computeColumnSummaries([{ effort: 10 }], ["effort"], summaries)).toEqual({ effort: { name: "Sum", value: 10 } });
+    expect(summaries.status).toBe("customTotal");
+  });
+
+  it("handles note aliases and keeps missing measurements blank while counting zero", () => {
+    expect(computeColumnSummaries([{ effort: 15 }], ["note.effort"], { effort: "Sum" }))
+      .toEqual({ "note.effort": { name: "Sum", value: 15 } });
+    expect(computeColumnSummaries([], ["effort", "file.name"], { effort: "Sum", "file.name": "Filled" }))
+      .toEqual({ "file.name": { name: "Filled", value: 0 } });
+  });
+});
 
 describe("summary names", () => {
   // Quoted from Obsidian's Bases syntax docs (verified 2026-08-11), not

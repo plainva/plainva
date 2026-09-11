@@ -182,6 +182,9 @@ export const FIXTURE_TASKS = [
   ],
 ];
 
+/** Declared before the note array that includes the conflict copy. */
+export const FIXTURE_CONFLICT_COPY = "Inbox/Notiz 1.CONFLICT-2026-09-04T17-27-28-950Z.md";
+
 export const FIXTURE_NOTES = [
   [
     "Projekte/Plainva Nacharbeit.md",
@@ -305,7 +308,6 @@ export const FIXTURE_NOTES = [
 ];
 
 /** The conflict copy's path, and the local-storage seed that makes the card show it. */
-export const FIXTURE_CONFLICT_COPY = "Inbox/Notiz 1.CONFLICT-2026-09-04T17-27-28-950Z.md";
 export const FIXTURE_CONFLICT_SEED = ["plainva-conflicts-local", JSON.stringify([{ path: "Inbox/Notiz 1.md", copyPath: FIXTURE_CONFLICT_COPY }])];
 
 /**

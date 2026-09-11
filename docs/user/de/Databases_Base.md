@@ -95,15 +95,15 @@ Eine **Auswertung** rechnet einen Wert aus den Notizen, auf die eine Verknüpfun
 - **In Obsidian** bleibt die Spalte leer: Obsidian kennt die Auswertung nicht und zeigt die Datenbank als Tabelle ohne diese Werte. Die Datei bleibt gültig, nichts geht verloren.
 - **Grenze**: Eine Auswertung rechnet nicht über eine andere Auswertung. Zeigt die gewählte Verknüpfung auf eine berechnete Spalte, bleibt die neue Spalte leer.
 
-## Spaltenfüße
+## Zusammenfassung
 
 Unter einer Tabellenspalte kann eine Zeile stehen, die sie zusammenfasst — die **Summe** eines Aufwands, das **Frühestes** Datum, wie viele Zeilen einen Wert haben.
 
-- **Einrichten**: unter **Konfigurieren → Spalten** neben der Spalte einen **Spaltenfuß** wählen. **Kein Spaltenfuß** nimmt ihn wieder weg.
+- **Konfigurieren → Eigenschaften → Zusammenfassung**: Jede sichtbare Eigenschaft behält ihren Namen oberhalb der Auswahl. Darunter wählst Du eine Zusammenfassung; Keine entfernt sie. Das funktioniert auf Desktop und Mobil. Eigene Formeln behalten ihren Namen und bleiben unverändert in der Datei; Plainva berechnet sie nicht.
 - **Rechnungen**: Durchschnitt · Kleinster · Größter · Summe · Spanne · Median · Standardabw. · Frühestes · Spätestes · Angehakt · Nicht angehakt · Ohne Wert · Mit Wert · Verschiedene.
-- **Der Fuß rechnet über die Zeilen, die die Ansicht zeigt** — nicht über den ganzen Vault. Ein Filter ändert also auch die Zahl darunter.
-- **Nichts zu messen ist nicht null**: hat eine Spalte keinen einzigen auswertbaren Wert, bleibt der Fuß leer, statt 0 zu behaupten. Eine Spalte ohne eigenen Fuß bleibt leer und leiht sich nie die Zahl der Nachbarspalte.
-- **In Obsidian sichtbar**: Spaltenfüße sind Obsidians eigene Funktion, kein Plainva-Zusatz. Was Du hier einstellst, siehst Du dort — und umgekehrt. Eigene Formel-Ausdrücke aus Obsidian bleiben in der Datei erhalten; Plainva zeigt für sie keinen Wert.
+- **Die Zusammenfassung berechnet die Werte der sichtbaren Zeilen** — nicht über den ganzen Vault. Ein Filter ändert also auch die Zahl darunter.
+- **Nichts zu messen ist nicht null**: hat eine Spalte keinen einzigen auswertbaren Wert, bleibt die Zusammenfassung leer, statt 0 zu behaupten. Eine Spalte ohne eigene Zusammenfassung bleibt leer und leiht sich nie die Zahl der Nachbarspalte.
+- **In Obsidian sichtbar**: Zusammenfassungen sind Obsidians eigene Funktion, kein Plainva-Zusatz. Was Du hier einstellst, siehst Du dort — und umgekehrt. Eigene Formel-Ausdrücke aus Obsidian bleiben in der Datei erhalten; Plainva zeigt für sie keinen Wert.
 
 ## Projekte planen: Meilensteine, Abhängigkeiten, Aufwand
 
@@ -121,7 +121,7 @@ blockedBy:
 
   Gespeichert wird nur **eine** Richtung: Ein gespeichertes Paar sind zwei Tatsachen, die einander widersprechen können. Ausgewertet und gezeichnet wird nur `FINISHTOSTART`; andere Typen bleiben in der Datei unangetastet. Einen Zyklus lehnt Plainva beim Schreiben ab und nennt den Pfad, den er schließen würde.
 - **Ein Terminkonflikt wird gemeldet, nie korrigiert.** Beginnt eine Aufgabe, bevor die endet, auf die sie wartet, wird der Pfeil rot und bleibt rot. Die Daten sind Deine Aussage — Plainva sagt nur, dass zwei davon nicht zusammenpassen.
-- **Der Aufwand** ist eine schlichte Zahl in Minuten, in einer Eigenschaft Deiner Wahl (die Vorlage **Projekt** nennt sie `effort`). Ein Spaltenfuß summiert ihn; eine Auswertungsspalte rechnet ihn über die Aufgaben eines Projekts zusammen.
+- **Der Aufwand** ist eine schlichte Zahl in Minuten, in einer Eigenschaft Deiner Wahl (die Vorlage **Projekt** nennt sie `effort`). Ein Zusammenfassung summiert ihn; eine Auswertungsspalte rechnet ihn über die Aufgaben eines Projekts zusammen.
 - **Die Ist-Zeit** wird *nicht* gespeichert. Sie wird aus den Terminen gelesen, die eine Aufgabe geblockt hat — so bleibt sie richtig, wenn Du den Termin verschiebst oder verlängerst. Ohne Kalenderkonto zeigt die Spalte einen Strich statt einer Null: „nicht gemessen" und „gemessen, und es war nichts" sind verschiedene Aussagen.
 
 ## Wo gehört diese Notiz hin? (Datenbank-Kontext)
@@ -281,3 +281,9 @@ Ein Balken, der über den gezeigten Zeitraum hinausreicht, wird an der Kante abg
 **Farbe nach Eigenschaft:** Unter Konfigurieren → Ansicht wählst Du bei **Farbe nach** eine Auswahl-, Status- oder Mehrfachauswahl-Eigenschaft. Die Balken übernehmen dann die Farbe des jeweiligen Werts — dieselbe, die der Wert als Chip und im Board trägt. Ohne diese Auswahl bleiben alle Balken in der Akzentfarbe.
 
 **Überfällig:** In einer Datenbank, die weiß, was *erledigt* heißt — eine Checkbox-Spalte oder eine Status-Spalte mit Optionen —, nimmt der Balken oder die Raute eines offenen Eintrags, dessen Tag gekommen ist, die Warnfarbe an, egal was **Farbe nach** sagt. Dieselbe Regel betont den Datums-Chip auf Board- und Galerie-Karten und den Eintrag in der Kalender-Ansicht. Ein erledigter Eintrag wird nie betont, und eine Datenbank ohne eine solche Spalte (etwa Kontakte) auch nicht: Ein Geburtstag ist nicht überfällig.
+
+## Farbstreifen, Icon, Tags · ganze Notiz
+
+Filtere nach Farbstreifen, Icon, Tags der ganzen Notiz oder der Label-Eigenschaft der Pinnwandansicht. Tags werden als ganze Werte verglichen: #work trifft weder #workshop noch #work/child. Tags aus Text und Frontmatter werden zusammengeführt. Die Wertauswahl bleibt auch bei null Treffern aus der ganzen Quelle verfügbar; unbekannte gespeicherte Icon-Namen bleiben erhalten.
+
+Ein Filter verändert die sichtbare Auswahl, nicht die Dateien. Die angebotenen Werte stammen weiterhin aus der ganzen Quelle, auch wenn eine Kombination keine Treffer ergibt.

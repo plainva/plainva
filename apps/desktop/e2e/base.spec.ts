@@ -342,6 +342,8 @@ test.beforeEach(async ({ page }) => {
       '8': [{ key: 'status', value: 'Erledigt', type: 'text' }],
       '9': [{ key: 'frist', value: '2026-08-01', type: 'text' }],
     };
+    dbProps['1'].push({ key: 'plainva', value: '{"header_color":"#ABC","icon":"lucide:pin"}', type: 'object' });
+    dbProps['2'].push({ key: 'plainva', value: '{"header_color":"#2a7f7b","icon":"lucide:future-icon"}', type: 'object' });
     // Property-scoped link rows (links.property_key) backing reverse columns.
     const dbLinks = [
       { source_path: 'Projekte/Alpha.md', source_title: 'Alpha', target_path: 'ACME', property_key: 'kunde' },
@@ -725,6 +727,37 @@ test('Base table: rows render, filter row narrows, sort rule flips order', async
   await expect(table.getByText('Beta')).not.toBeVisible();
   await expect(table.getByText('Alpha')).toBeVisible();
   await expect(table.getByText('Gamma')).toBeVisible();
+});
+
+test('metadata filters remain editable from an empty condition and preserve unknown icons', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
+  await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
+  await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
+  await page.getByRole('option', { name: /^(Farbstreifen|Header color)$/ }).click();
+  await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
+  await page.getByRole('option', { name: '#aabbcc', exact: true }).click();
+  await expect(page.locator('table tbody tr')).toHaveCount(1);
+  await expect(page.locator('table tbody')).toContainText('Alpha');
+  await page.getByRole('button', { name: /Filter bearbeiten|Edit filter/ }).click();
+  const row = page.locator('.base-cfg-filterrow').first();
+  await row.getByRole('button', { name: /Filteroperator|Filter operator/ }).click();
+  await page.getByRole('option', { name: /^(ist leer|is empty)$/ }).click();
+  await expect(page.locator('table tbody')).toContainText('Gamma');
+  await row.getByRole('button', { name: /Filteroperator|Filter operator/ }).click();
+  await page.getByRole('option', { name: /^(ist|is)$/ }).click();
+  await row.getByRole('button', { name: /^(Wert|Value)/ }).click();
+  await page.getByRole('option', { name: '#2a7f7b', exact: true }).click();
+  await expect(page.locator('table tbody')).toContainText('Beta');
+  await row.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
+  await page.getByRole('option', { name: 'Icon', exact: true }).click();
+  await row.getByRole('button', { name: /^(Wert|Value)/ }).click();
+  await page.getByRole('option', { name: 'lucide:future-icon', exact: true }).click();
+  await expect(page.locator('table tbody tr')).toHaveCount(1);
+  const yaml = await page.evaluate(() => (window as any).mockFs['/test-vault/Cockpit.base']);
+  expect(yaml).toContain('note.plainva.icon == "lucide:future-icon"');
 });
 
 // Maintainer report 2026-07-03: filtering tags "is typ/tagebuch" emptied the view
@@ -2151,6 +2184,36 @@ test('a column footer sums the column it is configured on, and leaves the others
   // A column without a summary stays empty rather than borrowing a number.
   await expect(cells.nth(0)).toHaveText('');
   await expect(cells.nth(1)).toHaveText('');
+});
+
+test('property names stay readable above summaries and a foreign formula survives other edits', async ({ page }) => {
+  const label = 'A long property name with enough words to wrap across several lines';
+  await page.addInitScript(({ label }) => {
+    (window as any).mockFs['/test-vault/Cockpit.base'] = `filters:\n  and:\n    - file.folder == "Projekte"\nproperties:\n  note.prio:\n    displayName: ${label}\n    plainva:\n      input: number\nsummaries:\n  MyFormula: values.mean().round(3)\nviews:\n  - type: table\n    name: Tabelle\n    order: [file.name, note.prio, note.status]\n    summaries:\n      note.prio: MyFormula\n`;
+  }, { label });
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'columns');
+  const row = page.locator('.base-cfg-colrow').filter({ has: page.locator('.base-cfg-colname', { hasText: label }) });
+  for (const width of [1280, 850]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect(row.locator('.base-cfg-colname')).toHaveText(label);
+    const layout = await row.evaluate(el => {
+      const name = el.querySelector('.base-cfg-colname') as HTMLElement;
+      const summary = el.querySelector('.base-cfg-colsummary') as HTMLElement;
+      return { nameFits: name.scrollWidth <= name.clientWidth + 1, below: summary.getBoundingClientRect().top >= name.getBoundingClientRect().bottom };
+    });
+    expect(layout).toEqual({ nameFits: true, below: true });
+    await expect(row.getByRole('button', { name: /Zusammenfassung für|Summary for/ })).toContainText('MyFormula');
+  }
+  const nameRow = page.locator('.base-cfg-colrow').filter({ has: page.locator('.base-cfg-colname', { hasText: /^Name$/ }) });
+  await nameRow.getByRole('button', { name: /Zusammenfassung für|Summary for/ }).click();
+  await page.getByRole('option', { name: /^(Filled|Gefüllt)$/ }).click();
+  await expect(page.getByTestId('base-summary')).toContainText('3');
+  const yaml = await page.evaluate(() => (window as any).mockFs['/test-vault/Cockpit.base']);
+  expect(yaml).toContain('note.prio: MyFormula');
+  expect(yaml).toContain('MyFormula: values.mean().round(3)');
 });
 
 test('the timeline draws milestones as diamonds and dependencies as arrows', async ({ page }) => {

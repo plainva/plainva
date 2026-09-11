@@ -6,7 +6,8 @@ import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
 import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, TextInput, type BaseConfigAreaId } from "@plainva/ui";
-import { SUMMARY_NAMES } from "@plainva/core";
+import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
+import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, type BaseFilterField } from "@plainva/ui";
 import {
   addGroupWithRule,
   addRuleToGroup,
@@ -132,6 +133,7 @@ function DateViewControls({
 // at zero matches) right after selecting one.
 function FilterValueEditor({
   column,
+  fields,
   op,
   value,
   rows,
@@ -140,6 +142,7 @@ function FilterValueEditor({
   onCommit,
 }: {
   column: string;
+  fields: BaseFilterField[];
   op: FilterOp;
   value: string;
   rows: Record<string, any>[];
@@ -154,6 +157,10 @@ function FilterValueEditor({
   const options = derived.length > 0 && value && !derived.some((o) => o.value === value)
     ? [{ value }, ...derived]
     : derived;
+
+  if ((fields.find(field => field.column === column)?.kind ?? baseFilterKind(column)) !== "property") {
+    return <MetadataFilterValue column={column} rows={rows} value={value} onChange={onCommit} compact />;
+  }
 
   // Relation-ish columns get a note dropdown (P11): the distinct raw link
   // values of the source rows, labeled by their display text. The stored
@@ -263,20 +270,7 @@ function FilterValueEditor({
 
 // Localized operator words, shared by the editable row and the read-only chip
 // sentence (config redesign P4). Date columns get temporal wording.
-export function filterOpLabels(t: TFunction, isDate: boolean): Record<FilterOp, string> {
-  return {
-    "==": t("database.opIs", "ist"),
-    "!=": t("database.opIsNot", "ist nicht"),
-    contains: t("database.opContains", "enthält"),
-    notContains: t("database.opNotContains", "enthält nicht"),
-    ">": isDate ? t("database.opAfter", "nach") : t("database.opGt", "größer als"),
-    "<": isDate ? t("database.opBefore", "vor") : t("database.opLt", "kleiner als"),
-    ">=": isDate ? t("database.opFrom", "ab") : t("database.opGte", "mindestens"),
-    "<=": isDate ? t("database.opUntil", "bis") : t("database.opLte", "höchstens"),
-    empty: t("database.opEmpty", "ist leer"),
-    notEmpty: t("database.opNotEmpty", "ist nicht leer"),
-  };
-}
+export const filterOpLabels = baseFilterOpLabels;
 
 // Read-only chip SENTENCE of a committed filter rule (config redesign P4):
 // "[Column] [op word] [value chip]" — click to expand the editor, ✕ to remove.
@@ -313,15 +307,17 @@ function FilterChip({
 
 // One editable property-filter row: [column] [operator] [typed value] [delete].
 function FilterRow({
-  rule,
+  rule: storedRule,
+  fields,
   availableColumns,
   filterValueRows,
   cells,
   t,
-  onChange,
+  onChange: onCommit,
   onRemove,
 }: {
   rule: PropertyFilterRule;
+  fields: BaseFilterField[];
   availableColumns: string[];
   filterValueRows: Record<string, any>[];
   cells: BaseCells;
@@ -329,6 +325,7 @@ function FilterRow({
   onChange: (rule: PropertyFilterRule) => void;
   onRemove?: () => void;
 }) {
+  const [rule, onChange] = useFilterRuleDraft(storedRule, onCommit);
   const input = rule.column ? cells.getColumnInput(rule.column) : undefined;
   const isDate = input === "date" || input === "datetime";
   // Relation-ish columns (owning or computed reverse) filter by linked note:
@@ -342,16 +339,17 @@ function FilterRow({
       cells.isReverseColumn?.(rule.column) ||
       (input === undefined && columnValuesAreWikiLinks(filterValueRows, rule.column)));
   const opLabels = filterOpLabels(t, isDate);
-  const availableOps: FilterOp[] = isRelation
+  const kindOf = (column: string) => fields.find(field => field.column === column)?.kind ?? baseFilterKind(column);
+  const availableOps: FilterOp[] = baseFilterOperators(kindOf(rule.column)) ?? (isRelation
     ? ["contains", "notContains", "empty", "notEmpty"]
-    : (Object.keys(opLabels) as FilterOp[]);
+    : (Object.keys(opLabels) as FilterOp[]));
   // Keep a pre-existing operator selectable even if it is not in the relation set
   // (e.g. a data-relation column already filtered with `==`): otherwise the
   // operator dropdown would show a blank/first value and silently rewrite it.
   if (rule.op && !availableOps.includes(rule.op)) availableOps.unshift(rule.op);
   const columnOptions: SelectOption[] = [
     ...(!rule.column ? [{ value: "", label: t("database.selectColumn", "Spalte wählen...") }] : []),
-    ...availableColumns.map((c) => ({ value: c, label: cells.columnLabel(c) })),
+    ...[...new Set([...availableColumns, ...(rule.column ? [rule.column] : [])])].map((c) => ({ value: c, label: cells.columnLabel(c) })),
   ];
   return (
     <div className="base-cfg-filterrow">
@@ -359,7 +357,9 @@ function FilterRow({
         <Select ariaLabel={t("database.filterColumn", "Filterspalte")} value={rule.column} size="sm" minWidth={60} onChange={(v) => {
           const nextInput = v ? cells.getColumnInput(v) : undefined;
           const nextIsRelation = !!v && (nextInput === "relation" || nextInput === "link" || cells.isReverseColumn?.(v) || (nextInput === undefined && columnValuesAreWikiLinks(filterValueRows, v)));
-          const op = nextIsRelation && !["contains", "notContains", "empty", "notEmpty"].includes(rule.op)
+          const metadataOps = baseFilterOperators(kindOf(v));
+          const op = metadataOps && !metadataOps.includes(rule.op) ? metadataOps[0]
+            : nextIsRelation && !["contains", "notContains", "empty", "notEmpty"].includes(rule.op)
             ? "contains"
             : rule.op === "==" && nextInput === "multiselect" ? "contains" : rule.op;
           onChange({ ...rule, column: v, op, value: "" });
@@ -371,7 +371,7 @@ function FilterRow({
       <div style={{ flex: "1.3 1 0", minWidth: 0 }}>
         {rule.op === "empty" || rule.op === "notEmpty"
           ? <div className="base-cfg-empty" aria-hidden="true" />
-          : <FilterValueEditor column={rule.column} op={rule.op} value={rule.value} rows={filterValueRows} cells={cells} t={t} onCommit={(value) => onChange({ ...rule, value })} />}
+          : <FilterValueEditor fields={fields} column={rule.column} op={rule.op} value={rule.value} rows={filterValueRows} cells={cells} t={t} onCommit={(value) => onChange({ ...rule, value })} />}
       </div>
       {onRemove && (
         <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
@@ -680,6 +680,12 @@ export function BaseConfigPanel({
 
   // Draft rows: one loose rule, one fresh group (rule + its logic) and one
   // per existing group (keyed by list:idx), each committed only when complete.
+  const filterFields = baseFilterCatalog(
+    [...availableColumns, ...filterValueRows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith("file.") && key !== "plainva"))],
+    cells.columnLabel, t, dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy,
+  );
+  const filterColumns = filterFields.map((field) => field.column);
+  const filterCells = { ...cells, columnLabel: (column: string) => filterFields.find((field) => field.column === column)?.label ?? cells.columnLabel(column) };
   const [draftFilter, setDraftFilter] = useState<PropertyFilterRule | null>(null);
   const [draftGroup, setDraftGroup] = useState<{ logic: "all" | "any"; rule: PropertyFilterRule } | null>(null);
   const [groupDrafts, setGroupDrafts] = useState<Record<string, PropertyFilterRule>>({});
@@ -1099,9 +1105,10 @@ export function BaseConfigPanel({
               <div
                 key={col}
                 ref={dragIndex != null ? colDrag.rowRef(dragIndex) : undefined}
-                className={`base-cfg-colrow${dragIndex != null && colDrag.overIdx === dragIndex && colDrag.dragIdx !== null && colDrag.dragIdx !== dragIndex ? " base-cfg-row-drop" : ""}`}
+                className={`base-cfg-colrow base-cfg-colrow--stack${dragIndex != null && colDrag.overIdx === dragIndex && colDrag.dragIdx !== null && colDrag.dragIdx !== dragIndex ? " base-cfg-row-drop" : ""}`}
                 style={{ opacity: dragIndex != null && colDrag.dragIdx === dragIndex ? 0.5 : 1 }}
               >
+                <div className="base-cfg-colhead">
                 {visible ? (
                   <span
                     className="base-cfg-grip"
@@ -1115,7 +1122,9 @@ export function BaseConfigPanel({
                 ) : (
                   <span style={{ width: 12, flexShrink: 0 }} aria-hidden="true" />
                 )}
+                <div className="base-cfg-colidentity">
                 <span className="base-cfg-colname">{cells.columnLabel(col)}</span>
+                <div className="base-cfg-colmeta">
                 {relBadge && <span className="base-cfg-badge" data-tip={relBadge.tip}>{relBadge.text}</span>}
                 {typeLabel && <span className="base-cfg-typebadge">{typeLabel}</span>}
                 {availableColumns.includes(col) && (
@@ -1124,21 +1133,8 @@ export function BaseConfigPanel({
                     data-tip={t("database.coverageTooltip", "In {{count}} von {{total}} Einträgen vorhanden", { count: columnCoverage.counts[col] ?? 0, total: columnCoverage.total })}
                   >{columnCoverage.counts[col] ?? 0}/{columnCoverage.total}</span>
                 )}
-                {visible && onSetSummary && (
-                  // Obsidian's own column footer — native on both sides, so a
-                  // footer set here shows up there and the other way round.
-                  <Select
-                    ariaLabel={t("database.summary")}
-                    value={summaries?.[col] ?? ""}
-                    size="sm"
-                    minWidth={0}
-                    onChange={(v) => onSetSummary(col, v || null)}
-                    options={[
-                      { value: "", label: t("database.summaryNone") },
-                      ...SUMMARY_NAMES.map((n) => ({ value: n, label: t(`database.summary_${n}`) })),
-                    ]}
-                  />
-                )}
+                </div>
+                </div>
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={ICON.meta} /></button>
                 )}
@@ -1150,6 +1146,18 @@ export function BaseConfigPanel({
                 >
                   {visible ? <Eye size={ICON.ui} /> : <EyeOff size={ICON.ui} />}
                 </button>
+                </div>
+                {visible && onSetSummary && (
+                  <div className="base-cfg-colsummary">
+                    <span>{t("database.summary")}</span>
+                    <ColumnSummarySelect
+                      columnLabel={cells.columnLabel(col)}
+                      value={summaries?.[col] ?? ""}
+                      compact
+                      onChange={(value) => onSetSummary(col, value)}
+                    />
+                  </div>
+                )}
               </div>
             );
           };
@@ -1157,6 +1165,7 @@ export function BaseConfigPanel({
             <>
               <div className="base-cfg-group">
                 <div className="base-cfg-grouplabel">{t("database.visibleColumns", "Sichtbar")}</div>
+                {onSetSummary && <p className="base-cfg-hint">{t("database.summaryHint")}</p>}
                 <div className="base-cfg-card">
                   {visibleColumns.length === 0 && <div className="base-cfg-cardrow"><span className="base-cfg-empty">{t("database.noVisibleColumns", "Keine Spalte sichtbar")}</span></div>}
                   {visibleColumns.map((col, i) => renderRow(col, i))}
@@ -1247,7 +1256,7 @@ export function BaseConfigPanel({
                 <FilterChip
                   key={key}
                   rule={entry.rule}
-                  cells={cells}
+                  cells={filterCells}
                   t={t}
                   onEdit={() => setEditingKey(key)}
                   onRemove={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))}
@@ -1256,11 +1265,11 @@ export function BaseConfigPanel({
             }
             return (
               <div key={key} className="base-cfg-filteredit">
-                <FilterRow
+                <FilterRow fields={filterFields}
                   rule={entry.rule}
-                  availableColumns={availableColumns}
+                  availableColumns={filterColumns}
                   filterValueRows={filterValueRows}
-                  cells={cells}
+                  cells={filterCells}
                   t={t}
                   onChange={(rule) => {
                     if (rule.value === SELF_MARKER && rule.column) {
@@ -1309,7 +1318,7 @@ export function BaseConfigPanel({
                     <FilterChip
                       key={item.idx}
                       rule={item.rule}
-                      cells={cells}
+                      cells={filterCells}
                       t={t}
                       onEdit={() => setEditingKey(itemKey)}
                       onRemove={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))}
@@ -1318,11 +1327,11 @@ export function BaseConfigPanel({
                 }
                 return item.rule ? (
                   <div key={item.idx} className="base-cfg-filteredit">
-                    <FilterRow
+                    <FilterRow fields={filterFields}
                       rule={item.rule}
-                      availableColumns={availableColumns}
+                      availableColumns={filterColumns}
                       filterValueRows={filterValueRows}
-                      cells={cells}
+                      cells={filterCells}
                       t={t}
                       onChange={(rule) => {
                         if (rule.value === SELF_MARKER && rule.column) {
@@ -1347,11 +1356,11 @@ export function BaseConfigPanel({
                 );
               })}
               {draft && (
-                <FilterRow
+                <FilterRow fields={filterFields}
                   rule={draft}
-                  availableColumns={availableColumns}
+                  availableColumns={filterColumns}
                   filterValueRows={filterValueRows}
-                  cells={cells}
+                  cells={filterCells}
                   t={t}
                   onChange={(rule) => commitGroupDraft(entry.ref, rule)}
                   onRemove={() => setGroupDrafts((prev) => { const next = { ...prev }; delete next[groupKey(entry.ref)]; return next; })}
@@ -1390,11 +1399,11 @@ export function BaseConfigPanel({
           </div>
         )}
         {draftFilter && (
-          <FilterRow
+          <FilterRow fields={filterFields}
             rule={draftFilter}
-            availableColumns={availableColumns}
+            availableColumns={filterColumns}
             filterValueRows={filterValueRows}
-            cells={cells}
+            cells={filterCells}
             t={t}
             onChange={commitDraft}
             onRemove={() => setDraftFilter(null)}
@@ -1412,11 +1421,11 @@ export function BaseConfigPanel({
                 <button onClick={() => setDraftGroup(null)} aria-label={t("database.removeGroup", "Gruppe entfernen")} data-tip={t("database.removeGroup", "Gruppe entfernen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             </div>
-            <FilterRow
+            <FilterRow fields={filterFields}
               rule={draftGroup.rule}
-              availableColumns={availableColumns}
+              availableColumns={filterColumns}
               filterValueRows={filterValueRows}
-              cells={cells}
+              cells={filterCells}
               t={t}
               onChange={(rule) => commitDraftGroup(draftGroup.logic, rule)}
             />

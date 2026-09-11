@@ -34,11 +34,12 @@ export function buildDriveTarget(
     clientId: string;
     clientSecret: string;
     refreshToken: string;
+    rootFolderName?: string;
   },
   accessTokenProvider?: (force: boolean) => Promise<string>
 ): DriveSyncTarget {
   const target = new DriveSyncTarget(
-    { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken },
+    { clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken, rootFolderName: creds.rootFolderName },
     httpFetch
   );
   if (accessTokenProvider) target.accessTokenProvider = accessTokenProvider;
@@ -46,12 +47,12 @@ export function buildDriveTarget(
 }
 
 export function buildOneDriveTarget(
-  creds: { clientId: string; refreshToken: string },
+  creds: { clientId: string; refreshToken: string; rootFolderName?: string },
   onRotate?: (refreshToken: string) => void,
   accessTokenProvider?: (force: boolean) => Promise<string>
 ): OneDriveSyncTarget {
   const target = new OneDriveSyncTarget(
-    { clientId: creds.clientId, refreshToken: creds.refreshToken },
+    { clientId: creds.clientId, refreshToken: creds.refreshToken, rootFolderName: creds.rootFolderName },
     microsoftAuthFetch
   );
   if (accessTokenProvider) {
@@ -67,11 +68,11 @@ export function buildOneDriveTarget(
 }
 
 export function buildDropboxTarget(
-  creds: { appKey: string; refreshToken: string },
+  creds: { appKey: string; refreshToken: string; rootPath?: string },
   onRotate?: (refreshToken: string) => void
 ): DropboxSyncTarget {
   const target = new DropboxSyncTarget(
-    { appKey: creds.appKey, refreshToken: creds.refreshToken },
+    { appKey: creds.appKey, refreshToken: creds.refreshToken, rootPath: creds.rootPath },
     httpFetch
   );
   if (onRotate) {
@@ -89,6 +90,7 @@ export interface S3TargetCreds {
   accessKeyId: string;
   secretAccessKey: string;
   forcePathStyle: boolean;
+  prefix?: string;
 }
 
 export function buildS3Target(creds: S3TargetCreds): S3SyncTarget {

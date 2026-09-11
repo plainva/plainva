@@ -24,6 +24,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ ask: vi.fn(async () => true), open
 
 /** In-memory ScaffoldAdapter — the scaffolder needs exists/createDir/writeTextFile only. */
 class FakeAdapter {
+  async listDir() { return [...this.files.keys(), ...this.dirs].map(name => ({ name })); }
   files = new Map<string, string>();
   dirs = new Set<string>();
   async exists(path: string) { return this.files.has(path) || this.dirs.has(path); }
@@ -119,7 +120,7 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
       for (const def of getVaultTemplates(lang)) {
         it(`${def.id}: scaffold is fully OKF-conform incl. managed index.md files`, async () => {
           const adapter = new FakeAdapter();
-          await scaffoldVaultTemplate({ adapter, template: def, vaultName: "Mein Vault", subfoldersHeading: "Unterordner" });
+          await scaffoldVaultTemplate({ isNewVault: true, adapter, template: def, vaultName: "Mein Vault", subfoldersHeading: "Unterordner" });
 
           // Every folder exists and carries a managed, frontmatter-FREE index.md
           // (frontmatter on a non-root index.md is an OKF reserved-name violation).
@@ -159,23 +160,23 @@ describe("vault templates (Gesamtplan 2026-07-04, P4; alle Sprachen seit Plan Sp
 
       it("empty vault: only the bundle-root index.md is written", async () => {
         const adapter = new FakeAdapter();
-        await scaffoldVaultTemplate({ adapter, template: null, vaultName: "Leer", subfoldersHeading: "Unterordner" });
+        await scaffoldVaultTemplate({ isNewVault: true, adapter, template: null, vaultName: "Leer", subfoldersHeading: "Unterordner" });
         expect([...adapter.files.keys()]).toEqual(["index.md"]);
         expect(adapter.dirs.size).toBe(0);
         expect(adapter.files.get("index.md")).toContain('okf_version: "0.2"');
       });
 
-      it("never overwrites existing files (fills the gaps only)", async () => {
+      it("rejects existing vaults without adding any files", async () => {
         const adapter = new FakeAdapter();
         const para = templates.find((d) => d.id === "para")!;
         const welcomeName = para.notes[0].path;
         adapter.files.set("index.md", "user content");
         adapter.files.set(welcomeName, "mine");
-        await scaffoldVaultTemplate({ adapter, template: para, vaultName: "V", subfoldersHeading: "Sub" });
+        await expect(scaffoldVaultTemplate({ isNewVault: true, adapter, template: para, vaultName: "V", subfoldersHeading: "Sub" })).rejects.toThrow("new, empty vault");
         expect(adapter.files.get("index.md")).toBe("user content");
         expect(adapter.files.get(welcomeName)).toBe("mine");
-        // The rest was still scaffolded around the existing files.
-        expect(adapter.files.has(`${para.folders[0]}/index.md`)).toBe(true);
+        expect(adapter.files.size).toBe(2);
+        expect(adapter.dirs.size).toBe(0);
       });
 
       it("journal template wires the vault's daily-notes settings consistently", async () => {

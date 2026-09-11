@@ -1007,6 +1007,32 @@
     </div>
   </section>
 
+  <section id="column-summary">
+    <h2>Database properties and summaries</h2>
+    <p class="sec-sub">A property name has its own wrapping line. Badges are secondary; the summary selector sits underneath and names the property to assistive technology. The same arrangement fits a desktop panel and a touch sheet.</p>
+    <div class="card" style="max-width: 320px">
+      <div style="display: flex; align-items: flex-start; gap: var(--space-2)">
+        <span aria-hidden="true">⠿</span>
+        <div style="flex: 1; min-width: 0; overflow-wrap: anywhere"><strong>Estimated effort for the next steps</strong><div>Number · 8/10 entries</div></div>
+        <span aria-hidden="true">⚙</span>
+      </div>
+      <div style="margin-top: var(--space-2)">Summary</div>
+      <select class="pv-field pv-field--select" aria-label="Summary for Estimated effort for the next steps"><option>Sum</option><option>No summary</option></select>
+      <p class="sec-sub">Summarizes values from the visible entries at the end of the column.</p>
+    </div>
+  </section>
+
+  <section id="metadata-filters">
+    <h2>Database metadata filters</h2>
+    <p class="sec-sub">One catalog on desktop and mobile. The source supplies values even if no entries match. Header colour, document icon and whole-note tags keep distinct names; labels identify their property.</p>
+    <div class="card" style="max-width: 320px; display: grid; gap: var(--space-2)">
+      <label>Header color <select class="field"><option>🟩 #2a7f7b</option><option>Is empty</option></select></label>
+      <label>Icon <select class="field"><option>📌 lucide:pin</option><option>💡</option></select></label>
+      <label>Tags · whole note <select class="field"><option>#tour</option><option>#tour/ideas</option></select></label>
+      <label>Labels · Topics <select class="field"><option>Ideas</option><option>Reading</option></select></label>
+    </div>
+  </section>
+
   <!-- ================= ÄNDERUNGEN ================= -->
   <section id="aenderungen">
     <h2><span class="no">12</span>Was sich sichtbar ändert</h2>

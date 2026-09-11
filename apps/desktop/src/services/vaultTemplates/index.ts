@@ -36,11 +36,15 @@ const OS_JUNK_NAMES = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
 /** Emptiness check before scaffolding (absolute path — the vault is not open yet). */
 export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean> {
   try {
+    const store = await getSettingsStore();
+    const known = [...(await store.get<string[]>("recentVaults") ?? []), ...(await store.get<string[]>("initializedVaultPaths") ?? [])];
+    const normalize = (path: string) => path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    if (known.some(path => normalize(path) === normalize(absolutePath))) return false;
     const entries = await readDir(absolutePath);
     return entries.every((e) => OS_JUNK_NAMES.has((e.name ?? "").toLowerCase()));
   } catch {
-    // Unreadable/nonexistent — adapter.initialize() will create it.
-    return true;
+    // An unreadable destination is not evidence of an empty folder.
+    return false;
   }
 }
 

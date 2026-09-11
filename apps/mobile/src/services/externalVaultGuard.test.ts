@@ -42,6 +42,6 @@ describe("the delete path knows only containers (external vault folder, P6)", ()
 
   it("never seeds a picked folder, however empty it is", () => {
     // The seeding condition of boot() carries the external check.
-    expect(src).toMatch(/if \(isLocal && !isExternalVault\(entry\) && \(await adapter\.listDir\(""\)\)\.length === 0\)/);
+    expect(src).toContain("isLocal && !isExternalVault(entry) && creationIntent && !containerExisted");
   });
 });

@@ -1,3 +1,4 @@
+import { seedExampleNote } from "./exampleVault";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
@@ -58,6 +59,7 @@ test("a touch drag opens a swipe row's actions", async ({ page }) => {
   // fail here, it fails later as a cancelled drag, which reads exactly like the
   // defect this test exists to catch. Settle first, dismiss, then insist that
   // no backdrop is left over whichever way it went.
+  await seedExampleNote(page);
   await page.waitForTimeout(1500);
   const whatsNew = page.locator('[data-testid="whats-new-sheet"]');
   if (await whatsNew.count()) {
@@ -65,7 +67,7 @@ test("a touch drag opens a swipe row's actions", async ({ page }) => {
   }
   await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
 
-  // The welcome vault seeds notes, and a note row IS a swipe row. Waiting for
+  // The fixture writes a note, and a note row IS a swipe row. Waiting for
   // the row rather than a screen keeps this independent of which surface the
   // start-up race happens to win.
   const front = page.locator(".m-swipe-front").first();

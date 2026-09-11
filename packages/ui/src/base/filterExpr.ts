@@ -7,6 +7,8 @@
 // "empty"/"notEmpty" are UI aliases for `col == ""` / `col != ""` (the stored
 // string stays plain Obsidian syntax) — relation filters use them (P11).
 
+import { DATABASE_METADATA, normalizeDatabaseFilterValue, parseDatabaseSourceFilter } from "@plainva/core";
+
 export type FilterOp = "==" | "!=" | "contains" | "notContains" | ">" | "<" | ">=" | "<=" | "empty" | "notEmpty";
 
 export interface PropertyFilterRule {
@@ -18,7 +20,7 @@ export interface PropertyFilterRule {
 const QUOTED = /"((?:[^"\\]|\\.)*)"/.source;
 
 export function isSourceCondition(filter: unknown): boolean {
-  return typeof filter === "string" && (/file\.folder\s*==/.test(filter) || /file\.hasTag\(/.test(filter));
+  return typeof filter === "string" && parseDatabaseSourceFilter(filter) !== null;
 }
 
 function escapeValue(v: string): string {
@@ -33,6 +35,11 @@ function unescapeValue(v: string): string {
  * condition or an expression this UI cannot edit (kept verbatim in the file). */
 export function parsePropertyFilter(filter: unknown): PropertyFilterRule | null {
   if (typeof filter !== "string" || isSourceCondition(filter)) return null;
+
+  const methodContains = filter.match(new RegExp(`^(!?)([\\w.]+)\\.contains\\(${QUOTED}\\)$`));
+  if (methodContains) return { column: methodContains[2], op: methodContains[1] ? "notContains" : "contains", value: unescapeValue(methodContains[3]) };
+  const methodEmpty = filter.match(/^(!?)([\w.]+)\.isEmpty\(\)$/);
+  if (methodEmpty) return { column: methodEmpty[2], op: methodEmpty[1] ? "notEmpty" : "empty", value: "" };
 
   const notContains = filter.match(new RegExp(`^!contains\\((.+?),\\s*${QUOTED}\\)$`));
   if (notContains) return { column: notContains[1].trim(), op: "notContains", value: unescapeValue(notContains[2]) };
@@ -54,9 +61,17 @@ export function parsePropertyFilter(filter: unknown): PropertyFilterRule | null 
 }
 
 export function serializePropertyFilter(rule: PropertyFilterRule): string {
+  if (rule.column === DATABASE_METADATA.tags) {
+    if (rule.op === "empty") return "file.tags.isEmpty()";
+    if (rule.op === "notEmpty") return "!file.tags.isEmpty()";
+    if (["contains", "notContains", "==", "!="].includes(rule.op)) {
+      const negated = rule.op === "notContains" || rule.op === "!=";
+      return `${negated ? "!" : ""}file.tags.contains("${escapeValue(normalizeDatabaseFilterValue(rule.column, rule.value))}")`;
+    }
+  }
   if (rule.op === "empty") return `${rule.column} == ""`;
   if (rule.op === "notEmpty") return `${rule.column} != ""`;
-  const value = escapeValue(rule.value);
+  const value = escapeValue(normalizeDatabaseFilterValue(rule.column, rule.value));
   if (rule.op === "contains") return `contains(${rule.column}, "${value}")`;
   if (rule.op === "notContains") return `!contains(${rule.column}, "${value}")`;
   return `${rule.column} ${rule.op} "${value}"`;

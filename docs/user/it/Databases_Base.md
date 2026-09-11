@@ -95,11 +95,11 @@ Un'**aggregazione** calcola un valore dalle note verso cui punta un collegamento
 - **In Obsidian** la colonna resta vuota: Obsidian non conosce l'aggregazione e mostra il database come una tabella senza quei valori. Il file resta valido, non si perde nulla.
 - **Limite**: un'aggregazione non calcola su un'altra aggregazione. Se il collegamento scelto punta a una colonna calcolata, la nuova colonna resta vuota.
 
-## Piè di colonna
+## Riepilogo
 
 Una colonna di una tabella può avere una riga sotto che la riassume — la **Somma** di uno sforzo, la data **Più remota**, o quante righe hanno anche solo un valore.
 
-- **Impostarlo**: in **Configura → Colonne**, scegli un **Piè di colonna** accanto alla colonna. **Nessun piè di colonna** lo rimuove di nuovo.
+- **Configura → Proprietà → Riepilogo**: Il nome di ogni proprietà visibile resta sopra il selettore. Scegli un riepilogo sotto; Nessun riepilogo lo rimuove. Funziona su desktop e mobile. Le formule personalizzate conservano nome e contenuto nel file; Plainva non le calcola.
 - **Calcoli**: Media · Min · Max · Somma · Intervallo · Mediana · Dev. standard · Più remota · Più recente · Spuntate · Non spuntate · Senza valore · Con valore · Distinti.
 - **Il piè calcola sulle righe che la vista mostra** — non sull'intero vault. Un filtro quindi cambia anche il numero sottostante.
 - **Niente da misurare non è zero**: una colonna senza un solo valore utilizzabile lascia il proprio piè vuoto invece di affermare 0. Una colonna senza un piè proprio resta vuota e non prende mai in prestito il numero della colonna vicina.
@@ -281,3 +281,9 @@ Una barra che va oltre il periodo mostrato viene tagliata al bordo e lì **non p
 **Colore per proprietà:** in Configura → Vista scegli una proprietà di selezione, stato o selezione multipla sotto **Colore per**. Le barre assumono allora il colore del loro valore — lo stesso che porta come chip e sulla lavagna. Senza questa scelta ogni barra mantiene il colore d'accento.
 
 **In ritardo:** in un database che sa cosa significa *fatto* — una colonna casella di controllo, o una colonna di stato con opzioni —, una barra o un rombo di una voce non completata il cui giorno è arrivato assume il colore di avviso, qualunque cosa dica **Colore per**. La stessa regola evidenzia il chip della data sulle schede di bacheca e galleria, e la voce nella vista calendario. Una voce completata non viene mai evidenziata, e nemmeno un database privo di tale colonna (i contatti, per esempio): un compleanno non è in ritardo.
+
+## Fascia di colore, Icona, Tag · intera nota
+
+Filtra per fascia di colore, icona, tag dell’intera nota o proprietà etichetta scelta per la bacheca. I tag coincidono esattamente: #work non trova #workshop né #work/child. Testo e frontmatter vengono uniti. I valori rimangono disponibili dall’intera sorgente anche senza risultati; i nomi di icone sconosciuti sono conservati.
+
+Il filtro cambia la selezione visibile, non i file. I valori proposti provengono dall’intera sorgente anche senza risultati.

@@ -537,7 +537,7 @@ export default function App() {
     // vault this boot created gets the offer — the one-time onboarding also
     // shows once on existing installs, whose content must never gain folders.
     void (async () => {
-      if (!vault.freshlySeeded) return;
+      if (!vault.claimTemplateCreation()) return;
       const defs = getVaultTemplates(i18n.language);
       const pick = await mSelect({
         title: t("mobile.templatePick"),
@@ -547,15 +547,15 @@ export default function App() {
         ],
         value: "",
       });
-      const def = defs.find((d) => d.id === pick);
-      if (!def) return;
+      const def = defs.find((d) => d.id === pick) ?? null;
       await scaffoldVaultTemplate({
-        adapter: vault.files,
+        adapter: vault.adapter,
+        isNewVault: vault.freshlySeeded,
         template: def,
         vaultName: "Plainva",
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
-      await applyTemplateSettings(def.settings);
+      await applyTemplateSettings(def?.settings);
       await vault.indexer?.indexVaultFull();
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("template scaffold failed", e));
@@ -589,16 +589,10 @@ export default function App() {
       });
       const name = rawName?.trim();
       if (cancelled || !name) return;
-      await createLocalVault(name); // creates + switches to the new (seeded) vault
+      const def = defs.find((d) => d.id === pick) ?? null;
+      await createLocalVault(name, def);
       const nv = await getMobileVault();
-      const def = defs.find((d) => d.id === pick);
       if (def) {
-        await scaffoldVaultTemplate({
-          adapter: nv.files,
-          template: def,
-          vaultName: name,
-          subfoldersHeading: t("indexMd.subfoldersHeading"),
-        });
         await applyTemplateSettings(def.settings);
         await nv.indexer?.indexVaultFull();
       }

@@ -13,7 +13,7 @@ import {
 import { useVault } from '../../contexts/VaultContext';
 import { syncStatusStore } from '../../services/syncStatusStore';
 import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
-import { scaffoldVaultTemplate } from '../../services/vaultTemplates';
+import { scaffoldVaultTemplate, isVaultFolderEmpty } from '../../services/vaultTemplates';
 import { buildImportLabels } from '@plainva/ui';
 import { extractArchive, discardExtractedArchive, readFolderAsFiles, type ExtractedArchive } from '../../services/importArchive';
 
@@ -574,9 +574,10 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       // — an imported vault must be an OKF vault like any other.
       let writeAdapter: unknown = vaultAdapter;
       if (target === 'newVault') {
+        if (!(await isVaultFolderEmpty(newVaultPath))) throw new Error(t('splash.folderNotEmptyConfirm', { name: basenameOf(newVaultPath) }));
         const adapter = new TauriVaultAdapter(newVaultPath);
         await adapter.initialize();
-        await scaffoldVaultTemplate({
+        await scaffoldVaultTemplate({ isNewVault: true,
           adapter,
           template: null,
           vaultName: basenameOf(newVaultPath),

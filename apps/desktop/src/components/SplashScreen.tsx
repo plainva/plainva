@@ -4,7 +4,6 @@ import { FolderOpen, Cloud, Folder, Laptop, Plus, HardDrive, X, FilePlus2, Cloud
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup, type OnlineProvider } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
-import { appConfirm } from "../services/appDialogs";
 import { Checkbox, ICON } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
@@ -154,8 +153,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   /**
    * "Create New Vault" chooser result: pick/create a folder in the OS dialog,
    * scaffold the template (or just the bundle-root index.md), then open. The
-   * scaffolder never overwrites existing files; a non-empty folder needs one
-   * confirmation.
+   * scaffolder only accepts a new, empty folder.
    */
   const handleCreateVault = async (template: VaultTemplateDefinition | null) => {
     const selected = await open({ directory: true, multiple: false, title: t("splash.selectNewVaultFolderTitle") });
@@ -163,17 +161,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     setCreating(true);
     setCreateError(null);
     try {
-      if (!(await isVaultFolderEmpty(selected))) {
-        const proceed = await appConfirm({
-          title: t("splash.createVault"),
-          message: t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }),
-          kind: "warning",
-        });
-        if (!proceed) return;
-      }
+      if (!(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
       const adapter = new TauriVaultAdapter(selected);
       await adapter.initialize();
-      await scaffoldVaultTemplate({
+      await scaffoldVaultTemplate({ isNewVault: true,
         adapter,
         template,
         vaultName: getBasename(selected),

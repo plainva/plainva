@@ -213,7 +213,7 @@ export function BaseViewer({
     }
     let alive = true;
     queryService
-      .queryDatabaseFiles(stripPropertyFilters(dbConfig))
+      .queryDatabaseFiles(stripPropertyFilters(dbConfig), { includeFilterMetadata: true })
       .then((rows) => { if (alive) setFilterSourceRows(rows); })
       .catch(() => { if (alive) setFilterSourceRows(null); });
     return () => { alive = false; };

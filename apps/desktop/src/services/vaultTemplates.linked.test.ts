@@ -47,11 +47,12 @@ const optionValues = (col: unknown): string[] =>
 async function scaffold(def: VaultTemplateDefinition) {
   const files = new Map<string, string>();
   const adapter = {
+    listDir: async () => [...files.keys()].map(name => ({ name })),
     exists: async (p: string) => files.has(p),
     createDir: async () => {},
     writeTextFile: async (p: string, c: string) => { files.set(p, c); },
   };
-  await scaffoldVaultTemplate({ adapter: adapter as never, template: def, vaultName: "T", subfoldersHeading: "Sub", now: NOW });
+  await scaffoldVaultTemplate({ isNewVault: true, adapter: adapter as never, template: def, vaultName: "T", subfoldersHeading: "Sub", now: NOW });
   return files;
 }
 

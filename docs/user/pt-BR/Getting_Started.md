@@ -31,9 +31,34 @@ Depois de uma atualização, o mesmo lugar mostra o que mudou: a maior novidade 
 Ao iniciar, a tela de boas-vindas recebe você:
 
 - **Abrir vault** — o Plainva primeiro pergunta **"Onde está seu vault?"**: **Pasta local** abre uma pasta existente com arquivos Markdown neste computador (vaults do Obsidian funcionam prontamente); **Vault on-line** sincroniza um vault existente da nuvem para uma pasta local — as mesmas três etapas para todos os provedores (**Conectar**, **escolher a pasta na nuvem**, **escolher a pasta local**; veja [Configurar Sincronização](Sync_Setup.md)).
-- **Novo vault** — a primeira pergunta é **"Onde seu vault deve ficar?"** (**Neste computador** ou **Em um serviço on-line**), depois você escolhe a estrutura inicial: comece vazio ou a partir de uma estrutura de pastas pronta; ambos são ajustáveis a qualquer momento. O **Vault vazio** contém apenas uma visão geral em `index.md`. Os modelos disponíveis são **Tour do Plainva**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** e **Projeto** — cada um cria pastas, uma nota de boas-vindas com um guia rápido e visões gerais em `index.md` mantidas automaticamente no [formato OKF](OKF.md) (os nomes de pastas e arquivos seguem o idioma do app). O modelo **Tour do Plainva** é o ponto de partida recomendado: ele preenche nove pastas e sete bancos de dados com exemplos, assim você vê cada visualização em ação uma vez — mural, calendário, galeria, quadro, linha do tempo, tabela e a visualização em árvore com subitens — além de modelos de nota, regras de pasta e um guia rápido de Markdown. Nada aqui é precioso: exclua o que não precisar e renomeie o resto. O modelo **Journal** também configura as opções de notas diárias do vault. Os modelos **Tour do Plainva**, **PARA**, **GTD**, **Zettelkasten**, **Journal** e **Projeto** também trazem [bancos de dados](Databases_Base.md) já vinculados, com modelos de nota correspondentes — por exemplo, projetos com um quadro de status e um link para a área, ou tarefas que apontam para o seu projeto. O modelo **Projeto** mostra as ferramentas de projeto em ação: quatro bancos de dados conectados, uma coluna que conta as tarefas em aberto de um projeto, um rodapé que soma o esforço planejado, dependências entre tarefas e marcos que aparecem como um losango na linha do tempo. No caminho on-line, a conexão segue o mesmo fluxo: escolha o provedor, conecte, escolha a pasta na nuvem ou crie uma nova com **Nova pasta**, escolha a pasta local — a estrutura escolhida é criada na pasta local e enviada para a nuvem pela primeira sincronização.
+- **Novo vault** — a primeira pergunta é **"Onde seu vault deve ficar?"** (**Neste computador** ou **Em um serviço on-line**), depois você escolhe a estrutura inicial: comece vazio ou a partir de uma estrutura de pastas pronta; ambos são ajustáveis a qualquer momento. O **Vault vazio** contém apenas uma visão geral em `index.md`. Os modelos disponíveis são **Tour do Plainva**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** e **Projeto** — cada um cria pastas, uma nota de boas-vindas com um guia rápido e visões gerais em `index.md` mantidas automaticamente no [formato OKF](OKF.md) (os nomes de pastas e arquivos seguem o idioma do app). O modelo **Tour do Plainva** é o ponto de partida recomendado: ele preenche dez pastas e sete bancos de dados com exemplos, assim você vê cada visualização em ação uma vez — mural, calendário, galeria, quadro, grafo, linha do tempo, tabela e a visualização em árvore com subitens — além de modelos de nota, regras de pasta e um guia rápido de Markdown. Nada aqui é precioso: exclua o que não precisar e renomeie o resto. O modelo **Journal** também configura as opções de notas diárias do vault. Os modelos **Tour do Plainva**, **PARA**, **GTD**, **Zettelkasten**, **Journal** e **Projeto** também trazem [bancos de dados](Databases_Base.md) já vinculados, com modelos de nota correspondentes — por exemplo, projetos com um quadro de status e um link para a área, ou tarefas que apontam para o seu projeto. O modelo **Projeto** mostra as ferramentas de projeto em ação: quatro bancos de dados conectados, uma coluna que conta as tarefas em aberto de um projeto, um rodapé que soma o esforço planejado, dependências entre tarefas e marcos que aparecem como um losango na linha do tempo. No caminho on-line, a conexão segue o mesmo fluxo: escolha o provedor, conecte, escolha a pasta na nuvem ou crie uma nova com **Nova pasta**, escolha a pasta local — a estrutura escolhida é criada na pasta local e enviada para a nuvem pela primeira sincronização.
 
 **Vaults recentes** lista tudo o que você já abriu antes. **Remover da lista** remove uma entrada apenas do Plainva — os arquivos permanecem no disco. Ative **Abrir automaticamente o último vault ao iniciar** para pular a tela de boas-vindas no futuro. Ao remover, o Plainva pergunta se você também quer esquecer todos os dados do aplicativo do vault (índice de busca, configurações, layout da janela, credenciais de sincronização, calendário e caixas de correio; backups ZIP automáticos apenas pela caixa extra) — sua pasta do vault permanece intacta em qualquer caso.
+
+## Plainva Tour · Visão geral
+
+Comece com um exercício pequeno ou abra um banco diretamente. As cinco primeiras etapas mostram o uso diário; o restante é opcional. Reserve cerca de 10–15 minutos para conhecer o espaço e quanto tempo quiser para experimentar. Os exemplos são fictícios e podem ser alterados.
+
+**Abrir:** `Passeio/01 Escrever e conectar.md`
+
+1. Escrever e conectar
+2. De nota a tarefa
+3. Planejar um projeto
+4. Encontrar e organizar
+5. Organizar um dia
+6. Revisar uma nota
+7. Comparar versões
+8. Descobrir o que ajuda
+9. Contas, dispositivos e importação
+10. Compartilhar e automatizar
+
+O pacote fictício contém exatamente duas notas com a tag tour-import e nenhuma apagada. O relatório deve indicar duas notas importadas. Para desfazer, apague somente a nova subpasta.
+
+Espaços criptografados e compartilhamento são experimentais: precisam de identidades, chaves e serviço conectado. Explore papéis, convites e publicações com dados de teste separados. Scripts e automações exigem configuração e permissões conscientes. O modelo não executa scripts, contata serviços nem simula acessos.
+
+Versão dos dados: 2026-09-11. As datas correspondem à criação deste Vault. Atualizações de modelos valem somente para novos Vaults futuros; este nunca é alterado ou complementado por um modelo.
+
+Escolha uma pasta local nova e vazia e, para criar online, uma pasta de nuvem vazia. Vaults existentes abrem sem aplicar modelos. Remover arquivos ou trocar de dispositivo nunca permite aplicar uma atualização de modelo a eles.
 
 ## A interface
 

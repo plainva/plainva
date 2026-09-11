@@ -296,6 +296,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
     const store = await getSettingsStore();
     await store.set("lastVaultPath", path);
+    // Keep creation history even when a vault is removed from recent entries.
+    const initialized = (await store.get<string[]>("initializedVaultPaths")) ?? [];
+    if (!initialized.includes(path)) await store.set("initializedVaultPaths", [...initialized, path]);
     const currentRecents = (await store.get<string[]>("recentVaults")) || [];
     const newRecents = [path, ...currentRecents.filter((p) => p !== path)].slice(0, MAX_RECENTS);
     await store.set("recentVaults", newRecents);

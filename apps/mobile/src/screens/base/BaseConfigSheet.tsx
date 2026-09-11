@@ -6,6 +6,8 @@ import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
+import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
+import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
 import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
@@ -26,7 +28,6 @@ import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, p
 let cachedViewTypes: ReturnType<typeof baseViewTypeMeta>["type"][] | null = null;
 /** Read on first use, not at module load (C20) — see moduleInitBoundary.test.ts. */
 const viewTypes = () => (cachedViewTypes ??= BASE_VIEW_TYPES.map((v) => v.type));
-const FILTER_OPS: FilterOp[] = ["==", "!=", "contains", "notContains", ">", "<", ">=", "<=", "empty", "notEmpty"];
 /**
  * Authoring vocabulary for fresh properties. `relation` joined it in S21, when
  * the phone gained the three controls a relation actually needs; leaving it out
@@ -81,6 +82,21 @@ export function BaseConfigSheet({
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
+  const [filterRows, setFilterRows] = useState<Record<string, unknown>[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!vault.queryService) return;
+    vault.queryService.queryDatabaseFiles(stripPropertyFilters(config), { includeFilterMetadata: true })
+      .then((rows) => { if (alive) setFilterRows(rows); })
+      .catch(() => { if (alive) setFilterRows([]); });
+    return () => { alive = false; };
+  }, [config, vault.queryService]);
+  const filterFields = baseFilterCatalog(
+    [...columnsPool, ...filterRows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith("file.") && key !== "plainva"))],
+    columnLabel, t, view.pinboardFilterBy,
+  );
+  const filterColumns = filterFields.map((field) => field.column);
+  const filterLabel = (column: string) => filterFields.find((field) => field.column === column)?.label ?? columnLabel(column);
 
   // ── "This note" filters (S23) ─────────────────────────────────────────────
   // Any wiki-link-storing property can carry one — not just relations to the
@@ -330,7 +346,7 @@ export function BaseConfigSheet({
     void (async () => {
       const col = await mSelect({
         title: t("database.filterGroup"),
-        options: columnsPool.map((c) => ({ value: c, label: columnLabel(c) })),
+        options: filterFields.map((field) => ({ value: field.column, label: field.label })),
       });
       if (col === null) return;
       mutateView((v) => {
@@ -920,8 +936,27 @@ export function BaseConfigSheet({
         {activeArea === "columns" && (
         <>
         <SectionLabel className="m-sectionlabel--inset">{t("database.properties")}</SectionLabel>
+        <p className="m-hint">{t("database.summaryHint")}</p>
+        <div className="m-cfg-property">
+          <div className="m-row">{t("database.colFileName")}</div>
+          <div className="m-cfg-property-summary">
+            <span>{t("database.summary")}</span>
+            <ColumnSummarySelect
+              columnLabel={t("database.colFileName")}
+              value={view.summaries?.["file.name"] ?? ""}
+              onChange={(value) => mutateView((v) => {
+                const summaries = { ...(v.summaries ?? {}) };
+                if (value) summaries["file.name"] = value;
+                else delete summaries["file.name"];
+                if (Object.keys(summaries).length) v.summaries = summaries;
+                else delete v.summaries;
+              })}
+            />
+          </div>
+        </div>
         {shown.map((c, idx) => (
-          <div className="m-row m-row--split" key={c}>
+          <div className="m-cfg-property" key={c}>
+          <div className="m-row m-row--split">
             <button
               className="m-row-main"
               onClick={() => setOrder(shown.filter((x) => x !== c))}
@@ -945,6 +980,21 @@ export function BaseConfigSheet({
             >
               <ArrowDown size={ICON.head} />
             </IconButton>
+          </div>
+          <div className="m-cfg-property-summary">
+            <span>{t("database.summary")}</span>
+            <ColumnSummarySelect
+              columnLabel={columnLabel(c)}
+              value={view.summaries?.[c] ?? ""}
+              onChange={(value) => mutateView((v) => {
+                const summaries = { ...(v.summaries ?? {}) };
+                if (value) summaries[c] = value;
+                else delete summaries[c];
+                if (Object.keys(summaries).length) v.summaries = summaries;
+                else delete v.summaries;
+              })}
+            />
+          </div>
           </div>
         ))}
         {hidden.map((c) => (
@@ -1049,10 +1099,10 @@ export function BaseConfigSheet({
             <SectionLabel className="m-sectionlabel--inset">{t("database.filterThisNote")}</SectionLabel>
             {wikiLinkColumns.map((c) => (
               <div className="m-row m-row--split" key={c}>
-                <span className="m-peeklabel">{columnLabel(c)}</span>
+                <span className="m-peeklabel">{filterLabel(c)}</span>
                 <Switch
                   checked={contextFilters.includes(c)}
-                  label={`${columnLabel(c)} — ${t("database.filterThisNote")}`}
+                  label={`${filterLabel(c)} — ${t("database.filterThisNote")}`}
                   onChange={(on) =>
                     onMutate((cfg) => Object.assign(cfg, on ? addContextFilter(cfg, c) : removeContextFilter(cfg, c)))
                   }
@@ -1071,7 +1121,9 @@ export function BaseConfigSheet({
         </div>
         {simpleRules.map((entry, idx) => (
           <FilterRuleRow
-            columnLabel={columnLabel}
+            columnLabel={filterLabel}
+            fields={filterFields}
+            rows={filterRows}
             key={idx}
             onChange={(rule) =>
               onMutate((cfg) => {
@@ -1123,7 +1175,9 @@ export function BaseConfigSheet({
             {group.items.map((item, ii) =>
               item.rule ? (
                 <FilterRuleRow
-                  columnLabel={columnLabel}
+                  columnLabel={filterLabel}
+            fields={filterFields}
+            rows={filterRows}
                   key={ii}
                   onChange={(rule) =>
                     onMutate((cfg) => {
@@ -1156,7 +1210,7 @@ export function BaseConfigSheet({
               ),
             )}
             <div className="m-turninto">
-              {columnsPool.map((c) => (
+              {filterColumns.map((c) => (
                 <Chip
                   key={c}
                   onClick={() =>
@@ -1173,7 +1227,7 @@ export function BaseConfigSheet({
                     })
                   }
                 >
-                  + {columnLabel(c)}
+                  + {filterLabel(c)}
                 </Chip>
               ))}
             </div>
@@ -1192,7 +1246,7 @@ export function BaseConfigSheet({
           />
         ))}
         <div className="m-turninto">
-          {columnsPool.map((c) => (
+          {filterColumns.map((c) => (
             <Chip
               selected={newFilterCol === c}
               key={c}
@@ -1211,10 +1265,10 @@ export function BaseConfigSheet({
                 });
               }}
             >
-              + {columnLabel(c)}
+              + {filterLabel(c)}
             </Chip>
           ))}
-          {columnsPool.length > 0 && (
+          {filterColumns.length > 0 && (
             <Button variant="ghost" size="sm" onClick={addGroup}>
               + {t("database.filterGroup")}
             </Button>
@@ -1254,42 +1308,60 @@ export function BaseConfigSheet({
 }
 
 function FilterRuleRow({
-  rule,
+  rule: storedRule,
   columnLabel,
-  onChange,
+  fields,
+  rows,
+  onChange: onCommit,
   onRemove,
 }: {
   rule: PropertyFilterRule;
   columnLabel: (col: string) => string;
+  fields: readonly BaseFilterField[];
+  rows: ReadonlyArray<Record<string, unknown>>;
   onChange: (rule: PropertyFilterRule) => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
+  const [rule, onChange] = useFilterRuleDraft(storedRule, onCommit);
   const needsValue = rule.op !== "empty" && rule.op !== "notEmpty";
-  const opLabel = (op: FilterOp) =>
-    op === "empty" ? t("database.opEmpty") : op === "notEmpty" ? t("database.opNotEmpty") : op;
+  const kind = fields.find((field) => field.column === rule.column)?.kind ?? baseFilterKind(rule.column);
+  const labels = baseFilterOpLabels(t);
+  const operators = baseFilterOperators(kind) ?? Object.keys(labels) as FilterOp[];
+  if (!operators.includes(rule.op)) operators.unshift(rule.op);
   return (
     <div className="m-filterrule">
       <div className="m-filterrule-head">
-        <span className="m-filterrule-col">{columnLabel(rule.column)}</span>
+        <Select
+          ariaLabel={t("database.filterColumn")}
+          value={rule.column}
+          minWidth={0}
+          options={[
+            ...fields.map((field) => ({ value: field.column, label: field.label })),
+            ...(!fields.some((field) => field.column === rule.column) ? [{ value: rule.column, label: columnLabel(rule.column) }] : []),
+          ]}
+          onChange={(column) => onChange({ column, op: "notEmpty", value: "" })}
+        />
         <IconButton label={t("database.deleteView")} onClick={onRemove}>
           <Trash2 size={ICON.head} />
         </IconButton>
       </div>
       <div className="m-turninto">
-        {FILTER_OPS.map((op) => (
+        {operators.map((op) => (
           <Chip
             selected={rule.op === op}
             key={op}
             onClick={() => onChange({ ...rule, op, value: needsValue ? rule.value : "" })}
           >
-            {opLabel(op)}
+            {labels[op]}
           </Chip>
         ))}
       </div>
-      {needsValue && (
+      {needsValue && kind !== "property" && <MetadataFilterValue column={rule.column} rows={rows} value={rule.value} onChange={(value) => onChange({ ...rule, value })} />}
+      {needsValue && kind === "property" && (
         <TextInput
-          
+          key={`${rule.column}:${rule.value}`}
+          aria-label={t("database.filterValue")}
           defaultValue={rule.value}
           onBlur={(e) => {
             if (e.target.value !== rule.value) onChange({ ...rule, value: e.target.value });

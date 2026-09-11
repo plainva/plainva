@@ -31,9 +31,34 @@ Na een update laat dezelfde plek zien wat er is veranderd: de belangrijkste wijz
 Bij het opstarten begroet het welkomstscherm je:
 
 - **Vault openen** — Plainva vraagt eerst **"Waar staat je vault?"**: **Lokale map** opent een bestaande map met Markdown-bestanden op deze computer (ook Obsidian-vaults werken direct); **Online vault** synchroniseert een bestaande vault uit de cloud naar een lokale map — bij elke provider dezelfde drie stappen (**Verbinden**, **de map in de cloud kiezen**, **de lokale map kiezen**; zie [Sync instellen](Sync_Setup.md)).
-- **Nieuwe vault** — de eerste vraag is **"Waar moet je vault komen te staan?"** (**Op deze computer** of **Bij een onlinedienst**), daarna kies je de startstructuur: begin leeg of met een voorbereide mappenstructuur; beide zijn altijd aan te passen. De **Lege vault** bevat alleen een `index.md`-overzicht. Als sjablonen zijn beschikbaar: **Plainva-tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** en **Project** — elk maakt mappen, een welkomstnotitie met korte handleiding en automatisch bijgehouden `index.md`-overzichten in het [OKF-formaat](OKF.md) aan (map- en bestandsnamen volgen de app-taal). De **Plainva-tour** is de aanbevolen plek om te beginnen: deze vult negen mappen en zeven databases met voorbeelden, zodat je elke weergave één keer in actie ziet — Prikbord, Kalender, Galerij, Bord, Tijdlijn, Tabel en de Boomstructuur-weergave met subitems — plus notitiesjablonen, mapregels en een Markdown-spiekbriefje. Niets daarin is kostbaar: verwijder wat je niet nodig hebt en hernoem de rest. Het **Journal**-sjabloon stelt bovendien meteen de dagelijkse-notities-instellingen van de vault in. De sjablonen **Plainva-tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** en **Project** leveren ook kant-en-klaar gekoppelde [databases](Databases_Base.md) mee met bijpassende notitiesjablonen — bijvoorbeeld projecten met een statusbord en een gebiedslink, of taken die naar hun project verwijzen. Het sjabloon **Project** laat de projectgereedschappen in actie zien: vier gekoppelde databases, een kolom die de open taken van een project telt, een kolomvoet die de geplande inspanning optelt, afhankelijkheden tussen taken en mijlpalen die op de tijdlijn als een ruit verschijnen. Bij het online pad volgt de verbinding op het sjabloon: kies de provider, verbind, kies de map in de cloud of maak er via **Nieuwe map** een nieuwe aan, kies de lokale map — de gekozen structuur wordt in de lokale map aangemaakt en bij de eerste synchronisatie naar de cloud geüpload.
+- **Nieuwe vault** — de eerste vraag is **"Waar moet je vault komen te staan?"** (**Op deze computer** of **Bij een onlinedienst**), daarna kies je de startstructuur: begin leeg of met een voorbereide mappenstructuur; beide zijn altijd aan te passen. De **Lege vault** bevat alleen een `index.md`-overzicht. Als sjablonen zijn beschikbaar: **Plainva-tour**, **PARA**, **Zettelkasten**, **ACE (Linking Your Thinking)**, **Johnny.Decimal**, **GTD**, **Journal** en **Project** — elk maakt mappen, een welkomstnotitie met korte handleiding en automatisch bijgehouden `index.md`-overzichten in het [OKF-formaat](OKF.md) aan (map- en bestandsnamen volgen de app-taal). De **Plainva-tour** is de aanbevolen plek om te beginnen: deze vult tien mappen en zeven databases met voorbeelden, zodat je elke weergave één keer in actie ziet — Prikbord, Kalender, Galerij, Bord, Tijdlijn, Tabel en de Boomstructuur-weergave met subitems — plus notitiesjablonen, mapregels en een Markdown-spiekbriefje. Niets daarin is kostbaar: verwijder wat je niet nodig hebt en hernoem de rest. Het **Journal**-sjabloon stelt bovendien meteen de dagelijkse-notities-instellingen van de vault in. De sjablonen **Plainva-tour**, **PARA**, **GTD**, **Zettelkasten**, **Journal** en **Project** leveren ook kant-en-klaar gekoppelde [databases](Databases_Base.md) mee met bijpassende notitiesjablonen — bijvoorbeeld projecten met een statusbord en een gebiedslink, of taken die naar hun project verwijzen. Het sjabloon **Project** laat de projectgereedschappen in actie zien: vier gekoppelde databases, een kolom die de open taken van een project telt, een kolomvoet die de geplande inspanning optelt, afhankelijkheden tussen taken en mijlpalen die op de tijdlijn als een ruit verschijnen. Bij het online pad volgt de verbinding op het sjabloon: kies de provider, verbind, kies de map in de cloud of maak er via **Nieuwe map** een nieuwe aan, kies de lokale map — de gekozen structuur wordt in de lokale map aangemaakt en bij de eerste synchronisatie naar de cloud geüpload.
 
 Onder **Recente vaults** vind je alles wat je al eerder hebt geopend. Met **Uit lijst verwijderen** verdwijnt een item alleen uit Plainva — de bestanden blijven op schijf staan. De optie **Laatste vault automatisch openen bij het starten** slaat het welkomstscherm voortaan over. Bij het verwijderen vraagt Plainva of daarnaast alle app-gegevens van de vault vergeten moeten worden (zoekindex, instellingen, vensterindeling, inloggegevens voor synchronisatie, agenda en postvakken; automatische ZIP-back-ups alleen via het extra selectievakje) — je vault-map blijft in elk geval onaangetast.
+
+## Plainva Tour · Overzicht
+
+Begin met een kleine oefening of open meteen een database. De eerste vijf stappen tonen dagelijks gebruik; de rest is optioneel. Reken op ongeveer 10–15 minuten voor een eerste indruk en neem de tijd om dingen te proberen. Alle voorbeelden zijn verzonnen en aanpasbaar.
+
+**Openen:** `Rondleiding/01 Schrijven en verbinden.md`
+
+1. Schrijven en verbinden
+2. Van notitie naar taak
+3. Een project plannen
+4. Vinden en ordenen
+5. Een dag vormgeven
+6. Een notitie bespreken
+7. Versies vergelijken
+8. Ontdekken wat helpt
+9. Accounts, apparaten en import
+10. Delen en automatiseren
+
+Het verzonnen pakket bevat precies twee notities met tag tour-import en geen verwijderde notities. Het rapport hoort twee geïmporteerde notities te tonen. Verwijder alleen die nieuwe submap om terug te draaien.
+
+Versleutelde werkruimten en delen zijn experimenteel en vragen identiteiten, sleutels en een verbonden dienst. Verken rollen, uitnodigingen en publicaties met afzonderlijke demogegevens. Scripts en automatiseringen vragen bewuste inrichting en rechten. Het sjabloon start geen scripts, benadert geen diensten en doet geen toegang voor.
+
+Gegevensversie: 2026-09-11. De datums horen bij de aanmaak van deze Vault. Sjabloonupdates gelden alleen voor toekomstige nieuwe Vaults; deze wordt nooit door een sjabloon gewijzigd of aangevuld.
+
+Kies een nieuwe, lege lokale map en bij online aanmaken een lege cloudmap. Bestaande Vaults openen zonder een sjabloon toe te passen. Bestanden verwijderen of van apparaat wisselen maakt ze nooit geschikt voor een sjabloonupdate.
 
 ## De interface
 

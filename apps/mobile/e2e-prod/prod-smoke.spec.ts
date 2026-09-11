@@ -24,7 +24,7 @@ test("production bundle boots and mounts the app without an uncaught error", asy
 
   await page.goto("/");
 
-  // Something real has to be on screen. The first start seeds a welcome vault
+  // Something real has to be on screen. First-start initialization runs
   // asynchronously, so allow a generous wait rather than pinning a screen: the
   // question here is whether the bundle evaluated and React mounted, not which
   // surface won the race.

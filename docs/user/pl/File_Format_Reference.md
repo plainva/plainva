@@ -585,3 +585,25 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 - [Notatki i Markdown](Notes_and_Markdown.md) — ten sam materiał z perspektywy pisania ręcznego w aplikacji
 - [Bazy danych (.base)](Databases_Base.md) — bazy danych wyjaśnione dla codziennego użytku
 - [OKF](OKF.md) — `type`, wersja pakietu, pola zaufania OKF 0.2, index.md i konwersja vaultu
+
+## Pasek koloru / Ikona / Tagi · cała notatka
+
+Filtruj według paska koloru, ikony, tagów całej notatki lub właściwości etykiet wybranej dla tablicy. Tagi pasują dokładnie: #work nie pasuje do #workshop ani #work/child. Tekst i frontmatter są łączone. Wartości są dostępne z całego źródła także bez wyników; nieznane nazwy ikon zostają zachowane.
+
+```yaml
+filters:
+  and:
+    - file.folder == "Notes"
+views:
+  - type: table
+    name: Example
+    filters:
+      and:
+        - 'note.plainva.header_color == "#2a7f7b"'
+        - 'note.plainva.icon == "lucide:pin"'
+        - 'file.tags.contains("#work")'
+```
+
+- `nie zawiera`: `!file.tags.contains("#work")`
+- `jest puste`: `file.tags.isEmpty()`
+- `nie jest puste`: `!file.tags.isEmpty()`

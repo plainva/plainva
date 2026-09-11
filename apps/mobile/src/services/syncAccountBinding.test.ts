@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DriveSyncTarget, OneDriveSyncTarget } from "@plainva/core";
+import { DriveSyncTarget, OneDriveSyncTarget, DropboxSyncTarget } from "@plainva/core";
 import type { CloudAccountRecord } from "@plainva/ui";
+import type { MobileVault } from "./vaultService";
+import type { MobileSyncProvider } from "./syncSlot";
 
 const state = vi.hoisted(() => ({ secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], resumed: vi.fn() }));
 vi.mock("@plainva/ui", async (original) => ({
@@ -23,7 +25,7 @@ vi.mock("@plainva/core", async (original) => ({
   refreshDriveAccessToken: async () => ({ accessToken: "google-access", expiresIn: 3600 }),
   refreshOneDriveAccessToken: async ({ scope }: { scope: string }) => ({ accessToken: "microsoft-access", scope, expiresIn: 3600 }),
 }));
-import { switchProviderToAccountBroker, getMobileWorkspaceObjectStore } from "./syncService";
+import { switchProviderToAccountBroker, getMobileWorkspaceObjectStore, createProviderVault } from "./syncService";
 import { accountSecretKey, forgetAccountBroker, googleScopeFor, microsoftScopeFor } from "./accountBroker";
 import { bindRunTokenToAccount } from "./connectConsent";
 
@@ -36,6 +38,23 @@ beforeEach(() => {
 });
 
 describe("the real mobile file service respects its account binding", () => {
+  it.each(["drive", "onedrive", "dropbox"] as const)("checks the chosen new %s destination before any vault or credential writes", async (provider) => {
+    const p = { provider, creds: { clientId: "client", appKey: "app", refreshToken: "before", rootFolderName: "Chosen folder", rootPath: "/Chosen folder" } } as MobileSyncProvider;
+    const prototype = provider === "drive" ? DriveSyncTarget.prototype : provider === "onedrive" ? OneDriveSyncTarget.prototype : DropboxSyncTarget.prototype;
+    const before = structuredClone(state.secrets);
+    const pull = vi.spyOn(prototype, "pull").mockImplementation(async function (this: DriveSyncTarget | OneDriveSyncTarget | DropboxSyncTarget) {
+      const creds = Reflect.get(this, "creds") as { rootFolderName?: string; rootPath?: string };
+      expect(provider === "dropbox" ? creds.rootPath : creds.rootFolderName).toBe(provider === "dropbox" ? "/Chosen folder" : "Chosen folder");
+      if (this instanceof OneDriveSyncTarget || this instanceof DropboxSyncTarget) await this.onTokensRefreshed?.("access", "rotated");
+      return { etagMap: new Map([["existing.md", "etag"]]) };
+    });
+    try {
+      await expect(createProviderVault({ syncQueue: {}, syncRepo: {} } as MobileVault, p, { template: null, vaultName: "New", subfoldersHeading: "Folders" })).rejects.toThrow("new, empty cloud folder");
+      expect(state.secrets).toEqual(before);
+      expect(p.creds).toMatchObject({ refreshToken: provider === "drive" ? "before" : "rotated" });
+    } finally { pull.mockRestore(); }
+  });
+
   it("the connect wizard keeps a partial file grant in its own slot", async () => {
     state.secrets.delete(accountSecretKey("v", "g"));
     const files = { provider: "drive", creds: { clientId: "google-client", refreshToken: "file-only", grantedScope: googleScopeFor("files") } };

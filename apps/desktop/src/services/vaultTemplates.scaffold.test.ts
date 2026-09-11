@@ -16,6 +16,7 @@ import type { VaultTemplateDefinition } from "@plainva/ui";
  */
 
 class FakeAdapter {
+  async listDir() { return [...this.files.keys(), ...this.dirs].map(name => ({ name })); }
   files = new Map<string, string>();
   dirs = new Set<string>();
   async exists(path: string) { return this.files.has(path) || this.dirs.has(path); }
@@ -26,7 +27,7 @@ class FakeAdapter {
 const NOW = new Date(2026, 6, 29); // 2026-07-29, local time
 
 const run = async (template: VaultTemplateDefinition, adapter = new FakeAdapter()) => {
-  await scaffoldVaultTemplate({
+  await scaffoldVaultTemplate({ isNewVault: true,
     adapter,
     template,
     vaultName: "Vault",
@@ -111,7 +112,34 @@ describe("scaffolding with dates and attachments", () => {
   it("never overwrites an existing attachment", async () => {
     const a = new FakeAdapter();
     await a.writeTextFile("Anhänge/skizze.svg", "MINE");
-    await run(template, a);
+    await expect(run(template, a)).rejects.toThrow("new, empty vault");
+    expect(a.files.size).toBe(1);
     expect(a.files.get("Anhänge/skizze.svg")).toBe("MINE");
+  });
+
+  it("never initializes a registered vault, even if every file was removed", async () => {
+    const adapter = new FakeAdapter();
+    await expect(scaffoldVaultTemplate({ adapter, isNewVault: false, template, vaultName: "Existing", subfoldersHeading: "Sub" })).rejects.toThrow();
+    expect(adapter.files.size).toBe(0);
+    expect(adapter.dirs.size).toBe(0);
+  });
+
+  it("does not fill missing files when an unchanged old template is opened with a newer definition", async () => {
+    const adapter = await run(template);
+    const before = new Map(adapter.files);
+    const next = { ...template, notes: [...template.notes, { path: "New lesson.md", body: "# New" }] };
+    await expect(run(next, adapter)).rejects.toThrow();
+    expect(adapter.files).toEqual(before);
+    adapter.files.clear();
+    adapter.dirs.clear();
+    await expect(scaffoldVaultTemplate({ adapter, isNewVault: false, template: next, vaultName: "Existing", subfoldersHeading: "Sub" })).rejects.toThrow();
+    expect(adapter.files.size).toBe(0);
+  });
+
+  it("does not write if the destination cannot be inspected", async () => {
+    const adapter = new FakeAdapter();
+    adapter.listDir = async () => { throw new Error("permission denied"); };
+    await expect(run(template, adapter)).rejects.toThrow("permission denied");
+    expect(adapter.files.size).toBe(0);
   });
 });

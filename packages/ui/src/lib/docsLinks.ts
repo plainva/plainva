@@ -30,8 +30,8 @@ export function docsSlug(page: string): string {
   return base === "README" ? "" : base.toLowerCase().replace(/_/g, "-");
 }
 
-export function userGuideUrl(page: string): string {
-  const lang = matchAppLanguage(i18n.language);
+export function userGuideUrl(page: string, language = i18n.language): string {
+  const lang = matchAppLanguage(language);
   const prefix = lang === "en" ? "" : `/${lang}`;
   const slug = docsSlug(page);
   return `${DOCS_BASE}${prefix}/docs${slug ? `/${slug}` : ""}`;
