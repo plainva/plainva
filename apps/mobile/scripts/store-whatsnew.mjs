@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getWhatsNewBlogUrl } from "../../../packages/ui/src/lib/releaseBlog.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../..");
@@ -56,7 +57,12 @@ export function parseCatalog(source) {
     highlights.push({ experimental: /experimental:\s*true/.test(m[1]) });
   }
   if (highlights.length === 0) throw new Error("whatsNew.ts: first entry lists no highlights");
-  return { version, highlights };
+  // Limit optional metadata to the first release; a hotfix without a blog
+  // must not borrow the previous release's URL.
+  const first = source.slice(start).split(/\bversion\s*:/)[1];
+  const blogUrl = /blogUrl:\s*"([^"]+)"/.exec(first)?.[1];
+  const languages = /blogLanguages:\s*(\[[^\]]*\])/.exec(first)?.[1];
+  return { version, highlights, ...(blogUrl ? { blogUrl } : {}), ...(languages ? { blogLanguages: JSON.parse(languages) } : {}) };
 }
 
 /**
@@ -64,7 +70,7 @@ export function parseCatalog(source) {
  * not fit ten languages into 500 characters, and the store note is a table of
  * contents for the dialog the app shows anyway.
  */
-export function buildNote({ lang, version, highlights, strings }) {
+export function buildNote({ lang, version, highlights, strings, blogUrl, blogLanguages }) {
   const lines = [`Plainva ${version}`];
   highlights.forEach((h, i) => {
     const title = strings[`highlight${i + 1}Title`];
@@ -72,17 +78,18 @@ export function buildNote({ lang, version, highlights, strings }) {
     const pill = h.experimental && strings.experimental ? ` (${strings.experimental})` : "";
     lines.push(`• ${title}${pill}`);
   });
-  const slug = `plainva-${version.replace(/\./g, "-")}`;
-  lines.push(lang === "de" ? `plainva.com/de/blog/${slug}` : `plainva.com/blog/${slug}`);
+  const blog = getWhatsNewBlogUrl({ blogUrl, blogLanguages }, lang);
+  if (blog) lines.push(blog.replace(/^https:\/\//, ""));
   return lines.join("\n");
 }
 
 export function buildAll({ catalogSource, readLocale }) {
-  const { version, highlights } = parseCatalog(catalogSource);
+  const release = parseCatalog(catalogSource);
+  const { version } = release;
   const notes = {};
   for (const [lang, locale] of Object.entries(PLAY_LOCALES)) {
     const strings = readLocale(lang).whatsNew ?? {};
-    const note = buildNote({ lang, version, highlights, strings });
+    const note = buildNote({ lang, ...release, strings });
     if ([...note].length > PLAY_LIMIT) {
       throw new Error(`${lang}: the store note has ${[...note].length} characters, Play allows ${PLAY_LIMIT}`);
     }

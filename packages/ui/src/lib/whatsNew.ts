@@ -70,9 +70,27 @@ export interface WhatsNewItem {
    */
   highlights: WhatsNewHighlight[];
   blogUrl?: string;
+  /** Languages actually published for this post; older entries default to EN/DE. */
+  blogLanguages?: string[];
 }
 
+export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
+
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.8.2",
+    releaseDate: "2026-09-11",
+    highlights: [
+      { icon: "sync" },
+      { icon: "message" },
+      { icon: "link" },
+      { icon: "calendar" },
+      { icon: "key" },
+      { icon: "phone" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-8-2",
+    blogLanguages: ["en", "de", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"],
+  },
   {
     version: "0.8.1",
     releaseDate: "2026-09-07",

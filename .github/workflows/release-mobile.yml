@@ -68,7 +68,8 @@ jobs:
           # A fourth segment means an interim build between coordinated releases.
           # Its only addressee is the maintainer, on two devices — so it becomes a
           # draft rather than something everyone browsing the releases page walks
-          # past. Coordinated releases (X.Y.Z) stay public pre-releases.
+          # past. Coordinated releases are also prepared as drafts, then
+          # published with their release notes after the builds have finished.
           if [ -n "${BASH_REMATCH[2]}" ]; then
             echo "interim=true" >> "$GITHUB_OUTPUT"
           else
@@ -191,9 +192,9 @@ jobs:
           status: completed
           whatsNewDirectory: ${{ runner.temp }}/whatsnew
 
-      # A coordinated release (X.Y.Z) is published, because the APK is how someone
-      # installs the Android build without Play, and a draft is invisible to
-      # everyone but the maintainer. It stays a PRE-release so that `latest`
+      # Both interim and coordinated releases start as drafts. The coordinated
+      # draft is published after desktop/mobile builds and notes are complete.
+      # It stays a PRE-release so that `latest`
       # keeps pointing at the desktop release. Since C35 the desktop updater
       # reads its manifest from the fixed `updater` release first
       # (updater-manifest.yml), so this flag no longer decides whether NEW
@@ -202,16 +203,17 @@ jobs:
       # became "Latest" would still strand them until they have updated once.
       # updaterEndpoint.test.ts pins this line for that reason.
       #
-      # An interim build (X.Y.Z.N) is drafted instead. It exists for the
-      # maintainer's two devices, reaches Play's internal track either way, and
-      # has no business sitting in the public list — four of them did, which is
-      # what prompted this split.
-      - name: Publish GitHub release with artifacts
+      # Interim builds remain drafts; publishing a coordinated release does
+      # not make its intermediate builds public.
+      - name: Prepare GitHub release with notes and artifacts
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
-          draft: ${{ steps.mobile_version.outputs.interim == 'true' }}
-          prerelease: ${{ steps.mobile_version.outputs.interim != 'true' }}
+          draft: true
+          prerelease: true
+          make_latest: false
+          body_path: docs/releases/mobile-v${{ steps.mobile_version.outputs.release_base }}.md
+          fail_on_unmatched_files: true
           # The tag is `mobile-v0.5.14`; the title should read the version, not
           # repeat the namespace back at the reader.
           name: Plainva Mobile ${{ steps.mobile_version.outputs.version }}

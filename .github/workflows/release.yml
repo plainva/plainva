@@ -98,6 +98,23 @@ jobs:
         if: matrix.platform == 'windows-latest' && github.event_name != 'workflow_dispatch'
         run: cargo install artifact-signing-cli --locked
 
+      - name: Load the versioned release notes
+        if: github.event_name != 'workflow_dispatch'
+        id: notes
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const tag = process.env.GITHUB_REF_NAME;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Expected a coordinated desktop release tag');
+          for (const path of ['apps/desktop/package.json', 'apps/mobile/package.json', 'apps/desktop/src-tauri/tauri.conf.json']) {
+            if (JSON.parse(readFileSync(path, 'utf8')).version !== tag.slice(1)) throw new Error(`Version mismatch: ${path}`);
+          }
+          const body = readFileSync(`docs/releases/${tag}.md`, 'utf8');
+          if (!body.trim()) throw new Error('Release notes are empty');
+          appendFileSync(process.env.GITHUB_OUTPUT, `body<<PLAINVA_RELEASE_NOTES\n${body}\nPLAINVA_RELEASE_NOTES\n`);
+          NODE
+
       - name: Build Tauri App
         # Release-cutting step: only on a tag push. A manual workflow_dispatch
         # stops after the pre-flight above, so it never builds installers or
@@ -139,7 +156,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Plainva ${{ github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           # The signing config is a separate file loaded only on the Windows leg, so

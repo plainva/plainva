@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Button, ICON, WhatsNewIcon } from '@plainva/ui';
+import { Modal, Button, ICON, WhatsNewIcon, getWhatsNewBlogUrl } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
 import { getAppVersion, getLatestWhatsNew } from '../../services/whatsNew';
 
@@ -20,8 +20,9 @@ interface WhatsNewModalProps {
  * the words live in i18n so they exist in ten languages.
  */
 export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const latest = getLatestWhatsNew();
+  const blogUrl = getWhatsNewBlogUrl(latest, i18n.resolvedLanguage ?? i18n.language);
 
   // The title names the version the user is actually running, not the catalog's.
   // The two diverge on purpose: the shells ship on separate version lines (the
@@ -41,12 +42,12 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   const [lead, ...rest] = items;
 
   const handleOpenBlog = async () => {
-    if (!latest.blogUrl) return;
+    if (!blogUrl) return;
     try {
       const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(latest.blogUrl);
+      await openUrl(blogUrl);
     } catch {
-      window.open(latest.blogUrl, '_blank');
+      window.open(blogUrl, '_blank');
     }
   };
 
@@ -76,7 +77,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
       size="lg"
       footer={
         <>
-          {latest.blogUrl && (
+          {blogUrl && (
             <Button variant="ghost" onClick={handleOpenBlog} style={{ marginRight: 'auto' }}>
               {t('whatsNew.readBlog')}
             </Button>

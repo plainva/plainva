@@ -66,6 +66,8 @@ describe("updater endpoint (C35)", () => {
     // once, a mobile release that became "Latest" would still strand them, so
     // the flag in release-mobile.yml remains a real protection, not decoration.
     const mobile = readFileSync(mobileWorkflowPath, "utf8");
-    expect(mobile).toMatch(/prerelease:\s*\$\{\{ steps\.mobile_version\.outputs\.interim != 'true' \}\}/);
+    expect(mobile).toMatch(/prerelease:\s*true/);
+    expect(mobile).toMatch(/make_latest:\s*false/);
+    expect(mobile).toMatch(/draft:\s*true/);
   });
 });

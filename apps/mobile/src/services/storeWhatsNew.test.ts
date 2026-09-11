@@ -50,12 +50,13 @@ describe("buildNote", () => {
       version: "0.8.1",
       highlights: [{ experimental: false }, { experimental: true }],
       strings,
+      blogUrl: "https://plainva.com/blog/plainva-0-8-1",
     });
     expect(note).toBe("Plainva 0.8.1\n• One\n• Two (Experimental)\nplainva.com/blog/plainva-0-8-1");
   });
 
   it("points German readers at the German post", () => {
-    const note = buildNote({ lang: "de", version: "0.8.1", highlights: [{ experimental: false }], strings });
+    const note = buildNote({ lang: "de", version: "0.8.1", highlights: [{ experimental: false }], strings, blogUrl: "https://plainva.com/blog/plainva-0-8-1" });
     expect(note.endsWith("plainva.com/de/blog/plainva-0-8-1")).toBe(true);
   });
 
@@ -63,6 +64,10 @@ describe("buildNote", () => {
     expect(() =>
       buildNote({ lang: "fr", version: "0.8.1", highlights: [{ experimental: false }, { experimental: false }, { experimental: false }], strings }),
     ).toThrow(/highlight3Title/);
+  });
+
+  it("does not invent a blog URL for a release without a post", () => {
+    expect(buildNote({ lang:"de", version:"0.6.4", highlights:[{}], strings })).toBe("Plainva 0.6.4\n• One");
   });
 });
 
@@ -73,5 +78,7 @@ describe("the real catalog and locales", () => {
     for (const [locale, note] of Object.entries(notes)) {
       expect([...(note as string)].length, locale).toBeLessThanOrEqual(PLAY_LIMIT);
     }
+    expect(notes["fr-FR"]).toContain("plainva.com/fr/blog/");
+    expect(notes["pt-BR"]).toContain("plainva.com/pt-BR/blog/");
   });
 });

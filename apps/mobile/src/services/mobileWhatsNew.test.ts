@@ -14,15 +14,17 @@ const store = {
   get: vi.fn(async (k: string) => store.values.get(k)),
   set: vi.fn(async (k: string, v: unknown) => void store.values.set(k, v)),
   save: vi.fn(async () => undefined),
+  delete: vi.fn(async (k: string) => void store.values.delete(k)),
 };
 
-const appInfo = vi.hoisted(() => ({ version: "9.9.9" }));
+const appInfo = vi.hoisted(() => ({ version: "9.9.9", release: "9.9.9" }));
 
 vi.mock("@plainva/ui", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
   return {
     ...actual,
     getPlatformServices: () => ({ loadSettings: async () => store }),
+    getLatestWhatsNew: () => ({ ...actual.getLatestWhatsNew(), version: appInfo.release }),
   };
 });
 
@@ -30,11 +32,12 @@ vi.mock("@capacitor/app", () => ({
   App: { getInfo: async () => ({ version: appInfo.version }) },
 }));
 
-import { pendingReleaseDialog, markReleaseDialogSeen } from "./mobileWhatsNew";
+import { pendingReleaseDialog, markReleaseDialogSeen, resetMobileWhatsNew } from "./mobileWhatsNew";
 
 beforeEach(() => {
   store.values.clear();
   appInfo.version = "9.9.9";
+  appInfo.release = "9.9.9";
 });
 
 describe("pendingReleaseDialog", () => {
@@ -70,6 +73,7 @@ describe("pendingReleaseDialog", () => {
   it("shows the next release after a four-part Android test build", async () => {
     store.values.set("whatsNewSeenVersionMobile", "9.9.9.4");
     appInfo.version = "9.9.10";
+    appInfo.release = "9.9.10";
 
     expect(await pendingReleaseDialog(true)).toBe("whatsNew");
   });
@@ -77,5 +81,34 @@ describe("pendingReleaseDialog", () => {
   it("never blocks the start when the store cannot be read", async () => {
     store.get.mockRejectedValueOnce(new Error("locked"));
     expect(await pendingReleaseDialog(true)).toBe("none");
+  });
+
+  it("shows each catalog release once while iOS keeps marketing version 1.0", async () => {
+    appInfo.version = "1.0";
+    store.values.set("whatsNewSeenVersionMobile", "1.0");
+    expect(await pendingReleaseDialog(true)).toBe("whatsNew");
+    await markReleaseDialogSeen();
+    expect(store.values.get("whatsNewSeenReleaseMobile")).toBe("9.9.9");
+    expect(await pendingReleaseDialog(true)).toBe("none");
+    appInfo.release = "9.9.10";
+    expect(await pendingReleaseDialog(true)).toBe("whatsNew");
+    await markReleaseDialogSeen();
+    expect(await pendingReleaseDialog(true)).toBe("none");
+  });
+
+  it("migrates a matching legacy Android marker without repeating the dialog", async () => {
+    store.values.set("whatsNewSeenVersionMobile", "9.9.9.4");
+    expect(await pendingReleaseDialog(true)).toBe("none");
+    expect(store.values.get("whatsNewSeenReleaseMobile")).toBe("9.9.9");
+    appInfo.version = "9.9.9.5";
+    expect(await pendingReleaseDialog(true)).toBe("none");
+  });
+
+  it("clears both markers when the user requests the highlights again", async () => {
+    store.values.set("whatsNewSeenVersionMobile", "9.9.9");
+    await markReleaseDialogSeen();
+    await resetMobileWhatsNew();
+    expect(await pendingReleaseDialog(true)).toBe("whatsNew");
+    expect(await pendingReleaseDialog(false)).toBe("none");
   });
 });

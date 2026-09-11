@@ -5,6 +5,52 @@ All notable changes to Plainva are documented here. The format is based on
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches 1.0.
 
+## [0.8.2] - 2026-09-11
+
+More reliable saves, faster navigation. This release brings together the work since 0.8.1: stronger handling of interrupted saves and sync, comments that stay with their notes, and quicker ways to reach a date or a heading. These improvements cover desktop and mobile, with additional fixes for desktop windows and the mobile session.
+
+### Your changes, through interruptions
+
+- Incomplete or unexpected WebDAV, CalDAV and S3 inventory responses are rejected instead of being treated as an empty remote collection.
+- A deletion confirmation applies to the specific operations it confirmed. It cannot approve newer queued work.
+- Offline edits survive queued renames. A failed local read on mobile keeps the upload pending.
+- Saves remain attached to the original note, vault and input revision when navigation or delayed writes overlap.
+- Backup archives are published only after all required files have been read and written successfully.
+- Failed Google Drive downloads remain eligible for retry. Transfer timeouts cover the entire response, while active, slow downloads can continue.
+- Import name collisions preserve existing target files. Mobile ZIP imports enforce size limits while unpacking.
+
+### Comments and suggestions
+
+- Comments and suggestions work in ordinary vaults as well as workspaces. The first comment can ask for your name; otherwise the device label is used. Your own remarks are shown as **You**.
+- Renamed or moved notes keep their comments, including comments that arrive later through sync.
+- Each device writes its own comment file in a shared folder. Concurrent updates are merged, and unreadable comment files are reported rather than silently overwritten.
+- Interrupted suggestion decisions can resume after a restart. Conflicting decisions remain visible, and accepting a suggestion also updates the editor on the phone.
+- Desktop and mobile use the same signed workspace comment store. Imported comments retain their original author and date, with their import provenance shown separately.
+
+### Find the right place
+
+- **Anchor links:** `[[Note#Heading]]`, `[[#Heading]]`, `[text](#heading)` and `[text](other.md#heading)` jump to headings. Both GitHub-style slugs and literal heading text resolve. Typing `[[Note#` offers the note's headings. Thanks for [#92](https://github.com/plainva/plainva/issues/92).
+- Backlinks list their individual locations with heading context and jump to the relevant line.
+- Select the calendar title to jump to a date. This also works in database calendars and date fields, with the app's language and configured week start.
+- Swipe to page the calendar on mobile; use a trackpad gesture on desktop. Long translated date-picker labels stay inside the panel.
+
+### Everyday editing and accounts
+
+- Obsidian image embeds resolve consistently across the editor, reading view and cards, including attachment folders and width suffixes.
+- **Select all** reaches the whole note. The reading-view selection bar also offers **Edit**.
+- Daily notes follow the configured date format, including formats with dots. Creating a database entry asks for a destination when the database has no folder source.
+- The phone restores its navigation stacks, active tab and last database view after a restart.
+- Signing in to Google again preserves the Gmail app password. Renewed tokens, granted permissions and returning sign-ins stay attached to the correct account and vault. Interrupted password changes can resume across affected services.
+- Desktop secondary windows handle version history, conflict resolution, templates and other editor actions in the correct window. Mail-list arrow keys enter folded conversations.
+
+Section embeds that display only part of another note are not included in this release. Encrypted workspaces and the native device-calendar provider remain experimental.
+
+### Download
+
+[Desktop installers](https://github.com/plainva/plainva/releases/tag/v0.8.2) · [Android APK](https://github.com/plainva/plainva/releases/tag/mobile-v0.8.2) · [iOS TestFlight](https://testflight.apple.com/join/ZRSEfZBn) · [Full story](https://plainva.com/blog/plainva-0-8-2)
+
+Existing desktop installations can update through the app. If you use the same vault on several devices, update all of them to receive the new sync and comment handling throughout.
+
 ## [Unreleased]
 
 ## [0.8.1] — 2026-09-07

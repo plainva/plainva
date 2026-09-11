@@ -31,6 +31,7 @@ vi.mock('../../services/whatsNew', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
+    i18n: { language: 'en', resolvedLanguage: 'en' },
     t: (key: string, opts?: Record<string, unknown>) => {
       if (key === 'whatsNew.title') return `What's new in ${opts?.version}`;
       if (key === 'whatsNew.lead') return 'Biggest change';

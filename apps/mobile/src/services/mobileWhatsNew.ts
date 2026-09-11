@@ -5,11 +5,12 @@ import { App } from "@capacitor/app";
  * Which release dialog the phone owes its user on this start (H5).
  *
  * The rule is the shared one; what differs is where the marker lives (the
- * mobile settings store) and how the version is read (the Capacitor app info
- * rather than the Tauri manifest).
+ * mobile settings store). The marker identifies the shared release catalog:
+ * TestFlight can keep the same marketing version across several releases.
  */
 
-const SEEN_KEY = "whatsNewSeenVersionMobile";
+const LEGACY_SEEN_KEY = "whatsNewSeenVersionMobile";
+const SEEN_KEY = "whatsNewSeenReleaseMobile";
 
 export type ReleaseDialog = "none" | "whatsNew";
 
@@ -40,9 +41,21 @@ export async function mobileAppVersion(): Promise<string> {
  */
 export async function pendingReleaseDialog(onboarded: boolean): Promise<ReleaseDialog> {
   try {
-    const seen = (await (await store()).get<string>(SEEN_KEY)) ?? null;
+    const s = await store();
+    const current = getLatestWhatsNew().version;
+    const releaseSeen = await s.get<string>(SEEN_KEY);
+    const seen = releaseSeen ?? (await s.get<string>(LEGACY_SEEN_KEY)) ?? null;
     if (!seen && !onboarded) return "none"; // fresh install — the onboarding welcomes
-    if (!shouldShowWhatsNew(seen, await mobileAppVersion())) return "none";
+    if (!shouldShowWhatsNew(seen, current)) {
+      if (!releaseSeen) {
+        // Android's old X.Y.Z(.N) marker maps to the catalog without repeating
+        // its highlights. An old iOS marker such as 1.0 is ambiguous: show the
+        // current catalog once, then persist its identity on acknowledgement.
+        await s.set(SEEN_KEY, current);
+        await s.save();
+      }
+      return "none";
+    }
     return "whatsNew";
   } catch {
     return "none"; // an unreadable store must never block the app start
@@ -59,13 +72,14 @@ export async function pendingReleaseDialog(onboarded: boolean): Promise<ReleaseD
 export async function resetMobileWhatsNew(): Promise<void> {
   const s = await store();
   await s.delete(SEEN_KEY);
+  await s.delete(LEGACY_SEEN_KEY);
   await s.save();
 }
 
 export async function markReleaseDialogSeen(): Promise<void> {
   try {
     const s = await store();
-    await s.set(SEEN_KEY, await mobileAppVersion());
+    await s.set(SEEN_KEY, getLatestWhatsNew().version);
     await s.save();
   } catch {
     // Worst case it shows once more next start — never a reason to fail.

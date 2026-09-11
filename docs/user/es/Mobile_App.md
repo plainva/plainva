@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-10
+Última actualización: 2026-09-11
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -259,3 +259,5 @@ Si hay varias anotaciones nuevas a la vez, el aviso abre **Comentarios abiertos*
 Todo lo demás sobre comentarios y sugerencias — dónde viven los archivos, qué significa «bloqueado» — está en [Comentarios y sugerencias](Comments_and_Suggestions.md).
 
 **Aquí el mensaje llega más tarde que en el escritorio, y eso es una propiedad, no un fallo.** Plainva no tiene ningún servidor que pueda avisar a tu teléfono: construirlo significaría que un servidor ajeno sabría cuándo comentó quién qué nota. Por eso una anotación se detecta donde el teléfono mira de todos modos: tras un ciclo de sincronización y al volver al primer plano. Para ello no se ejecuta ningún temporizador en segundo plano; ninguna plataforma de teléfono lo permite.
+
+A partir de 0.8.2, las novedades móviles indican la versión compartida de Plainva, independientemente del número de compilación nativo. En iOS, TestFlight puede mostrar la versión comercial **1.0** mientras las novedades describen **0.8.2**. Cada nueva versión aparece una vez; otra compilación interna con las mismas novedades no las repite. Una instalación nueva termina la introducción sin una segunda bienvenida. El botón del blog abre la traducción disponible para el idioma de la app, o la versión inglesa si no existe.

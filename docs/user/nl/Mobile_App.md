@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-11
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -259,3 +259,5 @@ Zijn er meerdere opmerkingen tegelijk nieuw, dan opent de melding **Open opmerki
 Al het overige over opmerkingen en voorstellen — waar de bestanden staan, wat „vergrendeld” betekent — staat onder [Opmerkingen en voorstellen](Comments_and_Suggestions.md).
 
 **De melding komt hier later dan op de desktop, en dat is een eigenschap, geen fout.** Plainva heeft geen server die je telefoon kan porren — er een bouwen zou betekenen dat een vreemde server verneemt wanneer wie welke notitie becommentarieerde. Een opmerking valt daarom op waar de telefoon toch al kijkt: na een synchronisatieronde en bij terugkeer naar de voorgrond. Er loopt daarvoor geen timer op de achtergrond; geen enkel telefoonplatform staat dat toe.
+
+Vanaf 0.8.2 noemen de mobiele releasehoogtepunten de gezamenlijke Plainva-release, los van het native buildnummer. Op iOS kan TestFlight daardoor de winkelversie **1.0** tonen terwijl de hoogtepunten **0.8.2** beschrijven. Elke nieuwe release verschijnt één keer; een volgende interne build met dezelfde hoogtepunten herhaalt ze niet. Een nieuwe installatie voltooit de introductie zonder een tweede welkom. De blogknop opent de beschikbare vertaling in de taal van je app, met Engels als terugval.

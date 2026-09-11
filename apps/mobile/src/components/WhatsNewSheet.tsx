@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, getLatestWhatsNew, WhatsNewIcon } from "@plainva/ui";
+import { Button, getLatestWhatsNew, getWhatsNewBlogUrl, WhatsNewIcon } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { SheetGrip } from "./SheetGrip";
-import { mobileAppVersion } from "../services/mobileWhatsNew";
 
 /**
  * Release highlights on the phone (H5).
@@ -17,16 +15,12 @@ import { mobileAppVersion } from "../services/mobileWhatsNew";
  * start here, and this sheet is only ever what changed.
  */
 export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const latest = getLatestWhatsNew();
-
-  // Name the version this phone runs, not the catalog's: the shells ship on
-  // separate version lines (0.5.13 here while the desktop released 0.5.1), and
-  // announcing a number nobody installed reads like a bug. Catalog as fallback.
-  const [version, setVersion] = useState(latest.version);
-  useEffect(() => {
-    void mobileAppVersion().then(setVersion);
-  }, []);
+  // The sheet describes the release content. Native version/build information
+  // remains in diagnostics; TestFlight's marketing version can stay at 1.0.
+  const version = latest.version;
+  const blogUrl = getWhatsNewBlogUrl(latest, i18n.resolvedLanguage ?? i18n.language);
 
   const items = latest.highlights.map((h, i) => ({
     ...h,
@@ -55,10 +49,10 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
-        {latest.blogUrl && (
+        {blogUrl && (
           <Button
             variant="ghost"
-            onClick={() => void Browser.open({ url: latest.blogUrl! }).catch(() => undefined)}
+            onClick={() => void Browser.open({ url: blogUrl }).catch(() => undefined)}
           >
             {t("whatsNew.readBlog")}
           </Button>

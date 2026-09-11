@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -259,3 +259,5 @@ When several remarks are new at once, the notification opens **Open comments** o
 Everything else about comments and suggestions — where the files live, what “locked” means — is under [Comments & Suggestions](Comments_and_Suggestions.md).
 
 **The message arrives later here than on the desktop, and that is a property rather than a fault.** Plainva has no server that could nudge your phone — building one would mean a foreign server learning when who commented on which note. A remark is therefore noticed where the phone looks anyway: after a sync cycle and on returning to the foreground. No timer runs in the background for it; no phone platform allows one.
+
+From release 0.8.2, the mobile release highlights identify the shared Plainva release, independently of the native build number. On iOS, TestFlight can therefore show marketing version **1.0** while the highlights describe **0.8.2**. Each new release is shown once; another internal build with the same highlights does not show them again. A fresh install finishes onboarding without a second welcome. The blog button opens the available translation for your app language, with English as the fallback.
