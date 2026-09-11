@@ -10,6 +10,9 @@ import {
   type TaskAnchorRecord,
   type IPimTarget,
   PimConflictError,
+  readTaskNoteIdentity,
+  taskNoteMatches,
+  availableTaskNotePath,
 } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -317,7 +320,7 @@ async function reconcileList(
       // task? A reconnect, a new device and a rebuilt index all arrive here
       // with the notes present and the state gone — importing then is what
       // produced the copies.
-      const adopted = adoptAnchoredNote(opts, account, listId, rt, result);
+      const adopted = await adoptAnchoredNote(opts, account, listId, rt, result);
       if (adopted) {
         await cache.upsertTaskState({
           accountId: account.id,
@@ -350,7 +353,7 @@ async function reconcileList(
     // Locate the note — the anchor survives renames/moves inside the vault.
     let notePath: string | null = st.notePath;
     if (!(await adapter.exists(notePath))) {
-      notePath = findNoteByAnchor(opts, account, listId, rt);
+      notePath = await findNoteByAnchor(opts, account, listId, rt);
       if (!notePath) {
         if (!opts.anchorsByUid) {
           // Without the anchor index "no note found" means "not looked", not
@@ -374,6 +377,13 @@ async function reconcileList(
     try {
       content = await adapter.readTextFile(notePath);
     } catch {
+      continue;
+    }
+    // A path can now contain a different task after file sync. The cached path
+    // and even the anchor index are hints; only the bytes authorize a write.
+    if (!taskNoteMatches(readTaskNoteIdentity(content), taskId(rt.uid))) {
+      const rebound = await findNoteByAnchor(opts, account, listId, rt);
+      if (rebound && rebound !== notePath) await cache.upsertTaskState({ ...st, notePath: rebound });
       continue;
     }
     const base = st.baseFields ?? remoteFields;
@@ -402,7 +412,9 @@ async function reconcileList(
     if (!fieldsEqual(merged, localFields)) {
       const updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
       try {
+        if (!await fileStillEquals(adapter, notePath, content)) continue;
         await adapter.writeTextFile(notePath, updated);
+        content = updated;
         result.changedNotes.push(notePath);
       } catch (e) {
         result.errors.push(`${notePath}: ${e instanceof Error ? e.message : String(e)}`);
@@ -420,6 +432,7 @@ async function reconcileList(
         continue;
       }
       try {
+        if (!await fileStillEquals(adapter, notePath, content)) continue;
         const res = await target.updateTask(
           { listId, uid: rt.uid, etag: rt.etag, href: rt.href },
           { title: merged.title, due: merged.due ?? undefined, completed: merged.completed }
@@ -454,11 +467,13 @@ async function reconcileList(
     try {
       if (!(await adapter.exists(st.notePath))) continue;
       const content = await adapter.readTextFile(st.notePath);
+      if (!taskNoteMatches(readTaskNoteIdentity(content), taskId(st.uid))) continue;
       const base = st.baseFields;
       if (!base) continue;
       const local = readNoteFields(content, db, base.completed);
       const unchanged = local.title === base.title && local.due === base.due && local.completed === base.completed;
       if (!unchanged) continue;
+      if (!await fileStillEquals(adapter, st.notePath, content)) continue;
       await opts.adapter.deleteFile(st.notePath);
       result.deletedNotes.push(st.notePath);
     } catch (e) {
@@ -491,11 +506,11 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
 
 async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAccountRow, listId: string, task: PimTask): Promise<string | null> {
   const { adapter } = opts;
-  const stem = taskDbFileStem(task.title) ?? "Task";
-  const prefix = db.folder ? db.folder + "/" : "";
-  let name = stem;
-  for (let n = 2; await adapter.exists(prefix + name + ".md"); n++) name = `${stem} ${n}`;
-  const notePath = prefix + name + ".md";
+  const anchor = buildTaskAnchor({ uid: task.uid, listId, accountId: account.id, provider: account.provider, identity: taskAnchorIdentity(account) });
+  const notePath = await availableTaskNotePath(adapter, db.folder, task.title, anchor);
+  // An earlier interrupted run may have written the file before its state row.
+  // Reuse it without overwriting independent edits with provider contents.
+  if (await adapter.exists(notePath)) return notePath;
 
   let templateText: string | null = null;
   if (db.templatePath) {
@@ -528,7 +543,7 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
       identity: taskAnchorIdentity(account),
     }));
   } catch {
-    /* anchor best-effort — without it the note simply re-imports on rename */
+    return null; // An unanchored mirror cannot be reconciled safely.
   }
   if (opts.generatedBy) {
     try {
@@ -541,6 +556,7 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
   }
   try {
     if (db.folder) await adapter.createDir(db.folder).catch(() => undefined);
+    if (await adapter.exists(notePath)) return null;
     await adapter.writeTextFile(notePath, content);
     return notePath;
   } catch {
@@ -577,14 +593,14 @@ function anchoredCandidates(
 /** The note to take over for this task, or null. Counts the runners-up: they
  *  stay exactly as they are, and their number is what tells the maintainer how
  *  much manual tidying is left. */
-function adoptAnchoredNote(
+async function adoptAnchoredNote(
   opts: TaskSyncOptions,
   account: PimAccountRow,
   listId: string,
   task: PimTask,
   result: TaskSyncResult
-): string | null {
-  const candidates = anchoredCandidates(opts, account, listId, task);
+): Promise<string | null> {
+  const candidates = await liveAnchoredCandidates(opts, account, listId, task);
   const chosen = chooseAnchorToAdopt(candidates, task.title || "");
   if (!chosen) return null;
   if (candidates.length > 1) result.duplicateAnchors += candidates.length - 1;
@@ -620,8 +636,23 @@ function upgradeAnchorIfStale(content: string, account: PimAccountRow, listId: s
 
 /** Where an anchored note moved to, for the case that its known path is gone.
  *  Same index, so a rename inside the vault costs no file reads either. */
-function findNoteByAnchor(opts: TaskSyncOptions, account: PimAccountRow, listId: string, task: PimTask): string | null {
-  return chooseAnchorToAdopt(anchoredCandidates(opts, account, listId, task), task.title || "")?.path ?? null;
+async function findNoteByAnchor(opts: TaskSyncOptions, account: PimAccountRow, listId: string, task: PimTask): Promise<string | null> {
+  return chooseAnchorToAdopt(await liveAnchoredCandidates(opts, account, listId, task), task.title || "")?.path ?? null;
+}
+
+async function liveAnchoredCandidates(opts: TaskSyncOptions, account: PimAccountRow, listId: string, task: PimTask): Promise<TaskAnchorRecord[]> {
+  const expected = { uid: task.uid, list: listId, provider: account.provider, identity: taskAnchorIdentity(account) };
+  const matches: TaskAnchorRecord[] = [];
+  for (const candidate of anchoredCandidates(opts, account, listId, task)) {
+    try {
+      if (taskNoteMatches(readTaskNoteIdentity(await opts.adapter.readTextFile(candidate.path)), expected)) matches.push(candidate);
+    } catch { /* A stale index cannot authorize adoption or deletion. */ }
+  }
+  return matches;
+}
+
+async function fileStillEquals(adapter: TaskSyncAdapter, path: string, content: string): Promise<boolean> {
+  try { return await adapter.readTextFile(path) === content; } catch { return false; }
 }
 
 // ---- field mapping ---------------------------------------------------------

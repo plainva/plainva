@@ -122,3 +122,12 @@ Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie
 ## Oznaczanie w przeglądzie
 
 Zaznaczenie zadania w przeglądzie zapisuje pole w notatce źródłowej i odświeża tę notatkę w indeksie przed ponownym odczytem listy. Zadanie natychmiast znika z **Otwarte** i nie wraca z nieaktualnego indeksu.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Oddzielaj zadania o tym samym tytule
+
+Zadania dostawcy są dopasowywane według tożsamości. Osobne wystąpienia mają własne pliki. Istniejące błędne konflikty można zachować jako oddzielne zadania.
+
+Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.
+
+**Zachowaj jako osobne zadania** — Ten plik pozostanie bez zmian: Bieżący plik  Kopia konfliktowa zostanie zachowana jako osobny plik: kopia konfliktu

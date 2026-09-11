@@ -174,3 +174,12 @@ Quando Google Drive limita temporaneamente le richieste, Plainva riprova il down
 ## Trasferimenti di file interrotti
 
 I limiti di tempo coprono anche la ricezione dei file da WebDAV, Dropbox, OneDrive, S3 e Google Drive. Se una risposta ricevuta a blocchi smette di fornire dati, Plainva termina quel tentativo e ripete le letture un numero limitato di volte con una nuova richiesta. Il progresso mantiene attivo il download anche quando l’intero file richiede più del tempo di base. Le richieste mobili native hanno anche limiti propri. Un download incompleto non sostituisce mai il file locale esistente e non conferma l’avanzamento della sincronizzazione. I caricamenti grandi mantengono un tempo proporzionato alla dimensione; un esito incerto viene gestito dalla normale ripresa della sincronizzazione, senza inviarlo di nuovo alla cieca.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Amplia gli account esistenti
+
+Aggiungi file, calendario o email all’account appropriato. Plainva verifica l’accesso scelto e richiede le autorizzazioni mancanti.
+
+Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
+
+Quando aggiungi file sul dispositivo mobile, Plainva mostra origine, destinazione e collisioni prima del trasferimento. Contenuti e servizi esistenti vengono conservati; un trasferimento interrotto può essere ripetuto.

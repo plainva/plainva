@@ -67,8 +67,8 @@ export function CompareVersions({
       <Segmented
         options={[
           { value: "diff", label: t("compare.tabDiff") },
-          { value: "note", label: t("compare.tabNote") },
-          { value: "other", label: t("compare.tabOther") },
+          { value: "note", label: noteMeta.title },
+          { value: "other", label: otherMeta.title },
         ]}
         value={tab}
         onChange={setTab}

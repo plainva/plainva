@@ -7,9 +7,17 @@
  * and how the running version is read.
  */
 import { getSettingsStore } from './settingsStore';
-import { getLatestWhatsNew } from '@plainva/ui';
+import { getLatestWhatsNew, getWhatsNewContentId, releaseBaseVersion, shouldShowWhatsNew as shouldShowContent } from '@plainva/ui';
 
-export { WHATS_NEW_CATALOG, getLatestWhatsNew, shouldShowWhatsNew, type WhatsNewItem } from '@plainva/ui';
+export { WHATS_NEW_CATALOG, getLatestWhatsNew, type WhatsNewItem } from '@plainva/ui';
+
+function contentId(version: string): string {
+  const latest = getLatestWhatsNew();
+  return releaseBaseVersion(version) === latest.version ? getWhatsNewContentId(latest) : version;
+}
+export function shouldShowWhatsNew(seen: string | null | undefined, version: string): boolean {
+  return shouldShowContent(seen, contentId(version));
+}
 
 const SEEN_VERSION_KEY = 'whatsNewSeenVersion';
 
@@ -48,7 +56,7 @@ export function resetReleaseDialogSlot(): void {
 export async function markWhatsNewSeen(version: string): Promise<void> {
   try {
     const store = await getSettingsStore();
-    await store.set(SEEN_VERSION_KEY, version);
+    await store.set(SEEN_VERSION_KEY, contentId(version));
     await store.save();
   } catch {
     // A settings store that cannot be written should never block the UI —

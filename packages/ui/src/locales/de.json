@@ -2250,48 +2250,54 @@
   },
   "compare": {
     "title": "Fassungen vergleichen",
-    "conflictExplainer": "Diese Notiz wurde an zwei Stellen gleichzeitig geändert. Plainva hat beide Fassungen aufgehoben — nichts ist verloren.",
-    "sideLeft": "Links · in der Notiz",
+    "conflictExplainer": "Für diese Datei liegen zwei unterschiedliche Inhalte vor. Beide Dateien sind unten benannt. Vergleiche sie, bevor Du entscheidest.",
     "sideRight": "Rechts · {{what}}",
     "conflictCopy": "Konfliktkopie",
     "savedVersion": "gespeicherte Fassung",
     "currentState": "Aktueller Stand",
-    "cameViaSync": "Über die Synchronisation gekommen",
-    "yourVersionKept": "Deine Fassung von diesem Gerät, aufgehoben {{when}}",
     "sizeLines": "{{size}} · {{lines}} Zeilen",
     "stats": "{{hunks}} Unterschiede · {{same}} Zeilen gleich",
     "identical": "Beide Fassungen sind identisch.",
-    "costAdopt": "Wenn Du die Kopie übernimmst: +{{added}} Zeilen kommen hinzu, −{{removed}} gehen verloren.",
+    "costAdopt": "Beim Ersetzen der aktuellen Datei: +{{added}} Zeilen hinzugefügt, −{{removed}} Zeilen entfernt.",
     "costMerge": "Deine Zusammenführung: die Notiz erhält die rechte Seite, wie Du sie bearbeitet hast.",
     "costRestore": "Wenn Du diese Fassung wiederherstellst: +{{added}} Zeilen kommen zurück, −{{removed}} gehen verloren.",
     "mergeHint": "Einzelne Blöcke holst Du mit den Pfeilen zwischen den Seiten herüber — geschrieben wird die Notiz einmal, beim Übernehmen.",
     "tooLarge": "Diese Notiz ist zu groß für den Zeilenvergleich auf dem Telefon. Du kannst beide Fassungen einzeln ansehen oder am Rechner vergleichen.",
     "mergeOnlyDesktop": "Zeilenweises Zusammenführen ist ein Werkzeug für den Rechner; hier übernimmst Du eine Fassung ganz oder behältst beide.",
     "later": "Später entscheiden",
-    "keepBoth": "Beide behalten",
-    "discardCopy": "Kopie verwerfen",
-    "adoptCopy": "Fassung der Kopie übernehmen",
+    "keepBoth": "Beide Dateien behalten",
+    "discardCopy": "Konfliktkopie löschen",
+    "adoptCopy": "Aktuelle Datei durch Konfliktkopie ersetzen",
     "applyMerge": "Zusammenführung übernehmen",
-    "adoptTitle": "Fassung der Kopie übernehmen?",
-    "adoptMsg": "Die Notiz enthält danach die Fassung vom {{other}}. Ihr aktueller Inhalt vom {{current}} wird ersetzt — er bleibt im Versionsverlauf erhalten.",
+    "adoptTitle": "Aktuelle Datei ersetzen?",
     "mergeTitle": "Zusammenführung übernehmen?",
     "mergeMsg": "Die Notiz erhält die rechte Seite, wie Du sie bearbeitet hast. Ihr aktueller Inhalt vom {{current}} bleibt im Versionsverlauf erhalten.",
-    "keepBothTitle": "Beide Fassungen behalten?",
-    "keepBothMsg": "Die Notiz bleibt, wie sie ist. Die Kopie wird danebengelegt als:\n{{name}}\nDer Konflikt gilt damit als gelöst.",
-    "discardTitle": "Kopie verwerfen?",
-    "discardMsg": "Die Kopie vom {{other}} wird gelöscht; die Notiz behält ihren aktuellen Inhalt. Eine Sicherung der Kopie bleibt im Versionsverlauf.",
+    "keepBothTitle": "Beide Dateien behalten?",
+    "discardTitle": "Konfliktkopie löschen?",
     "restoreThis": "Diese Fassung wiederherstellen",
     "copyTitle": "Kopie anlegen?",
     "copyMsg": "Die Fassung vom {{when}} wird neben die Notiz gelegt als:\n{{name}}",
-    "resolvedAdopted": "Die Fassung der Kopie steht jetzt in der Notiz.",
+    "resolvedAdopted": "Aktuelle Datei ersetzt und Konfliktkopie gelöscht.",
     "resolvedMerged": "Zusammenführung übernommen.",
     "resolvedKeptBoth": "Beide Fassungen behalten: {{name}}",
-    "resolvedDiscarded": "Kopie verworfen.",
+    "resolvedDiscarded": "Konfliktkopie gelöscht. Aktuelle Datei unverändert.",
     "tabDiff": "Unterschiede",
     "tabNote": "In der Notiz",
-    "tabOther": "Andere Fassung",
     "sameLines": "{{n}} gleiche Zeilen",
-    "showLines": "Anzeigen"
+    "showLines": "Anzeigen",
+    "currentFile": "Aktuelle Datei",
+    "taskList": "Aufgabenliste",
+    "revealFolder": "Ordner öffnen",
+    "binaryFile": "Binärdatei · {{size}} Bytes",
+    "replaceConfirm": "Datei ersetzen und Konfliktkopie löschen",
+    "replaceMessage": "Der Inhalt dieser Datei wird überschrieben:\n{{target}}\n\nDer neue Inhalt kommt aus:\n{{source}}\n\nAnschließend wird die Konfliktkopie gelöscht.",
+    "replaceHint": "„{{name}}“ erhält den Inhalt der Konfliktkopie. Die Konfliktkopie wird danach gelöscht.",
+    "keepBothPaths": "Diese Datei bleibt unverändert:\n{{original}}\n\nDie Konfliktkopie bleibt als separate Datei erhalten:\n{{copy}}",
+    "discardPaths": "Diese Konfliktkopie wird gelöscht:\n{{source}}\n\nDiese Datei bleibt unverändert:\n{{target}}",
+    "differentTasks": "Zwei verschiedene Aufgaben",
+    "differentTasksHint": "Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.",
+    "keepSeparateTasks": "Als getrennte Aufgaben behalten",
+    "comparisonChanged": "Eine Datei hat sich seit dem Öffnen verändert. Der Vergleich wurde neu geladen. Prüfe die aktuellen Inhalte und wähle erneut."
   },
   "conflict": {
     "resolveFailed": "Konflikt konnte nicht aufgelöst werden: {{error}}",
@@ -2325,7 +2331,6 @@
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Präfix (optional)",
     "syncClientId": "Client-ID",
-    "syncClientSecret": "Client-Secret (optional)",
     "syncOwnAppKey": "Eigener App-Key (optional)",
     "syncOwnClientId": "Eigene Client-ID (optional)",
     "syncOwnAppIdHint": "Leer lassen, um Plainvas zentrale App-Registrierung zu nutzen. Eine eigene App umgeht deren Nutzergrenze.",
@@ -2854,7 +2859,6 @@
     "noAccountsMobile": "Noch kein Kalenderkonto verbunden.",
     "perDeviceHint": "Anmeldungen gelten pro Gerät: Aus Sicherheitsgründen werden Zugangsdaten nicht synchronisiert — melde Dich auf jedem Gerät einmal an.",
     "connectAccount": "Konto verbinden",
-    "connectGoogle": "Mit Google verbinden",
     "connectMicrosoft": "Mit Microsoft verbinden",
     "accounts": "Kalenderkonten",
     "accountAdded": "Konto verbunden",
@@ -3820,23 +3824,83 @@
       "grant": "Freigabe"
     },
     "quarantineReason": {
-      "binding": { "title": "Ein Artefakt gehört zu einem anderen Workspace", "explain": "{{kind}}: Die Datei nennt eine andere Workspace-Kennung als dieser Vault. Sie stammt aus einem anderen verschlüsselten Vault oder wurde in den falschen Cloud-Ordner gelegt." },
-      "pathHash": { "title": "Ein Artefakt passt nicht zu seinem Dateinamen", "explain": "{{kind}}: Der Dateiname trägt einen Prüfwert, der nicht zum Inhalt passt. Die Datei wurde umbenannt oder unterwegs verändert." },
-      "signature": { "title": "Eine Signatur ist ungültig", "explain": "{{kind}}: Die Unterschrift des Geräts, das die Datei geschrieben hat, lässt sich nicht bestätigen. Entweder wurde der Inhalt verändert, oder der Schlüssel des Geräts ist nicht der erwartete." },
-      "policyChain": { "title": "Regeln, die nicht an die angenommenen anschließen", "explain": "Eine Regelversion baut nicht auf der Kette auf, die dieses Gerät angenommen hat. Sie stammt aus einem abgezweigten Stand und wird nicht übernommen." },
-      "policyUnaccepted": { "title": "Änderungen nutzen Regeln, die dieses Gerät noch nicht angenommen hat", "explain": "{{device}} hat mit der Regelversion {{policy}} geschrieben; angenommen ist hier {{accepted}}. Meist ein neueres Mitglied oder ein Regelwechsel, der dieses Gerät noch nicht erreicht hat.", "hint": "Nach dem nächsten Abgleich der Regeln löst sich das meist von selbst — „Erneut prüfen“ stößt genau diesen Abgleich an. Bleibt es, prüfe unter „Geräte“, ob {{device}} noch zum Workspace gehört." },
-      "authorNotActive": { "title": "Änderungen von einem Gerät, das nicht mehr aktiv ist", "explain": "{{device}} ist in den Regeln nicht mehr als aktives Gerät geführt. Seine Änderungen werden nicht übernommen.", "hint": "War das Gerät ausgeschlossen, ist das richtig so. Soll es wieder mitschreiben, koppele es unter „Geräte“ erneut." },
-      "postRevocation": { "title": "Änderungen von einem Gerät nach seinem Entzug", "explain": "{{device}} wurde der Zugang entzogen. Diese Änderungen liegen hinter dem Stand, den ein berechtigtes Gerät zuletzt für dieses Gerät bezeugt hat — sie werden nicht übernommen.", "hint": "Das ist der Regelfall nach einem Entzug und muss Dich nicht beunruhigen. Ignoriere die Gruppe, wenn Du den Entzug so wolltest. Soll das Gerät wieder mitschreiben, koppele es unter „Geräte“ neu." },
-      "capability": { "title": "Eine Änderung, die das Gerät nicht durfte", "explain": "{{device}} hat etwas geschrieben, wozu seine Rolle nicht berechtigt. Die Änderung bleibt draußen.", "hint": "Soll das Gerät das dürfen, ändere seine Rolle unter „Personen & Rechte“ und prüfe erneut." },
-      "missingParents": { "title": "Änderungen, deren Vorgänger fehlen", "explain": "Diese Änderungen bauen auf Fassungen auf, die dieses Gerät nicht kennt. Die Vorgänger sind noch nicht angekommen oder in der Cloud nicht mehr da.", "hint": "Meist reicht Warten und „Erneut prüfen“ — die Vorgänger kommen mit dem nächsten Abgleich. Fehlen sie dauerhaft, hat ein Gerät sie nie hochgeladen." },
-      "chainGap": { "title": "Änderungen eines Geräts warten: die Kette ist unterbrochen", "explain": "Dieses Gerät erwartet von {{device}} die Änderung Nr. {{expected}}, in der Cloud liegt Nr. {{found}}. Was dazwischen fehlt oder ersetzt wurde, blockiert alles danach — die Gruppe umfasst {{count}} Änderungen.", "hint": "Meist steckt ein zweiter Stand desselben Geräts dahinter — etwa eine Entwicklungs-Instanz mit eigenem Speicher — oder ein Gerät, das neu verbunden wurde und wieder bei 1 zählt. Lass {{device}} einmal synchronisieren und prüfe hier erneut. Ignorierst Du die Gruppe, gehen diese Änderungen verloren." },
-      "chainBlocked": { "title": "Wartet hinter einer Lücke", "explain": "Diese Änderung ist in Ordnung, steht aber hinter einer Lücke in der Kette ihres Geräts. Sie wird übernommen, sobald die Lücke geschlossen ist." },
-      "payloadMissing": { "title": "Der Inhalt zu einer Änderung fehlt in der Cloud", "explain": "Die Änderung verweist auf ein Objekt, das in der Cloud nicht liegt oder verändert wurde. Der Upload ist unvollständig oder wurde von außen angefasst.", "hint": "Lass das Gerät, das die Änderung geschrieben hat, noch einmal synchronisieren; es lädt das fehlende Objekt nach. Danach „Erneut prüfen“." },
-      "envelope": { "title": "Ein verschlüsseltes Objekt passt nicht zu seiner Änderung", "explain": "Der verschlüsselte Umschlag nennt einen anderen Workspace, ein anderes Objekt oder eine andere Fassung, als die Änderung behauptet. Das Paar wird nicht übernommen." },
-      "rollback": { "title": "Ein Gerät meldet einen älteren Stand als bekannt", "explain": "Der Zeiger von {{device}} in der Cloud steht hinter dem, was dieses Gerät schon gesehen hat. Ein Zurückspringen wird nicht übernommen — es sieht aus wie eine zurückgedrehte Cloud." },
-      "checkpointMissing": { "title": "Ein Prüfpunkt fehlt in der Cloud", "explain": "Ein Gerät verweist auf einen Prüfpunkt, der in der Cloud nicht liegt oder verändert wurde." },
-      "unreadable": { "title": "Eine Datei lässt sich nicht lesen", "explain": "{{kind}}: Die Datei ist kein gültiges Plainva-Artefakt — beschädigt, abgeschnitten oder von einer neueren App-Version geschrieben.", "hint": "Ist Plainva auf einem anderen Gerät neuer, aktualisiere dieses. Sonst exportiere die Diagnose; sie hilft bei der Fehlersuche." },
-      "unknown": { "title": "Eine Prüfung ist fehlgeschlagen", "explain": "{{kind}}: {{reason}}", "hint": "Exportiere die Diagnose und prüfe erneut. Ändert sich nichts, hilft der Export bei der Fehlersuche." }
+      "binding": {
+        "title": "Ein Artefakt gehört zu einem anderen Workspace",
+        "explain": "{{kind}}: Die Datei nennt eine andere Workspace-Kennung als dieser Vault. Sie stammt aus einem anderen verschlüsselten Vault oder wurde in den falschen Cloud-Ordner gelegt."
+      },
+      "pathHash": {
+        "title": "Ein Artefakt passt nicht zu seinem Dateinamen",
+        "explain": "{{kind}}: Der Dateiname trägt einen Prüfwert, der nicht zum Inhalt passt. Die Datei wurde umbenannt oder unterwegs verändert."
+      },
+      "signature": {
+        "title": "Eine Signatur ist ungültig",
+        "explain": "{{kind}}: Die Unterschrift des Geräts, das die Datei geschrieben hat, lässt sich nicht bestätigen. Entweder wurde der Inhalt verändert, oder der Schlüssel des Geräts ist nicht der erwartete."
+      },
+      "policyChain": {
+        "title": "Regeln, die nicht an die angenommenen anschließen",
+        "explain": "Eine Regelversion baut nicht auf der Kette auf, die dieses Gerät angenommen hat. Sie stammt aus einem abgezweigten Stand und wird nicht übernommen."
+      },
+      "policyUnaccepted": {
+        "title": "Änderungen nutzen Regeln, die dieses Gerät noch nicht angenommen hat",
+        "explain": "{{device}} hat mit der Regelversion {{policy}} geschrieben; angenommen ist hier {{accepted}}. Meist ein neueres Mitglied oder ein Regelwechsel, der dieses Gerät noch nicht erreicht hat.",
+        "hint": "Nach dem nächsten Abgleich der Regeln löst sich das meist von selbst — „Erneut prüfen“ stößt genau diesen Abgleich an. Bleibt es, prüfe unter „Geräte“, ob {{device}} noch zum Workspace gehört."
+      },
+      "authorNotActive": {
+        "title": "Änderungen von einem Gerät, das nicht mehr aktiv ist",
+        "explain": "{{device}} ist in den Regeln nicht mehr als aktives Gerät geführt. Seine Änderungen werden nicht übernommen.",
+        "hint": "War das Gerät ausgeschlossen, ist das richtig so. Soll es wieder mitschreiben, koppele es unter „Geräte“ erneut."
+      },
+      "postRevocation": {
+        "title": "Änderungen von einem Gerät nach seinem Entzug",
+        "explain": "{{device}} wurde der Zugang entzogen. Diese Änderungen liegen hinter dem Stand, den ein berechtigtes Gerät zuletzt für dieses Gerät bezeugt hat — sie werden nicht übernommen.",
+        "hint": "Das ist der Regelfall nach einem Entzug und muss Dich nicht beunruhigen. Ignoriere die Gruppe, wenn Du den Entzug so wolltest. Soll das Gerät wieder mitschreiben, koppele es unter „Geräte“ neu."
+      },
+      "capability": {
+        "title": "Eine Änderung, die das Gerät nicht durfte",
+        "explain": "{{device}} hat etwas geschrieben, wozu seine Rolle nicht berechtigt. Die Änderung bleibt draußen.",
+        "hint": "Soll das Gerät das dürfen, ändere seine Rolle unter „Personen & Rechte“ und prüfe erneut."
+      },
+      "missingParents": {
+        "title": "Änderungen, deren Vorgänger fehlen",
+        "explain": "Diese Änderungen bauen auf Fassungen auf, die dieses Gerät nicht kennt. Die Vorgänger sind noch nicht angekommen oder in der Cloud nicht mehr da.",
+        "hint": "Meist reicht Warten und „Erneut prüfen“ — die Vorgänger kommen mit dem nächsten Abgleich. Fehlen sie dauerhaft, hat ein Gerät sie nie hochgeladen."
+      },
+      "chainGap": {
+        "title": "Änderungen eines Geräts warten: die Kette ist unterbrochen",
+        "explain": "Dieses Gerät erwartet von {{device}} die Änderung Nr. {{expected}}, in der Cloud liegt Nr. {{found}}. Was dazwischen fehlt oder ersetzt wurde, blockiert alles danach — die Gruppe umfasst {{count}} Änderungen.",
+        "hint": "Meist steckt ein zweiter Stand desselben Geräts dahinter — etwa eine Entwicklungs-Instanz mit eigenem Speicher — oder ein Gerät, das neu verbunden wurde und wieder bei 1 zählt. Lass {{device}} einmal synchronisieren und prüfe hier erneut. Ignorierst Du die Gruppe, gehen diese Änderungen verloren."
+      },
+      "chainBlocked": {
+        "title": "Wartet hinter einer Lücke",
+        "explain": "Diese Änderung ist in Ordnung, steht aber hinter einer Lücke in der Kette ihres Geräts. Sie wird übernommen, sobald die Lücke geschlossen ist."
+      },
+      "payloadMissing": {
+        "title": "Der Inhalt zu einer Änderung fehlt in der Cloud",
+        "explain": "Die Änderung verweist auf ein Objekt, das in der Cloud nicht liegt oder verändert wurde. Der Upload ist unvollständig oder wurde von außen angefasst.",
+        "hint": "Lass das Gerät, das die Änderung geschrieben hat, noch einmal synchronisieren; es lädt das fehlende Objekt nach. Danach „Erneut prüfen“."
+      },
+      "envelope": {
+        "title": "Ein verschlüsseltes Objekt passt nicht zu seiner Änderung",
+        "explain": "Der verschlüsselte Umschlag nennt einen anderen Workspace, ein anderes Objekt oder eine andere Fassung, als die Änderung behauptet. Das Paar wird nicht übernommen."
+      },
+      "rollback": {
+        "title": "Ein Gerät meldet einen älteren Stand als bekannt",
+        "explain": "Der Zeiger von {{device}} in der Cloud steht hinter dem, was dieses Gerät schon gesehen hat. Ein Zurückspringen wird nicht übernommen — es sieht aus wie eine zurückgedrehte Cloud."
+      },
+      "checkpointMissing": {
+        "title": "Ein Prüfpunkt fehlt in der Cloud",
+        "explain": "Ein Gerät verweist auf einen Prüfpunkt, der in der Cloud nicht liegt oder verändert wurde."
+      },
+      "unreadable": {
+        "title": "Eine Datei lässt sich nicht lesen",
+        "explain": "{{kind}}: Die Datei ist kein gültiges Plainva-Artefakt — beschädigt, abgeschnitten oder von einer neueren App-Version geschrieben.",
+        "hint": "Ist Plainva auf einem anderen Gerät neuer, aktualisiere dieses. Sonst exportiere die Diagnose; sie hilft bei der Fehlersuche."
+      },
+      "unknown": {
+        "title": "Eine Prüfung ist fehlgeschlagen",
+        "explain": "{{kind}}: {{reason}}",
+        "hint": "Exportiere die Diagnose und prüfe erneut. Ändert sich nichts, hilft der Export bei der Fehlersuche."
+      }
     },
     "quarantineFilterOpen": "Offen · {{n}}",
     "quarantineFilterAll": "Alle · {{n}}",
@@ -3862,7 +3926,6 @@
     "quarantineForks": "Lokale Forks",
     "forkCompare": "Vergleichen",
     "forkOpen": "Fork öffnen",
-    "forkCompare": "Vergleichen",
     "forkReason": {
       "permission-denied": "Schreiben war nicht erlaubt — die Änderung liegt als Kopie daneben.",
       "parallel-write": "Gleichzeitig geschrieben — beide Fassungen liegen nebeneinander.",
@@ -4009,18 +4072,18 @@
     "title": "Was gibt's Neues in Plainva {{version}}",
     "lead": "Größte Neuerung",
     "experimental": "Experimentell",
-    "highlight1Title": "Mehr Schutz für Deine Änderungen",
-    "highlight1": "Fehlgeschlagene Übertragungen bleiben offen. Unvollständige Serverlisten lösen keine Löschungen aus, und Umbenennen erhält Deine noch nicht synchronisierten Änderungen.",
-    "highlight2Title": "Kommentare bleiben bei der Notiz",
-    "highlight2": "Kommentare und Vorschläge sind in jedem Vault nutzbar. Sie folgen verschobenen Notizen; unterbrochene Vorschlagsabschlüsse lassen sich fortsetzen.",
-    "highlight3Title": "Direkt zur richtigen Textstelle",
-    "highlight3": "Anker-Links springen zu Überschriften. Backlinks zeigen ihre Fundstellen, und beim Verlinken werden passende Überschriften vorgeschlagen.",
-    "highlight4Title": "Schneller durch den Kalender",
-    "highlight4": "Über den Kalendertitel springst Du zu einem Datum. Wischen blättert am Telefon, eine Trackpad-Geste am Desktop.",
-    "highlight5Title": "Konten zuverlässiger verbinden",
-    "highlight5": "Eine Google-Neuanmeldung erhält Dein Gmail-App-Passwort. Anmeldungen bleiben dem richtigen Vault zugeordnet; unterbrochene Passwortänderungen lassen sich fortsetzen.",
-    "highlight6Title": "Unterwegs weiterarbeiten",
-    "highlight6": "Nach dem Neustart kehrt Deine mobile Sitzung zurück. Obsidian-Bilder, Tagesnotizen und „Alles auswählen“ funktionieren auf Desktop und Mobil zuverlässiger.",
+    "highlight1Title": "Vorhandene Konten erweitern",
+    "highlight1": "Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.",
+    "highlight2Title": "Einrichtung mit klaren Schritten",
+    "highlight2": "Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.",
+    "highlight3Title": "Dateien mit Vorschau übernehmen",
+    "highlight3": "Wenn Du mobil Dateien ergänzt, zeigt Plainva Quelle, Ziel und Kollisionen vor der Übernahme. Vorhandene Inhalte und Dienste bleiben erhalten; eine unterbrochene Übernahme lässt sich wiederholen.",
+    "highlight4Title": "Gleichnamige Aufgaben sicher trennen",
+    "highlight4": "Aufgaben vom Anbieter werden anhand ihrer Identität zugeordnet. Verschiedene Wiederholungen bekommen eigene Dateien. Vorhandene Fehlkonflikte lassen sich als getrennte Aufgaben behalten.",
+    "highlight5Title": "Beim Dateivergleich genau entscheiden",
+    "highlight5": "Beide Dateinamen und Speicherorte sind sichtbar. Vor dem Ersetzen nennt die Bestätigung Quelle und Ziel. Ändert sich eine Datei inzwischen, wird der Vergleich neu geladen.",
+    "highlight6Title": "Mehr Platz in der mobilen Navigation",
+    "highlight6": "Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. Die Fläche zum Antippen bleibt groß genug; die Platzreserve passt sich der Schriftgröße an.",
     "readBlog": "Blogpost lesen",
     "understand": "Verstanden"
   },
@@ -4248,5 +4311,36 @@
     "titleMany_other": "{{count}} neue Anmerkungen",
     "inNotes_one": "in {{count}} Notiz",
     "inNotes_other": "in {{count}} Notizen"
+  },
+  "connection": {
+    "connected": "Verbunden",
+    "notConnected": "Noch nicht verbunden",
+    "addService": "Hinzufügen",
+    "calendarTitle": "Kalender hinzufügen",
+    "mailTitle": "E-Mail hinzufügen",
+    "selectResources": "Kalender und Aufgabenlisten auswählen",
+    "useSignIn": "Vorhandene Anmeldung verwenden",
+    "grantGoogle": "Mit Google freigeben",
+    "ownRegistration": "Eigene App-Registrierung",
+    "loginFailed": "Die Verbindung konnte nicht abgeschlossen werden. Deine Eingaben bleiben erhalten. Versuche es erneut.",
+    "accountChanged": "Das Zielkonto oder der Vault hat sich geändert. Öffne das gewünschte Konto erneut.",
+    "wrongAccount": "Du hast Dich bei einem anderen Konto angemeldet. Wähle bei der erneuten Anmeldung das angezeigte Konto.",
+    "needsConsent": "Für diesen Dienst ist eine neue Freigabe nötig. Melde Dich erneut an und erlaube den gewünschten Zugriff.",
+    "identityUnavailable": "Die Identität des Kontos konnte nicht bestätigt werden. Melde Dich erneut beim Anbieter an.",
+    "storageFailed": "Die Speicherung konnte nicht bestätigt werden. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
+    "transferTitle": "Dateien und Konten übernehmen",
+    "transferSummary": "{{source}} → {{target}}. {{local}} lokale Dateien, {{remote}} Dateien im Cloud-Ordner, {{conflicts}} Kollisionen. Der Quell-Vault bleibt erhalten. Kalender und E-Mail werden im Ziel eingerichtet.",
+    "transferCopy": "Lokale Datei als eigene Kopie",
+    "transferKeepHint": "Prüfe beide Inhalte. „Beide Dateien behalten“ erhält die lokale Datei unter dem angezeigten neuen Pfad.",
+    "reviewCollisions": "Kollisionen vergleichen",
+    "startTransfer": "Übernahme starten",
+    "transferChanged": "Dateien oder das Ziel haben sich seit der Vorschau geändert. Starte die Übernahme erneut und prüfe die aktuelle Vorschau.",
+    "transferAccountCollision": "Im Ziel gibt es eine andere Kontozuordnung. Öffne dessen Kontoeinstellungen und kläre die Zuordnung vor der Übernahme.",
+    "transferInventoryFailed": "Der Dateiinhalt des Speicherorts konnte nicht vollständig gelesen werden. Prüfe Verbindung und Zugriffsrechte und versuche es erneut.",
+    "transferPairRequired": "Dieser Cloud-Ordner ist verschlüsselt. Öffne den bestehenden Vault über „Sicherheit & Teilen“ und verbinde dieses Gerät, bevor Du Inhalte hinzufügst.",
+    "clipboardFailed": "Der Pfad konnte nicht kopiert werden. Du kannst ihn im Dateidetail markieren und kopieren.",
+    "retrySaved": "Verbindung abschließen",
+    "clientSecret": "Client-Secret (nur falls vorhanden)",
+    "googleClientUnsupported": "Die Google-Registrierung passt nicht zum Rückkehrweg dieses Geräts. Prüfe den Client-Typ und die mobile Einrichtung in der Google-Anleitung."
   }
 }

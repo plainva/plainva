@@ -122,3 +122,12 @@ As tarefas são caixas de seleção comuns do GFM (GitHub-Flavored Markdown). O 
 ## Concluir pela visão geral
 
 Marcar uma tarefa na visão geral grava a caixa na nota de origem e atualiza essa nota no índice antes de consultar a lista novamente. A tarefa sai de **Abertas** imediatamente e não reaparece de um índice antigo.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Separar tarefas com o mesmo título
+
+Tarefas do provedor são associadas pela identidade. Ocorrências diferentes recebem arquivos próprios. Falsos conflitos existentes podem ser mantidos como tarefas separadas.
+
+Estes arquivos pertencem a tarefas diferentes. Tarefas recorrentes com o mesmo título podem ser ocorrências distintas. Os dois conteúdos são mantidos como tarefas separadas.
+
+**Manter como tarefas separadas** — Este arquivo permanece inalterado: Arquivo atual  A cópia em conflito é mantida como arquivo separado: cópia de conflito

@@ -25,6 +25,9 @@ vi.mock("@capacitor/browser", () => ({
 // Hoisted: vi.mock factories run before module-level consts exist.
 const { addPimAccount } = vi.hoisted(() => ({ addPimAccount: vi.fn() }));
 vi.mock("../pim/pimService", () => ({ addPimAccount }));
+vi.mock("../vaultService", () => ({ getMobileVault: async () => ({ vaultId: "v1" }), switchVault: vi.fn() }));
+vi.mock("../vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
+vi.mock("../../adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ id: "subject", mail: "someone@contoso.com" })) }));
 
 vi.mock("@plainva/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/core")>()),

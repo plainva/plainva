@@ -24,8 +24,6 @@ Lorsque vous renommez ou déplacez un fichier, son historique de versions le sui
 Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu **⋮** en haut à droite de l'éditeur → **Historique des versions…** ouvre la liste des versions — aussi pour une note dans sa propre fenêtre, là-même :
 
 - À gauche : tous les instantanés, groupés par jour, avec l'heure et la taille.
-- À droite : un aperçu ; pour les fichiers texte, **Comparer avec la version actuelle** affiche la version sélectionnée côte à côte avec le contenu actuel (l'ancienne version à gauche, l'état actuel à droite).
-- La vue de comparaison s’appelle **Comparer les versions** et sert autant aux versions qu’aux copies de conflit : la note est toujours à gauche, l’autre version à droite ; les blocs identiques sont repliés, le pied de page compte les différences et les lignes qui seraient ajoutées ou perdues. Avec une copie de conflit, le côté droit est modifiable et se fusionne ligne par ligne ; quatre issues — **adopter**, **garder les deux**, **rejeter la copie**, **plus tard** — et chacune qui rejette quelque chose demande d’abord.
 - **Restaurer** remplace le contenu actuel par la version sélectionnée. Ne vous inquiétez pas : l'état actuel est lui-même d'abord enregistré comme instantané — une restauration peut donc toujours être annulée.
 - **Restaurer en tant que copie** crée la version sous forme de nouveau fichier à côté de l'original (`Name (Version 2026-07-05 14-30).md`) sans toucher à celui-ci.
 
@@ -74,3 +72,21 @@ Sur mobile, l’échec de l’enregistrement d’une note interrompt le changeme
 Une sauvegarde ZIP n’est considérée comme réussie qu’après la lecture de tous les fichiers sélectionnés et l’enregistrement de l’archive complète. Un échec ne supprime aucune archive antérieure et ne change pas la date de la dernière sauvegarde réussie. Sur mobile, le message d’échec automatique nomme le vault ; **Sauvegarder maintenant** dans ses réglages permet de réessayer. Les réglages utilisateur cachés, comme `.obsidian`, sont inclus sur les deux plateformes. Les dossiers `.plainva`, `.git`, `.trash` et `node_modules` sont exclus à tous les niveaux. Plusieurs archives créées dans la même seconde reçoivent un suffixe tel que `_001`.
 
 L’enregistrement n’est indiqué comme terminé qu’après confirmation de l’écriture. Le texte saisi pendant un enregistrement reste en attente jusqu’à l’écriture de sa propre version. Sur ordinateur, chaque brouillon appartient à sa session d’édition : la fin d’une ancienne session ne supprime pas le brouillon d’un éditeur nouvellement ouvert. Si des modifications externes arrivent en même temps, Plainva fusionne les changements compatibles ; en cas de conflit, le texte reste disponible dans le brouillon et une copie de conflit.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Des choix clairs pour comparer les fichiers
+
+Les deux noms de fichiers et emplacements sont visibles. La confirmation indique la source et la destination avant le remplacement. Si un fichier change entre-temps, la comparaison est rechargée.
+
+- **Remplacer le fichier actuel par la copie en conflit**: Le contenu de ce fichier sera écrasé : Fichier actuel  Le nouveau contenu provient de : copie de conflit  La copie en conflit sera ensuite supprimée.
+- **Conserver les deux fichiers**: Ce fichier reste inchangé : Fichier actuel  La copie en conflit est conservée dans un fichier séparé : copie de conflit
+- **Supprimer la copie en conflit**: Cette copie en conflit sera supprimée : copie de conflit  Ce fichier reste inchangé : Fichier actuel
+- **Décider plus tard**
+
+Ces fichiers correspondent à des tâches différentes. Des tâches récurrentes de même titre peuvent être des occurrences distinctes. Les deux contenus sont conservés séparément.
+
+**Conserver comme tâches séparées**
+
+Un fichier a changé depuis l’ouverture. La comparaison a été rechargée. Vérifie les contenus actuels et choisis à nouveau.
+
+La fusion ligne par ligne est un outil de bureau ; ici, vous adoptez une version entière ou conservez les deux.

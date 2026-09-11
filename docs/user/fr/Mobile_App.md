@@ -261,3 +261,14 @@ Tout le reste sur les commentaires et les suggestions — où vivent les fichier
 **Le message arrive ici plus tard que sur le bureau, et c'est une propriété, pas un défaut.** Plainva n'a aucun serveur capable de solliciter votre téléphone — en construire un signifierait qu'un serveur étranger apprend quand qui a commenté quelle note. Une annotation est donc repérée là où le téléphone regarde de toute façon : après un cycle de synchronisation et au retour au premier plan. Aucun minuteur ne tourne en arrière-plan pour cela ; aucune plateforme mobile ne l'autorise.
 
 À partir de 0.8.2, les nouveautés mobiles indiquent la version commune de Plainva, indépendamment du numéro de build natif. Sur iOS, TestFlight peut donc afficher la version commerciale **1.0** alors que les nouveautés décrivent **0.8.2**. Chaque nouvelle version s’affiche une fois ; un autre build interne avec les mêmes nouveautés ne les répète pas. Une nouvelle installation termine l’introduction sans second accueil. Le bouton du blog ouvre la traduction disponible dans la langue de l’application, ou l’anglais à défaut.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Une configuration guidée
+
+L’assistant mobile ouvre directement la connexion adaptée. Après la connexion, choisis les calendriers et listes de tâches et consulte le résultat.
+
+Ouvre **Comptes cloud**, choisis le compte existant et **Ajouter** pour le service manquant. Les services existants restent connectés. Gmail conserve sa connexion de messagerie ou son mot de passe d’application. Annuler l’assistant ne déconnecte pas les services terminés. Le transfert mobile conserve le vault source et tient compte d’un vault cible correspondant ou prépare un conteneur séparé. Les fichiers en collision sont comparés individuellement et les deux contenus sont conservés. Les destinations chiffrées s’ouvrent par le parcours de jumelage existant.
+
+### Plus d’espace dans la navigation mobile
+
+L’icône sélectionnée garde une marge dans la barre compacte. Les zones tactiles restent assez grandes et l’espace réservé s’adapte à la taille du texte.

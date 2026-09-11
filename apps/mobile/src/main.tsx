@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { TransferReviewHost } from "./components/TransferReviewHost";
 import { i18nReady } from "@plainva/ui/i18n";
 import { initReminderScheduler } from "./services/reminderScheduler";
 import { initMobileCommentNotifier } from "./services/commentNotifier";
@@ -148,6 +149,7 @@ async function boot(): Promise<void> {
         <App />
         <ToastHost />
         <MobileDialogHost />
+        <TransferReviewHost />
       </FatalBoundary>
     </React.StrictMode>,
   );

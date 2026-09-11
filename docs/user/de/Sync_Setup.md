@@ -174,3 +174,12 @@ Wenn Google Drive vorübergehend zu viele Anfragen meldet, versucht Plainva den 
 ## Unterbrochene Dateiübertragungen
 
 Zeitlimits gelten auch für den Empfang von Dateiinhalten über WebDAV, Dropbox, OneDrive, S3 und Google Drive. Liefert eine schrittweise empfangene Antwort keine weiteren Daten, beendet Plainva den Versuch und wiederholt Lesezugriffe begrenzt mit einer neuen Anfrage. Fortschritt hält einen solchen Download aktiv, auch wenn die gesamte Datei länger als das Grundzeitlimit braucht. Native Mobil-Anfragen haben zusätzlich eigene Zeitgrenzen. Ein unvollständiger Download ersetzt niemals die vorhandene lokale Datei und bestätigt keinen Sync-Fortschritt. Große Uploads behalten ihr größenabhängiges Zeitbudget; ein unklarer Upload-Abschluss wird durch die normale Sync-Wiederaufnahme behandelt und nicht blind erneut gesendet.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Vorhandene Konten erweitern
+
+Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.
+
+Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
+
+Wenn Du mobil Dateien ergänzt, zeigt Plainva Quelle, Ziel und Kollisionen vor der Übernahme. Vorhandene Inhalte und Dienste bleiben erhalten; eine unterbrochene Übernahme lässt sich wiederholen.

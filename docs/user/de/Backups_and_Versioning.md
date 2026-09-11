@@ -24,8 +24,6 @@ Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit.
 Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Menü oben rechts im Editor → **Versionsverlauf…** öffnet die Versionsliste — auch für eine Notiz in ihrem eigenen Fenster, dort im selben Fenster:
 
 - Links stehen alle Snapshots nach Tag gruppiert, mit Uhrzeit und Größe.
-- Rechts siehst Du die Vorschau; bei Textdateien vergleicht **Mit aktueller Fassung vergleichen** die gewählte Version Seite an Seite mit dem aktuellen Inhalt (links die alte Version, rechts der aktuelle Stand).
-- Die Vergleichsfläche heißt **Fassungen vergleichen** und ist dieselbe für Versionen und für Konfliktkopien: links steht immer die Notiz, rechts die andere Fassung; gleiche Blöcke sind eingeklappt, die Fußzeile zählt Unterschiede und Zeilen, die hinzukommen oder verloren gehen. Bei einer Konfliktkopie ist die rechte Seite editierbar und lässt sich zeilenweise zusammenführen; vier Ausgänge — **übernehmen**, **beide behalten**, **Kopie verwerfen**, **später** — und jeder, der etwas verwirft, fragt vorher nach.
 - **Wiederherstellen** ersetzt den aktuellen Inhalt durch die gewählte Version. Keine Angst: Der aktuelle Stand wird vorher selbst als Snapshot gesichert — Wiederherstellen ist also selbst rückgängig machbar.
 - **Als Kopie wiederherstellen** legt die Version als neue Datei daneben an (`Name (Version 2026-07-05 14-30).md`), ohne das Original anzufassen.
 
@@ -74,3 +72,21 @@ Mobil wird ein Vault bei einem fehlgeschlagenen Notizspeichervorgang nicht gewec
 Eine ZIP-Sicherung gilt erst als erfolgreich, wenn alle ausgewählten Dateien lesbar waren und das vollständige Archiv gespeichert wurde. Bei einem Fehler werden keine älteren Archive durch diesen Lauf entfernt und der letzte erfolgreiche Sicherungszeitpunkt bleibt unverändert. Mobil werden automatische Fehler mit dem Vault-Namen gemeldet; **Jetzt sichern** in den Vault-Einstellungen startet einen neuen Versuch. Versteckte Nutzerkonfiguration wie `.obsidian` gehört auf beiden Plattformen dazu. Die Verzeichnisse `.plainva`, `.git`, `.trash` und `node_modules` bleiben auf jeder Ordnerebene ausgeschlossen. Entstehen mehrere Archive in derselben Sekunde, erhält der neue Dateiname einen Zusatz wie `_001`.
 
 Ein Speichervorgang wird erst nach bestätigtem Schreiben als abgeschlossen gemeldet. Neue Eingaben während einer laufenden Speicherung bleiben ungespeichert, bis auch ihr eigener Stand geschrieben wurde. Desktop-Entwürfe gehören zur jeweiligen Editor-Sitzung: Der Abschluss einer alten Sitzung löscht keinen Entwurf einer neu geöffneten Notiz. Werden gleichzeitig fremde Änderungen eingelesen, führt Plainva vereinbare Änderungen zusammen; bei einem Widerspruch bleibt Dein Text als Entwurf und Konfliktkopie erhalten.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Beim Dateivergleich genau entscheiden
+
+Beide Dateinamen und Speicherorte sind sichtbar. Vor dem Ersetzen nennt die Bestätigung Quelle und Ziel. Ändert sich eine Datei inzwischen, wird der Vergleich neu geladen.
+
+- **Aktuelle Datei durch Konfliktkopie ersetzen**: Der Inhalt dieser Datei wird überschrieben: Aktuelle Datei  Der neue Inhalt kommt aus: Konfliktkopie  Anschließend wird die Konfliktkopie gelöscht.
+- **Beide Dateien behalten**: Diese Datei bleibt unverändert: Aktuelle Datei  Die Konfliktkopie bleibt als separate Datei erhalten: Konfliktkopie
+- **Konfliktkopie löschen**: Diese Konfliktkopie wird gelöscht: Konfliktkopie  Diese Datei bleibt unverändert: Aktuelle Datei
+- **Später entscheiden**
+
+Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.
+
+**Als getrennte Aufgaben behalten**
+
+Eine Datei hat sich seit dem Öffnen verändert. Der Vergleich wurde neu geladen. Prüfe die aktuellen Inhalte und wähle erneut.
+
+Zeilenweises Zusammenführen ist ein Werkzeug für den Rechner; hier übernimmst Du eine Fassung ganz oder behältst beide.

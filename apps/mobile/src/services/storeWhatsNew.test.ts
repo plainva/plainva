@@ -78,7 +78,11 @@ describe("the real catalog and locales", () => {
     for (const [locale, note] of Object.entries(notes)) {
       expect([...(note as string)].length, locale).toBeLessThanOrEqual(PLAY_LIMIT);
     }
-    expect(notes["fr-FR"]).toContain("plainva.com/fr/blog/");
-    expect(notes["pt-BR"]).toContain("plainva.com/pt-BR/blog/");
+    if (parseCatalog(catalogSource).blogUrl) {
+      expect(notes["fr-FR"]).toContain("plainva.com/fr/blog/");
+      expect(notes["pt-BR"]).toContain("plainva.com/pt-BR/blog/");
+    } else {
+      for (const note of Object.values(notes)) expect(note).not.toContain("plainva.com/");
+    }
   });
 });

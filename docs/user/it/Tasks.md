@@ -122,3 +122,12 @@ Le attività sono normali caselle di controllo GFM (GitHub-Flavored Markdown). P
 ## Completare dalla panoramica
 
 Spuntando un’attività nella panoramica, Plainva scrive la casella nella nota sorgente e aggiorna la nota nell’indice prima di rileggere l’elenco. L’attività lascia subito **Aperte** e non riappare da un indice obsoleto.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Separa attività con lo stesso titolo
+
+Le attività del provider vengono associate in base all’identità. Le diverse ricorrenze hanno file propri. I falsi conflitti esistenti possono essere conservati come attività separate.
+
+Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.
+
+**Conserva come attività separate** — Questo file resta invariato: File attuale  La copia in conflitto viene conservata come file separato: copia di conflitto

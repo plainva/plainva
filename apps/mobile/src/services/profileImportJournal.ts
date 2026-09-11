@@ -86,6 +86,31 @@ export const profileJournalPath = (vaultId: string) => `profile-journal/${vaultI
 const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
 const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
 
+/** A new files container keeps the source's presentation and logical ids.
+ * Credentials and service rows are copied separately through their stores. */
+export async function copyProfilePreferences(source: MobileVault, targetId: string, target: Pick<MobileVault["adapter"], "writeTextFile" | "readTextFile">): Promise<void> {
+  const store = await settingsStore();
+  await applyVaultSettings(targetId, await getVaultSettings(source.vaultId));
+  for (const keyOf of [unknownKey, accountMapKey]) {
+    let value = await store.get<Record<string, unknown>>(keyOf(source.vaultId));
+    if (value && keyOf === accountMapKey) {
+      const map = normalizeAccountMap(value);
+      map.secretLocalToLogical = Object.fromEntries(Object.entries(map.secretLocalToLogical).map(([key, logical]) => [key.replace(source.vaultId, targetId), logical]));
+      value = { ...map };
+    }
+    if (value) await store.set(keyOf(targetId), value); else await store.delete(keyOf(targetId));
+    await store.save();
+    if (JSON.stringify(await store.get(keyOf(targetId)) ?? null) !== JSON.stringify(value ?? null)) throw new Error("storageFailed");
+  }
+  if (!await barLayoutIsInherited("mobileBar", source.vaultId)) await saveBarLayout("mobileBar", targetId, await loadBarLayout("mobileBar", source.vaultId));
+  const path = ".plainva/bookmarks.json";
+  if (await source.adapter.exists(path)) {
+    const text = await source.adapter.readTextFile(path);
+    await target.writeTextFile(path, text);
+    if (await target.readTextFile(path) !== text) throw new Error("storageFailed");
+  }
+}
+
 async function settingsStore() {
   return getPlatformServices().loadSettings();
 }

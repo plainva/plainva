@@ -62,3 +62,14 @@ Der Status **In Produktion** beseitigt die feste Ablaufzeit des Testmodus. Er ga
 8. Bestätige die angeforderten Berechtigungen.
 
 Dein Vault wird nun sicher über Deine eigenen Credentials mit Google Drive synchronisiert.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Google OAuth — Desktop / Android / iOS
+
+Die Schritte oben für eine Desktop-Client-ID gelten für die Desktop-App. Mobil benötigt eine eigene, zum Gerät passende Registrierung: iOS verwendet den Client-Typ **iOS** mit Bundle-ID `com.plainva.app`; Android den Typ **Android** mit Paketname `com.plainva.app` und dem SHA-1-Zertifikat des installierten Builds. Mobile Clients benötigen gewöhnlich kein Client-Secret. Plainvas Browser-Rückkehr lautet `com.plainva.app:/oauth2redirect`. Google sperrt diesen Rückkehrweg für neue Android-Clients standardmäßig. Googles dokumentierte Ausnahme ist eine ausdrücklich aktivierte Custom-URI-Methode in den erweiterten Einstellungen des Android-Clients; falls diese Option für Deinen Client nicht verfügbar ist, kann dieser Client den aktuellen Browser-Ablauf nicht verwenden. Eine Desktop-Client-ID ist dafür kein Ersatz. Für Kalender zusätzlich **Google Calendar API** und **Google Tasks API** aktivieren. Fehlende Rechte benötigen eine neue Freigabe; ein vorhandener Drive-Zugang allein reicht dafür nicht.
+
+[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+
+Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.
+
+Die Google-Registrierung passt nicht zum Rückkehrweg dieses Geräts. Prüfe den Client-Typ und die mobile Einrichtung in der Google-Anleitung.

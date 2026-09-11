@@ -142,6 +142,12 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     return out;
   }
 
+  async listDirReport(path = "", recursive = false) {
+    const files: VaultFileInfo[] = [];
+    await this.walk(norm(path), recursive, files, true);
+    return { files, skipped: [] };
+  }
+
   async createDir(path: string): Promise<void> {
     try {
       await Filesystem.mkdir({ path: this.full(path), directory: Directory.Data, recursive: true });

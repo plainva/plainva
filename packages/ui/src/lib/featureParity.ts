@@ -397,15 +397,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktop: "yes",
     mobile: null,
     mobileReason:
-      "Both shells compare the same two sides under the same rule (left is what " +
-      "the note holds, right is the other version) and offer the same exits: take " +
-      "the other version whole, keep both, discard the copy, decide later. What " +
+        "Both shells identify the current file and conflict copy with full paths, " +
+        "check both displayed contents before resolving, and offer the same exits: " +
+        "replace the current file with the copy, keep both, delete the copy, or " +
+        "decide later. Proven different tasks can only be kept separately. What " +
       "the phone does not offer is the per-chunk arrow that pulls one block over " +
       "while the rest stays — that is a mouse gesture on a side-by-side editor, " +
       "and a phone shows the differences stacked, not side by side. Whoever needs " +
       "to merge does it at the desk (feedback round 2026-09-01, P2 / mockup " +
       "\"Zwei Fassungen auf 375 Pixeln\").",
-    verified: "2026-09-02",
+      verified: "2026-09-11",
   },
   {
     id: "haptics",

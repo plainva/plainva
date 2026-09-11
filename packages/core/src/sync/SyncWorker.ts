@@ -4,6 +4,7 @@ import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js"
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { mergeText } from "../conflict-resolver.js";
+import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { findCollidingPath } from "./pathIdentity.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
@@ -985,7 +986,16 @@ export class SyncWorker {
       const localSha = await sha256Hash(localContent);
       localShaAtRead = localSha;
 
-      if (localSha === remoteSha) {
+      if (classifyTaskNotes(localContent, remoteContent) === "different") {
+        const copyPath = await preserveDisplacedTask(this.vault, path, localContent);
+        changedPaths.push(copyPath);
+        await this.queue.queueWrite(copyPath);
+        // The old canonical path remains attached to the remote task. Its
+        // existing links survive; the displaced task gets a stable filename.
+        // A crash before here leaves the source; after here its copy is queued.
+        if (await this.vault.readTextFile(path) !== localContent) throw new Error("task_source_changed");
+        mergedContent = remoteContent;
+      } else if (localSha === remoteSha || taskNotesEquivalent(localContent, remoteContent)) {
         mergedContent = remoteContent; // identical content
       } else if (state?.pending_push_sha && remoteSha === state.pending_push_sha) {
         // Own-push echo (2026-07-16): the remote content IS the upload whose

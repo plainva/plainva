@@ -2262,48 +2262,54 @@
   },
   "compare": {
     "title": "Confronta versioni",
-    "conflictExplainer": "Questa nota è stata modificata in due posti contemporaneamente. Plainva ha conservato entrambe le versioni: nulla è andato perso.",
-    "sideLeft": "Sinistra · nella nota",
+    "conflictExplainer": "Esistono due contenuti diversi per questo file. Entrambi i file sono indicati sotto. Confrontali prima di decidere.",
     "sideRight": "Destra · {{what}}",
     "conflictCopy": "copia di conflitto",
     "savedVersion": "versione salvata",
     "currentState": "Stato attuale",
-    "cameViaSync": "Arrivata tramite la sincronizzazione",
-    "yourVersionKept": "La tua versione da questo dispositivo, conservata {{when}}",
     "sizeLines": "{{size}} · {{lines}} righe",
     "stats": "{{hunks}} differenze · {{same}} righe uguali",
     "identical": "Le due versioni sono identiche.",
-    "costAdopt": "Se adotti la copia: +{{added}} righe aggiunte, −{{removed}} perse.",
+    "costAdopt": "Sostituendo il file attuale: +{{added}} righe aggiunte, −{{removed}} righe rimosse.",
     "costMerge": "La tua unione: la nota conterrà il lato destro così come lo hai modificato.",
     "costRestore": "Se ripristini questa versione: +{{added}} righe tornano, −{{removed}} vanno perse.",
     "mergeHint": "Riporta singoli blocchi con le frecce tra i lati: la nota viene scritta una sola volta, quando applichi.",
     "tooLarge": "Questa nota è troppo grande per il confronto per righe sul telefono. Puoi vedere le due versioni separatamente o confrontare sul computer.",
     "mergeOnlyDesktop": "Unire riga per riga è uno strumento del computer; qui adotti una versione intera o le conservi entrambe.",
     "later": "Decidi più tardi",
-    "keepBoth": "Conserva entrambe",
-    "discardCopy": "Scarta la copia",
-    "adoptCopy": "Adotta la versione della copia",
+    "keepBoth": "Conserva entrambi i file",
+    "discardCopy": "Elimina la copia in conflitto",
+    "adoptCopy": "Sostituisci il file attuale con la copia in conflitto",
     "applyMerge": "Applica l'unione",
-    "adoptTitle": "Adottare la versione della copia?",
-    "adoptMsg": "La nota conterrà quindi la versione del {{other}}. Il suo contenuto attuale del {{current}} viene sostituito e resta nella cronologia delle versioni.",
+    "adoptTitle": "Sostituire il file attuale?",
     "mergeTitle": "Applicare l'unione?",
     "mergeMsg": "La nota conterrà il lato destro così come lo hai modificato. Il suo contenuto attuale del {{current}} resta nella cronologia delle versioni.",
-    "keepBothTitle": "Conservare entrambe le versioni?",
-    "keepBothMsg": "La nota resta com'è. La copia viene affiancata come:\n{{name}}\nIl conflitto è considerato risolto.",
-    "discardTitle": "Scartare la copia?",
-    "discardMsg": "La copia del {{other}} viene eliminata; la nota mantiene il contenuto attuale. Un'istantanea della copia resta nella cronologia delle versioni.",
+    "keepBothTitle": "Conservare entrambi i file?",
+    "discardTitle": "Eliminare la copia in conflitto?",
     "restoreThis": "Ripristina questa versione",
     "copyTitle": "Creare una copia?",
     "copyMsg": "La versione del {{when}} viene affiancata alla nota come:\n{{name}}",
-    "resolvedAdopted": "La versione della copia è ora nella nota.",
+    "resolvedAdopted": "File attuale sostituito e copia in conflitto eliminata.",
     "resolvedMerged": "Unione applicata.",
     "resolvedKeptBoth": "Entrambe le versioni conservate: {{name}}",
-    "resolvedDiscarded": "Copia scartata.",
+    "resolvedDiscarded": "Copia in conflitto eliminata. File attuale invariato.",
     "tabDiff": "Differenze",
     "tabNote": "Nella nota",
-    "tabOther": "Altra versione",
     "sameLines": "{{n}} righe identiche",
-    "showLines": "Mostra"
+    "showLines": "Mostra",
+    "currentFile": "File attuale",
+    "taskList": "Elenco attività",
+    "revealFolder": "Apri cartella",
+    "binaryFile": "File binario · {{size}} byte",
+    "replaceConfirm": "Sostituisci il file ed elimina la copia in conflitto",
+    "replaceMessage": "Il contenuto di questo file verrà sovrascritto:\n{{target}}\n\nIl nuovo contenuto proviene da:\n{{source}}\n\nLa copia in conflitto verrà poi eliminata.",
+    "replaceHint": "«{{name}}» riceve il contenuto della copia in conflitto. La copia viene poi eliminata.",
+    "keepBothPaths": "Questo file resta invariato:\n{{original}}\n\nLa copia in conflitto viene conservata come file separato:\n{{copy}}",
+    "discardPaths": "Questa copia in conflitto verrà eliminata:\n{{source}}\n\nQuesto file resta invariato:\n{{target}}",
+    "differentTasks": "Due attività diverse",
+    "differentTasksHint": "Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.",
+    "keepSeparateTasks": "Conserva come attività separate",
+    "comparisonChanged": "Un file è cambiato dopo l’apertura. Il confronto è stato ricaricato. Controlla i contenuti attuali e scegli di nuovo."
   },
   "conflict": {
     "resolveFailed": "Impossibile risolvere il conflitto: {{error}}",
@@ -2337,7 +2343,6 @@
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefisso (opzionale)",
     "syncClientId": "ID client",
-    "syncClientSecret": "Segreto client (opzionale)",
     "syncOwnAppKey": "La tua chiave applicazione (facoltativa)",
     "syncOwnClientId": "Il tuo ID client (facoltativo)",
     "syncOwnAppIdHint": "Lascia vuoto per usare la registrazione dell'app centrale di Plainva. Un'app tua aggira il suo limite di utenti.",
@@ -2880,7 +2885,6 @@
     "noAccountsMobile": "Nessun account calendario collegato.",
     "perDeviceHint": "Gli accessi sono per dispositivo: per sicurezza le credenziali non vengono mai sincronizzate — accedi una volta su ogni dispositivo.",
     "connectAccount": "Collega account",
-    "connectGoogle": "Connetti con Google",
     "connectMicrosoft": "Connetti con Microsoft",
     "accounts": "Account calendario",
     "accountAdded": "Account collegato",
@@ -3858,23 +3862,83 @@
       "grant": "Concessione"
     },
     "quarantineReason": {
-      "binding": { "title": "Un artefatto appartiene a un altro workspace", "explain": "{{kind}}: il file indica un identificativo di workspace diverso da quello di questo vault. Proviene da un altro vault cifrato o è stato messo nella cartella cloud sbagliata." },
-      "pathHash": { "title": "Un artefatto non corrisponde al suo nome di file", "explain": "{{kind}}: il nome del file porta un checksum che non corrisponde al contenuto. Il file è stato rinominato o modificato lungo la strada." },
-      "signature": { "title": "Una firma non è valida", "explain": "{{kind}}: la firma del dispositivo che ha scritto il file non può essere confermata. O il contenuto è cambiato, o la chiave del dispositivo non è quella attesa." },
-      "policyChain": { "title": "Regole che non continuano quelle accettate", "explain": "Una versione delle regole non si basa sulla catena che questo dispositivo ha accettato. Proviene da uno stato divergente e non viene adottata." },
-      "policyUnaccepted": { "title": "Modifiche che usano regole non ancora accettate da questo dispositivo", "explain": "{{device}} ha scritto con la versione delle regole {{policy}}; qui è accettata la {{accepted}}. Di solito un membro nuovo o un cambio di regole che non ha ancora raggiunto questo dispositivo.", "hint": "Dopo il prossimo aggiornamento delle regole di solito si risolve da sé: «Ricontrolla» avvia proprio quell’aggiornamento. Se persiste, verifica in «Dispositivi» se {{device}} fa ancora parte del workspace." },
-      "authorNotActive": { "title": "Modifiche da un dispositivo non più attivo", "explain": "{{device}} non figura più come dispositivo attivo nelle regole. Le sue modifiche non vengono adottate.", "hint": "Se il dispositivo è stato escluso, è corretto così. Se deve tornare a scrivere, associalo di nuovo in «Dispositivi»." },
-      "postRevocation": { "title": "Modifiche da un dispositivo dopo la revoca", "explain": "{{device}} ha perso l’accesso. Queste modifiche stanno oltre il punto che un dispositivo autorizzato ha attestato per ultimo — non vengono adottate.", "hint": "È l’esito normale di una revoca e non richiede nulla. Ignora il gruppo se la revoca era voluta. Se il dispositivo deve tornare a scrivere, associalo di nuovo in «Dispositivi»." },
-      "capability": { "title": "Una modifica che il dispositivo non poteva fare", "explain": "{{device}} ha scritto qualcosa che il suo ruolo non consente. La modifica resta fuori.", "hint": "Se il dispositivo deve poterlo fare, cambia il suo ruolo in «Persone e permessi» e ricontrolla." },
-      "missingParents": { "title": "Modifiche i cui predecessori mancano", "explain": "Queste modifiche si basano su versioni che questo dispositivo non conosce. I predecessori non sono ancora arrivati o non sono più nel cloud.", "hint": "Di solito bastano attendere e «Ricontrolla»: i predecessori arrivano con il prossimo aggiornamento. Se mancano in modo permanente, un dispositivo non li ha mai caricati." },
-      "chainGap": { "title": "Modifiche di un dispositivo in attesa: la catena è interrotta", "explain": "Questo dispositivo attende da {{device}} la modifica n. {{expected}}; nel cloud c’è la n. {{found}}. Ciò che manca o è stato sostituito in mezzo blocca tutto ciò che segue: il gruppo comprende {{count}} modifiche.", "hint": "Di solito dietro c’è una seconda copia dello stesso dispositivo — per esempio un’istanza di sviluppo con un proprio archivio — oppure un dispositivo ricollegato che riparte a contare da 1. Fai sincronizzare {{device}} una volta e ricontrolla qui. Se ignori il gruppo, queste modifiche vanno perse." },
-      "chainBlocked": { "title": "In attesa dietro una lacuna", "explain": "Questa modifica è a posto, ma sta dietro una lacuna nella catena del suo dispositivo. Verrà adottata non appena la lacuna sarà chiusa." },
-      "payloadMissing": { "title": "Nel cloud manca il contenuto di una modifica", "explain": "La modifica rimanda a un oggetto che non è nel cloud o è stato alterato. Il caricamento è incompleto o è stato toccato dall’esterno.", "hint": "Fai sincronizzare ancora una volta il dispositivo che ha scritto la modifica; ricarica l’oggetto mancante. Poi «Ricontrolla»." },
-      "envelope": { "title": "Un oggetto cifrato non corrisponde alla sua modifica", "explain": "La busta cifrata indica un altro workspace, un altro oggetto o un’altra versione rispetto a quanto la modifica dichiara. La coppia non viene adottata." },
-      "rollback": { "title": "Un dispositivo segnala uno stato più vecchio di quello noto", "explain": "Il puntatore di {{device}} nel cloud è indietro rispetto a ciò che questo dispositivo ha già visto. Un salto indietro non viene adottato: sembra un cloud riportato a uno stato precedente." },
-      "checkpointMissing": { "title": "Nel cloud manca un punto di controllo", "explain": "Un dispositivo rimanda a un punto di controllo che non è nel cloud o è stato alterato." },
-      "unreadable": { "title": "Un file non può essere letto", "explain": "{{kind}}: il file non è un artefatto Plainva valido: danneggiato, troncato o scritto da una versione più recente dell’app.", "hint": "Se Plainva è più recente su un altro dispositivo, aggiorna questo. Altrimenti esporta la diagnosi; aiuta nell’analisi." },
-      "unknown": { "title": "Un controllo non è riuscito", "explain": "{{kind}}: {{reason}}", "hint": "Esporta la diagnosi e ricontrolla. Se non cambia nulla, l’esportazione aiuta nell’analisi." }
+      "binding": {
+        "title": "Un artefatto appartiene a un altro workspace",
+        "explain": "{{kind}}: il file indica un identificativo di workspace diverso da quello di questo vault. Proviene da un altro vault cifrato o è stato messo nella cartella cloud sbagliata."
+      },
+      "pathHash": {
+        "title": "Un artefatto non corrisponde al suo nome di file",
+        "explain": "{{kind}}: il nome del file porta un checksum che non corrisponde al contenuto. Il file è stato rinominato o modificato lungo la strada."
+      },
+      "signature": {
+        "title": "Una firma non è valida",
+        "explain": "{{kind}}: la firma del dispositivo che ha scritto il file non può essere confermata. O il contenuto è cambiato, o la chiave del dispositivo non è quella attesa."
+      },
+      "policyChain": {
+        "title": "Regole che non continuano quelle accettate",
+        "explain": "Una versione delle regole non si basa sulla catena che questo dispositivo ha accettato. Proviene da uno stato divergente e non viene adottata."
+      },
+      "policyUnaccepted": {
+        "title": "Modifiche che usano regole non ancora accettate da questo dispositivo",
+        "explain": "{{device}} ha scritto con la versione delle regole {{policy}}; qui è accettata la {{accepted}}. Di solito un membro nuovo o un cambio di regole che non ha ancora raggiunto questo dispositivo.",
+        "hint": "Dopo il prossimo aggiornamento delle regole di solito si risolve da sé: «Ricontrolla» avvia proprio quell’aggiornamento. Se persiste, verifica in «Dispositivi» se {{device}} fa ancora parte del workspace."
+      },
+      "authorNotActive": {
+        "title": "Modifiche da un dispositivo non più attivo",
+        "explain": "{{device}} non figura più come dispositivo attivo nelle regole. Le sue modifiche non vengono adottate.",
+        "hint": "Se il dispositivo è stato escluso, è corretto così. Se deve tornare a scrivere, associalo di nuovo in «Dispositivi»."
+      },
+      "postRevocation": {
+        "title": "Modifiche da un dispositivo dopo la revoca",
+        "explain": "{{device}} ha perso l’accesso. Queste modifiche stanno oltre il punto che un dispositivo autorizzato ha attestato per ultimo — non vengono adottate.",
+        "hint": "È l’esito normale di una revoca e non richiede nulla. Ignora il gruppo se la revoca era voluta. Se il dispositivo deve tornare a scrivere, associalo di nuovo in «Dispositivi»."
+      },
+      "capability": {
+        "title": "Una modifica che il dispositivo non poteva fare",
+        "explain": "{{device}} ha scritto qualcosa che il suo ruolo non consente. La modifica resta fuori.",
+        "hint": "Se il dispositivo deve poterlo fare, cambia il suo ruolo in «Persone e permessi» e ricontrolla."
+      },
+      "missingParents": {
+        "title": "Modifiche i cui predecessori mancano",
+        "explain": "Queste modifiche si basano su versioni che questo dispositivo non conosce. I predecessori non sono ancora arrivati o non sono più nel cloud.",
+        "hint": "Di solito bastano attendere e «Ricontrolla»: i predecessori arrivano con il prossimo aggiornamento. Se mancano in modo permanente, un dispositivo non li ha mai caricati."
+      },
+      "chainGap": {
+        "title": "Modifiche di un dispositivo in attesa: la catena è interrotta",
+        "explain": "Questo dispositivo attende da {{device}} la modifica n. {{expected}}; nel cloud c’è la n. {{found}}. Ciò che manca o è stato sostituito in mezzo blocca tutto ciò che segue: il gruppo comprende {{count}} modifiche.",
+        "hint": "Di solito dietro c’è una seconda copia dello stesso dispositivo — per esempio un’istanza di sviluppo con un proprio archivio — oppure un dispositivo ricollegato che riparte a contare da 1. Fai sincronizzare {{device}} una volta e ricontrolla qui. Se ignori il gruppo, queste modifiche vanno perse."
+      },
+      "chainBlocked": {
+        "title": "In attesa dietro una lacuna",
+        "explain": "Questa modifica è a posto, ma sta dietro una lacuna nella catena del suo dispositivo. Verrà adottata non appena la lacuna sarà chiusa."
+      },
+      "payloadMissing": {
+        "title": "Nel cloud manca il contenuto di una modifica",
+        "explain": "La modifica rimanda a un oggetto che non è nel cloud o è stato alterato. Il caricamento è incompleto o è stato toccato dall’esterno.",
+        "hint": "Fai sincronizzare ancora una volta il dispositivo che ha scritto la modifica; ricarica l’oggetto mancante. Poi «Ricontrolla»."
+      },
+      "envelope": {
+        "title": "Un oggetto cifrato non corrisponde alla sua modifica",
+        "explain": "La busta cifrata indica un altro workspace, un altro oggetto o un’altra versione rispetto a quanto la modifica dichiara. La coppia non viene adottata."
+      },
+      "rollback": {
+        "title": "Un dispositivo segnala uno stato più vecchio di quello noto",
+        "explain": "Il puntatore di {{device}} nel cloud è indietro rispetto a ciò che questo dispositivo ha già visto. Un salto indietro non viene adottato: sembra un cloud riportato a uno stato precedente."
+      },
+      "checkpointMissing": {
+        "title": "Nel cloud manca un punto di controllo",
+        "explain": "Un dispositivo rimanda a un punto di controllo che non è nel cloud o è stato alterato."
+      },
+      "unreadable": {
+        "title": "Un file non può essere letto",
+        "explain": "{{kind}}: il file non è un artefatto Plainva valido: danneggiato, troncato o scritto da una versione più recente dell’app.",
+        "hint": "Se Plainva è più recente su un altro dispositivo, aggiorna questo. Altrimenti esporta la diagnosi; aiuta nell’analisi."
+      },
+      "unknown": {
+        "title": "Un controllo non è riuscito",
+        "explain": "{{kind}}: {{reason}}",
+        "hint": "Esporta la diagnosi e ricontrolla. Se non cambia nulla, l’esportazione aiuta nell’analisi."
+      }
     },
     "quarantineFilterOpen": "Aperti · {{n}}",
     "quarantineFilterAll": "Tutti · {{n}}",
@@ -3900,7 +3964,6 @@
     "quarantineForks": "Fork locali",
     "forkCompare": "Confronta",
     "forkOpen": "Apri fork",
-    "forkCompare": "Confronta",
     "forkReason": {
       "permission-denied": "Scrivere non era consentito: la modifica sta accanto come copia.",
       "parallel-write": "Scritto nello stesso momento: le due versioni stanno una accanto all’altra.",
@@ -4058,18 +4121,18 @@
     "title": "Novità di Plainva {{version}}",
     "lead": "La novità principale",
     "experimental": "Sperimentale",
-    "highlight1Title": "Più protezione per le tue modifiche",
-    "highlight1": "I trasferimenti non riusciti restano in sospeso. Gli elenchi incompleti del server non causano eliminazioni e la rinomina conserva le modifiche non ancora sincronizzate.",
-    "highlight2Title": "I commenti seguono la nota",
-    "highlight2": "Commenti e suggerimenti funzionano in ogni Vault. Seguono le note spostate e le decisioni sui suggerimenti possono riprendere dopo un’interruzione.",
-    "highlight3Title": "Vai subito al passaggio giusto",
-    "highlight3": "I link di ancoraggio portano alle intestazioni. I backlink mostrano le singole posizioni e, quando colleghi una nota, vengono suggerite le sue intestazioni.",
-    "highlight4Title": "Spostati più rapidamente nel calendario",
-    "highlight4": "Seleziona il titolo del calendario per andare a una data. Scorri sul telefono o usa un gesto del trackpad sul desktop per cambiare periodo.",
-    "highlight5Title": "Connessioni agli account più affidabili",
-    "highlight5": "Accedere di nuovo a Google conserva la password per le app di Gmail. Gli accessi restano associati al Vault corretto e le modifiche della password interrotte possono riprendere.",
-    "highlight6Title": "Riprendi da dove avevi lasciato",
-    "highlight6": "La sessione mobile ritorna dopo un riavvio. Immagini Obsidian, note giornaliere e Seleziona tutto funzionano in modo più affidabile su desktop e mobile.",
+    "highlight1Title": "Amplia gli account esistenti",
+    "highlight1": "Aggiungi file, calendario o email all’account appropriato. Plainva verifica l’accesso scelto e richiede le autorizzazioni mancanti.",
+    "highlight2Title": "Configurazione con passaggi chiari",
+    "highlight2": "L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, scegli calendari ed elenchi di attività e visualizza il risultato.",
+    "highlight3Title": "Trasferisci file con anteprima",
+    "highlight3": "Quando aggiungi file sul dispositivo mobile, Plainva mostra origine, destinazione e collisioni prima del trasferimento. Contenuti e servizi esistenti vengono conservati; un trasferimento interrotto può essere ripetuto.",
+    "highlight4Title": "Separa attività con lo stesso titolo",
+    "highlight4": "Le attività del provider vengono associate in base all’identità. Le diverse ricorrenze hanno file propri. I falsi conflitti esistenti possono essere conservati come attività separate.",
+    "highlight5Title": "Scelte chiare nel confronto dei file",
+    "highlight5": "Entrambi i nomi e le posizioni dei file sono visibili. Prima della sostituzione, la conferma indica origine e destinazione. Se un file cambia nel frattempo, il confronto si ricarica.",
+    "highlight6Title": "Più spazio nella navigazione mobile",
+    "highlight6": "L’icona selezionata mantiene il margine nella barra compatta. Le aree di tocco restano sufficientemente grandi e lo spazio riservato si adatta alla dimensione del testo.",
     "readBlog": "Leggi l'articolo del blog",
     "understand": "Ho capito"
   },
@@ -4303,5 +4366,36 @@
     "inNotes_one": "in {{count}} nota",
     "inNotes_many": "in {{count}} note",
     "inNotes_other": "in {{count}} note"
+  },
+  "connection": {
+    "connected": "Collegato",
+    "notConnected": "Non ancora collegato",
+    "addService": "Aggiungi",
+    "calendarTitle": "Aggiungi calendario",
+    "mailTitle": "Aggiungi email",
+    "selectResources": "Scegli calendari ed elenchi di attività",
+    "useSignIn": "Usa l’accesso esistente",
+    "grantGoogle": "Autorizza con Google",
+    "ownRegistration": "La tua registrazione dell’app",
+    "loginFailed": "Impossibile completare il collegamento. I dati inseriti sono conservati. Riprova.",
+    "accountChanged": "L’account o il vault di destinazione è cambiato. Riapri l’account desiderato.",
+    "wrongAccount": "Hai effettuato l’accesso con un altro account. Al prossimo accesso scegli l’account indicato.",
+    "needsConsent": "Questo servizio richiede una nuova autorizzazione. Accedi di nuovo e consenti l’accesso richiesto.",
+    "identityUnavailable": "Impossibile verificare l’identità dell’account. Accedi nuovamente al provider.",
+    "storageFailed": "Impossibile confermare il salvataggio. Riprova: la procedura riprenderà lo stesso collegamento.",
+    "transferTitle": "Copia file e account",
+    "transferSummary": "{{source}} → {{target}}. {{local}} file locali, {{remote}} nel cloud, {{conflicts}} collisioni. Il vault di origine viene conservato. Calendari ed email saranno configurati nella destinazione.",
+    "transferCopy": "File locale come copia separata",
+    "transferKeepHint": "Controlla entrambi i contenuti. «Conserva entrambi i file» mantiene il file locale nel nuovo percorso indicato.",
+    "reviewCollisions": "Confronta le collisioni",
+    "startTransfer": "Avvia copia",
+    "transferChanged": "I file o la destinazione sono cambiati dall’anteprima. Riavvia la copia e controlla l’anteprima aggiornata.",
+    "transferAccountCollision": "La destinazione ha un’associazione di account diversa. Apri le impostazioni degli account e risolvila prima di copiare.",
+    "transferInventoryFailed": "Impossibile leggere completamente il contenuto dell’archivio. Controlla connessione e permessi, poi riprova.",
+    "transferPairRequired": "Questa cartella cloud è crittografata. Apri il vault esistente da «Sicurezza e condivisione» e associa questo dispositivo prima di aggiungere contenuti.",
+    "clipboardFailed": "Impossibile copiare il percorso. Selezionalo e copialo nei dettagli del file.",
+    "retrySaved": "Completa collegamento",
+    "clientSecret": "Client secret (se fornito)",
+    "googleClientUnsupported": "La registrazione Google non corrisponde al ritorno su questo dispositivo. Controlla il tipo di client e la configurazione mobile nella guida Google."
   }
 }

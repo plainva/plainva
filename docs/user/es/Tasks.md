@@ -122,3 +122,12 @@ Las tareas son casillas GFM (GitHub-Flavored Markdown) normales. Plainva nunca a
 ## Completar desde la vista general
 
 Al marcar una tarea en la vista general, Plainva escribe la casilla en la nota de origen y actualiza esa nota en el índice antes de consultar de nuevo la lista. La tarea sale de **Abiertas** inmediatamente y no reaparece desde un índice antiguo.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Separar tareas con el mismo título
+
+Las tareas del proveedor se identifican por su identidad. Las distintas repeticiones tienen archivos propios. Los falsos conflictos existentes pueden conservarse como tareas separadas.
+
+Estos archivos pertenecen a tareas diferentes. Las tareas recurrentes con el mismo título pueden ser instancias distintas. Ambos contenidos se conservan como tareas separadas.
+
+**Conservar como tareas separadas** — Este archivo no cambia: Archivo actual  La copia en conflicto se conserva como archivo independiente: copia de conflicto

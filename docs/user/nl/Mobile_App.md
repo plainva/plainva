@@ -261,3 +261,14 @@ Al het overige over opmerkingen en voorstellen — waar de bestanden staan, wat 
 **De melding komt hier later dan op de desktop, en dat is een eigenschap, geen fout.** Plainva heeft geen server die je telefoon kan porren — er een bouwen zou betekenen dat een vreemde server verneemt wanneer wie welke notitie becommentarieerde. Een opmerking valt daarom op waar de telefoon toch al kijkt: na een synchronisatieronde en bij terugkeer naar de voorgrond. Er loopt daarvoor geen timer op de achtergrond; geen enkel telefoonplatform staat dat toe.
 
 Vanaf 0.8.2 noemen de mobiele releasehoogtepunten de gezamenlijke Plainva-release, los van het native buildnummer. Op iOS kan TestFlight daardoor de winkelversie **1.0** tonen terwijl de hoogtepunten **0.8.2** beschrijven. Elke nieuwe release verschijnt één keer; een volgende interne build met dezelfde hoogtepunten herhaalt ze niet. Een nieuwe installatie voltooit de introductie zonder een tweede welkom. De blogknop opent de beschikbare vertaling in de taal van je app, met Engels als terugval.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Instellen in duidelijke stappen
+
+De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.
+
+Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+
+### Meer ruimte in de mobiele navigatie
+
+Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanraakvlakken blijven groot genoeg en de gereserveerde ruimte past zich aan de tekstgrootte aan.

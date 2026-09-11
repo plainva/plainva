@@ -132,3 +132,8 @@ Reguły Gmaila nadal ustawia się we własnych ustawieniach Google.
 **Na telefonie** tworzysz reguły w całości sam: w ustawieniach poczty dotknij reguły, a zobaczysz ją jako **Jeżeli** i **To** — każdy warunek i każda akcja to wiersz, a dotknięcie pyta o pole, porównanie i wartość na osobnych arkuszach. To celowo nie jest zmniejszony formularz: pięć elementów obok siebie na szerokości telefonu to sposób, w jaki reguła zostaje źle wpisana. Ostatniego warunku nie da się usunąć — reguła bez warunku pasowałaby do każdej wiadomości.
 
 **Zapisz jako notatkę** to akcja, której nie ma żaden program pocztowy: reguła zapisuje wiadomość jako notatkę w Twoim sejfie, z nadawcą, datą i treścią — to samo przechwycenie co przycisk w czytniku, tylko automatycznie. Ta sama wiadomość dwa razy daje **tę samą** notatkę, a wiadomość zostaje w folderze: zapisywana jest kopia, nic nie jest przenoszone. Reguła z tą akcją **zawsze** pozostaje lokalna, nawet przy skrzynce, która potrafiłaby wykonywać reguły. To celowe: zapisanie reszty reguły u dostawcy pozwoliłoby serwerowi przenieść wiadomość, zanim byłoby co zapisywać.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Rozszerz istniejące konta
+
+Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.

@@ -26,6 +26,7 @@ export async function getPimCredentials(vaultId: string, accountId: string): Pro
 
 export async function savePimCredentials(vaultId: string, accountId: string, creds: PimStoredCredentials): Promise<void> {
   await getPlatformServices().credentials.writeSecret(key(vaultId, accountId), creds);
+  if (JSON.stringify(await getPimCredentials(vaultId, accountId)) !== JSON.stringify(creds)) throw new Error("Calendar sign-in could not be confirmed in secure storage");
 }
 
 export async function rotatePimCredentials(vaultId: string, accountId: string, previous: PimStoredCredentials, next: PimStoredCredentials): Promise<void> {

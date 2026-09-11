@@ -133,3 +133,14 @@ A partir daí os dois ficam vinculados, por três regras fixas:
 * **Se você excluir o compromisso,** apenas o vínculo desaparece. A nota e sua data ficam intactas.
 
 Isso é diferente de **reservar tempo** numa tarefa: lá você reserva tempo para algo e a data da tarefa continua onde está. Aqui você diz: *este item É este compromisso.*
+
+<!-- accounts-tasks-2026-09-11 -->
+## Configuração com etapas claras
+
+Adicione arquivos, calendário ou email à conta adequada. O Plainva verifica o login selecionado e solicita as permissões que faltam.
+
+O assistente móvel abre diretamente a conexão adequada. Após o login, escolha calendários e listas de tarefas e veja o resultado.
+
+Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
+
+[Google — Seu próprio registro de aplicativo](Google_Drive_BYO_Guide.md)

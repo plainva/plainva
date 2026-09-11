@@ -24,8 +24,6 @@ Podczas zmiany nazwy lub przenoszenia pliku jego historia wersji przenosi się r
 Kliknij prawym przyciskiem myszy plik w drzewie plików (lub jego kartę) albo użyj menu **⋮** w prawym górnym rogu edytora → **Historia wersji…** otwiera listę wersji — również dla notatki w jej własnym oknie, tam samo:
 
 - Po lewej stronie znajduje się lista wszystkich migawek pogrupowanych według dnia, z godziną i rozmiarem.
-- Po prawej stronie widoczny jest podgląd; dla plików tekstowych **Porównaj z bieżącą wersją** pokazuje wybraną wersję obok bieżącej treści (stara wersja po lewej, bieżący stan po prawej).
-- Widok porównania nazywa się **Porównaj wersje** i jest ten sam dla wersji i kopii konfliktu: po lewej zawsze stoi notatka, po prawej druga wersja; identyczne bloki są zwinięte, stopka liczy różnice oraz wiersze, które zostaną dodane lub utracone. Przy kopii konfliktu prawa strona jest edytowalna i można ją scalać wiersz po wierszu; cztery wyjścia — **przyjmij**, **zachowaj obie**, **odrzuć kopię**, **później** — a każde, które coś odrzuca, najpierw pyta.
 - **Przywróć** zastępuje bieżącą treść wybraną wersją. Bez obaw: bieżący stan sam jest najpierw zapisywany jako migawka — więc przywrócenie zawsze można cofnąć.
 - **Przywróć jako kopię** tworzy wersję jako nowy plik obok oryginału (`Name (Version 2026-07-05 14-30).md`), nie dotykając go.
 
@@ -74,3 +72,21 @@ Na urządzeniu mobilnym nieudany zapis notatki zatrzymuje zmianę, ponowne wczyt
 Kopia ZIP jest uznawana za udaną dopiero po odczytaniu wszystkich wybranych plików i zapisaniu pełnego archiwum. Nieudana próba nie usuwa wcześniejszych archiwów ani nie zmienia daty ostatniej udanej kopii. Na urządzeniu mobilnym komunikat błędu automatycznej kopii podaje nazwę vaulta; przycisk **Utwórz kopię teraz** w jego ustawieniach uruchamia kolejną próbę. Ukryta konfiguracja użytkownika, np. `.obsidian`, jest uwzględniana na obu platformach. Katalogi `.plainva`, `.git`, `.trash` i `node_modules` są wykluczane na każdym poziomie. Przy tworzeniu kilku archiwów w tej samej sekundzie nowa nazwa otrzymuje przyrostek, np. `_001`.
 
 Zapis jest oznaczany jako zakończony dopiero po potwierdzeniu zapisu danych. Tekst wpisany podczas zapisywania pozostaje niezapisany, dopóki nie zostanie zapisana również jego wersja. Szkice na komputerze należą do swojej sesji edytora: zakończenie starej sesji nie usuwa szkicu z nowo otwartego edytora. Gdy jednocześnie pojawiają się zmiany zewnętrzne, Plainva scala zgodne zmiany; tekst powodujący konflikt pozostaje dostępny jako szkic i kopia konfliktowa.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Jasne decyzje przy porównywaniu plików
+
+Widoczne są obie nazwy plików i lokalizacje. Potwierdzenie przed zastąpieniem wskazuje źródło i cel. Jeśli plik zmieni się w międzyczasie, porównanie zostanie wczytane ponownie.
+
+- **Zastąp bieżący plik kopią konfliktową**: Zawartość tego pliku zostanie nadpisana: Bieżący plik  Nowa zawartość pochodzi z: kopia konfliktu  Następnie kopia konfliktowa zostanie usunięta.
+- **Zachowaj oba pliki**: Ten plik pozostanie bez zmian: Bieżący plik  Kopia konfliktowa zostanie zachowana jako osobny plik: kopia konfliktu
+- **Usuń kopię konfliktową**: Ta kopia konfliktowa zostanie usunięta: kopia konfliktu  Ten plik pozostanie bez zmian: Bieżący plik
+- **Zdecyduj później**
+
+Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.
+
+**Zachowaj jako osobne zadania**
+
+Plik zmienił się po otwarciu. Porównanie zostało wczytane ponownie. Sprawdź aktualną zawartość i wybierz ponownie.
+
+Scalanie wiersz po wierszu to narzędzie na komputer; tu przyjmujesz jedną wersję w całości albo zachowujesz obie.

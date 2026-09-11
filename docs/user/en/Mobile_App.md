@@ -261,3 +261,14 @@ Everything else about comments and suggestions — where the files live, what �
 **The message arrives later here than on the desktop, and that is a property rather than a fault.** Plainva has no server that could nudge your phone — building one would mean a foreign server learning when who commented on which note. A remark is therefore noticed where the phone looks anyway: after a sync cycle and on returning to the foreground. No timer runs in the background for it; no phone platform allows one.
 
 From release 0.8.2, the mobile release highlights identify the shared Plainva release, independently of the native build number. On iOS, TestFlight can therefore show marketing version **1.0** while the highlights describe **0.8.2**. Each new release is shown once; another internal build with the same highlights does not show them again. A fresh install finishes onboarding without a second welcome. The blog button opens the available translation for your app language, with English as the fallback.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Setup with clear steps
+
+The mobile assistant opens the appropriate connection immediately. After signing in, choose calendars and task lists and see the result.
+
+Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+
+### More room in mobile navigation
+
+The selected icon keeps its spacing from the edge in the compact bar. Tap targets stay large enough, and reserved space adapts to the text size.

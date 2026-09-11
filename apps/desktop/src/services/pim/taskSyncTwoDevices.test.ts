@@ -155,6 +155,51 @@ function optsFor(
   };
 }
 
+describe("independent file views", () => {
+  it("gives recurring instances distinct paths regardless of import order", async () => {
+    const A = await device("a"), B = await device("b");
+    const first = rt({ uid: "occurrence-a", title: "Daily task", completed: false });
+    const second = rt({ uid: "occurrence-b", title: "Daily task", completed: true });
+    await A.cache.replaceTasks(A.accountId, "l1", [first, second]);
+    await B.cache.replaceTasks(B.accountId, "l1", [second, first]);
+    const a = sharedVault({ "Aufgaben.base": TASK_DB }), b = sharedVault({ "Aufgaben.base": TASK_DB });
+    const ra = await runTaskSync(optsFor(A, a, null)), rb = await runTaskSync(optsFor(B, b, null));
+    expect(new Set(ra.createdNotes).size).toBe(2);
+    expect([...ra.createdNotes].sort()).toEqual([...rb.createdNotes].sort());
+    expect((await runTaskSync(optsFor(A, a, null))).createdNotes).toEqual([]);
+  });
+
+  it("never writes another task's fields through a stale cached path or anchor index", async () => {
+    const A = await device("a"), B = await device("b");
+    await A.cache.replaceTasks(A.accountId, "l1", [rt({ uid: "a", title: "Daily task", completed: false })]);
+    await B.cache.replaceTasks(B.accountId, "l1", [rt({ uid: "b", title: "Daily task", completed: true })]);
+    const a = sharedVault({ "Aufgaben.base": TASK_DB }), b = sharedVault({ "Aufgaben.base": TASK_DB });
+    const ra = await runTaskSync(optsFor(A, a, null)), rb = await runTaskSync(optsFor(B, b, null));
+    const target = fakeTarget();
+    const options = optsFor(A, a, target);
+    const foreign = b.files.get(rb.createdNotes[0])!;
+    a.files.set(ra.createdNotes[0], foreign);
+    await runTaskSync(options);
+    expect(target.updateTask).not.toHaveBeenCalled();
+    expect(a.files.get(ra.createdNotes[0])).toBe(foreign);
+    expect((await A.cache.getTaskStates(A.accountId, "l1"))[0].notePath).toBe(ra.createdNotes[0]);
+  });
+
+  it("does not delete a different task through a stale journal path", async () => {
+    const A = await device("a");
+    await A.cache.replaceTasks(A.accountId, "l1", [rt({ uid: "a", title: "Daily task" })]);
+    const v = sharedVault({ "Aufgaben.base": TASK_DB });
+    const r = await runTaskSync(optsFor(A, v, null));
+    const path = r.createdNotes[0];
+    v.files.set(path, v.files.get(path)!.replace("uid: a", "uid: b"));
+    await A.cache.replaceTasks(A.accountId, "l1", []);
+    v.adapter.deleteFile = vi.fn(async (p) => { v.files.delete(p); });
+    await runTaskSync(optsFor(A, v, null, { deletionJournal: { recordTask: async () => {}, findTask: () => ({ deletedAt: 1 }) } }));
+    expect(v.adapter.deleteFile).not.toHaveBeenCalled();
+    expect(v.files.has(path)).toBe(true);
+  });
+});
+
 describe("two reconcilers on one vault", () => {
   let A: Awaited<ReturnType<typeof device>>;
   let B: Awaited<ReturnType<typeof device>>;

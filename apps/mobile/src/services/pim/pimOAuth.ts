@@ -8,12 +8,16 @@ import {
   GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
 import type { PimStoredCredentials } from "./pimCredentials";
 import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@plainva/ui";
+import type { ServiceConnectionContext } from "@plainva/ui";
+import { getActiveVaultEntry } from "../vaultRegistry";
+import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
+import { getMobileVault, switchVault } from "../vaultService";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
 export interface AccountOAuthContext {
@@ -80,6 +84,7 @@ export type OAuthPurposeHandler = (result: {
   grantedScope?: string;
   requestedScope?: string;
   accountContext?: AccountOAuthContext;
+  serviceContext?: ServiceConnectionContext;
 }) => Promise<void>;
 
 const purposeHandlers = new Map<string, OAuthPurposeHandler>();
@@ -108,6 +113,7 @@ interface PendingPimFlow {
    */
   accountId?: string;
   accountContext?: AccountOAuthContext;
+  serviceContext?: ServiceConnectionContext;
   createdAt: number;
 }
 
@@ -116,6 +122,72 @@ interface PendingPimFlow {
 // strand the sign-in. Single-use, TTL-bound; the PKCE verifier is a secret.
 let pending: PendingPimFlow | null = null;
 const PENDING_KEY = "pim_oauth_pending_tx";
+const RESULT_KEY = "pim_oauth_received";
+interface ReceivedPimFlow { flow: PendingPimFlow; refreshToken: string; accessToken: string; grantedScope?: string }
+let applyingResult = false;
+
+export async function hasReceivedPimOAuthResult(context: ServiceConnectionContext, service: CloudServiceId): Promise<boolean> {
+  const saved = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+  return !!saved && (saved.flow.purpose ?? "calendar") === service && saved.flow.serviceContext?.runId === context.runId && saved.flow.serviceContext?.vaultId === context.vaultId;
+}
+
+/** Replays a received grant after a storage error or process restart. */
+export async function resumePimOAuthResult(): Promise<void> {
+  if (applyingResult) return;
+  applyingResult = true;
+  let saved: ReceivedPimFlow | null = null;
+  try {
+    saved = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+    if (!saved) return;
+    const { flow, refreshToken, accessToken, grantedScope } = saved;
+    const purpose = flow.purpose ?? "calendar";
+    const context = flow.serviceContext;
+    if (Date.now() - flow.createdAt < 0 || Date.now() - flow.createdAt >= PENDING_TTL_MS) {
+      await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+      await recordConnectOutcome(context, purpose === "mail" ? "mail" : "calendar", { state: "needsConsent" });
+      return;
+    }
+    if (context?.runId) {
+      const run = await loadConnectQueue();
+      if (!run || !outcomeBelongsToRun(run, context, purpose === "mail" ? "mail" : "calendar")) {
+        await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+        return;
+      }
+    }
+    if (context && (await getActiveVaultEntry()).id !== context.vaultId) {
+      await switchVault(context.vaultId);
+      if (purpose === "calendar") { const { startPim } = await import("./pimService"); await startPim(await getMobileVault()); }
+    }
+    const handler = purposeHandlers.get(purpose);
+    if (purpose === "account" && !handler) throw new Error("Account sign-in handler is not ready");
+    if (handler) {
+      await handler({ provider: flow.provider, clientId: flow.clientId, clientSecret: flow.clientSecret, refreshToken, accessToken, label: flow.label, grantedScope, requestedScope: flow.scope, accountContext: flow.accountContext, serviceContext: context });
+    } else {
+      const creds: PimStoredCredentials = flow.provider === "microsoft"
+        ? { kind: "microsoft", clientId: flow.clientId, refreshToken }
+        : { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken };
+      if (flow.accountId) {
+        await reauthorizePimAccount(flow.accountId, creds, context);
+        await recordConnectOutcome(context, "calendar", { state: "alreadyConnected", bindingId: flow.accountId });
+      } else await addPimAccount(creds.kind, flow.label || (flow.provider === "microsoft" ? "Microsoft" : "Google"), creds, context);
+    }
+    const current = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+    if (current?.flow.state === flow.state) await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+    if (purpose !== "account") toast.success(i18n.t("pim.accountAdded"));
+    window.dispatchEvent(new CustomEvent("m-pim-changed"));
+  } catch (error) {
+    if (saved) {
+      const message = error instanceof Error ? error.message : String(error);
+      const needsConsent = /wrongAccount|needsConsent|invalid_grant|accountChanged/.test(message);
+      if (needsConsent) {
+        const current = await getPlatformServices().credentials.readSecret<ReceivedPimFlow>(RESULT_KEY);
+        if (current?.flow.state === saved.flow.state) await getPlatformServices().credentials.removeSecret(RESULT_KEY);
+      }
+      await recordConnectOutcome(saved.flow.serviceContext, saved.flow.purpose === "mail" ? "mail" : "calendar", { state: needsConsent ? "needsConsent" : "failed", message }).catch(() => {});
+    }
+    throw error;
+  } finally { applyingResult = false; }
+}
 const PENDING_TTL_MS = 10 * 60 * 1000;
 
 function randomState(): string {
@@ -157,12 +229,13 @@ async function loadPending(): Promise<PendingPimFlow | null> {
 /** Opens the provider consent page for a calendar account in the system browser. */
 export async function beginPimOAuth(
   provider: PimOAuthProvider,
-  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext },
+  opts: { clientId: string; clientSecret?: string; label?: string; purpose?: PimOAuthPurpose; scope?: string; accountId?: string; accountContext?: AccountOAuthContext; serviceContext?: ServiceConnectionContext },
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
   const clientId = provider === "microsoft" ? opts.clientId.trim() || PLAINVA_ONEDRIVE_CLIENT_ID : opts.clientId.trim();
   const purpose = opts.purpose ?? "calendar";
+  const serviceContext = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
   const scope = opts.scope ?? (provider === "microsoft" ? GRAPH_CALENDAR_SCOPES : GOOGLE_CALENDAR_SCOPES);
   pending = {
     provider,
@@ -175,12 +248,13 @@ export async function beginPimOAuth(
     label: (opts.label ?? "").trim(),
     accountId: opts.accountId,
     accountContext: opts.accountContext ? structuredClone(opts.accountContext) : undefined,
+    serviceContext,
     createdAt: Date.now(),
   };
   // An account reconnect must restore its target after a cold start. Do not
   // open a consent whose durable context could not be stored.
-  if (purpose === "account") {
-    if (!pending.accountContext) { pending = null; throw new Error("Missing account sign-in context"); }
+  {
+    if (purpose === "account" && !pending.accountContext) { pending = null; throw new Error("Missing account sign-in context"); }
     const flow = pending;
     try { await withAccountCredentialLock(PENDING_KEY, async () => {
       const creds = getPlatformServices().credentials;
@@ -188,7 +262,7 @@ export async function beginPimOAuth(
       if (JSON.stringify(await creds.readSecret(PENDING_KEY)) !== JSON.stringify(flow)) throw new Error("Account sign-in context could not be confirmed in secure storage");
     }); }
     catch (error) { pending = null; throw error; }
-  } else await persistPending(pending);
+  }
   const url =
     provider === "microsoft"
       ? buildOneDriveAuthUrl({ clientId, redirectUri: MS_REDIRECT_URI, codeChallenge: pkce.codeChallenge, state, scope })
@@ -202,7 +276,8 @@ export async function beginPimOAuth(
  * otherwise false, so the sync oauthService handler still gets its turn.
  */
 export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
-  if (!urlStr.startsWith(MS_REDIRECT_URI) && !urlStr.startsWith(GOOGLE_REDIRECT_URI)) return false;
+  const base = urlStr.split(/[?#]/)[0];
+  if (base !== MS_REDIRECT_URI && base !== GOOGLE_REDIRECT_URI) return false;
   const flow = await loadPending();
   if (!flow) return false; // no PIM flow pending — let the sync handler try
   const params = new URLSearchParams(urlStr.split("?")[1] ?? "");
@@ -211,16 +286,22 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
   pending = null;
   void Browser.close().catch(() => {});
   try {
-    await withAccountCredentialLock(PENDING_KEY, async () => {
+    const claimed = await withAccountCredentialLock(PENDING_KEY, async () => {
       const creds = getPlatformServices().credentials;
       const stored = await creds.readSecret<PendingPimFlow>(PENDING_KEY);
-      if (stored?.state === flow.state) await creds.removeSecret(PENDING_KEY);
+      if (stored?.state !== flow.state) return false;
+      await creds.removeSecret(PENDING_KEY);
+      return true;
     });
+    if (!claimed) return true;
     const error = params.get("error");
-    if (error) throw new Error(params.get("error_description") || error);
+    if (error === "access_denied") {
+      await recordConnectOutcome(flow.serviceContext, flow.purpose === "mail" ? "mail" : "calendar", { state: "cancelled" });
+      return true;
+    }
+    if (error) throw new Error(error);
     const code = params.get("code");
     if (!code) throw new Error("no authorization code");
-    const purpose: PimOAuthPurpose = flow.purpose ?? "calendar";
     let refreshToken: string;
     let accessToken: string;
     // What the provider GRANTED. Google ignores a requested scope on refresh,
@@ -247,39 +328,14 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
       accessToken = tok.accessToken;
       grantedScope = tok.scope;
     }
-    const handler = purposeHandlers.get(purpose);
-    if (purpose === "account" && !handler) throw new Error("Account sign-in handler is not ready. Please sign in again.");
-    if (handler) {
-      await handler({
-        provider: flow.provider,
-        clientId: flow.clientId,
-        clientSecret: flow.clientSecret,
-        refreshToken,
-        ...(purpose === "account" ? { accessToken } : {}),
-        label: flow.label,
-        ...(grantedScope !== undefined ? { grantedScope } : {}),
-        requestedScope: flow.scope,
-        accountContext: flow.accountContext,
-      });
-      if (purpose !== "account") toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
-    } else {
-      const creds: PimStoredCredentials =
-        flow.provider === "microsoft"
-          ? { kind: "microsoft", clientId: flow.clientId, refreshToken }
-          : { kind: "google", clientId: flow.clientId, clientSecret: flow.clientSecret ?? "", refreshToken };
-      if (flow.accountId) {
-        // Repair, not a second account: the row, its calendar selection and the
-        // anchors of every mirrored task stay attached to the same id.
-        await reauthorizePimAccount(flow.accountId, creds);
-        toast.success(i18n.t("pim.accountReconnected", { defaultValue: "Konto neu angemeldet" }));
-      } else {
-        await addPimAccount(creds.kind, flow.label || (flow.provider === "microsoft" ? "Microsoft" : "Google"), creds);
-        toast.success(i18n.t("pim.accountAdded", { defaultValue: "Konto verbunden" }));
-      }
-    }
-    window.dispatchEvent(new CustomEvent("m-pim-changed"));
+    const received: ReceivedPimFlow = { flow, refreshToken, accessToken, grantedScope };
+    await getPlatformServices().credentials.writeSecret(RESULT_KEY, received);
+    if (JSON.stringify(await getPlatformServices().credentials.readSecret(RESULT_KEY)) !== JSON.stringify(received)) throw new Error("storageFailed");
+    await resumePimOAuthResult();
   } catch (e) {
-    toast.error(String(e instanceof Error ? e.message : e));
+    const message = e instanceof Error ? e.message : String(e);
+    await recordConnectOutcome(flow.serviceContext, flow.purpose === "mail" ? "mail" : "calendar", { state: /wrongAccount|needsConsent|invalid_grant|accountChanged/.test(message) ? "needsConsent" : "failed", message }).catch(() => {});
+    toast.error(serviceConnectionMessage(e, i18n.t));
   }
   return true;
 }

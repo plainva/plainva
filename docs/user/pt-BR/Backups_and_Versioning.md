@@ -24,8 +24,6 @@ Ao renomear ou mover um arquivo, o histórico de versões dele se move junto.
 Clique com o botão direito em um arquivo na árvore de arquivos (ou na aba dele), ou use o menu **⋮** no canto superior direito do editor → **Histórico de versões…** abre a lista de versões — também para uma nota em sua própria janela, ali mesmo:
 
 - O lado esquerdo lista todos os snapshots agrupados por dia, com hora e tamanho.
-- O lado direito mostra uma pré-visualização; para arquivos de texto, **Comparar com a versão atual** mostra a versão selecionada lado a lado com o conteúdo atual (versão antiga à esquerda, estado atual à direita).
-- A tela de comparação chama-se **Comparar versões** e é a mesma para versões e para cópias de conflito: à esquerda fica sempre a nota, à direita a outra versão; blocos iguais ficam recolhidos e o rodapé conta diferenças e linhas que seriam adicionadas ou perdidas. Com uma cópia de conflito, o lado direito é editável e pode ser mesclado linha a linha; quatro saídas — **adotar**, **manter ambas**, **descartar cópia**, **depois** — e cada uma que descarta algo pergunta antes.
 - **Restaurar** substitui o conteúdo atual pela versão selecionada. Não se preocupe: o estado atual é salvo primeiro como um snapshot — então uma restauração sempre pode ser desfeita.
 - **Restaurar como cópia** cria a versão como um novo arquivo ao lado do original (`Name (Version 2026-07-05 14-30).md`) sem alterá-lo.
 
@@ -74,3 +72,21 @@ No celular, uma falha ao salvar a nota interrompe a troca, o recarregamento ou a
 Um backup ZIP só é considerado concluído depois que todos os arquivos selecionados foram lidos e o arquivo completo foi salvo. Uma tentativa com falha não remove backups anteriores nem altera o horário do último backup bem-sucedido. No celular, o aviso de falha automática informa o vault; **Fazer backup agora** nas configurações inicia outra tentativa. A configuração oculta do usuário, como `.obsidian`, é incluída nas duas plataformas. Os diretórios `.plainva`, `.git`, `.trash` e `node_modules` são excluídos em qualquer nível. Quando vários backups são criados no mesmo segundo, o novo nome recebe um sufixo como `_001`.
 
 O salvamento só é indicado como concluído após a confirmação da gravação. O texto digitado durante um salvamento continua pendente até que sua própria versão seja gravada. Os rascunhos no desktop pertencem à respectiva sessão do editor: concluir uma sessão antiga não exclui o rascunho de um editor recém-aberto. Quando alterações externas chegam ao mesmo tempo, o Plainva combina as alterações compatíveis; o texto em conflito permanece disponível como rascunho e cópia de conflito.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Decidir com clareza ao comparar arquivos
+
+Os dois nomes e locais dos arquivos ficam visíveis. Antes de substituir, a confirmação indica origem e destino. Se um arquivo mudar nesse intervalo, a comparação será recarregada.
+
+- **Substituir arquivo atual pela cópia em conflito**: O conteúdo deste arquivo será sobrescrito: Arquivo atual  O novo conteúdo vem de: cópia de conflito  Em seguida, a cópia em conflito será excluída.
+- **Manter os dois arquivos**: Este arquivo permanece inalterado: Arquivo atual  A cópia em conflito é mantida como arquivo separado: cópia de conflito
+- **Excluir cópia em conflito**: Esta cópia em conflito será excluída: cópia de conflito  Este arquivo permanece inalterado: Arquivo atual
+- **Decidir depois**
+
+Estes arquivos pertencem a tarefas diferentes. Tarefas recorrentes com o mesmo título podem ser ocorrências distintas. Os dois conteúdos são mantidos como tarefas separadas.
+
+**Manter como tarefas separadas**
+
+Um arquivo mudou desde a abertura. A comparação foi recarregada. Revise o conteúdo atual e escolha novamente.
+
+Mesclar linha por linha é uma ferramenta do computador; aqui você adota uma versão inteira ou mantém as duas.

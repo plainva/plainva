@@ -4,6 +4,7 @@ import { RotateCcw, Copy } from "lucide-react";
 import { appConfirm } from "../services/appDialogs";
 import {
   Button,
+  FileComparisonDetails,
   Checkbox,
   ICON,
   Modal,
@@ -19,7 +20,7 @@ import {
 import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { VersionHistoryService, isTextLikePath, type FileVersion } from "@plainva/core";
+import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, separateTaskConflict, isTextLikePath, type FileVersion } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { requestSaveFlush } from "../services/saveFlush";
 
@@ -87,7 +88,7 @@ export const CompareModal: React.FC<{
   onResolved?: (outcome: ConflictOutcome) => void;
 }> = ({ subject, onClose, onRestored, onResolved }) => {
   const { t, i18n } = useTranslation();
-  const { vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, listWorkspaceRevisions, readWorkspaceRevision } = useVault();
+  const { vaultPath, vaultAdapter, backupAdapter, indexer, triggerFileTreeUpdate, workspaceSecurityStatus, listWorkspaceRevisions, readWorkspaceRevision } = useVault();
   const workspaceHistory = workspaceSecurityStatus !== null;
 
   // A fork is a conflict copy whose original is named outright rather than
@@ -120,6 +121,10 @@ export const CompareModal: React.FC<{
   const [notice, setNotice] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const mergeRef = useRef<MergeView | null>(null);
+  const originalSnapshot = useRef<string | null>(null);
+  const copySnapshot = useRef<string | null>(null);
+  const resolving = useRef(false);
+  const [revision, setRevision] = useState(0);
 
   const service = useMemo(() => (vaultAdapter ? new VersionHistoryService(vaultAdapter) : null), [vaultAdapter]);
 
@@ -135,10 +140,9 @@ export const CompareModal: React.FC<{
   useEffect(() => {
     let alive = true;
     if (!vaultAdapter || orphan || !isText) return;
-    vaultAdapter
-      .readTextFile(path)
-      .then((text) => alive && setCurrentText(text.replace(/\r\n/g, "\n")))
-      .catch(() => alive && setCurrentText(isConflict ? "" : null));
+    vaultAdapter.exists(path).then(exists => exists ? vaultAdapter.readTextFile(path) : null)
+      .then(text => { if (alive) { originalSnapshot.current = text; setCurrentText(text === null ? (isConflict ? "" : null) : text.replace(/\r\n/g, "\n")); } })
+      .catch(e => { if (alive) setError(String(e)); });
     vaultAdapter
       .getFileInfo(path)
       .then((info) => alive && setCurrentMtime(info.mtime))
@@ -146,7 +150,7 @@ export const CompareModal: React.FC<{
     return () => {
       alive = false;
     };
-  }, [vaultAdapter, path, orphan, isText, isConflict]);
+  }, [vaultAdapter, path, orphan, isText, isConflict, revision]);
 
   // Conflict: the preserved copy (the right side).
   useEffect(() => {
@@ -154,12 +158,12 @@ export const CompareModal: React.FC<{
     if (!vaultAdapter || !conflictPath) return;
     vaultAdapter
       .readTextFile(conflictPath)
-      .then((text) => alive && setConflictText(text.replace(/\r\n/g, "\n")))
+      .then(text => { if (alive) { copySnapshot.current = text; setConflictText(text.replace(/\r\n/g, "\n")); } })
       .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       alive = false;
     };
-  }, [vaultAdapter, conflictPath]);
+  }, [vaultAdapter, conflictPath, revision]);
 
   // Version history: the list, once.
   useEffect(() => {
@@ -210,6 +214,7 @@ export const CompareModal: React.FC<{
 
   // The right side: the other version.
   const rightText = isConflict ? conflictText : versionText;
+  const differentTasks = isConflict && currentText !== null && conflictText !== null && classifyTaskNotes(currentText, conflictText) === "different";
   const canDiff = isText && !orphan && currentText !== null && rightText !== null;
   const diffMounted = isConflict ? canDiff : canDiff && showDiff;
 
@@ -224,20 +229,20 @@ export const CompareModal: React.FC<{
       a: { doc: currentText, extensions: readOnlyExt },
       b: {
         doc: rightText,
-        extensions: isConflict
+        extensions: isConflict && !differentTasks
           ? [EditorView.lineWrapping, EditorView.updateListener.of((u) => { if (u.docChanged) setRightEdited(true); })]
           : readOnlyExt,
       },
       parent: host,
       collapseUnchanged: COLLAPSE,
-      ...(isConflict ? { revertControls: "a-to-b" as const } : {}),
+      ...(isConflict && !differentTasks ? { revertControls: "a-to-b" as const } : {}),
     });
     mergeRef.current = view;
     return () => {
       mergeRef.current = null;
       view.destroy();
     };
-  }, [diffMounted, currentText, rightText, isConflict]);
+  }, [diffMounted, currentText, rightText, isConflict, differentTasks]);
 
   const stats: CompareStats | null = useMemo(
     () => (currentText !== null && rightText !== null ? compareStats(currentText, rightText) : null),
@@ -348,34 +353,40 @@ export const CompareModal: React.FC<{
   // ---- conflict exits -------------------------------------------------------
 
   const resolve = async (work: () => Promise<ConflictOutcome>) => {
+    if (resolving.current || !vaultAdapter || !conflictPath || !originalOfConflict || copySnapshot.current === null) return;
+    resolving.current = true;
     setBusy(true);
     try {
+      await requestSaveFlush(originalOfConflict);
+      await requestSaveFlush(conflictPath);
+      await assertComparisonUnchanged(vaultAdapter, originalOfConflict, originalSnapshot.current, conflictPath, copySnapshot.current);
       const outcome = await work();
       onResolved?.(outcome);
     } catch (e) {
       setBusy(false);
       toast.error(t("conflict.resolveFailed", { error: e instanceof Error ? e.message : String(e) }));
-    }
+      if (e instanceof Error && e.message === "comparisonChanged") { setNotice(t("compare.comparisonChanged")); setRevision(n => n + 1); }
+    } finally { resolving.current = false; }
   };
 
   /** Take the right side into the note — the copy as it is, or as merged. */
   const adoptRight = async () => {
-    if (!vaultAdapter || !conflictPath || !originalOfConflict) return;
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks) return;
     const merged = mergeRef.current ? mergeRef.current.b.state.doc.toString() : conflictText ?? "";
     const ok = await appConfirm({
       title: rightEdited ? t("compare.mergeTitle") : t("compare.adoptTitle"),
       message: rightEdited
         ? t("compare.mergeMsg", { current: when(currentMtime) })
-        : t("compare.adoptMsg", { other: when(conflictStamp), current: when(currentMtime) }),
+        : t("compare.replaceMessage", { source: conflictPath, target: originalOfConflict }),
       kind: "warning",
-      confirmLabel: rightEdited ? t("compare.applyMerge") : t("compare.adoptCopy"),
+      confirmLabel: rightEdited ? t("compare.applyMerge") : t("compare.replaceConfirm"),
     });
     if (!ok) return;
     await resolve(async () => {
       // Same handshake as the version restore: a pending 1-s editor save for
       // the note would otherwise overwrite the resolution a second later.
-      await requestSaveFlush(originalOfConflict);
       await vaultAdapter.writeTextFile(originalOfConflict, merged);
+      if (await vaultAdapter.readTextFile(conflictPath) !== copySnapshot.current) throw new Error("comparisonChanged");
       await vaultAdapter.deleteItem(conflictPath);
       toast.success(rightEdited ? t("compare.resolvedMerged") : t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
@@ -385,16 +396,17 @@ export const CompareModal: React.FC<{
   /** The note stays; the copy becomes a plain sibling named by its time. */
   const keepBoth = async () => {
     if (!vaultAdapter || !conflictPath || !originalOfConflict) return;
-    const candidate = await versionCopyPath(originalOfConflict, conflictStamp ?? new Date(), (p) => vaultAdapter.exists(p));
+    const candidate = differentTasks ? await displacedTaskPath(vaultAdapter, originalOfConflict, copySnapshot.current!) : await versionCopyPath(originalOfConflict, conflictStamp ?? new Date(), (p) => vaultAdapter.exists(p));
     const ok = await appConfirm({
       title: t("compare.keepBothTitle"),
-      message: t("compare.keepBothMsg", { name: candidate }),
+      message: t("compare.keepBothPaths", { original: originalOfConflict, copy: candidate }),
       kind: "info",
-      confirmLabel: t("compare.keepBoth"),
+      confirmLabel: t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth"),
     });
     if (!ok) return;
     await resolve(async () => {
-      await vaultAdapter.renameItem(conflictPath, candidate);
+      if (differentTasks) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
+      else { if (await vaultAdapter.exists(candidate)) throw new Error("comparisonChanged"); await vaultAdapter.renameItem(conflictPath, candidate); }
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
@@ -402,10 +414,10 @@ export const CompareModal: React.FC<{
 
   /** The note stays; the copy is deleted (a snapshot of it remains). */
   const discardCopy = async () => {
-    if (!vaultAdapter || !conflictPath || !originalOfConflict) return;
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks) return;
     const ok = await appConfirm({
       title: t("compare.discardTitle"),
-      message: t("compare.discardMsg", { other: when(conflictStamp) }),
+      message: t("compare.discardPaths", { source: conflictPath, target: originalOfConflict }),
       kind: "danger",
       confirmLabel: t("compare.discardCopy"),
     });
@@ -424,13 +436,13 @@ export const CompareModal: React.FC<{
 
   const rightTitle = isConflict ? t("compare.conflictCopy") : t("compare.savedVersion");
   const rightSubtitle = isConflict
-    ? t("compare.yourVersionKept", { when: when(conflictStamp) })
+    ? when(conflictStamp)
     : selected
       ? when(selected.timestamp)
       : "";
 
   const footerStats = (() => {
-    if (!diffMounted || !stats) return null;
+    if (!diffMounted || !stats || differentTasks) return null;
     if (stats.hunks === 0) return t("compare.identical");
     const cost = isConflict
       ? rightEdited
@@ -443,8 +455,7 @@ export const CompareModal: React.FC<{
   const header = (
     <div style={{ display: "flex", gap: "0.75rem", padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)", flexShrink: 0, fontSize: "var(--text-sm)" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.4px", fontSize: "var(--text-xs)" }}>{t("compare.sideLeft")}</div>
-        <div style={{ color: "var(--text-main)", fontWeight: 600 }}>{isConflict ? t("compare.cameViaSync") : t("compare.currentState")}</div>
+        <div style={{ color: "var(--text-main)", fontWeight: 600 }}>{t("compare.currentFile")}</div>
         <div style={{ color: "var(--text-muted)" }}>{sideMeta(currentText, currentMtime)}</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -483,11 +494,11 @@ export const CompareModal: React.FC<{
       {isConflict ? (
         <>
           <Button size="sm" variant="ghost" onClick={onClose} disabled={busy}>{t("compare.later")}</Button>
-          <Button size="sm" variant="secondary" data-testid="compare-discard" onClick={() => { void discardCopy(); }} disabled={busy || rightText === null}>{t("compare.discardCopy")}</Button>
-          <Button size="sm" variant="secondary" data-testid="compare-keep-both" onClick={() => { void keepBoth(); }} disabled={busy || rightText === null}>{t("compare.keepBoth")}</Button>
-          <Button size="sm" variant="primary" data-testid="compare-adopt" onClick={() => { void adoptRight(); }} disabled={busy || rightText === null}>
+          {!differentTasks && <Button size="sm" variant="secondary" data-testid="compare-discard" onClick={() => { void discardCopy(); }} disabled={busy || rightText === null}>{t("compare.discardCopy")}</Button>}
+          <Button size="sm" variant={differentTasks ? "primary" : "secondary"} data-testid="compare-keep-both" onClick={() => { void keepBoth(); }} disabled={busy || rightText === null}>{t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth")}</Button>
+          {!differentTasks && <Button size="sm" variant="primary" data-testid="compare-adopt" onClick={() => { void adoptRight(); }} disabled={busy || rightText === null}>
             {rightEdited ? t("compare.applyMerge") : t("compare.adoptCopy")}
-          </Button>
+          </Button>}
         </>
       ) : (
         <>
@@ -516,11 +527,12 @@ export const CompareModal: React.FC<{
       closeOnOverlay={!busy}
       bodyClassName="pv-modal-body--flush"
     >
-      <div style={{ padding: "0.45rem 1rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-tip={path}>
+      {isConflict && conflictPath ? <FileComparisonDetails vault={vaultPath ?? "Plainva"} originalPath={path} copyPath={conflictPath} original={currentText} copy={conflictText} onReveal={file => { onClose(); window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: file } })); }} /> : <div style={{ padding: "0.45rem 1rem", fontSize: "var(--text-sm)", color: "var(--text-muted)", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-tip={path}>
         {path}
         {orphan && <> — {t("versions.orphanHint")}</>}
         {isConflict && <> — {t("compare.conflictExplainer")}</>}
-      </div>
+      </div>}
+      {isConflict && <p className="pv-comparison-explainer">{t(differentTasks ? "compare.differentTasksHint" : "compare.replaceHint", { name: basename })}</p>}
 
       {isConflict && !originalOfConflict ? (
         <div style={{ padding: "1rem", color: "var(--error-text)" }}>{t("conflict.notAConflictFile")}</div>
@@ -573,7 +585,7 @@ export const CompareModal: React.FC<{
                 {error || notice}
               </div>
             )}
-            {isConflict && (
+            {isConflict && !differentTasks && (
               <div style={{ padding: "0.3rem 0.9rem", fontSize: "var(--text-sm)", color: "var(--text-faint)", flexShrink: 0 }}>{t("compare.mergeHint")}</div>
             )}
             {content}

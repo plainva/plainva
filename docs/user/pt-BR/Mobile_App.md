@@ -261,3 +261,14 @@ Todo o resto sobre comentários e sugestões — onde ficam os arquivos, o que �
 **Aqui a mensagem chega mais tarde que no desktop, e isso é uma característica, não um defeito.** O Plainva não tem servidor que possa cutucar o seu telefone — construir um significaria um servidor alheio saber quando quem comentou qual nota. Por isso uma anotação é percebida onde o telefone olha de qualquer maneira: após um ciclo de sincronização e ao voltar ao primeiro plano. Nenhum temporizador roda em segundo plano para isso; nenhuma plataforma de telefone permite.
 
 A partir da versão 0.8.2, as novidades no celular identificam a versão compartilhada do Plainva, independentemente do número de build nativo. No iOS, o TestFlight pode mostrar a versão comercial **1.0** enquanto as novidades descrevem **0.8.2**. Cada nova versão aparece uma vez; outro build interno com as mesmas novidades não as repete. Uma instalação nova termina a introdução sem uma segunda mensagem de boas-vindas. O botão do blog abre a tradução disponível no idioma do app ou, se não houver, a versão em inglês.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Configuração com etapas claras
+
+O assistente móvel abre diretamente a conexão adequada. Após o login, escolha calendários e listas de tarefas e veja o resultado.
+
+Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
+
+### Mais espaço na navegação móvel
+
+O ícone selecionado mantém espaço até a borda na barra compacta. As áreas de toque continuam amplas, e o espaço reservado se adapta ao tamanho do texto.

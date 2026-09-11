@@ -261,3 +261,14 @@ Tutto il resto su commenti e suggerimenti — dove stanno i file, cosa significa
 **Qui il messaggio arriva più tardi che sul desktop, ed è una caratteristica, non un difetto.** Plainva non ha alcun server che possa sollecitare il tuo telefono: costruirne uno significherebbe che un server estraneo viene a sapere quando chi ha commentato quale nota. Un'annotazione viene quindi notata dove il telefono guarda comunque: dopo un ciclo di sincronizzazione e al ritorno in primo piano. Per questo non gira alcun timer in background; nessuna piattaforma mobile lo consente.
 
 Dalla versione 0.8.2, le novità su mobile indicano la versione condivisa di Plainva, indipendentemente dal numero di build nativo. Su iOS, TestFlight può quindi mostrare la versione commerciale **1.0** mentre le novità descrivono **0.8.2**. Ogni nuova versione viene mostrata una volta; un’altra build interna con le stesse novità non le ripete. Una nuova installazione termina l’introduzione senza un secondo benvenuto. Il pulsante del blog apre la traduzione disponibile nella lingua dell’app, oppure quella inglese.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Configurazione con passaggi chiari
+
+L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, scegli calendari ed elenchi di attività e visualizza il risultato.
+
+Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
+
+### Più spazio nella navigazione mobile
+
+L’icona selezionata mantiene il margine nella barra compatta. Le aree di tocco restano sufficientemente grandi e lo spazio riservato si adatta alla dimensione del testo.

@@ -302,7 +302,7 @@ describe("account password rotation", () => {
  * one service alone must never widen that scope.
  */
 describe("Google union consent", () => {
-  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+  const runtime = { isActive: () => true, cache: { listAccounts: async () => [], setScopeState: vi.fn(), upsertAccount: vi.fn() }, worker: { start: vi.fn(), triggerImmediate: vi.fn() } } as unknown as PimRuntime;
 
   beforeEach(() => {
     vi.stubGlobal("window", { dispatchEvent: vi.fn() });
@@ -400,7 +400,7 @@ describe("Google union consent", () => {
  * the copies of the other two services.
  */
 describe("Microsoft union consent", () => {
-  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+  const runtime = { isActive: () => true, cache: { listAccounts: async () => [], setScopeState: vi.fn(), upsertAccount: vi.fn() }, worker: { start: vi.fn(), triggerImmediate: vi.fn() } } as unknown as PimRuntime;
 
   beforeEach(() => {
     vi.stubGlobal("window", { dispatchEvent: vi.fn() });
@@ -503,7 +503,7 @@ describe("re-authorising an existing card (finding 2026-07-30)", () => {
 });
 
 describe("repairing one service keeps the others (finding 2026-07-30)", () => {
-  const runtime = { worker: { triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+  const runtime = { isActive: () => true, cache: { listAccounts: async () => [], setScopeState: vi.fn(), upsertAccount: vi.fn() }, worker: { start: vi.fn(), triggerImmediate: vi.fn() } } as unknown as PimRuntime;
   beforeEach(() => {
     registry.clear();
     consents.length = 0;

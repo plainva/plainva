@@ -122,3 +122,12 @@ Aufgaben sind gewöhnliche GFM-Checkboxen (GitHub Flavored Markdown). Plainva f�
 ## Abhaken in der Übersicht
 
 Wenn Du eine Aufgabe in der Übersicht abhakst, schreibt Plainva den Haken in die Quellnotiz und aktualisiert diese Notiz im Suchindex, bevor die Liste erneut abgefragt wird. Die Aufgabe verschwindet dadurch sofort aus **Offen** und erscheint nicht aus einem veralteten Index erneut.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Gleichnamige Aufgaben sicher trennen
+
+Aufgaben vom Anbieter werden anhand ihrer Identität zugeordnet. Verschiedene Wiederholungen bekommen eigene Dateien. Vorhandene Fehlkonflikte lassen sich als getrennte Aufgaben behalten.
+
+Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.
+
+**Als getrennte Aufgaben behalten** — Diese Datei bleibt unverändert: Aktuelle Datei  Die Konfliktkopie bleibt als separate Datei erhalten: Konfliktkopie

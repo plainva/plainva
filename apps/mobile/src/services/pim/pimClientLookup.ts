@@ -5,6 +5,7 @@ import { pickOAuthClient, type OAuthClient } from "../oauthClientChain";
 import { getStoredProvider } from "../syncService";
 import { getPimCredentials } from "./pimCredentials";
 import { listPimAccounts } from "./pimService";
+import type { ServiceConnectionContext } from "@plainva/ui";
 
 /**
  * The OAuth client id this device can sign a NEW calendar account in with
@@ -19,22 +20,26 @@ import { listPimAccounts } from "./pimService";
  */
 export async function lookupOAuthClientForNewAccount(
   provider: "google" | "microsoft",
+  context?: ServiceConnectionContext,
 ): Promise<OAuthClient | null> {
   try {
     const vault = await getActiveVaultEntry();
+    if (context && context.vaultId !== vault.id) return null;
     const records = await loadCloudAccounts(vault.id).catch(() => []);
     const family = provider === "google" ? "google" : "microsoft";
-    const record = records.find((r) => r.family === family);
+    const candidates = records.filter(r => r.family === family && (!context?.cloudAccountId || r.id === context.cloudAccountId));
+    if (candidates.length > 1 || (context?.cloudAccountId && candidates.length !== 1)) return null;
+    const record = candidates[0];
     const accountToken = record ? await getAccountToken(vault.id, record.id).catch(() => null) : null;
-    const syncProvider = await getStoredProvider(vault.id).catch(() => null);
+    const syncProvider = !context?.cloudAccountId || record?.services.files ? await getStoredProvider(vault.id).catch(() => null) : null;
     const siblings = (
       await Promise.all(
         (await listPimAccounts().catch(() => []))
-          .filter((row) => row.provider === provider)
+          .filter((row) => row.provider === provider && (!context?.cloudAccountId || row.id === record?.services.calendar?.pimAccountId))
           .map((row) => getPimCredentials(vault.id, row.id).catch(() => null)),
       )
     ).filter((creds): creds is NonNullable<typeof creds> => !!creds);
-    return pickOAuthClient(provider, { own: null, accountToken, syncProvider, siblings });
+    return pickOAuthClient(provider, { own: null, accountToken, syncProvider, siblings }) ?? (record?.byoClientId ? { clientId: record.byoClientId } : null);
   } catch {
     // A lookup that fails must never block the form — it falls back to asking.
     return null;

@@ -1,4 +1,5 @@
 import { diffIndices, merge } from "node-diff3";
+import { alignTaskSyncMetadata, classifyTaskNotes } from "./pim/taskNoteIdentity.js";
 
 export type MergeResult = {
   mergedText: string;
@@ -14,6 +15,14 @@ export type MergeResult = {
  * @returns An object containing the merged text (with conflict markers if any) and a boolean indicating if conflicts exist.
  */
 export function mergeText(base: string, yours: string, theirs: string): MergeResult {
+  // Different provider tasks can occupy the same legacy filename. Even a
+  // clean line merge must never combine their fields into a third task.
+  if (classifyTaskNotes(yours, theirs) === "different") return { mergedText: yours, hasConflicts: true };
+  if (classifyTaskNotes(base, yours) === "same" && classifyTaskNotes(yours, theirs) === "same") {
+    base = alignTaskSyncMetadata(base, theirs);
+    yours = alignTaskSyncMetadata(yours, theirs);
+    theirs = alignTaskSyncMetadata(theirs, theirs);
+  }
   // Split strings into arrays of lines.
   const splitLines = (str: string) => str.split(/\r?\n/);
   

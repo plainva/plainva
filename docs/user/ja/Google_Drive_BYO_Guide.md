@@ -62,3 +62,14 @@ Plainvaがあなたの認証情報を使用するには、同意画面（「OAut
 8. 要求された権限を確認します。
 
 これで、あなたの保管庫は自前の認証情報を通じてGoogle Driveと安全に同期されるようになりました。
+
+<!-- accounts-tasks-2026-09-11 -->
+## Google OAuth — Desktop / Android / iOS
+
+上記のデスクトップクライアントの手順はデスクトップアプリ用です。モバイルではデバイスに対応する登録が必要です。**iOS** クライアントにはバンドルID `com.plainva.app`、**Android** クライアントにはパッケージ名 `com.plainva.app` とインストール済みビルドの署名証明書のSHA-1を使用します。通常、モバイルクライアントにクライアントシークレットは不要です。Plainvaのブラウザーからの戻り先は `com.plainva.app:/oauth2redirect` です。Googleは新しいAndroidクライアントでこの方式を標準で無効にしています。Googleが説明する例外は、Androidクライアントの詳細設定でカスタムURI方式を明示的に有効にすることです。この設定が利用できないクライアントでは、現在のブラウザー方式を使用できません。デスクトップのクライアントIDは代わりになりません。カレンダーには **Google Calendar API** と **Google Tasks API** も有効にしてください。不足する権限には新たな同意が必要で、既存のDriveへのログインだけでは足りません。
+
+[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+
+適切なアカウントにファイル、カレンダー、メールを追加できます。選択したログインを確認し、不足している権限をリクエストします。
+
+Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。

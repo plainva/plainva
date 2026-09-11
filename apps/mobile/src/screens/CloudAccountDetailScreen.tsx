@@ -9,6 +9,7 @@ import {
   accountMonogram,
   Banner,
   Button,
+  FAMILY_SERVICES,
   type CloudProviderFamily,
   type CloudServiceId,
   familyLabel,
@@ -64,12 +65,14 @@ export function CloudAccountDetailScreen({
   onOpenVault,
   onOpenCalendarAccounts,
   onOpenMailAccounts,
+  onAddService,
 }: {
   accountKey: string;
   onBack: () => void;
   onOpenVault: (vaultId: string) => void;
-  onOpenCalendarAccounts: () => void;
-  onOpenMailAccounts: () => void;
+  onOpenCalendarAccounts: (accountId?: string) => void;
+  onOpenMailAccounts: (accountId?: string) => void;
+  onAddService: (card: AccountCard, service: CloudServiceId) => void;
 }) {
   const { t } = useTranslation();
   const [card, setCard] = useState<AccountCard | null>(null);
@@ -194,8 +197,8 @@ export function CloudAccountDetailScreen({
       if (card?.vaultId) onOpenVault(card.vaultId);
       return;
     }
-    if (service === "calendar") onOpenCalendarAccounts();
-    else onOpenMailAccounts();
+    if (service === "calendar") onOpenCalendarAccounts(card?.pimAccountId ?? card?.record?.services.calendar?.pimAccountId);
+    else onOpenMailAccounts(card?.mailAccountId ?? card?.record?.services.mail?.mailAccountId);
   };
 
   // An account can disappear while its detail is open — removing it happens on
@@ -245,7 +248,7 @@ export function CloudAccountDetailScreen({
           )}
           <GroupCard>
             <RowList>
-              {card.services.map((service) => {
+              {FAMILY_SERVICES[card.family].map((service) => {
                 const Icon = SERVICE_ICON[service];
                 return (
                   <Row
@@ -253,10 +256,9 @@ export function CloudAccountDetailScreen({
                     data-testid={`cloudacct-service-${service}`}
                     icon={<Icon size={ICON.ui} />}
                     title={serviceLabel(service)}
-                    subtitle={loginStatus?.services[service]}
-                    wrap={!!loginStatus?.services[service]}
-                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                    onClick={() => openService(service)}
+                    subtitle={loginStatus?.services[service] ?? t(!card.services.includes(service) ? "connection.notConnected" : card.serviceStates?.[service] && card.serviceStates[service] !== "active" ? "connection.needsConsent" : "connection.connected")}
+                    wrap
+                    end={<Button size="sm" variant="tonal" onClick={() => card.services.includes(service) ? openService(service) : onAddService(card, service)}>{t(card.services.includes(service) ? "settings.title" : "connection.addService")}</Button>}
                   />
                 );
               })}

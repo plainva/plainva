@@ -62,6 +62,8 @@ export interface WhatsNewHighlight {
 
 export interface WhatsNewItem {
   version: string;
+  /** Distinct copy in an internal build of the same public release. */
+  contentRevision?: string;
   releaseDate: string;
   /**
    * One entry per `whatsNew.highlightN` key, in order — the FIRST one is the
@@ -79,17 +81,16 @@ export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
     version: "0.8.2",
+    contentRevision: "accounts-tasks-2026-09-11",
     releaseDate: "2026-09-11",
     highlights: [
-      { icon: "sync" },
-      { icon: "message" },
-      { icon: "link" },
-      { icon: "calendar" },
       { icon: "key" },
+      { icon: "wand" },
+      { icon: "import" },
+      { icon: "calendar" },
+      { icon: "code" },
       { icon: "phone" },
     ],
-    blogUrl: "https://plainva.com/blog/plainva-0-8-2",
-    blogLanguages: ["en", "de", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"],
   },
   {
     version: "0.8.1",
@@ -298,6 +299,10 @@ export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
 
 export function getLatestWhatsNew(): WhatsNewItem {
   return WHATS_NEW_CATALOG[0];
+}
+
+export function getWhatsNewContentId(item: WhatsNewItem): string {
+  return item.contentRevision ? `${item.version}@${item.contentRevision}` : item.version;
 }
 
 /**

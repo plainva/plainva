@@ -122,3 +122,12 @@ Les tâches sont des cases à cocher GFM (GitHub-Flavored Markdown) ordinaires. 
 ## Terminer depuis la vue d’ensemble
 
 Cocher une tâche dans la vue d’ensemble écrit la case dans la note source et actualise cette note dans l’index de recherche avant de relire la liste. La tâche quitte donc immédiatement **Ouvert** sans réapparaître depuis un ancien index.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Séparer les tâches de même titre
+
+Les tâches du fournisseur sont associées selon leur identité. Les occurrences distinctes ont leurs propres fichiers. Les faux conflits existants peuvent être conservés comme tâches séparées.
+
+Ces fichiers correspondent à des tâches différentes. Des tâches récurrentes de même titre peuvent être des occurrences distinctes. Les deux contenus sont conservés séparément.
+
+**Conserver comme tâches séparées** — Ce fichier reste inchangé : Fichier actuel  La copie en conflit est conservée dans un fichier séparé : copie de conflit

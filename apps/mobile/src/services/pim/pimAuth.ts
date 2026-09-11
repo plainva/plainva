@@ -20,7 +20,7 @@ export function buildPimAuthProvider(
   vaultId: string,
   accountId: string,
   creds: Extract<PimStoredCredentials, { kind: "google" | "microsoft" }>,
-  options: { onRotation?: (previous: typeof creds, next: typeof creds) => Promise<void> } = {},
+  options: { onRotation?: (previous: typeof creds, next: typeof creds) => Promise<void>; provisionalAuth?: PimAuthProvider } = {},
 ): PimAuthProvider {
   let accessToken: string | null = null;
   let expiresAt = 0;
@@ -60,6 +60,7 @@ export function buildPimAuthProvider(
 
   return {
     async getAccessToken(force?: boolean): Promise<string> {
+      if (options.provisionalAuth) return options.provisionalAuth.getAccessToken(force);
       // A Google calendar with a sign-in OF ITS OWN uses it, and asks nobody
       // else. This slot holds the complete, service-specific
       // sign-in just granted for THIS service, while the
@@ -71,7 +72,7 @@ export function buildPimAuthProvider(
       // every "sign in again" a no-op (finding 2026-08-19). Microsoft keeps the
       // broker first: its refresh token ROTATES, and a second copy renewing it
       // is what stage B removed.
-      const ownGoogleSignIn = creds.kind === "google" && !!currentRefreshToken;
+      const ownGoogleSignIn = !!currentRefreshToken && (creds.kind === "google" || !!options.onRotation);
       if ((creds.kind === "microsoft" || creds.kind === "google") && !ownGoogleSignIn) {
         if (!brokerProbe) brokerProbe = brokerTokenProvider(vaultId, "calendar", accountId).catch(() => undefined);
         // A NEGATIVE probe is not trusted while there is no per-service token to

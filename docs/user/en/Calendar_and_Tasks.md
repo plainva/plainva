@@ -134,3 +134,13 @@ From then on the two stay linked, by three fixed rules:
 
 This is a different thing from **blocking time** on a task: there you reserve time for something, and the task's date stays where it is. Here you say: *this entry IS this appointment.*
 
+<!-- accounts-tasks-2026-09-11 -->
+## Setup with clear steps
+
+Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
+
+The mobile assistant opens the appropriate connection immediately. After signing in, choose calendars and task lists and see the result.
+
+Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+
+[Google — Your own app registration](Google_Drive_BYO_Guide.md)

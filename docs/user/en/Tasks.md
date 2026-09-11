@@ -122,3 +122,12 @@ Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds
 ## Completing a task from the overview
 
 Checking a task in the overview writes the checkbox to its source note and refreshes that note in the search index before querying the list again. The task leaves **Open** immediately and cannot reappear from a stale index.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Keep same-title tasks separate
+
+Provider tasks are matched by identity. Different recurring instances get their own files. Existing false conflicts can be kept as separate tasks.
+
+These files belong to different tasks. Recurring tasks with the same title can be separate instances. Both contents are kept as separate tasks.
+
+**Keep as separate tasks** — This file stays unchanged: Current file  The conflict copy is kept as a separate file: conflict copy

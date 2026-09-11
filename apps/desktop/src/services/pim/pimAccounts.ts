@@ -1,5 +1,6 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow } from "@plainva/core";
+import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
+import { calendarGrantProbe } from "../accountBroker";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
 import { savePimCredentials, clearPimCredentials, getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
@@ -11,6 +12,8 @@ import {
   parseMicrosoftMe,
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
+  assertConnectionIdentity,
+  type VerifiedProviderIdentity,
 } from "@plainva/ui";
 
 /**
@@ -57,7 +60,7 @@ async function adoptIfKnown(
   runtime: PimRuntime,
   vaultPath: string,
   fresh: PimAccountRow,
-  creds: PimStoredCredentials
+  creds: PimStoredCredentials,
 ): Promise<PimAccountRow | null> {
   assertPimRuntime(runtime);
   const existing = await runtime.cache.listAccounts();
@@ -82,7 +85,7 @@ async function adoptIfKnown(
 
   // Keep the target's identity, take the fresh label and config: a re-connect
   // is also how a renamed account gets its new name.
-  return { ...target, label: fresh.label, config: fresh.config, enabled: true };
+  return { ...target, label: fresh.label, config: { ...target.config, ...fresh.config }, enabled: true };
 }
 
 function assertPimRuntime(runtime: PimRuntime): void {
@@ -93,8 +96,14 @@ async function finishConnect(
   runtime: PimRuntime,
   vaultPath: string,
   account: PimAccountRow,
-  creds: PimStoredCredentials
+  creds: PimStoredCredentials,
+  options: { validationTarget?: IPimTarget; deferStart?: boolean } = {},
 ): Promise<PimAccountRow> {
+  assertPimRuntime(runtime);
+  const target = options.validationTarget ?? await runtime.buildTarget(account);
+  if (!target) throw new Error("Calendar validation is unavailable");
+  const calendars = await target.listCalendars();
+  const lists = await target.listTaskLists();
   assertPimRuntime(runtime);
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   // Is this a repair of an account we already have? Connecting again is the
@@ -108,19 +117,14 @@ async function finishConnect(
   assertPimRuntime(runtime);
   if (!adopted) await savePimCredentials(vaultPath, account.id, creds);
   assertPimRuntime(runtime);
+  if (options.deferStart) account = { ...account, enabled: false };
   await runtime.cache.upsertAccount(account);
   assertPimRuntime(runtime);
-  const target = await runtime.buildTarget(account);
-  if (target) {
-    const calendars = await target.listCalendars();
-    assertPimRuntime(runtime);
-    await runtime.cache.replaceCalendars(account.id, calendars);
-    const lists = await target.listTaskLists().catch(() => []);
-    assertPimRuntime(runtime);
-    await runtime.cache.replaceTaskLists(account.id, lists);
-  }
+  await runtime.cache.replaceCalendars(account.id, calendars);
+  assertPimRuntime(runtime);
+  await runtime.cache.replaceTaskLists(account.id, lists);
   // First data pull runs in the background — the section renders immediately.
-  await restartPimAccountAfterLogin(runtime, account.id);
+  if (!options.deferStart) await restartPimAccountAfterLogin(runtime, account.id);
   return account;
 }
 
@@ -140,7 +144,7 @@ export async function connectCalDavAccount(
     config: { url: opts.url, user: opts.user },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, { kind: "caldav", url: opts.url, user: opts.user, pass: opts.pass });
+  return finishConnect(runtime, vaultPath, account, { kind: "caldav", url: opts.url, user: opts.user, pass: opts.pass }, { validationTarget: target });
 }
 
 export async function connectGoogleAccount(
@@ -153,7 +157,7 @@ export async function connectGoogleAccount(
    * so this slot must NOT keep a copy — copies were what drifted apart and left
    * a calendar dead while the file sync kept working (finding 2026-07-28).
    */
-  opts: { clientId: string; clientSecret: string; refreshToken?: string; viaBroker?: boolean }
+  opts: { clientId: string; clientSecret: string; refreshToken?: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity }
 ): Promise<PimAccountRow> {
   const { refreshToken } = opts.viaBroker
     ? { refreshToken: "" }
@@ -162,8 +166,10 @@ export async function connectGoogleAccount(
       : await authorizeGooglePim(opts);
   const id = newAccountId();
   let creds: PimStoredCredentials = { kind: "google", clientId: opts.clientId, clientSecret: opts.clientSecret, refreshToken };
+  const provisionalAuth = opts.viaBroker && opts.brokerAccountId ? await calendarGrantProbe(vaultPath, opts.brokerAccountId, "google", opts, true) : undefined;
+  if (opts.viaBroker && !provisionalAuth) throw new Error("Missing explicit account for calendar connection");
   // Validate + derive the label: Google's primary calendar id IS the address.
-  const auth = buildPimAuthProvider(vaultPath, id, creds, { onRotation: async (_previous, next) => { creds = next; } });
+  const auth = buildPimAuthProvider(vaultPath, id, creds, { provisionalAuth, onRotation: async (_previous, next) => { creds = next; } });
   const target = new GooglePimTarget(auth, httpFetch);
   const accessToken = await auth.getAccessToken();
   const [calendars, profileResponse] = await Promise.all([
@@ -175,6 +181,9 @@ export async function connectGoogleAccount(
   const profile = profileResponse?.ok
     ? parseGoogleUserInfo(await profileResponse.json())
     : null;
+  assertPimRuntime(runtime);
+  assertConnectionIdentity(opts.expectedIdentity, profile?.identity ?? null);
+  await target.listTaskLists();
   const label = profile?.label ?? calendars.find((c) => c.primary)?.id ?? "Google";
   const account: PimAccountRow = {
     id,
@@ -186,7 +195,7 @@ export async function connectGoogleAccount(
     },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, creds);
+  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker });
 }
 
 export async function connectMicrosoftAccount(
@@ -198,12 +207,14 @@ export async function connectMicrosoftAccount(
    * per-service slot deliberately stores an empty token because every read
    * goes through the broker.
    */
-  opts: { clientId: string; viaBroker?: boolean }
+  opts: { clientId: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity }
 ): Promise<PimAccountRow> {
   const { refreshToken } = opts.viaBroker ? { refreshToken: "" } : await authorizeMicrosoftPim(opts);
   const id = newAccountId();
   let creds: PimStoredCredentials = { kind: "microsoft", clientId: opts.clientId, refreshToken };
-  const auth = buildPimAuthProvider(vaultPath, id, creds, { onRotation: async (_previous, next) => { creds = next; } });
+  const provisionalAuth = opts.viaBroker && opts.brokerAccountId ? await calendarGrantProbe(vaultPath, opts.brokerAccountId, "microsoft", opts, true) : undefined;
+  if (opts.viaBroker && !provisionalAuth) throw new Error("Missing explicit account for calendar connection");
+  const auth = buildPimAuthProvider(vaultPath, id, creds, { provisionalAuth, onRotation: async (_previous, next) => { creds = next; } });
   // Label from Graph /me (User.Read is part of the requested scopes).
   let label = "Microsoft";
   let profile: ReturnType<typeof parseMicrosoftMe> = null;
@@ -223,6 +234,9 @@ export async function connectMicrosoftAccount(
   }
   const target = new GraphPimTarget(auth, httpFetch);
   await target.listCalendars(); // validate before persisting anything
+  assertPimRuntime(runtime);
+  assertConnectionIdentity(opts.expectedIdentity, profile?.identity ?? null);
+  await target.listTaskLists();
   const account: PimAccountRow = {
     id,
     provider: "microsoft",
@@ -233,7 +247,7 @@ export async function connectMicrosoftAccount(
     },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, creds);
+  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker });
 }
 
 export async function removePimAccount(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {

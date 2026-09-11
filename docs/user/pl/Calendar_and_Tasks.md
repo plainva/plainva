@@ -133,3 +133,14 @@ Od tej chwili oba pozostają powiązane, według trzech stałych reguł:
 * **Gdy usuniesz wydarzenie,** znika tylko powiązanie. Notatka i jej data pozostają nietknięte.
 
 To coś innego niż **blokowanie czasu** przy zadaniu: tam rezerwujesz czas na coś, a data zadania zostaje na miejscu. Tutaj mówisz: *ten wpis JEST tym wydarzeniem.*
+
+<!-- accounts-tasks-2026-09-11 -->
+## Konfiguracja w jasnych krokach
+
+Dodawaj pliki, kalendarz lub pocztę do właściwego konta. Plainva sprawdza wybrane logowanie i prosi o brakujące uprawnienia.
+
+Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.
+
+Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
+
+[Google — Własna rejestracja aplikacji](Google_Drive_BYO_Guide.md)

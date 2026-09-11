@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, filesTargetForFamily, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, EmptyState, filesTargetForFamily, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, type CloudProviderFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -14,7 +14,11 @@ import {
   type MobileSyncProvider,
 } from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
-import { beginOAuth, type OAuthProviderId } from "./services/oauthService";
+import { beginOAuth, beginStoredFilesConnection, type OAuthProviderId } from "./services/oauthService";
+import { lookupOAuthClientForNewAccount } from "./services/pim/pimClientLookup";
+import { getPimCredentials } from "./services/pim/pimCredentials";
+import { loadCloudAccounts } from "./services/cloudAccountsStore";
+import { useConnectionRun } from "./hooks/useConnectionRun";
 import { reloadActiveMobileVault, type MobileVault } from "./services/vaultService";
 import { AppBar } from "./components/AppBar";
 import { ConnectRunBanner } from "./components/ConnectRunBanner";
@@ -62,22 +66,14 @@ export function AddVaultScreen({
   family?: CloudProviderFamily;
 }) {
   const { t, i18n } = useTranslation();
+  const connectionRun = useConnectionRun();
   const createMode = createTemplateId !== undefined;
   // A family that cannot carry files never reaches this screen (the wizard only
   // offers the services FAMILY_SERVICES lists), so a null target here means the
   // user came in directly and picks the provider as before.
   const preset = family ? filesTargetForFamily(family) : null;
   const [runScope, setRunScope] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void loadConnectQueue().then((q) => {
-      if (!alive || !q) return;
-      setRunScope(runConsentScope(q.family, runServices(q)));
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+
   const [provider, setProvider] = useState<ProviderId>(preset?.provider ?? "webdav");
   const [webdav, setWebdav] = useState<WebDavCredentials>({ url: preset?.webdavUrl ?? "", user: "", pass: "" });
   const [s3, setS3] = useState<S3Credentials>({
@@ -99,6 +95,27 @@ export function AddVaultScreen({
   // Direct providers (WebDAV/S3) browse the cloud folder BEFORE connecting
   // (package I; the desktop 3-step flow). OAuth keeps its redirect picker.
   const [pickFor, setPickFor] = useState<MobileSyncProvider | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setRunScope(null);
+    setDriveClientId(""); setDriveClientSecret(""); setOwnAppId("");
+    void loadConnectQueue().then(async (q) => {
+      if (!alive || !q) return;
+      const record = q.context.cloudAccountId ? (await loadCloudAccounts(q.context.vaultId)).find(r => r.id === q.context.cloudAccountId) : undefined;
+      if (!alive) return;
+      setRunScope(runConsentScope(q.family, [...new Set([...runServices(q), ...Object.keys(record?.services ?? {}) as Array<"files" | "calendar" | "mail">])]));
+      if (q.family === "google" || q.family === "microsoft") {
+        const client = await lookupOAuthClientForNewAccount(q.family, q.context);
+        if (alive && client) { if (q.family === "google") { setDriveClientId(client.clientId); setDriveClientSecret(client.clientSecret ?? ""); } else setOwnAppId(client.clientId); }
+      } else if (record?.services.calendar) {
+        const creds = await getPimCredentials(q.context.vaultId, record.services.calendar.pimAccountId);
+        if (alive && creds?.kind === "caldav") setWebdav(old => ({ ...old, user: creds.user, pass: creds.pass, url: old.url || (/\/remote\.php\/dav(?:\/|$)/.test(creds.url) ? creds.url.replace(/\/remote\.php\/dav.*$/, `/remote.php/dav/files/${encodeURIComponent(creds.user)}`) : "") }));
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [connectionRun?.id]);
 
   // Credentials typed here are not stored until "connect"; a tap on the
   // navigation bar used to discard them — including a pasted S3 secret.
@@ -122,13 +139,17 @@ export function AddVaultScreen({
       // (S0b3), so the services after it need none. Outside a run — the direct
       // "connect with cloud" entry — `runScope` is null and the provider's own
       // default scope applies, exactly as before.
-      void beginOAuth(provider as OAuthProviderId, {
+      void (async () => {
+        if (!createMode && connectionRun?.context && await beginStoredFilesConnection(connectionRun.context)) return;
+        await beginOAuth(provider as OAuthProviderId, {
         clientId: (provider === "drive" ? driveClientId.trim() : ownAppId.trim()) || undefined,
         clientSecret: driveClientSecret.trim() || undefined,
         ...(runScope ? { scope: runScope } : {}),
         ...(createMode ? { createTemplateId } : {}),
-      })
-        .catch((e) => setError(String(e)))
+        serviceContext: connectionRun?.context,
+        });
+      })()
+        .catch((e) => setError(serviceConnectionMessage(e, key => t(key))))
         .finally(() => setBusy(false));
       return;
     }
@@ -180,7 +201,7 @@ export function AddVaultScreen({
           subfoldersHeading: t("indexMd.subfoldersHeading"),
         })
       : connectProvider(vault, withRoot);
-    void run.catch((e) => setError(String(e))).finally(() => setBusy(false));
+    void run.catch((e) => setError(serviceConnectionMessage(e, key => t(key)))).finally(() => setBusy(false));
   };
 
   const canConnect =
@@ -198,7 +219,7 @@ export function AddVaultScreen({
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={createMode ? t("mobile.vaultCreateOnlineTitle") : t("mobile.vaultAdd")} />
-      <ConnectRunBanner service="files" />
+      <ConnectRunBanner service="files" onCancel={onBack} />
 
       {!syncPossible(vault) ? (
         /* NOT "coming in a later step": sync is shipped. The offline queue and
@@ -341,7 +362,7 @@ export function AddVaultScreen({
                 <TextInput onChange={(e) => setDriveClientId(e.target.value)} value={driveClientId} />
               </label>
               <label className="m-field">
-                <span>{t("mobile.syncClientSecret")}</span>
+                <span>{t("connection.clientSecret")}</span>
                 <TextInput
                   onChange={(e) => setDriveClientSecret(e.target.value)}
                   type="password"

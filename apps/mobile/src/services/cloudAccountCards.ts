@@ -45,6 +45,10 @@ export type AccountCard = {
   record?: CloudAccountRecord;
   /** Vault that supplied the registry record, also for calendar/mail-only cards. */
   recordVaultId?: string;
+  pimAccountId?: string;
+  mailAccountId?: string;
+  verifiedProviderIdentity?: VerifiedProviderIdentity;
+  serviceStates?: Partial<Record<CloudServiceId, DeviceSignInState>>;
 };
 
 /**
@@ -92,9 +96,10 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       if (byIdentity) return byIdentity;
     }
     const identity = identityKey(label);
-    return records.find(
+    const matches = records.filter(
       (r) => r.family === family && (identity ? identityKey(r.label) === identity : r.label === label),
     );
+    return matches.length === 1 && (!verified || !matches[0].verifiedProviderIdentity) ? matches[0] : undefined;
   };
   const add = (card: AccountCard) => {
     const merged = byKey.get(card.key);
@@ -106,6 +111,10 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     for (const s of card.services) if (!merged.services.includes(s)) merged.services.push(s);
     merged.vaultId = merged.vaultId ?? card.vaultId;
     merged.record = merged.record ?? card.record;
+    merged.pimAccountId ??= card.pimAccountId;
+    merged.mailAccountId ??= card.mailAccountId;
+    merged.verifiedProviderIdentity ??= card.verifiedProviderIdentity;
+    merged.serviceStates = { ...merged.serviceStates, ...card.serviceStates };
     // An expired sign-in outranks a working one: the card must report the
     // service that stopped, not the one that happens to be listed first.
     if (card.signIn === "expired") merged.signIn = "expired";
@@ -143,6 +152,8 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       vaultId: entry.id,
       ...(access.blocked ? { signIn: "expired" as DeviceSignInState } : {}),
       record: stored,
+      verifiedProviderIdentity: stored?.verifiedProviderIdentity,
+      serviceStates: { files: access.blocked ? "expired" : "active" },
     });
   }
   for (const a of pim) {
@@ -152,27 +163,35 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       a.provider === "caldav" && typeof a.config?.url === "string" ? familyOfCalDavUrl(a.config.url) : null;
     const family = catalogFamily ?? familyOfPimProvider(a.provider as "caldav" | "google" | "microsoft" | "device");
     const verified = verifiedProviderIdentityOf(a) ?? undefined;
+    const bound = records.find(r => r.services.calendar?.pimAccountId === a.id) ?? recordFor(family, a.label, verified);
     add({
-      key: keyOf(family, a.label, a.id, verified),
+      key: keyOf(family, a.label, a.id, verified ?? bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["calendar"],
       signIn: a.provider === "device" ? "active" : accountRowState(pimStates.get(a.id) ?? "signin"),
-      record: recordFor(family, a.label, verified),
+      record: bound,
+      pimAccountId: a.id,
+      verifiedProviderIdentity: verified ?? bound?.verifiedProviderIdentity,
+      serviceStates: { calendar: a.provider === "device" ? "active" : accountRowState(pimStates.get(a.id) ?? "signin") },
     });
   }
   for (const a of mail) {
     const family = familyOfMailAccount({ kind: mailAccountKind(a), user: a.user, host: a.host });
+    const bound = records.find(r => r.services.mail?.mailAccountId === a.id) ?? recordFor(family, a.label);
     add({
-      key: keyOf(family, a.label, a.id),
+      key: keyOf(family, a.label, a.id, bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["mail"],
       signIn: mailStates.get(a.id) ?? "signin",
-      record: recordFor(family, a.label),
+      record: bound,
+      mailAccountId: a.id,
+      verifiedProviderIdentity: bound?.verifiedProviderIdentity,
+      serviceStates: { mail: mailStates.get(a.id) ?? "signin" },
     });
   }
   if ((await getActiveVaultEntry()).id !== entry.id) throw new Error("account vault changed");
-  for (const card of cards) if (card.record) card.recordVaultId = entry.id;
+  for (const card of cards) card.recordVaultId = entry.id;
   return { cards, records };
 }

@@ -19,7 +19,7 @@ import { useCommentShell } from "./hooks/useCommentShell";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, type MobileVault } from "./services/vaultService";
-import { createProviderFolder, listProviderFolders, startSyncIfConfigured } from "./services/syncService";
+import { startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -27,9 +27,11 @@ import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
 import { useConnectRun } from "./hooks/useConnectRun";
+import { useConnectionRun } from "./hooks/useConnectionRun";
+import { resumePimOAuthResult } from "./services/pim/pimOAuth";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
-import { cancelConnect, finishConnect, getPendingConnect, handleOAuthRedirect } from "./services/oauthService";
+import { cancelConnect, finishConnect, handleOAuthRedirect, listPendingConnectFolders as oauthListFolders, createPendingConnectFolder as oauthCreateFolder, restorePendingConnect } from "./services/oauthService";
 import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
@@ -126,15 +128,6 @@ export default function App() {
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
   const slots = shownBarTabs(barLayout, isRailClass(windowClass));
   const [oauthPick, setOauthPick] = useState(false);
-  // Stable so the picker's navigation effect doesn't re-fetch every render.
-  const oauthListFolders = useCallback((p: string) => {
-    const prov = getPendingConnect();
-    return prov ? listProviderFolders(prov, p) : Promise.resolve([]);
-  }, []);
-  const oauthCreateFolder = useCallback((p: string) => {
-    const prov = getPendingConnect();
-    return prov ? createProviderFolder(prov, p) : Promise.resolve();
-  }, []);
   const [fromTemplate, setFromTemplate] = useState(false);
   // The Android back listener registers once; it reads the live state here.
   const navRef = useRef(nav);
@@ -204,15 +197,16 @@ export default function App() {
   useBackupSchedule(vault, vaultName);
   useIndexAutoUpdate(vault, vaultName);
   useNavPersistence(vault, nav); // the session outlives the app (P6)
+  const connectionRun = useConnectionRun();
 
   useEffect(() => {
     void getMobileVault().then((v) => {
       setVault(v);
       bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
-      void restoreSession(v, setNav); // where you were (P6), else the last note (T6)
+      void restoreSession(v, setNav).finally(() => window.dispatchEvent(new Event("m-connect-run-changed")));
       void adoptBar(v.vaultId);
       void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
-      void startPim(v).catch((e) => console.error("[boot] pim start failed", e));
+      void startPim(v).then(resumePimOAuthResult).catch((e) => console.error("[boot] pim start failed", e));
       startMobileMail(v);
     });
     void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
@@ -261,6 +255,13 @@ export default function App() {
         setBump((n) => n + 1);
       });
     };
+    const onRevealFile = (event: Event) => {
+      const { path, vaultId } = (event as CustomEvent<{ path: string; vaultId: string }>).detail;
+      if (barVaultRef.current !== vaultId) return;
+      const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+      setNav(st => pushEntry(st, { kind: "folder", path: folder }));
+    };
+    window.addEventListener("m-reveal-file", onRevealFile);
     window.addEventListener("m-vault-changed", onChanged);
     window.addEventListener("m-vault-switched", onSwitched);
     window.addEventListener("m-settings-changed", onSettings);
@@ -271,6 +272,7 @@ export default function App() {
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-settings-changed", onSettings);
       window.removeEventListener("m-accounts-imported", onAccountsImported);
+      window.removeEventListener("m-reveal-file", onRevealFile);
       window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, onBarLayout);
     };
   }, [adoptBar]);
@@ -301,6 +303,7 @@ export default function App() {
   useEffect(() => {
     const onChoose = () => setOauthPick(true);
     window.addEventListener("plainva-oauth-choose-folder", onChoose);
+    void restorePendingConnect().catch(e => console.error("[boot] pending connection", e));
     return () => window.removeEventListener("plainva-oauth-choose-folder", onChoose);
   }, []);
 
@@ -496,7 +499,8 @@ export default function App() {
   // it drops the overlay stack and the draft with it. A RAIL does not have that
   // problem — it is not under the thumb, and the leave guard asks either way —
   // so from medium the navigation stays where a wide window expects it (S14).
-  const barHidden = hidesTabBar(top) && windowClass === "compact";
+  const focusedSetup = !!connectionRun?.pending.length && ["sync", "pimaccounts", "mailaccounts"].includes(top?.kind ?? "");
+  const barHidden = focusedSetup || (hidesTabBar(top) && windowClass === "compact");
 
   const finishOnboarding = (connectCloud: boolean) => {
     void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)

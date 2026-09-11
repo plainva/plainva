@@ -134,3 +134,13 @@ Danach bleiben beide verknüpft, und zwar nach drei festen Regeln:
 
 Das ist etwas anderes als **Zeit blocken** bei einer Aufgabe: dort reservierst Du Zeit für etwas, und das Datum der Aufgabe bleibt, wo es ist. Hier sagst Du: *dieser Eintrag ist dieser Termin.*
 
+<!-- accounts-tasks-2026-09-11 -->
+## Einrichtung mit klaren Schritten
+
+Füge Dateien, Kalender oder E-Mail direkt beim passenden Konto hinzu. Plainva prüft die gewählte Anmeldung und fragt fehlende Rechte gezielt an.
+
+Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.
+
+Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
+
+[Google — Eigene App-Registrierung](Google_Drive_BYO_Guide.md)

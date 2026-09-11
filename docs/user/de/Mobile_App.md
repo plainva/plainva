@@ -261,3 +261,14 @@ Alles Weitere zu Kommentaren und Vorschlägen — auch wo die Dateien liegen und
 **Die Meldung kommt hier später als am Desktop, und das ist eine Eigenschaft, kein Fehler.** Plainva hat keinen Server, der Dein Telefon anstupsen könnte — den zu bauen hieße, dass ein fremder Server erfährt, wann wer welche Notiz kommentiert hat. Eine Anmerkung fällt deshalb dort auf, wo das Telefon ohnehin nachsieht: nach einem Sync-Zyklus und beim Zurückkehren in den Vordergrund. Im Hintergrund läuft dafür kein Zeitgeber; das erlaubt keine Telefon-Plattform.
 
 Ab Release 0.8.2 nennen die mobilen Neuerungen den gemeinsamen Plainva-Release, unabhängig von der nativen Buildnummer. Unter iOS kann TestFlight deshalb die Store-Version **1.0** anzeigen, während die Neuerungen **0.8.2** beschreiben. Jeder neue Release erscheint einmal; ein weiterer interner Build mit denselben Neuerungen zeigt sie nicht erneut. Nach einer Neuinstallation folgt auf die Einführung keine zweite Begrüßung. Der Blog-Knopf öffnet die verfügbare Übersetzung für Deine App-Sprache, sonst die englische Fassung.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Einrichtung mit klaren Schritten
+
+Der mobile Assistent öffnet sofort die passende Verbindung. Nach der Anmeldung wählst Du Kalender und Aufgabenlisten und siehst das Ergebnis.
+
+Öffne **Cloud-Konten**, wähle das vorhandene Konto und beim fehlenden Dienst **Hinzufügen**. Die vorhandenen Dienste bleiben bestehen. Gmail verwendet weiterhin seinen eigenen Mailzugang bzw. ein App-Passwort. Ein abgebrochener Assistent trennt keine bereits verbundenen Dienste. Bei der mobilen Dateiübernahme bleibt der Quell-Vault bestehen; ein vorhandener passender Ziel-Vault wird berücksichtigt, andernfalls entsteht ein eigener Container. Kollidierende Dateien werden einzeln verglichen und beide Inhalte behalten. Verschlüsselte Ziele werden über die bestehende Kopplung geöffnet.
+
+### Mehr Platz in der mobilen Navigation
+
+Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. Die Fläche zum Antippen bleibt groß genug; die Platzreserve passt sich der Schriftgröße an.

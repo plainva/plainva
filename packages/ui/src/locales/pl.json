@@ -2274,48 +2274,54 @@
   },
   "compare": {
     "title": "Porównaj wersje",
-    "conflictExplainer": "Ta notatka została zmieniona w dwóch miejscach jednocześnie. Plainva zachowała obie wersje — nic nie przepadło.",
-    "sideLeft": "Po lewej · w notatce",
+    "conflictExplainer": "Istnieją dwie różne zawartości tego pliku. Oba pliki są wskazane poniżej. Porównaj je przed wyborem.",
     "sideRight": "Po prawej · {{what}}",
     "conflictCopy": "kopia konfliktu",
     "savedVersion": "zapisana wersja",
     "currentState": "Stan bieżący",
-    "cameViaSync": "Przyszła przez synchronizację",
-    "yourVersionKept": "Twoja wersja z tego urządzenia, zachowana {{when}}",
     "sizeLines": "{{size}} · {{lines}} wierszy",
     "stats": "{{hunks}} różnic · {{same}} wierszy bez zmian",
     "identical": "Obie wersje są identyczne.",
-    "costAdopt": "Jeśli przyjmiesz kopię: +{{added}} wierszy przybędzie, −{{removed}} zostanie utraconych.",
+    "costAdopt": "Przy zastąpieniu bieżącego pliku: +{{added}} dodanych wierszy, −{{removed}} usuniętych wierszy.",
     "costMerge": "Twoje scalenie: notatka będzie zawierać prawą stronę tak, jak ją zredagowano.",
     "costRestore": "Jeśli przywrócisz tę wersję: +{{added}} wierszy wróci, −{{removed}} zostanie utraconych.",
     "mergeHint": "Pojedyncze bloki przenosisz strzałkami między stronami — notatka zapisuje się raz, przy zastosowaniu.",
     "tooLarge": "Ta notatka jest za duża na porównanie wierszy na telefonie. Możesz obejrzeć obie wersje osobno albo porównać je na komputerze.",
     "mergeOnlyDesktop": "Scalanie wiersz po wierszu to narzędzie na komputer; tu przyjmujesz jedną wersję w całości albo zachowujesz obie.",
     "later": "Zdecyduj później",
-    "keepBoth": "Zachowaj obie",
-    "discardCopy": "Odrzuć kopię",
-    "adoptCopy": "Przyjmij wersję z kopii",
+    "keepBoth": "Zachowaj oba pliki",
+    "discardCopy": "Usuń kopię konfliktową",
+    "adoptCopy": "Zastąp bieżący plik kopią konfliktową",
     "applyMerge": "Zastosuj scalenie",
-    "adoptTitle": "Przyjąć wersję z kopii?",
-    "adoptMsg": "Notatka będzie zawierać wersję z {{other}}. Jej obecna treść z {{current}} zostanie zastąpiona — pozostaje w historii wersji.",
+    "adoptTitle": "Zastąpić bieżący plik?",
     "mergeTitle": "Zastosować scalenie?",
     "mergeMsg": "Notatka będzie zawierać prawą stronę tak, jak ją zredagowano. Jej obecna treść z {{current}} pozostaje w historii wersji.",
-    "keepBothTitle": "Zachować obie wersje?",
-    "keepBothMsg": "Notatka pozostaje bez zmian. Kopia zostanie odłożona obok jako:\n{{name}}\nKonflikt uznaje się za rozwiązany.",
-    "discardTitle": "Odrzucić kopię?",
-    "discardMsg": "Kopia z {{other}} zostanie usunięta; notatka zachowa obecną treść. Migawka kopii pozostaje w historii wersji.",
+    "keepBothTitle": "Zachować oba pliki?",
+    "discardTitle": "Usunąć kopię konfliktową?",
     "restoreThis": "Przywróć tę wersję",
     "copyTitle": "Utworzyć kopię?",
     "copyMsg": "Wersja z {{when}} zostanie odłożona obok notatki jako:\n{{name}}",
-    "resolvedAdopted": "Wersja z kopii jest teraz w notatce.",
+    "resolvedAdopted": "Bieżący plik zastąpiony, kopia konfliktowa usunięta.",
     "resolvedMerged": "Scalenie zastosowane.",
     "resolvedKeptBoth": "Zachowano obie wersje: {{name}}",
-    "resolvedDiscarded": "Kopia odrzucona.",
+    "resolvedDiscarded": "Kopia konfliktowa usunięta. Bieżący plik bez zmian.",
     "tabDiff": "Różnice",
     "tabNote": "W notatce",
-    "tabOther": "Druga wersja",
     "sameLines": "{{n}} identycznych wierszy",
-    "showLines": "Pokaż"
+    "showLines": "Pokaż",
+    "currentFile": "Bieżący plik",
+    "taskList": "Lista zadań",
+    "revealFolder": "Otwórz folder",
+    "binaryFile": "Plik binarny · {{size}} bajtów",
+    "replaceConfirm": "Zastąp plik i usuń kopię konfliktową",
+    "replaceMessage": "Zawartość tego pliku zostanie nadpisana:\n{{target}}\n\nNowa zawartość pochodzi z:\n{{source}}\n\nNastępnie kopia konfliktowa zostanie usunięta.",
+    "replaceHint": "„{{name}}” otrzyma zawartość kopii konfliktowej. Następnie kopia zostanie usunięta.",
+    "keepBothPaths": "Ten plik pozostanie bez zmian:\n{{original}}\n\nKopia konfliktowa zostanie zachowana jako osobny plik:\n{{copy}}",
+    "discardPaths": "Ta kopia konfliktowa zostanie usunięta:\n{{source}}\n\nTen plik pozostanie bez zmian:\n{{target}}",
+    "differentTasks": "Dwa różne zadania",
+    "differentTasksHint": "Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.",
+    "keepSeparateTasks": "Zachowaj jako osobne zadania",
+    "comparisonChanged": "Plik zmienił się po otwarciu. Porównanie zostało wczytane ponownie. Sprawdź aktualną zawartość i wybierz ponownie."
   },
   "conflict": {
     "resolveFailed": "Nie udało się rozwiązać konfliktu: {{error}}",
@@ -2349,7 +2355,6 @@
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefiks (opcjonalny)",
     "syncClientId": "Identyfikator klienta",
-    "syncClientSecret": "Sekret klienta (opcjonalnie)",
     "syncOwnAppKey": "Własny klucz aplikacji (opcjonalnie)",
     "syncOwnClientId": "Własny identyfikator klienta (opcjonalnie)",
     "syncOwnAppIdHint": "Zostaw puste, aby użyć centralnej rejestracji aplikacji Plainvy. Własna aplikacja omija jej limit użytkowników.",
@@ -2906,7 +2911,6 @@
     "noAccountsMobile": "Nie połączono jeszcze żadnych kont kalendarza.",
     "perDeviceHint": "Logowania obowiązują osobno dla każdego urządzenia: ze względów bezpieczeństwa dane logowania nie są synchronizowane — zaloguj się raz na każdym urządzeniu.",
     "connectAccount": "Połącz konto",
-    "connectGoogle": "Połącz z Google",
     "connectMicrosoft": "Połącz z Microsoft",
     "accounts": "Konta kalendarza",
     "accountAdded": "Konto połączone",
@@ -3896,23 +3900,83 @@
       "grant": "Nadanie"
     },
     "quarantineReason": {
-      "binding": { "title": "Artefakt należy do innego workspace’a", "explain": "{{kind}}: plik podaje inny identyfikator workspace’a niż ten vault. Pochodzi z innego zaszyfrowanego vaultu albo trafił do niewłaściwego folderu w chmurze." },
-      "pathHash": { "title": "Artefakt nie pasuje do swojej nazwy pliku", "explain": "{{kind}}: nazwa pliku niesie sumę kontrolną, która nie pasuje do treści. Plik został po drodze przemianowany lub zmieniony." },
-      "signature": { "title": "Podpis jest nieprawidłowy", "explain": "{{kind}}: nie można potwierdzić podpisu urządzenia, które zapisało plik. Albo treść została zmieniona, albo klucz urządzenia nie jest tym oczekiwanym." },
-      "policyChain": { "title": "Reguły, które nie kontynuują zaakceptowanych", "explain": "Wersja reguł nie opiera się na łańcuchu, który to urządzenie zaakceptowało. Pochodzi z rozgałęzionego stanu i nie zostaje przyjęta." },
-      "policyUnaccepted": { "title": "Zmiany używają reguł, których to urządzenie jeszcze nie zaakceptowało", "explain": "{{device}} zapisało z wersją reguł {{policy}}; tutaj zaakceptowana jest {{accepted}}. Zwykle nowy członek albo zmiana reguł, która nie dotarła jeszcze do tego urządzenia.", "hint": "Po następnym odświeżeniu reguł zwykle rozwiązuje się to samo — „Sprawdź ponownie” uruchamia dokładnie to odświeżenie. Jeśli się utrzymuje, sprawdź w „Urządzeniach”, czy {{device}} nadal należy do workspace’a." },
-      "authorNotActive": { "title": "Zmiany z urządzenia, które nie jest już aktywne", "explain": "{{device}} nie figuruje już w regułach jako aktywne urządzenie. Jego zmiany nie są przyjmowane.", "hint": "Jeśli urządzenie zostało wykluczone, tak ma być. Jeśli ma znów zapisywać, sparuj je ponownie w „Urządzeniach”." },
-      "postRevocation": { "title": "Zmiany z urządzenia po odebraniu mu dostępu", "explain": "{{device}} straciło dostęp. Te zmiany leżą poza punktem, który uprawnione urządzenie ostatnio dla niego poświadczyło — nie zostają przyjęte.", "hint": "To normalny skutek odebrania dostępu i nie wymaga działania. Zignoruj grupę, jeśli odebranie było zamierzone. Jeśli urządzenie ma znów zapisywać, sparuj je ponownie w „Urządzeniach”." },
-      "capability": { "title": "Zmiana, do której urządzenie nie miało prawa", "explain": "{{device}} zapisało coś, na co jego rola nie pozwala. Zmiana zostaje na zewnątrz.", "hint": "Jeśli urządzenie ma mieć to prawo, zmień jego rolę w „Osobach i uprawnieniach” i sprawdź ponownie." },
-      "missingParents": { "title": "Zmiany, których poprzedników brakuje", "explain": "Te zmiany opierają się na wersjach, których to urządzenie nie zna. Poprzednicy jeszcze nie dotarli albo zniknęli z chmury.", "hint": "Zwykle wystarczy poczekać i „Sprawdź ponownie” — poprzednicy przychodzą z następnym odświeżeniem. Jeśli brakuje ich trwale, jakieś urządzenie nigdy ich nie wysłało." },
-      "chainGap": { "title": "Zmiany jednego urządzenia czekają: łańcuch jest przerwany", "explain": "To urządzenie oczekuje od {{device}} zmiany nr {{expected}}; w chmurze leży nr {{found}}. To, czego brakuje lub co zastąpiono pomiędzy, blokuje wszystko późniejsze — grupa obejmuje {{count}} zmian.", "hint": "Zwykle stoi za tym druga kopia tego samego urządzenia — na przykład instancja deweloperska z własnym magazynem — albo urządzenie połączone na nowo, które liczy znów od 1. Pozwól {{device}} raz zsynchronizować i sprawdź tu ponownie. Jeśli zignorujesz grupę, te zmiany przepadną." },
-      "chainBlocked": { "title": "Czeka za luką", "explain": "Ta zmiana jest w porządku, ale stoi za luką w łańcuchu swojego urządzenia. Zostanie przyjęta, gdy tylko luka się zamknie." },
-      "payloadMissing": { "title": "W chmurze brakuje treści zmiany", "explain": "Zmiana wskazuje na obiekt, którego nie ma w chmurze albo który został zmieniony. Przesyłanie jest niekompletne albo ktoś ingerował z zewnątrz.", "hint": "Pozwól urządzeniu, które zapisało zmianę, zsynchronizować jeszcze raz; prześle brakujący obiekt ponownie. Potem „Sprawdź ponownie”." },
-      "envelope": { "title": "Zaszyfrowany obiekt nie pasuje do swojej zmiany", "explain": "Zaszyfrowana koperta podaje inny workspace, inny obiekt albo inną wersję, niż twierdzi zmiana. Para nie zostaje przyjęta." },
-      "rollback": { "title": "Urządzenie zgłasza starszy stan niż znany", "explain": "Wskaźnik {{device}} w chmurze stoi za tym, co to urządzenie już widziało. Skok wstecz nie jest przyjmowany — wygląda to na cofniętą chmurę." },
-      "checkpointMissing": { "title": "W chmurze brakuje punktu kontrolnego", "explain": "Urządzenie wskazuje na punkt kontrolny, którego nie ma w chmurze albo który został zmieniony." },
-      "unreadable": { "title": "Nie można odczytać pliku", "explain": "{{kind}}: plik nie jest prawidłowym artefaktem Plainvy — uszkodzony, ucięty albo zapisany przez nowszą wersję aplikacji.", "hint": "Jeśli Plainva jest nowsza na innym urządzeniu, zaktualizuj to. W przeciwnym razie wyeksportuj diagnozę; pomaga w analizie." },
-      "unknown": { "title": "Sprawdzenie się nie powiodło", "explain": "{{kind}}: {{reason}}", "hint": "Wyeksportuj diagnozę i sprawdź ponownie. Jeśli nic się nie zmieni, eksport pomoże w analizie." }
+      "binding": {
+        "title": "Artefakt należy do innego workspace’a",
+        "explain": "{{kind}}: plik podaje inny identyfikator workspace’a niż ten vault. Pochodzi z innego zaszyfrowanego vaultu albo trafił do niewłaściwego folderu w chmurze."
+      },
+      "pathHash": {
+        "title": "Artefakt nie pasuje do swojej nazwy pliku",
+        "explain": "{{kind}}: nazwa pliku niesie sumę kontrolną, która nie pasuje do treści. Plik został po drodze przemianowany lub zmieniony."
+      },
+      "signature": {
+        "title": "Podpis jest nieprawidłowy",
+        "explain": "{{kind}}: nie można potwierdzić podpisu urządzenia, które zapisało plik. Albo treść została zmieniona, albo klucz urządzenia nie jest tym oczekiwanym."
+      },
+      "policyChain": {
+        "title": "Reguły, które nie kontynuują zaakceptowanych",
+        "explain": "Wersja reguł nie opiera się na łańcuchu, który to urządzenie zaakceptowało. Pochodzi z rozgałęzionego stanu i nie zostaje przyjęta."
+      },
+      "policyUnaccepted": {
+        "title": "Zmiany używają reguł, których to urządzenie jeszcze nie zaakceptowało",
+        "explain": "{{device}} zapisało z wersją reguł {{policy}}; tutaj zaakceptowana jest {{accepted}}. Zwykle nowy członek albo zmiana reguł, która nie dotarła jeszcze do tego urządzenia.",
+        "hint": "Po następnym odświeżeniu reguł zwykle rozwiązuje się to samo — „Sprawdź ponownie” uruchamia dokładnie to odświeżenie. Jeśli się utrzymuje, sprawdź w „Urządzeniach”, czy {{device}} nadal należy do workspace’a."
+      },
+      "authorNotActive": {
+        "title": "Zmiany z urządzenia, które nie jest już aktywne",
+        "explain": "{{device}} nie figuruje już w regułach jako aktywne urządzenie. Jego zmiany nie są przyjmowane.",
+        "hint": "Jeśli urządzenie zostało wykluczone, tak ma być. Jeśli ma znów zapisywać, sparuj je ponownie w „Urządzeniach”."
+      },
+      "postRevocation": {
+        "title": "Zmiany z urządzenia po odebraniu mu dostępu",
+        "explain": "{{device}} straciło dostęp. Te zmiany leżą poza punktem, który uprawnione urządzenie ostatnio dla niego poświadczyło — nie zostają przyjęte.",
+        "hint": "To normalny skutek odebrania dostępu i nie wymaga działania. Zignoruj grupę, jeśli odebranie było zamierzone. Jeśli urządzenie ma znów zapisywać, sparuj je ponownie w „Urządzeniach”."
+      },
+      "capability": {
+        "title": "Zmiana, do której urządzenie nie miało prawa",
+        "explain": "{{device}} zapisało coś, na co jego rola nie pozwala. Zmiana zostaje na zewnątrz.",
+        "hint": "Jeśli urządzenie ma mieć to prawo, zmień jego rolę w „Osobach i uprawnieniach” i sprawdź ponownie."
+      },
+      "missingParents": {
+        "title": "Zmiany, których poprzedników brakuje",
+        "explain": "Te zmiany opierają się na wersjach, których to urządzenie nie zna. Poprzednicy jeszcze nie dotarli albo zniknęli z chmury.",
+        "hint": "Zwykle wystarczy poczekać i „Sprawdź ponownie” — poprzednicy przychodzą z następnym odświeżeniem. Jeśli brakuje ich trwale, jakieś urządzenie nigdy ich nie wysłało."
+      },
+      "chainGap": {
+        "title": "Zmiany jednego urządzenia czekają: łańcuch jest przerwany",
+        "explain": "To urządzenie oczekuje od {{device}} zmiany nr {{expected}}; w chmurze leży nr {{found}}. To, czego brakuje lub co zastąpiono pomiędzy, blokuje wszystko późniejsze — grupa obejmuje {{count}} zmian.",
+        "hint": "Zwykle stoi za tym druga kopia tego samego urządzenia — na przykład instancja deweloperska z własnym magazynem — albo urządzenie połączone na nowo, które liczy znów od 1. Pozwól {{device}} raz zsynchronizować i sprawdź tu ponownie. Jeśli zignorujesz grupę, te zmiany przepadną."
+      },
+      "chainBlocked": {
+        "title": "Czeka za luką",
+        "explain": "Ta zmiana jest w porządku, ale stoi za luką w łańcuchu swojego urządzenia. Zostanie przyjęta, gdy tylko luka się zamknie."
+      },
+      "payloadMissing": {
+        "title": "W chmurze brakuje treści zmiany",
+        "explain": "Zmiana wskazuje na obiekt, którego nie ma w chmurze albo który został zmieniony. Przesyłanie jest niekompletne albo ktoś ingerował z zewnątrz.",
+        "hint": "Pozwól urządzeniu, które zapisało zmianę, zsynchronizować jeszcze raz; prześle brakujący obiekt ponownie. Potem „Sprawdź ponownie”."
+      },
+      "envelope": {
+        "title": "Zaszyfrowany obiekt nie pasuje do swojej zmiany",
+        "explain": "Zaszyfrowana koperta podaje inny workspace, inny obiekt albo inną wersję, niż twierdzi zmiana. Para nie zostaje przyjęta."
+      },
+      "rollback": {
+        "title": "Urządzenie zgłasza starszy stan niż znany",
+        "explain": "Wskaźnik {{device}} w chmurze stoi za tym, co to urządzenie już widziało. Skok wstecz nie jest przyjmowany — wygląda to na cofniętą chmurę."
+      },
+      "checkpointMissing": {
+        "title": "W chmurze brakuje punktu kontrolnego",
+        "explain": "Urządzenie wskazuje na punkt kontrolny, którego nie ma w chmurze albo który został zmieniony."
+      },
+      "unreadable": {
+        "title": "Nie można odczytać pliku",
+        "explain": "{{kind}}: plik nie jest prawidłowym artefaktem Plainvy — uszkodzony, ucięty albo zapisany przez nowszą wersję aplikacji.",
+        "hint": "Jeśli Plainva jest nowsza na innym urządzeniu, zaktualizuj to. W przeciwnym razie wyeksportuj diagnozę; pomaga w analizie."
+      },
+      "unknown": {
+        "title": "Sprawdzenie się nie powiodło",
+        "explain": "{{kind}}: {{reason}}",
+        "hint": "Wyeksportuj diagnozę i sprawdź ponownie. Jeśli nic się nie zmieni, eksport pomoże w analizie."
+      }
     },
     "quarantineFilterOpen": "Otwarte · {{n}}",
     "quarantineFilterAll": "Wszystkie · {{n}}",
@@ -3938,7 +4002,6 @@
     "quarantineForks": "Lokalne rozgałęzienia",
     "forkCompare": "Porównaj",
     "forkOpen": "Otwórz rozgałęzienie",
-    "forkCompare": "Porównaj",
     "forkReason": {
       "permission-denied": "Zapis nie był dozwolony — zmiana leży obok jako kopia.",
       "parallel-write": "Zapisano w tym samym czasie — obie wersje leżą obok siebie.",
@@ -4107,18 +4170,18 @@
     "title": "Co nowego w Plainva {{version}}",
     "lead": "Największa nowość",
     "experimental": "Eksperymentalne",
-    "highlight1Title": "Lepsza ochrona zmian",
-    "highlight1": "Nieudane transfery pozostają oczekujące. Niepełne listy z serwera nie powodują usuwania, a zmiana nazwy zachowuje zmiany, które nie zostały jeszcze zsynchronizowane.",
-    "highlight2Title": "Komentarze pozostają przy notatce",
-    "highlight2": "Komentarze i sugestie działają w każdym Vaulcie. Podążają za przenoszonymi notatkami, a przerwane decyzje dotyczące sugestii można wznowić.",
-    "highlight3Title": "Od razu do właściwego fragmentu",
-    "highlight3": "Linki do kotwic prowadzą do nagłówków. Linki zwrotne pokazują poszczególne miejsca występowania, a przy tworzeniu linku do notatki pojawiają się podpowiedzi jej nagłówków.",
-    "highlight4Title": "Szybsze poruszanie się po kalendarzu",
-    "highlight4": "Wybranie tytułu kalendarza pozwala przejść do daty. Przesunięcie palcem na telefonie lub gest na gładziku komputera zmienia wyświetlany okres.",
-    "highlight5Title": "Pewniejsze połączenia z kontami",
-    "highlight5": "Ponowne logowanie do Google zachowuje hasło aplikacji Gmail. Logowania pozostają przypisane do właściwego Vaultu, a przerwane zmiany haseł można wznowić.",
-    "highlight6Title": "Powrót do pracy w podróży",
-    "highlight6": "Sesja mobilna wraca po ponownym uruchomieniu. Obrazy Obsidian, notatki dzienne i Zaznacz wszystko działają pewniej na komputerze i telefonie.",
+    "highlight1Title": "Rozszerz istniejące konta",
+    "highlight1": "Dodawaj pliki, kalendarz lub pocztę do właściwego konta. Plainva sprawdza wybrane logowanie i prosi o brakujące uprawnienia.",
+    "highlight2Title": "Konfiguracja w jasnych krokach",
+    "highlight2": "Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.",
+    "highlight3Title": "Przenoś pliki z podglądem",
+    "highlight3": "Podczas dodawania plików na telefonie Plainva pokazuje źródło, cel i kolizje przed przeniesieniem. Istniejąca zawartość i usługi zostają zachowane; przerwany transfer można ponowić.",
+    "highlight4Title": "Oddzielaj zadania o tym samym tytule",
+    "highlight4": "Zadania dostawcy są dopasowywane według tożsamości. Osobne wystąpienia mają własne pliki. Istniejące błędne konflikty można zachować jako oddzielne zadania.",
+    "highlight5Title": "Jasne decyzje przy porównywaniu plików",
+    "highlight5": "Widoczne są obie nazwy plików i lokalizacje. Potwierdzenie przed zastąpieniem wskazuje źródło i cel. Jeśli plik zmieni się w międzyczasie, porównanie zostanie wczytane ponownie.",
+    "highlight6Title": "Więcej miejsca w nawigacji mobilnej",
+    "highlight6": "Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku pozostają odpowiednio duże, a rezerwa miejsca dostosowuje się do rozmiaru tekstu.",
     "readBlog": "Przeczytaj wpis na blogu",
     "understand": "Zrozumiano"
   },
@@ -4358,5 +4421,36 @@
     "inNotes_few": "w {{count}} notatkach",
     "inNotes_many": "w {{count}} notatkach",
     "inNotes_other": "w {{count}} notatki"
+  },
+  "connection": {
+    "connected": "Połączono",
+    "notConnected": "Jeszcze nie połączono",
+    "addService": "Dodaj",
+    "calendarTitle": "Dodaj kalendarz",
+    "mailTitle": "Dodaj pocztę",
+    "selectResources": "Wybierz kalendarze i listy zadań",
+    "useSignIn": "Użyj istniejącego logowania",
+    "grantGoogle": "Autoryzuj przez Google",
+    "ownRegistration": "Własna rejestracja aplikacji",
+    "loginFailed": "Nie udało się ukończyć połączenia. Wprowadzone dane zachowano. Spróbuj ponownie.",
+    "accountChanged": "Konto lub vault docelowy zmienił się. Otwórz ponownie właściwe konto.",
+    "wrongAccount": "Zalogowano się na inne konto. Przy ponownym logowaniu wybierz wyświetlane konto.",
+    "needsConsent": "Ta usługa wymaga nowej zgody. Zaloguj się ponownie i udziel żądanego dostępu.",
+    "identityUnavailable": "Nie udało się potwierdzić tożsamości konta. Zaloguj się ponownie u dostawcy.",
+    "storageFailed": "Nie udało się potwierdzić zapisu. Spróbuj ponownie; kreator wznowi to samo połączenie.",
+    "transferTitle": "Skopiuj pliki i konta",
+    "transferSummary": "{{source}} → {{target}}. {{local}} plików lokalnych, {{remote}} w chmurze, {{conflicts}} kolizji. Vault źródłowy zostaje zachowany. Kalendarze i poczta zostaną skonfigurowane w docelowym vaulcie.",
+    "transferCopy": "Plik lokalny jako osobna kopia",
+    "transferKeepHint": "Sprawdź obie treści. „Zachowaj oba pliki” zapisze plik lokalny pod nową wskazaną ścieżką.",
+    "reviewCollisions": "Porównaj kolizje",
+    "startTransfer": "Rozpocznij kopiowanie",
+    "transferChanged": "Od podglądu zmieniły się pliki lub cel. Rozpocznij kopiowanie ponownie i sprawdź aktualny podgląd.",
+    "transferAccountCollision": "Cel ma inne powiązanie konta. Otwórz jego ustawienia kont i rozwiąż powiązanie przed kopiowaniem.",
+    "transferInventoryFailed": "Nie udało się odczytać całej zawartości magazynu. Sprawdź połączenie i uprawnienia, a następnie spróbuj ponownie.",
+    "transferPairRequired": "Ten folder w chmurze jest zaszyfrowany. Otwórz istniejący vault w sekcji „Bezpieczeństwo i udostępnianie” i sparuj to urządzenie przed dodaniem treści.",
+    "clipboardFailed": "Nie udało się skopiować ścieżki. Zaznacz ją i skopiuj w szczegółach pliku.",
+    "retrySaved": "Dokończ połączenie",
+    "clientSecret": "Sekret klienta (jeśli podano)",
+    "googleClientUnsupported": "Rejestracja Google nie pasuje do ścieżki powrotu tego urządzenia. Sprawdź typ klienta i konfigurację mobilną w instrukcji Google."
   }
 }

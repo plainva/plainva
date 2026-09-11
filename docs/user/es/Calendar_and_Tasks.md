@@ -134,3 +134,13 @@ A partir de ahí ambas quedan vinculadas, según tres reglas fijas:
 
 Esto es distinto de **bloquear tiempo** en una tarea: allí reservas tiempo para algo y la fecha de la tarea no se mueve. Aquí dices: *esta entrada ES esta cita.*
 
+<!-- accounts-tasks-2026-09-11 -->
+## Configuración con pasos claros
+
+Añade archivos, calendario o correo a la cuenta correspondiente. Plainva comprueba el acceso elegido y solicita los permisos que faltan.
+
+El asistente móvil abre directamente la conexión adecuada. Después de iniciar sesión, elige calendarios y listas de tareas y consulta el resultado.
+
+Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el servicio que falta. Los servicios existentes siguen conectados. Gmail conserva su acceso de correo o contraseña de aplicación. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
+
+[Google — Tu propio registro de aplicación](Google_Drive_BYO_Guide.md)

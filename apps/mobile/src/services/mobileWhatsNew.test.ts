@@ -17,14 +17,14 @@ const store = {
   delete: vi.fn(async (k: string) => void store.values.delete(k)),
 };
 
-const appInfo = vi.hoisted(() => ({ version: "9.9.9", release: "9.9.9" }));
+const appInfo = vi.hoisted(() => ({ version: "9.9.9", release: "9.9.9", revision: undefined as string | undefined }));
 
 vi.mock("@plainva/ui", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
   return {
     ...actual,
     getPlatformServices: () => ({ loadSettings: async () => store }),
-    getLatestWhatsNew: () => ({ ...actual.getLatestWhatsNew(), version: appInfo.release }),
+    getLatestWhatsNew: () => ({ ...actual.getLatestWhatsNew(), version: appInfo.release, contentRevision: appInfo.revision }),
   };
 });
 
@@ -38,9 +38,17 @@ beforeEach(() => {
   store.values.clear();
   appInfo.version = "9.9.9";
   appInfo.release = "9.9.9";
+  appInfo.revision = undefined;
 });
 
 describe("pendingReleaseDialog", () => {
+  it("shows changed internal-build copy once without changing the marketing version", async () => {
+    store.values.set("whatsNewSeenReleaseMobile", "9.9.9");
+    appInfo.revision = "accounts";
+    expect(await pendingReleaseDialog(true)).toBe("whatsNew");
+    await markReleaseDialogSeen();
+    expect(await pendingReleaseDialog(true)).toBe("none");
+  });
   it("says nothing to a fresh install — the onboarding screen is the welcome", async () => {
     expect(await pendingReleaseDialog(false)).toBe("none");
   });

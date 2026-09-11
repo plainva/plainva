@@ -133,3 +133,14 @@ Da quel momento i due restano collegati, secondo tre regole fisse:
 * **Se elimini l'appuntamento,** sparisce solo il collegamento. La nota e la sua data restano intatte.
 
 È una cosa diversa dal **bloccare tempo** su un'attività: lì riservi tempo per qualcosa e la data dell'attività resta dov'è. Qui dici: *questa voce È questo appuntamento.*
+
+<!-- accounts-tasks-2026-09-11 -->
+## Configurazione con passaggi chiari
+
+Aggiungi file, calendario o email all’account appropriato. Plainva verifica l’accesso scelto e richiede le autorizzazioni mancanti.
+
+L’assistente mobile apre subito il collegamento adatto. Dopo l’accesso, scegli calendari ed elenchi di attività e visualizza il risultato.
+
+Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servizio mancante. I servizi esistenti restano collegati. Gmail conserva il proprio accesso email o la password per app. Annullare l’assistente non scollega i servizi completati. Il trasferimento mobile mantiene il vault di origine e considera un vault di destinazione corrispondente o prepara un contenitore separato. I file in collisione vengono confrontati singolarmente e si conservano entrambi i contenuti. Le destinazioni cifrate si aprono tramite il percorso di abbinamento esistente.
+
+[Google — La tua registrazione dell’app](Google_Drive_BYO_Guide.md)

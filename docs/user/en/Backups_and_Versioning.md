@@ -24,8 +24,6 @@ When you rename or move a file, its version history moves along with it.
 Right-click a file in the file tree (or its tab), or use the **⋮** menu at the top right of the editor → **Version history…** opens the version list — for a note in its own window too, right there:
 
 - The left side lists all snapshots grouped by day, with time and size.
-- The right side shows a preview; for text files, **Compare with current** shows the selected version side by side with the current content (old version on the left, current state on the right).
-- The comparison surface is called **Compare versions** and is the same for versions and for conflict copies: the note is always on the left, the other version on the right; identical blocks are collapsed, the footer counts differences and lines that would be added or lost. With a conflict copy the right side is editable and can be merged line by line; four exits — **adopt**, **keep both**, **discard copy**, **later** — and each one that discards something asks first.
 - **Restore** replaces the current content with the selected version. Don't worry: the current state is itself saved as a snapshot first — so a restore can always be undone.
 - **Restore as copy** creates the version as a new file next to the original (`Name (Version 2026-07-05 14-30).md`) without touching it.
 
@@ -74,3 +72,21 @@ On mobile, a failed note save stops switching, reloading or removing the vault. 
 A ZIP backup counts as successful only after all selected files were readable and the complete archive was saved. A failed run does not remove earlier archives or change the last successful backup time. On mobile, automatic failures name the vault; **Back up now** in the vault settings starts another attempt. Hidden user configuration such as `.obsidian` is included on both platforms. The directories `.plainva`, `.git`, `.trash` and `node_modules` are excluded at every depth. When several archives are created in the same second, a new filename receives a suffix such as `_001`.
 
 A save is reported as complete only after the write has been confirmed. Text entered during an ongoing save remains unsaved until its own version is written. Desktop drafts belong to their editor session: completing an old session does not delete a draft from a newly opened editor. When external changes arrive at the same time, Plainva merges compatible changes; conflicting text remains available as a draft and a conflict copy.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Make clear choices when comparing files
+
+Both filenames and locations are visible. Before replacing, the confirmation names the source and destination. If a file changes meanwhile, the comparison reloads.
+
+- **Replace current file with conflict copy**: This file’s contents will be overwritten: Current file  The replacement contents come from: conflict copy  The conflict copy will then be deleted.
+- **Keep both files**: This file stays unchanged: Current file  The conflict copy is kept as a separate file: conflict copy
+- **Delete conflict copy**: This conflict copy will be deleted: conflict copy  This file stays unchanged: Current file
+- **Decide later**
+
+These files belong to different tasks. Recurring tasks with the same title can be separate instances. Both contents are kept as separate tasks.
+
+**Keep as separate tasks**
+
+A file changed after you opened it. The comparison has been reloaded. Review the current contents and choose again.
+
+Merging line by line is a desktop tool; here you take one version whole or keep both.

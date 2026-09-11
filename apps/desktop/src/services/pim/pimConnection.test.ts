@@ -17,7 +17,7 @@ vi.mock("./pimCredentials", () => ({
 }));
 vi.mock("@plainva/core", async (original) => ({
   ...(await original<typeof import("@plainva/core")>()),
-  CalDavPimTarget: class { async listCalendars() { await state.probe(); return [{ id: "calendar" }]; } },
+  CalDavPimTarget: class { async listCalendars() { await state.probe(); return [{ id: "calendar" }]; } async listTaskLists() { return []; } },
 }));
 
 import { connectCalDavAccount } from "./pimAccounts";
@@ -28,6 +28,8 @@ const runtime = {
     listAccounts: async () => { await state.afterRead(); return state.rows; },
     upsertAccount: async (row: PimAccountRow) => { state.rows.push(row); },
     setScopeState: async () => {},
+    replaceCalendars: async () => {},
+    replaceTaskLists: async () => {},
   },
   buildTarget: async () => null,
   worker: { start: state.started, triggerImmediate: state.triggered },

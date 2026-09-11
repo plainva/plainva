@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SyncWorker, isLocalOnlyPath, dropCoveredDeletePaths, classifySyncError, syncErrorMessage, syncErrorReason, TRANSIENT_FAILURES_BEFORE_ERROR } from "../../src/sync/SyncWorker.js";
 import { SyncProviderError } from "../../src/sync/errorKind.js";
 import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
@@ -82,6 +82,10 @@ describe("SyncWorker", () => {
   let queue: any;
   let worker: SyncWorker;
 
+  // Trigger tests can arm the real poll timer. Stop it before a later test
+  // advances a fake clock, or an earlier worker keeps running through it.
+  afterEach(() => { worker?.stop(); });
+
   beforeEach(() => {
     engine = { processQueue: vi.fn().mockResolvedValue(undefined) };
     target = {
@@ -124,6 +128,44 @@ describe("SyncWorker", () => {
 
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
     worker["isRunning"] = true;
+  });
+
+  it("separates two provider tasks at one path and resumes an interrupted copy without conflicts", async () => {
+    const task = (uid: string, status: string) => `---\nplainva:\n  pim:\n    kind: task\n    provider: google\n    identity: google:subject\n    list: tasks\n    uid: ${uid}\nstatus: ${status}\ncustom: retain me\n---\n# Daily task\nMy own text\n`;
+    const original = "Tasks/Daily task.md", local = task("today", "open"), remote = task("yesterday", "done");
+    const files = new Map([[original, local]]);
+    vault.exists.mockImplementation(async (p: string) => files.has(p));
+    vault.readTextFile.mockImplementation(async (p: string) => files.get(p));
+    vault.writeTextFile.mockImplementation(async (p: string, c: string) => { files.set(p, c); });
+    const download = async () => new TextEncoder().encode(remote);
+    queue.queueWrite.mockRejectedValueOnce(new Error("interrupted"));
+    await expect(worker["reconcilePulledFile"](original, "e2", null, 1, [], download)).rejects.toThrow("interrupted");
+    expect(files.get(original)).toBe(local);
+    expect(files.size).toBe(2);
+    const changed: string[] = [];
+    await worker["reconcilePulledFile"](original, "e2", null, 1, changed, download);
+    expect(files.size).toBe(2);
+    expect(files.get(original)).toBe(remote);
+    const displaced = [...files.keys()].find(p => p !== original)!;
+    expect(files.get(displaced)).toBe(local);
+    expect(displaced).not.toContain(".CONFLICT");
+    expect(queue.queueWrite).toHaveBeenCalledWith(displaced);
+    expect(changed).toContain(displaced);
+    expect(stateRepo.updateBaseState).toHaveBeenCalledWith(original, expect.any(String), "e2");
+    await worker["reconcilePulledFile"](original, "e2", null, 2, [], download);
+    expect(files.size).toBe(2);
+  });
+
+  it("still preserves an actual same-task content conflict", async () => {
+    const content = (status: string) => `---\nplainva:\n  pim:\n    kind: task\n    provider: google\n    identity: google:subject\n    list: tasks\n    uid: today\nstatus: ${status}\n---\n# Daily task\n`;
+    const files = new Map([["Task.md", content("open")]]);
+    vault.exists.mockImplementation(async (p: string) => files.has(p));
+    vault.readTextFile.mockImplementation(async (p: string) => files.get(p));
+    vault.writeTextFile.mockImplementation(async (p: string, c: string) => { files.set(p, c); });
+    await worker["reconcilePulledFile"]("Task.md", "e2", null, 1, [], async () => new TextEncoder().encode(content("done")));
+    expect([...files.keys()].some(p => p.includes(".CONFLICT-"))).toBe(true);
+    expect([...files.values()]).toContain(content("open"));
+    expect([...files.values()]).toContain(content("done"));
   });
 
   it("reports a temporary failure as retrying with the time of the next attempt, not as an error", async () => {

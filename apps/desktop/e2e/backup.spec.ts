@@ -316,6 +316,9 @@ async function openConflictCompare(page: Page) {
   await copy.click({ button: 'right' });
   await page.getByTestId('tree-resolve-conflict').click();
   await expect(page.getByTestId('compare-modal')).toBeVisible();
+  await expect(page.locator('.pv-comparison-context')).toContainText('/test-vault');
+  await expect(page.locator('.pv-comparison-context')).toContainText('Doc.md');
+  await expect(page.locator('.pv-comparison-context')).toContainText(CONFLICT_PATH.replace('/test-vault/', ''));
   // The rule, pinned: LEFT is what the note holds, RIGHT is the copy.
   await expect(page.locator('.pv-merge-host .cm-merge-a')).toContainText('# Doc');
   await expect(page.locator('.pv-merge-host .cm-merge-b')).toContainText('Kopie von diesem Geraet');
@@ -342,6 +345,39 @@ test('conflict: keeping both turns the copy into a sibling named by its time', a
   expect(files.find((f) => /\/test-vault\/Doc \(Version 2026-07-05 \d\d-30\)\.md$/.test(f)), files.join('\n')).toBeDefined();
   expect(await mockFile(page, CONFLICT_PATH)).toBeUndefined();
   expect(await mockFile(page, '/test-vault/Doc.md')).toContain('aktuelle Fassung');
+});
+
+test('conflict: a change after opening the confirmation is preserved and reloaded', async ({ page }) => {
+  await openConflictCompare(page);
+  await page.getByTestId('compare-adopt').click();
+  await page.evaluate(() => { (window as any).mockFs['/test-vault/Doc.md'] = '# Doc\nchanged after opening'; });
+  await page.locator('.pv-modal-footer button.pv-btn--primary').last().click();
+  await expect(page.getByTestId('compare-modal')).toBeVisible();
+  await expect(page.locator('.pv-merge-host .cm-merge-a')).toContainText('changed after opening');
+  expect(await mockFile(page, '/test-vault/Doc.md')).toContain('changed after opening');
+  expect(await mockFile(page, CONFLICT_PATH)).toContain('Kopie von diesem Geraet');
+});
+
+test('conflict: different task identities expose only the safe separate-task action', async ({ page }) => {
+  const task = (uid: string) => `---\nplainva:\n  pim:\n    kind: task\n    provider: google\n    identity: google:subject\n    list: daily\n    uid: ${uid}\ncustom: retained\n---\nDaily task\n`;
+  const original = task('first'), copy = task('second');
+  await page.addInitScript(({ path, original, copy }) => {
+    (window as any).mockFs['/test-vault/Doc.md'] = original;
+    (window as any).mockFs[path] = copy;
+  }, { path: CONFLICT_PATH, original, copy });
+  await openVault(page);
+  await page.getByTestId('file-tree').getByText(/Doc\.CONFLICT-/).click({ button: 'right' });
+  await page.getByTestId('tree-resolve-conflict').click();
+  await expect(page.getByTestId('compare-keep-both')).toBeVisible();
+  await expect(page.getByTestId('compare-adopt')).toHaveCount(0);
+  await expect(page.getByTestId('compare-discard')).toHaveCount(0);
+  await page.getByTestId('compare-keep-both').click();
+  await page.locator('.pv-modal-footer button.pv-btn--primary').last().click();
+  await expect(page.getByTestId('compare-modal')).not.toBeVisible();
+  expect(await mockFile(page, '/test-vault/Doc.md')).toBe(original);
+  expect(await mockFile(page, CONFLICT_PATH)).toBeUndefined();
+  const values = await page.evaluate(() => Object.values((window as any).mockFs));
+  expect(values).toContain(copy);
 });
 
 test('conflict: the blind exits are gone from the context menu', async ({ page }) => {

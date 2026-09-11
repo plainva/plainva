@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
+import { Banner, Button, FileComparisonDetails, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
+import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, separateTaskConflict } from "@plainva/core";
+import { getVaultEntry } from "../services/vaultRegistry";
 import { CompareVersions } from "./CompareVersions";
 import { SheetGrip } from "./SheetGrip";
 import { mConfirm } from "../services/mobileDialogs";
@@ -40,15 +42,24 @@ export function ConflictCompareSheet({
   const [noteMtime, setNoteMtime] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const running = useRef(false);
+  const [revision, setRevision] = useState(0);
+  const [vaultName, setVaultName] = useState(vault.vaultId);
+  const originalSnapshot = useRef<string | null>(null);
+  const differentTasks = inNote !== null && copy !== null && classifyTaskNotes(inNote, copy) === "different";
 
   useEffect(() => {
     let stale = false;
     void (async () => {
       try {
-        const [note, other] = await Promise.all([vaultOps.read(vault, originalPath), vaultOps.read(vault, conflictPath)]);
+        setFailed(false);
+        const [note, other] = await Promise.all([vault.files.exists(originalPath).then(exists => exists ? vaultOps.read(vault, originalPath) : null), vaultOps.read(vault, conflictPath)]);
         if (stale) return;
-        setInNote(note.replace(/\r\n/g, "\n"));
-        setCopy(other.replace(/\r\n/g, "\n"));
+        originalSnapshot.current = note;
+        setInNote(note ?? "");
+        setCopy(other);
+        const entry = await getVaultEntry(vault.vaultId);
+        if (!stale) setVaultName(entry?.name || i18n.t("mobile.vaultLocal"));
       } catch {
         if (!stale) setFailed(true);
       }
@@ -62,7 +73,7 @@ export function ConflictCompareSheet({
     return () => {
       stale = true;
     };
-  }, [vault, conflictPath, originalPath]);
+  }, [vault, conflictPath, originalPath, revision, i18n]);
 
   const whenLabel = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
   const stamp = useMemo(() => conflictCopyStamp(conflictPath), [conflictPath]);
@@ -81,31 +92,37 @@ export function ConflictCompareSheet({
   };
 
   const run = async (work: () => Promise<string[]>) => {
+    if (running.current || copy === null) return;
+    running.current = true;
     setBusy(true);
     try {
+      await noteSaver.flush(originalPath, vault);
+      await noteSaver.flush(conflictPath, vault);
+      await assertComparisonUnchanged(vault.files, originalPath, originalSnapshot.current, conflictPath, copy);
       const touched = await work();
       await finish(touched);
     } catch (e) {
       console.error("[ConflictCompareSheet] resolving failed", e);
-      toast.error(t("conflict.resolveFailed", { error: e instanceof Error ? e.message : String(e) }));
+      if (e instanceof Error && e.message === "comparisonChanged") { toast.info(t("compare.comparisonChanged")); setRevision(n => n + 1); }
+      else toast.error(t("conflict.resolveFailed", { error: e instanceof Error ? e.message : String(e) }));
       setBusy(false);
-    }
+    } finally { running.current = false; }
   };
 
   const adopt = async () => {
-    if (copy === null) return;
+    if (copy === null || differentTasks) return;
     const ok = await mConfirm({
       title: t("compare.adoptTitle"),
-      message: t("compare.adoptMsg", { other: when(stamp), current: when(noteMtime) }),
-      confirmLabel: t("compare.adoptCopy"),
+      message: t("compare.replaceMessage", { source: conflictPath, target: originalPath }),
+      confirmLabel: t("compare.replaceConfirm"),
     });
     if (!ok) return;
     await run(async () => {
       // S2: the note may be open with unsaved keystrokes — exactly the
       // situation that produced the conflict. Land them first, otherwise the
       // queued save settles after the promotion and puts the losing version back.
-      await noteSaver.flush(originalPath, vault);
       await vaultOps.save(vault, originalPath, copy);
+      if (await vault.files.readTextFile(conflictPath) !== copy) throw new Error("comparisonChanged");
       await vaultOps.remove(vault, conflictPath);
       toast.success(t("compare.resolvedAdopted"));
       return [originalPath, conflictPath];
@@ -113,24 +130,30 @@ export function ConflictCompareSheet({
   };
 
   const keepBoth = async () => {
-    const candidate = await versionCopyPath(originalPath, stamp ?? new Date(), (p) => vault.files.exists(p));
+    if (copy === null || inNote === null) return;
+    const candidate = differentTasks ? await displacedTaskPath(vault.files, originalPath, copy) : await versionCopyPath(originalPath, stamp ?? new Date(), (p) => vault.files.exists(p));
     const ok = await mConfirm({
       title: t("compare.keepBothTitle"),
-      message: t("compare.keepBothMsg", { name: candidate }),
-      confirmLabel: t("compare.keepBoth"),
+      message: t("compare.keepBothPaths", { original: originalPath, copy: candidate }),
+      confirmLabel: t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth"),
     });
     if (!ok) return;
     await run(async () => {
-      await vault.files.renameItem(conflictPath, candidate);
+      if (differentTasks) await separateTaskConflict(vault.files, originalPath, inNote, conflictPath, copy, candidate);
+      else {
+        if (await vault.files.exists(candidate)) throw new Error("comparisonChanged");
+        await vault.files.renameItem(conflictPath, candidate);
+      }
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return [conflictPath, candidate];
     });
   };
 
   const discard = async () => {
+    if (differentTasks) return;
     const ok = await mConfirm({
       title: t("compare.discardTitle"),
-      message: t("compare.discardMsg", { other: when(stamp) }),
+      message: t("compare.discardPaths", { source: conflictPath, target: originalPath }),
       danger: true,
       confirmLabel: t("compare.discardCopy"),
     });
@@ -144,10 +167,13 @@ export function ConflictCompareSheet({
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
-      <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="conflict-compare-sheet">
+      <div className="pv-sheet m-sheet m-conflict-sheet" onClick={(e) => e.stopPropagation()} data-testid="conflict-compare-sheet">
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("compare.title")}</p>
-        <p className="m-hint">{t("compare.conflictExplainer")}</p>
+        <FileComparisonDetails compact vault={vaultName} originalPath={originalPath} copyPath={conflictPath} original={inNote} copy={copy} onReveal={path => { onClose(); window.dispatchEvent(new CustomEvent("m-reveal-file", { detail: { path, vaultId: vault.vaultId } })); }} />
+        <div className="m-conflict-body">
+        <p className="m-hint">{t(differentTasks ? "compare.differentTasks" : "compare.conflictExplainer")}</p>
+        {differentTasks && <Banner kind="info" rounded>{t("compare.differentTasksHint")}</Banner>}
         {failed ? (
           <p className="m-hint">{t("conflict.notAConflictFile")}</p>
         ) : inNote === null || copy === null ? (
@@ -156,21 +182,21 @@ export function ConflictCompareSheet({
           <CompareVersions
             inNote={inNote}
             other={copy}
-            noteMeta={{ title: t("compare.tabNote"), subtitle: `${t("compare.cameViaSync")} · ${when(noteMtime)}` }}
-            otherMeta={{ title: t("compare.conflictCopy"), subtitle: t("compare.yourVersionKept", { when: when(stamp) }) }}
-            cost={(s) => t("compare.costAdopt", { added: s.added, removed: s.removed })}
-            hint={t("compare.mergeOnlyDesktop")}
+            noteMeta={{ title: t("compare.currentFile"), subtitle: when(noteMtime) }}
+            otherMeta={{ title: t("compare.conflictCopy"), subtitle: when(stamp) }}
+            cost={differentTasks ? undefined : (s) => t("compare.costAdopt", { added: s.added, removed: s.removed })}
+            hint={differentTasks ? undefined : t("compare.mergeOnlyDesktop")}
             actions={
               <>
-                <Button variant="primary" disabled={busy} onClick={() => { void adopt(); }} data-testid="compare-adopt">
+                {!differentTasks && <><Button variant="primary" disabled={busy} onClick={() => { void adopt(); }} data-testid="compare-adopt">
                   {t("compare.adoptCopy")}
+                </Button><p className="m-hint">{t("compare.replaceHint", { name: originalPath.split("/").pop() })}</p></>}
+                <Button variant={differentTasks ? "primary" : "secondary"} disabled={busy} onClick={() => { void keepBoth(); }} data-testid="compare-keep-both">
+                  {t(differentTasks ? "compare.keepSeparateTasks" : "compare.keepBoth")}
                 </Button>
-                <Button variant="secondary" disabled={busy} onClick={() => { void keepBoth(); }} data-testid="compare-keep-both">
-                  {t("compare.keepBoth")}
-                </Button>
-                <Button variant="secondary" disabled={busy} onClick={() => { void discard(); }} data-testid="compare-discard">
+                {!differentTasks && <Button variant="secondary" disabled={busy} onClick={() => { void discard(); }} data-testid="compare-discard">
                   {t("compare.discardCopy")}
-                </Button>
+                </Button>}
                 <Button variant="ghost" disabled={busy} onClick={onClose}>
                   {t("compare.later")}
                 </Button>
@@ -178,6 +204,7 @@ export function ConflictCompareSheet({
             }
           />
         )}
+        </div>
       </div>
     </div>
   );

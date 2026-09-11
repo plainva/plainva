@@ -1,6 +1,7 @@
 import { getPlatformServices } from "../platform/services";
 import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
+import { withAccountCredentialLock } from "../lib/tokenRefreshCoordinator";
 
 /**
  * Mail accounts (PIM stage 5+): the non-secret account list lives in the
@@ -226,12 +227,31 @@ export async function replaceMailAccounts(vaultPath: string, accounts: MailAccou
 }
 
 export async function saveMailAccount(vaultPath: string, account: MailAccountConfig, password: string): Promise<void> {
-  const store = await getPlatformServices().loadSettings();
-  const list = await listMailAccounts(vaultPath);
-  const next = [...list.filter((a) => a.id !== account.id), account];
-  await store.set(mailAccountsKey(vaultPath), next);
-  await store.save();
-  await getPlatformServices().credentials.writeSecret(mailSecretKey(vaultPath, account.id), { pass: password });
+  await commitMailAccount(vaultPath, account, { pass: password });
+}
+
+async function commitMailAccount(vaultPath: string, account: MailAccountConfig, secret: { pass: string } | { refreshToken: string }): Promise<void> {
+  await withAccountCredentialLock(mailAccountsKey(vaultPath), async () => {
+    const store = await getPlatformServices().loadSettings();
+    const credentials = getPlatformServices().credentials;
+    const slot = mailSecretKey(vaultPath, account.id);
+    const previousSecret = await readSlot(credentials, slot, legacyMailSecretKey(vaultPath, account.id));
+    const list = await listMailAccounts(vaultPath);
+    const next = [...list.filter(a => a.id !== account.id), account];
+    try {
+      await credentials.writeSecret(slot, secret);
+      if (JSON.stringify(await credentials.readSecret(slot)) !== JSON.stringify(secret)) throw new Error("storageFailed");
+      await store.set(mailAccountsKey(vaultPath), next);
+      await store.save();
+      if (JSON.stringify(await listMailAccounts(vaultPath)) !== JSON.stringify(next)) throw new Error("storageFailed");
+    } catch (error) {
+      if (JSON.stringify(await listMailAccounts(vaultPath)) === JSON.stringify(next)) { await store.set(mailAccountsKey(vaultPath), list); await store.save(); }
+      if (JSON.stringify(await credentials.readSecret(slot)) === JSON.stringify(secret)) {
+        if (previousSecret) await credentials.writeSecret(slot, previousSecret); else await credentials.removeSecret(slot);
+      }
+      throw error;
+    }
+  });
 }
 
 /**
@@ -289,12 +309,7 @@ export async function getMailPassword(vaultPath: string, accountId: string): Pro
 
 /** Persists a Microsoft (Graph) mail account + its OAuth refresh token. */
 export async function saveMicrosoftMailAccount(vaultPath: string, account: MailAccountConfig, refreshToken: string): Promise<void> {
-  const store = await getPlatformServices().loadSettings();
-  const list = await listMailAccounts(vaultPath);
-  const next = [...list.filter((a) => a.id !== account.id), account];
-  await store.set(mailAccountsKey(vaultPath), next);
-  await store.save();
-  await getPlatformServices().credentials.writeSecret(mailSecretKey(vaultPath, account.id), { refreshToken });
+  await commitMailAccount(vaultPath, account, { refreshToken });
 }
 
 export async function getMailRefreshToken(vaultPath: string, accountId: string): Promise<string | null> {

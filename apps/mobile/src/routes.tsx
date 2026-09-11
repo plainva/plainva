@@ -51,6 +51,7 @@ import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
 import { startConnectQueue } from "./services/connectQueue";
+import { startAccountService } from "./services/cloudAccountConnections";
 import type { CloudServiceId } from "@plainva/ui";
 
 /** Which screen signs a service in. One place, so the queue and the router agree. */
@@ -217,8 +218,9 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       accountKey={e.path}
       key={e.path}
       onBack={c.pop}
-      onOpenCalendarAccounts={() => c.push({ kind: "pimaccounts", path: "" })}
-      onOpenMailAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onOpenCalendarAccounts={(id) => c.push({ kind: "pimaccounts", path: id ?? "" })}
+      onOpenMailAccounts={(id) => c.push({ kind: "mailaccounts", path: id ?? "" })}
+      onAddService={(card, service) => { void startAccountService(card, service).then(first => { if (first) c.push({ kind: screenForService(first), path: "", family: card.family }); }).catch(error => toast.error(error instanceof Error ? error.message : String(error))); }}
       onOpenVault={(id) => c.push({ kind: "vault", path: id })}
     />
   ),
@@ -332,7 +334,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (e, c) => <PimAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} />,
+  pimaccounts: (e, c) => <PimAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -363,7 +365,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   mailaccounts: (e, c) => (
-    <MailAccountsScreen bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
+    <MailAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (

@@ -62,3 +62,14 @@ For Plainva to use your credentials, a consent screen ("OAuth Consent Screen") m
 8. Confirm the requested permissions.
 
 Your vault now syncs safely with Google Drive through your own credentials.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Google OAuth — Desktop / Android / iOS
+
+The desktop-client instructions above apply to the desktop app. Mobile needs a registration for the device: use the **iOS** client type with bundle ID `com.plainva.app`, or **Android** with package name `com.plainva.app` and the installed build’s SHA-1 signing certificate. Mobile clients usually need no client secret. Plainva’s browser return URI is `com.plainva.app:/oauth2redirect`. Google blocks this return method for new Android clients by default. Google documents an exception through explicitly enabling the custom URI method in the Android client’s advanced settings; if that option is unavailable for your client, that client cannot use the current browser flow. A desktop client ID is not a substitute. For calendars, also enable **Google Calendar API** and **Google Tasks API**. Missing permissions require new consent; an existing Drive sign-in alone is insufficient.
+
+[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+
+Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
+
+The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide.

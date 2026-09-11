@@ -1,5 +1,6 @@
 import {
   accountServices,
+  createServiceGrantProbe,
   resolveFileBrokerAccount,
   type FileBrokerBinding,
   createTokenBroker,
@@ -142,6 +143,24 @@ export function forgetAccountBroker(vaultId: string, accountId: string): void {
     brokers.get(key)?.forget();
     brokers.delete(key);
   }
+}
+
+export function calendarGrantProbe(vaultId: string, accountId: string, family: "google" | "microsoft", client: { clientId: string; clientSecret?: string }) {
+  return serviceGrantProbe(vaultId, accountId, family, "calendar", client);
+}
+export function fileGrantProbe(vaultId: string, accountId: string, family: "google" | "microsoft", client: { clientId: string; clientSecret?: string }) {
+  return serviceGrantProbe(vaultId, accountId, family, "files", client);
+}
+function serviceGrantProbe(vaultId: string, accountId: string, family: "google" | "microsoft", service: CloudServiceId, client: { clientId: string; clientSecret?: string }) {
+  return createServiceGrantProbe({ accountId, family, service, ...client }, {
+    records: () => loadCloudAccounts(vaultId),
+    token: () => getAccountToken(vaultId, accountId),
+    accessToken: async (force) => {
+      const broker = getAccountBroker(vaultId, accountId, family);
+      if (force) broker.forget();
+      return broker.getAccessToken(service);
+    },
+  });
 }
 
 /**

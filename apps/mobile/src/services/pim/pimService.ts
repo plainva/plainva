@@ -12,6 +12,7 @@ import {
   type PimStatus,
   type PimEventRow,
   type PimCalendar,
+  type PimTaskList,
   type PimEventDraft,
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
@@ -19,6 +20,10 @@ import { getMobileVault, type MobileVault } from "../vaultService";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
+import { calendarGrantProbe } from "../accountBroker";
+import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
+import { recordConnectOutcome } from "../connectQueue";
+import { assertConnectionIdentity, ServiceConnectionError, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, onDevicePimChanged, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
@@ -315,30 +320,56 @@ async function fetchVerifiedProfile(
 }
 
 export async function addPimAccount(
+  provider: PimStoredCredentials["kind"], label: string, creds: PimStoredCredentials, context?: ServiceConnectionContext,
+): Promise<string> {
+  const owner = runtime;
+  if (!owner) throw new Error("pim runtime not started");
+  return withAccountCredentialLock(`pim-connect:${owner.vaultId}`, () => {
+    if (runtime !== owner) throw new Error("pim runtime changed");
+    return addPimAccountInVault(provider, label, creds, context);
+  });
+}
+
+async function addPimAccountInVault(
   provider: PimStoredCredentials["kind"],
   label: string,
   creds: PimStoredCredentials,
-): Promise<void> {
+  context?: ServiceConnectionContext,
+): Promise<string> {
   const owner = runtime;
   if (!owner) throw new Error("pim runtime not started");
   const assertCurrent = () => { if (runtime !== owner) throw new Error("pim runtime changed"); };
+  if (context && context.vaultId !== owner.vaultId) throw new ServiceConnectionError("accountChanged");
+  const source = context?.cloudAccountId ? (await loadCloudAccounts(owner.vaultId)).find(r => r.id === context.cloudAccountId) : undefined;
+  assertCurrent();
+  if (context?.cloudAccountId && !source) throw new ServiceConnectionError("accountChanged");
+  if (source && (provider === "google" || provider === "microsoft") && source.family !== provider) throw new ServiceConnectionError("accountChanged");
   if (provider !== creds.kind) throw new Error("pim provider mismatch");
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   const id = newAccountId();
   let resolvedLabel = label;
   let config: Record<string, unknown> = {};
+  let validatedCalendars: PimCalendar[];
+  let validatedLists: PimTaskList[];
   // Probe in memory, including token rotation. A failed or abandoned probe
   // must not create a credential or clean up a slot in another vault.
   if (creds.kind === "google" || creds.kind === "microsoft") {
+    const provisionalAuth = !creds.refreshToken && source
+      ? await calendarGrantProbe(owner.vaultId, source.id, creds.kind, creds)
+      : undefined;
     const auth = buildPimAuthProvider(owner.vaultId, id, creds, {
       onRotation: async (_previous, next) => { assertCurrent(); creds = next; },
+      provisionalAuth,
     });
     const profile = await fetchVerifiedProfile(auth, creds.kind);
     assertCurrent();
+    assertConnectionIdentity(context?.expectedIdentity ?? source?.verifiedProviderIdentity, profile?.identity ?? null);
+    if (!source?.verifiedProviderIdentity && source?.label.includes("@") && source.label.trim().toLowerCase() !== profile?.label?.trim().toLowerCase()) throw new ServiceConnectionError("wrongAccount");
     const target = creds.kind === "google"
       ? new GooglePimTarget(auth, webdavFetch)
       : new GraphPimTarget(auth, webdavFetch);
-    await target.listCalendars();
+    validatedCalendars = await target.listCalendars();
+    validatedLists = await target.listTaskLists();
     if (profile) {
       resolvedLabel = profile.label ?? resolvedLabel;
       config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
@@ -346,8 +377,10 @@ export async function addPimAccount(
   } else {
     await allowHttpOrigin(creds.url);
     assertCurrent();
-    const calendars = await new CalDavPimTarget(creds, webdavFetch).listCalendars();
-    if (!calendars.length) throw new Error("No calendars found on this server.");
+    const target = new CalDavPimTarget(creds, webdavFetch);
+    validatedCalendars = await target.listCalendars();
+    validatedLists = await target.listTaskLists();
+    if (!validatedCalendars.length) throw new Error("No calendars found on this server.");
   }
   assertCurrent();
   const known = await owner.cache.listAccounts();
@@ -355,6 +388,47 @@ export async function addPimAccount(
   const adoptInto = accountToAdoptInto(known, {
     id, provider, identity: verifiedProviderIdentityOf({ config }),
   });
+  if (source) {
+    const connectedId = adoptInto?.id ?? id;
+    const records = await loadCloudAccounts(owner.vaultId);
+    assertCurrent();
+    const current = records.find(r => r.id === source.id);
+    if (!current || current.family !== source.family || (current.services.calendar && current.services.calendar.pimAccountId !== connectedId)) throw new ServiceConnectionError("accountChanged");
+    const verified = verifiedProviderIdentityOf({ config }) ?? undefined;
+    if (provider === "google" || provider === "microsoft") assertConnectionIdentity(current.verifiedProviderIdentity, verified ?? null);
+    const previous = await getPimCredentials(owner.vaultId, connectedId);
+    const nextRecord = { ...current, label: resolvedLabel, ...(verified ? { verifiedProviderIdentity: verified } : {}), services: { ...current.services, calendar: { pimAccountId: connectedId } } };
+    try {
+      assertCurrent();
+      await savePimCredentials(owner.vaultId, connectedId, creds);
+      assertCurrent();
+      await saveCloudAccounts(owner.vaultId, records.map(r => r.id === source.id ? nextRecord : r));
+      assertCurrent();
+      const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
+      if (JSON.stringify(persisted) !== JSON.stringify(nextRecord)) throw new ServiceConnectionError("storageFailed");
+      assertCurrent();
+      await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: { ...adoptInto?.config, ...config }, enabled: true });
+    } catch (error) {
+      // Roll back only our own credential revision. A later sign-in belongs
+      // to its caller; neither failure nor a vault switch may erase it.
+      const saved = await getPimCredentials(owner.vaultId, connectedId);
+      if (saved?.loginRevision === creds.loginRevision) {
+        if (previous) await savePimCredentials(owner.vaultId, connectedId, previous);
+        else await clearPimCredentials(owner.vaultId, connectedId);
+      }
+      const latest = await loadCloudAccounts(owner.vaultId);
+      if (JSON.stringify(latest.find(r => r.id === source.id)) === JSON.stringify(nextRecord)) {
+        await saveCloudAccounts(owner.vaultId, latest.map(r => r.id === source.id ? current : r));
+      }
+      throw error;
+    }
+    assertCurrent();
+    await owner.cache.replaceCalendars(connectedId, validatedCalendars);
+    await owner.cache.replaceTaskLists(connectedId, validatedLists);
+    await restartPimAccountAfterLogin(owner.vaultId, connectedId);
+    await recordConnectOutcome(context, "calendar", { state: adoptInto ? "alreadyConnected" : "connected", bindingId: connectedId });
+    return connectedId;
+  }
   if (adoptInto) {
     await adoptAccountInto(
       {
@@ -367,14 +441,20 @@ export async function addPimAccount(
       { vault: owner.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
     );
     assertCurrent();
-    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config, enabled: true });
+    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config: { ...adoptInto.config, ...config }, enabled: true });
   } else {
     await savePimCredentials(owner.vaultId, id, creds);
     assertCurrent();
     await owner.cache.upsertAccount({ id, provider, label: resolvedLabel, config, enabled: true });
   }
   assertCurrent();
-  await restartPimAccountAfterLogin(owner.vaultId, adoptInto?.id ?? id);
+  const connectedId = adoptInto?.id ?? id;
+  assertCurrent();
+  await owner.cache.replaceCalendars(connectedId, validatedCalendars);
+  await owner.cache.replaceTaskLists(connectedId, validatedLists);
+  await restartPimAccountAfterLogin(owner.vaultId, connectedId);
+  await recordConnectOutcome(context, "calendar", { state: adoptInto ? "alreadyConnected" : "connected", bindingId: connectedId });
+  return connectedId;
 }
 
 /**
@@ -387,40 +467,36 @@ export async function addPimAccount(
  * next reconcile mirrors the same tasks a second time). Same id, same row, new
  * credential.
  */
-export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials): Promise<void> {
+export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials, context?: ServiceConnectionContext): Promise<void> {
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   const target = runtime;
   if (!target) throw new Error("pim runtime not started");
+  const assertCurrent = () => { if (runtime !== target || (context && context.vaultId !== target.vaultId)) throw new ServiceConnectionError("accountChanged"); };
+  assertCurrent();
   const existing = (await target.cache.listAccounts()).find((a) => a.id === accountId);
   if (!existing) throw new Error(`unknown pim account ${accountId}`);
   // A Google account re-signed with Microsoft credentials would leave a row
   // whose provider and secret disagree — every sync would fail with a message
   // nobody could act on.
   if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
-  await savePimCredentials(target.vaultId, accountId, creds);
-
-  // Stamp the verified identity while we hold a fresh token. A row that never
-  // carries one can never be recognised as the same account on a second device,
-  // so re-authorising used to leave it permanently unmergeable — and the sync
-  // answered that by adding another copy of it (finding 2026-08-19). Failing to
-  // read the profile must NOT undo the sign-in, so this is best-effort; the
-  // stamp follows the account that actually answered, which is the state the
-  // row is in now.
+  let profile: VerifiedProviderProfile | null = null;
   if (creds.kind === "google" || creds.kind === "microsoft") {
-    try {
-      const profile = await fetchVerifiedProfile(buildPimAuthProvider(target.vaultId, accountId, creds), creds.kind);
-      if (profile && runtime === target) {
-        await target.cache.upsertAccount({
-          ...existing,
-          label: profile.label ?? existing.label,
-          config: { ...existing.config, [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity },
-        });
-      }
-    } catch {
-      /* the sign-in stands; the next successful cycle can stamp it */
-    }
+    const auth = buildPimAuthProvider(target.vaultId, accountId, creds, { onRotation: async (_previous, next) => { assertCurrent(); creds = next; } });
+    profile = await fetchVerifiedProfile(auth, creds.kind);
+    assertCurrent();
+    assertConnectionIdentity(context?.expectedIdentity ?? verifiedProviderIdentityOf(existing) ?? undefined, profile?.identity ?? null);
+    const providerTarget = creds.kind === "google" ? new GooglePimTarget(auth, webdavFetch) : new GraphPimTarget(auth, webdavFetch);
+    await providerTarget.listCalendars();
+    await providerTarget.listTaskLists();
+  } else {
+    await allowHttpOrigin(creds.url);
+    if (!(await new CalDavPimTarget(creds, webdavFetch).listCalendars()).length) throw new Error("No calendars found on this server.");
   }
-
+  assertCurrent();
+  await savePimCredentials(target.vaultId, accountId, creds);
+  assertCurrent();
+  await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config: { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}) }, enabled: true });
+  assertCurrent();
   await restartPimAccountAfterLogin(target.vaultId, accountId);
 }
 

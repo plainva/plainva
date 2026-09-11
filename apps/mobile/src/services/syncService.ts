@@ -18,14 +18,14 @@ import {
   type WorkspaceObjectStore,
   type NameCollision,
 } from "@plainva/core";
-import { getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition } from "@plainva/ui";
+import { getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import i18n from "@plainva/ui/i18n";
 import { readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
-import { fileBrokerTokenProvider } from "./accountBroker";
+import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettings, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
@@ -252,8 +252,15 @@ function providerVaultName(p: MobileSyncProvider): string {
  * the remote content into the new vault. Files from other vaults are
  * never enqueued (isolation requirement, maintainer 2026-07-10).
  */
-export async function connectProvider(v: MobileVault, p: MobileSyncProvider): Promise<void> {
+export async function connectProvider(v: MobileVault, p: MobileSyncProvider, selectedContext?: ServiceConnectionContext): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
+  const { connectionContextFor } = await import("./connectQueue");
+  const context = selectedContext ?? await connectionContextFor("files");
+  if (context?.runId) {
+    const { connectAccountFiles } = await import("./accountVaultTransfer");
+    await connectAccountFiles(v, p, context, () => buildTarget(p, null, undefined, context), providerVaultName(p));
+    return;
+  }
   const id = newVaultId();
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
@@ -487,7 +494,7 @@ function reportRootFolderCreated(name: string): void {
   });
 }
 
-async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string): Promise<ISyncTarget> {
+async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext): Promise<ISyncTarget> {
   // OneDrive and Dropbox ROTATE refresh tokens: persist every rotation
   // immediately or the stored token goes stale (desktop lesson). AWAITED and
   // failures PROPAGATE (P3.1b, finding M7): a rotation whose persistence
@@ -521,7 +528,10 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       // Google joined the broker on 2026-07-28: an account connected through
       // the union consent keeps ONE refresh token, and every service asks for
       // an access token instead of holding a copy that can go stale.
-      if (vaultId) {
+      if (context?.cloudAccountId && !p.creds.refreshToken) {
+        const probe = await fileGrantProbe(context.vaultId, context.cloudAccountId, "google", p.creds);
+        target.accessTokenProvider = force => probe.getAccessToken(force);
+      } else if (vaultId) {
         // Awaited, not handed in later: a broker account leaves its own
         // refresh token blank on purpose, so a cycle that started before the
         // provider arrived ran without any token at all and fell into backoff.
@@ -543,7 +553,10 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       );
       // Broker-backed accounts (cloud accounts stage B): the account slot owns
       // the rotating refresh token, this target only asks for access tokens.
-      if (vaultId) {
+      if (context?.cloudAccountId && !p.creds.refreshToken) {
+        const probe = await fileGrantProbe(context.vaultId, context.cloudAccountId, "microsoft", p.creds);
+        target.accessTokenProvider = force => probe.getAccessToken(force);
+      } else if (vaultId) {
         // Awaited, not handed in later: a broker account leaves its own
         // refresh token blank on purpose, so a cycle that started before the
         // provider arrived ran without any token at all and fell into backoff.
@@ -612,12 +625,12 @@ export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ w
  * `onTokensRefreshed` mutates `p.creds` in place, so the eventual connect
  * uses the current token.
  */
-export async function listProviderFolders(p: MobileSyncProvider, path: string): Promise<string[]> {
+export async function listProviderFolders(p: MobileSyncProvider, path: string, context?: ServiceConnectionContext): Promise<string[]> {
   // Awaited here (unlike the worker start): this runs behind a button and a
   // lost race would show the user a bare "could not list" instead of retrying.
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
-  const target = await buildTarget(p, credKeyFor("probe"));
+  const target = await buildTarget(p, null, undefined, context);
   return target.listFolders ? target.listFolders(path) : [];
 }
 
@@ -635,10 +648,10 @@ export async function remoteSidebandFileExists(vaultId: string, path: string): P
 }
 
 /** The picker's "new folder" row for a NOT-yet-connected provider (2026-07-13). */
-export async function createProviderFolder(p: MobileSyncProvider, path: string): Promise<void> {
+export async function createProviderFolder(p: MobileSyncProvider, path: string, context?: ServiceConnectionContext): Promise<void> {
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") await allowHttpOrigin(p.creds.endpoint);
-  const target = await buildTarget(p, credKeyFor("probe"));
+  const target = await buildTarget(p, null, undefined, context);
   if (target.createFolder) await target.createFolder(path);
 }
 

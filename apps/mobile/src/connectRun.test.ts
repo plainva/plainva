@@ -27,9 +27,8 @@ describe("a run keeps its provider on every hop", () => {
    */
   it("pushes the next screen WITH the family", () => {
     const src = read("./hooks/useConnectRun.ts");
-    const push = /setNav\(\(st\) => pushEntry\(st, \{([^}]*)\}\)\)/.exec(src);
-    expect(push, "the run still pushes the next screen").not.toBeNull();
-    expect(push![1]).toContain("family: queue?.family");
+    expect(src).toContain("pushEntry(st, entry)");
+    expect(src).toMatch(/kind: screenForService\([^;]+family: q.family/);
   });
 
   /** Every screen the run can open must read the family it is handed. */

@@ -16,6 +16,10 @@ import {
   type CloudServiceId,
   type SyncProviderId,
   type VerifiedProviderIdentity,
+  type ServiceConnectionContext,
+  assertConnectionIdentity,
+  sameOAuthClient,
+  ServiceConnectionError,
 } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
@@ -78,6 +82,7 @@ export interface ServiceRunStatus {
 export type ServiceStatusCb = (service: CloudServiceId, status: ServiceRunStatus) => void;
 
 export interface ConnectRequest {
+  context?: ServiceConnectionContext;
   family: CloudProviderFamily;
   flavor?: "nextcloud";
   /** Selected services; executed in files → calendar → mail order. */
@@ -146,7 +151,7 @@ async function connectFiles(
   req: ConnectRequest,
   googleToken?: string,
   msViaBroker?: boolean,
-  googleViaBroker?: boolean
+  googleViaBroker?: boolean,
 ): Promise<SyncProviderId> {
   switch (req.family) {
     case "microsoft": {
@@ -223,12 +228,13 @@ async function connectCalendar(
   req: ConnectRequest,
   googleToken?: string,
   msViaBroker?: boolean,
-  googleViaBroker?: boolean
+  googleViaBroker?: boolean,
+  brokerAccountId?: string,
 ): Promise<{ id: string; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity }> {
   switch (req.family) {
     case "microsoft": {
       const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
-      const row = await connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: msViaBroker });
+      const row = await connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: msViaBroker, brokerAccountId, expectedIdentity: req.context?.expectedIdentity });
       return {
         id: row.id,
         label: row.label,
@@ -241,6 +247,8 @@ async function connectCalendar(
         clientSecret: req.googleClientSecret?.trim() ?? "",
         refreshToken: googleToken,
         viaBroker: googleViaBroker,
+        brokerAccountId,
+        expectedIdentity: req.context?.expectedIdentity,
       });
       return {
         id: row.id,
@@ -325,16 +333,24 @@ export async function runConnectSequence(
   // What the consent covers can be wider than what is connected: repairing one
   // service must not narrow the account token the others read.
   const consented = SERVICE_ORDER.filter((s) => (req.consentServices ?? req.services).includes(s));
+  if (req.context && req.context.vaultId !== vaultPath) throw new ServiceConnectionError("accountChanged");
+  const source = req.context?.cloudAccountId ? (await loadCloudAccounts(vaultPath)).find(r => r.id === req.context!.cloudAccountId) : undefined;
+  if (req.context?.cloudAccountId && (!source || source.family !== req.family)) throw new ServiceConnectionError("accountChanged");
+  if (source) req = { ...req, context: { ...req.context!, expectedIdentity: source.verifiedProviderIdentity } };
+  const oldToken = source ? await getAccountToken(vaultPath, source.id) : null;
+  const family = brokerFamily(req.family);
+  const reusable = !!(source && family && oldToken && sameOAuthClient(oldToken, { clientId: req.byoClientId?.trim() || (family === "microsoft" ? PLAINVA_ONEDRIVE_CLIENT_ID : ""), clientSecret: req.googleClientSecret?.trim() })
+    && consented.filter(s => !(family === "google" && s === "mail")).every(s => tokenCoversService(oldToken, s, family)));
 
   // One consent for the whole Google account instead of one per service. The
   // scopes are the union of exactly the SELECTED services — ticking calendar
   // alone must never hand out Drive access (the scope minimisation this plan
   // was built on).
   let googleToken: string | undefined;
-  let googleAccountId: string | undefined;
+  let googleAccountId: string | undefined = reusable && family === "google" ? source!.id : undefined;
   let grantedScope: string | undefined;
   const unionScope = req.family === "google" ? googleUnionScope(consented) : null;
-  if (unionScope) {
+  if (unionScope && !googleAccountId) {
     for (const service of selected) if (service !== "mail") onStatus(service, { state: "pending" });
     try {
       const clientId = req.byoClientId?.trim() ?? "";
@@ -373,8 +389,8 @@ export async function runConnectSequence(
   // into the account slot, and every service reads through the broker. The
   // account id is minted here (not in bindConnectResult) because the service
   // validations below already need to resolve a token.
-  let msAccountId: string | undefined;
-  if (req.family === "microsoft" && consented.length > 1) {
+  let msAccountId: string | undefined = reusable && family === "microsoft" ? source!.id : undefined;
+  if (req.family === "microsoft" && consented.length > 1 && !msAccountId) {
     const clientId = req.byoClientId?.trim() || PLAINVA_ONEDRIVE_CLIENT_ID;
     const scope = microsoftUnionScope(consented);
     for (const service of selected) onStatus(service, { state: "pending" });
@@ -401,7 +417,7 @@ export async function runConnectSequence(
           result.filesProvider = await connectFiles(vaultPath, req, googleToken, !!msAccountId, !!googleAccountId);
         } else if (service === "calendar") {
           if (!runtime) throw new Error("calendar needs the open vault's runtime");
-          const row = await connectCalendar(vaultPath, runtime, req, googleToken, !!msAccountId, !!googleAccountId);
+          const row = await connectCalendar(vaultPath, runtime, req, googleToken, !!msAccountId, !!googleAccountId, msAccountId ?? googleAccountId);
           result.pimAccountId = row.id;
           if (!result.identity) result.identity = row.label;
           if (!result.verifiedProviderIdentity && row.verifiedProviderIdentity) {
@@ -442,8 +458,9 @@ export async function bindConnectResult(
   const stored = await loadCloudAccounts(vaultPath);
   const boundId = existingAccountId ?? result.accountId;
   const existing = boundId ? stored.find((r) => r.id === boundId) : undefined;
+  if (existing?.verifiedProviderIdentity && result.verifiedProviderIdentity) assertConnectionIdentity(existing.verifiedProviderIdentity, result.verifiedProviderIdentity);
   const record: CloudAccountRecord = existing
-    ? { ...existing }
+    ? { ...existing, services: { ...existing.services } }
     // A union consent already minted the id and wrote the account slot under
     // it — reuse it, or the slot would belong to no account.
     : { id: boundId ?? newId(), family: req.family, label: result.identity ?? "", flavor: req.flavor, services: {} };
@@ -481,6 +498,13 @@ export async function bindConnectResult(
       .filter((r) => r.id !== record.id)
       .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
     await saveCloudAccounts(vaultPath, [...others, record]);
+    const persisted = (await loadCloudAccounts(vaultPath)).find(r => r.id === record.id);
+    if (!persisted || JSON.stringify(persisted.services) !== JSON.stringify(record.services)) throw new ServiceConnectionError("storageFailed");
+    if (runtime && result.pimAccountId) {
+      const row = (await runtime.cache.listAccounts()).find(r => r.id === result.pimAccountId);
+      if (row) await runtime.cache.upsertAccount({ ...row, enabled: true });
+      await restartPimAccountAfterLogin(runtime, result.pimAccountId);
+    }
     return { records: await refreshCloudAccounts(vaultPath, runtime), accountId: record.id };
   } finally {
     // The marker is for the length of THIS binding only. Left standing, it makes

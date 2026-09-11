@@ -1,126 +1,64 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const state = vi.hoisted(() => ({ settings: new Map<string, unknown>(), fail: false }));
+vi.mock("@plainva/ui", async original => ({ ...await original<typeof import("@plainva/ui")>(), getPlatformServices: () => ({ loadSettings: async () => ({
+  get: async (key: string) => structuredClone(state.settings.get(key) ?? null),
+  set: async (key: string, value: unknown) => { state.settings.set(key, structuredClone(value)); },
+  delete: async (key: string) => { state.settings.delete(key); },
+  save: async () => { if (state.fail) throw Error("storage unavailable"); },
+}) }) }));
+vi.mock("./services/vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "vault" }) }));
+import { buildQueue, withCompleted, nextService, isExpired, QUEUE_TTL_MS, outcomeBelongsToRun, startConnectQueue, loadConnectQueue, recordConnectOutcome, advanceOnAccountsChanged, confirmConnectSelection, clearConnectQueue } from "./services/connectQueue";
 
-import {
-  QUEUE_TTL_MS,
-  buildQueue,
-  countsAsConnected,
-  isExpired,
-  nextService,
-  withCompleted,
-  type ConnectQueue,
-} from "./services/connectQueue";
-
-const T0 = 1_700_000_000_000;
-
-describe("building a connect run (S0b1)", () => {
-  it("keeps the files → calendar → mail order regardless of tick order", () => {
-    const q = buildQueue("google", ["mail", "files", "calendar"], T0);
-    expect(q?.pending).toEqual(["files", "calendar", "mail"]);
+beforeEach(async () => { state.fail = false; await clearConnectQueue(); });
+describe("exact account connection progress", () => {
+  it("keeps provider capability filtering and files first", () => {
+    expect(buildQueue("google", ["mail", "calendar", "files"], 1)?.pending).toEqual(["files", "calendar", "mail"]);
+    expect(buildQueue("apple", ["mail", "calendar", "files"], 1)?.pending).toEqual(["calendar", "mail"]);
+    expect(buildQueue("dropbox", ["calendar"], 1)).toBeNull();
   });
-
-  /**
-   * Files FIRST is not cosmetic. On mobile the files service creates the vault
-   * container and switches into it; calendar and mail bind to the ACTIVE vault.
-   * Any other order puts one account's services into two different vaults.
-   */
-  it("puts files first even when only files and mail were ticked", () => {
-    expect(buildQueue("google", ["mail", "files"], T0)?.pending).toEqual(["files", "mail"]);
+  it("retains a completed run for the result screen and rejects out-of-order completion", () => {
+    const q = buildQueue("google", ["calendar", "mail"], 1)!;
+    expect(withCompleted(q, "mail")).toBe(q);
+    const done = withCompleted(withCompleted(q, "calendar"), "mail")!;
+    expect(nextService(done)).toBeNull(); expect(done.done).toEqual(["calendar", "mail"]);
   });
-
-  it("drops services the family cannot carry", () => {
-    // Apple has no files: iCloud Drive has no third-party API.
-    expect(buildQueue("apple", ["files", "calendar", "mail"], T0)?.pending).toEqual(["calendar", "mail"]);
-    // Dropbox is files-only.
-    expect(buildQueue("dropbox", ["files", "calendar"], T0)?.pending).toEqual(["files"]);
+  it("expires stale and future-clock runs", () => {
+    const q = buildQueue("google", ["calendar"], 10)!;
+    expect(isExpired(q, 10 + QUEUE_TTL_MS)).toBe(true);
+    expect(isExpired(q, 9)).toBe(true);
+    expect(isExpired(q, 11)).toBe(false);
   });
-
-  it("is null when nothing survives the filter", () => {
-    expect(buildQueue("dropbox", ["calendar", "mail"], T0)).toBeNull();
-    expect(buildQueue("google", [], T0)).toBeNull();
+  it("only accepts results from the exact run, vault, account and step", () => {
+    const q = buildQueue("google", ["calendar"], 1, { vaultId: "vault", cloudAccountId: "account" })!;
+    expect(outcomeBelongsToRun(q, q.context, "calendar")).toBe(true);
+    for (const changed of [{ vaultId: "other" }, { cloudAccountId: "other" }, { runId: "other" }]) expect(outcomeBelongsToRun(q, { ...q.context, ...changed }, "calendar")).toBe(false);
+    expect(outcomeBelongsToRun(q, q.context, "mail")).toBe(false);
   });
-});
-
-describe("walking the run", () => {
-  const run = (): ConnectQueue => buildQueue("google", ["files", "calendar", "mail"], T0)!;
-
-  it("hands out the next service in order", () => {
-    let q: ConnectQueue | null = run();
-    expect(nextService(q)).toBe("files");
-    q = withCompleted(q, "files");
-    expect(nextService(q)).toBe("calendar");
-    q = withCompleted(q, "calendar");
-    expect(nextService(q)).toBe("mail");
+  it("does not advance from a list event; an existing account succeeds without list growth", async () => {
+    await startConnectQueue("google", ["calendar", "mail"], { vaultId: "vault", cloudAccountId: "account" });
+    const q = (await loadConnectQueue())!;
+    expect((await advanceOnAccountsChanged("calendar")).advanced).toBe(false);
+    await recordConnectOutcome(q.context, "calendar", { state: "alreadyConnected", bindingId: "existing-calendar" });
+    expect((await advanceOnAccountsChanged("calendar")).advanced).toBe(false);
+    await confirmConnectSelection();
+    expect((await advanceOnAccountsChanged("calendar")).next).toBe("mail");
+    expect((await advanceOnAccountsChanged("calendar")).advanced).toBe(false);
+    expect((await loadConnectQueue())?.outcomes.calendar).toEqual({ state: "alreadyConnected", bindingId: "existing-calendar" });
   });
-
-  it("ends the run when the last service is done", () => {
-    let q: ConnectQueue | null = run();
-    for (const s of ["files", "calendar", "mail"] as const) q = withCompleted(q, s);
-    expect(q).toBeNull();
-    expect(nextService(q)).toBeNull();
+  it("keeps an error on its step and ignores a late result from an abandoned run", async () => {
+    await startConnectQueue("google", ["calendar"]);
+    const context = (await loadConnectQueue())!.context;
+    await recordConnectOutcome(context, "calendar", { state: "needsConsent" });
+    expect((await advanceOnAccountsChanged("calendar")).advanced).toBe(false);
+    await clearConnectQueue(); await startConnectQueue("google", ["calendar"]);
+    await recordConnectOutcome(context, "calendar", { state: "connected", bindingId: "late" });
+    expect((await loadConnectQueue())!.outcomes).toEqual({});
   });
-
-  it("remembers what is already connected", () => {
-    const q = withCompleted(run(), "files");
-    expect(q?.done).toEqual(["files"]);
-    expect(q?.pending).toEqual(["calendar", "mail"]);
-  });
-
-  /**
-   * A screen can be reached directly (no queue) or re-entered after a cold
-   * start. Neither is an error — it just means there is nothing to advance.
-   */
-  it("ignores a completion that is not pending", () => {
-    const q = run();
-    expect(withCompleted(q, "calendar")?.pending).toEqual(["files", "mail"]);
-    expect(withCompleted(null, "files")).toBeNull();
-    const onlyFiles = buildQueue("dropbox", ["files"], T0)!;
-    expect(withCompleted(onlyFiles, "mail")).toBe(onlyFiles);
-  });
-});
-
-describe("an abandoned run does not resurface", () => {
-  it("expires exactly at the TTL", () => {
-    const q = buildQueue("google", ["files"], T0)!;
-    expect(isExpired(q, T0 + QUEUE_TTL_MS - 1)).toBe(false);
-    expect(isExpired(q, T0 + QUEUE_TTL_MS)).toBe(true);
-  });
-});
-
-/**
- * The run advances on the same events the account screens already fire when
- * their lists change — and those fire for deletes and edits too. Counting is
- * the whole reason the queue carries a baseline: only a list that GREW past its
- * starting size means the sign-in landed.
- */
-describe("what counts as connected (S0b2)", () => {
-  const q = buildQueue("google", ["files", "calendar", "mail"], T0, { files: 2, calendar: 1, mail: 0 })!;
-
-  it("advances when the waited-for list grew", () => {
-    expect(countsAsConnected(q, "files", 3)).toBe(true);
-    expect(countsAsConnected(withCompleted(q, "files"), "calendar", 2)).toBe(true);
-  });
-
-  it("does not advance on a delete or an unchanged list", () => {
-    expect(countsAsConnected(q, "files", 2)).toBe(false);
-    expect(countsAsConnected(q, "files", 1)).toBe(false);
-  });
-
-  it("ignores growth on a service the run is not waiting for", () => {
-    // Adding a mailbox while the run sits on files must not skip the files step.
-    expect(countsAsConnected(q, "mail", 5)).toBe(false);
-  });
-
-  it("says nothing when there is no run at all", () => {
-    expect(countsAsConnected(null, "files", 99)).toBe(false);
-  });
-
-  /**
-   * A first account is the case that would break a naive "the list is not
-   * empty" check the other way round: baseline 0, one account, and that has to
-   * count.
-   */
-  it("counts the very first account of a service", () => {
-    const fresh = buildQueue("apple", ["calendar", "mail"], T0, { calendar: 0, mail: 0 })!;
-    expect(countsAsConnected(fresh, "calendar", 1)).toBe(true);
+  it("does not claim durable progress when storage fails", async () => {
+    await startConnectQueue("google", ["calendar"]);
+    const context = (await loadConnectQueue())!.context;
+    state.fail = true;
+    await expect(recordConnectOutcome(context, "calendar", { state: "connected", bindingId: "calendar" })).rejects.toThrow("storage unavailable");
+    expect((await loadConnectQueue())!.outcomes).toEqual({});
   });
 });

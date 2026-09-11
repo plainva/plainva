@@ -1,4 +1,4 @@
-import { getLatestWhatsNew, getPlatformServices, shouldShowWhatsNew } from "@plainva/ui";
+import { getLatestWhatsNew, getWhatsNewContentId, getPlatformServices, shouldShowWhatsNew } from "@plainva/ui";
 import { App } from "@capacitor/app";
 
 /**
@@ -42,7 +42,7 @@ export async function mobileAppVersion(): Promise<string> {
 export async function pendingReleaseDialog(onboarded: boolean): Promise<ReleaseDialog> {
   try {
     const s = await store();
-    const current = getLatestWhatsNew().version;
+    const current = getWhatsNewContentId(getLatestWhatsNew());
     const releaseSeen = await s.get<string>(SEEN_KEY);
     const seen = releaseSeen ?? (await s.get<string>(LEGACY_SEEN_KEY)) ?? null;
     if (!seen && !onboarded) return "none"; // fresh install — the onboarding welcomes
@@ -79,7 +79,7 @@ export async function resetMobileWhatsNew(): Promise<void> {
 export async function markReleaseDialogSeen(): Promise<void> {
   try {
     const s = await store();
-    await s.set(SEEN_KEY, getLatestWhatsNew().version);
+    await s.set(SEEN_KEY, getWhatsNewContentId(getLatestWhatsNew()));
     await s.save();
   } catch {
     // Worst case it shows once more next start — never a reason to fail.

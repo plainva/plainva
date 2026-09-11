@@ -122,3 +122,12 @@ Taken zijn gewone GFM-selectievakjes (GitHub-Flavored Markdown). Plainva voegt n
 ## Afvinken in het overzicht
 
 Een taak afvinken in het overzicht schrijft het vakje naar de bronnotitie en vernieuwt die notitie in de zoekindex voordat de lijst opnieuw wordt gelezen. De taak verdwijnt direct uit **Open** en komt niet terug uit een verouderde index.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Taken met dezelfde titel apart houden
+
+Taken van de aanbieder worden op identiteit gekoppeld. Afzonderlijke herhalingen krijgen eigen bestanden. Bestaande onterechte conflicten kunnen als aparte taken bewaard worden.
+
+Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.
+
+**Als aparte taken behouden** — Dit bestand blijft ongewijzigd: Huidig bestand  De conflictkopie blijft bewaard als apart bestand: conflictkopie

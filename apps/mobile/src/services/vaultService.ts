@@ -155,6 +155,14 @@ function createIndexDatabase(dbName: string): IDatabaseAdapter {
   return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
 }
 
+/** Open an inactive connection's index while preparing its service bindings. */
+export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
+  if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
+  const db = createIndexDatabase(`plainva-${vaultId}`);
+  try { await db.initialize(); await initializeSchema(db); return db; }
+  catch (error) { await db.close().catch(() => {}); throw error; }
+}
+
 /**
  * Says out loud when a version snapshot could not be written.
  *

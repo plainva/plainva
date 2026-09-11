@@ -174,3 +174,12 @@ Wanneer Google Drive tijdelijk verzoeken beperkt, probeert Plainva de download n
 ## Onderbroken bestandsoverdrachten
 
 Tijdslimieten gelden ook voor het ontvangen van bestanden via WebDAV, Dropbox, OneDrive, S3 en Google Drive. Als een antwoord dat in delen binnenkomt geen gegevens meer levert, beëindigt Plainva die poging en herhaalt het lezen een beperkt aantal keren met een nieuw verzoek. Voortgang houdt zo’n download actief, ook als het hele bestand langer duurt dan de basislimiet. Native mobiele verzoeken hebben ook eigen tijdslimieten. Een onvolledige download vervangt nooit het bestaande lokale bestand en bevestigt geen synchronisatievoortgang. Grote uploads behouden een tijdsbudget op basis van hun grootte; een onduidelijk uploadresultaat wordt via het normale synchronisatieherstel afgehandeld en niet blind opnieuw verstuurd.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Bestaande accounts uitbreiden
+
+Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.
+
+Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+
+Bij het toevoegen van bestanden op mobiel toont Plainva eerst de bron, bestemming en botsingen. Bestaande inhoud en diensten blijven behouden; een onderbroken overdracht kan opnieuw worden geprobeerd.

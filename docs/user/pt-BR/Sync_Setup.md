@@ -174,3 +174,12 @@ Quando o Google Drive limita temporariamente as solicitações, o Plainva tenta 
 ## Transferências de arquivos interrompidas
 
 Os limites de tempo também cobrem o recebimento de arquivos do WebDAV, Dropbox, OneDrive, S3 e Google Drive. Se uma resposta recebida em partes deixar de fornecer dados, o Plainva encerra a tentativa e repete as leituras um número limitado de vezes com uma nova solicitação. O progresso mantém esse download ativo mesmo quando o arquivo inteiro demora mais que o limite básico. As solicitações móveis nativas também têm seus próprios limites. Um download incompleto nunca substitui o arquivo local existente nem confirma o progresso da sincronização. Uploads grandes mantêm um prazo baseado no tamanho; um resultado incerto é tratado pela recuperação normal da sincronização, sem reenviar às cegas.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Ampliar contas existentes
+
+Adicione arquivos, calendário ou email à conta adequada. O Plainva verifica o login selecionado e solicita as permissões que faltam.
+
+Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.
+
+Ao adicionar arquivos no celular, o Plainva mostra origem, destino e colisões antes da transferência. Conteúdos e serviços existentes são preservados; uma transferência interrompida pode ser repetida.

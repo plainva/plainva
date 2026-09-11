@@ -24,8 +24,6 @@ Quando rinomini o sposti un file, la sua cronologia delle versioni lo segue.
 Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu **⋮** in alto a destra nell'editor → **Cronologia delle versioni…** apre l'elenco delle versioni — anche per una nota nella propria finestra, proprio lì:
 
 - A sinistra sono elencati tutti gli snapshot raggruppati per giorno, con orario e dimensione.
-- A destra viene mostrata un'anteprima; per i file di testo, **Confronta con la versione attuale** mostra la versione selezionata affiancata al contenuto attuale (la vecchia versione a sinistra, lo stato attuale a destra).
-- La vista di confronto si chiama **Confronta versioni** ed è la stessa per le versioni e per le copie di conflitto: a sinistra c’è sempre la nota, a destra l’altra versione; i blocchi uguali sono ripiegati, il piè di pagina conta le differenze e le righe che verrebbero aggiunte o perse. Con una copia di conflitto il lato destro è modificabile e si può unire riga per riga; quattro uscite — **adotta**, **tieni entrambe**, **scarta copia**, **più tardi** — e ognuna che scarta qualcosa chiede prima.
 - **Ripristina** sostituisce il contenuto attuale con la versione selezionata. Nessuna preoccupazione: lo stato attuale viene prima salvato a sua volta come snapshot — quindi un ripristino può sempre essere annullato.
 - **Ripristina come copia** crea la versione come nuovo file accanto all'originale (`Name (Version 2026-07-05 14-30).md`) senza toccarlo.
 
@@ -74,3 +72,21 @@ Su mobile, un errore nel salvataggio di una nota interrompe il cambio, il ricari
 Un backup ZIP risulta riuscito solo dopo la lettura di tutti i file selezionati e il salvataggio dell’archivio completo. Un tentativo fallito non elimina gli archivi precedenti e non modifica l’ora dell’ultimo backup riuscito. Su mobile, gli errori automatici indicano il vault; **Esegui backup ora** nelle sue impostazioni avvia un nuovo tentativo. La configurazione nascosta dell’utente, come `.obsidian`, è inclusa su entrambe le piattaforme. Le cartelle `.plainva`, `.git`, `.trash` e `node_modules` restano escluse a ogni livello. Se vengono creati più archivi nello stesso secondo, il nuovo nome riceve un suffisso come `_001`.
 
 Il salvataggio viene indicato come completato solo dopo la conferma della scrittura. Il testo inserito durante un salvataggio rimane in attesa finché non viene scritta la sua versione. Le bozze desktop appartengono alla rispettiva sessione dell’editor: il completamento di una vecchia sessione non elimina la bozza di un editor appena aperto. Se arrivano contemporaneamente modifiche esterne, Plainva unisce quelle compatibili; il testo in conflitto rimane disponibile nella bozza e in una copia di conflitto.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Scelte chiare nel confronto dei file
+
+Entrambi i nomi e le posizioni dei file sono visibili. Prima della sostituzione, la conferma indica origine e destinazione. Se un file cambia nel frattempo, il confronto si ricarica.
+
+- **Sostituisci il file attuale con la copia in conflitto**: Il contenuto di questo file verrà sovrascritto: File attuale  Il nuovo contenuto proviene da: copia di conflitto  La copia in conflitto verrà poi eliminata.
+- **Conserva entrambi i file**: Questo file resta invariato: File attuale  La copia in conflitto viene conservata come file separato: copia di conflitto
+- **Elimina la copia in conflitto**: Questa copia in conflitto verrà eliminata: copia di conflitto  Questo file resta invariato: File attuale
+- **Decidi più tardi**
+
+Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.
+
+**Conserva come attività separate**
+
+Un file è cambiato dopo l’apertura. Il confronto è stato ricaricato. Controlla i contenuti attuali e scegli di nuovo.
+
+Unire riga per riga è uno strumento del computer; qui adotti una versione intera o le conservi entrambe.

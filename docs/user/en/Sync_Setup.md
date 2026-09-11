@@ -174,3 +174,12 @@ When Google Drive temporarily limits requests, Plainva retries the download with
 ## Interrupted file transfers
 
 Timeouts also cover receiving file contents from WebDAV, Dropbox, OneDrive, S3 and Google Drive. When a streamed response stops delivering data, Plainva ends that attempt and retries reads a limited number of times with a new request. Progress keeps a streamed download active even when the whole file takes longer than the base timeout. Native mobile requests also have their own time limits. An incomplete download never replaces the existing local file or confirms its sync progress. Large uploads retain their size-based time budget; an unclear upload result is left to the normal sync recovery rather than blindly sent again.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Extend existing accounts
+
+Add files, calendar or email directly to the appropriate account. Plainva checks the selected sign-in and requests any missing permissions.
+
+Open **Cloud accounts**, choose the existing account and select **Add** for the missing service. Existing services remain connected. Gmail continues to use its own mail login or app password. Cancelling the assistant does not disconnect completed services. A mobile file transfer keeps the source vault; it considers an existing matching destination vault or prepares a separate container. Colliding files are reviewed individually and both contents are kept. Encrypted destinations are opened through the existing pairing flow.
+
+When adding files on mobile, Plainva shows the source, destination and collisions before transfer. Existing contents and services are preserved; an interrupted transfer can be retried.

@@ -25,6 +25,11 @@ import { FolderField } from "../components/FolderField";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { ConnectRunBanner } from "../components/ConnectRunBanner";
+import { useConnectionRun } from "../hooks/useConnectionRun";
+import { clearConnectQueue, recordConnectOutcome } from "../services/connectQueue";
+import { loadCloudAccounts } from "../services/cloudAccountsStore";
+import { bindMailToConnection } from "../services/cloudAccountConnections";
+import { listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
 
 /**
  * Mobile mail accounts (mail feinplan G1). Stage one connects Microsoft only:
@@ -42,6 +47,7 @@ export function MailAccountsScreen({
   onOpenRule,
   family,
   vault,
+  accountId,
 }: {
   bump: number;
   onBack?: () => void;
@@ -54,8 +60,11 @@ export function MailAccountsScreen({
    * contradicting choice.
    */
   family?: CloudProviderFamily;
+  accountId?: string;
 }) {
   const { t } = useTranslation();
+  const connectionRun = useConnectionRun();
+  const mailRun = connectionRun?.pending[0] === "mail" && connectionRun.context.vaultId === vault.vaultId ? connectionRun : null;
   const mailPreset = family ? mailTargetForFamily(family) : null;
   // Only inside a run (a screen opened directly carries no family).
   const runSecrets = family ? getConnectSecrets() : {};
@@ -86,6 +95,7 @@ export function MailAccountsScreen({
   const [kind, setKind] = useState<"microsoft" | "imap">(mailPreset?.backend ?? "microsoft");
   /** Account being edited (B4) — the same form serves adding and editing. */
   const [editing, setEditing] = useState<MailAccountConfig | null>(null);
+  const [accountEmail, setAccountEmail] = useState("");
   const imapAvailable = hasNativeMailSocket();
 
   const reload = useCallback(() => {
@@ -123,12 +133,19 @@ export function MailAccountsScreen({
    */
   const autoOpened = useRef(false);
   useEffect(() => {
-    if (!family || !loaded || autoOpened.current || accounts.length > 0) return;
+    if (!loaded || autoOpened.current || (!mailRun && !accountId && (!family || accounts.length > 0))) return;
     autoOpened.current = true;
-    setKind(mailPreset?.backend ?? "microsoft");
-    setEditing(null);
+    const existing = accounts.find(a => a.id === accountId);
+    setKind(existing ? mailAccountKind(existing) : mailPreset?.backend ?? "microsoft");
+    setEditing(existing ?? null);
     setFormOpen(true);
-  }, [accounts.length, family, loaded, mailPreset?.backend]);
+  }, [accounts, family, loaded, mailPreset?.backend, mailRun, accountId]);
+  useEffect(() => {
+    if (!mailRun?.context.cloudAccountId) return;
+    let alive = true;
+    void loadCloudAccounts(vault.vaultId).then(records => { if (alive) setAccountEmail(records.find(r => r.id === mailRun.context.cloudAccountId)?.label ?? ""); });
+    return () => { alive = false; };
+  }, [mailRun?.context.cloudAccountId, vault.vaultId]);
 
   // Keep the sending form on a real account and show ITS values; a removed
   // account falls back to the first one instead of editing a ghost.
@@ -293,14 +310,22 @@ export function MailAccountsScreen({
   const submitImap = async (v: ImapFormValues) => {
     const vault = mailVaultId();
     if (!vault) return;
+    if (busy) return;
+    const context = mailRun?.context;
+    if (context && context.vaultId !== vault) return;
     setBusy(true);
     try {
       // An untouched password field means "keep the stored one" — changing a
       // server address must not cost the user their app password.
       const password = v.pass || (editing ? ((await getMailPassword(vault, editing.id)) ?? "") : "");
       if (!password) throw new Error(t("mail.passwordMissing"));
+      const record = context?.cloudAccountId ? (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId) : undefined;
+      if (context?.cloudAccountId && !record) throw new Error(t("connection.accountChanged"));
+      if (record?.label.includes("@") && record.label.trim().toLowerCase() !== v.user.trim().toLowerCase()) throw new Error(t("connection.wrongAccount"));
+      const existing = editing ?? accounts.find(a => a.id === record?.services.mail?.mailAccountId) ?? accounts.find(a => mailAccountKind(a) === "imap" && a.host === v.host && a.port === v.port && a.user.toLowerCase() === v.user.toLowerCase());
       const account: MailAccountConfig = {
-        id: editing?.id ?? crypto.randomUUID(),
+        ...existing,
+        id: existing?.id ?? crypto.randomUUID(),
         label: v.label,
         host: v.host,
         port: v.port,
@@ -312,8 +337,21 @@ export function MailAccountsScreen({
       // Verify before storing: a rejected password must not leave a broken
       // account behind (the same guarantee the Microsoft path gives) — and an
       // edit must not break a mailbox that worked a moment ago.
+      const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
+      if (mailVaultId() !== vault) throw new Error(t("connection.accountChanged"));
       await saveMailAccount(vault, account, password);
+      try { await bindMailToConnection(context, account.id); }
+      catch (error) {
+        const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === account.id;
+        const ownRow = (await listMailAccounts(vault)).find(a => a.id === account.id);
+        if (!bound && JSON.stringify(ownRow) === JSON.stringify(account) && await getMailPassword(vault, account.id) === password) {
+          if (existing) await saveMailAccount(vault, existing, oldPassword ?? "");
+          else await removeMailAccount(vault, account.id);
+        }
+        throw error;
+      }
+      await recordConnectOutcome(context, "mail", { state: existing ? "alreadyConnected" : "connected", bindingId: account.id });
       setEditing(null);
       // Only on success: a rejected password must leave the form open with what
       // was typed, not send the user back to re-enter all of it.
@@ -338,8 +376,8 @@ export function MailAccountsScreen({
 
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={t("mail.accounts", { defaultValue: "Postfächer" })} />
-      <ConnectRunBanner service="mail" />
+      <AppBar onBack={mailRun ? () => { void clearConnectQueue().then(onBack); } : onBack} title={t(mailRun ? "connection.mailTitle" : "mail.accounts")} />
+      <ConnectRunBanner service="mail" onCancel={() => { setFormOpen(false); onBack?.(); }} />
 
       <div className="m-settings">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
@@ -349,7 +387,7 @@ export function MailAccountsScreen({
             profile and the mail screens have always read it — the phone simply
             had no way to see or change it, so a value set on the desktop was
             the only value it could ever have (feedback 2026-08-15, point 6). */}
-        <GroupCard>
+        {!mailRun && <GroupCard>
           <RowList>
             <FolderField
               hint={t("mail.folderHint")}
@@ -361,9 +399,9 @@ export function MailAccountsScreen({
               value={mailFolder}
             />
           </RowList>
-        </GroupCard>
+        </GroupCard>}
 
-        {accounts.length === 0 && <p className="m-hint">{t("mail.noAccounts")}</p>}
+        {!mailRun && accounts.length === 0 && <p className="m-hint">{t("mail.noAccounts")}</p>}
         {/* The way in, ALWAYS. It lived inside the non-empty branch, so the one
             surface that can connect a mailbox offered nothing at all until a
             mailbox already existed — the empty list is exactly the state a
@@ -371,7 +409,7 @@ export function MailAccountsScreen({
             has kept its add row above the list since N7 for the same reason. */}
         <GroupCard>
           <RowList>
-            {accounts.map((a) => {
+            {accounts.filter(a => !mailRun && (!accountId || a.id === accountId)).map((a) => {
               const state = signIn.get(a.id) ?? "active";
               const imap = mailAccountKind(a) === "imap";
               return (
@@ -400,18 +438,18 @@ export function MailAccountsScreen({
                 />
               );
             })}
-            <Row
+            {!mailRun && <Row
               data-testid="mail-account-add"
               icon={<Plus size={ICON.ui} />}
               onClick={() => { setEditing(null); setFormOpen(true); }}
               title={t("mail.addAccount", { defaultValue: "Postfach hinzufügen" })}
-            />
+            />}
           </RowList>
         </GroupCard>
         {/* An exceptional state of a row, not a second line of it: as a
             subtitle the sentence made the row four lines tall and pushed its
             own controls into the middle of it. */}
-        {accounts.map((a) => {
+        {accounts.filter(a => !mailRun && (!accountId || a.id === accountId)).map((a) => {
           const state = signIn.get(a.id) ?? "active";
           const imap = mailAccountKind(a) === "imap";
           const note = imap && !imapAvailable
@@ -427,7 +465,7 @@ export function MailAccountsScreen({
           );
         })}
 
-        {accounts.length > 0 && (
+        {!mailRun && accounts.length > 0 && (
           <>
             {/* Was a naked <h2> with an inline font size — it rendered LARGER
                 than the app-bar title above it, so the page had two competing
@@ -577,9 +615,9 @@ export function MailAccountsScreen({
           the fold, so nothing appeared to happen at all (feedback 2026-08-15,
           point 4). */}
       {formOpen && (
-        <div className="m-sheet-backdrop" onClick={() => { setFormOpen(false); setEditing(null); }}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => { setFormOpen(false); setEditing(null); }} />
+        <div className={mailRun ? "m-connect-form" : "m-sheet-backdrop"} onClick={mailRun ? undefined : () => { setFormOpen(false); setEditing(null); }}>
+          <div className={mailRun ? "m-settings" : "pv-sheet m-sheet"} onClick={(e) => e.stopPropagation()}>
+            {!mailRun && <SheetGrip onClose={() => { setFormOpen(false); setEditing(null); }} />}
             <p className="m-sheet-title">
               {editing
                 ? t("common.edit")
@@ -607,9 +645,9 @@ export function MailAccountsScreen({
                 available={imapAvailable}
                 busy={busy}
                 editing={editing ?? undefined}
-                onCancel={() => { setEditing(null); setFormOpen(false); }}
+                onCancel={() => { setEditing(null); setFormOpen(false); if (mailRun) void clearConnectQueue().then(onBack); }}
                 onSubmit={(v) => void submitImap(v)}
-                prefill={editing ? undefined : { user: runSecrets.email ?? runSecrets.user, pass: runSecrets.password }}
+                prefill={editing ? undefined : { user: accountEmail || runSecrets.email || runSecrets.user, pass: runSecrets.password }}
                 presetId={editing ? undefined : mailPreset?.presetId}
               />
             ) : (

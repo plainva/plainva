@@ -62,3 +62,14 @@
 8. 确认所请求的权限。
 
 现在，你的仓库已经通过你自己的凭据安全地与Google Drive同步了。
+
+<!-- accounts-tasks-2026-09-11 -->
+## Google OAuth — Desktop / Android / iOS
+
+以上桌面客户端步骤适用于桌面应用。移动端需要与设备匹配的注册：**iOS** 客户端使用 bundle ID `com.plainva.app`；**Android** 客户端使用包名 `com.plainva.app` 和已安装版本的 SHA-1 签名证书。移动客户端通常不需要客户端密钥。Plainva 的浏览器返回地址为 `com.plainva.app:/oauth2redirect`。Google 默认禁止新的 Android 客户端使用此返回方式。Google 文档说明的例外是在 Android 客户端的高级设置中明确启用自定义 URI；如果你的客户端没有此选项，就无法使用当前的浏览器流程。桌面客户端 ID 不能替代它。日历还需要启用 **Google Calendar API** 和 **Google Tasks API**。缺少权限时必须重新授权，仅有可用的 Drive 登录并不足够。
+
+[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+
+直接为相应账户添加文件、日历或邮箱。Plainva 会检查所选登录并请求缺少的权限。
+
+Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。

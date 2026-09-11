@@ -133,3 +133,14 @@ Daarna blijven ze gekoppeld, volgens drie vaste regels:
 * **Verwijder je de afspraak,** dan verdwijnt alleen de koppeling. De notitie en haar datum blijven onaangeroerd.
 
 Dit is iets anders dan **tijd blokkeren** bij een taak: daar reserveer je tijd voor iets, en de datum van de taak blijft staan. Hier zeg je: *dit item IS deze afspraak.*
+
+<!-- accounts-tasks-2026-09-11 -->
+## Instellen in duidelijke stappen
+
+Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.
+
+De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.
+
+Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbrekende dienst. Bestaande diensten blijven verbonden. Gmail houdt zijn eigen e-mailaanmelding of app-wachtwoord. Stoppen met de assistent verbreekt voltooide verbindingen niet. Een mobiele bestandsoverdracht behoudt de bronkluis en gebruikt een passende bestaande doelkluis of bereidt een aparte container voor. Botsende bestanden worden apart vergeleken en beide inhouden blijven behouden. Versleutelde bestemmingen worden via de bestaande koppeling geopend.
+
+[Google — Eigen app-registratie](Google_Drive_BYO_Guide.md)

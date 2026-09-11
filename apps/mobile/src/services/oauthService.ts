@@ -8,14 +8,17 @@ import {
   exchangeOneDriveCode,
   generatePkcePair,
 } from "@plainva/core";
-import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, toast } from "@plainva/ui";
+import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { connectProvider, createProviderVault, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
+import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
 import { beginAccountLogin } from "./accountLogin";
-import { getAccountToken } from "./accountBroker";
+import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
-import { getMobileVault } from "./vaultService";
+import { getMobileVault, switchVault } from "./vaultService";
+import type { ServiceConnectionContext } from "@plainva/ui";
+import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
+import { getActiveVaultEntry } from "./vaultRegistry";
 
 /**
  * Mobile OAuth (M3): the system browser (@capacitor/browser) replaces the
@@ -47,6 +50,7 @@ export const DRIVE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
 export type OAuthProviderId = "drive" | "onedrive" | "dropbox";
 
 export interface OAuthExtras {
+  serviceContext?: ServiceConnectionContext;
   clientId?: string;
   clientSecret?: string;
   /**
@@ -104,13 +108,10 @@ function randomState(): string {
 }
 
 async function persistPending(flow: PendingFlow | null): Promise<void> {
-  try {
     const creds = getPlatformServices().credentials;
     if (flow) await creds.writeSecret(PENDING_KEY, flow);
     else await creds.removeSecret(PENDING_KEY);
-  } catch {
-    /* the in-memory copy still serves this session */
-  }
+    if (JSON.stringify(await creds.readSecret(PENDING_KEY) ?? null) !== JSON.stringify(flow)) throw new Error("storageFailed");
 }
 
 async function loadPending(): Promise<PendingFlow | null> {
@@ -141,18 +142,81 @@ async function loadPending(): Promise<PendingFlow | null> {
 let pendingConnect: MobileSyncProvider | null = null;
 /** Create-mode companion of pendingConnect (restored from the persisted flow). */
 let pendingCreateTemplateId: string | null = null;
+let pendingServiceContext: ServiceConnectionContext | undefined;
+const FOLDER_KEY = "oauth_pending_folder";
+interface PendingFolder { provider: MobileSyncProvider; createTemplateId: string | null; context?: ServiceConnectionContext; createdAt: number }
+export function getPendingConnectContext(): ServiceConnectionContext | undefined { return pendingServiceContext; }
+
+/** Folder browsing can rotate a refresh token; persist that exact provider. */
+export async function persistPendingConnect(provider: MobileSyncProvider): Promise<void> {
+  await withAccountCredentialLock(FOLDER_KEY, async () => {
+    if (provider !== pendingConnect) return;
+    const credentials = getPlatformServices().credentials;
+    const previous = await credentials.readSecret<PendingFolder>(FOLDER_KEY);
+    if (!previous) return;
+    const next = { ...previous, provider };
+    await credentials.writeSecret(FOLDER_KEY, next);
+    if (JSON.stringify(await credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(next)) throw new Error("storageFailed");
+  });
+}
+
+export async function beginStoredFilesConnection(context: ServiceConnectionContext): Promise<boolean> {
+  if (!context.cloudAccountId) return false;
+  const record = (await loadCloudAccounts(context.vaultId)).find(r => r.id === context.cloudAccountId);
+  if (!record || (record.family !== "google" && record.family !== "microsoft")) return false;
+  const token = await getAccountToken(context.vaultId, record.id);
+  if (!token?.clientId || !tokenCoversService(token, "files", record.family)) return false;
+  try { await (await fileGrantProbe(context.vaultId, record.id, record.family, token)).getAccessToken(); } catch { return false; }
+  pendingConnect = record.family === "google" ? { provider: "drive", creds: { clientId: token.clientId, clientSecret: token.clientSecret, refreshToken: "" } } : { provider: "onedrive", creds: { clientId: token.clientId, refreshToken: "" } };
+  pendingCreateTemplateId = null; pendingServiceContext = context;
+  const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
+  await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
+  if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(saved)) throw new Error("storageFailed");
+  window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
+  return true;
+}
+export async function restorePendingConnect(): Promise<void> {
+  const saved = await getPlatformServices().credentials.readSecret<PendingFolder>(FOLDER_KEY);
+  if (!saved) return;
+  if (Date.now() - saved.createdAt < 0 || Date.now() - saved.createdAt > 24 * 60 * 60 * 1000) { await getPlatformServices().credentials.removeSecret(FOLDER_KEY); return; }
+  if (saved.context?.runId) {
+    const run = await loadConnectQueue();
+    if (!run || !outcomeBelongsToRun(run, saved.context, "files")) { await getPlatformServices().credentials.removeSecret(FOLDER_KEY); return; }
+  }
+  pendingConnect = saved.provider; pendingCreateTemplateId = saved.createTemplateId; pendingServiceContext = saved.context;
+  window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
+}
 
 export function getPendingConnect(): MobileSyncProvider | null {
   return pendingConnect;
+}
+
+/** Stable picker callbacks also checkpoint refresh-token rotation. */
+export async function listPendingConnectFolders(path: string) {
+  const provider = pendingConnect;
+  if (!provider) return [];
+  const folders = await listProviderFolders(provider, path, pendingServiceContext);
+  await persistPendingConnect(provider);
+  return folders;
+}
+export async function createPendingConnectFolder(path: string): Promise<void> {
+  const provider = pendingConnect;
+  if (!provider) return;
+  await createProviderFolder(provider, path, pendingServiceContext);
+  await persistPendingConnect(provider);
 }
 
 /** Bind the chosen cloud folder and create the (fresh, isolated) vault. */
 export async function finishConnect(rootFolder: string): Promise<void> {
   const p = pendingConnect;
   const createTemplateId = pendingCreateTemplateId;
-  pendingConnect = null;
-  pendingCreateTemplateId = null;
   if (!p) return;
+  const context = pendingServiceContext;
+  if (context?.runId) {
+    const run = await loadConnectQueue();
+    if (!run || !outcomeBelongsToRun(run, context, "files")) throw new Error("accountChanged");
+  }
+  if (context && (await getActiveVaultEntry()).id !== context.vaultId) await switchVault(context.vaultId);
   const folder = rootFolder.trim() || undefined;
   let withFolder: MobileSyncProvider;
   switch (p.provider) {
@@ -168,8 +232,14 @@ export async function finishConnect(rootFolder: string): Promise<void> {
     default:
       withFolder = p; // s3/webdav never reach the OAuth picker
   }
+  // Keep the provider used by the transfer as the durable picker object too:
+  // a token rotated during identity validation must survive a failed copy.
+  pendingConnect = withFolder;
+  await persistPendingConnect(withFolder);
   if (createTemplateId === null) {
-    await connectProvider(await getMobileVault(), withFolder);
+    await connectProvider(await getMobileVault(), withFolder, context);
+    const run = await loadConnectQueue();
+    if (!context?.runId || run?.outcomes.files?.state === "connected") cancelConnect();
     return;
   }
   // Create mode: scaffold the pre-picked template into the fresh container
@@ -180,12 +250,17 @@ export async function finishConnect(rootFolder: string): Promise<void> {
     vaultName: folder?.split("/").pop() || "Plainva",
     subfoldersHeading: i18n.t("indexMd.subfoldersHeading"),
   });
+  cancelConnect();
 }
 
 /** The user backed out of the folder pick — discard the token, create no vault. */
 export function cancelConnect(): void {
   pendingConnect = null;
   pendingCreateTemplateId = null;
+  pendingServiceContext = undefined;
+  void withAccountCredentialLock(FOLDER_KEY, async () => {
+    if (!pendingConnect) await getPlatformServices().credentials.removeSecret(FOLDER_KEY);
+  }).catch(error => toast.error(serviceConnectionMessage(error, i18n.t)));
 }
 
 /**
@@ -225,6 +300,7 @@ export async function reconnectVault(vaultId: string): Promise<void> {
 
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
+  extras = { ...extras, serviceContext: extras.serviceContext ?? await connectionContextFor("files") ?? { vaultId: (await getActiveVaultEntry()).id } };
   const pkce = await generatePkcePair();
   const state = randomState();
   pending = { provider, verifier: pkce.codeVerifier, state, extras, createdAt: Date.now() };
@@ -260,28 +336,37 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
   // EXACT redirect prefixes (P4.4): any app can register the same custom
   // scheme — only URLs matching one of OUR registered redirect URIs are
   // treated as OAuth at all; everything else is not our business.
-  if (!urlStr.startsWith(OAUTH_REDIRECT_URI) && !urlStr.startsWith(DRIVE_REDIRECT_URI)) return false;
+  const base = urlStr.split(/[?#]/)[0];
+  if (base !== OAUTH_REDIRECT_URI && base !== DRIVE_REDIRECT_URI) return false;
   const flow = await loadPending(); // module var OR secure store (cold start)
   void Browser.close().catch(() => {});
   const params = new URLSearchParams(urlStr.split("?")[1] ?? "");
   try {
     if (!flow) throw new Error("no OAuth flow pending");
+    if (params.get("state") !== flow.state) throw new Error("OAuth state mismatch");
     const error = params.get("error");
+    const code = params.get("code");
+    if (!code && !error) throw new Error("OAuth state mismatch");
+    const claimed = await withAccountCredentialLock(PENDING_KEY, async () => {
+      const stored = await getPlatformServices().credentials.readSecret<PendingFlow>(PENDING_KEY);
+      if (stored?.state !== flow.state) return false;
+      await persistPending(null);
+      return true;
+    });
+    if (!claimed) return true;
+    pending = null;
     if (error) {
       // The user explicitly denied — the transaction is over.
-      pending = null;
-      void persistPending(null);
-      throw new Error(params.get("error_description") || error);
+      await recordConnectOutcome(flow.extras.serviceContext, "files", { state: "cancelled" });
+      if (error === "access_denied") return true;
+      throw new Error(error);
     }
-    const code = params.get("code");
     if (!code || params.get("state") !== flow.state) {
       // A forged/garbled intent must NOT burn the real pending flow — the
       // genuine redirect may still arrive. Reject this delivery only.
       throw new Error("OAuth state mismatch");
     }
     // Validated — single use: consume the transaction BEFORE the exchange.
-    pending = null;
-    void persistPending(null);
 
     let mp: MobileSyncProvider;
     if (flow.provider === "dropbox") {
@@ -364,9 +449,14 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
     // token and let the React host browse the cloud folders, then finishConnect.
     pendingConnect = mp;
     pendingCreateTemplateId = flow.extras.createTemplateId ?? null;
+    pendingServiceContext = flow.extras.serviceContext;
+    const folderState: PendingFolder = { provider: mp, createTemplateId: pendingCreateTemplateId, context: pendingServiceContext, createdAt: Date.now() };
+    await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
+    if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(folderState)) throw new Error("storageFailed");
     window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
   } catch (e) {
-    toast.error(String(e instanceof Error ? e.message : e));
+    if (flow && params.get("state") === flow.state) await recordConnectOutcome(flow.extras.serviceContext, "files", { state: "failed", message: e instanceof Error ? e.message : String(e) }).catch(() => {});
+    toast.error(serviceConnectionMessage(e, i18n.t));
   }
   return true;
 }

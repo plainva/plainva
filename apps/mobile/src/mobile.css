@@ -61,7 +61,7 @@ body,
      instead (--pv-row-pad-x), which is the only other edge there is. */
   --m-edge: 14px;
   --m-bar-inset: 12px;
-  --m-bar-space: 92px;
+  --m-bar-space: calc(max(var(--touch-md), var(--space-8) + var(--space-1) + 1.4 * var(--text-xs)) + 2 * var(--space-2) + 2px + var(--m-bar-inset) + var(--space-2));
   /* What a surface reserves while the capture button floats over it. The
      button sits ABOVE the bar, so `--m-bar-space` (measured against the bar)
      stops short of it: on a page long enough to scroll that is invisible, but
@@ -69,7 +69,7 @@ body,
      outright — measured, the tasks page could not scroll at all and the last
      task's block-time button was unreachable. Constant for the same reason the
      bar's reservation is. */
-  --m-fab-space: 164px;
+  --m-fab-space: calc(var(--m-bar-space) + var(--touch-row) + var(--space-4));
 }
 
 body {
@@ -533,7 +533,7 @@ textarea {
   align-items: stretch;
   justify-content: space-around;
   background: var(--surface-container);
-  padding: var(--space-1);
+  padding: var(--space-2);
   /* A monotone curve, not the spatial spring: an overshoot here would carry
      the bar past its target and back, which on a shrinking bar reads as a
      wobble rather than as momentum (§ 3.8). */
@@ -567,13 +567,16 @@ textarea {
    Only the LABEL animates its height, so the touch targets never shrink below
    the density's minimum. Since the bar floats, none of this moves the page. */
 .m-tabbar.is-away {
-  padding-top: 0;
-  padding-bottom: 0;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 .m-tabbar.is-away .m-tab-label {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
+}
+.m-tabbar.is-away .m-tab {
+  gap: 0;
 }
 
 /* Adaptive shell (S13, M3 Canonical Layouts). From the medium class the bar
@@ -699,15 +702,17 @@ textarea {
   font-size: var(--text-xs);
   font-weight: 500;
   padding: 0 var(--space-1);
-  min-width: 56px;
+  min-width: var(--touch-md);
+  min-height: var(--touch-md);
 }
 
 .m-tab-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 30px;
+  width: var(--touch-row);
+  max-width: 100%;
+  height: var(--space-8);
   border-radius: var(--radius-pill);
   transition: background var(--dur-2) var(--ease-effects);
 }
@@ -1469,6 +1474,7 @@ textarea {
 
 .m-btnrow {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
   padding: 10px 8px 4px;
@@ -2883,6 +2889,18 @@ textarea {
   flex-direction: column;
   gap: var(--space-1);
 }
+/* Resolution labels name both effects and must remain readable at 320px. */
+.m-compare-actions .pv-btn,
+.m-btnrow .pv-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: var(--touch-md);
+}
+.m-compare .pv-segmented { display: flex; min-width: 0; }
+.m-compare .pv-seg-item { flex: 1 1 0; min-width: 0; white-space: normal; overflow-wrap: anywhere; padding-inline: var(--space-2); }
 /* Draft recovery banner (package G): compact strip above the editor. */
 .m-draftbanner {
   display: flex;
@@ -4626,3 +4644,10 @@ textarea {
     transition: none;
   }
 }
+
+/* Focused setup and a stationary comparison context share the sheet rhythm. */
+.m-connect-form { width: 100%; min-width: 0; }
+.m-connect-summary { margin: var(--space-2) 0; }
+.m-conflict-sheet { max-height: calc(100dvh - env(safe-area-inset-top) - var(--space-4)); overflow: hidden; }
+.m-conflict-sheet .pv-comparison-context { max-height: 38dvh; overflow: auto; }
+.m-conflict-sheet .m-conflict-body { flex: 1 1 auto; min-height: 0; overflow: auto; }

@@ -69,7 +69,8 @@ import { describe, expect, it } from "vitest";
 // services/sessionState, the boot's restore is `restoreSession` in
 // services/navActions, and the shell pays one import and one call. The
 // conflict store binding (P1) had already used the slack the notifier left.
-const APP_TSX_LINE_BUDGET = 795;
+// Connection-folder callbacks now live with their durable OAuth transaction.
+const APP_TSX_LINE_BUDGET = 793;
 
 describe("mobile app structure ratchet", () => {
   it(`App.tsx stays within its ${APP_TSX_LINE_BUDGET}-line budget`, () => {

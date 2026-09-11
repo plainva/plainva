@@ -24,8 +24,6 @@ Al renombrar o mover un archivo, su historial de versiones se traslada con él.
 Haz clic derecho en un archivo del árbol de archivos (o en su pestaña), o usa el menú **⋮** arriba a la derecha del editor → **Historial de versiones…** abre la lista de versiones — también para una nota en su propia ventana, justo ahí:
 
 - El lado izquierdo lista todos los snapshots agrupados por día, con hora y tamaño.
-- El lado derecho muestra una vista previa; para archivos de texto, **Comparar con la versión actual** muestra la versión seleccionada junto al contenido actual (la versión antigua a la izquierda, el estado actual a la derecha).
-- La vista de comparación se llama **Comparar versiones** y es la misma para versiones y para copias de conflicto: a la izquierda siempre está la nota, a la derecha la otra versión; los bloques iguales se pliegan y el pie cuenta las diferencias y las líneas que se añadirían o perderían. Con una copia de conflicto el lado derecho es editable y se puede fusionar línea a línea; cuatro salidas —**adoptar**, **conservar ambas**, **descartar copia**, **más tarde**— y cada una que descarta algo pregunta antes.
 - **Restaurar** reemplaza el contenido actual con la versión seleccionada. No te preocupes: el estado actual se guarda primero como un snapshot — así que una restauración siempre se puede deshacer.
 - **Restaurar como copia** crea la versión como un archivo nuevo junto al original (`Name (Version 2026-07-05 14-30).md`) sin tocarlo.
 
@@ -74,3 +72,21 @@ En móvil, si falla el guardado de una nota, se detiene el cambio, la recarga o 
 Una copia ZIP solo se considera correcta si se han podido leer todos los archivos seleccionados y guardar el archivo completo. Un intento fallido no elimina copias anteriores ni cambia la fecha de la última copia correcta. En móvil, los errores automáticos indican el vault; **Crear copia ahora** en sus ajustes permite reintentar. La configuración oculta del usuario, como `.obsidian`, se incluye en ambas plataformas. Se excluyen los directorios `.plainva`, `.git`, `.trash` y `node_modules` a cualquier profundidad. Si se crean varias copias en el mismo segundo, el nuevo nombre recibe un sufijo como `_001`.
 
 El guardado solo se indica como completado cuando se confirma la escritura. El texto introducido durante un guardado permanece pendiente hasta que se escribe su propia versión. Los borradores de escritorio pertenecen a su sesión del editor: finalizar una sesión anterior no elimina el borrador de un editor recién abierto. Si llegan cambios externos al mismo tiempo, Plainva combina los cambios compatibles; el texto en conflicto se conserva como borrador y como copia de conflicto.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Decidir con claridad al comparar archivos
+
+Se ven ambos nombres y ubicaciones. Antes de reemplazar, la confirmación indica origen y destino. Si un archivo cambia mientras tanto, se recarga la comparación.
+
+- **Reemplazar el archivo actual con la copia en conflicto**: Se sobrescribirá el contenido de este archivo: Archivo actual  El nuevo contenido proviene de: copia de conflicto  Después se eliminará la copia en conflicto.
+- **Conservar ambos archivos**: Este archivo no cambia: Archivo actual  La copia en conflicto se conserva como archivo independiente: copia de conflicto
+- **Eliminar la copia en conflicto**: Se eliminará esta copia en conflicto: copia de conflicto  Este archivo no cambia: Archivo actual
+- **Decidir más tarde**
+
+Estos archivos pertenecen a tareas diferentes. Las tareas recurrentes con el mismo título pueden ser instancias distintas. Ambos contenidos se conservan como tareas separadas.
+
+**Conservar como tareas separadas**
+
+Un archivo cambió desde que lo abriste. Se ha recargado la comparación. Revisa el contenido actual y elige de nuevo.
+
+Fusionar línea por línea es una herramienta del escritorio; aquí adoptas una versión completa o conservas ambas.

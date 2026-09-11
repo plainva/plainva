@@ -3322,3 +3322,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-sidecal-weeks { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); cursor: pointer; }
 /* The calendar tab keeps its title at a steady width, so the arrows beside it do not walk with the month name. */
 .pv-cal-title { min-width: 170px; }
+
+/* File comparison metadata uses GroupCard for its themed surfaces. */
+.pv-comparison-context { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); min-width: 0; flex-shrink: 0; overflow-wrap: anywhere; }
+.pv-comparison-files { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.pv-comparison-file { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2); font-size: var(--text-sm); overflow-wrap: anywhere; min-width: 0; }
+.pv-comparison-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pv-comparison-explainer { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-muted); font-size: var(--text-sm); }
+@media (max-width: 420px) { .pv-comparison-files { grid-template-columns: minmax(0, 1fr); } }

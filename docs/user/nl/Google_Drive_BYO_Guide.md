@@ -62,3 +62,14 @@ Om Plainva je credentials te laten gebruiken, moet een toestemmingsscherm ("OAut
 8. Bevestig de gevraagde machtigingen.
 
 Je vault synchroniseert nu veilig met Google Drive via je eigen credentials.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Google OAuth — Desktop / Android / iOS
+
+De bovenstaande instructies voor een desktopclient gelden voor de desktopapp. Mobiel vereist een registratie voor het apparaat: type **iOS** met bundle-ID `com.plainva.app`, of **Android** met pakketnaam `com.plainva.app` en het SHA-1-certificaat van de geïnstalleerde build. Mobiele clients hebben meestal geen clientgeheim nodig. Het browserretouradres van Plainva is `com.plainva.app:/oauth2redirect`. Google blokkeert deze methode standaard voor nieuwe Android-clients. De door Google beschreven uitzondering vereist dat je de aangepaste URI-methode expliciet inschakelt in de geavanceerde instellingen van de Android-client; als die optie voor jouw client ontbreekt, kan deze de huidige browserprocedure niet gebruiken. Een desktopclient-ID is geen vervanging. Schakel voor agenda’s ook **Google Calendar API** en **Google Tasks API** in. Ontbrekende rechten vereisen nieuwe toestemming; een bestaande Drive-aanmelding alleen is onvoldoende.
+
+[Google: OAuth 2.0](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android Custom URI](https://developers.googleblog.com/improving-user-safety-in-oauth-flows-through-new-oauth-custom-uri-scheme-restrictions/)
+
+Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.
+
+De Google-registratie past niet bij het terugkeerpad van dit apparaat. Controleer het clienttype en de mobiele instelling in de Google-handleiding.

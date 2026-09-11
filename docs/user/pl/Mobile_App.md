@@ -261,3 +261,14 @@ Wszystko inne o komentarzach i propozycjach — gdzie leżą pliki, co znaczy �
 **Powiadomienie przychodzi tu później niż na komputerze i jest to cecha, a nie usterka.** Plainva nie ma serwera, który mógłby trącić telefon — zbudowanie go oznaczałoby, że obcy serwer dowiaduje się, kto i kiedy skomentował którą notatkę. Uwaga zostaje więc zauważona tam, gdzie telefon i tak zagląda: po cyklu synchronizacji i przy powrocie na pierwszy plan. Nie działa w tym celu żaden licznik w tle; nie pozwala na to żadna platforma telefonu.
 
 Od wersji 0.8.2 mobilny ekran nowości wskazuje wspólne wydanie Plainva, niezależnie od natywnego numeru kompilacji. W iOS TestFlight może więc pokazywać wersję sklepową **1.0**, podczas gdy nowości opisują **0.8.2**. Każde nowe wydanie pojawia się raz; kolejna kompilacja wewnętrzna z tymi samymi nowościami ich nie powtarza. Nowa instalacja kończy wprowadzenie bez drugiego powitania. Przycisk bloga otwiera dostępne tłumaczenie w języku aplikacji, a jeśli go nie ma — wersję angielską.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Konfiguracja w jasnych krokach
+
+Asystent mobilny od razu otwiera właściwe połączenie. Po zalogowaniu wybierasz kalendarze i listy zadań oraz widzisz wynik.
+
+Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakującej usłudze. Istniejące usługi pozostają połączone. Gmail nadal używa własnego logowania poczty lub hasła aplikacji. Anulowanie asystenta nie odłącza ukończonych usług. Transfer mobilny zachowuje vault źródłowy i uwzględnia pasujący istniejący vault docelowy albo przygotowuje osobny kontener. Pliki kolidujące są porównywane osobno i obie zawartości zostają zachowane. Zaszyfrowane cele otwiera się przez istniejący proces parowania.
+
+### Więcej miejsca w nawigacji mobilnej
+
+Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku pozostają odpowiednio duże, a rezerwa miejsca dostosowuje się do rozmiaru tekstu.

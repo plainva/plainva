@@ -132,3 +132,8 @@ As regras do Gmail continuam sendo configuradas nas próprias configurações do
 **No telefone** você cria as regras do início ao fim: nas configurações de e-mail, toque em uma regra e ela aparece como **Se** e **Então** — cada condição e cada ação é uma linha, e tocar nela pergunta campo, comparação e valor em folhas próprias. Isso não é um formulário encolhido, de propósito: cinco controles lado a lado na largura de um telefone é como se digita uma regra errada. A última condição não pode ser removida — uma regra sem condição valeria para toda mensagem.
 
 **Salvar como nota** é a ação que nenhum programa de e-mail tem: a regra salva a mensagem como nota no seu cofre, com remetente, data e texto — a mesma captura do botão no leitor, só que automática. O mesmo e-mail duas vezes dá a **mesma** nota, e a mensagem continua na sua pasta: o que se salva é uma cópia, nada é movido. Uma regra com essa ação **sempre** fica local, mesmo em uma caixa que saberia executar regras. É proposital: salvar o resto da regra no provedor deixaria o servidor mover a mensagem antes de haver algo para salvar.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Ampliar contas existentes
+
+Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço que falta. Os serviços existentes continuam conectados. O Gmail mantém seu login de email ou senha de app. Cancelar o assistente não desconecta serviços concluídos. A transferência móvel mantém o vault de origem e considera um vault de destino correspondente ou prepara um contêiner separado. Os arquivos em colisão são comparados individualmente e os dois conteúdos são mantidos. Destinos criptografados são abertos pelo fluxo de pareamento existente.

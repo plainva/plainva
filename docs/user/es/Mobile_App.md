@@ -261,3 +261,14 @@ Todo lo demás sobre comentarios y sugerencias — dónde viven los archivos, qu
 **Aquí el mensaje llega más tarde que en el escritorio, y eso es una propiedad, no un fallo.** Plainva no tiene ningún servidor que pueda avisar a tu teléfono: construirlo significaría que un servidor ajeno sabría cuándo comentó quién qué nota. Por eso una anotación se detecta donde el teléfono mira de todos modos: tras un ciclo de sincronización y al volver al primer plano. Para ello no se ejecuta ningún temporizador en segundo plano; ninguna plataforma de teléfono lo permite.
 
 A partir de 0.8.2, las novedades móviles indican la versión compartida de Plainva, independientemente del número de compilación nativo. En iOS, TestFlight puede mostrar la versión comercial **1.0** mientras las novedades describen **0.8.2**. Cada nueva versión aparece una vez; otra compilación interna con las mismas novedades no las repite. Una instalación nueva termina la introducción sin una segunda bienvenida. El botón del blog abre la traducción disponible para el idioma de la app, o la versión inglesa si no existe.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Configuración con pasos claros
+
+El asistente móvil abre directamente la conexión adecuada. Después de iniciar sesión, elige calendarios y listas de tareas y consulta el resultado.
+
+Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el servicio que falta. Los servicios existentes siguen conectados. Gmail conserva su acceso de correo o contraseña de aplicación. Cancelar el asistente no desconecta servicios completados. La transferencia móvil conserva el vault de origen y considera un destino existente que coincida o prepara un contenedor separado. Los archivos en colisión se comparan individualmente y se conservan ambos contenidos. Los destinos cifrados se abren mediante el emparejamiento existente.
+
+### Más espacio en la navegación móvil
+
+El icono seleccionado mantiene su separación del borde en la barra compacta. Las zonas táctiles siguen siendo amplias y el espacio reservado se adapta al tamaño del texto.

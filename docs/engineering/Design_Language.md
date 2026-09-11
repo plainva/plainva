@@ -149,6 +149,14 @@ Rules:
 
 ## Theming duties (docking matrix)
 
+### Account setup, file comparison and compact navigation
+
+Account details render every supported service with an explicit action: open its settings, add it, or sign in again. Setup is a focused sequence: connection, resource selection, result. The selected account and destination vault remain visible. General calendar/reminder settings follow setup. Mobile hides the main navigation during the focused flow; Back and End setup remain available inside it. Error messages offer the next useful action without exposing credential implementation details.
+
+Conflict comparisons identify both files using wrapping vault-relative paths. The compact file context stays above the scrolling diff. Each side offers Copy path and Show in folder. Task comparisons show their human fields first; proven different identities offer Keep as separate tasks. Replacement explicitly names the direction and subsequent removal of the conflict copy, including both paths in confirmation. Desktop retains its editable merge surface. These arrangements use existing card, banner, button and sheet primitives and inherit their LCARS/Win95 docking.
+
+The mobile navigation capsule keeps `--space-2` of vertical padding even when labels disappear. Touch targets remain at least `--touch-md`; the selected pill uses `--space-8` height. Safe-area padding is external to the capsule, and content/FAB offsets include its full height. The tablet/desktop rail retains the same positive inset principle.
+
 Every top-level `pv-*` surface defined in ui.css must either carry LCARS **and** Win95 selectors or a justified entry in `designGuards.test.ts`'s `THEME_EXEMPT` map. The shared chip slots (`--chip-0..7`), graph knobs (`--graph-glow-intensity`, `--graph-edge-curvature`), `--edge-scrim` and the callout palette are part of a theme's contract — details and prohibitions in `Theme_Platform.md`.
 
 Mobile `m-*` surfaces carry a different duty, because their failure mode is a different one. Twelve of the fourteen themes are pure token overrides and name no selector at all; what put mobile out of their reach was never a missing docking rule but a **literal** — one hard colour or shadow recipe takes a surface out of every theme at once, and no theme file can win it back. So the rule for a mobile surface is: **paint through the shared tokens.** Docking into LCARS/Win95 on top stays a design decision, taken where their shape language (bevels, Okuda bars) genuinely differs from the default — as `.pv-card` and `.pv-sheet` do.

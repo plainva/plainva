@@ -2250,48 +2250,54 @@
   },
   "compare": {
     "title": "Versies vergelijken",
-    "conflictExplainer": "Deze notitie is op twee plekken tegelijk gewijzigd. Plainva heeft beide versies bewaard — er is niets verloren.",
-    "sideLeft": "Links · in de notitie",
+    "conflictExplainer": "Er bestaan twee verschillende inhouden voor dit bestand. Beide bestanden staan hieronder. Vergelijk ze voordat je kiest.",
     "sideRight": "Rechts · {{what}}",
     "conflictCopy": "conflictkopie",
     "savedVersion": "opgeslagen versie",
     "currentState": "Huidige stand",
-    "cameViaSync": "Via de synchronisatie binnengekomen",
-    "yourVersionKept": "Jouw versie van dit apparaat, bewaard {{when}}",
     "sizeLines": "{{size}} · {{lines}} regels",
     "stats": "{{hunks}} verschillen · {{same}} regels gelijk",
     "identical": "Beide versies zijn identiek.",
-    "costAdopt": "Als je de kopie overneemt: +{{added}} regels komen erbij, −{{removed}} gaan verloren.",
+    "costAdopt": "Bij vervanging van het huidige bestand: +{{added}} regels toegevoegd, −{{removed}} regels verwijderd.",
     "costMerge": "Jouw samenvoeging: de notitie krijgt de rechterkant zoals jij die hebt bewerkt.",
     "costRestore": "Als je deze versie herstelt: +{{added}} regels komen terug, −{{removed}} gaan verloren.",
     "mergeHint": "Haal losse blokken over met de pijlen tussen de kanten — de notitie wordt één keer geschreven, bij het toepassen.",
     "tooLarge": "Deze notitie is te groot voor een regelvergelijking op de telefoon. Je kunt beide versies apart bekijken of op de computer vergelijken.",
     "mergeOnlyDesktop": "Regel voor regel samenvoegen is een hulpmiddel voor de computer; hier neem je één versie helemaal over of houd je beide.",
     "later": "Later beslissen",
-    "keepBoth": "Beide behouden",
-    "discardCopy": "Kopie verwerpen",
-    "adoptCopy": "Versie van de kopie overnemen",
+    "keepBoth": "Beide bestanden behouden",
+    "discardCopy": "Conflictkopie verwijderen",
+    "adoptCopy": "Huidig bestand vervangen door conflictkopie",
     "applyMerge": "Samenvoeging toepassen",
-    "adoptTitle": "Versie van de kopie overnemen?",
-    "adoptMsg": "De notitie bevat daarna de versie van {{other}}. De huidige inhoud van {{current}} wordt vervangen — die blijft in de versiegeschiedenis.",
+    "adoptTitle": "Huidig bestand vervangen?",
     "mergeTitle": "Samenvoeging toepassen?",
     "mergeMsg": "De notitie krijgt de rechterkant zoals jij die hebt bewerkt. De huidige inhoud van {{current}} blijft in de versiegeschiedenis.",
-    "keepBothTitle": "Beide versies behouden?",
-    "keepBothMsg": "De notitie blijft zoals hij is. De kopie wordt ernaast gelegd als:\n{{name}}\nHet conflict geldt daarmee als opgelost.",
-    "discardTitle": "Kopie verwerpen?",
-    "discardMsg": "De kopie van {{other}} wordt verwijderd; de notitie houdt de huidige inhoud. Een momentopname van de kopie blijft in de versiegeschiedenis.",
+    "keepBothTitle": "Beide bestanden behouden?",
+    "discardTitle": "Conflictkopie verwijderen?",
     "restoreThis": "Deze versie herstellen",
     "copyTitle": "Kopie maken?",
     "copyMsg": "De versie van {{when}} wordt naast de notitie gelegd als:\n{{name}}",
-    "resolvedAdopted": "De versie van de kopie staat nu in de notitie.",
+    "resolvedAdopted": "Huidig bestand vervangen en conflictkopie verwijderd.",
     "resolvedMerged": "Samenvoeging toegepast.",
     "resolvedKeptBoth": "Beide versies behouden: {{name}}",
-    "resolvedDiscarded": "Kopie verworpen.",
+    "resolvedDiscarded": "Conflictkopie verwijderd. Huidig bestand ongewijzigd.",
     "tabDiff": "Verschillen",
     "tabNote": "In de notitie",
-    "tabOther": "Andere versie",
     "sameLines": "{{n}} identieke regels",
-    "showLines": "Tonen"
+    "showLines": "Tonen",
+    "currentFile": "Huidig bestand",
+    "taskList": "Takenlijst",
+    "revealFolder": "Map openen",
+    "binaryFile": "Binair bestand · {{size}} bytes",
+    "replaceConfirm": "Bestand vervangen en conflictkopie verwijderen",
+    "replaceMessage": "De inhoud van dit bestand wordt overschreven:\n{{target}}\n\nDe nieuwe inhoud komt uit:\n{{source}}\n\nDaarna wordt de conflictkopie verwijderd.",
+    "replaceHint": "“{{name}}” krijgt de inhoud van de conflictkopie. Daarna wordt de conflictkopie verwijderd.",
+    "keepBothPaths": "Dit bestand blijft ongewijzigd:\n{{original}}\n\nDe conflictkopie blijft bewaard als apart bestand:\n{{copy}}",
+    "discardPaths": "Deze conflictkopie wordt verwijderd:\n{{source}}\n\nDit bestand blijft ongewijzigd:\n{{target}}",
+    "differentTasks": "Twee verschillende taken",
+    "differentTasksHint": "Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.",
+    "keepSeparateTasks": "Als aparte taken behouden",
+    "comparisonChanged": "Een bestand is gewijzigd sinds het openen. De vergelijking is opnieuw geladen. Controleer de huidige inhoud en kies opnieuw."
   },
   "conflict": {
     "resolveFailed": "Conflict kon niet worden opgelost: {{error}}",
@@ -2325,7 +2331,6 @@
     "s3SecretAccessKey": "Secret Access Key",
     "s3Prefix": "Prefix (optioneel)",
     "syncClientId": "Client-ID",
-    "syncClientSecret": "Client-secret (optioneel)",
     "syncOwnAppKey": "Eigen app-sleutel (optioneel)",
     "syncOwnClientId": "Eigen client-ID (optioneel)",
     "syncOwnAppIdHint": "Laat leeg om Plainva's centrale app-registratie te gebruiken. Een eigen app omzeilt de gebruikerslimiet daarvan.",
@@ -2854,7 +2859,6 @@
     "noAccountsMobile": "Nog geen agenda-accounts verbonden.",
     "perDeviceHint": "Aanmeldingen gelden per apparaat: uit veiligheidsoverwegingen worden inloggegevens nooit gesynchroniseerd — meld je op elk apparaat één keer aan.",
     "connectAccount": "Account verbinden",
-    "connectGoogle": "Verbinden met Google",
     "connectMicrosoft": "Verbinden met Microsoft",
     "accounts": "Agenda-accounts",
     "accountAdded": "Account verbonden",
@@ -3820,23 +3824,83 @@
       "grant": "Toekenning"
     },
     "quarantineReason": {
-      "binding": { "title": "Een artefact hoort bij een andere workspace", "explain": "{{kind}}: het bestand noemt een andere workspace-id dan deze vault. Het komt uit een andere versleutelde vault of is in de verkeerde cloudmap gezet." },
-      "pathHash": { "title": "Een artefact past niet bij zijn bestandsnaam", "explain": "{{kind}}: de bestandsnaam draagt een controlesom die niet bij de inhoud past. Het bestand is onderweg hernoemd of gewijzigd." },
-      "signature": { "title": "Een handtekening is ongeldig", "explain": "{{kind}}: de handtekening van het apparaat dat het bestand schreef, kan niet worden bevestigd. Of de inhoud is gewijzigd, of de sleutel van het apparaat is niet de verwachte." },
-      "policyChain": { "title": "Regels die niet aansluiten op de geaccepteerde", "explain": "Een regelversie bouwt niet voort op de keten die dit apparaat heeft geaccepteerd. Ze komt uit een afgesplitste stand en wordt niet overgenomen." },
-      "policyUnaccepted": { "title": "Wijzigingen gebruiken regels die dit apparaat nog niet heeft geaccepteerd", "explain": "{{device}} heeft geschreven met regelversie {{policy}}; hier is {{accepted}} geaccepteerd. Meestal een nieuw lid of een regelwijziging die dit apparaat nog niet heeft bereikt.", "hint": "Na de volgende verversing van de regels lost dit zich meestal vanzelf op — “Opnieuw controleren” zet precies die verversing in gang. Blijft het, kijk dan onder “Apparaten” of {{device}} nog bij de workspace hoort." },
-      "authorNotActive": { "title": "Wijzigingen van een apparaat dat niet meer actief is", "explain": "{{device}} staat in de regels niet meer als actief apparaat. Zijn wijzigingen worden niet overgenomen.", "hint": "Was het apparaat uitgesloten, dan klopt dit. Moet het weer meeschrijven, koppel het dan opnieuw onder “Apparaten”." },
-      "postRevocation": { "title": "Wijzigingen van een apparaat na de intrekking", "explain": "{{device}} heeft de toegang verloren. Deze wijzigingen liggen voorbij het punt dat een bevoegd apparaat er als laatste voor bevestigde — ze worden niet overgenomen.", "hint": "Dit is de normale uitkomst van een intrekking en vraagt niets. Negeer de groep als de intrekking bedoeld was. Moet het apparaat weer schrijven, koppel het dan opnieuw onder “Apparaten”." },
-      "capability": { "title": "Een wijziging die het apparaat niet mocht maken", "explain": "{{device}} heeft iets geschreven waartoe zijn rol niet bevoegd is. De wijziging blijft buiten.", "hint": "Moet het apparaat dit mogen, wijzig dan zijn rol onder “Personen en rechten” en controleer opnieuw." },
-      "missingParents": { "title": "Wijzigingen waarvan de voorgangers ontbreken", "explain": "Deze wijzigingen bouwen voort op versies die dit apparaat niet kent. De voorgangers zijn nog niet aangekomen of staan niet meer in de cloud.", "hint": "Meestal volstaat wachten en “Opnieuw controleren” — de voorgangers komen met de volgende verversing. Ontbreken ze blijvend, dan heeft een apparaat ze nooit geüpload." },
-      "chainGap": { "title": "Wijzigingen van een apparaat wachten: de keten is onderbroken", "explain": "Dit apparaat verwacht van {{device}} wijziging nr. {{expected}}; in de cloud staat nr. {{found}}. Wat daartussen ontbreekt of vervangen is, blokkeert alles erna — de groep omvat {{count}} wijzigingen.", "hint": "Meestal zit er een tweede stand van hetzelfde apparaat achter — bijvoorbeeld een ontwikkelinstantie met eigen opslag — of een apparaat dat opnieuw is verbonden en weer vanaf 1 telt. Laat {{device}} één keer synchroniseren en controleer hier opnieuw. Negeer je de groep, dan gaan deze wijzigingen verloren." },
-      "chainBlocked": { "title": "Wacht achter een gat", "explain": "Deze wijziging is in orde, maar staat achter een gat in de keten van zijn apparaat. Ze wordt overgenomen zodra het gat gedicht is." },
-      "payloadMissing": { "title": "De inhoud van een wijziging ontbreekt in de cloud", "explain": "De wijziging verwijst naar een object dat niet in de cloud staat of gewijzigd is. De upload is onvolledig of van buitenaf aangeraakt.", "hint": "Laat het apparaat dat de wijziging schreef nog een keer synchroniseren; het uploadt het ontbrekende object opnieuw. Daarna “Opnieuw controleren”." },
-      "envelope": { "title": "Een versleuteld object past niet bij zijn wijziging", "explain": "De versleutelde envelop noemt een andere workspace, een ander object of een andere versie dan de wijziging beweert. Het paar wordt niet overgenomen." },
-      "rollback": { "title": "Een apparaat meldt een oudere stand dan bekend", "explain": "De wijzer van {{device}} in de cloud staat achter op wat dit apparaat al heeft gezien. Een sprong terug wordt niet overgenomen — het lijkt op een teruggedraaide cloud." },
-      "checkpointMissing": { "title": "Een controlepunt ontbreekt in de cloud", "explain": "Een apparaat verwijst naar een controlepunt dat niet in de cloud staat of gewijzigd is." },
-      "unreadable": { "title": "Een bestand kan niet worden gelezen", "explain": "{{kind}}: het bestand is geen geldig Plainva-artefact — beschadigd, afgekapt of geschreven door een nieuwere app-versie.", "hint": "Is Plainva op een ander apparaat nieuwer, werk dit apparaat dan bij. Exporteer anders de diagnose; die helpt bij het onderzoek." },
-      "unknown": { "title": "Een controle is mislukt", "explain": "{{kind}}: {{reason}}", "hint": "Exporteer de diagnose en controleer opnieuw. Verandert er niets, dan helpt de export bij het onderzoek." }
+      "binding": {
+        "title": "Een artefact hoort bij een andere workspace",
+        "explain": "{{kind}}: het bestand noemt een andere workspace-id dan deze vault. Het komt uit een andere versleutelde vault of is in de verkeerde cloudmap gezet."
+      },
+      "pathHash": {
+        "title": "Een artefact past niet bij zijn bestandsnaam",
+        "explain": "{{kind}}: de bestandsnaam draagt een controlesom die niet bij de inhoud past. Het bestand is onderweg hernoemd of gewijzigd."
+      },
+      "signature": {
+        "title": "Een handtekening is ongeldig",
+        "explain": "{{kind}}: de handtekening van het apparaat dat het bestand schreef, kan niet worden bevestigd. Of de inhoud is gewijzigd, of de sleutel van het apparaat is niet de verwachte."
+      },
+      "policyChain": {
+        "title": "Regels die niet aansluiten op de geaccepteerde",
+        "explain": "Een regelversie bouwt niet voort op de keten die dit apparaat heeft geaccepteerd. Ze komt uit een afgesplitste stand en wordt niet overgenomen."
+      },
+      "policyUnaccepted": {
+        "title": "Wijzigingen gebruiken regels die dit apparaat nog niet heeft geaccepteerd",
+        "explain": "{{device}} heeft geschreven met regelversie {{policy}}; hier is {{accepted}} geaccepteerd. Meestal een nieuw lid of een regelwijziging die dit apparaat nog niet heeft bereikt.",
+        "hint": "Na de volgende verversing van de regels lost dit zich meestal vanzelf op — “Opnieuw controleren” zet precies die verversing in gang. Blijft het, kijk dan onder “Apparaten” of {{device}} nog bij de workspace hoort."
+      },
+      "authorNotActive": {
+        "title": "Wijzigingen van een apparaat dat niet meer actief is",
+        "explain": "{{device}} staat in de regels niet meer als actief apparaat. Zijn wijzigingen worden niet overgenomen.",
+        "hint": "Was het apparaat uitgesloten, dan klopt dit. Moet het weer meeschrijven, koppel het dan opnieuw onder “Apparaten”."
+      },
+      "postRevocation": {
+        "title": "Wijzigingen van een apparaat na de intrekking",
+        "explain": "{{device}} heeft de toegang verloren. Deze wijzigingen liggen voorbij het punt dat een bevoegd apparaat er als laatste voor bevestigde — ze worden niet overgenomen.",
+        "hint": "Dit is de normale uitkomst van een intrekking en vraagt niets. Negeer de groep als de intrekking bedoeld was. Moet het apparaat weer schrijven, koppel het dan opnieuw onder “Apparaten”."
+      },
+      "capability": {
+        "title": "Een wijziging die het apparaat niet mocht maken",
+        "explain": "{{device}} heeft iets geschreven waartoe zijn rol niet bevoegd is. De wijziging blijft buiten.",
+        "hint": "Moet het apparaat dit mogen, wijzig dan zijn rol onder “Personen en rechten” en controleer opnieuw."
+      },
+      "missingParents": {
+        "title": "Wijzigingen waarvan de voorgangers ontbreken",
+        "explain": "Deze wijzigingen bouwen voort op versies die dit apparaat niet kent. De voorgangers zijn nog niet aangekomen of staan niet meer in de cloud.",
+        "hint": "Meestal volstaat wachten en “Opnieuw controleren” — de voorgangers komen met de volgende verversing. Ontbreken ze blijvend, dan heeft een apparaat ze nooit geüpload."
+      },
+      "chainGap": {
+        "title": "Wijzigingen van een apparaat wachten: de keten is onderbroken",
+        "explain": "Dit apparaat verwacht van {{device}} wijziging nr. {{expected}}; in de cloud staat nr. {{found}}. Wat daartussen ontbreekt of vervangen is, blokkeert alles erna — de groep omvat {{count}} wijzigingen.",
+        "hint": "Meestal zit er een tweede stand van hetzelfde apparaat achter — bijvoorbeeld een ontwikkelinstantie met eigen opslag — of een apparaat dat opnieuw is verbonden en weer vanaf 1 telt. Laat {{device}} één keer synchroniseren en controleer hier opnieuw. Negeer je de groep, dan gaan deze wijzigingen verloren."
+      },
+      "chainBlocked": {
+        "title": "Wacht achter een gat",
+        "explain": "Deze wijziging is in orde, maar staat achter een gat in de keten van zijn apparaat. Ze wordt overgenomen zodra het gat gedicht is."
+      },
+      "payloadMissing": {
+        "title": "De inhoud van een wijziging ontbreekt in de cloud",
+        "explain": "De wijziging verwijst naar een object dat niet in de cloud staat of gewijzigd is. De upload is onvolledig of van buitenaf aangeraakt.",
+        "hint": "Laat het apparaat dat de wijziging schreef nog een keer synchroniseren; het uploadt het ontbrekende object opnieuw. Daarna “Opnieuw controleren”."
+      },
+      "envelope": {
+        "title": "Een versleuteld object past niet bij zijn wijziging",
+        "explain": "De versleutelde envelop noemt een andere workspace, een ander object of een andere versie dan de wijziging beweert. Het paar wordt niet overgenomen."
+      },
+      "rollback": {
+        "title": "Een apparaat meldt een oudere stand dan bekend",
+        "explain": "De wijzer van {{device}} in de cloud staat achter op wat dit apparaat al heeft gezien. Een sprong terug wordt niet overgenomen — het lijkt op een teruggedraaide cloud."
+      },
+      "checkpointMissing": {
+        "title": "Een controlepunt ontbreekt in de cloud",
+        "explain": "Een apparaat verwijst naar een controlepunt dat niet in de cloud staat of gewijzigd is."
+      },
+      "unreadable": {
+        "title": "Een bestand kan niet worden gelezen",
+        "explain": "{{kind}}: het bestand is geen geldig Plainva-artefact — beschadigd, afgekapt of geschreven door een nieuwere app-versie.",
+        "hint": "Is Plainva op een ander apparaat nieuwer, werk dit apparaat dan bij. Exporteer anders de diagnose; die helpt bij het onderzoek."
+      },
+      "unknown": {
+        "title": "Een controle is mislukt",
+        "explain": "{{kind}}: {{reason}}",
+        "hint": "Exporteer de diagnose en controleer opnieuw. Verandert er niets, dan helpt de export bij het onderzoek."
+      }
     },
     "quarantineFilterOpen": "Open · {{n}}",
     "quarantineFilterAll": "Alle · {{n}}",
@@ -3862,7 +3926,6 @@
     "quarantineForks": "Lokale forks",
     "forkCompare": "Vergelijken",
     "forkOpen": "Fork openen",
-    "forkCompare": "Vergelijken",
     "forkReason": {
       "permission-denied": "Schrijven was niet toegestaan — de wijziging ligt ernaast als kopie.",
       "parallel-write": "Tegelijk geschreven — beide versies liggen naast elkaar.",
@@ -4009,18 +4072,18 @@
     "title": "Wat is er nieuw in Plainva {{version}}",
     "lead": "Grootste vernieuwing",
     "experimental": "Experimenteel",
-    "highlight1Title": "Meer bescherming voor je wijzigingen",
-    "highlight1": "Mislukte overdrachten blijven in behandeling. Onvolledige serverlijsten leiden niet tot verwijderingen en bij hernoemen blijven je nog niet gesynchroniseerde wijzigingen bewaard.",
-    "highlight2Title": "Opmerkingen blijven bij de notitie",
-    "highlight2": "Opmerkingen en suggesties werken in elke Vault. Ze volgen verplaatste notities en onderbroken beslissingen over suggesties kunnen worden hervat.",
-    "highlight3Title": "Meteen naar de juiste passage",
-    "highlight3": "Ankerlinks springen naar koppen. Backlinks tonen hun afzonderlijke vindplaatsen en bij het koppelen van een notitie worden de koppen voorgesteld.",
-    "highlight4Title": "Sneller door je agenda",
-    "highlight4": "Selecteer de agendatitel om naar een datum te springen. Veeg op je telefoon of gebruik een trackpadgebaar op de desktop om te bladeren.",
-    "highlight5Title": "Accounts betrouwbaarder verbinden",
-    "highlight5": "Opnieuw aanmelden bij Google behoudt je Gmail-appwachtwoord. Aanmeldingen blijven bij de juiste Vault en onderbroken wachtwoordwijzigingen kunnen worden hervat.",
-    "highlight6Title": "Verder waar je gebleven was",
-    "highlight6": "Je mobiele sessie keert terug na een herstart. Obsidian-afbeeldingen, dagelijkse notities en Alles selecteren werken betrouwbaarder op desktop en mobiel.",
+    "highlight1Title": "Bestaande accounts uitbreiden",
+    "highlight1": "Voeg bestanden, agenda of e-mail direct toe aan het juiste account. Plainva controleert de gekozen aanmelding en vraagt ontbrekende rechten aan.",
+    "highlight2Title": "Instellen in duidelijke stappen",
+    "highlight2": "De mobiele assistent opent direct de juiste verbinding. Na het aanmelden kies je agenda’s en takenlijsten en zie je het resultaat.",
+    "highlight3Title": "Bestanden overnemen met voorbeeld",
+    "highlight3": "Bij het toevoegen van bestanden op mobiel toont Plainva eerst de bron, bestemming en botsingen. Bestaande inhoud en diensten blijven behouden; een onderbroken overdracht kan opnieuw worden geprobeerd.",
+    "highlight4Title": "Taken met dezelfde titel apart houden",
+    "highlight4": "Taken van de aanbieder worden op identiteit gekoppeld. Afzonderlijke herhalingen krijgen eigen bestanden. Bestaande onterechte conflicten kunnen als aparte taken bewaard worden.",
+    "highlight5Title": "Duidelijk kiezen bij bestandsvergelijking",
+    "highlight5": "Beide bestandsnamen en locaties zijn zichtbaar. Voor vervanging noemt de bevestiging bron en bestemming. Wijzigt een bestand intussen, dan wordt de vergelijking opnieuw geladen.",
+    "highlight6Title": "Meer ruimte in de mobiele navigatie",
+    "highlight6": "Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanraakvlakken blijven groot genoeg en de gereserveerde ruimte past zich aan de tekstgrootte aan.",
     "readBlog": "Lees het blogbericht",
     "understand": "Begrepen"
   },
@@ -4248,5 +4311,36 @@
     "titleMany_other": "{{count}} nieuwe opmerkingen",
     "inNotes_one": "in {{count}} notitie",
     "inNotes_other": "in {{count}} notities"
+  },
+  "connection": {
+    "connected": "Verbonden",
+    "notConnected": "Nog niet verbonden",
+    "addService": "Toevoegen",
+    "calendarTitle": "Agenda toevoegen",
+    "mailTitle": "E-mail toevoegen",
+    "selectResources": "Kies agenda’s en takenlijsten",
+    "useSignIn": "Bestaande aanmelding gebruiken",
+    "grantGoogle": "Toestemming geven via Google",
+    "ownRegistration": "Eigen app-registratie",
+    "loginFailed": "De verbinding kon niet worden voltooid. Je invoer blijft behouden. Probeer het opnieuw.",
+    "accountChanged": "Het doelaccount of de vault is gewijzigd. Open het gewenste account opnieuw.",
+    "wrongAccount": "Je hebt je bij een ander account aangemeld. Kies bij het opnieuw aanmelden het getoonde account.",
+    "needsConsent": "Voor deze dienst is nieuwe toestemming nodig. Meld je opnieuw aan en sta de gevraagde toegang toe.",
+    "identityUnavailable": "De identiteit van het account kon niet worden bevestigd. Meld je opnieuw aan bij de aanbieder.",
+    "storageFailed": "Het opslaan kon niet worden bevestigd. Probeer het opnieuw; de wizard hervat dezelfde verbinding.",
+    "transferTitle": "Bestanden en accounts overnemen",
+    "transferSummary": "{{source}} → {{target}}. {{local}} lokale bestanden, {{remote}} cloudbestanden, {{conflicts}} botsingen. De bronvault blijft behouden. Agenda’s en e-mail worden in de doelvault ingesteld.",
+    "transferCopy": "Lokaal bestand als afzonderlijke kopie",
+    "transferKeepHint": "Controleer beide inhouden. “Beide bestanden bewaren” bewaart het lokale bestand op het getoonde nieuwe pad.",
+    "reviewCollisions": "Botsingen vergelijken",
+    "startTransfer": "Overname starten",
+    "transferChanged": "Bestanden of het doel zijn sinds de voorvertoning gewijzigd. Start opnieuw en controleer de bijgewerkte voorvertoning.",
+    "transferAccountCollision": "Het doel heeft een andere accountkoppeling. Open daar de accountinstellingen en los de koppeling op vóór de overname.",
+    "transferInventoryFailed": "De opslaglocatie kon niet volledig worden gelezen. Controleer de verbinding en toegangsrechten en probeer het opnieuw.",
+    "transferPairRequired": "Deze cloudmap is versleuteld. Open de bestaande vault via “Beveiliging en delen” en koppel dit apparaat voordat je inhoud toevoegt.",
+    "clipboardFailed": "Het pad kon niet worden gekopieerd. Selecteer en kopieer het in de bestandsdetails.",
+    "retrySaved": "Verbinding voltooien",
+    "clientSecret": "Clientgeheim (indien beschikbaar)",
+    "googleClientUnsupported": "De Google-registratie past niet bij het terugkeerpad van dit apparaat. Controleer het clienttype en de mobiele instelling in de Google-handleiding."
   }
 }

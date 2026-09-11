@@ -110,7 +110,7 @@ const BUDGET: Record<string, Counts> = {
    * The one z literal is the .m-header local stack (bars above scrolling
    * content, documented inline).
    */
-  "mobile.css": { zIndexRaw: 1, spacingRaw: 80, gapRaw: 35, sizeRaw: 62 },
+  "mobile.css": { zIndexRaw: 1, spacingRaw: 80, gapRaw: 35, sizeRaw: 59 },
   // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
   // square a camera has to resolve, and 232 fills the phone's sheet. The
   // iconLiteral rule cannot tell the two apart by shape (S7).
@@ -2815,20 +2815,14 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
    * three account-changed events instead — and it has to listen for all three,
    * or one service silently ends the run.
    */
-  it("advances the run outside the screens, on all three account-changed events", () => {
+  it("advances the run outside screens through saved service outcomes", () => {
     const hook = stripComments(readFileSync(join(SRC, "hooks/useConnectRun.ts"), "utf8"));
     const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
     expect(app, "the shell must run the hook").toMatch(/useConnectRun\(setNav\)/);
     expect(hook, "the run advances through the queue").toMatch(/advanceOnAccountsChanged/);
-    // All three, or one service silently ends the run.
-    for (const [event, service] of [
-      ['"m-vault-switched"', "files"],
-      ['"m-pim-changed"', "calendar"],
-      ["MAIL_CHANGED_EVENT", "mail"],
-    ] as const) {
-      expect(hook, `${service} must advance the run`).toMatch(new RegExp(`addEventListener\\(${event}, on`));
-      expect(hook, `${service} must be named as what was connected`).toMatch(new RegExp(`advance\\("${service}"\\)`));
-    }
+    expect(hook).toContain("addEventListener(CONNECT_RUN_EVENT");
+    expect(hook).toContain('addEventListener("m-vault-switched"');
+    expect(hook).not.toContain("MAIL_CHANGED_EVENT");
   });
 
   /**
@@ -2848,8 +2842,8 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
     // consent page — redeeming with the default would silently narrow again.
     expect(oauth, "the exchange must redeem the same scope").toMatch(/flow\.extras\.scope/);
 
-    const hook = stripComments(readFileSync(join(SRC, "hooks/useConnectRun.ts"), "utf8"));
-    expect(hook, "the run must bind its token to the account").toMatch(/bindRunTokenToAccount\(/);
+    const transfer = stripComments(readFileSync(join(SRC, "services/accountVaultTransfer.ts"), "utf8"));
+    expect(transfer, "the prepared destination must bind its token before activation").toMatch(/bindRunTokenToAccount\(/);
 
     const pim = stripComments(readFileSync(join(SRC, "screens/PimAccountsScreen.tsx"), "utf8"));
     expect(pim, "a covered calendar must connect without a second consent").toMatch(/addViaAccountToken\(/);
@@ -2859,7 +2853,7 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   it("shows the run's progress on every surface it opens", () => {
     for (const file of ["AddVaultScreen.tsx", "screens/PimAccountsScreen.tsx", "screens/MailAccountsScreen.tsx"]) {
       const src = stripComments(readFileSync(join(SRC, file), "utf8"));
-      expect(src, `${file} must say where the run stands`).toMatch(/<ConnectRunBanner service="(files|calendar|mail)" \/>/);
+      expect(src, `${file} must say where the run stands`).toMatch(/<ConnectRunBanner service="(files|calendar|mail)"[\s\S]*?\/>/);
     }
   });
 

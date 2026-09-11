@@ -24,8 +24,6 @@ Wanneer je een bestand hernoemt of verplaatst, verhuist de versiegeschiedenis me
 Rechtsklik op een bestand in de bestandsboom (of op het bijbehorende tabblad), of gebruik het **⋮**-menu rechtsboven in de editor → **Versiegeschiedenis…** opent de versielijst — ook voor een notitie in haar eigen venster, daar zelf:
 
 - Aan de linkerkant staan alle snapshots gegroepeerd per dag, met tijd en grootte.
-- Aan de rechterkant zie je een voorbeeld; bij tekstbestanden toont **Vergelijken met huidige versie** de gekozen versie naast de huidige inhoud (oude versie links, huidige staat rechts).
-- Het vergelijkingsscherm heet **Versies vergelijken** en is hetzelfde voor versies en voor conflictkopieën: links staat altijd de notitie, rechts de andere versie; gelijke blokken zijn ingeklapt, de voettekst telt verschillen en regels die erbij komen of verloren gaan. Bij een conflictkopie is de rechterkant bewerkbaar en regel voor regel samen te voegen; vier uitgangen — **overnemen**, **beide bewaren**, **kopie verwerpen**, **later** — en elke die iets verwerpt, vraagt eerst.
 - **Herstellen** vervangt de huidige inhoud door de gekozen versie. Geen zorgen: de huidige staat wordt zelf eerst als snapshot opgeslagen — een herstelactie kan dus altijd ongedaan worden gemaakt.
 - **Als kopie herstellen** maakt de versie aan als nieuw bestand naast het origineel (`Name (Version 2026-07-05 14-30).md`) zonder dat bestand aan te raken.
 
@@ -74,3 +72,21 @@ Op mobiel stopt een mislukte notitieopslag het wisselen, opnieuw laden of verwij
 Een ZIP-back-up telt pas als geslaagd wanneer alle geselecteerde bestanden leesbaar waren en het volledige archief is opgeslagen. Een mislukte poging verwijdert geen eerdere archieven en verandert het tijdstip van de laatste geslaagde back-up niet. Op mobiel noemt een automatische fout de vault; **Nu back-up maken** in de vaultinstellingen start een nieuwe poging. Verborgen gebruikersconfiguratie zoals `.obsidian` wordt op beide platforms meegenomen. De mappen `.plainva`, `.git`, `.trash` en `node_modules` blijven op elk niveau uitgesloten. Bij meerdere archieven in dezelfde seconde krijgt de nieuwe bestandsnaam een achtervoegsel zoals `_001`.
 
 Een opslag wordt pas als voltooid gemeld nadat het schrijven is bevestigd. Tekst die je tijdens het opslaan invoert, blijft onopgeslagen totdat ook die versie is geschreven. Desktopconcepten horen bij hun eigen editorsessie: het afronden van een oude sessie verwijdert geen concept van een pas geopende editor. Als er tegelijk externe wijzigingen binnenkomen, voegt Plainva verenigbare wijzigingen samen; conflicterende tekst blijft beschikbaar als concept en conflictkopie.
+
+<!-- accounts-tasks-2026-09-11 -->
+## Duidelijk kiezen bij bestandsvergelijking
+
+Beide bestandsnamen en locaties zijn zichtbaar. Voor vervanging noemt de bevestiging bron en bestemming. Wijzigt een bestand intussen, dan wordt de vergelijking opnieuw geladen.
+
+- **Huidig bestand vervangen door conflictkopie**: De inhoud van dit bestand wordt overschreven: Huidig bestand  De nieuwe inhoud komt uit: conflictkopie  Daarna wordt de conflictkopie verwijderd.
+- **Beide bestanden behouden**: Dit bestand blijft ongewijzigd: Huidig bestand  De conflictkopie blijft bewaard als apart bestand: conflictkopie
+- **Conflictkopie verwijderen**: Deze conflictkopie wordt verwijderd: conflictkopie  Dit bestand blijft ongewijzigd: Huidig bestand
+- **Later beslissen**
+
+Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.
+
+**Als aparte taken behouden**
+
+Een bestand is gewijzigd sinds het openen. De vergelijking is opnieuw geladen. Controleer de huidige inhoud en kies opnieuw.
+
+Regel voor regel samenvoegen is een hulpmiddel voor de computer; hier neem je één versie helemaal over of houd je beide.

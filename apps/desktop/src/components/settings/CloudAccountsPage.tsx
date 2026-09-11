@@ -213,6 +213,7 @@ export const CloudAccountsPage: React.FC<{
       (s) => (s === service || record.services[s]) && !(record.family === "google" && s === "mail"),
     );
     const req: ConnectRequest = {
+      context: { vaultId: selectedVault, cloudAccountId: record.id, expectedIdentity: record.verifiedProviderIdentity },
       family: record.family,
       flavor: record.flavor,
       services: [service],

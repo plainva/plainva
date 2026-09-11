@@ -6,7 +6,7 @@ import "../accountLogin";
 
 const state = vi.hoisted(() => ({
   secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], urls: [] as string[],
-  granted: "", storageFails: false,
+  granted: "", storageFails: false, failKey: "",
   savedPim: vi.fn(), restarted: vi.fn(), success: vi.fn(), error: vi.fn(),
   pim: { kind: "google", clientId: "client", clientSecret: "secret", refreshToken: "old-service" },
 }));
@@ -15,14 +15,14 @@ vi.mock("@plainva/ui", async (original) => ({
   ...await original<typeof import("@plainva/ui")>(),
   getPlatformServices: () => ({ credentials: {
     readSecret: async (key: string) => structuredClone(state.secrets.get(key) ?? null),
-    writeSecret: async (key: string, value: unknown) => { if (state.storageFails) throw Error("storage unavailable"); state.secrets.set(key, structuredClone(value)); },
+    writeSecret: async (key: string, value: unknown) => { if (state.storageFails || state.failKey === key) throw Error("storage unavailable"); state.secrets.set(key, structuredClone(value)); },
     removeSecret: async (key: string) => { state.secrets.delete(key); },
   } }),
   toast: { success: state.success, error: state.error },
 }));
 vi.mock("../../platform/secureStore", () => ({ secureCredentialStore: {
   readSecret: async (key: string) => structuredClone(state.secrets.get(key) ?? null),
-  writeSecret: async (key: string, value: unknown) => { state.secrets.set(key, structuredClone(value)); },
+  writeSecret: async (key: string, value: unknown) => { if (state.failKey === key) throw Error("storage unavailable"); state.secrets.set(key, structuredClone(value)); },
   removeSecret: async (key: string) => { state.secrets.delete(key); },
 } }));
 vi.mock("../cloudAccountsStore", () => ({ loadCloudAccounts: async () => structuredClone(state.records) }));
@@ -39,7 +39,7 @@ vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string) => key } }));
 beforeEach(async () => {
   vi.resetModules();
   vi.stubGlobal("window", new EventTarget());
-  state.secrets.clear(); state.urls.length = 0; state.storageFails = false;
+  state.secrets.clear(); state.urls.length = 0; state.storageFails = false; state.failKey = "";
   state.records = [{ id: "account", family: "google", label: "Person", services: { calendar: { pimAccountId: "calendar" } } }];
   state.pim = { kind: "google", clientId: "client", clientSecret: "secret", refreshToken: "old-service" };
   state.savedPim.mockClear(); state.restarted.mockClear(); state.success.mockClear(); state.error.mockClear();
@@ -63,6 +63,24 @@ async function coldReturn(url: string): Promise<void> {
 }
 
 describe("the real mobile account redirect after a process restart", () => {
+  it("claims a concurrently delivered callback only once", async () => {
+    const url = await start();
+    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { handlePimOAuthRedirect } = await import("./pimOAuth");
+    await Promise.all([handlePimOAuthRedirect(url), handlePimOAuthRedirect(url)]);
+    expect(state.savedPim).toHaveBeenCalledTimes(1);
+    expect(state.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the transaction for an unrelated callback path", async () => {
+    const url = await start();
+    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { handlePimOAuthRedirect } = await import("./pimOAuth");
+    expect(await handlePimOAuthRedirect(url.replace("/oauth2redirect?", "/oauth2redirect-unrelated?"))).toBe(false);
+    expect(state.secrets.has("pim_oauth_pending_tx")).toBe(true);
+    await handlePimOAuthRedirect(url);
+    expect(state.savedPim).toHaveBeenCalledTimes(1);
+  });
   it("restores the original vault/account, saves its grant and wakes only its calendar", async () => {
     const url = await start();
     await coldReturn(url);
@@ -98,5 +116,21 @@ describe("the real mobile account redirect after a process restart", () => {
     state.storageFails = true;
     await expect(start()).rejects.toThrow("storage unavailable");
     expect(state.urls).toEqual([]);
+  });
+  it("replays a received grant after a storage failure and another process restart", async () => {
+    const url = await start();
+    state.failKey = "account_account_original-vault";
+    await coldReturn(url);
+    expect(state.secrets.has("pim_oauth_received")).toBe(true);
+    expect(state.secrets.get(state.failKey)).toMatchObject({ refreshToken: "old-account" });
+    expect(state.savedPim).not.toHaveBeenCalled();
+    state.failKey = "";
+    vi.resetModules();
+    const { registerAccountLoginHandler } = await import("../accountLogin"); registerAccountLoginHandler();
+    const { resumePimOAuthResult } = await import("./pimOAuth");
+    await Promise.all([resumePimOAuthResult(), resumePimOAuthResult()]);
+    expect(state.savedPim).toHaveBeenCalledTimes(1);
+    expect(state.secrets.has("pim_oauth_received")).toBe(false);
+    expect(state.secrets.get("account_account_original-vault")).toMatchObject({ refreshToken: "new-account" });
   });
 });

@@ -141,8 +141,8 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Steuern einreichen", due: "2026-08-15", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     const res = await runTaskSync(baseOpts(vault, null));
-    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
-    const note = vault.files.get("Aufgaben/Steuern einreichen.md")!;
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen — 9d8ce8631510b49d.md"]);
+    const note = vault.files.get("Aufgaben/Steuern einreichen — 9d8ce8631510b49d.md")!;
     expect(note).toContain("# Steuern einreichen");
     expect(readFrontmatterPath(note, ["frist"])).toBe("2026-08-15");
     expect(readFrontmatterPath(note, ["status"])).toBe("Offen");
@@ -150,7 +150,7 @@ describe("runTaskSync", () => {
     expect(readFrontmatterPath(note, ["plainva", "pim", "kind"])).toBe("task");
     const states = await cache.getTaskStates("a1", "l1");
     expect(states).toHaveLength(1);
-    expect(states[0].notePath).toBe("Aufgaben/Steuern einreichen.md");
+    expect(states[0].notePath).toBe("Aufgaben/Steuern einreichen — 9d8ce8631510b49d.md");
     expect(states[0].baseFields).toEqual({ title: "Steuern einreichen", due: "2026-08-15", completed: false });
   });
 
@@ -158,7 +158,7 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Done thing", completed: true, etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
-    expect(readFrontmatterPath(vault.files.get("Aufgaben/Done thing.md")!, ["status"])).toBe("Erledigt");
+    expect(readFrontmatterPath(vault.files.get("Aufgaben/Done thing — 9d8ce8631510b49d.md")!, ["status"])).toBe("Erledigt");
   });
 
   it("is idempotent: a second run without changes writes and pushes nothing", async () => {
@@ -181,11 +181,11 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "New title", due: "2026-09-01", etag: '"e2"' })]);
     const target = fakeTarget();
     const res = await runTaskSync(baseOpts(vault, target));
-    const note = vault.files.get("Aufgaben/Old title.md")!;
+    const note = vault.files.get("Aufgaben/Old title — 9d8ce8631510b49d.md")!;
     expect(note).toContain("# New title");
     expect(readFrontmatterPath(note, ["frist"])).toBe("2026-09-01");
     expect(target.updateTask).not.toHaveBeenCalled();
-    expect(res.changedNotes).toEqual(["Aufgaben/Old title.md"]);
+    expect(res.changedNotes).toEqual(["Aufgaben/Old title — 9d8ce8631510b49d.md"]);
     expect((await cache.getTaskStates("a1", "l1"))[0].remoteEtag).toBe('"e2"');
   });
 
@@ -194,7 +194,7 @@ describe("runTaskSync", () => {
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync({ ...baseOpts(vault, null), generatedBy: "plainva-task-sync/0.6.7" });
 
-    const note = vault.files.get("Aufgaben/Stamped.md")!;
+    const note = vault.files.get("Aufgaben/Stamped — 9d8ce8631510b49d.md")!;
     expect(readFrontmatterPath(note, ["generated", "by"])).toBe("plainva-task-sync/0.6.7");
     const at = String(readFrontmatterPath(note, ["generated", "at"]));
     expect(at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
@@ -203,7 +203,7 @@ describe("runTaskSync", () => {
     // birth stamp stays — even when a newer producer version runs the sync.
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Stamped again", etag: '"e2"' })]);
     await runTaskSync({ ...baseOpts(vault, null), generatedBy: "plainva-task-sync/9.9.9" });
-    const after = vault.files.get("Aufgaben/Stamped.md")!;
+    const after = vault.files.get("Aufgaben/Stamped — 9d8ce8631510b49d.md")!;
     expect(after).toContain("# Stamped again");
     expect(readFrontmatterPath(after, ["generated", "by"])).toBe("plainva-task-sync/0.6.7");
     expect(readFrontmatterPath(after, ["generated", "at"])).toBe(at);
@@ -213,7 +213,7 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Quiet", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
-    const note = vault.files.get("Aufgaben/Quiet.md")!;
+    const note = vault.files.get("Aufgaben/Quiet — 9d8ce8631510b49d.md")!;
     expect(readFrontmatterPath(note, ["plainva", "pim", "uid"])).toBe("u1");
     expect(readFrontmatterPath(note, ["generated"]) ?? null).toBeNull();
   });
@@ -223,7 +223,7 @@ describe("runTaskSync", () => {
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
     // Local edit: complete + move the due.
-    const path = "Aufgaben/T.md";
+    const path = "Aufgaben/T — 9d8ce8631510b49d.md";
     let note = vault.files.get(path)!;
     note = note.replace("status: Offen", "status: Erledigt").replace("frist: 2026-08-01", "frist: 2026-08-20");
     vault.files.set(path, note);
@@ -244,7 +244,7 @@ describe("runTaskSync", () => {
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
     // Local: complete it. Remote: rename it (new etag).
-    const path = "Aufgaben/Old.md";
+    const path = "Aufgaben/Old — 9d8ce8631510b49d.md";
     vault.files.set(path, vault.files.get(path)!.replace("status: Offen", "status: Erledigt"));
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "Renamed", due: "2026-08-01", etag: '"e2"' })]);
     const target = fakeTarget({ etag: '"e3"' });
@@ -265,7 +265,7 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
-    const path = "Aufgaben/T.md";
+    const path = "Aufgaben/T — 9d8ce8631510b49d.md";
     vault.files.set(path, vault.files.get(path)!.replace("status: Offen", "status: Erledigt"));
     const target = fakeTarget(new PimConflictError());
     const res = await runTaskSync(baseOpts(vault, target));
@@ -279,7 +279,7 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
     const target = fakeTarget();
     // An EMPTY anchor index is the honest form of "we looked and found
     // nothing" — the note is really gone. A missing index means the opposite
@@ -291,7 +291,7 @@ describe("runTaskSync", () => {
     // Third run: still no re-import.
     const res = await runTaskSync({ ...baseOpts(vault, target), ...looked });
     expect(res.createdNotes).toEqual([]);
-    expect(vault.files.has("Aufgaben/T.md")).toBe(false);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(false);
   });
 
   it("a remotely deleted task drops the state and keeps the note", async () => {
@@ -301,7 +301,7 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", []);
     await runTaskSync(baseOpts(vault, null));
     expect(await cache.getTaskStates("a1", "l1")).toEqual([]);
-    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(true);
   });
 
   it("survives a note rename via the frontmatter anchor and re-targets the state", async () => {
@@ -309,8 +309,8 @@ describe("runTaskSync", () => {
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
     // Simulate a user rename/move: same content, new path.
-    const content = vault.files.get("Aufgaben/T.md")!;
-    vault.files.delete("Aufgaben/T.md");
+    const content = vault.files.get("Aufgaben/T — 9d8ce8631510b49d.md")!;
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
     vault.files.set("Projekte/Umbenannt.md", content);
     // Remote change so the run has to touch the note.
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T2", etag: '"e2"' })]);
@@ -333,11 +333,11 @@ describe("runTaskSync", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(baseOpts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     await runTaskSync(baseOpts(vault, null)); // no anchorsByUid
 
-    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T.md");
+    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T — 9d8ce8631510b49d.md");
   });
 
   it("does nothing without a configured task database", async () => {
@@ -610,7 +610,7 @@ describe("runTaskSync adoption", () => {
     );
 
     expect(res.adoptedNotes).toEqual([]);
-    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen — 9d8ce8631510b49d.md"]);
   });
 
   it("refuses a note anchored to another provider", async () => {
@@ -623,7 +623,7 @@ describe("runTaskSync adoption", () => {
     );
 
     expect(res.adoptedNotes).toEqual([]);
-    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+    expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen — 9d8ce8631510b49d.md"]);
   });
 
   it("brings an old anchor up to date inside an edit it was making anyway", async () => {
@@ -701,7 +701,7 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"', href: "/t/u1.ics" })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const target = fakeTarget();
     const resolved: Array<[string, string]> = [];
@@ -723,7 +723,7 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const target = fakeTarget();
     await runTaskSync(opts(vault, target));
@@ -736,7 +736,7 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const resolved: string[] = [];
     await runTaskSync({
@@ -754,7 +754,7 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"', href: "/t/u1.ics" })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const target = fakeTarget();
     (target.deleteTask as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new PimConflictError());
@@ -774,7 +774,7 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const target = fakeTarget();
     const res = await runTaskSync({
@@ -787,14 +787,14 @@ describe("runTaskSync confirmed deletions (E4b)", () => {
     expect(res.createdNotes).toEqual([]);
     // The row keeps pointing at the note. A tombstone would survive the undo
     // and leave the restored note unreconciled forever.
-    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T.md");
+    expect((await cache.getTaskStates("a1", "l1"))[0].notePath).toBe("Aufgaben/T — 9d8ce8631510b49d.md");
   });
 
   it("an order for a different list is not carried out here", async () => {
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
 
     const target = fakeTarget();
     // A uid is unique at ONE provider list, not across two.
@@ -844,7 +844,7 @@ describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)",
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    vault.files.delete("Aufgaben/T.md");
+    vault.files.delete("Aufgaben/T — 9d8ce8631510b49d.md");
     const j = journal();
 
     await runTaskSync({ ...opts(vault, fakeTarget()), pendingDeletions: [{ uid: "u1", list: "l1" }], deletionJournal: j });
@@ -857,14 +857,14 @@ describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)",
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(true);
 
     // The next pull no longer lists the task.
     await cache.replaceTasks("a1", "l1", []);
     const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([{ uid: "u1", list: "l1" }]) });
 
-    expect(vault.files.has("Aufgaben/T.md")).toBe(false);
-    expect(res.deletedNotes).toEqual(["Aufgaben/T.md"]);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(false);
+    expect(res.deletedNotes).toEqual(["Aufgaben/T — 9d8ce8631510b49d.md"]);
     expect(await cache.getTaskStates("a1", "l1")).toHaveLength(0);
   });
 
@@ -876,7 +876,7 @@ describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)",
 
     const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([]) });
 
-    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(true);
     expect(res.deletedNotes).toEqual([]);
   });
 
@@ -884,13 +884,13 @@ describe("runTaskSync and the deletion journal (feedback round 2026-09-01, P1)",
     await cache.replaceTasks("a1", "l1", [rt({ uid: "u1", title: "T", etag: '"e1"' })]);
     const vault = fakeVault({ "Aufgaben.base": TASK_DB });
     await runTaskSync(opts(vault, null));
-    const edited = vault.files.get("Aufgaben/T.md")!.replace("# T", "# T (edited here)");
-    vault.files.set("Aufgaben/T.md", edited);
+    const edited = vault.files.get("Aufgaben/T — 9d8ce8631510b49d.md")!.replace("# T", "# T (edited here)");
+    vault.files.set("Aufgaben/T — 9d8ce8631510b49d.md", edited);
     await cache.replaceTasks("a1", "l1", []);
 
     const res = await runTaskSync({ ...opts(vault, null), deletionJournal: journal([{ uid: "u1", list: "l1" }]) });
 
-    expect(vault.files.has("Aufgaben/T.md")).toBe(true);
+    expect(vault.files.has("Aufgaben/T — 9d8ce8631510b49d.md")).toBe(true);
     expect(res.deletedNotes).toEqual([]);
   });
 });
