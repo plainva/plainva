@@ -17,7 +17,7 @@ const store = {
   delete: vi.fn(async (k: string) => void store.values.delete(k)),
 };
 
-const appInfo = vi.hoisted(() => ({ version: "9.9.9", release: "9.9.9", revision: undefined as string | undefined }));
+const appInfo = vi.hoisted(() => ({ version: "9.9.9" as unknown, release: "9.9.9", revision: undefined as string | undefined }));
 
 vi.mock("@plainva/ui", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
@@ -32,13 +32,25 @@ vi.mock("@capacitor/app", () => ({
   App: { getInfo: async () => ({ version: appInfo.version }) },
 }));
 
-import { pendingReleaseDialog, markReleaseDialogSeen, resetMobileWhatsNew } from "./mobileWhatsNew";
+import { pendingReleaseDialog, markReleaseDialogSeen, resetMobileWhatsNew, mobileAppVersion } from "./mobileWhatsNew";
 
 beforeEach(() => {
   store.values.clear();
   appInfo.version = "9.9.9";
   appInfo.release = "9.9.9";
   appInfo.revision = undefined;
+});
+
+describe("mobile app version at startup", () => {
+  it.each([null, undefined, "", "   ", 42, {}])("falls back when the native bridge returns %j", async value => {
+    appInfo.version = value;
+    expect(await mobileAppVersion()).toBe(appInfo.release);
+  });
+
+  it("preserves the internal build version", async () => {
+    appInfo.version = " 9.9.9.4 ";
+    expect(await mobileAppVersion()).toBe("9.9.9.4");
+  });
 });
 
 describe("pendingReleaseDialog", () => {

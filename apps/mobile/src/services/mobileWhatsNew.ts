@@ -21,7 +21,9 @@ async function store() {
 /** The running app version; falls back to the catalog on the web dev server. */
 export async function mobileAppVersion(): Promise<string> {
   try {
-    return (await App.getInfo()).version;
+    const version = (await App.getInfo())?.version;
+    // A partially available native bridge can resolve without a version.
+    return typeof version === "string" && version.trim() ? version.trim() : getLatestWhatsNew().version;
   } catch {
     return getLatestWhatsNew().version;
   }

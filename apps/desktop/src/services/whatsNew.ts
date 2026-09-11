@@ -98,7 +98,9 @@ export async function takeWelcomeRequest(): Promise<boolean> {
 export async function getAppVersion(): Promise<string> {
   try {
     const { getVersion } = await import('@tauri-apps/api/app');
-    return await getVersion();
+    const version = await getVersion();
+    // A partially available native bridge can resolve without a version.
+    return typeof version === 'string' && version.trim() ? version.trim() : getLatestWhatsNew().version;
   } catch {
     // Browser shell (dev server, E2E): fall back to the catalog so the dialog
     // logic stays exercisable outside the native build.
