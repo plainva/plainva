@@ -3270,7 +3270,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    picker, the database calendars' title, the date field of a cell or a
    property. Month/weekday names come from Intl, the week starts where the
    setting says, the grid is one Tab stop (roving tabindex). */
-.pv-datejump { display: grid; gap: var(--space-2); color: var(--text-main); font-size: var(--text-sm); min-width: 0; }
+/* Keep the shared column within its hull: a translated footer must not make
+   the year row and both grids wider than the popover or mobile sheet. */
+.pv-datejump { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); color: var(--text-main); font-size: var(--text-sm); min-width: 0; }
 .pv-datejump-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
 .pv-datejump-label { font-size: var(--text-md); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pv-datejump-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
@@ -3291,7 +3293,7 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump-day[aria-pressed="true"].has-mark::after { background: var(--accent-on); }
 .pv-datejump-day:focus-visible, .pv-datejump-month:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
 .pv-datejump-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-1); border-top: 1px solid var(--border-color-light); }
-.pv-datejump-hint { font-size: var(--text-xs); color: var(--text-faint); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-datejump-hint { font-size: var(--text-xs); color: var(--text-faint); min-width: 0; overflow-wrap: anywhere; }
 /* Touch variant (the phone's sheet): rows at touch height, one type step up. */
 .pv-datejump--sheet { gap: var(--space-3); }
 .pv-datejump--sheet .pv-datejump-day { height: var(--touch-sm); font-size: var(--text-md); }
