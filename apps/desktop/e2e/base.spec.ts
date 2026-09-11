@@ -810,7 +810,8 @@ test('Base filter on a list property: "is" matches membership and the value drop
   await configTab(page, 'filter');
   await page.getByRole('button', { name: /Filter hinzufügen|Add filter/ }).click();
   await page.getByRole('button', { name: /Filterspalte|Filter column/ }).click();
-  await page.getByRole('option', { name: 'Tags', exact: true }).click();
+  await expect(page.getByRole('option', { name: /^Tags · (whole note|ganze Notiz)$/ })).toBeVisible();
+  await page.getByRole('option', { name: /^Tags · (property|Eigenschaft)$/ }).click();
   await page.getByRole('button', { name: /^(Wert|Value)/ }).click();
   await page.getByRole('option', { name: 'typ/tagebuch', exact: true }).click();
 
