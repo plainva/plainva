@@ -22,11 +22,34 @@ on:
         type: boolean
         default: false
 
+# A rerun for the same tag must not race another draft allocation.
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  prepare:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.draft.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Prepare one draft for every platform
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/desktop/scripts/prepare-release.mjs
+
   release:
-    # tauri-action creates the GitHub release and uploads the installers, which
-    # needs write access to repository contents. Fresh repos default to a
-    # read-only GITHUB_TOKEN, so grant it explicitly here.
+    needs: prepare
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.prepare.result == 'success') }}
+    # Every platform uploads to the same previously allocated draft ID.
     permissions:
       contents: write
     strategy:
@@ -154,6 +177,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           tagName: ${{ github.ref_name }}
           releaseName: 'Plainva ${{ github.ref_name }}'
           releaseBody: ${{ steps.notes.outputs.body }}

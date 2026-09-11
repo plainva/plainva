@@ -1,8 +1,10 @@
 # Release Gate Checklist
 
-Last reviewed: 2026-08-14 (section 10 added — social posts carry hashtags; the practice had eroded twice with no decision recorded. Earlier: 2026-07-28, P3.2 added section 8 — the release dialog and the blog post are part of the cut, not of the communication afterwards)
+Last reviewed: 2026-09-11 (single draft allocation before the platform matrix; current reporting process clarified).
 
-Work through this completely and check off every item before EVERY public release (including the first). All items are maintainer-native — they require real operating systems, real cloud accounts, and a real signing key. **Process rule: for each release, fill in a COPY of this checklist and archive it (maintainer workspace, `docs/releases/Release_Gate_v<version>.md`); this file stays the blank master.**
+For every public release, record the actual automated test, native build, signature, artifact and publication results in the maintainer workspace's release protocol. Since 2026-09-07, the maintainer tests native scenarios freely and reports findings; new manual acceptance checklists are no longer required. The scenarios below remain historical reference material, rather than a blank checklist to copy.
+
+The desktop workflow allocates one draft before starting its platform matrix and passes the resulting `releaseId` to every Tauri build. Runs for the same ref are serialized. `apps/desktop/scripts/prepare-release.mjs` reuses only an unambiguous draft for the exact commit and refuses published releases or different sources; manual build checks create no release. This prevents the concurrent draft creation seen during 0.8.2. Before publication, verify the full platform asset set and every updater URL/signature against the chosen release; green build jobs alone do not establish that all artifacts ended up together.
 
 > Historical note: v0.1.0–v0.1.2 shipped before this process rule existed; their
 > gates were exercised ad hoc (install smokes on Windows/Linux, updater
