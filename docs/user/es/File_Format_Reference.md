@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-09-10
+Última actualización: 2026-09-19
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -245,6 +245,10 @@ Todo lo específico de Plainva está bajo namespace. Tres ubicaciones:
 | `subItemsProperty` | clave de propiedad sin prefijo | Columna de relación padre (auto-relación) para anidar subelementos |
 | `widths` | mapa de id → px | Anchos de columna |
 | `dateFormat` | string | Formato de fecha por vista (`default` es implícito — omitirlo) |
+| `boardColorMode` | `column` | Tablero: teñir toda la columna con el color de su grupo (`chip` — solo el chip de la cabecera — es implícito; omítelo) |
+| `boardLaneBy` | clave de propiedad sin prefijo | Carriles del tablero: el segundo eje de agrupación |
+| `boardWipLimits` | mapa de valor de grupo → número | Tablero: límite de trabajo en curso por columna |
+| `colorBy` | clave de propiedad sin prefijo | Las barras de la cronología y las tarjetas del tablero toman el color de opción de esta propiedad (en el tablero gana el color propio de la nota) |
 | `pinboardOrder` | lista de rutas relativas al vault | Orden manual de las tarjetas del tablón SIN fijar |
 | `pinboardPinned` | lista de rutas relativas al vault | Tarjetas fijadas; el orden de la lista es el orden de la sección |
 | `pinboardFilterBy` | `tags` o una clave de selección múltiple sin prefijo | Origen de las etiquetas de la barra de chips del tablón (`tags` es implícito — omitirlo) |

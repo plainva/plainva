@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-10
+Stan na: 2026-09-19
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -245,6 +245,10 @@ Wszystko, co specyficzne dla Plainva, ma nadaną przestrzeń nazw. Trzy miejsca:
 | `subItemsProperty` | goły klucz właściwości | Kolumna nadrzędna relacji do samej siebie do zagnieżdżania elementów podrzędnych |
 | `widths` | mapa id → px | Szerokości kolumn |
 | `dateFormat` | string | Format daty per widok (`default` jest domyślny — pomiń go) |
+| `boardColorMode` | `column` | Tablica: zabarwia całą kolumnę kolorem jej grupy (`chip` — tylko etykieta w nagłówku — jest domyślne; pomiń) |
+| `boardLaneBy` | goły klucz właściwości | Tory tablicy: druga oś grupowania |
+| `boardWipLimits` | mapa wartość grupy → liczba | Tablica: limit pracy w toku na kolumnę |
+| `colorBy` | goły klucz właściwości | Paski osi czasu i karty tablicy przyjmują kolor opcji tej właściwości (na tablicy wygrywa własny kolor notatki) |
 | `pinboardOrder` | lista ścieżek względnych do vaultu | Ręczna kolejność NIEPRZYPIĘTYCH kart na tablicy korkowej |
 | `pinboardPinned` | lista ścieżek względnych do vaultu | Przypięte karty; kolejność na liście odpowiada kolejności w sekcji |
 | `pinboardFilterBy` | `tags` lub goły klucz wielokrotnego wyboru | Źródło etykiet paska chipów tablicy korkowej (`tags` jest domyślne — pomiń ten klucz) |

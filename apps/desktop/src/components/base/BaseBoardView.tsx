@@ -7,7 +7,7 @@ import { BoardCardChecklist } from "./BoardCardChecklist";
 import { hitTest, useCardPointerDrag } from "./useCardPointerDrag";
 import { DragGhost, dueChipStyle, OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import { orderBoardGroups, reorderBoardKeys } from "@plainva/ui";
-import { Button, chipPaletteIndex, groupRowsByLane, laneWriteValue, rowDueTone, TextInput, UNGROUPED_KEY, type TaskCompletionModel } from "@plainva/ui";
+import { Button, cardColorOf, chipPaletteIndex, groupRowsByLane, laneWriteValue, noteCardTint, rowDueTone, TextInput, UNGROUPED_KEY, type CardColorProperty, type TaskCompletionModel } from "@plainva/ui";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { BaseCells } from "./useBaseCells";
 
@@ -25,6 +25,7 @@ export function BaseBoardView({
   boardColorMode = "chip",
   boardWipLimits,
   boardLaneBy = null,
+  cardColorBy = null,
   collapsedLanes,
   onToggleLane,
   cells,
@@ -49,6 +50,11 @@ export function BaseBoardView({
   /** Swimlanes (issue #83): a second grouping property — a row per value,
    * dropping a card on a cell writes column AND lane. Null = no lanes. */
   boardLaneBy?: string | null;
+  /** The view's "card colour by" property (the `colorBy` key the timeline
+   * already writes). A card takes the NOTE's own colour first — the same
+   * `plainva.header_color` its header and its pinboard card show — and this
+   * property's option colour only when the note has none (finding 2026-09-19). */
+  cardColorBy?: string | null;
   /** Lane keys folded away (per file, app-side) and the toggle. */
   collapsedLanes?: ReadonlySet<string>;
   onToggleLane?: (laneKey: string) => void;
@@ -238,6 +244,20 @@ export function BaseBoardView({
     return chipPaletteIndex(key, opt?.color);
   };
 
+  // The colour of a CARD (finding 2026-09-19: "the whole card, like on the
+  // pinboard"). The board drew every card on the plain ground although the
+  // handbook says a note's colour "applies everywhere the note appears". One
+  // shared rule decides it — the note's own colour first, then the option
+  // colour of the view's colour-by property — and one shared formula mixes it
+  // into the card's ground, so board and pinboard cannot drift apart.
+  const cardColor: CardColorProperty | null = cardColorBy
+    ? { key: cardColorBy, options: Array.isArray(dbConfig?.columns?.[cardColorBy]?.options) ? dbConfig.columns[cardColorBy].options : undefined }
+    : null;
+  const cardBackground = (row: any): string => {
+    const color = cardColorOf(row, cardColor);
+    return color ? noteCardTint(color, "var(--bg-primary)") : "var(--bg-primary)";
+  };
+
   // Header drag: arm after a small move (so a plain click never flickers), then
   // hit-test the columns by rect and, on drop, hand the host the new key order.
   const colHeaderHandlers = (key: string) => ({
@@ -340,7 +360,8 @@ export function BaseBoardView({
                   onContextMenu={(e) => cells.onRowContextMenu?.(row['file.path'], e)}
                   {...(isReverseGroup ? {} : cardHandlers(cardKeyOf(row['file.path'], groupKey, laneKey)))}
                   onClick={(e) => onOpenNote?.(row['file.path'], e)}
-                  style={{ background: "var(--bg-primary)", padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey, laneKey) ? 0.45 : 1 }}
+                  data-card-color={cardColorOf(row, cardColor) ?? undefined}
+                  style={{ background: cardBackground(row), padding: "var(--space-3)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-1)", cursor: isReverseGroup ? "pointer" : "grab", touchAction: "none", opacity: draggingPath === cardKeyOf(row['file.path'], groupKey, laneKey) ? 0.45 : 1 }}
                 >
                   <div
                     data-tip={row['file.name']}

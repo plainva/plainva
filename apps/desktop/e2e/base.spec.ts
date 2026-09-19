@@ -967,6 +967,39 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
     .toContain('status: review');
 });
 
+/**
+ * A board card takes the NOTE's colour (finding 2026-09-19: "colour the whole
+ * card, like on the pinboard"). The handbook says a note's colour "applies
+ * everywhere the note appears"; the board drew every card on the plain ground.
+ * The fixture's first two notes carry `plainva.header_color`, the third none.
+ */
+test('Base board: a card is tinted with the note colour, and "Color" in its menu writes it', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Board');
+  await expect(page.getByTestId('base-row').first()).toBeVisible({ timeout: 10000 });
+
+  // "#ABC" in the frontmatter reads as #aabbcc - the same normalisation the database filter applies.
+  const tinted = page.locator('[data-testid="base-row"][data-card-color="#aabbcc"]');
+  await expect(tinted).toHaveCount(1);
+  expect(await tinted.getAttribute('style')).toContain('color-mix(in srgb, #aabbcc calc(var(--pinboard-tint, 16) * 1%), var(--bg-primary))');
+  const plain = page.locator('[data-testid="base-row"]:not([data-card-color])').first();
+  await expect(plain).toBeVisible();
+  expect(await plain.getAttribute('style')).toContain('background: var(--bg-primary)');
+
+  // The entry menu offers the colour where the colour shows; picking one writes plainva.header_color.
+  const title = (await plain.locator('[data-tip]').first().getAttribute('data-tip'))!;
+  await plain.click({ button: 'right' });
+  await page.getByTestId('base-entry-color').click();
+  await page.locator('.pv-popover button[aria-label]').first().click();
+  await expect
+    .poll(async () => {
+      const files = (await page.evaluate(() => (window as any).mockFs)) as Record<string, unknown>;
+      const path = Object.keys(files).find((p) => p.endsWith(`/${title}.md`));
+      return typeof files[path ?? ''] === 'string' && (files[path!] as string).includes('header_color');
+    })
+    .toBe(true);
+});
+
 test('Base board: swimlanes — a row per lane value, a drop on a cell writes column and lane (issue #83)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'LaneBoard');

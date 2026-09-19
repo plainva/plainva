@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-15
+Stand: 2026-09-19
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -245,6 +245,10 @@ Alles Plainva-Spezifische ist namespaced. Drei Orte:
 | `subItemsProperty` | bare Eigenschaftsschlüssel | Eltern-Spalte (Self-Relation) für die Unterelemente-Verschachtelung |
 | `widths` | Map id → px | Spaltenbreiten |
 | `dateFormat` | String | Datumsformat pro View (`default` ist implizit — weglassen) |
+| `boardColorMode` | `column` | Board: die ganze Spalte in der Farbe ihrer Gruppe tönen (`chip` — nur der Chip in der Überschrift — ist implizit; weglassen) |
+| `boardLaneBy` | bare Eigenschaftsschlüssel | Board-Bahnen: die zweite Gruppierungsachse |
+| `boardWipLimits` | Map Gruppenwert → Zahl | Board: Obergrenze gleichzeitiger Karten je Spalte |
+| `colorBy` | bare Eigenschaftsschlüssel | Zeitleisten-Balken und Board-Karten nehmen die Optionsfarbe dieser Eigenschaft an (am Board gewinnt die eigene Farbe der Notiz) |
 | `pinboardOrder` | Liste vault-relativer Pfade | Manuelle Reihenfolge der NICHT angepinnten Pinnwand-Karten |
 | `pinboardPinned` | Liste vault-relativer Pfade | Angepinnte Karten; die Listenreihenfolge ist die Reihenfolge der Sektion |
 | `pinboardFilterBy` | `tags` oder barer Mehrfachauswahl-Schlüssel | Label-Quelle der Chip-Leiste der Pinnwand (`tags` ist implizit — weglassen) |

@@ -1040,6 +1040,8 @@
     "sourceType": "Origine",
     "groupBy": "Raggruppa per",
     "boardColor": "Colore della colonna",
+    "boardCardColorField": "Colore della scheda per",
+    "boardCardColorHint": "Il colore proprio di una nota ha la precedenza.",
     "boardColorChip": "Solo chip",
     "boardColorColumn": "Intera colonna",
     "wipLimit": "Limite WIP",

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { applyPin, applyUnpin, noteCardTint, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -324,7 +324,7 @@ export function PinboardView({
     try {
       const fresh = await vault.files.readTextFile(path);
       const hex = picked ? PALETTE_SWATCH[picked] : null;
-      const next = hex ? setFrontmatterPath(fresh, ["plainva", "header_color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "header_color"]);
+      const next = withNoteColor(fresh, hex);
       if (next !== fresh) {
         await vault.files.writeTextFile(path, next);
         await afterCardWrite(path);
@@ -612,7 +612,7 @@ export function PinboardView({
         /* The tint is the note's OWN colour and cannot come from a class. */
         style={{
           containIntrinsicSize: `auto ${heights.get(path) ?? 160}px`,
-          background: tint ? `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))` : undefined,
+          background: tint ? noteCardTint(tint) : undefined,
         }}
       >
         {previews.status(vm.row) !== "ready" && <div className="pv-pinboard-placeholder" aria-busy={previews.status(vm.row) === "loading"}>

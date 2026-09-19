@@ -1038,6 +1038,8 @@
     "sourceType": "Source",
     "groupBy": "Group by",
     "boardColor": "Column color",
+    "boardCardColorField": "Card colour by",
+    "boardCardColorHint": "A note's own colour takes precedence.",
     "boardColorChip": "Chip only",
     "boardColorColumn": "Whole list",
     "wipLimit": "WIP limit",

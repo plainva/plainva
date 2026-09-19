@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-09-10
+Ultimo aggiornamento: 2026-09-19
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -245,6 +245,10 @@ Tutto ciò che è specifico di Plainva è in namespace. Tre posizioni:
 | `subItemsProperty` | chiave di proprietà bare | Colonna genitore per auto-relazione, per l'annidamento dei sottoelementi |
 | `widths` | mappa id → px | Larghezze delle colonne |
 | `dateFormat` | stringa | Formato data per vista (`default` è implicito — omettilo) |
+| `boardColorMode` | `column` | Bacheca: colorare l'intera colonna con il colore del suo gruppo (`chip` — solo il chip dell'intestazione — è implicito; omettilo) |
+| `boardLaneBy` | chiave di proprietà bare | Corsie della bacheca: il secondo asse di raggruppamento |
+| `boardWipLimits` | mappa valore del gruppo → numero | Bacheca: limite di lavori in corso per colonna |
+| `colorBy` | chiave di proprietà bare | Le barre della cronologia e le schede della bacheca prendono il colore dell'opzione di questa proprietà (nella bacheca vince il colore proprio della nota) |
 | `pinboardOrder` | elenco di percorsi vault-relativi | Ordine manuale delle schede della bacheca NON fissate |
 | `pinboardPinned` | elenco di percorsi vault-relativi | Schede fissate; l'ordine dell'elenco è l'ordine della sezione |
 | `pinboardFilterBy` | `tags` oppure una chiave di selezione multipla bare | Origine delle etichette della barra dei chip della bacheca (`tags` è implicito — omettilo) |

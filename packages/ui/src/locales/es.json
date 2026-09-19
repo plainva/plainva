@@ -1040,6 +1040,8 @@
     "sourceType": "Fuente",
     "groupBy": "Agrupar por",
     "boardColor": "Color de columna",
+    "boardCardColorField": "Color de tarjeta según",
+    "boardCardColorHint": "El color propio de una nota tiene prioridad.",
     "boardColorChip": "Solo el chip",
     "boardColorColumn": "Columna completa",
     "wipLimit": "Límite de WIP",

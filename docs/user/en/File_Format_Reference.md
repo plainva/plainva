@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-19
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -245,6 +245,10 @@ Everything Plainva-specific is namespaced. Three locations:
 | `subItemsProperty` | bare property key | Self-relation parent column for sub-item nesting |
 | `widths` | map of id → px | Column widths |
 | `dateFormat` | string | Per-view date format (`default` is implicit — omit it) |
+| `boardColorMode` | `column` | Board: tint the whole column with its group's colour (`chip` — the header chip only — is implicit; omit it) |
+| `boardLaneBy` | bare property key | Board swimlanes: the second grouping axis |
+| `boardWipLimits` | map of group value → number | Board: work-in-progress limit per column |
+| `colorBy` | bare property key | Timeline bars and board cards take this property's option colour (on the board a note's own colour wins) |
 | `pinboardOrder` | list of vault-relative paths | Manual order of the UNPINNED pinboard cards |
 | `pinboardPinned` | list of vault-relative paths | Pinned cards; the list order is the section order |
 | `pinboardFilterBy` | `tags` or a bare multi-select key | Label source of the pinboard's chip bar (`tags` is implicit — omit it) |

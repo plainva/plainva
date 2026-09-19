@@ -1036,6 +1036,8 @@
     "sourceType": "来源",
     "groupBy": "分组依据",
     "boardColor": "列颜色",
+    "boardCardColorField": "卡片颜色依据",
+    "boardCardColorHint": "笔记自己的颜色优先。",
     "boardColorChip": "仅标签",
     "boardColorColumn": "整列",
     "wipLimit": "WIP限制",

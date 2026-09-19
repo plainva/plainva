@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-16
+Last reviewed: 2026-09-19
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -166,6 +166,7 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 - **Opening**: clicking an entry title opens the note in the peek window — a free-floating window you can drag by its title bar and resize from the corner. It keeps its own **Back**/**Forward** history for the notes you open inside it, has a toggle that reveals a **Properties** column for the shown note, and offers **Open as tab** and **Open in split**. `Ctrl`+click opens directly in the split; alternatively drag a card onto the drop zone **Drop here: open in split**. The properties column can be dragged wider or narrower at its left edge (232 px at least); below 280 px it puts the label above the value, as the right sidebar does.
 - **Dragging**: while dragging cards (Board, Calendar, Timeline) a ghost card follows the pointer. On a **Board** you can also drag a **column header** to reorder the columns — for **Select**/**Status** boards this reorders the property's options (so the dropdowns everywhere follow); relation and free-text boards remember the order per view.
 - **Board colour**: in a board's **View** settings, **Column colour** lets a column take its group's colour — either **Whole list** (the whole column is tinted) or **Chip only** (just the header chip, the default). It applies to Select/Status/Multi-select groups.
+- **Card colour**: a board card is tinted with the note's own colour — **Color** in the card's menu sets it; it is the same colour the note's header and its pinboard card show. **Card colour by** in the **View** settings tints the remaining cards with the option colour of a Select/Status/Multi-select property; a note's own colour takes precedence.
 - **Checklist on the card**: a card whose note holds `- [ ]` lines shows a progress bar with the count; click it to unfold the lines, tick them off right there, or add a sub-task in the field below (it lands after the last checkbox of the note). The count is also the **Checklist** column, available in every view under **Properties**.
 - **Swimlanes**: under **View** (on the phone: **Configure**), **Swimlanes by** adds a second axis — one row per value of another select, status or relation property (priority, assignee …), with the same columns in every row. Dropping a card on a cell writes both the column's and the lane's property; the chevron folds a lane away, and Plainva remembers that per file. On the phone the lanes stack, and the lane chip on a card moves it to another lane.
 - **WIP limit**: click the count in a column header and enter the most cards the column should hold — the header then reads `6/5` in the warning colour once the column exceeds it. The **View** settings (on the phone: **Configure**) list the limits of all columns; empty means no limit.

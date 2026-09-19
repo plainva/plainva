@@ -72,6 +72,10 @@ import {
   barFor,
   isMilestone,
   chipPaletteIndex,
+  chipClass,
+  cardColorOf,
+  noteCardTint,
+  type CardColorProperty,
   compareByTime,
   compareRows,
   dayKey,
@@ -1296,6 +1300,17 @@ export function BaseScreen({
       const opt = optionMeta.find((o: any) => String(o.value) === key);
       return `var(--chip-${chipPaletteIndex(key, opt?.color)}-bg)`;
     };
+    // The colour of a CARD (finding 2026-09-19: "the whole card, like on the
+    // pinboard"): the note's own colour first, then the option colour of the
+    // view's colour-by property — the shared rule and the shared tint formula
+    // the desktop board and both pinboards use.
+    const cardColorBy: CardColorProperty | null = view.colorBy
+      ? { key: String(view.colorBy), options: Array.isArray(config?.columns?.[String(view.colorBy)]?.options) ? config.columns[String(view.colorBy)].options : undefined }
+      : null;
+    const cardTint = (r: Record<string, unknown>): string | undefined => {
+      const color = cardColorOf(r, cardColorBy);
+      return color ? noteCardTint(color, "var(--bg-primary)") : undefined;
+    };
     const boardMiniChips = (r: Record<string, unknown>, group: string) => {
       const cols = orderedColumns.filter((c: string) => c !== group).slice(0, 2);
       const chips = cols
@@ -1328,8 +1343,14 @@ export function BaseScreen({
               style={tint ? { background: tint } : undefined}
             >
               <p className="m-board-head">
-                {dotFor(key) && <span className="m-board-dot" style={{ background: dotFor(key) }} />}
-                {key === UNGROUPED_KEY ? t("database.noEndDate") : key}
+                {/* The same head as the desktop's (finding 2026-09-19, E4): the
+                    group's value as its coloured chip. It used to be a dot and a
+                    plain label here — two idioms for one colour. On a tinted
+                    column the chip would stand on its own colour, so the label
+                    stays plain there. */}
+                {dotFor(key) && !tint
+                  ? <span className={chipClass(key, optionMeta.find((o: any) => String(o.value) === key)?.color)} data-testid="board-col-chip">{key}</span>
+                  : key === UNGROUPED_KEY ? t("database.noEndDate") : key}
                 {(() => {
                   // WIP limit (issue #83): `n/limit`, warning tone once exceeded —
                   // the same reading as the desktop header; set in the config sheet.
@@ -1349,6 +1370,8 @@ export function BaseScreen({
                   data-group-key={key}
                   data-row-path={rowPath(r)}
                   data-row-title={rowTitle(r)}
+                  data-card-color={cardColorOf(r, cardColorBy) ?? undefined}
+                  style={cardTint(r) ? { background: cardTint(r) } : undefined}
                   key={laneKey === null ? rowPath(r) : `${laneKey}\u0000${rowPath(r)}`}
                 >
                   <button className="pv-card pv-card--flat m-basecard-title" onClick={() => onOpenNote(rowPath(r))}>

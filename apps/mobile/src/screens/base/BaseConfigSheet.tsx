@@ -832,11 +832,13 @@ export function BaseConfigSheet({
                 </div>
               </>
             )}
-            {view.type === "timeline" && (
+            {(view.type === "timeline" || view.type === "board") && (
               <>
                 {/* Colour by property (S21b): the same field the desktop
-                    timeline reads, written into the same `colorBy` key. */}
-                <SectionLabel className="m-sectionlabel--inset">{t("database.colorField")}</SectionLabel>
+                    timeline reads, written into the same `colorBy` key. Since
+                    2026-09-19 a BOARD reads it too, for its cards - under its
+                    own label, because a board has a column colour as well. */}
+                <SectionLabel className="m-sectionlabel--inset">{t(view.type === "board" ? "database.boardCardColorField" : "database.colorField")}</SectionLabel>
                 <div className="m-turninto">
                   <Chip
                     selected={!view.colorBy}
@@ -863,6 +865,7 @@ export function BaseConfigSheet({
                     </Chip>
                   ))}
                 </div>
+                {view.type === "board" && <p className="m-hint">{t("database.boardCardColorHint")}</p>}
               </>
             )}
           </>

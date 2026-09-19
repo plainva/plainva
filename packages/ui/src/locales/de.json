@@ -1038,6 +1038,8 @@
     "sourceType": "Quelle",
     "groupBy": "Gruppieren nach",
     "boardColor": "Spaltenfarbe",
+    "boardCardColorField": "Kartenfarbe nach",
+    "boardCardColorHint": "Die eigene Farbe einer Notiz hat Vorrang.",
     "boardColorChip": "Nur Chip",
     "boardColorColumn": "Ganze Liste",
     "wipLimit": "WIP-Limit",

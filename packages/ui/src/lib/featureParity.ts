@@ -298,6 +298,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "board-card-color-entry",
+    title: "Setting a note's colour from its board card",
+    area: "database",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells tint a board card with the note's colour (2026-09-19). The desktop " +
+      "sets it from the card's context menu. On the phone a long press on a board card " +
+      "arms the drag - the only way to move a card by hand - so the card has no menu; the " +
+      "colour is set in the note's own menu, one tap away, and the card shows it on return.",
+    verified: "2026-09-19",
+  },
+  {
     id: "image-editor",
     title: "Crop, rotate and draw on an attached image",
     area: "editor",

@@ -1042,6 +1042,8 @@
     "sourceType": "Źródło",
     "groupBy": "Grupuj według",
     "boardColor": "Kolor kolumny",
+    "boardCardColorField": "Kolor karty według",
+    "boardCardColorHint": "Własny kolor notatki ma pierwszeństwo.",
     "boardColorChip": "Tylko etykieta",
     "boardColorColumn": "Cała kolumna",
     "wipLimit": "Limit WIP",

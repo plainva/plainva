@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-19
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -245,6 +245,10 @@ Alles wat Plainva-specifiek is, is namespaced. Drie plekken:
 | `subItemsProperty` | bare eigenschapssleutel | Bovenliggende kolom (zelf-relatie) voor de subitem-verschachteling |
 | `widths` | map van id → px | Kolombreedtes |
 | `dateFormat` | string | Datumformaat per weergave (`default` is impliciet — weglaten) |
+| `boardColorMode` | `column` | Bord: de hele kolom tinten met de kleur van zijn groep (`chip` — alleen de chip in de kop — is impliciet; weglaten) |
+| `boardLaneBy` | bare eigenschapssleutel | Banen op het bord: de tweede groeperingsas |
+| `boardWipLimits` | map van groepswaarde → getal | Bord: limiet voor onderhanden werk per kolom |
+| `colorBy` | bare eigenschapssleutel | Balken in de tijdlijn en kaarten op het bord krijgen de optiekleur van deze eigenschap (op het bord gaat de eigen kleur van de notitie voor) |
 | `pinboardOrder` | lijst van vault-relatieve paden | Handmatige volgorde van de NIET-vastgezette prikbordkaarten |
 | `pinboardPinned` | lijst van vault-relatieve paden | Vastgezette kaarten; de lijstvolgorde is de sectievolgorde |
 | `pinboardFilterBy` | `tags` of een bare multiselectie-sleutel | Labelbron van de chipbalk van het prikbord (`tags` is impliciet — weglaten) |

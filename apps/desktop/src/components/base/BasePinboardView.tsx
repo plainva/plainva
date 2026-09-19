@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { Button, applyPin, applyUnpin, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { Button, applyPin, applyUnpin, noteCardTint, withNoteColor, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -311,7 +311,7 @@ export function BasePinboardView({
     if (!vaultAdapter) return;
     try {
       const fresh = await vaultAdapter.readTextFile(path);
-      const next = hex ? setFrontmatterPath(fresh, ["plainva", "header_color"], hex) : deleteFrontmatterPath(fresh, ["plainva", "header_color"]);
+      const next = withNoteColor(fresh, hex);
       if (next !== fresh) {
         await vaultAdapter.writeTextFile(path, next);
         await afterCardWrite(path, true); // header tint mirrors into tree/tabs
@@ -548,7 +548,7 @@ export function BasePinboardView({
           border: "1px solid var(--border-color)",
           borderRadius: "var(--radius-md)",
           background: tint
-            ? `color-mix(in srgb, ${tint} calc(var(--pinboard-tint, 16) * 1%), var(--bg-secondary))`
+            ? noteCardTint(tint)
             : "var(--bg-secondary)",
           padding: "10px 12px 8px",
           cursor: dragPath === path ? "grabbing" : "pointer",

@@ -1036,6 +1036,8 @@
     "sourceType": "ソース",
     "groupBy": "グループ化の基準",
     "boardColor": "列の色",
+    "boardCardColorField": "カードの色の基準",
+    "boardCardColorHint": "ノート自体の色が優先されます。",
     "boardColorChip": "チップのみ",
     "boardColorColumn": "列全体",
     "wipLimit": "WIP上限",

@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-09-10
+Dernière mise à jour : 2026-09-19
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -245,6 +245,10 @@ Tout ce qui est spécifique à Plainva est namespacé. Trois emplacements :
 | `subItemsProperty` | clé de propriété nue | Colonne parente de l'auto-relation pour l'imbrication des sous-éléments |
 | `widths` | map id → px | Largeurs de colonnes |
 | `dateFormat` | chaîne | Format de date par vue (`default` est implicite — l'omettre) |
+| `boardColorMode` | `column` | Board : teinter toute la colonne avec la couleur de son groupe (`chip` — seulement la puce de l'en-tête — est implicite ; à omettre) |
+| `boardLaneBy` | clé de propriété nue | Couloirs du board : le second axe de regroupement |
+| `boardWipLimits` | map valeur de groupe → nombre | Board : limite de travaux en cours par colonne |
+| `colorBy` | clé de propriété nue | Les barres de la chronologie et les cartes du board prennent la couleur d'option de cette propriété (sur le board, la couleur propre de la note l'emporte) |
 | `pinboardOrder` | liste de chemins relatifs au vault | Ordre manuel des cartes du tableau d'affichage NON épinglées |
 | `pinboardPinned` | liste de chemins relatifs au vault | Cartes épinglées ; l'ordre de la liste est l'ordre de la section |
 | `pinboardFilterBy` | `tags` ou une clé de sélection multiple nue | Source des libellés de la barre de puces du tableau d'affichage (`tags` est implicite — l'omettre) |

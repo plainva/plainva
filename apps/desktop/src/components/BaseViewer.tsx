@@ -1,5 +1,5 @@
 import { trimEndChars } from "@plainva/core";
-import { pinboardCache } from "@plainva/ui";
+import { noteColorOfRow, pinboardCache, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
@@ -8,7 +8,7 @@ import { BaseExportDialog } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
@@ -246,6 +246,8 @@ export function BaseViewer({
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   // Color picker for the database icon (P7): anchored under the header icon.
   const [iconColorPicker, setIconColorPicker] = useState<{ x: number; y: number } | null>(null);
+  /** The colour picker of one board CARD (finding 2026-09-19) - the pinboard's, opened from the entry menu. */
+  const [cardColorPicker, setCardColorPicker] = useState<{ path: string; x: number; y: number; value: string | null } | null>(null);
 
   // Settings & Warning
   const [extendedDbEnabled, setExtendedDbEnabled] = useState(true);
@@ -327,6 +329,25 @@ export function BaseViewer({
     if (peekPath === path) setPeekPath(result.newPath);
     if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
   }, [vaultAdapter, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
+
+  /**
+   * A note's colour, set from a board card (finding 2026-09-19). The same
+   * write the pinboard and the note's header make - `plainva.header_color` -
+   * so the colour chosen here is the one every other surface shows.
+   */
+  const setEntryColor = useCallback(async (path: string, hex: string | null) => {
+    if (!vaultAdapter) return;
+    try {
+      const fresh = await vaultAdapter.readTextFile(path);
+      const next = withNoteColor(fresh, hex);
+      if (next === fresh) return;
+      await vaultAdapter.writeTextFile(path, next);
+      if (indexer) await applyIndexChanges(indexer, { added: [path] });
+      triggerFileTreeUpdate();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  }, [vaultAdapter, indexer, triggerFileTreeUpdate]);
 
   const duplicateEntry = useCallback(async (path: string) => {
     if (!vaultAdapter) return;
@@ -2194,7 +2215,7 @@ export function BaseViewer({
     // completion model decides whether a date can be overdue at all.
     const dueModel = dueModelOf(dbConfig);
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" && dbConfig.views[activeViewIndex].boardLaneBy !== boardGroupBy ? dbConfig.views[activeViewIndex].boardLaneBy : null} collapsedLanes={collapsedLanes} onToggleLane={toggleLane} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
+    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" && dbConfig.views[activeViewIndex].boardLaneBy !== boardGroupBy ? dbConfig.views[activeViewIndex].boardLaneBy : null} cardColorBy={getColorProperty()} collapsedLanes={collapsedLanes} onToggleLane={toggleLane} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
     if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (
@@ -2596,6 +2617,15 @@ export function BaseViewer({
               {t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
             </MenuItem>
           ) : null}
+          {/* A board card takes the note's colour (finding 2026-09-19); this is
+              where it is set - the same picker and the same `plainva.header_color`
+              as the note's header and its pinboard card. Offered where the
+              colour shows. */}
+          {currentViewType === "board" && (
+            <MenuItem data-testid="base-entry-color" onSelect={() => { const m = rowMenu; setRowMenu(null); setCardColorPicker({ path: m.path, x: m.at.x, y: m.at.y, value: noteColorOfRow(dbData.find((row) => row["file.path"] === m.path) ?? {}) }); }}>
+              <Palette size={ICON.meta} /> {t("pinboard.color")}
+            </MenuItem>
+          )}
           <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); void renameEntry(p); }}>
             {t("database.entryRename")}
           </MenuItem>
@@ -2607,6 +2637,16 @@ export function BaseViewer({
             {t("database.entryDelete")}
           </MenuItem>
         </MenuSurface>
+      )}
+      {cardColorPicker && (
+        <ColorPopover
+          x={cardColorPicker.x}
+          y={cardColorPicker.y}
+          value={cardColorPicker.value}
+          onSelect={(c, { close }) => { const target = cardColorPicker; if (close) setCardColorPicker(null); else setCardColorPicker({ ...target, value: c }); void setEntryColor(target.path, c); }}
+          onRemove={() => { const target = cardColorPicker; setCardColorPicker(null); void setEntryColor(target.path, null); }}
+          onClose={() => setCardColorPicker(null)}
+        />
       )}
       {iconColorPicker && (
         <ColorPopover

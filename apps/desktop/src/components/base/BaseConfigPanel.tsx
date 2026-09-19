@@ -971,6 +971,26 @@ export function BaseConfigPanel({
             />
           </label>
         )}
+        {/* Card colour by property (finding 2026-09-19): the key the timeline
+            already writes (`colorBy`), read by the board for its cards. Only
+            option-typed properties carry colours; the note's own colour wins,
+            and the hint says so where the choice is made. */}
+        {currentViewType === "board" && (
+          <label className="base-cfg-field">{t("database.boardCardColorField")}
+            <Select
+              ariaLabel={t("database.boardCardColorField")}
+              value={colorProp || ""}
+              onChange={(v) => onSetColorField(v)}
+              options={[
+                { value: "", label: t("database.noColorField") },
+                ...columnsForBaseSelector("boardGroup", availableColumns, cells.getColumnInput, { current: colorProp })
+                  .filter((c) => ["select", "status", "multiselect"].includes(cells.getColumnInput(c) ?? ""))
+                  .map((c) => ({ value: c, label: cells.columnLabel(c) })),
+              ]}
+            />
+            <span className="base-cfg-hint">{t("database.boardCardColorHint")}</span>
+          </label>
+        )}
         {/* WIP limits (issue #83): one number per option of the grouping column.
             The header badge edits the same value; this list is where a whole
             board is set up at once. */}

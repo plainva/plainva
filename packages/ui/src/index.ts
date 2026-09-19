@@ -156,6 +156,7 @@ export * from "./lib/newNoteContent";
 export * from "./lib/fileStem";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
+export * from "./lib/noteCardTint";
 export * from "./lib/commentJump";
 export * from "./lib/commentOverviewFocus";
 export * from "./lib/commentOverviewFocus";

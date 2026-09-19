@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-10
+Última revisão: 2026-09-19
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -245,6 +245,10 @@ Tudo o que é específico do Plainva tem namespace. Três locais:
 | `subItemsProperty` | chave de propriedade sem prefixo | Coluna pai de autorrelação para o aninhamento de subitens |
 | `widths` | mapa de id → px | Larguras de coluna |
 | `dateFormat` | string | Formato de data por visualização (`default` é implícito — omita) |
+| `boardColorMode` | `column` | Quadro: tinge a coluna inteira com a cor do seu grupo (`chip` — apenas o chip do cabeçalho — é implícito; omita) |
+| `boardLaneBy` | chave de propriedade sem prefixo | Raias do quadro: o segundo eixo de agrupamento |
+| `boardWipLimits` | mapa de valor do grupo → número | Quadro: limite de trabalho em andamento por coluna |
+| `colorBy` | chave de propriedade sem prefixo | As barras da linha do tempo e os cartões do quadro assumem a cor da opção desta propriedade (no quadro, a cor própria da nota vence) |
 | `pinboardOrder` | lista de caminhos vault-relativos | Ordem manual dos cartões do mural NÃO fixados |
 | `pinboardPinned` | lista de caminhos vault-relativos | Cartões fixados; a ordem da lista é a ordem da seção |
 | `pinboardFilterBy` | `tags` ou uma chave de seleção múltipla sem prefixo | Origem dos marcadores da barra de chips do mural (`tags` é implícito — omita) |
