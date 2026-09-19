@@ -110,7 +110,8 @@ test("a tour note supports a real self-review and accepted suggestion", async ({
     await page.locator(".cm-content").first().click();
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" My useful next step.");
-    const send = page.getByRole("button", { name: /^Send suggestions/ });
+    // By test id: a phone's band carries the SHORT label ("Send (1)") since 2026-09-19.
+    const send = page.getByTestId("suggest-send");
     await expect(send).toBeEnabled();
     await send.click();
     await expect(send).toHaveCount(0);
