@@ -69,14 +69,6 @@
   --callout-purple: #A292B5;
   --callout-gray: #8A887F;
   --callout-cyan: #8FADA8;
-  --callout-blue-tint: #8FA6B014;
-  --callout-green-tint: #93AC9614;
-  --callout-amber-tint: #BFA96E14;
-  --callout-orange-tint: #BF937014;
-  --callout-red-tint: #BF7A7214;
-  --callout-purple-tint: #A292B514;
-  --callout-gray-tint: #8A887F14;
-  --callout-cyan-tint: #8FADA814;
 }
 
 /* UI 2.0 per-theme audit (2026-07-12): E-Ink shows no motion and no tonal

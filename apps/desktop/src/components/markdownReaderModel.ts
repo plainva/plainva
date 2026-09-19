@@ -198,6 +198,25 @@ export function remarkTagPills() {
   };
 }
 
+interface HastNodeLike {
+  type?: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNodeLike[];
+}
+
+/**
+ * True when a hast `li` is a DONE task (finding 2026-09-19). remark-gfm puts the
+ * checkbox first - directly in a tight list, inside the first paragraph in a
+ * loose one; a checkbox further down belongs to a nested item, not to this one.
+ */
+export function isDoneTaskItem(li: HastNodeLike | null | undefined): boolean {
+  const firstElement = (node: HastNodeLike | undefined): HastNodeLike | undefined => node?.children?.find((child) => child.type === "element");
+  let box = firstElement(li ?? undefined);
+  if (box?.tagName === "p") box = firstElement(box);
+  return box?.tagName === "input" && box.properties?.type === "checkbox" && box.properties?.checked === true;
+}
+
 /** `data-tag-color` in the camel-cased form hast properties take. */
 function hastTagColor(tag: string): { dataTagColor: string } {
   return { dataTagColor: tagColorAttrs(tag)["data-tag-color"] };

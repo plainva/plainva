@@ -85,9 +85,31 @@ export function colorForKey(key: CalloutColorKey): string {
   return `var(--callout-${key}, ${COLORS[key]})`;
 }
 
-/** Faint background tint (~8% alpha) for a callout color. CSS variable + hex fallback. */
+/** Background tint of a callout: the theme's token, which follows `--callout-fill` per mode; hex fallback. */
 export function calloutTint(key: CalloutColorKey): string {
-  return `var(--callout-${key}-tint, ${COLORS[key]}14)`;
+  return `var(--callout-${key}-tint, ${COLORS[key]}1a)`;
+}
+
+/**
+ * The line around a callout card: the callout's colour at the strength of the
+ * mode (`--callout-line`, 42 % light / 55 % dark). Mixed with transparent, like
+ * the tint - the card sits on whatever ground the note has.
+ */
+export function calloutLine(key: CalloutColorKey): string {
+  return `color-mix(in srgb, ${colorForKey(key)} var(--callout-line, 42%), transparent)`;
+}
+
+/**
+ * The classes that make a callout ONE card in the live editor (finding
+ * 2026-09-19). CodeMirror renders flat lines, so there is no block to put a
+ * border on: every line carries the sides and the tint, the first adds the top
+ * and its corners, the last the bottom. A one-line callout carries both.
+ */
+export function calloutLineClass(key: CalloutColorKey, line: number, first: number, last: number): string {
+  let cls = `cm-callout cm-callout-${key}`;
+  if (line === first) cls += " cm-callout--first";
+  if (line === last) cls += " cm-callout--last";
+  return cls;
 }
 
 export interface ParsedCallout {

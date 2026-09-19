@@ -137,7 +137,9 @@ Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) of
 
 ## Attività, formule, diagrammi e note a piè di pagina
 
-- **Caselle di attività**: `- [ ] attività` viene renderizzata ovunque come casella di controllo — e in **modalità lettura** puoi cliccarla: Plainva riscrive `[x]` o `[ ]` nel file.
+- **Caselle di attività**: `- [ ] attività` viene renderizzata ovunque come casella di controllo — e in **modalità lettura** puoi cliccarla: Plainva riscrive `[x]` o `[ ]` nel file. Un'attività completata è mostrata attenuata e barrata — nella nota come nella vista delle attività.
+- **Callout**: una citazione che inizia con `> [!tip] Titolo` (o una delle 13 varianti del menu slash) è disegnata come un'unica scheda — una linea sottile nel colore del callout, una tinta leggera e il titolo in quel colore; senza titolo la scheda mostra il nome della sua variante. L'aspetto è lo stesso nell'anteprima dal vivo, in modalità lettura e sul telefono; una citazione normale mantiene la sua barra.
+- **Elenchi annidati**: dal secondo livello in poi, una linea sottile sotto ogni punto superiore mostra quali voci stanno insieme — nell'anteprima dal vivo e in modalità lettura.
 - **Formule matematiche (LaTeX)**: `$E = mc^2$` in linea e `$$…$$` come blocco vengono renderizzati come formule sia in modalità lettura sia nell'anteprima dal vivo (KaTeX). Con il cursore all'interno di una formula vedi la sintassi; un clic su una formula renderizzata la apre per la modifica. Solo la modalità sorgente mostra sempre la sintassi grezza. Non devi imparare a memoria il blocco `$$…$$` — il comando slash **Formula (LaTeX)** (`/katex`) lo inserisce e posiziona il cursore al suo interno.
 - **Diagrammi Mermaid**: un blocco di codice con il linguaggio `mermaid` (nel modo più rapido tramite il comando slash **Diagramma Mermaid**, `/mermaid`) viene disegnato come diagramma in modalità lettura e nell'anteprima dal vivo — un clic sul diagramma mostra il codice per la modifica:
 

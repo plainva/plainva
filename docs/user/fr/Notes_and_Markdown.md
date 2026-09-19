@@ -137,7 +137,9 @@ La création de modèles se fait depuis n'importe où : la palette de commandes 
 
 ## Tâches, formules, diagrammes et notes de bas de page
 
-- **Cases à cocher de tâches** : `- [ ] tâche` se rend comme une case à cocher partout — et en **mode lecture**, vous pouvez cliquer dessus : Plainva réécrit `[x]` ou `[ ]` dans le fichier.
+- **Cases à cocher de tâches** : `- [ ] tâche` se rend comme une case à cocher partout — et en **mode lecture**, vous pouvez cliquer dessus : Plainva réécrit `[x]` ou `[ ]` dans le fichier. Une tâche terminée s'affiche atténuée et barrée — dans la note comme dans la vue des tâches.
+- **Callouts** : une citation qui commence par `> [!tip] Titre` (ou l'une des 13 variantes du menu slash) s'affiche comme une seule carte — un trait fin dans la couleur du callout, une teinte légère et le titre dans cette couleur ; sans titre, la carte affiche le nom de sa variante. L'aspect est le même dans l'aperçu en direct, en mode lecture et sur le téléphone ; une citation ordinaire garde sa barre.
+- **Listes imbriquées** : à partir du deuxième niveau, un trait fin sous chaque puce parente montre quels éléments vont ensemble — dans l'aperçu en direct et en mode lecture.
 - **Formules mathématiques (LaTeX)** : `$E = mc^2$` en ligne et `$$…$$` en bloc se rendent comme des formules en mode lecture ET dans l'aperçu en direct (KaTeX). Quand le curseur se trouve dans une formule, la syntaxe est visible ; cliquer sur une formule rendue l'ouvre pour la modifier. Seul le mode source affiche toujours la syntaxe brute. Inutile de retenir par cœur le bloc `$$…$$` — la commande slash **Formule (LaTeX)** (`/katex`) l'insère et y place le curseur.
 - **Diagrammes Mermaid** : un bloc de code avec le langage `mermaid` (le plus rapide via la commande slash **Diagramme Mermaid**, `/mermaid`) se dessine comme un diagramme en mode lecture et dans l'aperçu en direct — cliquer sur le diagramme affiche le code pour le modifier :
 

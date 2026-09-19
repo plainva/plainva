@@ -3,14 +3,35 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { HEADING_SIZES } from "../lib/typography";
 import { Prec } from "@codemirror/state";
-import { CALLOUT_COLOR_KEYS, colorForKey, calloutTint } from "./callouts";
+import { CALLOUT_COLOR_KEYS, calloutLine, calloutTint } from "./callouts";
+import { INDENT_EM, MAX_LIST_GUIDES } from "./listIndent";
 
-// Callout left-border + tint colors (Obsidian > [!type]), generated from the
-// single source of truth in callouts.ts so editor and read view never drift.
+// Callout line + tint colors (Obsidian > [!type]), generated from the single
+// source of truth in callouts.ts so editor and read view never drift.
 const calloutThemeRules = Object.fromEntries(
   CALLOUT_COLOR_KEYS.map((key) => [
     `.cm-callout-${key}`,
-    { borderLeftColor: colorForKey(key), backgroundColor: calloutTint(key) },
+    { borderColor: calloutLine(key), backgroundColor: calloutTint(key) },
+  ]),
+);
+
+// Indent guides (finding 2026-09-19): from the second list level on, a hairline
+// under each parent bullet. Drawn as BACKGROUND layers of the line - no extra
+// DOM, nothing to select, nothing for the caret to land in. The middle of
+// level k's bullet was MEASURED at k * INDENT_EM + 0.05em (levels one to three,
+// the step is listIndent.ts's), so that is where its guide runs.
+const GUIDE = "linear-gradient(var(--border-color), var(--border-color))";
+/** Measured: how far right of k * INDENT_EM the middle of a bullet sits. */
+const GUIDE_OFFSET_EM = 0.05;
+const indentGuideRules = Object.fromEntries(
+  Array.from({ length: MAX_LIST_GUIDES }, (_, i) => i + 1).map((n) => [
+    `.cm-list-guides-${n}`,
+    {
+      backgroundImage: Array.from({ length: n }, () => GUIDE).join(", "),
+      backgroundSize: "1px 100%",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: Array.from({ length: n }, (_, k) => `calc(${(k + 1) * INDENT_EM + GUIDE_OFFSET_EM}em - 0.5px) 0`).join(", "),
+    },
   ]),
 );
 
@@ -83,8 +104,41 @@ export const editorTheme = EditorView.theme({
     borderLeft: "4px solid var(--quote-border)",
     paddingLeft: "10px",
   },
-  // Callout left-border + tint colors, generated from callouts.ts (see top of file).
+  // A callout is ONE card built from its lines (finding 2026-09-19): sides and
+  // tint on every line, the top and its corners on the first, the bottom on the
+  // last. Padding, never margin - CodeMirror measures lines, and a margin is a
+  // gap its height map does not know. Colors come from callouts.ts (top of file).
+  ".cm-callout": {
+    borderLeft: "1px solid",
+    borderRight: "1px solid",
+    paddingLeft: "var(--space-3)",
+    paddingRight: "var(--space-3)",
+  },
+  ".cm-callout--first": {
+    borderTop: "1px solid",
+    borderTopLeftRadius: "var(--radius-md)",
+    borderTopRightRadius: "var(--radius-md)",
+    paddingTop: "var(--space-2)",
+  },
+  ".cm-callout--last": {
+    borderBottom: "1px solid",
+    borderBottomLeftRadius: "var(--radius-md)",
+    borderBottomRightRadius: "var(--radius-md)",
+    paddingBottom: "var(--space-2)",
+  },
   ...calloutThemeRules,
+  ...indentGuideRules,
+  // Quoted text is muted and italic - in a plain quote. A callout is a card
+  // with its own title, and its body reads like the note's text, exactly as
+  // the reading view draws it; the title takes the callout's colour.
+  ".cm-md-quote": { color: "var(--text-muted)", fontStyle: "italic" },
+  ".cm-callout .cm-md-quote": { color: "var(--text-main)", fontStyle: "normal" },
+  ".cm-callout .cm-callout-title .cm-md-quote": { color: "inherit" },
+  // A done task: muted and struck through; the box stays as it is.
+  ".cm-md-task-done": {
+    color: "var(--text-muted)",
+    textDecoration: "line-through",
+  },
   // Callout header (live mode): colored type icon + bold title / type name.
   ".cm-callout-icon": {
     display: "inline-flex",
@@ -382,7 +436,10 @@ export const markdownHighlightStyle = HighlightStyle.define([
   { tag: t.strikethrough, textDecoration: "line-through", color: "var(--text-muted)" },
   { tag: t.link, color: "var(--accent-color)", textDecoration: "underline" },
   { tag: t.url, color: "var(--accent-color)" },
-  { tag: t.quote, color: "var(--text-muted)", fontStyle: "italic" },
+  // A NAMED class instead of a generated one: inside a callout card the quote
+  // look has to step aside (finding 2026-09-19), and a rule can only address a
+  // class it knows. The look itself lives in editorTheme (".cm-md-quote").
+  { tag: t.quote, class: "cm-md-quote" },
   { tag: t.monospace, fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", backgroundColor: "var(--code-bg)", padding: "2px 4px", borderRadius: "var(--radius-xs)", fontSize: "0.9em" },
   { tag: t.list, color: "var(--text-main)" },
   { tag: t.comment, fontStyle: "italic", color: "var(--text-muted)" },

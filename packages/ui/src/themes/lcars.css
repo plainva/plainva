@@ -55,14 +55,6 @@
   --callout-purple: #CC99CC;
   --callout-gray: #8C8C99;
   --callout-cyan: #66CCCC;
-  --callout-blue-tint: #9999FF14;
-  --callout-green-tint: #66CC9914;
-  --callout-amber-tint: #FFCC6614;
-  --callout-orange-tint: #FF9C0014;
-  --callout-red-tint: #CC666614;
-  --callout-purple-tint: #CC99CC14;
-  --callout-gray-tint: #8C8C9914;
-  --callout-cyan-tint: #66CCCC14;
 
   /* Chrome gets the condensed LCARS face; long-form text stays readable. */
   --font-ui: "Antonio", "Bahnschrift SemiCondensed", "Arial Narrow", "Inter", sans-serif;

@@ -137,7 +137,9 @@ Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferec
 
 ## Tarefas, fórmulas, diagramas e notas de rodapé
 
-- **Caixas de seleção de tarefas**: `- [ ] tarefa` é renderizada como uma caixa de seleção em todos os lugares — e no **modo de leitura** você pode clicar nela: o Plainva grava `[x]` ou `[ ]` de volta no arquivo.
+- **Caixas de seleção de tarefas**: `- [ ] tarefa` é renderizada como uma caixa de seleção em todos os lugares — e no **modo de leitura** você pode clicar nela: o Plainva grava `[x]` ou `[ ]` de volta no arquivo. Uma tarefa concluída aparece esmaecida e riscada — na nota, assim como na visualização de tarefas.
+- **Callouts**: uma citação que começa com `> [!tip] Título` (ou qualquer uma das 13 variantes do menu de barra) é desenhada como um único cartão — uma linha fina na cor do callout, um tom suave e o título nessa cor; sem título, o cartão mostra o nome da variante. A aparência é a mesma na visualização ao vivo, no modo de leitura e no telefone; uma citação comum mantém a sua barra.
+- **Listas aninhadas**: a partir do segundo nível, uma linha fina sob cada marcador superior mostra quais itens pertencem ao mesmo grupo — na visualização ao vivo e no modo de leitura.
 - **Matemática (LaTeX)**: `$E = mc^2$` inline e `$$…$$` como bloco são renderizados como fórmulas no modo de leitura E na visualização ao vivo (KaTeX). Com o cursor dentro de uma fórmula, você vê a sintaxe; clicar em uma fórmula renderizada a abre para edição. Só o modo de código-fonte sempre mostra a sintaxe bruta. Você não precisa decorar o bloco `$$…$$` — o comando de barra **Fórmula (LaTeX)** (`/katex`) o insere e posiciona o cursor dentro dele.
 - **Diagramas Mermaid**: um bloco de código com a linguagem `mermaid` (mais rápido pelo comando de barra **Diagrama Mermaid**, `/mermaid`) é desenhado como um diagrama no modo de leitura e na visualização ao vivo — clicar no diagrama mostra o código para edição:
 

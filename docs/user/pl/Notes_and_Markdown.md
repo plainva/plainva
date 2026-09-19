@@ -137,7 +137,9 @@ Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) ofe
 
 ## Zadania, formuły, diagramy i przypisy
 
-- **Pola wyboru zadań**: `- [ ] zadanie` renderuje się wszędzie jako pole wyboru — a w **trybie czytania** można je kliknąć: Plainva zapisuje z powrotem do pliku `[x]` lub `[ ]`.
+- **Pola wyboru zadań**: `- [ ] zadanie` renderuje się wszędzie jako pole wyboru — a w **trybie czytania** można je kliknąć: Plainva zapisuje z powrotem do pliku `[x]` lub `[ ]`. Ukończone zadanie jest wyszarzone i przekreślone — w notatce tak samo jak w widoku zadań.
+- **Callouts**: cytat zaczynający się od `> [!tip] Tytuł` (lub dowolny z 13 wariantów z menu ukośnika) jest rysowany jako jedna karta — cienka linia w kolorze calloutu, lekki odcień i tytuł w tym kolorze; bez tytułu karta pokazuje nazwę swojego wariantu. Wygląda tak samo w podglądzie na żywo, w trybie czytania i na telefonie; zwykły cytat zachowuje swój pasek.
+- **Listy zagnieżdżone**: od drugiego poziomu cienka linia pod każdym punktem nadrzędnym pokazuje, które pozycje należą do siebie — w podglądzie na żywo i w trybie czytania.
 - **Matematyka (LaTeX)**: `$E = mc^2$` w wierszu i `$$…$$` jako blok renderują się jako formuły w trybie czytania ORAZ w podglądzie na żywo (KaTeX). Gdy kursor stoi wewnątrz formuły, widoczna jest jej składnia; kliknięcie wyrenderowanej formuły otwiera ją do edycji. Tylko tryb źródłowy zawsze pokazuje surową składnię. Nie musisz pamiętać na pamięć bloku `$$…$$` — polecenie slash **Wzór (LaTeX)** (`/katex`) wstawia go i ustawia kursor w jego wnętrzu.
 - **Diagramy Mermaid**: blok kodu z językiem `mermaid` (najszybciej przez polecenie slash **Diagram Mermaid**, `/mermaid`) jest rysowany jako diagram w trybie czytania i w podglądzie na żywo — kliknięcie diagramu pokazuje kod do edycji:
 

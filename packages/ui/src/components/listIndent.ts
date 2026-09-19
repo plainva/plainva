@@ -42,6 +42,8 @@ export const INDENT_EM = 1.5;
  * indents; the old `(depth + 1)` formula pushed level one two full steps in).
  */
 export const INDENT_BASE_STEPS = 0.5;
+/** Deepest list level that still gets its own indent guide; deeper lines draw this many. */
+export const MAX_LIST_GUIDES = 8;
 /** Fallback hanging indent until the first measurement lands. */
 const MARKER_INDENT_EM = 1;
 /** Breathing room between the line box's left edge and a measured prefix. */
@@ -197,7 +199,12 @@ function buildDecorations(
           const item = itemLine !== null ? widths.items.get(itemLine) : undefined;
           const measured = own !== undefined && item !== undefined ? { own, item } : null;
           const style = listIndentStyle(depth, isMarker, measured);
-          if (style) lines.add(line.from, line.from, Decoration.line({ attributes: { style } }));
+          // Indent guides (finding 2026-09-19): one hairline per PARENT level,
+          // drawn by the theme as a background of the line (MarkdownTheme.ts).
+          // Live mode only - the positions belong to the layout in which the
+          // leading whitespace is not rendered.
+          const guides = hideWs && depth > 1 ? `cm-list-guides-${Math.min(depth - 1, MAX_LIST_GUIDES)}` : undefined;
+          if (style) lines.add(line.from, line.from, Decoration.line(guides ? { attributes: { style }, class: guides } : { attributes: { style } }));
           if (hideWs && wsLen > 0) hidden.add(line.from, firstNonWs, HIDDEN_WS);
           // A tab's width depends on where the row starts, and the hanging
           // indent moves the row: measuring such a line can never settle. With

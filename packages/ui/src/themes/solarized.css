@@ -31,14 +31,6 @@
   --callout-purple: #6C71C4;
   --callout-gray: #839496;
   --callout-cyan: #2AA198;
-  --callout-blue-tint: #268BD214;
-  --callout-green-tint: #85990014;
-  --callout-amber-tint: #B5890014;
-  --callout-orange-tint: #CB4B1614;
-  --callout-red-tint: #DC322F14;
-  --callout-purple-tint: #6C71C414;
-  --callout-gray-tint: #83949614;
-  --callout-cyan-tint: #2AA19814;
 }
 
 [data-theme-name="solarized"][data-theme="dark"] {

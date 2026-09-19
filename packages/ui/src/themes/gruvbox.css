@@ -31,14 +31,6 @@
   --callout-purple: #8F3F71;
   --callout-gray: #7C6F64;
   --callout-cyan: #427B58;
-  --callout-blue-tint: #07667814;
-  --callout-green-tint: #79740E14;
-  --callout-amber-tint: #B5761414;
-  --callout-orange-tint: #AF3A0314;
-  --callout-red-tint: #9D000614;
-  --callout-purple-tint: #8F3F7114;
-  --callout-gray-tint: #7C6F6414;
-  --callout-cyan-tint: #427B5814;
 }
 
 [data-theme-name="gruvbox"][data-theme="dark"] {
@@ -69,12 +61,4 @@
   --callout-purple: #D3869B;
   --callout-gray: #A89984;
   --callout-cyan: #8EC07C;
-  --callout-blue-tint: #83A59814;
-  --callout-green-tint: #B8BB2614;
-  --callout-amber-tint: #FABD2F14;
-  --callout-orange-tint: #FE801914;
-  --callout-red-tint: #FB493414;
-  --callout-purple-tint: #D3869B14;
-  --callout-gray-tint: #A8998414;
-  --callout-cyan-tint: #8EC07C14;
 }

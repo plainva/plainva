@@ -31,14 +31,6 @@
   --callout-purple: #8839EF;
   --callout-gray: #7C7F93;
   --callout-cyan: #179299;
-  --callout-blue-tint: #1E66F514;
-  --callout-green-tint: #40A02B14;
-  --callout-amber-tint: #DF8E1D14;
-  --callout-orange-tint: #FE640B14;
-  --callout-red-tint: #D20F3914;
-  --callout-purple-tint: #8839EF14;
-  --callout-gray-tint: #7C7F9314;
-  --callout-cyan-tint: #17929914;
 }
 
 [data-theme-name="catppuccin"][data-theme="dark"] {
@@ -69,12 +61,4 @@
   --callout-purple: #CBA6F7;
   --callout-gray: #9399B2;
   --callout-cyan: #94E2D5;
-  --callout-blue-tint: #89B4FA14;
-  --callout-green-tint: #A6E3A114;
-  --callout-amber-tint: #F9E2AF14;
-  --callout-orange-tint: #FAB38714;
-  --callout-red-tint: #F38BA814;
-  --callout-purple-tint: #CBA6F714;
-  --callout-gray-tint: #9399B214;
-  --callout-cyan-tint: #94E2D514;
 }

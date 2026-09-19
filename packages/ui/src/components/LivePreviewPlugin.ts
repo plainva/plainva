@@ -1,7 +1,7 @@
 import { Decoration, ViewPlugin, EditorView, ViewUpdate, DecorationSet, WidgetType } from "@codemirror/view";
 import { Range, StateField, EditorState, Extension, EditorSelection, Facet } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { parseCalloutMarker, calloutColorKey, calloutColor, calloutIconPath } from "./callouts";
+import { parseCalloutMarker, calloutColorKey, calloutColor, calloutIconPath, calloutLineClass } from "./callouts";
 import { parseMarkdownTable, serializeTable, setCell, type TableModel, type TableAlign } from "./tableModel";
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
@@ -640,10 +640,14 @@ export function markdownDecorationPlugin(isLive: boolean) {
                   const firstLine = state.doc.line(startLine);
                   const firstText = firstLine.text.replace(/^\s*>+\s?/, "");
                   const callout = parseCalloutMarker(firstText);
-                  const cls = callout
-                    ? `cm-blockquote-line cm-callout-${calloutColorKey(callout.type)}`
-                    : "cm-blockquote-line";
-                  for (let i = startLine; i <= endLine; i++) quoteLineClass.set(i, cls);
+                  // A callout is ONE card (finding 2026-09-19). The editor has no
+                  // block element to put a border on, so the card is built from
+                  // its lines: sides and tint on every line, the top on the
+                  // first, the bottom on the last. A plain quote keeps its bar.
+                  const colorKey = callout ? calloutColorKey(callout.type) : null;
+                  for (let i = startLine; i <= endLine; i++) {
+                    quoteLineClass.set(i, colorKey ? calloutLineClass(colorKey, i, startLine, endLine) : "cm-blockquote-line");
+                  }
                   // In live mode, turn the (inactive) header line into an
                   // Obsidian-style callout header: replace the raw "[!type]"
                   // marker with a colored type icon, and show the type name when
@@ -706,9 +710,19 @@ export function markdownDecorationPlugin(isLive: boolean) {
                   return;
                 }
                 if (name === "TaskMarker") {
-                  if (lineActive) return;
                   const text = state.doc.sliceString(node.from, node.to);
                   const checked = /[xX]/.test(text);
+                  // A done task reads like one (finding 2026-09-19): muted and
+                  // struck through, as the task view, the board checklist and
+                  // the note cards have drawn it all along. A MARK over the
+                  // text only - the box and the bullet stay as they are - and
+                  // also while the caret is on the line: the task is still done.
+                  const taskLine = state.doc.lineAt(node.from);
+                  const textFrom = Math.min(node.to + 1, taskLine.to);
+                  if (checked && textFrom < taskLine.to) {
+                    decos.push(Decoration.mark({ class: "cm-md-task-done" }).range(textFrom, taskLine.to));
+                  }
+                  if (lineActive) return;
                   // Toggle character sits between the brackets: "[ ]" -> index +1.
                   decos.push(
                     Decoration.replace({ widget: new TaskWidget(checked, node.from + 1) }).range(node.from, node.to)

@@ -137,7 +137,9 @@ Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`
 
 ## Tareas, fórmulas, diagramas y notas al pie
 
-- **Casillas de tareas**: `- [ ] tarea` se renderiza como una casilla de verificación en todas partes — y en el **modo lectura** puedes hacer clic en ella: Plainva escribe `[x]` o `[ ]` de vuelta en el archivo.
+- **Casillas de tareas**: `- [ ] tarea` se renderiza como una casilla de verificación en todas partes — y en el **modo lectura** puedes hacer clic en ella: Plainva escribe `[x]` o `[ ]` de vuelta en el archivo. Una tarea completada se muestra atenuada y tachada, en la nota igual que en la vista de tareas.
+- **Callouts**: una cita que empieza con `> [!tip] Título` (o cualquiera de las 13 variantes del menú de barra) se dibuja como una sola tarjeta: una línea fina en el color del callout, un tinte suave y el título en ese color; sin título, la tarjeta muestra el nombre de su variante. Se ve igual en la vista previa en vivo, en el modo lectura y en el teléfono; una cita normal conserva su barra.
+- **Listas anidadas**: a partir del segundo nivel, una línea fina bajo cada viñeta superior muestra qué elementos van juntos, en la vista previa en vivo y en el modo lectura.
 - **Matemáticas (LaTeX)**: `$E = mc^2$` en línea y `$$…$$` como bloque se renderizan como fórmulas en modo lectura Y en la vista previa en vivo (KaTeX). Con el cursor dentro de una fórmula ves la sintaxis; al hacer clic en una fórmula renderizada se abre para editarla. Solo el modo fuente muestra siempre la sintaxis sin procesar. No necesitas memorizar el bloque `$$…$$` — el comando de barra oblicua **Fórmula (LaTeX)** (`/katex`) lo inserta y coloca el cursor dentro.
 - **Diagramas Mermaid**: un bloque de código con el lenguaje `mermaid` (la forma más rápida es el comando de barra oblicua **Diagrama Mermaid**, `/mermaid`) se dibuja como diagrama en modo lectura y en la vista previa en vivo — al hacer clic en el diagrama se muestra el código para editarlo:
 

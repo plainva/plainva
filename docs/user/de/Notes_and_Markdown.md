@@ -137,7 +137,9 @@ Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Ne
 
 ## Aufgaben, Formeln, Diagramme und Fußnoten
 
-- **Aufgaben-Checkboxen**: `- [ ] Aufgabe` wird überall als Checkbox angezeigt — und im **Lesemodus** kannst Du sie direkt anklicken: Plainva schreibt `[x]` bzw. `[ ]` in die Datei zurück.
+- **Aufgaben-Checkboxen**: `- [ ] Aufgabe` wird überall als Checkbox angezeigt — und im **Lesemodus** kannst Du sie direkt anklicken: Plainva schreibt `[x]` bzw. `[ ]` in die Datei zurück. Eine erledigte Aufgabe steht gedämpft und durchgestrichen da — in der Notiz genauso wie in der Aufgabenansicht.
+- **Callouts**: Ein Zitat, das mit `> [!tip] Titel` beginnt (oder einer der 13 Varianten aus dem Slash-Menü), steht als eine Karte da — feine Linie in der Farbe des Callouts, leichte Tönung, der Titel in dieser Farbe; ohne Titel zeigt die Karte den Namen ihrer Variante. Das sieht in der Live-Vorschau, im Lesemodus und am Telefon gleich aus; ein gewöhnliches Zitat behält seinen Balken.
+- **Verschachtelte Listen**: Ab der zweiten Ebene zeigt eine feine Linie unter jedem übergeordneten Punkt, welche Einträge zusammengehören — in der Live-Vorschau und im Lesemodus.
 - **Mathe (LaTeX)**: `$E = mc^2$` im Fließtext und `$$…$$` als Block werden im Lesemodus UND in der Live-Vorschau als Formeln gerendert (KaTeX). Steht die Schreibmarke in der Formel, siehst Du die Syntax; ein Klick auf eine gerenderte Formel öffnet sie zum Bearbeiten. Nur der Quelltext-Modus zeigt immer die rohe Syntax. Den `$$…$$`-Block musst Du nicht auswendig kennen — der Slash-Befehl **Formel (LaTeX)** (`/katex`) fügt ihn ein und setzt die Schreibmarke hinein.
 - **Mermaid-Diagramme**: Ein Codeblock mit der Sprache `mermaid` (am schnellsten über den Slash-Befehl **Mermaid-Diagramm**, `/mermaid`) wird im Lesemodus und in der Live-Vorschau als Diagramm gezeichnet — ein Klick auf das Diagramm zeigt den Code zum Bearbeiten:
 

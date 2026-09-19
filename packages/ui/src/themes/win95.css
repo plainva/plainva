@@ -382,14 +382,6 @@
   --callout-purple: #800080;
   --callout-gray: #808080;
   --callout-cyan: #008080;
-  --callout-blue-tint: #00008014;
-  --callout-green-tint: #00800014;
-  --callout-amber-tint: #80800014;
-  --callout-orange-tint: #80000014;
-  --callout-red-tint: #FF000014;
-  --callout-purple-tint: #80008014;
-  --callout-gray-tint: #80808014;
-  --callout-cyan-tint: #00808014;
 }
 
 /* Security centre uses the same beveled surface grammar as settings cards. */

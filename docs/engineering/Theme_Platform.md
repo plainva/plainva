@@ -22,7 +22,7 @@ Base tokens (Petrol) live in `apps/desktop/src/App.css` on `:root` (light) + `[d
 
 - Colors: `--bg-primary/secondary/hover/active`, `--text-main/muted/faint`, `--accent-color/-hover`, `--accent-on`, `--border-color/-light`, `--error-*`, `--overlay-bg`
 - Editor/read: `--selection-bg`, `--active-line-bg`, `--code-bg`, `--quote-border`, `--highlight-bg`
-- Callouts: `--callout-<key>` + `--callout-<key>-tint` (8 types)
+- Callouts: `--callout-<key>` (8 types). The card's strength belongs to the MODE, not to the theme (2026-09-19): `--callout-fill` (10 % light, 16 % dark) and `--callout-line` (42 % / 55 %). `--callout-<key>-tint` is derived from the colour and `--callout-fill`, so a theme that sets the eight colours gets matching tints for free; a theme may still set a tint of its own (Paper and Solarized keep a quieter one, high contrast its own), but a fixed 8 % copy of the colour is exactly what made dark callouts vanish
 - Structure: `--radius-xs/sm/md/lg/xl/pill` (Plainva UI 2.0 scale 4/8/12/16/20/999 px — widened one notch for the M3-Expressive look; components NEVER use hardcoded radii, migration 2026-07-04, ~230 spots)
 - Font split: `--font-ui` (chrome: title bar, sidebars, buttons, menus) vs. `--font-content` (editor + reading view) vs. `--font-mono` (code blocks, inline code, code mode); `--font-family` remains an alias for `--font-ui`. All three are user-settable slots since issue #82 (`packages/ui/src/lib/appFonts.ts`: "theme" keeps the theme's stack, presets and custom names write the token inline on `<html>`, per device — the desktop store binding is `apps/desktop/src/services/appFonts.ts`, the phone's is `mobileSettings`). A theme still owns its fonts until the user overrides a slot.
 

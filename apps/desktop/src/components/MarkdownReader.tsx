@@ -14,12 +14,12 @@ import { useWikiResolver } from '../hooks/useWikiResolver';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
-import { calloutColor, calloutColorKey, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';
+import { calloutColor, calloutColorKey, calloutLine, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -201,6 +201,13 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
   </div>;
 };
 
+/** A list nested in an item - rendered by our own ul/ol, which still carries its hast node. */
+function isNestedList(child: React.ReactNode): boolean {
+  if (!React.isValidElement(child)) return false;
+  const tag = (child.props as { node?: { tagName?: string } } | null)?.node?.tagName;
+  return tag === "ul" || tag === "ol";
+}
+
 // Concatenate all text within a hast node (soft breaks come through as "\n").
 function hastText(node: any): string {
   if (!node) return "";
@@ -220,7 +227,18 @@ function stripCalloutHeader(children: React.ReactNode): React.ReactNode {
       if (replaced !== node) done = true;
       return replaced;
     }
-    if (Array.isArray(node)) return node.map((c, i) => <React.Fragment key={i}>{walk(c)}</React.Fragment>);
+    if (Array.isArray(node)) {
+      const out: React.ReactNode[] = [];
+      for (let i = 0; i < node.length; i++) {
+        const wasDone = done;
+        out.push(<React.Fragment key={i}>{walk(node[i])}</React.Fragment>);
+        // The header line ends in a line break of its own; with the line gone
+        // it would stand as an empty first line of the card (finding 2026-09-19).
+        const next = node[i + 1];
+        if (!wasDone && done && React.isValidElement(next) && next.type === "br") i++;
+      }
+      return out;
+    }
     if (React.isValidElement(node)) {
       const el = node as React.ReactElement<{ children?: React.ReactNode }>;
       if (el.props && el.props.children != null) {
@@ -510,13 +528,28 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           hr: ({ node: _node, ...props }) => <hr style={{ border: 'none', borderTop: '2px solid var(--border-color)', margin: '1.5em 0' }} {...props} />,
           ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
           ol: ({ node: _node, ...props }) => <ol style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
-          li: ({ node: _node, className, ...props }) => (
-            <li
-              className={className}
-              style={className?.includes('task-list-item') ? { listStyleType: 'none', marginLeft: '-1.2em' } : undefined}
-              {...props}
-            />
-          ),
+          li: ({ node, className, children, ...props }) => {
+            const isTask = className?.includes('task-list-item');
+            // A done task reads like one (finding 2026-09-19): muted and struck
+            // through, as in the live editor. Only the item's OWN text - a
+            // text-decoration cannot be undone further down, so a list nested
+            // under a done task stays outside the struck box.
+            if (isTask && isDoneTaskItem(node)) {
+              const all = React.Children.toArray(children);
+              const nested = all.filter(isNestedList);
+              return (
+                <li className={className} style={{ listStyleType: 'none', marginLeft: '-1.2em' }} {...props}>
+                  <div className="pv-reader-task-done">{all.filter((child) => !isNestedList(child))}</div>
+                  {nested}
+                </li>
+              );
+            }
+            return (
+              <li className={className} style={isTask ? { listStyleType: 'none', marginLeft: '-1.2em' } : undefined} {...props}>
+                {children}
+              </li>
+            );
+          },
           input: ({ node: _node, ...props }) => {
             if (props.type === "checkbox") {
               const toggle = onToggleTask;
@@ -541,8 +574,12 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             const parsed = parseCalloutMarker(firstLine);
             if (parsed) {
               const color = calloutColor(parsed.type);
+              const colorKey = calloutColorKey(parsed.type);
+              // ONE card, the same in both modes (finding 2026-09-19): a fine
+              // line in the callout's colour, its tint, no bar. The live
+              // editor builds the same silhouette from its lines.
               return (
-                <div {...props} style={{ borderLeft: `4px solid ${color}`, background: calloutTint(calloutColorKey(parsed.type)), borderRadius: "var(--radius-sm)", padding: "0.6em 1em", margin: "0.8em 0" }}>
+                <div {...props} className="pv-reader-callout" style={{ border: `1px solid ${calloutLine(colorKey)}`, background: calloutTint(colorKey), borderRadius: "var(--radius-md)", padding: "0.5em 0.8em", margin: "0.8em 0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4em", fontWeight: 600, color, marginBottom: "0.3em" }}>
                     <svg viewBox="0 0 24 24" width="1.1em" height="1.1em" style={{ flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: calloutIconPath(parsed.type) }} />
                     <span style={parsed.title ? undefined : { textTransform: "capitalize" }}>{parsed.title || parsed.type}</span>

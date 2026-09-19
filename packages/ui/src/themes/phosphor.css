@@ -40,14 +40,6 @@
   --callout-purple: #B08FE3;
   --callout-gray: #4F8A66;
   --callout-cyan: #4AE8D9;
-  --callout-blue-tint: #4AB8C914;
-  --callout-green-tint: #5CFF9C14;
-  --callout-amber-tint: #D9E34A14;
-  --callout-orange-tint: #E3A34A14;
-  --callout-red-tint: #FF6B5C14;
-  --callout-purple-tint: #B08FE314;
-  --callout-gray-tint: #4F8A6614;
-  --callout-cyan-tint: #4AE8D914;
 
   --font-ui: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
   --font-content: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
@@ -93,14 +85,6 @@
   --callout-purple: #C98FE3;
   --callout-gray: #8A6F4A;
   --callout-cyan: #4AD9C9;
-  --callout-blue-tint: #4AA8C914;
-  --callout-green-tint: #A8D94A14;
-  --callout-amber-tint: #FFC53D14;
-  --callout-orange-tint: #FF9C3D14;
-  --callout-red-tint: #FF6B5C14;
-  --callout-purple-tint: #C98FE314;
-  --callout-gray-tint: #8A6F4A14;
-  --callout-cyan-tint: #4AD9C914;
 
   --font-ui: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
   --font-content: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;

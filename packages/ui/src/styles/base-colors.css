@@ -62,14 +62,22 @@
   --callout-purple: #9d6ddb;
   --callout-gray: #8a8a8a;
   --callout-cyan: #2fa39a;
-  --callout-blue-tint: #3a8ca614;
-  --callout-green-tint: #3fae6a14;
-  --callout-amber-tint: #d9a23f14;
-  --callout-orange-tint: #d9883f14;
-  --callout-red-tint: #d64d4d14;
-  --callout-purple-tint: #9d6ddb14;
-  --callout-gray-tint: #8a8a8a14;
-  --callout-cyan-tint: #2fa39a14;
+  /* The card's strength is a matter of the MODE, not of the theme (finding
+     2026-09-19): a fixed 8 % of a colour picked for a light ground barely shows
+     on a dark one. Fill and line are two percentages; the tints below follow
+     from them and from the colour, so a theme that sets --callout-<key> gets a
+     matching tint for free and may still override one. Mixed with TRANSPARENT,
+     never with the page colour: an opaque line background hides the selection. */
+  --callout-fill: 10%;
+  --callout-line: 42%;
+  --callout-blue-tint: color-mix(in srgb, var(--callout-blue) var(--callout-fill), transparent);
+  --callout-green-tint: color-mix(in srgb, var(--callout-green) var(--callout-fill), transparent);
+  --callout-amber-tint: color-mix(in srgb, var(--callout-amber) var(--callout-fill), transparent);
+  --callout-orange-tint: color-mix(in srgb, var(--callout-orange) var(--callout-fill), transparent);
+  --callout-red-tint: color-mix(in srgb, var(--callout-red) var(--callout-fill), transparent);
+  --callout-purple-tint: color-mix(in srgb, var(--callout-purple) var(--callout-fill), transparent);
+  --callout-gray-tint: color-mix(in srgb, var(--callout-gray) var(--callout-fill), transparent);
+  --callout-cyan-tint: color-mix(in srgb, var(--callout-cyan) var(--callout-fill), transparent);
 
   /* Structure tokens — themes may reshape the app through these (e.g. LCARS
      pill buttons). Sized steps (Plainva UI 2.0 / M3 Expressive, one notch more
@@ -136,6 +144,8 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
+  --callout-fill: 16%;
+  --callout-line: 55%;
   --bg-primary: #0f1c1b;
   --bg-secondary: #152625;
   --bg-hover: #213533;

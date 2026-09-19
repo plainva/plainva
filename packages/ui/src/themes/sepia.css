@@ -30,14 +30,6 @@
   --callout-purple: #7D6390;
   --callout-gray: #857459;
   --callout-cyan: #57837C;
-  --callout-blue-tint: #5E7A8A14;
-  --callout-green-tint: #6B7F4A14;
-  --callout-amber-tint: #A87F2E14;
-  --callout-orange-tint: #A8652E14;
-  --callout-red-tint: #A84C3A14;
-  --callout-purple-tint: #7D639014;
-  --callout-gray-tint: #85745914;
-  --callout-cyan-tint: #57837C14;
 }
 
 [data-theme-name="sepia"][data-theme="dark"] {
@@ -68,12 +60,4 @@
   --callout-purple: #AC94C0;
   --callout-gray: #94856B;
   --callout-cyan: #87B0A8;
-  --callout-blue-tint: #8FA9BA14;
-  --callout-green-tint: #9FB37A14;
-  --callout-amber-tint: #D6AC5714;
-  --callout-orange-tint: #D68A5714;
-  --callout-red-tint: #D6766214;
-  --callout-purple-tint: #AC94C014;
-  --callout-gray-tint: #94856B14;
-  --callout-cyan-tint: #87B0A814;
 }

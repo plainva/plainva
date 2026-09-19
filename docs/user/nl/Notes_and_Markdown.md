@@ -137,7 +137,9 @@ Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw 
 
 ## Taken, formules, diagrammen en voetnoten
 
-- **Taakvakjes**: `- [ ] taak` wordt overal weergegeven als selectievakje — en in **leesmodus** kun je erop klikken: Plainva schrijft `[x]` of `[ ]` terug in het bestand.
+- **Taakvakjes**: `- [ ] taak` wordt overal weergegeven als selectievakje — en in **leesmodus** kun je erop klikken: Plainva schrijft `[x]` of `[ ]` terug in het bestand. Een afgeronde taak staat er gedempt en doorgestreept — in de notitie net als in de takenweergave.
+- **Callouts**: een citaat dat begint met `> [!tip] Titel` (of een van de 13 varianten uit het slash-menu) staat er als één kaart — een fijne lijn in de kleur van de callout, een lichte tint en de titel in die kleur; zonder titel toont de kaart de naam van haar variant. Het ziet er hetzelfde uit in het live-voorbeeld, in de leesmodus en op de telefoon; een gewoon citaat houdt zijn balk.
+- **Geneste lijsten**: vanaf het tweede niveau toont een fijne lijn onder elk bovenliggend punt welke items bij elkaar horen — in het live-voorbeeld en in de leesmodus.
 - **Wiskunde (LaTeX)**: `$E = mc^2$` inline en `$$…$$` als blok worden in leesmodus ÉN in het live-voorbeeld als formule weergegeven (KaTeX). Staat de cursor in de formule, dan blijft de syntaxis zichtbaar; klik op een gerenderde formule om hem te bewerken. Alleen de broncodemodus toont altijd de ruwe syntaxis. Je hoeft het `$$…$$`-blok niet uit je hoofd te kennen — het slash-commando **Formule (LaTeX)** (`/katex`) voegt het in en plaatst de cursor erin.
 - **Mermaid-diagrammen**: een codeblok met de taal `mermaid` (het snelst via het slash-commando **Mermaid-diagram**, `/mermaid`) wordt in leesmodus en in het live-voorbeeld als diagram getekend — klik op het diagram om de code te bewerken:
 
