@@ -660,20 +660,20 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("reveal-in-tree", async ({ path }, _from, vaultPath) => {
+    await bus.handle("reveal-in-tree", async ({ path, tag }, _from, vaultPath) => {
       // "Reveal in file tree" from a window without a tree (finding
       // 2026-09-07). The tree that can show this file belongs to the window
       // that shows the CALLER's vault — the central window when it does,
       // otherwise the full second window holding it (stage D). Same reasoning
       // as the reminder routing in showContentInVaultWindow: opening the file
       // centrally would silently switch the vault out from under a window.
-      if (!vaultPath) return { where: "none" as const };
+      if (!vaultPath || (!path && !tag)) return { where: "none" as const };
       const holders = holdersOf(vaultPath);
       if (holders.includes(OWNER_LABEL)) {
         // The same two steps the owner's own ⋮ entry takes: park the path for
         // a tree that may be unmounted, then raise the event the shell and a
         // mounted tree already listen for. Focus first, as owner-surface does.
-        parkTreeReveal(path);
+        if (path) parkTreeReveal(path);
         try {
           const { getCurrentWindow } = await import("@tauri-apps/api/window");
           const win = getCurrentWindow();
@@ -682,14 +682,17 @@ export async function installOwnerAppBus(): Promise<() => void> {
         } catch {
           /* no backend (browser/test): the dispatch below still works */
         }
-        window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path } }));
+        // A tag (finding 2026-09-19) goes to the tag pane, through the event a
+        // click in this window's own editor raises.
+        if (tag) window.dispatchEvent(new CustomEvent("plainva-open-tag", { detail: { tag } }));
+        else window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path } }));
         return { where: "owner" as const };
       }
       const full = listAuxWindows().find((w) => w.role === "full" && holders.includes(w.label));
       if (!full) return { where: "none" as const };
       const focused = await focusAuxWindow(full.label);
       if (!focused) return { where: "none" as const };
-      await bus.broadcast("reveal-path", { label: full.label, path }, null);
+      await bus.broadcast("reveal-path", tag ? { label: full.label, tag } : { label: full.label, path }, null);
       return { where: "window" as const };
     }),
   );

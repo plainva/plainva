@@ -9,7 +9,7 @@ import { createNoteFromLink } from "../services/createNoteFromLink";
 import { getAskBeforeCreateLink } from "../services/linkCreatePrompt";
 import { getConfiguredNoteType } from "../services/newNote";
 import { routeOpenThroughOwner } from "../services/openRouting";
-import { requestRevealInTree } from "../services/revealRouting";
+import { requestRevealInTree, requestRevealTag } from "../services/revealRouting";
 import { getWindowBus } from "../services/windowBus";
 
 /** What the editor's "send as mail" hands over — the floating composer's seed. */
@@ -76,6 +76,16 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       void requestRevealInTree(detail.path).then((outcome) => {
         // The two outcomes with nothing to show are SAID, not swallowed: a
         // click that does nothing was the finding this bridge answers.
+        if (outcome === "none") toast.info(t("window.revealNoTree"));
+        else if (outcome === "unreachable") toast.error(t("window.ownerUnreachable"));
+      });
+    };
+
+    // --- window-with-tree: a tag clicked in a note ---------------------------
+    const onOpenTag = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { tag?: string } | undefined;
+      if (!detail?.tag) return;
+      void requestRevealTag(detail.tag).then((outcome) => {
         if (outcome === "none") toast.info(t("window.revealNoTree"));
         else if (outcome === "unreachable") toast.error(t("window.ownerUnreachable"));
       });
@@ -162,6 +172,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
     window.addEventListener("plainva-reveal-folder", onRevealFolder);
+    window.addEventListener("plainva-open-tag", onOpenTag);
     window.addEventListener("plainva-create-note-from-link", onCreateNote);
     window.addEventListener("plainva-compose-mail", onComposeMail);
     window.addEventListener("plainva-open-template-picker", onOpenTemplatePicker);
@@ -172,6 +183,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
       window.removeEventListener("plainva-reveal-folder", onRevealFolder);
+      window.removeEventListener("plainva-open-tag", onOpenTag);
       window.removeEventListener("plainva-create-note-from-link", onCreateNote);
       window.removeEventListener("plainva-compose-mail", onComposeMail);
       window.removeEventListener("plainva-open-template-picker", onOpenTemplatePicker);

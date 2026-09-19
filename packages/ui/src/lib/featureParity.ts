@@ -312,6 +312,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "tag-colors-table-cell",
+    title: "Coloured tags in a database table cell",
+    area: "database",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "\"Colour tags\" reaches every surface that DRAWS a tag as a chip: the note, the " +
+      "properties, the pinboard label and the tag list in both shells, and the desktop's " +
+      "table cell (2026-09-19). The phone's table has no chips to colour: it draws every " +
+      "list value as one line of text, because a row of chips per cell does not fit a " +
+      "44 px row on a 360 px screen.",
+    verified: "2026-09-19",
+  },
+  {
     id: "image-editor",
     title: "Crop, rotate and draw on an attached image",
     area: "editor",
@@ -362,6 +377,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     desktopReason: "Desktop uses its explicit focus-mode command and shortcut. Touch readers hide the header and pencil on downward scrolling, with a device-local opt-out; the tablet navigation rail stays available.",
     mobile: "yes",
     verified: "2026-09-16",
+  },
+  {
+    id: "tag-pill-open-while-editing",
+    title: "Opening a tag from its pill while the note is being edited",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "A tag in a note is a pill in both shells, and opening it shows the notes that carry " +
+      "it (2026-09-19). On the desktop the mouse opens it at any time, as it opens a wiki " +
+      "link. On the phone a tap while EDITING places the caret - a finger has no other way " +
+      "to put it inside a word - so the pill opens while the note is being read, which is " +
+      "how the phone treats every link in a note.",
+    verified: "2026-09-19",
   },
   {
     id: "device-pim-accounts",

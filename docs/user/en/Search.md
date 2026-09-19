@@ -51,6 +51,8 @@ Every match shows two lines: **before** with the hit and **after** with the resu
 
 The sidebar view **Tags** lists all `#tags` in the vault with a hit count; a click shows the **Files with #tag**. Tags work in the text (`#project`) and in the frontmatter (`tags: [project]`). The sidebar's search field filters the tag list as well.
 
+In a note a tag is drawn as a small pill — while you write and while you read; the text itself stays `#project/website`. A click on the pill (on the phone: a tap while reading) opens the notes that carry the tag. What counts as a tag is the same everywhere — in the tag list, in a task and when renaming: a `#` at the start of a line or after a space, followed by letters, digits, `_`, `-` or `/`. Digits alone are not a tag (`#42` stays a number), and neither is anything inside code or a link. **Colour tags** under **Settings → App → Appearance** gives every tag a colour that follows from its name; nested tags share the colour of their top-level tag. The setting belongs to this device and stores nothing in your notes.
+
 **Rename a tag** right across the vault: right-click a tag in the **Tags** view and enter a new name. Plainva rewrites the tag everywhere — in note bodies (`#tag` and its `#tag/child` subtags) and in the frontmatter (`tags:`) — writing each affected note back through the same safe path. Unrelated tags that merely contain the name (for example `#area/tag`) are left alone.
 
 ## Navigating within a note

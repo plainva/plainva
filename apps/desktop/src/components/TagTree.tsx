@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { ChevronDown, ChevronRight, FileText, Hash } from "lucide-react";
 import { pruneTagTree, type TagNode } from "./tagTreeModel";
 import { renameTagInText, isValidTagName } from "@plainva/core";
-import { EmptyState, ICON, normalizeRenameTarget, renameTagAcrossVault } from "@plainva/ui";
+import { EmptyState, ICON, normalizeRenameTarget, renameTagAcrossVault, tagColorIndex } from "@plainva/ui";
 import { appPrompt, appMessage } from "../services/appDialogs";
 
 interface TagTreeProps {
@@ -12,15 +12,41 @@ interface TagTreeProps {
   /** Sidebar search query (plan Suche O5): prunes the tag tree to branches
    *  whose full tag contains the filter (case-insensitive). */
   filter?: string;
+  /** A tag clicked in a note (finding 2026-09-19): select it and unfold the way
+   *  to it. The nonce lets a second click on the same tag select it again. */
+  focusTag?: { tag: string; nonce: number } | null;
 }
 
-export function TagTree({ onSelectPath, filter }: TagTreeProps) {
+export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, triggerFileTreeUpdate } = useVault();
   const [tagTree, setTagTree] = useState<Record<string, TagNode>>({});
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [filesForTag, setFilesForTag] = useState<{path: string, title: string}[]>([]);
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Adopt a tag handed in from outside - during render, the way React asks for
+  // state that follows a prop, so the pane never paints the old selection first.
+  const [seenFocus, setSeenFocus] = useState(0);
+  if (focusTag && focusTag.nonce !== seenFocus) {
+    setSeenFocus(focusTag.nonce);
+    const tag = focusTag.tag.replace(/^#/, "");
+    setSelectedTag(tag);
+    const parts = tag.split("/");
+    setExpandedTags((prev) => {
+      const next = new Set(prev);
+      for (let i = 1; i < parts.length; i++) next.add(parts.slice(0, i).join("/"));
+      return next;
+    });
+  }
+  useEffect(() => {
+    if (!focusTag) return;
+    const wanted = focusTag.tag.replace(/^#/, "");
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>("[data-tag-row]") ?? []) {
+      if (row.getAttribute("data-tag-row") === wanted) row.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [focusTag, tagTree]);
 
   useEffect(() => {
     let active = true;
@@ -164,11 +190,15 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
             color: isSelected ? 'var(--on-accent-container)' : 'var(--text-muted)'
           }}
           onClick={() => setSelectedTag(node.fullTag)}
+          data-tag-row={node.fullTag}
+          data-selected={isSelected ? "true" : undefined}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); void handleRenameTag(node.fullTag); }}
           data-tip={t("tags.renameHint", { defaultValue: "Rechtsklick: Tag umbenennen" })}
         >
           <div
             style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            // The glyph takes the tag's colour under "Colour tags" (ui.css).
+            data-tag-ink={tagColorIndex(node.fullTag)}
             onClick={(e) => {
               if (hasChildren) {
                 e.stopPropagation();
@@ -196,7 +226,7 @@ export function TagTree({ onSelectPath, filter }: TagTreeProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'auto', borderBottom: selectedTag ? '1px solid var(--border-color)' : 'none' }}>
+      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', borderBottom: selectedTag ? '1px solid var(--border-color)' : 'none' }}>
         {Object.keys(tagTree).length === 0 ? (
           <EmptyState icon={<Hash size={ICON.empty} />}>{t("sidebar.noTags", "No tags found.")}</EmptyState>
         ) : Object.keys(visibleTree).length === 0 ? (

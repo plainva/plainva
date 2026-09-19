@@ -1376,6 +1376,43 @@ button.pv-chip:hover { background: var(--state-hover); }
 .pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 .pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
 .pv-tag-parent { color: var(--chip-tag-parent-fg); }
+/* A tag in running text (finding 2026-09-19): the editor's mark and the reader's
+   span are this one class, so a tag looks the same where it is written and where
+   it is read. Sized in `em` - it sits in note text of any size - and allowed to
+   break with the line; `clone` keeps both halves rounded. */
+.pv-tag-pill {
+  padding: 0.08em 0.5em;
+  border-radius: var(--radius-pill);
+  background: var(--chip-tag-bg);
+  color: var(--chip-tag-fg);
+  font-size: 0.88em;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.pv-tag-pill:hover { text-decoration: underline; }
+/* "Colour tags" (device switch, off by default): every tag surface carries
+   data-tag-color - the slot hashed from the tag's ROOT - and it means a colour
+   only under the switch. The grey slot 0 is never dealt: a tag that stays grey
+   with colours on reads as a bug. `data-tag-ink` is the same slot as a text
+   colour, for the glyph in the tag list. */
+html[data-tag-colors="on"] [data-tag-color="1"] { background: var(--chip-1-bg); color: var(--chip-1-fg); }
+html[data-tag-colors="on"] [data-tag-color="2"] { background: var(--chip-2-bg); color: var(--chip-2-fg); }
+html[data-tag-colors="on"] [data-tag-color="3"] { background: var(--chip-3-bg); color: var(--chip-3-fg); }
+html[data-tag-colors="on"] [data-tag-color="4"] { background: var(--chip-4-bg); color: var(--chip-4-fg); }
+html[data-tag-colors="on"] [data-tag-color="5"] { background: var(--chip-5-bg); color: var(--chip-5-fg); }
+html[data-tag-colors="on"] [data-tag-color="6"] { background: var(--chip-6-bg); color: var(--chip-6-fg); }
+html[data-tag-colors="on"] [data-tag-color="7"] { background: var(--chip-7-bg); color: var(--chip-7-fg); }
+html[data-tag-colors="on"] [data-tag-color] { border-color: transparent; }
+html[data-tag-colors="on"] [data-tag-color] .pv-tag-parent { color: inherit; opacity: 0.7; }
+html[data-tag-colors="on"] [data-tag-ink="1"] { color: var(--chip-1-fg); }
+html[data-tag-colors="on"] [data-tag-ink="2"] { color: var(--chip-2-fg); }
+html[data-tag-colors="on"] [data-tag-ink="3"] { color: var(--chip-3-fg); }
+html[data-tag-colors="on"] [data-tag-ink="4"] { color: var(--chip-4-fg); }
+html[data-tag-colors="on"] [data-tag-ink="5"] { color: var(--chip-5-fg); }
+html[data-tag-colors="on"] [data-tag-ink="6"] { color: var(--chip-6-fg); }
+html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 .pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); border-color: transparent; padding-left: 4px; }
 .pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--text-sm); }
 .pv-chip-link-open:hover { text-decoration: underline; }
@@ -3395,6 +3432,18 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   font-size: var(--text-xs);
 }
 .pv-pinboard-placeholder strong { color: var(--text-main); font-size: var(--text-ui); }
+
+/* A tag on a pinboard card (tags mode). A class instead of the inline style it
+   had until 2026-09-19: an inline colour beats every rule, and "Colour tags"
+   has to be able to reach it. The phone's twin is .m-pin-label--plain. */
+.pv-pinboard-tag {
+  padding: 0 7px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
 
 .pv-pinboard-search {
   display: flex;

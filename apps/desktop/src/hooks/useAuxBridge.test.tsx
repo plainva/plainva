@@ -174,6 +174,14 @@ const CASES: Record<string, () => Promise<void>> = {
     await fire("plainva-reveal-folder", { path: "Notes/C.md" });
     expect(toasts[toasts.length - 1]).toMatch(/^error:/);
   },
+  "plainva-open-tag": async () => {
+    await fire("plainva-open-tag", { tag: "project/site" });
+    expect(requests).toEqual([["reveal-in-tree", { tag: "project/site" }]]);
+    expect(toasts).toEqual([]);
+    revealAnswer = { where: "none" };
+    await fire("plainva-open-tag", { tag: "idea" });
+    expect(toasts[toasts.length - 1]).toMatch(/^info:/);
+  },
   "plainva-create-note-from-link": async () => {
     await fire("plainva-create-note-from-link", { target: "Neu", hostPath: "Host.md", newTab: true });
     expect(writes).toEqual(["Neu.md"]);

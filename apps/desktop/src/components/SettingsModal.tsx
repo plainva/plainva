@@ -42,6 +42,7 @@ import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
+import { getStoredTagColors, setStoredTagColors, DEFAULT_TAG_COLORS } from "../services/tagColors";
 import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
 import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppFontSettings } from "../services/appFonts";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
@@ -118,6 +119,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [appLanguage, setAppLanguage] = useState<string>(i18n.language || "en");
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
+  const [tagColors, setTagColors] = useState(DEFAULT_TAG_COLORS);
+  useEffect(() => { getStoredTagColors().then(setTagColors).catch(() => {}); }, []);
   const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
   useEffect(() => { getWeekStartSetting().then(setWeekStart).catch(() => {}); }, []);
   const [defaultViewMode, setDefaultViewMode] = useState<EditorViewMode>(DEFAULT_VIEW_MODE);
@@ -801,6 +804,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v); }}
                       density={density}
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
+                      tagColors={tagColors}
+                      onTagColors={(v) => { setTagColors(v); void setStoredTagColors(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
                       fonts={fonts}

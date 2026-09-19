@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { SidebarStepContext } from "../lib/sidebarStep";
-import { Button, IconButton, ICON, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { Button, IconButton, ICON, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, MessageSquare,
@@ -273,7 +273,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
         {items.map((tag, i) => {
           const { parent, leaf } = tagSegments(tag);
           return (
-            <span key={`${tag}-${i}`} className="pv-chip pv-chip--removable pv-chip-tag" data-tip={tag}>
+            <span key={`${tag}-${i}`} className="pv-chip pv-chip--removable pv-chip-tag" data-tip={tag} {...tagColorAttrs(tag)}>
               <span className="pv-chip-text">{parent && <span className="pv-tag-parent">{parent}</span>}{leaf}</span>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeTag")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
             </span>

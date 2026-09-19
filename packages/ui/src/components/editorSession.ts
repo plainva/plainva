@@ -20,6 +20,7 @@ import { selectAllBridge } from "./selectAllBridge";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
+import { tagPillPlugin } from "./TagPillPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
 import { createSuggestMode, suggestionBase, suggestionChunks, type SuggestionChunk } from "./suggestMode";
@@ -132,6 +133,8 @@ export interface EditorSessionDeps {
    * (a PATH relative to the host note; a miss is a missing file) — issue #61.
    */
   openWikiTarget: (linkText: string, newTab: boolean, kind?: LinkKind, anchor?: string | null) => void;
+  /** Opens the notes that carry a tag - a click on a tag pill (finding 2026-09-19). */
+  onOpenTag?: (tag: string) => void;
   /** Reads a note's text — the `[[Note#` completion lists that note's headings (issue #92). */
   readNote?: (path: string) => Promise<string | null>;
   openExternalUrl: (url: string) => void;
@@ -350,6 +353,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
       wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive),
+      // Tags as pills (finding 2026-09-19): live mode only - source mode shows
+      // the note as it is written.
+      isLive ? tagPillPlugin((tag) => deps.current.onOpenTag?.(tag)) : [],
       // Copy-as-plain-text (WP1): in live preview the markers are hidden on
       // screen, so copying the raw doc slice pastes Markdown noise. Strip it on
       // the way to the clipboard (covers Ctrl+C, Cut and drag). Source mode
@@ -535,6 +541,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     tableLinkHandlers.of({
       onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
+      onOpenTag: (tag) => deps.current.onOpenTag?.(tag),
     }),
     // How a widget reaches the shell: the same facet route the rendered table
     // cells already take for note links.

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, FileText, Hash, Pencil } from "lucide-react";
 import { isValidTagName, renameTagInText } from "@plainva/core";
-import { DocIcon, EmptyState, GroupCard, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, Row, RowList, toast } from "@plainva/ui";
+import { DocIcon, EmptyState, GroupCard, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, Row, RowList, tagColorIndex, toast } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { useLongPress } from "./lib/useLongPress";
 import { mPrompt } from "./services/mobileDialogs";
@@ -175,7 +175,7 @@ export function TagsScreen({
                 </IconButton>
               )}
               </>}
-              icon={<Hash className="m-accent" size={ICON.ui} />}
+              icon={<Hash className="m-accent" data-tag-ink={tagColorIndex(root)} size={ICON.ui} />}
               onClick={() => { if (tagPress.clicked()) onOpenTag(root); }}
               onContextMenu={(e) => { e.preventDefault(); setSheet(root); }}
               onPointerCancel={tagPress.clear}
@@ -190,7 +190,7 @@ export function TagsScreen({
               g.children.map((row) => (
                 <Row
                   end={<span className="m-badge-muted">{row.count}</span>}
-                  icon={<Hash className="m-chevron" size={ICON.ui} />}
+                  icon={<Hash className="m-chevron" data-tag-ink={tagColorIndex(row.tag)} size={ICON.ui} />}
                   indent={1}
                   key={row.tag}
                   onClick={() => { if (tagPress.clicked()) onOpenTag(row.tag); }}

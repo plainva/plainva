@@ -24,6 +24,7 @@ import { ClientVaultHost, VaultHost } from "./contexts/VaultHost";
 import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
+import { initTagColors } from "./services/tagColors";
 import { initDefaultViewMode } from "./services/viewModeDefault";
 import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
@@ -42,6 +43,7 @@ const isOwnerWindow = windowParams.role === "owner";
 initTheme();
 // Apply the persisted UI density (comfortable/compact chrome metrics).
 initDensity();
+initTagColors();
 // Fill the sync cache for the default editor view mode (read/live/source).
 initDefaultViewMode();
 // Apply the persisted content font size/family (issue #5, a11y).

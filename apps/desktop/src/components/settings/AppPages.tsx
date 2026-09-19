@@ -96,6 +96,9 @@ export interface AppearancePageProps {
   onWeekStart: (v: WeekStartSetting) => void;
   density: Density;
   onDensity: (d: Density) => void;
+  /** "Colour tags" (finding 2026-09-19): device-local, off by default. */
+  tagColors: boolean;
+  onTagColors: (on: boolean) => void;
   uiZoom: number;
   onUiZoom: (z: number) => void;
   /** The three font slots + content size (issue #82). */
@@ -223,6 +226,16 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
               ]}
             />
           </div>
+        </SettingRow>
+        <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
+          <input
+            type="checkbox"
+            id="tagColors"
+            data-testid="settings-tag-colors"
+            aria-label={t("settings.tagColors")}
+            checked={p.tagColors}
+            onChange={(e) => p.onTagColors(e.target.checked)}
+          />
         </SettingRow>
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}

@@ -19,7 +19,7 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -366,11 +366,19 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   const headingIdByLine = new Map(parseHeadings(content).map((h) => [h.line, h.slug] as const));
   const headingId = (node: any): string => headingIdByLine.get(node?.properties?.dataSourceLine) ?? slugify(hastText(node));
   return (
-    <div className="markdown-reader" style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
+    <div
+      className="markdown-reader"
+      // A tag pill (finding 2026-09-19) opens the notes with the tag - the same
+      // event the live editor raises, so the shell has one way in.
+      onClick={(e) => {
+        const tag = (e.target as HTMLElement).closest?.('.pv-tag-pill')?.getAttribute('data-tag');
+        if (tag) window.dispatchEvent(new CustomEvent('plainva-open-tag', { detail: { tag } }));
+      }}
+      style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
-          ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, mathPlugins.remark as never]
-          : [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks]}
+          ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
+          : [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills]}
         rehypePlugins={[sourcePlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{

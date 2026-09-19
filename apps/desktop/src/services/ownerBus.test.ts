@@ -931,7 +931,7 @@ describe("reveal in tree from a window without one (finding 2026-09-07)", () => 
     knownWindows.add("full-1");
     await openAuxWindow({ role: "full", vaultPath: "/vault", label: "full-1" });
     const full = createWindowBus(wire("full-1"), undefined, () => "/vault");
-    const told: Array<{ label: string; path: string }> = [];
+    const told: Array<{ label: string; path?: string; tag?: string }> = [];
     await full.onBroadcast("reveal-path", (payload) => told.push(payload));
     const seenHere: string[] = [];
     const on = (e: Event) => seenHere.push((e as CustomEvent).detail.path);
@@ -946,6 +946,56 @@ describe("reveal in tree from a window without one (finding 2026-09-07)", () => 
     expect(seenHere).toEqual([]);
     window.removeEventListener("plainva-reveal-folder", on);
     await full.dispose();
+    dispose();
+  });
+
+  // The same route carries a TAG (finding 2026-09-19): a tag clicked in a note
+  // opens the tag pane, and an auxiliary window has no sidebar to open it in.
+  it("raises the tag event - not the tree's - in the central window", async () => {
+    const { aux, dispose } = await setup();
+    setHolderVault("/vault", OWNER_LABEL);
+    const tags: string[] = [];
+    const trees: unknown[] = [];
+    const onTag = (e: Event) => tags.push((e as CustomEvent).detail.tag);
+    const onTree = (e: Event) => trees.push((e as CustomEvent).detail);
+    window.addEventListener("plainva-open-tag", onTag);
+    window.addEventListener("plainva-reveal-folder", onTree);
+
+    const result = await aux.request("reveal-in-tree", { tag: "project/site" });
+
+    expect(result).toEqual({ where: "owner" });
+    expect(focusedWindows).toEqual(["main"]);
+    expect(tags).toEqual(["project/site"]);
+    expect(trees).toEqual([]);
+    expect(consumePendingTreeReveal()).toBeNull();
+    window.removeEventListener("plainva-open-tag", onTag);
+    window.removeEventListener("plainva-reveal-folder", onTree);
+    dispose();
+  });
+
+  it("tells the full window holding the vault the tag", async () => {
+    const { aux, wire, dispose } = await setup();
+    setHolderVault("/other", OWNER_LABEL);
+    setHolderVault("/vault", "full-1");
+    knownWindows.add("full-1");
+    await openAuxWindow({ role: "full", vaultPath: "/vault", label: "full-1" });
+    const full = createWindowBus(wire("full-1"), undefined, () => "/vault");
+    const told: Array<{ label: string; path?: string; tag?: string }> = [];
+    await full.onBroadcast("reveal-path", (payload) => told.push(payload));
+
+    const result = await aux.request("reveal-in-tree", { tag: "idea" });
+
+    expect(result).toEqual({ where: "window" });
+    expect(told).toEqual([{ label: "full-1", tag: "idea" }]);
+    await full.dispose();
+    dispose();
+  });
+
+  it("answers none to a request that names neither", async () => {
+    const { aux, dispose } = await setup();
+    setHolderVault("/vault", OWNER_LABEL);
+    expect(await aux.request("reveal-in-tree", {})).toEqual({ where: "none" });
+    expect(focusedWindows).toEqual([]);
     dispose();
   });
 

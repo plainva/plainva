@@ -51,6 +51,8 @@ Każde trafienie pokazuje dwa wiersze: **przed** z miejscem trafienia i **po** z
 
 Widok paska bocznego **Tagi** wyświetla wszystkie `#tagi` w vaulcie z liczbą wystąpień; kliknięcie pokazuje **Pliki z #tag**. Tagi działają w tekście (`#projekt`) oraz we frontmatter (`tags: [projekt]`). Pole wyszukiwania paska bocznego filtruje też listę tagów.
 
+W notatce tag jest rysowany jako mała pigułka — podczas pisania i podczas czytania; sam tekst pozostaje `#projekt/strona`. Kliknięcie pigułki (na telefonie: dotknięcie w trybie czytania) otwiera notatki, które noszą ten tag. To, co liczy się jako tag, jest wszędzie takie samo — na liście tagów, w zadaniu i przy zmianie nazwy: `#` na początku wiersza lub po spacji, a po nim litery, cyfry, `_`, `-` lub `/`. Same cyfry nie są tagiem (`#42` pozostaje numerem), podobnie jak wszystko wewnątrz kodu lub linku. **Koloruj tagi** w **Ustawienia → Aplikacja → Wygląd** nadaje każdemu tagowi kolor wynikający z jego nazwy; tagi zagnieżdżone dzielą kolor tagu najwyższego poziomu. Ustawienie należy do tego urządzenia i niczego nie zapisuje w Twoich notatkach.
+
 **Zmiana nazwy tagu** obejmuje od razu cały vault: kliknij prawym przyciskiem myszy tag w widoku **Tagi** i wpisz nową nazwę. Plainva przepisuje tag wszędzie — w tekście notatek (`#tag` oraz jego podtagi `#tag/child`) i we frontmatter (`tags:`) — zapisując każdą dotkniętą notatkę z powrotem tą samą bezpieczną drogą. Niepowiązane tagi, które jedynie zawierają tę nazwę (na przykład `#area/tag`), pozostają nietknięte.
 
 ## Nawigacja w notatce

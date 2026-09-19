@@ -60,6 +60,9 @@ export function FullApp() {
     void installRevealPathListener(label, (path) => {
       parkTreeReveal(path);
       window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path } }));
+    }, (tag) => {
+      // A tag clicked in an auxiliary window on this vault (finding 2026-09-19).
+      window.dispatchEvent(new CustomEvent("plainva-open-tag", { detail: { tag } }));
     }).then((un) => {
       if (cancelled) un();
       else stop = un;

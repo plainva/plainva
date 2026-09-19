@@ -75,6 +75,7 @@ export function EditorHost({
   path,
   initialDoc,
   onOpenNote,
+  onOpenTag,
   editable,
   canComment,
   onCommentAnchorRequest,
@@ -90,6 +91,8 @@ export function EditorHost({
   path: string;
   initialDoc: string;
   onOpenNote: (path: string) => void;
+  /** A tag pill was tapped while reading (finding 2026-09-19): the screen pushes the tag's notes. */
+  onOpenTag?: (tag: string) => void;
   editable: boolean;
   /** Stufe E (E1): this note accepts comments, so widgets offer the affordance. */
   canComment?: boolean;
@@ -326,6 +329,7 @@ export function EditorHost({
       onSuggestionApply: onSuggestionApply ? (commentId) => onSuggestionApply(commentId) : undefined,
       onSuggestionDecline: onSuggestionDecline ? (commentId) => onSuggestionDecline(commentId) : undefined,
       onOpenPath: (p) => onOpenNote(p),
+      onOpenTag: (tag) => onOpenTag?.(tag),
       openWikiTarget: (rawTarget, _newTab, kind, anchorArg) => {
         // The anchor (issue #92) either arrives split off (the wiki-link
         // plugin) or still sits in the text; `[[#Heading]]` is a place HERE.

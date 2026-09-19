@@ -308,6 +308,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         })
       }
       onOpenNote={c.openNote}
+      onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       onRenamed={(newPath) => retargetTop(c.setNav, newPath)}
       path={e.path}
       vault={c.vault}

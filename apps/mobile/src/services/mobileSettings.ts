@@ -1,5 +1,6 @@
 import {
   applyAppFonts,
+  applyTagColors,
   migrateCustomThemeFont,
   type AppFonts,
   applyResolved,
@@ -114,6 +115,13 @@ export interface MobileSettings extends VaultScopedSettings {
    */
   contextPanelDocked: boolean;
   /**
+   * "Colour tags" (finding 2026-09-19): every tag surface carries the colour
+   * slot of its root tag, and this switch decides whether the slot paints.
+   * Device-local and OFF by default, exactly as on the desktop; nothing about
+   * a tag is stored, the colour follows from its name.
+   */
+  tagColors: boolean;
+  /**
    * Fold the navigator away so the working surface has the tablet to itself.
    *
    * The two-column layout gave the navigator a permanent 280-380 px, which is
@@ -182,6 +190,7 @@ function defaults(): MobileSettings {
     motion: "system",
     readerAutoHide: true,
     contextPanelDocked: false,
+    tagColors: false,
     navSidebarCollapsed: false,
     ...vaultDefaults(),
   });
@@ -262,6 +271,7 @@ function applyTheme(): void {
   // removes the override so the theme keeps ownership, a custom name is
   // sanitized before it reaches CSS. Device-local, like the desktop's.
   applyAppFonts(mobileAppFonts(live()));
+  applyTagColors(live().tagColors === true);
   // D6: chrome motion — the shared tokens.css collapses on data-motion="off"
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (live().motion === "system") root.removeAttribute("data-motion");

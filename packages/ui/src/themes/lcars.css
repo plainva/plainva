@@ -327,6 +327,13 @@
   background: transparent;
   border: 1px solid currentColor;
 }
+/* A tag in running text is the same readout, and stays hollow when "Colour
+   tags" deals it a hue: the hue is the ink, never a fill. */
+[data-theme-name="lcars"] .pv-tag-pill {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { background: transparent; border-color: currentColor; }
 
 /* Status bar chrome speaks LCARS too (info content stays untouched, E8). */
 [data-theme-name="lcars"] footer[aria-label] {

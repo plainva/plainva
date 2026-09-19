@@ -219,6 +219,23 @@ const MOTIONS: Array<[MotionPref, string]> = [
           onChange={(v) => update({ motion: v as (typeof MOTIONS)[number][0] })}
         />
 
+        {/* "Colour tags" (finding 2026-09-19): the same device switch as on the
+            desktop. The pill is always there; this only decides about colour. */}
+        <SectionLabel>{t("settings.tagsSection")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.tagColors === true}
+                label={t("settings.tagColors")}
+                onChange={(next) => update({ tagColors: next })}
+              />}
+              title={t("settings.tagColors")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("settings.tagColorsDesc")}</p>
+
         {/* The third column (finding 2026-08-21). It only APPLIES from 1024 px,
             and the row says so rather than hiding on a phone: a setting that
             appears and disappears with the window is one nobody finds twice. */}

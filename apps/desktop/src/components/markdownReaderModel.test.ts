@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, resolveRelativeTarget } from "./markdownReaderModel";
+import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, remarkTagPills, resolveRelativeTarget } from "./markdownReaderModel";
 
 describe("encodeWikiTarget", () => {
   it("leaves no character that can break a markdown link destination", () => {
@@ -144,5 +144,41 @@ describe("remarkStripHighlightMarks", () => {
     const tree: any = { type: "root", children: [{ type: "paragraph", children: [{ type: "inlineCode", value: "==raw==" }] }] };
     remarkStripHighlightMarks()(tree);
     expect(tree.children[0].children).toEqual([{ type: "inlineCode", value: "==raw==" }]);
+  });
+});
+
+describe("remarkTagPills (finding 2026-09-19)", () => {
+  const run = (children: any[]) => {
+    const tree: any = { type: "root", children: [{ type: "paragraph", children }] };
+    remarkTagPills()(tree);
+    return tree.children[0].children;
+  };
+
+  it("wraps a tag in the pill the editor draws, the path in a quieter inner span", () => {
+    const out = run([{ type: "text", value: "on #project/site now" }]);
+    expect(out.map((n: any) => n.type)).toEqual(["text", "emphasis", "text"]);
+    expect(out[1].data.hName).toBe("span");
+    expect(out[1].data.hProperties.className).toEqual(["pv-tag-pill"]);
+    expect(out[1].data.hProperties.dataTag).toBe("project/site");
+    expect(out[1].data.hProperties.dataTagColor).toMatch(/^[1-7]$/);
+    expect(out[1].children[0].data.hProperties.className).toEqual(["pv-tag-parent"]);
+    expect(out[1].children[0].children).toEqual([{ type: "text", value: "#project/" }]);
+    expect(out[1].children[1]).toEqual({ type: "text", value: "site" });
+  });
+
+  it("marks what the index counts - not a number, not a fragment, not code, not the text of a link", () => {
+    expect(run([{ type: "text", value: "issue #42 and word#part" }])).toEqual([{ type: "text", value: "issue #42 and word#part" }]);
+    expect(run([{ type: "inlineCode", value: "#code" }])).toEqual([{ type: "inlineCode", value: "#code" }]);
+    const link = { type: "link", url: "wiki://x", children: [{ type: "text", value: "see #inside" }] };
+    expect(run([link])[0].children).toEqual([{ type: "text", value: "see #inside" }]);
+  });
+
+  it("finds the tag inside a highlight, which starts a text node of its own", () => {
+    const tree: any = { type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: "==#marked==" }] }] };
+    remarkStripHighlightMarks()(tree);
+    remarkTagPills()(tree);
+    const mark = tree.children[0].children[0];
+    expect(mark.data).toEqual({ hName: "mark" });
+    expect(mark.children[0].data.hProperties.dataTag).toBe("marked");
   });
 });

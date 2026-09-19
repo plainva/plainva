@@ -51,6 +51,8 @@ Elke treffer toont twee regels: **voor** met de vindplaats en **na** met het res
 
 De zijbalkweergave **Tags** toont alle `#tags` van de vault met trefferaantal; een klik toont de **Bestanden met #tag**. Tags werken in de tekst (`#project`) en in de frontmatter (`tags: [project]`). Het zoekveld van de zijbalk filtert ook de tagslijst.
 
+In de notitie staat een tag als een kleine pil — tijdens het schrijven en tijdens het lezen; de tekst zelf blijft `#project/website`. Een klik op de pil (op de telefoon: een tik in de leesmodus) opent de notities die de tag dragen. Wat als tag telt, is overal hetzelfde — in de taglijst, in een taak en bij het hernoemen: een `#` aan het begin van een regel of na een spatie, gevolgd door letters, cijfers, `_`, `-` of `/`. Alleen cijfers zijn geen tag (`#42` blijft een nummer), en alles binnen code of een link evenmin. **Tags kleuren** onder **Instellingen → App → Weergave** geeft elke tag een kleur die uit zijn naam volgt; geneste tags delen de kleur van hun bovenste tag. De instelling hoort bij dit apparaat en slaat niets op in je notities.
+
 **Een tag hernoemen** werkt in de hele vault ineens: rechtsklik op een tag in de weergave **Tags** en voer een nieuwe naam in. Plainva herschrijft de tag overal — in de tekst van notities (`#tag` en de geneste `#tag/child`-tags) en in de frontmatter (`tags:`) — en schrijft elke betrokken notitie terug via hetzelfde veilige pad. Tags die de naam toevallig alleen bevatten (bijvoorbeeld `#area/tag`) blijven ongemoeid.
 
 ## Navigeren binnen een notitie

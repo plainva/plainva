@@ -51,6 +51,8 @@ Jeder Treffer zeigt zwei Zeilen: **vorher** mit der Fundstelle und **nachher** m
 
 Die Seitenleisten-Ansicht **Tags** listet alle `#tags` des Vaults mit Trefferzahl; ein Klick zeigt die **Dateien mit #tag**. Tags funktionieren im Text (`#projekt`) und im Frontmatter (`tags: [projekt]`). Das Suchfeld der Seitenleiste filtert die Tag-Liste mit.
 
+In der Notiz steht ein Tag als kleine Pille — beim Schreiben wie beim Lesen; der Text selbst bleibt `#projekt/website`. Ein Klick auf die Pille (am Telefon: ein Tipp im Lesemodus) öffnet die Notizen, die das Tag tragen. Was als Tag zählt, ist überall dasselbe — in der Tag-Liste, in einer Aufgabe und beim Umbenennen: ein `#` am Zeilenanfang oder nach einem Leerzeichen, gefolgt von Buchstaben, Ziffern, `_`, `-` oder `/`. Nur Ziffern sind kein Tag (`#42` bleibt eine Nummer), ebenso wenig alles in Code oder in einem Link. **Tags einfärben** unter **Einstellungen → App → Erscheinungsbild** gibt jedem Tag eine Farbe, die aus seinem Namen folgt; verschachtelte Tags teilen die Farbe ihres obersten Tags. Die Einstellung gehört zu diesem Gerät und speichert nichts in Deinen Notizen.
+
 **Ein Tag umbenennen** — im ganzen Vault: Rechtsklick auf ein Tag in der **Tags**-Ansicht und einen neuen Namen eingeben. Plainva schreibt das Tag überall um — in den Notiz-Texten (`#tag` und seine `#tag/kind`-Unter-Tags) und im Frontmatter (`tags:`) — und speichert jede betroffene Notiz über denselben sicheren Weg. Fremde Tags, die den Namen nur enthalten (etwa `#bereich/tag`), bleiben unangetastet.
 
 ## Navigation in der Notiz

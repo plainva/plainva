@@ -51,6 +51,8 @@ Chaque occurrence affiche deux lignes : **avant** avec la correspondance et **ap
 
 La vue **Tags** de la barre latérale liste tous les `#tags` du vault avec un nombre de résultats ; un clic affiche les **Fichiers avec #tag**. Les tags fonctionnent dans le texte (`#projet`) et dans le frontmatter (`tags: [projet]`). Le champ de recherche de la barre latérale filtre aussi la liste des tags.
 
+Dans la note, un tag s'affiche comme une petite pastille — à l'écriture comme à la lecture ; le texte lui-même reste `#projet/site`. Un clic sur la pastille (sur le téléphone : un appui en mode lecture) ouvre les notes qui portent le tag. Ce qui compte comme tag est identique partout — dans la liste des tags, dans une tâche et lors du renommage : un `#` en début de ligne ou après une espace, suivi de lettres, de chiffres, de `_`, `-` ou `/`. Des chiffres seuls ne sont pas un tag (`#42` reste un numéro), pas plus que ce qui se trouve dans du code ou dans un lien. **Colorer les tags** sous **Paramètres → App → Apparence** donne à chaque tag une couleur qui découle de son nom ; les tags imbriqués partagent la couleur de leur tag de premier niveau. Le réglage appartient à cet appareil et n'enregistre rien dans vos notes.
+
 **Renommer un tag** dans tout le vault : faites un clic droit sur un tag dans la vue **Tags** et saisissez un nouveau nom. Plainva réécrit le tag partout — dans le corps des notes (`#tag` et ses sous-tags `#tag/child`) et dans le frontmatter (`tags:`) — en réécrivant chaque note concernée par le même chemin sûr. Les tags sans rapport qui contiennent simplement le nom (par exemple `#area/tag`) restent inchangés.
 
 ## Naviguer dans une note

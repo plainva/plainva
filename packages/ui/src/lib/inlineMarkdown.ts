@@ -1,4 +1,7 @@
+import { findInlineTags } from "@plainva/core";
+import { tagSegments } from "../base/propertyModel";
 import { splitLinkAnchor } from "./linkAnchor";
+import { tagColorAttrs } from "./tagColor";
 /**
  * Minimal inline-markdown renderer for widget content (P4, 2026-07-05).
  *
@@ -24,6 +27,8 @@ export interface InlineLinkHandlers {
   onOpenNote?: (target: string, newTab: boolean) => void;
   /** Open an external http(s) URL in the system browser. */
   onOpenUrl?: (url: string) => void;
+  /** Open the notes that carry a tag - a click on a tag pill (finding 2026-09-19). */
+  onOpenTag?: (tag: string) => void;
 }
 
 // Alternation order matters: escapes and comments first, *** before ** before *,
@@ -138,6 +143,32 @@ function makeLink(label: string, onActivate: (e: MouseEvent) => void): HTMLAncho
   const a = document.createElement("a");
   a.className = "cm-md-cell-link";
   a.textContent = label;
+  return wireActivation(a, onActivate);
+}
+
+/**
+ * A tag in a rendered cell (finding 2026-09-19): the same pill the editor and
+ * the reading view draw. Without a handler it is a look and nothing else, and
+ * the host keeps its own mousedown (the cell editor opens as before).
+ */
+function makeTagPill(tag: string, onOpenTag?: (tag: string) => void): HTMLSpanElement {
+  const pill = document.createElement("span");
+  pill.className = "pv-tag-pill";
+  pill.setAttribute("data-tag", tag);
+  pill.setAttribute("data-tag-color", tagColorAttrs(tag)["data-tag-color"]);
+  const { parent, leaf } = tagSegments(tag);
+  if (parent) {
+    const path = document.createElement("span");
+    path.className = "pv-tag-parent";
+    path.textContent = `#${parent}`;
+    pill.append(path, leaf);
+  } else {
+    pill.textContent = `#${tag}`;
+  }
+  return onOpenTag ? wireActivation(pill, () => onOpenTag(tag)) : pill;
+}
+
+function wireActivation<T extends HTMLElement>(a: T, onActivate: (e: MouseEvent) => void): T {
   a.addEventListener("mousedown", (e) => {
     if (e.button === 0) {
       e.preventDefault();
@@ -182,9 +213,18 @@ function makeLink(label: string, onActivate: (e: MouseEvent) => void): HTMLAncho
 function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLinkHandlers) {
   for (const n of nodes) {
     switch (n.kind) {
-      case "text":
-        parent.appendChild(document.createTextNode(n.text));
+      case "text": {
+        // A text token is what the index reads as a text node, so the index's
+        // rule applies as it stands (core/tagRule.ts).
+        let last = 0;
+        for (const tag of n.text.includes("#") ? findInlineTags(n.text) : []) {
+          if (tag.from > last) parent.appendChild(document.createTextNode(n.text.slice(last, tag.from)));
+          parent.appendChild(makeTagPill(tag.name, handlers.onOpenTag));
+          last = tag.to;
+        }
+        if (last < n.text.length) parent.appendChild(document.createTextNode(n.text.slice(last)));
         break;
+      }
       case "br":
         parent.appendChild(document.createElement("br"));
         break;

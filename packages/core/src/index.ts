@@ -11,6 +11,7 @@ export * from "./metadata-updater.js";
 export * from "./frontmatter-string-updater.js";
 export * from "./frontmatter-surgical.js";
 export * from "./ast-scanner.js";
+export * from "./tagRule.js";
 export * from "./ast-mutations.js";
 export * from "./okf-linter.js";
 export * from "./okf-conversion.js";

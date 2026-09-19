@@ -2119,6 +2119,9 @@ export const Editor: React.FC<{
       hostPath: activePath ?? undefined,
       onOpenPath,
       openWikiTarget: (target, newTab, kind, anchor) => { void openWikiTarget(target, newTab, kind, anchor); },
+      // A tag pill (finding 2026-09-19): the shell opens its tag pane on the tag;
+      // an auxiliary window routes it to the window that has one (auxBridge).
+      onOpenTag: (tag) => window.dispatchEvent(new CustomEvent("plainva-open-tag", { detail: { tag } })),
       openExternalUrl,
       handlePaste,
       handleDrop,

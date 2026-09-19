@@ -12,7 +12,7 @@ export const GFM_TASK_FENCE = /^\s*(?:```|~~~)/;
 const TASK_LINE = GFM_TASK_LINE, FENCE = GFM_TASK_FENCE;
 import { readTasksMetadata } from "./taskMetadata.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
-const INLINE_TAG = /(?:^|\s)#([\p{L}\p{N}][\p{L}\p{N}_/-]*)/gu;
+import { findInlineTagsInLine } from "../tagRule.js";
 
 export interface ScannedTask {
   /** 0-based line index of the task in the content. */
@@ -57,7 +57,8 @@ export function scanTasks(content: string): ScannedTask[] {
     while (following < lines.length && !lines[following].trim()) following++;
     const continuation = following < lines.length && (lines[following].match(/^\s*/)?.[0].length ?? 0) > (lines[i].match(/^\s*/)?.[0].length ?? 0);
     const tags: string[] = [];
-    for (const tm of text.matchAll(INLINE_TAG)) tags.push(tm[1]);
+    // The task text is SOURCE (it may carry code and links), hence the line rule.
+    for (const tag of findInlineTagsInLine(text)) tags.push(tag.name);
     out.push({
       line: i,
       ordinal,

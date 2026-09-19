@@ -29,16 +29,33 @@ export async function requestRevealInTree(path: string): Promise<RevealOutcome> 
 }
 
 /**
+ * The same route for a TAG (finding 2026-09-19): a tag clicked in a note opens
+ * the tag pane, and the tag pane lives in the sidebar this window does not have.
+ */
+export async function requestRevealTag(tag: string): Promise<RevealOutcome> {
+  try {
+    const bus = await getWindowBus();
+    const result = await bus.request("reveal-in-tree", { tag });
+    return result.where;
+  } catch (e) {
+    console.warn("[revealRouting] the central window did not answer", e);
+    return "unreachable";
+  }
+}
+
+/**
  * Full-window side: react to the owner's pick. `onReveal` gets the path and
  * does what the shell's own entry does — park it for the tree, raise the
  * local event. Resolves to the unsubscribe; a window without a bus gets a
  * no-op rather than an exception.
  */
-export async function installRevealPathListener(label: string, onReveal: (path: string) => void): Promise<() => void> {
+export async function installRevealPathListener(label: string, onReveal: (path: string) => void, onRevealTag?: (tag: string) => void): Promise<() => void> {
   try {
     const bus = await getWindowBus();
     return await bus.onBroadcast("reveal-path", (payload) => {
-      if (payload.label === label && payload.path) onReveal(payload.path);
+      if (payload.label !== label) return;
+      if (payload.tag) onRevealTag?.(payload.tag);
+      else if (payload.path) onReveal(payload.path);
     });
   } catch {
     return () => {};

@@ -5,6 +5,8 @@
  * raw HTML as literal text; Obsidian's reading view hides comments too, and
  * the managed-index marker must stay invisible).
  */
+import { findInlineTags } from "@plainva/core";
+import { tagColorAttrs, tagSegments } from "@plainva/ui";
 
 /**
  * `resolveRelativeTarget` and its `RelativeTarget` moved to `@plainva/ui`
@@ -52,7 +54,7 @@ interface MdastNodeLike {
   type?: string;
   value?: unknown;
   children?: MdastNodeLike[];
-  data?: { hName?: string };
+  data?: { hName?: string; hProperties?: Record<string, unknown> };
   position?: { start: { line: number; column: number; offset: number }; end: { line: number; column: number; offset: number } };
 }
 
@@ -146,6 +148,59 @@ export function remarkStripHighlightMarks() {
     };
     walk(tree);
   };
+}
+
+/**
+ * remark plugin: a tag in running text becomes the same pill the live editor
+ * draws (finding 2026-09-19) - `span.pv-tag-pill` with the tag in `data-tag`
+ * and its colour slot in `data-tag-color`, the path of a nested tag in a
+ * quieter inner span. What counts as a tag is the index's rule, applied to the
+ * same text nodes the index reads. The text of a link is left alone, as in the
+ * editor: a pill inside a link would be a click target inside a click target.
+ * Runs AFTER the highlight step, so `==#tag==` is found inside its <mark>.
+ */
+export function remarkTagPills() {
+  return (tree: MdastNodeLike) => {
+    const walk = (node: MdastNodeLike) => {
+      if (!Array.isArray(node.children) || node.type === "link" || node.type === "linkReference") return;
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
+        if (child.type === "text" && typeof child.value === "string" && child.value.includes("#")) {
+          const value = child.value;
+          const parts: MdastNodeLike[] = [];
+          let last = 0;
+          for (const tag of findInlineTags(value)) {
+            if (tag.from > last) parts.push(slicedText(child, last, tag.from));
+            const { parent } = tagSegments(tag.name);
+            const split = tag.from + 1 + parent.length;
+            const inner: MdastNodeLike[] = parent
+              ? [{ type: "emphasis", data: { hName: "span", hProperties: { className: ["pv-tag-parent"] } }, children: [slicedText(child, tag.from, split)] }, slicedText(child, split, tag.to)]
+              : [slicedText(child, tag.from, tag.to)];
+            parts.push({
+              type: "emphasis",
+              data: { hName: "span", hProperties: { className: ["pv-tag-pill"], dataTag: tag.name, ...hastTagColor(tag.name) } },
+              position: slicedText(child, tag.from, tag.to).position,
+              children: inner,
+            });
+            last = tag.to;
+          }
+          if (parts.length > 0) {
+            if (last < value.length) parts.push(slicedText(child, last, value.length));
+            node.children.splice(i, 1, ...parts);
+            i += parts.length - 1;
+            continue;
+          }
+        }
+        walk(child);
+      }
+    };
+    walk(tree);
+  };
+}
+
+/** `data-tag-color` in the camel-cased form hast properties take. */
+function hastTagColor(tag: string): { dataTagColor: string } {
+  return { dataTagColor: tagColorAttrs(tag)["data-tag-color"] };
 }
 
 const HTML_BR_NODE_RE = /^<br\s*\/?>$/i;

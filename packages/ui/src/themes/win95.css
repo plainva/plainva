@@ -483,6 +483,7 @@
     inset 2px 2px 0 #0A0A0A;
 }
 [data-theme-name="win95"] .pv-chip { border-radius: 0; }
+[data-theme-name="win95"] .pv-tag-pill { border-radius: 0; }
 
 /* Floating-window heads (peek preview, mail compose): the same navy title
    bar the modals carry. */

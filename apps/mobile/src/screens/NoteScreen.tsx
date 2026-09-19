@@ -76,6 +76,7 @@ export function NoteScreen({
   path,
   onBack,
   onOpenNote,
+  onOpenTag,
   onRenamed,
   onComposeMail,
 }: {
@@ -83,6 +84,8 @@ export function NoteScreen({
   path: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
+  /** A tag pill in the note was tapped (finding 2026-09-19): push the notes that carry the tag. */
+  onOpenTag?: (tag: string) => void;
   /** Retargets the open nav entry after a rename (path changes). */
   onRenamed: (newPath: string) => void;
   /** Opens Plainva's own composer with the note in it (S30). */
@@ -954,6 +957,7 @@ export function NoteScreen({
           onSuggestionApply={workspaceCanWrite ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "applied"); } : undefined}
           onSuggestionDecline={canComment ? (commentId) => { const found = comments.find((c) => c.commentId === commentId); if (found) void applySuggestion(found, "declined"); } : undefined}
           onOpenNote={onOpenNote}
+          onOpenTag={onOpenTag}
           path={path}
           vault={vault}
         />

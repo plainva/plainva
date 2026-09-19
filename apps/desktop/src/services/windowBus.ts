@@ -115,9 +115,10 @@ export interface BroadcastMap {
    * Owner to one FULL window: select this path in your file tree and come
    * forward (finding 2026-09-07). The answer to "reveal in tree" from a window
    * that has no tree, when the vault is shown by a second full window rather
-   * than by the central one.
+   * than by the central one. With `tag` instead of `path` the window opens
+   * its tag pane on that tag (a tag clicked in a note, finding 2026-09-19).
    */
-  "reveal-path": { label: string; path: string };
+  "reveal-path": { label: string; path?: string; tag?: string };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -275,8 +276,12 @@ export interface RpcMap {
    * That window comes forward with the file selected. `none` is the honest
    * answer when no such window exists — a held vault always has one, so this
    * is a guard rather than a path, but the caller says so instead of nothing.
+   *
+   * The same route carries a TAG (finding 2026-09-19): a tag clicked in a note
+   * opens the tag pane, and the tag pane lives in the sidebar an auxiliary
+   * window does not have. Exactly one of the two is set.
    */
-  "reveal-in-tree": { args: { path: string }; result: { where: "owner" | "window" | "none" } };
+  "reveal-in-tree": { args: { path?: string; tag?: string }; result: { where: "owner" | "window" | "none" } };
   "owner-surface": {
     args: {
       surface:

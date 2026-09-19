@@ -51,6 +51,8 @@ Cada coincidencia muestra dos líneas: **antes** con el hallazgo y **después** 
 
 La vista **Etiquetas** de la barra lateral lista todas las `#etiquetas` del vault con un recuento de coincidencias; un clic muestra los **Archivos con #etiqueta**. Las etiquetas funcionan en el texto (`#proyecto`) y en el frontmatter (`tags: [proyecto]`). El campo de búsqueda de la barra lateral también filtra la lista de etiquetas.
 
+En la nota, una etiqueta se dibuja como una pequeña píldora, tanto al escribir como al leer; el texto sigue siendo `#proyecto/web`. Un clic en la píldora (en el teléfono: un toque en modo lectura) abre las notas que llevan la etiqueta. Lo que cuenta como etiqueta es lo mismo en todas partes — en la lista de etiquetas, en una tarea y al renombrar: un `#` al inicio de la línea o tras un espacio, seguido de letras, dígitos, `_`, `-` o `/`. Solo dígitos no es una etiqueta (`#42` sigue siendo un número), y tampoco lo es nada dentro de código o de un enlace. **Colorear etiquetas** en **Configuración → App → Apariencia** da a cada etiqueta un color que se deriva de su nombre; las etiquetas anidadas comparten el color de su etiqueta superior. El ajuste pertenece a este dispositivo y no guarda nada en tus notas.
+
 **Renombrar una etiqueta** en todo el vault: haz clic derecho en una etiqueta de la vista **Etiquetas** e introduce un nuevo nombre. Plainva reescribe la etiqueta en todas partes — en el cuerpo de las notas (`#tag` y sus etiquetas anidadas `#tag/child`) y en el frontmatter (`tags:`) — guardando cada nota afectada por la misma vía segura. Las etiquetas no relacionadas que simplemente contienen ese nombre (por ejemplo, `#area/tag`) permanecen intactas.
 
 ## Navegar dentro de una nota

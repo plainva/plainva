@@ -923,6 +923,22 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     return () => window.removeEventListener("plainva-reveal-folder", onReveal);
   }, []);
 
+  // A tag clicked in a note (finding 2026-09-19) opens the tag pane on it. The
+  // pane is unmounted while another sidebar tab shows, so the tag travels as a
+  // prop; the nonce makes a second click on the same tag select it again.
+  const [focusTag, setFocusTag] = useState<{ tag: string; nonce: number } | null>(null);
+  useEffect(() => {
+    const onOpenTag = (e: Event) => {
+      const tag = ((e as CustomEvent).detail as { tag?: string } | undefined)?.tag;
+      if (!tag) return;
+      setLeftCollapsed(false);
+      setLeftSidebarTab("tags");
+      setFocusTag((prev) => ({ tag, nonce: (prev?.nonce ?? 0) + 1 }));
+    };
+    window.addEventListener("plainva-open-tag", onOpenTag);
+    return () => window.removeEventListener("plainva-open-tag", onOpenTag);
+  }, []);
+
   // "Open properties" (the stale-note banner, OKF v0.2 plan P3a) must be able
   // to un-collapse the right sidebar; the sidebar itself expands the section.
   useEffect(() => {
@@ -1357,7 +1373,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               </div>
             </div>
           ) : leftSidebarTab === "tags" ? (
-            <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} />
+            <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} focusTag={focusTag} />
           ) : (
             <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
               <DatabasesList

@@ -3,7 +3,7 @@ import { getWindowBus } from "./windowBus";
 /**
  * Keeping every window's look in step (multi-window P0).
  *
- * Theme, density, content font and UI zoom live in the settings store, and a
+ * Theme, density, tag colours, content font and UI zoom live in the settings store, and a
  * store write in the central window does not reach a second webview by itself.
  * Without this, an auxiliary window would keep the theme it was born with until
  * it is closed — the one thing a user would notice instantly.
@@ -37,6 +37,7 @@ export async function installAppearanceSync(): Promise<void> {
     void Promise.all([
       import("./theme").then(({ applyStoredTheme }) => applyStoredTheme()),
       import("./density").then(({ initDensity }) => initDensity()),
+      import("./tagColors").then(({ initTagColors }) => initTagColors()),
       import("./appFonts").then(({ initAppFonts }) => initAppFonts()),
       import("./uiZoom").then(({ initUiZoom }) => initUiZoom()),
     ]).catch((e) => console.warn("[appearanceSync] could not re-apply appearance", e));

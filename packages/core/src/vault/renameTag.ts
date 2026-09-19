@@ -1,4 +1,5 @@
 import { renameFrontmatterTag } from "../frontmatter-surgical.js";
+import { findInlineTagsInSource } from "../tagRule.js";
 
 const SENTINEL = "\u0000pv-tag-probe";
 
@@ -12,7 +13,6 @@ const SENTINEL = "\u0000pv-tag-probe";
  */
 
 const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
-const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** True when a string is usable as a fresh tag name (no `#`, no whitespace). */
 export function isValidTagName(name: string): boolean {
@@ -35,14 +35,22 @@ export function renameTagInText(
   let changed = fm.changed;
 
   // 2. Inline `#tag` in the BODY only (a frontmatter string value that contains
-  //    "#old" is not a tag and stays untouched). The `#` must start a tag (not
-  //    be preceded by a tag-name char), and the old name must be a full first
-  //    segment — followed by end-of-tag or a `/` subtag, never another name char.
+  //    "#old" is not a tag and stays untouched). What counts as a tag is the
+  //    index's rule (tagRule.ts): until 2026-09-19 this step had its own, which
+  //    also rewrote `[[#old]]` and `[text](#old)` - links to a heading - and
+  //    code. The old name must be the tag or its full first segment(s): `old`
+  //    and `old/sub`, never `parent/old` and never `older`.
   const m = out.match(FRONTMATTER_RE);
   const fmPart = m ? m[0] : "";
   const body = m ? out.slice(m[0].length) : out;
-  const inlineRe = new RegExp("(?<![\\p{L}\\p{N}_/-])#" + escapeRegExp(o) + "(?![\\p{L}\\p{N}_-])", "gu");
-  const newBody = body.replace(inlineRe, "#" + n);
+  let newBody = body;
+  const tags = findInlineTagsInSource(body);
+  for (let i = tags.length - 1; i >= 0; i--) {
+    const tag = tags[i];
+    if (tag.name !== o && !tag.name.startsWith(o + "/")) continue;
+    const at = tag.from + 1;
+    newBody = newBody.slice(0, at) + n + newBody.slice(at + o.length);
+  }
   if (newBody !== body) {
     out = fmPart + newBody;
     changed = true;

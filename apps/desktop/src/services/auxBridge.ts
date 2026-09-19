@@ -52,6 +52,10 @@ export const AUX_BRIDGED_EVENTS: Readonly<Record<string, AuxBridgeEntry>> = {
     answer: "window-with-tree",
     why: "An auxiliary window has no tree by design; the request goes to the window that shows this vault with one, and that window comes forward with the file selected.",
   },
+  "plainva-open-tag": {
+    answer: "window-with-tree",
+    why: "A tag clicked in a note opens the tag pane, and the tag pane lives in the sidebar an auxiliary window does not have (finding 2026-09-19); same route as reveal-in-tree, the window comes forward with the tag selected.",
+  },
   "plainva-create-note-from-link": {
     answer: "local",
     why: "The note is written through the client adapter (the owner indexes the bus write) and opened here, where the link was clicked — the same rules as in the central window (ask-first setting, note type).",

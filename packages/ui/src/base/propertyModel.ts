@@ -269,12 +269,17 @@ export function toWikiLink(raw: string): string {
 
 export const CHIP_COLOR_COUNT = 8;
 
-/** Deterministic palette index for an option value, so the same value always gets the same color. */
-export function chipColorIndex(value: string): number {
+/** The hash behind every value-derived colour; callers take it modulo their own slot count. */
+export function chipHash(value: string): number {
   let h = 0;
   const s = String(value);
   for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) >>> 0;
-  return h % CHIP_COLOR_COUNT;
+  return h;
+}
+
+/** Deterministic palette index for an option value, so the same value always gets the same color. */
+export function chipColorIndex(value: string): number {
+  return chipHash(value) % CHIP_COLOR_COUNT;
 }
 
 /** A curated option for select/status/multiselect, as stored in a `.base` column schema. */

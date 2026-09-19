@@ -3,6 +3,7 @@ import { visit } from "unist-util-visit";
 import { MarkdownAst } from "./markdown-ast.js";
 import { extractFrontmatter } from "./metadata-extractor.js";
 import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
+import { findInlineTags } from "./tagRule.js";
 
 export type TagOccurrence = {
   name: string;
@@ -41,16 +42,9 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
   // 2. Traverse AST for inline tags and links
   visit(ast as any, (node: any) => {
     if (node.type === "text") {
-      // Find tags in text: #tag
-      const tagRegex = /(?:^|\s)#([\p{L}\p{N}_/-]+)/gu;
-      let match;
-      while ((match = tagRegex.exec(node.value)) !== null) {
-        const tagName = match[1];
-        // Obsidian tags must not be only digits
-        if (!/^\d+$/.test(tagName)) {
-          result.tags.push({ name: tagName, source: "inline" });
-        }
-      }
+      // Inline tags: the one rule in tagRule.ts (the task scan, the rename and
+      // the editor's pill read the same one).
+      for (const tag of findInlineTags(node.value)) result.tags.push({ name: tag.name, source: "inline" });
     } else if (node.type === "html") {
       const value = node.value as string;
       if (value.startsWith("![[") && value.endsWith("]]")) {

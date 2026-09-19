@@ -10,7 +10,7 @@ import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } fr
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
-import { segmentInlineText, safeHref } from "@plainva/ui";
+import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
 import { parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
@@ -402,10 +402,12 @@ export function useBaseCells({
   // One chip path for every view (plan W4/P10): the text lives in .pv-chip-text
   // (single line + ellipsis) and the full value stays reachable via the tooltip,
   // so long values never spill out of the pill.
-  const renderChip = (text: string, color?: string, key?: React.Key, onClick?: (e: React.MouseEvent) => void, neutral?: boolean, broken?: boolean) => (
+  const renderChip = (text: string, color?: string, key?: React.Key, onClick?: (e: React.MouseEvent) => void, neutral?: boolean, broken?: boolean, tag?: boolean) => (
     <span
       key={key}
       className={broken ? "pv-chip pv-chip-broken" : neutral ? "pv-chip pv-chip-0" : chipClass(text, color)}
+      // A tag stays neutral until "Colour tags" is on (ui.css reads the slot).
+      {...(tag ? tagColorAttrs(text) : {})}
       style={onClick && !broken ? { cursor: "pointer" } : undefined}
       data-tip={broken ? t("database.brokenLinkTooltip", { defaultValue: "Verlinkte Notiz existiert nicht" }) : text}
       onClick={onClick && !broken ? (e) => { e.stopPropagation(); onClick(e); } : undefined}
@@ -517,7 +519,8 @@ export function useBaseCells({
       displayVal = <a href={safeHref(href)} style={{ color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => e.stopPropagation()}>{val}</a>;
     } else if (Array.isArray(val)) {
       // Generic list (tags / untyped list): show as neutral chips instead of a comma string.
-      displayVal = <span className="pv-chips">{val.map((v, i) => renderChip(String(v), undefined, i, undefined, true))}</span>;
+      const isTags = input === "tags" || /(^|\.)tags$/.test(col ?? "");
+      displayVal = <span className="pv-chips">{val.map((v, i) => renderChip(String(v), undefined, i, undefined, true, false, isTags))}</span>;
     } else if ((input === "date" || input === "datetime") && typeof val === "string") {
       displayVal = formatDateValue(val, input === "datetime", i18n.language, dateFormat);
     } else if (typeof val === 'string') {
