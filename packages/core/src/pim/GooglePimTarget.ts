@@ -1,3 +1,4 @@
+import { pimTaskTraceRow, pimTraceEnabled, tracePimTasks } from "./pimTrace.js";
 import { recurrenceToRRule } from "./recurrence.js";
 import { pimRequestError } from "./requestError.js";
 import type { FetchFn } from "../sync/WebDavSyncTarget.js";
@@ -283,7 +284,11 @@ export class GooglePimTarget implements IPimTarget {
       url.searchParams.set("showCompleted", "true");
       url.searchParams.set("showHidden", "true");
       if (pageToken) url.searchParams.set("pageToken", pageToken);
-      const data = await this.getJson<{ items?: Array<{ id: string; title?: string; notes?: string; due?: string; status?: string; etag?: string; updated?: string; deleted?: boolean }>; nextPageToken?: string }>(url.toString());
+      const data = await this.getJson<{ items?: Array<{ id: string; title?: string; notes?: string; due?: string; status?: string; etag?: string; updated?: string; deleted?: boolean; hidden?: boolean; completed?: string; parent?: string; position?: string }>; nextPageToken?: string }>(url.toString());
+      // The task trace (finding 2026-09-19): the rows as they came over the
+      // wire, deleted ones included, BEFORE this method interprets anything.
+      // Off unless the diagnostic switch is on; then it costs one map per page.
+      if (pimTraceEnabled()) tracePimTasks("google", listId, (data.items ?? []).map(pimTaskTraceRow));
       for (const t of data.items ?? []) {
         if (t.deleted) continue;
         tasks.push({

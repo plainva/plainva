@@ -452,6 +452,8 @@
     "perfMetricPoint": "Ponto de medição",
     "perfMetrics": "Métricas de desempenho",
     "perfMetricsDesc": "Pontos de medição locais desta sessão (mediana/p95 em ms) — nunca saem do dispositivo.",
+    "pimTrace": "Registrar dados brutos de tarefas",
+    "pimTraceDesc": "Para diagnosticar a sincronização de tarefas: a cada consulta, grava os campos técnicos das tarefas na exportação de diagnóstico — identificador, status, vencimento, hora de modificação; títulos cortados em 16 caracteres. Sem notas, sem credenciais. Fica neste dispositivo até você exportar; desativar apaga o registro.",
     "perfMetricsEmpty": "Ainda não há medições nesta sessão.",
     "perfMetricsExport": "Exportar como JSON…",
     "perfMetricsRefresh": "Mostrar/atualizar",

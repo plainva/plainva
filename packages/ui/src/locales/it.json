@@ -452,6 +452,8 @@
     "perfMetricPoint": "Punto di misura",
     "perfMetrics": "Metriche di prestazioni",
     "perfMetricsDesc": "Punti di misura locali di questa sessione (mediana/p95 in ms) — non lasciano mai il dispositivo.",
+    "pimTrace": "Registra i dati grezzi delle attività",
+    "pimTraceDesc": "Per la diagnosi della sincronizzazione delle attività: a ogni recupero scrive i campi tecnici delle attività nell'esportazione diagnostica — identificativo, stato, scadenza, ora di modifica; titoli troncati a 16 caratteri. Nessuna nota, nessuna credenziale. Resta su questo dispositivo finché non esporti; disattivandolo la registrazione viene eliminata.",
     "perfMetricsEmpty": "Ancora nessuna misura in questa sessione.",
     "perfMetricsExport": "Esporta come JSON…",
     "perfMetricsRefresh": "Mostra/aggiorna",

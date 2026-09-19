@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
@@ -435,6 +435,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   const [, setTick] = useState(0);
   const [hailing, setHailing] = useState(false);
   const [okfInfo, setOkfInfo] = useState(false);
+  const [pimTrace, setPimTrace] = useState(isPimTraceEnabled);
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -491,6 +492,16 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
               onClick={exportDiagnostics}
               title={t("settings.exportDiagnostics")}
             />
+            {/* The task trace (finding 2026-09-19): the desktop's switch, the
+                same key. Off by default, and meant to be switched off again. */}
+            <Row
+              end={<Switch
+                checked={pimTrace}
+                label={t("settings.pimTrace")}
+                onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }}
+              />}
+              title={t("settings.pimTrace")}
+            />
             <Row
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               onClick={() => setOkfInfo(true)}
@@ -498,6 +509,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
             />
           </RowList>
         </GroupCard>
+        <p className="m-hint">{t("settings.pimTraceDesc")}</p>
       </div>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}

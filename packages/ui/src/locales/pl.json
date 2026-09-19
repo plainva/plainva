@@ -454,6 +454,8 @@
     "perfMetricPoint": "Punkt pomiaru",
     "perfMetrics": "Pomiary wydajności",
     "perfMetricsDesc": "Lokalne punkty pomiarowe tej sesji (mediana/p95 w ms) — nigdy nie opuszczają urządzenia.",
+    "pimTrace": "Zapisuj surowe dane zadań",
+    "pimTraceDesc": "Do diagnozowania synchronizacji zadań: przy każdym pobraniu zapisuje techniczne pola zadań w eksporcie diagnostycznym — identyfikator, stan, termin, czas modyfikacji; tytuły skrócone do 16 znaków. Bez notatek i danych logowania. Pozostaje na tym urządzeniu do czasu eksportu; wyłączenie usuwa zapis.",
     "perfMetricsEmpty": "Brak pomiarów w tej sesji.",
     "perfMetricsExport": "Eksportuj jako JSON…",
     "perfMetricsRefresh": "Pokaż/odśwież",

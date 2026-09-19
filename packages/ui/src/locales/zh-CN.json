@@ -448,6 +448,8 @@
     "perfMetricPoint": "测量点",
     "perfMetrics": "性能指标",
     "perfMetricsDesc": "本次会话的本地测量点（中位数/p95，毫秒）——绝不离开设备。",
+    "pimTrace": "记录任务原始数据",
+    "pimTraceDesc": "用于排查任务同步问题：每次拉取时，将任务的技术字段写入诊断导出——标识、状态、截止日期、修改时间；标题截短为16个字符。不含笔记，不含凭据。在你导出之前保留在此设备上；关闭后会删除记录。",
     "perfMetricsEmpty": "本次会话还没有测量数据。",
     "perfMetricsExport": "导出为 JSON…",
     "perfMetricsRefresh": "显示/刷新",

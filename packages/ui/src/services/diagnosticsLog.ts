@@ -4,6 +4,7 @@
  * an export is safe to attach to a bug report. Vault-relative file paths may
  * appear in messages; the export header says so.
  */
+import { formatPimTraceExport } from "./pimTraceLog";
 
 export interface DiagEntry {
   ts: number;
@@ -87,6 +88,9 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
       ({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }));
     lines.push("", "## Lokale Konfliktdiagnose (ohne Dateinamen oder Notizinhalte)", "", "```json", redactDiagnosticText(JSON.stringify(conflicts, null, 2)), "```");
   }
+  // The task trace (finding 2026-09-19): present only while its switch is on
+  // or its buffer still holds something.
+  lines.push(...formatPimTraceExport());
   return lines.join("\n") + "\n";
 }
 

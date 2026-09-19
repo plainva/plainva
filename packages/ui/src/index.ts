@@ -329,6 +329,7 @@ export * from "./lib/noteEmbed";
 export * from "./lib/useSearchPages";
 export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";
+export * from "./services/pimTraceLog";
 export * from "./services/docMeta";
 export * from "./services/dynamicDate";
 export * from "./services/imageFiles";

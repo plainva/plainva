@@ -450,6 +450,8 @@
     "perfMetricPoint": "Meetpunt",
     "perfMetrics": "Prestatiemetingen",
     "perfMetricsDesc": "Lokale meetpunten van deze sessie (mediaan/p95 in ms) — verlaten het apparaat nooit.",
+    "pimTrace": "Ruwe taakgegevens vastleggen",
+    "pimTraceDesc": "Voor het opsporen van fouten in de taaksynchronisatie: schrijft bij elke ophaalactie de technische velden van de taken in de diagnose-export — id, status, vervaldatum, wijzigingstijd; titels ingekort tot 16 tekens. Geen notities, geen inloggegevens. Blijft op dit apparaat tot je exporteert; uitschakelen wist de opname.",
     "perfMetricsEmpty": "Nog geen metingen in deze sessie.",
     "perfMetricsExport": "Exporteren als JSON…",
     "perfMetricsRefresh": "Tonen/vernieuwen",

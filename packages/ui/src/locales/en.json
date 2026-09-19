@@ -450,6 +450,8 @@
     "perfMetricPoint": "Measurement point",
     "perfMetrics": "Performance metrics",
     "perfMetricsDesc": "Local measurement points of this session (median/p95 in ms) — they never leave the device.",
+    "pimTrace": "Record raw task data",
+    "pimTraceDesc": "For troubleshooting task sync: on every pull, writes the tasks' technical fields into the diagnostics export — id, status, due date, modification time; titles cut to 16 characters. No notes, no credentials. Stays on this device until you export; switching it off deletes the recording.",
     "perfMetricsEmpty": "No measurements in this session yet.",
     "perfMetricsExport": "Export as JSON…",
     "perfMetricsRefresh": "Show/refresh",

@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-09-15
+Stand: 2026-09-19
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -83,6 +83,8 @@ In der Gegenrichtung gilt weiterhin: **eine extern gelöschte Aufgabe löscht ni
 Aktuelle Grenzen: als normale Notizen angelegte Aufgaben werden nicht zum Anbieter gepusht (lege sie extern oder über die Aufgabendatenbank an), und alles auf dieser Seite ist vorerst Desktop-first.
 
 Von **In anderen Kalendern blockieren** erzeugte Kopien tragen eine anbieterspezifische Plainva-Verknüpfung (Google, Microsoft und CalDAV). Die Kalenderansichten zeigen diese Verbindung mit einem Kettensymbol; beim erneuten Laden werden Quelle und Block wieder zuverlässig zugeordnet, statt unverbundene Duplikate zu erzeugen.
+
+**Wenn der Stand einer Aufgabe nicht ankommt.** Zeigt Plainva nicht, was Du beim Anbieter geändert hast — eine abgehakte Aufgabe, ein verschobenes Datum —, dann entscheiden die Daten des Anbieters die Frage. Schalte unter **Einstellungen → App → Über & Diagnose** (am Telefon: **Über & Diagnose**) **Aufgaben-Rohdaten mitschreiben** ein, gleiche ab, nimm die Änderung beim Anbieter vor, gleiche noch einmal ab und nutze dann **Diagnose exportieren…**: der Export führt beide Abrufe auf, je Aufgabe mit Kennung, Status, Daten und Revision — Titel auf 16 Zeichen gekürzt, keine Notizen, keine Zugangsdaten. Schalte danach wieder aus; das löscht auch die Aufzeichnung.
 
 ## Erinnerungen am Rechner
 

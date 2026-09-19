@@ -30,7 +30,7 @@ import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
 import { initInputModality } from "./services/inputModality";
 import { initWebviewHardening } from "./services/webviewHardening";
-import { installGlobalDiagnostics } from "@plainva/ui";
+import { initPimTrace, installGlobalDiagnostics } from "@plainva/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Which window is this? An auxiliary window loads the same bundle and differs
@@ -99,6 +99,10 @@ if (isOwnerWindow) {
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.
 void i18nReady.then(async () => {
+  // The task trace (finding 2026-09-19) re-installs its listener when the
+  // diagnostic switch was left on. HERE, not at module level: it reaches into
+  // another package, and only inside a function is every chunk loaded (C20).
+  initPimTrace();
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
   if (!isOwnerWindow) {

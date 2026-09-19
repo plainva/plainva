@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-19
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -83,6 +83,8 @@ En la otra dirección se mantiene la regla anterior: **una tarea eliminada de fo
 Límites actuales: las tareas creadas como notas normales no se envían al proveedor (créalas de forma remota o mediante la base de datos de tareas), y todo lo de esta página es por ahora desktop-first.
 
 Las copias creadas por **Bloquear en otros calendarios** llevan un vínculo de Plainva específico del proveedor en Google, Microsoft y CalDAV. Las vistas muestran la relación con un icono de enlace; después de actualizar, el origen y el bloqueo vuelven a asociarse en lugar de convertirse en duplicados independientes.
+
+**Cuando el estado de una tarea no llega.** Si Plainva no muestra lo que cambiaste en el proveedor — una tarea marcada como hecha, una fecha movida —, los datos del propio proveedor resuelven la duda. Activa **Registrar datos brutos de tareas** en **Configuración → App → Acerca de y diagnóstico** (en el teléfono: **Acerca de y diagnóstico**), sincroniza, haz el cambio en el proveedor, sincroniza de nuevo y usa **Exportar diagnóstico…**: la exportación enumera ambas consultas, cada tarea con su identificador, estado, fechas y revisión — títulos recortados a 16 caracteres, sin notas ni credenciales. Desactívalo después; eso también borra el registro.
 
 ## Recordatorios en el ordenador
 

@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-19
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -83,6 +83,8 @@ Dans l'autre sens, l'ancienne règle demeure : **une tâche supprimée à distan
 Limites actuelles : les tâches créées comme notes ordinaires ne sont pas poussées vers le fournisseur (créez-les à distance ou via la base de tâches), et tout sur cette page est pour l'instant pensé d'abord pour le bureau.
 
 Les copies créées par **Bloquer dans d’autres calendriers** portent un lien Plainva propre au fournisseur sur Google, Microsoft et CalDAV. Les vues du calendrier affichent cette relation par une icône de lien ; après actualisation, la source et le bloc sont de nouveau associés au lieu de devenir des doublons indépendants.
+
+**Quand l'état d'une tâche n'arrive pas.** Si Plainva n'affiche pas ce que vous avez modifié chez le fournisseur — une tâche cochée, une date déplacée —, les données du fournisseur tranchent la question. Activez **Enregistrer les données brutes des tâches** sous **Paramètres → App → À propos et diagnostic** (sur le téléphone : **À propos et diagnostic**), synchronisez, faites la modification chez le fournisseur, synchronisez à nouveau, puis utilisez **Exporter le diagnostic…** : l'export énumère les deux récupérations, chaque tâche avec son identifiant, son état, ses dates et sa révision — titres coupés à 16 caractères, ni notes ni identifiants. Désactivez ensuite ; cela efface aussi l'enregistrement.
 
 ## Rappels sur l'ordinateur
 

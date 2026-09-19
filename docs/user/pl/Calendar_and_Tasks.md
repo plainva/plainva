@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-15
+Stan na: 2026-09-19
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -83,6 +83,8 @@ W drugą stronę obowiązuje dawna reguła: **zdalnie usunięte zadanie nigdy ni
 Obecne ograniczenia: zadania utworzone jako zwykłe notatki nie są wysyłane do dostawcy (twórz je zdalnie albo przez bazę zadań), a wszystko na tej stronie jest na razie desktop-first.
 
 Kopie utworzone przez **Zablokuj w innych kalendarzach** zawierają zależne od dostawcy powiązanie Plainva w Google, Microsoft i CalDAV. Widoki kalendarza pokazują relację ikoną łącza; po odświeżeniu źródło i blokada są ponownie kojarzone zamiast tworzyć niezależne duplikaty.
+
+**Gdy stan zadania nie dociera.** Jeśli Plainva nie pokazuje tego, co zmieniłeś u dostawcy — odhaczonego zadania, przesuniętej daty — sprawę rozstrzygają dane samego dostawcy. Włącz **Zapisuj surowe dane zadań** w **Ustawienia → Aplikacja → Informacje i diagnostyka** (na telefonie: **Informacje i diagnostyka**), zsynchronizuj, wprowadź zmianę u dostawcy, zsynchronizuj ponownie, a potem użyj **Eksportuj diagnostykę…**: eksport wymienia oba pobrania, każde zadanie z identyfikatorem, stanem, datami i rewizją — tytuły skrócone do 16 znaków, bez notatek i danych logowania. Potem wyłącz; to usuwa też zapis.
 
 ## Przypomnienia na komputerze
 

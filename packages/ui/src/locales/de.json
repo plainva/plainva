@@ -450,6 +450,8 @@
     "perfMetricPoint": "Messpunkt",
     "perfMetrics": "Performance-Messwerte",
     "perfMetricsDesc": "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie.",
+    "pimTrace": "Aufgaben-Rohdaten mitschreiben",
+    "pimTraceDesc": "Zur Fehlersuche beim Aufgaben-Abgleich: schreibt bei jedem Abruf die technischen Felder der Aufgaben in den Diagnose-Export — Kennung, Status, Fälligkeit, Änderungszeit; Titel auf 16 Zeichen gekürzt. Keine Notizen, keine Zugangsdaten. Bleibt auf diesem Gerät, bis Du exportierst; Ausschalten löscht die Aufzeichnung.",
     "perfMetricsEmpty": "Noch keine Messwerte in dieser Sitzung.",
     "perfMetricsExport": "Als JSON exportieren…",
     "perfMetricsRefresh": "Anzeigen/Aktualisieren",

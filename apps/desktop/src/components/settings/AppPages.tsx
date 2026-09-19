@@ -12,7 +12,7 @@ import {
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
-import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, type CustomThemeDesign } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, isPimTraceEnabled, setPimTraceEnabled, Switch, type CustomThemeDesign } from "@plainva/ui";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -228,14 +228,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
           </div>
         </SettingRow>
         <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
-          <input
-            type="checkbox"
-            id="tagColors"
-            data-testid="settings-tag-colors"
-            aria-label={t("settings.tagColors")}
-            checked={p.tagColors}
-            onChange={(e) => p.onTagColors(e.target.checked)}
-          />
+          <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
         </SettingRow>
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
@@ -409,6 +402,7 @@ export interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
+  const [pimTrace, setPimTrace] = React.useState(isPimTraceEnabled);
   return (
     <div>
       <AreaHead areaId="about" />
@@ -426,6 +420,12 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
       </SettingCard>
 
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
+        {/* The task trace (finding 2026-09-19): off by default, and meant to be
+            switched off again - it answers one question with the provider's own
+            rows and adds them to the diagnostics export above. */}
+        <SettingRow label={t("settings.pimTrace")} desc={t("settings.pimTraceDesc")}>
+          <Switch checked={pimTrace} label={t("settings.pimTrace")} onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }} />
+        </SettingRow>
         <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>

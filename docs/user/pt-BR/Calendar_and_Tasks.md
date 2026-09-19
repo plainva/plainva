@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-19
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -83,6 +83,8 @@ Na direção contrária, vale a regra antiga: **uma tarefa excluída remotamente
 Limites atuais: tarefas criadas como notas comuns não são enviadas ao provedor (crie-as remotamente ou pelo banco de tarefas), e tudo nesta página é, por enquanto, desktop-first.
 
 Cópias criadas por **Bloquear em outros calendários** carregam um vínculo Plainva específico do provedor no Google, Microsoft e CalDAV. As visualizações mostram essa relação com um ícone de link; após atualizar, origem e bloqueio são associados novamente em vez de virarem duplicatas independentes.
+
+**Quando o estado de uma tarefa não chega.** Se o Plainva não mostra o que você mudou no provedor — uma tarefa marcada como concluída, uma data movida —, os dados do próprio provedor resolvem a questão. Ative **Registrar dados brutos de tarefas** em **Configurações → App → Sobre e diagnóstico** (no telefone: **Sobre e diagnóstico**), sincronize, faça a mudança no provedor, sincronize de novo e então use **Exportar diagnóstico…**: a exportação lista as duas consultas, cada tarefa com identificador, status, datas e revisão — títulos cortados em 16 caracteres, sem notas, sem credenciais. Depois desative; isso também apaga o registro.
 
 ## Lembretes no computador
 

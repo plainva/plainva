@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-19
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -83,6 +83,8 @@ In de andere richting geldt de oude regel: **een extern verwijderde taak verwijd
 Huidige beperkingen: als gewone notities aangemaakte taken worden niet naar de provider gepusht (maak ze extern aan of via de takendatabase), en alles op deze pagina is voorlopig desktop-first.
 
 Kopieën van **Blokkeren in andere agenda’s** krijgen bij Google, Microsoft en CalDAV een providerspecifieke Plainva-koppeling. Agendaweergaven tonen die relatie met een kettingpictogram; na vernieuwen worden bron en blokkade opnieuw gekoppeld in plaats van losse duplicaten te worden.
+
+**Wanneer de status van een taak niet aankomt.** Toont Plainva niet wat je bij de provider hebt gewijzigd — een afgevinkte taak, een verplaatste datum —, dan beslissen de gegevens van de provider de vraag. Schakel **Ruwe taakgegevens vastleggen** in onder **Instellingen → App → Over & diagnose** (op de telefoon: **Over & diagnose**), synchroniseer, breng de wijziging aan bij de provider, synchroniseer opnieuw en gebruik dan **Diagnose exporteren…**: de export toont beide ophaalacties, per taak met id, status, datums en revisie — titels ingekort tot 16 tekens, geen notities, geen inloggegevens. Schakel het daarna weer uit; dat wist ook de opname.
 
 ## Herinneringen op de computer
 
