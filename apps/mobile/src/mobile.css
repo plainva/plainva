@@ -4715,6 +4715,10 @@ textarea {
 
 /* Reader controls float above a constant inset INSIDE the editor's scrolling
    content. Retreat changes only paint; the scroll viewport never resizes. */
+/* The database's search row (finding 2026-09-19): the pinboard's field, under
+   the view switcher of every other view. It keeps the page's side inset. */
+.m-basesearch { flex: none; padding: 0 0 var(--space-2); }
+
 /* The chrome carries the hints too (finding 2026-09-19), so it has a ground
    of its own: a rounded hint would otherwise let the note show through its
    corners while the chrome floats. */

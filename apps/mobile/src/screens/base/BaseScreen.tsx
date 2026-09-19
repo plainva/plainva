@@ -29,8 +29,7 @@ import {
   MoreHorizontal,
   CheckSquare,
   MessageSquare,
-  X,
-} from "lucide-react";
+  X, Search } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
@@ -73,6 +72,12 @@ import {
   isMilestone,
   chipPaletteIndex,
   chipClass,
+  BaseSearchField,
+  baseSearchMetadata,
+  baseSearchRevision,
+  filterRowsBySearch,
+  plainCellText,
+  useBaseSearch,
   cardColorOf,
   noteCardTint,
   type CardColorProperty,
@@ -149,7 +154,37 @@ export function BaseScreen({
   const snapshot = useMemo(() => cache.base<{ loaded: LoadedBase; rows: Row[]; viewIndex: number }>(path), [cache, path]);
   const [loaded, setLoaded] = useState<LoadedBase | null>(() => snapshot?.loaded ?? null);
   const [viewIndex, setViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
-  const [rows, setRows] = useState<Row[] | null>(() => snapshot?.rows ?? null);
+  const [allRows, setRows] = useState<Row[] | null>(() => snapshot?.rows ?? null);
+  // The search of the database (finding 2026-09-19). Only the pinboard had one,
+  // although nothing about it was the pinboard's. It narrows the rows at the
+  // SOURCE — everything below reads `rows` — so table, list, cards, board,
+  // calendar, timeline and graph get it at once, together with the selection
+  // and the summaries, and no view grows a search of its own. The pinboard
+  // keeps its own field (it composes with the label chips), so this one steps
+  // aside there. Kept per database for the session; never written to the file.
+  const searchKey = `${path}#search`;
+  const [searchText, setSearchText] = useState(() => cache.session(searchKey).search);
+  const [searchOpen, setSearchOpen] = useState(() => cache.session(searchKey).search.trim() !== "");
+  useEffect(() => { cache.updateSession(searchKey, { search: searchText }); }, [cache, searchKey, searchText]);
+  const searchView = loaded?.config?.views?.[viewIndex];
+  const headerSearchActive = (searchView?.type ?? "table") !== "pinboard";
+  const searchColumns = useMemo<string[]>(() => {
+    const bare = (c: unknown) => String(c).replace(/^note\./, "");
+    const shown = Array.isArray(searchView?.order) ? searchView.order.map(bare) : [];
+    // What a board GROUPS by is on screen as the column head, so a reader types
+    // it ("paused") although it is no column of the card. A board without a
+    // saved group falls back to "status", as the board itself does.
+    const structural = searchView?.type === "board" ? [searchView.groupBy ?? "status", searchView.boardLaneBy].filter((c): c is string => typeof c === "string" && c !== "").map(bare) : [];
+    return [...new Set([...shown, ...structural])];
+  }, [searchView]);
+  const searchPaths = useMemo(() => (allRows ?? []).map((r) => String(r["file.path"] ?? "")), [allRows]);
+  const searchMetadata = useMemo(() => baseSearchMetadata(allRows ?? [], searchColumns, (row, col) => plainCellText(row[col])), [allRows, searchColumns]);
+  const searchRevision = useMemo(() => baseSearchRevision(allRows ?? []), [allRows]);
+  const baseSearch = useBaseSearch(vault.queryService, searchPaths, headerSearchActive ? searchText : "", searchMetadata, cache, searchKey, searchRevision);
+  const rows = useMemo(
+    () => (allRows === null ? null : filterRowsBySearch(allRows, headerSearchActive ? baseSearch.matches : null)),
+    [allRows, headerSearchActive, baseSearch.matches]
+  );
   const [queryEpoch] = useState(() => new QueryEpoch());
   useEffect(() => () => { queryEpoch.next(); }, [vault, path, queryEpoch]);
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
@@ -698,7 +733,7 @@ export function BaseScreen({
         : res.value;
     }
 
-    if (isLargeBulkChange(paths.length, rows.length)) {
+    if (isLargeBulkChange(paths.length, (allRows ?? rows).length)) {
       const sure = await mConfirm({
         title: t("database.bulkSetConfirmTitle"),
         message: t("database.bulkSetConfirmMsg", {
@@ -758,7 +793,7 @@ export function BaseScreen({
       setCaptureSignal((n) => n + 1);
       return;
     }
-    void createBaseItem(vault, path, config, rows?.length ?? 0, viewIndex).then(async (p) => {
+    void createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex).then(async (p) => {
       if (p) {
         onOpenNote(p);
         return;
@@ -766,7 +801,7 @@ export function BaseScreen({
       // No folder to store into: ask the one question, then carry on (P2).
       const asked = await askStorageFolder();
       if (!asked) return;
-      const created = await createBaseItem(vault, path, asked.config, rows?.length ?? 0, viewIndex, asked.folder);
+      const created = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
       if (created) onOpenNote(created);
     });
   };
@@ -1913,6 +1948,12 @@ export function BaseScreen({
         onBack={onBack}
         title={title}
         actions={<>
+          {/* One search for every view (finding 2026-09-19). The pinboard keeps its own field inside its surface. */}
+          {headerSearchActive && (
+            <IconButton label={t("database.searchToggle")} active={searchOpen} data-testid="base-search-toggle" onClick={() => setSearchOpen((open) => { if (open) setSearchText(""); return !open; })}>
+              <Search size={ICON.touch} />
+            </IconButton>
+          )}
           <IconButton label={t("database.exportTitle")} disabled={!config || rows == null} onClick={() => setShowExport(true)}>
             <Download size={ICON.touch} />
           </IconButton>
@@ -1922,6 +1963,16 @@ export function BaseScreen({
         </>}
       />
       {ptrIndicator}
+
+      {headerSearchActive && searchOpen && (
+        <div className="m-basesearch" data-testid="base-search">
+          <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus>
+            {searchText.trim() !== "" && (
+              <span className="m-badge-muted" data-testid="base-search-count">{t("database.searchCount", { n: rows?.length ?? 0, total: allRows?.length ?? 0 })}</span>
+            )}
+          </BaseSearchField>
+        </div>
+      )}
 
       {render === "graph" && !vaultGraph && <p className="m-hint">{t("mobile.baseGraphFallback")}</p>}
 

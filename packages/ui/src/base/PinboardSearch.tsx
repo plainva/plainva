@@ -43,13 +43,15 @@ export function usePinboardSearch(source: SearchSource | null | undefined, paths
   };
 }
 
-export function PinboardSearch({ value, onChange, busy, children }: { value: string; onChange: (value: string) => void; busy?: boolean; children?: ReactNode }) {
+/** `placeholder` names what is searched; the pinboard's is the default, every other view says "this database" (finding 2026-09-19). */
+export function PinboardSearch({ value, onChange, busy, children, placeholder, autoFocus }: { value: string; onChange: (value: string) => void; busy?: boolean; children?: ReactNode; placeholder?: string; autoFocus?: boolean }) {
   const { t } = useTranslation();
+  const label = placeholder ?? t("pinboard.searchPlaceholder");
   return <div className="pv-pinboard-search" role="search">
     <Search size={ICON.ui} aria-hidden="true" />
     <TextInput compact type="search" data-pinboard-search="true" value={value} onChange={e => onChange(e.target.value)}
       onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onChange(""); } }}
-      aria-label={t("pinboard.searchPlaceholder")} placeholder={t("pinboard.searchPlaceholder")} aria-busy={busy} />
+      aria-label={label} placeholder={label} aria-busy={busy} autoFocus={autoFocus} />
     {!!value && <IconButton onClick={() => onChange("")} label={t("sidebar.clearSearch")}><X size={ICON.ui} /></IconButton>}
     {children}
   </div>;

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { Button, applyPin, applyUnpin, noteCardTint, withNoteColor, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { Button, applyPin, applyUnpin, noteCardTint, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -200,7 +200,8 @@ export function BasePinboardView({
   useEffect(() => { cache.updateSession(viewKey, { search: searchText }); }, [cache, viewKey, searchText]);
   const searchMetadata = useMemo(() => new Map(dbData.map(row => [String(row["file.path"]), [
     String(row["file.name"] ?? ""), ...(labelsByPath.get(String(row["file.path"])) ?? []), ...(Array.isArray(row["file.tags"]) ? row["file.tags"].map(String) : []),
-    ...(visibleColumns ?? []).map(col => cells ? String(cells.formatValueForDisplay(row[col], col).displayVal) : String(row[col] ?? "")),
+    // Typed cells render as elements; stringifying one gave "[object Object]" and made a select column unsearchable.
+    ...(visibleColumns ?? []).map(col => searchableCellText(row[col], cells ? cells.formatValueForDisplay(row[col], col).displayVal : undefined)),
   ]])), [dbData, visibleColumns, cells, labelsByPath]);
   const searchRevision = useMemo(() => JSON.stringify(dbData.map(row => [row["file.path"], cardRevision(row)])), [dbData]);
   const search = usePinboardSearch(queryService, paths, searchText, searchMetadata, cache, viewKey, searchRevision);

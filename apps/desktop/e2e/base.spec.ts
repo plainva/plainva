@@ -1000,6 +1000,37 @@ test('Base board: a card is tinted with the note colour, and "Color" in its menu
     .toBe(true);
 });
 
+/**
+ * One search field for EVERY view (finding 2026-09-19). Only the pinboard had
+ * one; it now sits in the header all views share and narrows the rows before
+ * any view sees them. Same field, same hook - the pinboard's.
+ */
+test('Base: the header search narrows the board by name and by what it groups by, counts the hits and clears with Escape', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Board');
+  const cards = page.getByTestId('base-row');
+  await expect(cards.first()).toBeVisible({ timeout: 10000 });
+  const total = await cards.count();
+  expect(total).toBeGreaterThan(1);
+
+  const field = page.getByTestId('base-search').locator('input');
+  await field.fill('alpha');
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText('Alpha');
+  await expect(page.getByTestId('base-search-count')).toHaveText(new RegExp(`^1 (of|von) ${total}$`));
+
+  // What the board groups by is on screen as the column head, so it matches too - not only the name.
+  await field.fill('paused');
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText('Beta');
+
+  // Escape clears, and the field stays where it is.
+  await field.press('Escape');
+  await expect(field).toHaveValue('');
+  await expect(cards).toHaveCount(total);
+  await expect(page.getByTestId('base-search-count')).toHaveCount(0);
+});
+
 test('Base board: swimlanes — a row per lane value, a drop on a cell writes column and lane (issue #83)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'LaneBoard');

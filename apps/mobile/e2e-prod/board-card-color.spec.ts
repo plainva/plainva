@@ -93,6 +93,24 @@ test("a board card is tinted by the note's own colour first, then by the colour-
 
     // The column head is the group's coloured chip, as on the desktop (E4).
     await expect(page.getByTestId("board-col-chip").first()).toHaveText("Open");
+
+    // One search for EVERY view (finding 2026-09-19): the magnifier opens the
+    // pinboard's field under the view switcher; it narrows the cards by name,
+    // by a visible column and by what the board groups by, and counts the hits.
+    const cards = page.locator(".m-basecard");
+    await page.getByTestId("base-search-toggle").click();
+    const field = page.getByTestId("base-search").locator("input");
+    await field.fill("plain");
+    await expect(cards).toHaveCount(1);
+    await expect(page.getByTestId("base-search-count")).toHaveText("1 of 3");
+    await field.fill("high");
+    await expect(cards).toHaveCount(2);
+    await field.fill("open");
+    await expect(cards).toHaveCount(3);
+    // Closing the search clears it - a hidden filter is a trap.
+    await page.getByTestId("base-search-toggle").click();
+    await expect(page.getByTestId("base-search")).toHaveCount(0);
+    await expect(cards).toHaveCount(3);
   } finally {
     sql.close();
   }

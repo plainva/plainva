@@ -1,5 +1,5 @@
 import { trimEndChars } from "@plainva/core";
-import { noteColorOfRow, pinboardCache, withNoteColor } from "@plainva/ui";
+import { BaseSearchField, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
@@ -636,10 +636,41 @@ export function BaseViewer({
   // Rows actually displayed: the query result intersected with the scope set
   // (AND with the base's saved filters). Editing/backfill/filter dropdowns keep
   // using the full dbData; only the rendered views + count use the scoped set.
-  const scopedData = useMemo(
+  const scopeRows = useMemo(
     () => (scopePaths ? dbData.filter((r) => scopePaths.has(r["file.path"])) : dbData),
     [dbData, scopePaths]
   );
+
+  // The search of the database (finding 2026-09-19). Only the pinboard had one,
+  // although nothing about it was the pinboard's. It sits in the header every
+  // view shares and narrows the rows BEFORE any view sees them - so table,
+  // list, gallery, board, calendar, timeline and graph get it at once, along
+  // with the selection and the export, and no view grows a search of its own.
+  // The pinboard keeps its own field (it composes with the label chips and the
+  // pinned section), so the header's is off there. Kept per database for the
+  // session in the pinboard's cache; never written into the .base file.
+  const fallbackSearchCache = useMemo(() => new PinboardCache(), []);
+  const searchCache = cache ?? fallbackSearchCache;
+  const baseSearchKey = `${cacheKey}#search`;
+  const [baseSearchText, setBaseSearchText] = useState(() => searchCache.session(baseSearchKey).search);
+  useEffect(() => { searchCache.updateSession(baseSearchKey, { search: baseSearchText }); }, [searchCache, baseSearchKey, baseSearchText]);
+  const headerSearchActive = currentViewType !== "pinboard";
+  const searchPaths = useMemo(() => scopeRows.map((r: any) => String(r["file.path"])), [scopeRows]);
+  const bareColumn = (col: string) => (col.startsWith("note.") ? col.slice(5) : col);
+  // What a board GROUPS by is on screen as the column head, so a reader types it
+  // ("paused") although it is no visible column of the card.
+  const searchColumns = useMemo(() => {
+    const lane = dbConfig?.views?.[activeViewIndex]?.boardLaneBy;
+    const structural = currentViewType === "board" ? [boardGroupBy, typeof lane === "string" ? lane : null] : [];
+    return [...new Set([...visibleColumns, ...structural.filter((c): c is string => !!c)])];
+  }, [visibleColumns, currentViewType, boardGroupBy, dbConfig, activeViewIndex]);
+  const searchMetadata = useMemo(
+    () => baseSearchMetadata(scopeRows, searchColumns, (row, col) => { const raw = row[col] ?? row[bareColumn(col)]; return searchableCellText(raw, cells.formatValueForDisplay(raw, col).displayVal); }),
+    [scopeRows, searchColumns, cells]
+  );
+  const searchRevision = useMemo(() => baseSearchRevision(scopeRows), [scopeRows]);
+  const baseSearch = useBaseSearch(queryService, searchPaths, headerSearchActive ? baseSearchText : "", searchMetadata, searchCache, baseSearchKey, searchRevision);
+  const scopedData = useMemo(() => filterRowsBySearch(scopeRows, headerSearchActive ? baseSearch.matches : null), [scopeRows, headerSearchActive, baseSearch.matches]);
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
   // file AND the view: switching views is switching what "these rows" means,
@@ -2379,6 +2410,20 @@ export function BaseViewer({
         />
 
         <div style={{ marginLeft: "auto" }} />
+        {/* One search field for every view (finding 2026-09-19) - the pinboard's
+            own component, in the header all eight views share. The pinboard
+            keeps the field inside its surface, so this one steps aside there. */}
+        {headerSearchActive && (
+          <div data-testid="base-search" style={{ flex: "0 1 16rem", minWidth: 0 }}>
+            <BaseSearchField value={baseSearchText} onChange={setBaseSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")}>
+              {baseSearchText.trim() !== "" && (
+                <span data-testid="base-search-count" style={{ color: "var(--text-faint)", fontSize: "var(--text-sm)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                  {t("database.searchCount", { n: scopedData.length, total: scopeRows.length })}
+                </span>
+              )}
+            </BaseSearchField>
+          </div>
+        )}
 
         {/* Scope moved into the config panel's Filter section as a "Diese Notiz"
             row (maintainer 2026-07-07: unify the embed scope with the filter

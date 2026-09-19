@@ -356,3 +356,4 @@ export * from "./lib/useBookmarkTargets";
 export * from "./base/usePinboardCards";
 
 export * from "./base/PinboardSearch";
+export * from "./base/baseSearch";
