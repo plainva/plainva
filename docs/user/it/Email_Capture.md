@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-19
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -143,7 +143,7 @@ Apri **Account cloud**, scegli l’account esistente e **Aggiungi** per il servi
 
 Una build di prova configurata mostra **Accedi con Google · Test** negli account email. Questo accesso non è ancora disponibile per tutti. Desktop e iOS usano il browser di sistema; Android usa il selettore nativo degli account Google. Plainva verifica l’account e i permessi effettivamente concessi prima di aggiungere servizi. Un altro account, l’annullamento o il rifiuto del consenso non sostituiscono un accesso esistente.
 
-Google richiede accesso completo alla posta per IMAP e SMTP. L’accesso resta su questo dispositivo; i token OAuth non vengono sincronizzati nel vault. Le email salvate come note o file EML diventano contenuti del vault e ne seguono archiviazione, condivisione e sincronizzazione. Le password per le app di Gmail restano utilizzabili.
+Google richiede accesso completo alla posta per IMAP e SMTP. L’accesso resta su questo dispositivo; i token OAuth non vengono sincronizzati nel vault. Le email salvate come note o file EML diventano contenuti del vault e ne seguono archiviazione, condivisione e sincronizzazione. Le password per le app di Gmail restano utilizzabili. Finché l'accesso con Google non è disponibile per tutti, Gmail si collega con una password per l'app: attiva la verifica in due passaggi nell'account Google, poi creane una con **Crea una password per l'app su Google** nel modulo dell'account — il link apre direttamente la pagina di Google, sul desktop come sul telefono.
 
 ## Più messaggi, allegati e tastiera
 

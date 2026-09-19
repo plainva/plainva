@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-19
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -143,7 +143,7 @@ Ouvre **Comptes cloud**, choisis le compte existant et **Ajouter** pour le servi
 
 Une version de test configurée affiche **Connexion Google · Test** dans les comptes de messagerie. Cet accès n’est pas encore ouvert à tous. Sur ordinateur et iOS, la connexion utilise le navigateur système ; Android utilise le sélecteur natif de comptes Google. Plainva vérifie le compte et les autorisations réellement accordées avant d’ajouter des services. Un autre compte, une annulation ou un refus ne remplace pas une connexion existante.
 
-Google exige un accès complet aux e-mails pour IMAP et SMTP. La connexion reste sur cet appareil ; les jetons OAuth ne sont pas synchronisés avec le coffre. Les messages enregistrés en notes ou fichiers EML appartiennent au coffre et suivent son stockage, son partage et sa synchronisation. Les mots de passe d’application Gmail restent utilisables.
+Google exige un accès complet aux e-mails pour IMAP et SMTP. La connexion reste sur cet appareil ; les jetons OAuth ne sont pas synchronisés avec le coffre. Les messages enregistrés en notes ou fichiers EML appartiennent au coffre et suivent son stockage, son partage et sa synchronisation. Les mots de passe d’application Gmail restent utilisables. Tant que la connexion Google n'est pas disponible pour tous, Gmail se connecte avec un mot de passe d'application : active la validation en deux étapes dans le compte Google, puis crée-en un via **Créer un mot de passe d'application chez Google** dans le formulaire du compte — le lien ouvre directement la page de Google, sur le bureau comme sur le téléphone.
 
 ## Plusieurs messages, pièces jointes et clavier
 

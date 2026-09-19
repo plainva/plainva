@@ -37,6 +37,13 @@ describe("mail presets", () => {
     }
   });
 
+  it("links Gmail's app-password page directly, over https (finding 2026-09-19)", () => {
+    // The hint used to send people to "Security" in the Google account, where
+    // Google no longer lists app passwords; only the direct page is reliable.
+    expect(presetById("gmail")?.appPasswordUrl).toBe("https://myaccount.google.com/apppasswords");
+    for (const preset of MAIL_PRESETS) if (preset.appPasswordUrl) expect(preset.appPasswordUrl.startsWith("https://")).toBe(true);
+  });
+
   it("maps gmx.com to the INTERNATIONAL hosts, not the gmx.net ones (B1)", () => {
     expect(presetForEmail("user@gmx.com")?.id).toBe("gmxcom");
     expect(presetForEmail("user@gmx.com")?.host).toBe("imap.gmx.com");

@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-19
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -143,7 +143,7 @@ Abre **Cuentas en la nube**, elige la cuenta existente y pulsa **Añadir** en el
 
 Una compilación de prueba configurada muestra **Acceder con Google · Prueba** en las cuentas de correo. Este acceso aún no está disponible para todos. Escritorio e iOS usan el navegador del sistema; Android usa el selector nativo de cuentas de Google. Plainva verifica la cuenta y los permisos concedidos antes de añadir servicios. Otra cuenta, cancelar o denegar permisos no sustituye un acceso existente.
 
-Google exige acceso completo al correo para IMAP y SMTP. El acceso permanece en este dispositivo; los tokens OAuth no se sincronizan con la bóveda. Los correos guardados como notas o archivos EML sí son contenido de la bóveda y siguen su almacenamiento, uso compartido y sincronización. Las contraseñas de aplicación de Gmail siguen funcionando.
+Google exige acceso completo al correo para IMAP y SMTP. El acceso permanece en este dispositivo; los tokens OAuth no se sincronizan con la bóveda. Los correos guardados como notas o archivos EML sí son contenido de la bóveda y siguen su almacenamiento, uso compartido y sincronización. Las contraseñas de aplicación de Gmail siguen funcionando. Hasta que el inicio de sesión con Google esté disponible para todos, Gmail se conecta con una contraseña de aplicación: activa la verificación en dos pasos en la cuenta de Google y crea una mediante **Crear una contraseña de aplicación en Google** en el formulario de la cuenta — el enlace abre directamente la página de Google, en el escritorio y en el teléfono.
 
 ## Varios mensajes, adjuntos y teclado
 

@@ -54,6 +54,8 @@ export interface MailPreset {
   authMode: ProviderAuthMode;
   /** Official provider page explaining the required password/code. */
   helpUrl?: string;
+  /** The page that ISSUES the app password, where the provider has one that can be linked directly (finding 2026-09-19: Gmail's hint sent people to "Security", where Google no longer lists them). */
+  appPasswordUrl?: string;
   /** IMAP must first be enabled in the provider's own settings. */
   enableHint?: boolean;
   regions: ProviderRegion[];
@@ -69,7 +71,7 @@ export interface MailPreset {
 export const MAIL_PRESETS: MailPreset[] = [
   // ---- Global -------------------------------------------------------------
   // support.google.com/mail/answer/185833 (app passwords) + /answer/7126229 (servers)
-  { id: "gmail", label: "Gmail", host: "imap.gmail.com", port: 993, smtpHost: "smtp.gmail.com", smtpPort: 587, domains: ["gmail.com", "googlemail.com"], authMode: "app-password", helpUrl: "https://support.google.com/mail/answer/185833", regions: ["global"] },
+  { id: "gmail", label: "Gmail", host: "imap.gmail.com", port: 993, smtpHost: "smtp.gmail.com", smtpPort: 587, domains: ["gmail.com", "googlemail.com"], authMode: "app-password", helpUrl: "https://support.google.com/mail/answer/185833", appPasswordUrl: "https://myaccount.google.com/apppasswords", regions: ["global"] },
   // Microsoft shut down IMAP basic auth for consumer accounts — the preset
   // stays visible (people WILL look for it) but routes to the Microsoft tile.
   { id: "outlook", label: "Outlook / Microsoft 365", host: "outlook.office365.com", port: 993, smtpHost: "smtp.office365.com", smtpPort: 587, domains: ["outlook.com", "outlook.de", "hotmail.com", "hotmail.de", "live.com", "live.de", "msn.com"], authMode: "password", regions: ["global"], useTileInstead: "microsoft" },

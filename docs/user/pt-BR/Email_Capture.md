@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-19
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -143,7 +143,7 @@ Abra **Contas na nuvem**, escolha a conta existente e **Adicionar** no serviço 
 
 Uma versão de teste configurada mostra **Entrar com Google · Teste** nas contas de e-mail. Esse acesso ainda não está disponível para todos. Desktop e iOS usam o navegador do sistema; Android usa o seletor nativo de contas Google. O Plainva verifica a conta escolhida e as permissões concedidas antes de adicionar serviços. Outra conta, cancelamento ou recusa de consentimento não substitui um acesso existente.
 
-O Google exige acesso completo ao e-mail para IMAP e SMTP. O acesso fica neste dispositivo; tokens OAuth não são sincronizados com o cofre. Os e-mails salvos como notas ou arquivos EML tornam-se conteúdo do cofre e seguem suas configurações de armazenamento, compartilhamento e sincronização. As senhas de app do Gmail continuam funcionando.
+O Google exige acesso completo ao e-mail para IMAP e SMTP. O acesso fica neste dispositivo; tokens OAuth não são sincronizados com o cofre. Os e-mails salvos como notas ou arquivos EML tornam-se conteúdo do cofre e seguem suas configurações de armazenamento, compartilhamento e sincronização. As senhas de app do Gmail continuam funcionando. Enquanto o login com o Google não estiver disponível para todos, o Gmail se conecta com uma senha de app: ative a verificação em duas etapas na conta Google e crie uma por **Criar uma senha de app no Google** no formulário da conta — o link abre a página do Google diretamente, no computador e no telefone.
 
 ## Várias mensagens, anexos e teclado
 

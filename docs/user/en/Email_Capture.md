@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-19
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -143,7 +143,7 @@ Open **Cloud accounts**, choose the existing account and select **Add** for the 
 
 A configured test build shows **Sign in with Google · Test** in email accounts. This access is not generally available yet. Desktop and iOS use the system browser; Android uses the native Google account picker. Plainva verifies the selected account and the actual mail permissions before adding to its existing services. A different Google account, cancellation or refused consent does not replace an existing sign-in.
 
-Google requires full mail access for IMAP and SMTP. Sign-in stays on this device; OAuth tokens do not travel through vault sync. Email you capture as a note or EML file becomes vault content: its storage location, sharing and sync settings apply. Existing Gmail app passwords remain usable.
+Google requires full mail access for IMAP and SMTP. Sign-in stays on this device; OAuth tokens do not travel through vault sync. Email you capture as a note or EML file becomes vault content: its storage location, sharing and sync settings apply. Existing Gmail app passwords remain usable. Until the Google sign-in is generally available, Gmail is connected with an app password: switch on 2-Step Verification in the Google account, then create one through **Create an app password at Google** in the account form — the link opens Google's page directly, on the desktop and on the phone.
 
 ## Multiple messages, attachments and keyboard
 

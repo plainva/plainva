@@ -413,7 +413,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
               </div>
             );
           })}
-          {family === "google" && svc.mail && <SettingCardNote>{t("cloudAccounts.gmailHint")}</SettingCardNote>}
+          {family === "google" && svc.mail && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
           {family === "apple" && <SettingCardNote>{t("cloudAccounts.appleNoFiles")}</SettingCardNote>}
           <SettingCardNote>{t("cloudAccounts.servicesHint")}</SettingCardNote>
         </SettingCard>
@@ -657,7 +657,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           <SettingRow label={t("pim.davPass")} wide>
             <TextInput type="password" value={imap.pass} onChange={(e) => setImap({ ...imap, pass: e.target.value })} data-testid="cloudacct-imap-pass" />
           </SettingRow>
-          {family === "google" && <SettingCardNote>{t("cloudAccounts.gmailHint")}</SettingCardNote>}
+          {family === "google" && <SettingCardNote>{t("cloudAccounts.gmailHint")} <Button size="sm" variant="ghost" data-testid="gmail-app-password-link" onClick={() => void getPlatformServices().openExternal(presetById("gmail")!.appPasswordUrl!)}>{t("cloudAccounts.gmailAppPasswordLink")}</Button></SettingCardNote>}
           {activePreset?.useTileInstead && (
             <SettingCardNote>
               {t("cloudAccounts.presetUseMicrosoft")}{" "}

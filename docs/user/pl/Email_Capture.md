@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-09-15
+Stan na: 2026-09-19
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -143,7 +143,7 @@ Otwórz **Konta w chmurze**, wybierz istniejące konto i **Dodaj** przy brakują
 
 Skonfigurowana wersja testowa pokazuje **Zaloguj przez Google · Test** w kontach pocztowych. Ten dostęp nie jest jeszcze powszechnie dostępny. Komputer i iOS używają przeglądarki systemowej, a Android natywnego wyboru konta Google. Plainva sprawdza wybrane konto i faktycznie przyznane uprawnienia przed dodaniem usług. Inne konto, anulowanie lub odmowa zgody nie zastępują istniejącego logowania.
 
-Google wymaga pełnego dostępu do poczty przez IMAP i SMTP. Logowanie pozostaje na tym urządzeniu; tokeny OAuth nie są synchronizowane ze skarbcem. Wiadomości zapisane jako notatki lub pliki EML stają się zawartością skarbca i podlegają jego przechowywaniu, udostępnianiu i synchronizacji. Dotychczasowe hasła aplikacji Gmail nadal działają.
+Google wymaga pełnego dostępu do poczty przez IMAP i SMTP. Logowanie pozostaje na tym urządzeniu; tokeny OAuth nie są synchronizowane ze skarbcem. Wiadomości zapisane jako notatki lub pliki EML stają się zawartością skarbca i podlegają jego przechowywaniu, udostępnianiu i synchronizacji. Dotychczasowe hasła aplikacji Gmail nadal działają. Dopóki logowanie przez Google nie jest ogólnie dostępne, Gmail łączy się za pomocą hasła aplikacji: włącz weryfikację dwuetapową na koncie Google, a następnie utwórz hasło przez **Utwórz hasło aplikacji w Google** w formularzu konta — link otwiera stronę Google bezpośrednio, na komputerze i na telefonie.
 
 ## Wiele wiadomości, załączniki i klawiatura
 

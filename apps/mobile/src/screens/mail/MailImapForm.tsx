@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../../hooks/useLeaveGuard";
-import { Banner, Button, presetById, presetForEmail, TextInput } from "@plainva/ui";
+import { Banner, Button, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -147,9 +147,33 @@ export function MailImapForm({
       </label>
 
       {preset && !serverTouched ? (
-        <p className="m-hint">
-          {preset.label} · {preset.host}:{preset.port}
-        </p>
+        <>
+          <p className="m-hint">
+            {preset.label} · {preset.host}:{preset.port}
+          </p>
+          {/* What the provider demands, and where to get it (finding
+              2026-09-19). The desktop wizard has said all of this per preset
+              since the catalog exists; the phone knew the preset and showed
+              its name and port — a tester with a Gmail address got no word
+              that his normal password would be refused, and no way to the
+              page that issues the other one. */}
+          {preset.authMode === "app-password" && <p className="m-hint" data-testid="imap-hint-app-password">{t("cloudAccounts.hintAppPassword", { provider: preset.label })}</p>}
+          {preset.enableHint && <p className="m-hint">{t("cloudAccounts.hintEnableFirst", { provider: preset.label })}</p>}
+          {(preset.appPasswordUrl || preset.helpUrl) && (
+            <div className="m-config-actions">
+              {preset.appPasswordUrl && (
+                <Button size="sm" variant="ghost" data-testid="imap-app-password-link" onClick={() => void getPlatformServices().openExternal(preset.appPasswordUrl!)}>
+                  {t("cloudAccounts.gmailAppPasswordLink")}
+                </Button>
+              )}
+              {preset.helpUrl && (
+                <Button size="sm" variant="ghost" data-testid="imap-provider-help" onClick={() => void getPlatformServices().openExternal(preset.helpUrl!)}>
+                  {t("cloudAccounts.providerHelp", { provider: preset.label })}
+                </Button>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         email.trim() !== "" && !advanced && <p className="m-hint">{t("mail.enterServerYourself")}</p>
       )}

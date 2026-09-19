@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-19
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -143,7 +143,7 @@ Open **Cloudaccounts**, kies het bestaande account en **Toevoegen** bij de ontbr
 
 Een ingestelde testbuild toont **Inloggen met Google · Test** bij e-mailaccounts. Deze toegang is nog niet algemeen beschikbaar. Desktop en iOS gebruiken de systeembrowser; Android gebruikt de eigen Google-accountkiezer. Plainva controleert het gekozen account en de verleende mailrechten voordat diensten worden toegevoegd. Een ander account, annuleren of geweigerde toestemming vervangt geen bestaande aanmelding.
 
-Google vereist volledige mailtoegang voor IMAP en SMTP. De aanmelding blijft op dit apparaat; OAuth-tokens worden niet met de kluis gesynchroniseerd. E-mail die je als notitie of EML-bestand opslaat, behoort wel tot de kluis en volgt de opslag-, deel- en synchronisatie-instellingen. Bestaande Gmail-appwachtwoorden blijven bruikbaar.
+Google vereist volledige mailtoegang voor IMAP en SMTP. De aanmelding blijft op dit apparaat; OAuth-tokens worden niet met de kluis gesynchroniseerd. E-mail die je als notitie of EML-bestand opslaat, behoort wel tot de kluis en volgt de opslag-, deel- en synchronisatie-instellingen. Bestaande Gmail-appwachtwoorden blijven bruikbaar. Zolang aanmelden met Google niet algemeen beschikbaar is, wordt Gmail gekoppeld met een app-wachtwoord: zet in het Google-account verificatie in twee stappen aan en maak er een via **App-wachtwoord aanmaken bij Google** in het accountformulier — de link opent de pagina van Google rechtstreeks, op de desktop en op de telefoon.
 
 ## Meerdere berichten, bijlagen en toetsenbord
 

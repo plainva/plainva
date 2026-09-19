@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-09-15
+Stand: 2026-09-19
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -143,7 +143,7 @@ Regeln bei Gmail richtest Du weiterhin in Googles eigenen Einstellungen ein.
 
 In einem dafür konfigurierten Testbuild erscheint **Mit Google anmelden · Test** bei den E-Mail-Konten. Dieser Zugang ist noch nicht allgemein freigeschaltet. Desktop und iOS verwenden die System-Browseranmeldung; Android verwendet die native Google-Kontenauswahl. Plainva prüft das gewählte Konto und die tatsächlich erteilten Mail-Rechte, bevor es bestehende Dienste ergänzt. Ein anderes Google-Konto, ein Abbruch oder eine abgelehnte Zustimmung ersetzt keinen vorhandenen Zugang.
 
-Google verlangt für IMAP und SMTP den vollständigen Mail-Zugriff. Die Anmeldung bleibt auf diesem Gerät; OAuth-Tokens werden nicht über den Vault synchronisiert. E-Mails, die Du als Notiz oder EML-Datei ablegst, gehören dagegen zum Vault: dessen Speicherort, Freigaben und Synchronisierung gelten auch dafür. Bereits verwendete Gmail-App-Passwörter bleiben nutzbar.
+Google verlangt für IMAP und SMTP den vollständigen Mail-Zugriff. Die Anmeldung bleibt auf diesem Gerät; OAuth-Tokens werden nicht über den Vault synchronisiert. E-Mails, die Du als Notiz oder EML-Datei ablegst, gehören dagegen zum Vault: dessen Speicherort, Freigaben und Synchronisierung gelten auch dafür. Bereits verwendete Gmail-App-Passwörter bleiben nutzbar. Bis die Google-Anmeldung allgemein verfügbar ist, wird Gmail mit einem App-Passwort angebunden: im Google-Konto die Bestätigung in zwei Schritten einschalten, dann über **App-Passwort bei Google anlegen** im Kontoformular eines erstellen — der Link öffnet Googles Seite direkt, am Desktop wie am Telefon.
 
 ## Mehrere Nachrichten, Anhänge und Tastatur
 
