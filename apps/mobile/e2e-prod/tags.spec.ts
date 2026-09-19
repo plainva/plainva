@@ -19,7 +19,7 @@ test("a tag is a pill, a tap opens its notes, and the switch colours it by its r
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
   });
   const notes: Array<[string, string]> = [
-    ["vault/Tagged.md", "# Tagged\n\nWork on #project/site and #project/print, maybe an #idea. Issue #42 is a number, `#code` is code.\n"],
+    ["vault/Tagged.md", "---\ntags: [project/site, idea]\n---\n# Tagged\n\nWork on #project/site and #project/print, maybe an #idea. Issue #42 is a number, `#code` is code.\n"],
     ["vault/Other.md", "# Other\n\nAlso #project/site here.\n"],
   ];
   try {
@@ -62,6 +62,17 @@ test("a tag is a pill, a tap opens its notes, and the switch colours it by its r
     // Off by default: all three stand on the same neutral ground.
     const neutral = await pills.evaluateAll((els: Element[]) => els.map((el) => getComputedStyle(el).backgroundColor));
     expect(new Set(neutral).size).toBe(1);
+
+    // The properties draw the note's tags as chips with the same colour slot -
+    // the row used to join them into one text, which left the switch nothing
+    // to colour there.
+    await page.getByTestId("note-context").click();
+    const chips = page.getByTestId("prop-tags").locator(".pv-chip-tag");
+    await expect(chips).toHaveText(["project/site", "idea"], { timeout: 10000 });
+    await expect(chips.first()).toHaveAttribute("data-tag-color", /^[1-7]$/);
+    await expect(chips.first().locator(".pv-tag-parent")).toHaveText("project/");
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
 
     // A tap while READING opens the notes that carry the tag.
     await pills.nth(0).tap();

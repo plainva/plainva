@@ -1618,6 +1618,11 @@ textarea {
   text-overflow: ellipsis;
   text-align: right;
 }
+/* Tags in the properties are chips (finding 2026-09-19), lined up where the
+   row's text value would end. */
+.m-prop-tags {
+  justify-content: flex-end;
+}
 /* E2: threads on this property. A count, not a control - it rides inside a
    <button> row as often as inside a <div> one, so it must never be one. */
 /* The dot ACTS since the finding 2026-09-04: it opens the entry on its thread.

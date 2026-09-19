@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { tagColorAttrs, tagSegments } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
@@ -185,6 +186,26 @@ export function NoteContextSheet({
   }, [vault, path, tick]);
 
   const valueText = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v));
+  // Tags are chips here as on the desktop (finding 2026-09-19): the row showed
+  // them as one comma-joined text, so "Colour tags" had nothing to colour in the
+  // phone's properties. Spans, not buttons - the row itself is the button that
+  // opens the editor, and a button in a button is invalid HTML.
+  const valueNode = (k: string, v: unknown): ReactNode => {
+    if ((k !== "tags" && k !== "tag") || !Array.isArray(v) || v.length === 0) return valueText(v);
+    return (
+      <span className="pv-chips m-prop-tags" data-testid="prop-tags">
+        {v.map((raw, i) => {
+          const tag = String(raw).replace(/^#/, "");
+          const { parent, leaf } = tagSegments(tag);
+          return (
+            <span className="pv-chip pv-chip--sm pv-chip-tag" key={`${tag}-${i}`} {...tagColorAttrs(tag)}>
+              <span className="pv-chip-text">{parent && <span className="pv-tag-parent">{parent}</span>}{leaf}</span>
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
 
   // OKF 0.2 trust signals (plan P3a) — the same shared derivation as the
   // desktop panel: a foreign-shaped `status` (a task database's `Offen`) keeps
@@ -348,7 +369,7 @@ export function NoteContextSheet({
                     {...press}
                   >
                     <span className="m-prop-key">{k}</span>
-                    <span className="m-prop-val">{valueText(v)}</span>
+                    <span className="m-prop-val">{valueNode(k, v)}</span>
                     {badge}
                   </button>
                 );
