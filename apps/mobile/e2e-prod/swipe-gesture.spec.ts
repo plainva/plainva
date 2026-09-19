@@ -1,4 +1,5 @@
 import { seedExampleNote } from "./exampleVault";
+import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
@@ -185,4 +186,91 @@ test("a touch drag pages the calendar; a vertical drag does not", async ({ page 
   await cdp.detach();
   await page.waitForTimeout(400);
   await expect(title).toHaveText(paged);
+});
+
+/**
+ * The same swipe INSIDE the time grid, and in BOTH directions (finding
+ * 2026-09-19: "the calendar only ever swipes forward, whatever the gesture").
+ *
+ * The test above drags across an account-less calendar — an empty state with
+ * no scroller in it — and only ever to the left. With an account the day, the
+ * three-day and the week view put their hours into `.m-scroll`, a scroll
+ * container of its own, and a scroll container re-enables panning for what it
+ * holds: `touch-action: pan-y` on `.m-pager` alone did not reach a drag that
+ * starts in there, the WebView claimed it and sent `pointercancel` — and the
+ * hook read the direction from the cancel event's coordinates, which are zero.
+ * Zero minus the start is always negative, so every cancelled drag paged
+ * FORWARD. This drives a finger through the grid, to the right and to the
+ * left, and checks each against the arrow that means the same.
+ */
+test("inside the time grid a drag pages the way the finger goes — back and forth", async ({ page, context }) => {
+  const sql = await installSqlBridge(context);
+  await context.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "CapacitorStorage.mobile-settings",
+      JSON.stringify({ onboarded: true, language: "en", motion: "off" }),
+    );
+    // The account's sign-in slot for THIS device: without it the calendar
+    // shows "Not signed in" instead of the grid (same slot the screenshot
+    // fixture writes).
+    globalThis.localStorage.setItem(
+      "CapacitorStorage.secret_pim_local_pim-fixture-1",
+      JSON.stringify({ kind: "google", clientId: "fixture-client", refreshToken: "fixture" }),
+    );
+  });
+  try {
+    await page.goto("/");
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+    await page.waitForTimeout(1500);
+    // Calendar accounts live in the index database; the app has created the
+    // tables by now, so the account can be seeded and picked up by a reload.
+    sql.seedPim("plainva-index");
+    await page.reload();
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+    await page.waitForTimeout(1500);
+    const whatsNew = page.locator('[data-testid="whats-new-sheet"]');
+    if (await whatsNew.count()) await whatsNew.locator('[data-testid="whats-new-close"]').click({ timeout: 5000 });
+    await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
+
+    const tab = page.locator(".m-tabbar .m-tab", { hasText: /^Calendar$/ });
+    if (await tab.count()) await tab.first().click();
+    else {
+      await page.locator('[data-testid="tab-areas"]').click();
+      await page.getByRole("button", { name: /^Calendar$/ }).first().click();
+    }
+    await page.getByRole("radio", { name: /^Week$/ }).click();
+    const grid = page.getByTestId("pim-timegrid");
+    await expect(grid).toBeVisible({ timeout: 20000 });
+    const title = page.getByTestId("pim-title");
+    const start = (await title.textContent())!.trim();
+
+    await page.evaluate(() => {
+      (globalThis as unknown as { __pev: string[] }).__pev = [];
+      for (const type of ["pointerdown", "pointermove", "pointercancel", "pointerup"]) {
+        window.addEventListener(type, () => (globalThis as unknown as { __pev: string[] }).__pev.push(type), true);
+      }
+    });
+    const events = () => page.evaluate(() => (globalThis as unknown as { __pev: string[] }).__pev.join(" "));
+    const box = (await grid.boundingBox())!;
+    const y = box.y + box.height / 2;
+
+    // To the RIGHT: the previous period. The arrow "Next" must lead back.
+    await touchDrag(page, box.x + box.width * 0.3, y, Math.round(box.width * 0.6));
+    await page.waitForTimeout(700);
+    expect(await events(), "a drag inside the time grid must not be cancelled by the WebView").not.toContain("pointercancel");
+    const back = (await title.textContent())!.trim();
+    expect(back, `a drag to the right did not page (events: ${await events()})`).not.toBe(start);
+    await page.getByRole("button", { name: /^Next$/ }).click();
+    await expect(title, "a drag to the right must page BACK — the Next arrow returns to the start").toHaveText(start);
+
+    // To the LEFT: the next period. The arrow "Previous" must lead back.
+    await touchDrag(page, box.x + box.width * 0.7, y, -Math.round(box.width * 0.6));
+    await page.waitForTimeout(700);
+    const forth = (await title.textContent())!.trim();
+    expect(forth, "a drag to the left did not page").not.toBe(start);
+    await page.getByRole("button", { name: /^Previous$/ }).click();
+    await expect(title, "a drag to the left must page FORWARD — the Previous arrow returns to the start").toHaveText(start);
+  } finally {
+    sql.close();
+  }
 });

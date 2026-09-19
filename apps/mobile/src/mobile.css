@@ -4682,6 +4682,21 @@ textarea {
   touch-action: pan-y;
   will-change: transform;
 }
+/* …and the same for everything INSIDE it (finding 2026-09-19). A scroll
+   container re-enables panning for what it holds, so the pager's own
+   `pan-y` never reached a drag that starts in the time grid, the agenda or
+   the month (`.m-scroll`, `overflow: auto`): the WebView claimed it and the
+   hook got `pointerdown pointermove pointercancel`. `:where()` keeps the
+   specificity at zero, so a handle that declares `touch-action: none` still
+   wins; a row that scrolls sideways itself opts out with
+   `data-no-page-swipe`, which is the hook's own word for it. */
+:where(.m-pager *) {
+  touch-action: pan-y;
+}
+.m-pager [data-no-page-swipe],
+.m-pager [data-no-page-swipe] * {
+  touch-action: auto;
+}
 .m-pager.is-settling {
   transition: transform var(--dur-2) var(--ease-1);
 }

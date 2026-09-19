@@ -130,6 +130,23 @@ describe("a horizontal drag on a calendar page means paging", () => {
     expect(block.slice(0, block.indexOf("}"))).toMatch(/touch-action: pan-y;/);
   });
 
+  it("…and so does every scroller INSIDE it (finding 2026-09-19)", () => {
+    // A scroll container re-enables panning for its content, so the pager's own
+    // `pan-y` does not reach a drag that starts in the time grid. Zero
+    // specificity on purpose: a handle's `touch-action: none` must still win.
+    expect(css).toMatch(/:where\(\.m-pager \*\) \{\s*touch-action: pan-y;/);
+    expect(css).toMatch(/\.m-pager \[data-no-page-swipe\],\s*\.m-pager \[data-no-page-swipe\] \* \{\s*touch-action: auto;/);
+  });
+
+  it("a cancel is not a release, and the end reads no coordinates", () => {
+    const hook = read("lib", "usePageSwipe.ts");
+    expect(hook).toMatch(/const onPointerCancel = useCallback\(\(\) => finish\(false\), \[finish\]\);/);
+    expect(hook).toMatch(/const onPointerUp = useCallback\(\(\) => finish\(true\), \[finish\]\);/);
+    // The distance is the last MOVE's; an end event's clientX is zero on a cancel.
+    const finish = hook.slice(hook.indexOf("const finish = useCallback"), hook.indexOf("const onPointerUp"));
+    expect(finish).not.toMatch(/clientX/);
+  });
+
   it("one gesture engine: the page swipe and the swipe row share the dead zone", () => {
     expect(read("lib", "usePageSwipe.ts")).toMatch(/import \{ SWIPE_SLOP \} from "\.\/gestureConstants"/);
     expect(read("components", "SwipeRow.tsx")).toMatch(/from "\.\.\/lib\/gestureConstants"/);

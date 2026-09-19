@@ -25,6 +25,15 @@ import { SWIPE_SLOP } from "./gestureConstants";
  * `touch-action: pan-y` on the surface is the precondition, not a nicety:
  * without it the WebView cancels the drag after two moves (mobile.css, the
  * swipe row's comment). `e2e-prod/swipe-gesture.spec.ts` drives real touch.
+ *
+ * A CANCEL is not a release (finding 2026-09-19: "the calendar only ever
+ * swipes forward"). The hook used to end both the same way and read the
+ * distance from the END event's coordinates — which a `pointercancel` reports
+ * as zero. Zero minus the start is always negative and usually past the
+ * quarter, so every cancelled drag paged FORWARD, whatever the finger had
+ * done. Two rules since: the distance and the speed come from the last MOVE
+ * the hook saw, never from the end event; and a cancel springs back, always.
+ * The swipe row never had this — its `end` reads no coordinates at all.
  */
 
 /** Past this share of the width the release commits to the neighbour. */
@@ -55,7 +64,8 @@ const reducedMotion = () =>
 
 export function usePageSwipe(onCommit: (dir: -1 | 1) => void): [PageSwipeState, PageSwipeHandlers] {
   const [state, setState] = useState<PageSwipeState>({ offset: 0, settling: false });
-  const drag = useRef<{ x: number; y: number; t: number; w: number; axis: "" | "x" | "y"; id: number } | null>(null);
+  /** `mx`/`at` are the last MOVE's distance and time — the only position the end may trust. */
+  const drag = useRef<{ x: number; y: number; t: number; w: number; axis: "" | "x" | "y"; id: number; mx: number; at: number } | null>(null);
   const settleTimer = useRef<number | null>(null);
 
   const onPointerDown = useCallback((e: ReactPointerEvent<HTMLElement>) => {
@@ -65,7 +75,7 @@ export function usePageSwipe(onCommit: (dir: -1 | 1) => void): [PageSwipeState, 
     if (el?.closest("[data-no-page-swipe]")) return;
     const rect = e.currentTarget.getBoundingClientRect();
     if (Capacitor.getPlatform() === "android" && e.clientX - rect.left < ANDROID_EDGE_PX) return;
-    drag.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, w: Math.max(1, rect.width), axis: "", id: e.pointerId };
+    drag.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, w: Math.max(1, rect.width), axis: "", id: e.pointerId, mx: 0, at: e.timeStamp };
   }, []);
 
   const onPointerMove = useCallback((e: ReactPointerEvent<HTMLElement>) => {
@@ -83,17 +93,19 @@ export function usePageSwipe(onCommit: (dir: -1 | 1) => void): [PageSwipeState, 
       d.axis = "x";
       e.currentTarget.setPointerCapture(d.id);
     }
+    d.mx = mx;
+    d.at = e.timeStamp;
     setState({ offset: mx, settling: false });
   }, []);
 
-  const end = useCallback(
-    (e: ReactPointerEvent<HTMLElement>) => {
+  const finish = useCallback(
+    (released: boolean) => {
       const d = drag.current;
       drag.current = null;
       if (!d || d.axis !== "x") return;
-      const mx = e.clientX - d.x;
-      const speed = Math.abs(mx) / Math.max(1, e.timeStamp - d.t);
-      const commit = Math.abs(mx) >= d.w * PAGE_SWIPE_RATIO || speed >= PAGE_SWIPE_FLICK;
+      const mx = d.mx;
+      const speed = Math.abs(mx) / Math.max(1, d.at - d.t);
+      const commit = released && (Math.abs(mx) >= d.w * PAGE_SWIPE_RATIO || speed >= PAGE_SWIPE_FLICK);
       const dir: -1 | 1 = mx < 0 ? 1 : -1;
       const ms = reducedMotion() ? 0 : PAGE_SETTLE_MS;
       if (commit) haptics.light();
@@ -126,5 +138,8 @@ export function usePageSwipe(onCommit: (dir: -1 | 1) => void): [PageSwipeState, 
     [onCommit]
   );
 
-  return [state, { onPointerDown, onPointerMove, onPointerUp: end, onPointerCancel: end }];
+  const onPointerUp = useCallback(() => finish(true), [finish]);
+  const onPointerCancel = useCallback(() => finish(false), [finish]);
+
+  return [state, { onPointerDown, onPointerMove, onPointerUp, onPointerCancel }];
 }
