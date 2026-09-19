@@ -408,6 +408,57 @@ test('a broken own file is set aside and reported, never overwritten (N3)', asyn
   expect(Object.values(bundle.comments).map((c: any) => c.body)).toEqual(['after the damage']);
 });
 
+/**
+ * The band in a NARROW pane (finding 2026-09-19). It was one row built for a
+ * wide window: on the phone — and in a narrow editor pane or an auxiliary
+ * window here — the sentence was squeezed to a few characters and the note
+ * field slid over it. The band now knows its own width: narrow, it takes two
+ * rows and the short send label; wide, it is the single row it always was.
+ */
+test('the suggestion band wraps in a narrow pane and stays one row in a wide one', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await openWelcome(page);
+  await page.getByTestId('editor-suggest-mode').click();
+  const band = page.getByTestId('suggest-band');
+  await expect(band).toBeVisible();
+  const measure = () => band.evaluate((el) => {
+    const box = (sel: string) => el.querySelector(sel)!.getBoundingClientRect();
+    return {
+      width: el.getBoundingClientRect().width,
+      overflow: el.scrollWidth - el.clientWidth,
+      text: box('.pv-suggest-band__text'),
+      note: box('.pv-suggest-band__note'),
+      send: box('.pv-suggest-band__send'),
+      short: getComputedStyle(el.querySelector('.pv-suggest-band__short')!).display !== 'none',
+      long: getComputedStyle(el.querySelector('.pv-suggest-band__long')!).display !== 'none',
+    };
+  });
+
+  const wide = await measure();
+  expect(wide.width).toBeGreaterThan(640);
+  expect(wide.long && !wide.short, 'a wide band carries the long send label').toBe(true);
+  expect(Math.abs(wide.note.top - wide.send.top), 'wide: note field and send button share the one row').toBeLessThan(12);
+
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect.poll(async () => (await measure()).short).toBe(true);
+  const narrow = await measure();
+  expect(narrow.width).toBeLessThanOrEqual(640);
+  expect(narrow.overflow, 'the band must not overflow sideways').toBeLessThanOrEqual(0);
+  expect(narrow.text.width, 'the sentence keeps a readable column').toBeGreaterThan(140);
+  expect(narrow.send.top, 'send rides on the first row').toBeLessThan(narrow.text.bottom);
+  expect(narrow.note.top, 'the note field takes the second row').toBeGreaterThanOrEqual(narrow.text.bottom - 1);
+  expect(narrow.long, 'a narrow band drops the long label').toBe(false);
+
+  // Narrower still (both sidebars open in a small window leave the pane under
+  // 200 px): more rows, but never an overflow and never one part over another.
+  await page.setViewportSize({ width: 760, height: 900 });
+  await expect.poll(async () => (await measure()).width).toBeLessThan(260);
+  const tiny = await measure();
+  expect(tiny.overflow).toBeLessThanOrEqual(0);
+  expect(tiny.send.top).toBeGreaterThanOrEqual(tiny.text.bottom - 1);
+  expect(tiny.note.top).toBeGreaterThanOrEqual(tiny.send.bottom - 1);
+});
+
 test('a suggestion round is sent from the editor, accepted in the column, and the note changes exactly once (N5)', async ({ page }) => {
   await openWelcome(page);
   const column = await openColumn(page);

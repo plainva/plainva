@@ -3157,20 +3157,43 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    note. Amber - a warning tone, not the accent - because the accent pair is
    this system's "selected" idiom and the band is a state, not a selection. */
 .pv-suggest-band {
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2) var(--space-3);
+  /* Wraps, and knows its own width (finding 2026-09-19). The band was one
+     row built for a desktop window; on a phone - and in a narrow editor pane
+     or an auxiliary window - the sentence was left a column four characters
+     wide and the note field slid over it. Same defect the banner had in
+     Build 91, missed here. A container query rather than a device switch: the
+     rule is "too narrow", wherever that happens. */
+  flex-wrap: wrap;
+  container: suggest-band / inline-size;
   padding: var(--space-2) var(--space-4);
   background: var(--warning-bg); color: var(--warning-text);
   border-bottom: 1px solid var(--warning-border);
   font-size: var(--text-ui);
 }
-.pv-suggest-band__text { flex: 1; min-width: 0; }
+.pv-suggest-band__text { flex: 1 1 10rem; min-width: 0; }
+/* Note and discard are one group: a plain part of the row while there is
+   room, a second row of its own when there is not. */
+.pv-suggest-band__more { display: contents; }
+.pv-suggest-band__short { display: none; }
 /* The note field sits on the amber band, where a transparent field with a
    faint border vanished (finding 2026-09-03): it takes the page's surface. */
 .pv-suggest-band__note {
   flex: 0 1 24rem;
+  min-width: 0;
   height: var(--control-md);
   background: var(--bg-primary);
   border-color: var(--warning-border);
+}
+@container suggest-band (max-width: 40rem) {
+  /* Line one says what holds and sends; line two carries the sentence for the
+     round and the way out. The send button keeps its place at the end of the
+     first line, where the thumb looks for it. */
+  .pv-suggest-band__send { order: 1; }
+  .pv-suggest-band__more { display: flex; align-items: center; gap: var(--space-2); order: 2; flex: 1 1 100%; min-width: 0; }
+  .pv-suggest-band__note { flex: 1 1 8rem; }
+  .pv-suggest-band__long { display: none; }
+  .pv-suggest-band__short { display: inline; }
 }
 /* A proposal's decision is one row of its own (finding 2026-09-03): accept and
    decline belong side by side, never split by a wrap. */

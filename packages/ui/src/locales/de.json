@@ -3422,6 +3422,7 @@
     "suggestDiscard": "Verwerfen",
     "suggestDiscardConfirm": "{{n}} Änderungen verwerfen? Die Notiz bleibt, wie sie war.",
     "suggestSend": "Vorschläge senden ({{n}})",
+    "suggestSendShort": "Senden ({{n}})",
     "suggestSent": "Gesendete Vorschläge: {{n}}.",
     "suggestNothing": "Noch keine Änderung.",
     "suggestParkedTitle": "Ungesendete Vorschläge gefunden",

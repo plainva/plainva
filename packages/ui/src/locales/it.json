@@ -3454,6 +3454,7 @@
     "suggestDiscard": "Scarta",
     "suggestDiscardConfirm": "Scartare {{n}} modifiche? La nota resta com'era.",
     "suggestSend": "Invia proposte ({{n}})",
+    "suggestSendShort": "Invia ({{n}})",
     "suggestSent": "Suggerimenti inviati: {{n}}.",
     "suggestNothing": "Nessuna modifica ancora.",
     "suggestParkedTitle": "Proposte non inviate trovate",

@@ -26,6 +26,20 @@ export interface ParkedSuggestion {
 
 const KEY_PREFIX = "suggestion-park:";
 
+/**
+ * A copy that proposes nothing (finding 2026-09-19: "0 blocks … found").
+ *
+ * The mode reports its block count the moment it starts, and that report is
+ * what schedules the park — so a copy identical to its base, with no sentence
+ * for the round, was written and then OFFERED on the next open. The same
+ * happened on the desktop whenever a change was taken back. There is nothing
+ * in such a copy to come back to: it is never stored and never offered, and
+ * both shells get that from here rather than each from its own guard.
+ */
+export function isEmptyParkedSuggestion(record: Pick<ParkedSuggestion, "base" | "copy" | "note">): boolean {
+  return record.copy === record.base && record.note.trim() === "";
+}
+
 export function parkedSuggestionKey(path: string): string {
   return `${KEY_PREFIX}${path}`;
 }
@@ -36,13 +50,21 @@ export async function readParkedSuggestion(db: IDatabaseAdapter, path: string): 
   try {
     const parsed = JSON.parse(row.value) as Partial<ParkedSuggestion>;
     if (typeof parsed.base !== "string" || typeof parsed.copy !== "string") return null;
-    return {
+    const record: ParkedSuggestion = {
       path,
       base: parsed.base,
       copy: parsed.copy,
       note: typeof parsed.note === "string" ? parsed.note : "",
       savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : "",
     };
+    if (isEmptyParkedSuggestion(record)) {
+      // A row from before the rule existed. Tidied on the way out; a reader
+      // that may not write (an auxiliary window) simply leaves it, and the
+      // owner's next read removes it.
+      await clearParkedSuggestion(db, path).catch(() => {});
+      return null;
+    }
+    return record;
   } catch {
     // A damaged row is not a crash on opening a note; it is simply no copy.
     return null;
@@ -50,6 +72,9 @@ export async function readParkedSuggestion(db: IDatabaseAdapter, path: string): 
 }
 
 export async function writeParkedSuggestion(db: IDatabaseAdapter, record: ParkedSuggestion): Promise<void> {
+  // Nothing proposed: the row goes rather than being written (see above) - so
+  // a change that was taken back also takes its parked copy with it.
+  if (isEmptyParkedSuggestion(record)) return clearParkedSuggestion(db, record.path);
   const value = JSON.stringify({ base: record.base, copy: record.copy, note: record.note, savedAt: record.savedAt });
   await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, [parkedSuggestionKey(record.path), value]);
 }

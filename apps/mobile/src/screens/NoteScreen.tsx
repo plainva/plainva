@@ -777,7 +777,6 @@ export function NoteScreen({
   const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
-      {!commentsOpen && <CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
       {decisionReview && decisionReview.path === path && decisionReview.vaultId === vault.vaultId && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
       <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
       <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
@@ -821,7 +820,17 @@ export function NoteScreen({
               <Check size={ICON.head} />
             </IconButton>
           )}</>} />
-      </div>
+      {/* Everything that stands above the text lives INSIDE the chrome
+          (finding 2026-09-19). In read mode the chrome floats over the note
+          and the editor is inset by its MEASURED height - so a hint placed
+          between the two was in nobody's measure: the parked-copy offer slid
+          under the status bar when the bar had retreated, and sat hidden
+          behind the bar, pushing the text down, when it had not. The overlay
+          condition named three of these hints and forgot two. In here a hint
+          is measured with the bar and retreats with it, whichever it is;
+          `mobileLint.test.ts` keeps anything from standing between this
+          block and the editor again. */}
+      {!commentsOpen && <CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
       {draft && (
         <div className="m-draftbanner">
           <span>
@@ -893,16 +902,23 @@ export function NoteScreen({
         </Banner>
       )}
       {suggesting && (
-          <div className="pv-suggest-band" role="status">
+          <div className="pv-suggest-band" role="status" data-testid="suggest-band">
             <PenLine size={ICON.head} />
             <span className="pv-suggest-band__text">
               <strong>{t("comments.suggestBandTitle")}</strong> {t("comments.suggestCount", { n: suggestCount })}
             </span>
-            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { vaultId: vault.vaultId, path, note: event.target.value } })); }} />
-            <Button size="sm" variant="ghost" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("comments.suggestDiscard")}</Button>
-            <Button size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { vaultId: vault.vaultId, path, note: suggestNote } })); }}>{t("comments.suggestSend", { n: suggestCount })}</Button>
+            {/* One group, so the band can give note and discard a row of their own (ui.css). */}
+            <span className="pv-suggest-band__more">
+              <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => { setSuggestNote(event.target.value); window.dispatchEvent(new CustomEvent("m-editor-suggest-note", { detail: { vaultId: vault.vaultId, path, note: event.target.value } })); }} />
+              <Button size="sm" variant="ghost" data-testid="suggest-discard" onClick={() => { editorEvent("m-editor-suggest-discard"); setSuggesting(false); setSuggestCount(0); setSuggestNote(""); }}>{t("comments.suggestDiscard")}</Button>
+            </span>
+            <Button className="pv-suggest-band__send" size="sm" variant="primary" data-testid="suggest-send" disabled={suggestCount === 0} onClick={() => { window.dispatchEvent(new CustomEvent("m-editor-suggest-send", { detail: { vaultId: vault.vaultId, path, note: suggestNote } })); }}>
+              <span className="pv-suggest-band__long">{t("comments.suggestSend", { n: suggestCount })}</span>
+              <span className="pv-suggest-band__short">{t("comments.suggestSendShort", { n: suggestCount })}</span>
+            </Button>
           </div>
         )}
+      </div>
       {doc !== null && (
         <EditorHost
           onReaderBlockedChange={setReaderBlocked}

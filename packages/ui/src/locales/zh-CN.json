@@ -3390,6 +3390,7 @@
     "suggestDiscard": "放弃",
     "suggestDiscardConfirm": "放弃 {{n}} 处更改？笔记保持原样。",
     "suggestSend": "发送建议（{{n}}）",
+    "suggestSendShort": "发送（{{n}}）",
     "suggestSent": "已发送的建议：{{n}}。",
     "suggestNothing": "尚无更改。",
     "suggestParkedTitle": "发现未发送的建议",

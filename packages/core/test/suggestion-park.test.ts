@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.js";
-import { clearParkedSuggestion, listParkedSuggestionPaths, parkedSuggestionKey, readParkedSuggestion, writeParkedSuggestion } from "../src/suggestionPark.js";
+import { clearParkedSuggestion, isEmptyParkedSuggestion, listParkedSuggestionPaths, parkedSuggestionKey, readParkedSuggestion, writeParkedSuggestion } from "../src/suggestionPark.js";
 
 /**
  * The unsent suggestion copy lives in the vault database (C34) - never in the
@@ -31,5 +31,32 @@ describe("parked suggestion store", () => {
     expect(db.queries.at(-1)).toEqual({ query: "DELETE FROM meta WHERE key = ?", params: [parkedSuggestionKey("Notes/A.md")] });
     db.mockedResults.push([{ key: parkedSuggestionKey("Notes/A.md") }, { key: parkedSuggestionKey("B.md") }]);
     await expect(listParkedSuggestionPaths(db)).resolves.toEqual(["Notes/A.md", "B.md"]);
+  });
+
+  /**
+   * Finding 2026-09-19: "0 blocks from … found". The mode's first block count
+   * scheduled a park of a copy that proposed nothing, and the next open
+   * offered it. One predicate decides for both shells.
+   */
+  it("knows a copy that proposes nothing: same text as its base, no sentence", () => {
+    expect(isEmptyParkedSuggestion({ base: "one", copy: "one", note: "" })).toBe(true);
+    expect(isEmptyParkedSuggestion({ base: "one", copy: "one", note: "  \n" })).toBe(true);
+    // A sentence alone is worth keeping - somebody typed it.
+    expect(isEmptyParkedSuggestion({ base: "one", copy: "one", note: "why" })).toBe(false);
+    expect(isEmptyParkedSuggestion({ base: "one", copy: "two", note: "" })).toBe(false);
+  });
+
+  it("never stores an empty copy - writing one removes the row instead", async () => {
+    const db = new MockDatabaseAdapter();
+    await writeParkedSuggestion(db, { path: "Notes/A.md", base: "one", copy: "one", note: "", savedAt: "t" });
+    expect(db.queries.some((q: { query: string }) => q.query.includes("INSERT OR REPLACE INTO meta"))).toBe(false);
+    expect(db.queries.at(-1)).toEqual({ query: "DELETE FROM meta WHERE key = ?", params: [parkedSuggestionKey("Notes/A.md")] });
+  });
+
+  it("never offers an empty copy - an old row reads as no copy and is tidied away", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedOneResults.push({ value: JSON.stringify({ base: "one", copy: "one", note: "", savedAt: "t" }) });
+    await expect(readParkedSuggestion(db, "Notes/A.md")).resolves.toBeNull();
+    expect(db.queries.at(-1)).toEqual({ query: "DELETE FROM meta WHERE key = ?", params: [parkedSuggestionKey("Notes/A.md")] });
   });
 });

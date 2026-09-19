@@ -3193,3 +3193,42 @@ describe("the request timeout hierarchy", () => {
     expect(android).toBe(ios);
   });
 });
+
+/**
+ * Nothing stands between the note's chrome and its editor (finding
+ * 2026-09-19, suggestion mode on the phone).
+ *
+ * In read mode the chrome floats over the note and the editor is inset by the
+ * chrome's MEASURED height. A hint rendered between the two is in nobody's
+ * measure: the parked-copy offer lay under the status bar when the bar had
+ * retreated, and hid behind the bar — pushing the text down by its own height
+ * — when it had not. The overlay condition listed three hints by name and had
+ * forgotten two; a list like that is forgotten again with the next hint. So
+ * the rule is structural: every hint lives INSIDE `.m-note-chrome`, and the
+ * chrome's closing tag is followed by the editor and nothing else.
+ */
+describe("the note screen keeps its hints inside the chrome", () => {
+  const screen = readFileSync(join(SRC, "screens", "NoteScreen.tsx"), "utf8");
+  const chromeStart = screen.indexOf('className={`m-note-chrome');
+  const editorStart = screen.indexOf("<EditorHost", chromeStart);
+
+  it("the chrome closes directly before the editor", () => {
+    expect(chromeStart).toBeGreaterThan(-1);
+    expect(editorStart).toBeGreaterThan(chromeStart);
+    expect(screen.slice(chromeStart, editorStart)).toMatch(/<\/div>\s*\{doc !== null && \(\s*$/);
+  });
+
+  it("every hint above the text is inside it", () => {
+    const chrome = screen.slice(chromeStart, editorStart);
+    for (const hint of ["<CommentOperationStatus", "{draft && (", "{managedIndex && (", "{staleSince && (", "{parked && !suggesting", "{suggesting && ("]) {
+      expect(chrome, `${hint} must render inside .m-note-chrome`).toContain(hint);
+    }
+    // …and none of them a second time after it, outside the sheet that repeats the status on purpose.
+    expect(screen.slice(editorStart)).not.toMatch(/\{parked && !suggesting/);
+  });
+
+  it("the chrome has a ground of its own, so a rounded hint does not let the note through", () => {
+    const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+    expect(css).toMatch(/\.m-note-chrome \{[^}]*background: var\(--surface\);/);
+  });
+});

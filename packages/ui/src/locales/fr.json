@@ -3454,6 +3454,7 @@
     "suggestDiscard": "Abandonner",
     "suggestDiscardConfirm": "Abandonner {{n}} modifications ? La note reste telle quelle.",
     "suggestSend": "Envoyer les propositions ({{n}})",
+    "suggestSendShort": "Envoyer ({{n}})",
     "suggestSent": "Suggestions envoyées : {{n}}.",
     "suggestNothing": "Aucune modification pour l'instant.",
     "suggestParkedTitle": "Propositions non envoyées trouvées",

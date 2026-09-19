@@ -3486,6 +3486,7 @@
     "suggestDiscard": "Odrzuć",
     "suggestDiscardConfirm": "Odrzucić {{n}} zmian? Notatka pozostanie bez zmian.",
     "suggestSend": "Wyślij propozycje ({{n}})",
+    "suggestSendShort": "Wyślij ({{n}})",
     "suggestSent": "Wysłane propozycje: {{n}}.",
     "suggestNothing": "Brak zmian.",
     "suggestParkedTitle": "Znaleziono niewysłane propozycje",

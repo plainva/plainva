@@ -3422,6 +3422,7 @@
     "suggestDiscard": "Verwerpen",
     "suggestDiscardConfirm": "{{n}} wijzigingen verwerpen? De notitie blijft zoals ze was.",
     "suggestSend": "Voorstellen verzenden ({{n}})",
+    "suggestSendShort": "Verzenden ({{n}})",
     "suggestSent": "Verzonden voorstellen: {{n}}.",
     "suggestNothing": "Nog geen wijziging.",
     "suggestParkedTitle": "Niet-verzonden voorstellen gevonden",

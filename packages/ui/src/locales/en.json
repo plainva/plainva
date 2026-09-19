@@ -3422,6 +3422,7 @@
     "suggestDiscard": "Discard",
     "suggestDiscardConfirm": "Discard {{n}} changes? The note stays as it was.",
     "suggestSend": "Send suggestions ({{n}})",
+    "suggestSendShort": "Send ({{n}})",
     "suggestSent": "Sent suggestions: {{n}}.",
     "suggestNothing": "No change yet.",
     "suggestParkedTitle": "Unsent suggestions found",

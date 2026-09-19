@@ -3390,6 +3390,7 @@
     "suggestDiscard": "破棄",
     "suggestDiscardConfirm": "{{n}} 件の変更を破棄しますか？ノートは元のままです。",
     "suggestSend": "提案を送信（{{n}}）",
+    "suggestSendShort": "送信（{{n}}）",
     "suggestSent": "送信した提案：{{n}}件。",
     "suggestNothing": "まだ変更はありません。",
     "suggestParkedTitle": "未送信の提案が見つかりました",

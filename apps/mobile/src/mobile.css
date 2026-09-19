@@ -4715,7 +4715,10 @@ textarea {
 
 /* Reader controls float above a constant inset INSIDE the editor's scrolling
    content. Retreat changes only paint; the scroll viewport never resizes. */
-.m-note-chrome { flex: none; z-index: var(--z-m-bar); transition: transform var(--dur-2) var(--ease-effects); }
+/* The chrome carries the hints too (finding 2026-09-19), so it has a ground
+   of its own: a rounded hint would otherwise let the note show through its
+   corners while the chrome floats. */
+.m-note-chrome { flex: none; z-index: var(--z-m-bar); background: var(--surface); transition: transform var(--dur-2) var(--ease-effects); }
 .m-page--note[data-reader-overlay] > .m-note-chrome { position: absolute; top: 0; left: 0; right: 0; }
 .m-page--note[data-reader-overlay] .m-editor .cm-content { padding-top: calc(var(--m-reader-chrome-height, var(--m-docked-h)) + var(--space-3)); }
 .m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }

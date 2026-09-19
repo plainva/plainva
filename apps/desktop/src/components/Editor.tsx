@@ -3160,9 +3160,16 @@ export const Editor: React.FC<{
           <span className="pv-suggest-band__text">
             <strong>{t("comments.suggestBandTitle")}</strong> {t("comments.suggestBandBody")} {t("comments.suggestCount", { n: suggestCount })}
           </span>
-          <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
-          <UiButton size="sm" variant="ghost" onClick={() => { void discardSuggestions(); }}>{t("comments.suggestDiscard")}</UiButton>
-          <UiButton size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">{t("comments.suggestSend", { n: suggestCount })}</UiButton>
+          {/* Note and discard are one group, so a narrow pane can give them a
+              row of their own (finding 2026-09-19; the rule lives in ui.css). */}
+          <span className="pv-suggest-band__more">
+            <TextInput className="pv-suggest-band__note" value={suggestNote} placeholder={t("comments.suggestNotePlaceholder")} onChange={(event) => setSuggestNote(event.target.value)} />
+            <UiButton size="sm" variant="ghost" onClick={() => { void discardSuggestions(); }}>{t("comments.suggestDiscard")}</UiButton>
+          </span>
+          <UiButton className="pv-suggest-band__send" size="sm" variant="primary" disabled={suggestCount === 0} onClick={() => { void sendSuggestions(); }} data-testid="suggest-send">
+            <span className="pv-suggest-band__long">{t("comments.suggestSend", { n: suggestCount })}</span>
+            <span className="pv-suggest-band__short">{t("comments.suggestSendShort", { n: suggestCount })}</span>
+          </UiButton>
         </div>
       )}
       <div className={commentsAccessible ? "pv-comment-layout" : undefined} style={commentsAccessible ? undefined : { display: "contents" }}>
