@@ -1,3 +1,6 @@
+import { installRAFFallback } from "./services/rafFallback";
+installRAFFallback();
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
