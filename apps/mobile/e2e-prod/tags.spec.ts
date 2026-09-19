@@ -35,16 +35,25 @@ test("a tag is a pill, a tap opens its notes, and the switch colours it by its r
     await expect(close).toBeVisible({ timeout: 15000 });
     await close.click();
 
-    // Open the note the way a reader does: through the search.
+    // Open the note the way a reader does: through the search. After a reload
+    // the session may come back on ANY screen of the stack it last saved - the
+    // snapshot is written a moment after a navigation - so first walk back to
+    // where the search can be reached (the first pre-push run found the
+    // settings screen here and no "Search" to press).
+    const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
     const openTagged = async () => {
       const field = page.getByTestId("appbar-searchpage").locator("input");
+      const search = page.getByRole("button", { name: /^Search$/ }).first();
       await page.waitForTimeout(1500);
-      if (!(await field.isVisible())) await page.getByRole("button", { name: /^Search$/ }).first().click();
+      for (let i = 0; i < 5 && !(await field.isVisible()) && !(await search.isVisible()); i++) {
+        if (await page.getByRole("button", { name: /^Back$/ }).first().isVisible()) await back();
+        await page.waitForTimeout(400);
+      }
+      if (!(await field.isVisible())) await search.click();
       await field.fill("maybe an");
       await expect(page.locator("[data-search-occurrence]").first()).toContainText("Tagged");
       await page.locator("[data-search-occurrence]").first().click();
     };
-    const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
     await openTagged();
 
     const pills = page.locator(".cm-content .pv-tag-pill");
@@ -68,6 +77,8 @@ test("a tag is a pill, a tap opens its notes, and the switch colours it by its r
     await page.locator('[data-testid="settings-area-appearance"]').click();
     await page.getByRole("switch", { name: "Colour tags" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-tag-colors", "on");
+    // The reload below must find the setting STORED, not merely applied.
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("CapacitorStorage.mobile-settings") ?? "{}").tagColors)).toBe(true);
     await back();
     await back();
 
