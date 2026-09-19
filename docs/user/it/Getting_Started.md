@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-16
+Ultimo aggiornamento: 2026-09-19
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -65,7 +65,7 @@ Scegli una nuova cartella locale vuota e, per creare online, una cartella cloud 
 ## L'interfaccia
 
 - **Barra laterale sinistra** — tre viste: **File** (l'albero dei file), **Tag** (tutti i `#tag` nel vault) e **Database** (ogni `.base` nel vault, raggruppato per cartella — un clic per aprirlo); **Aperti di recente** e **Segnalibri** sono sezioni sopra il selettore delle viste, quindi restano visibili in tutte e tre le viste. In cima si trova il campo di ricerca, con un **+** accanto per Nuova nota, Nuova cartella, Nuovo database e Nota giornaliera. Il testo segnaposto del campo di ricerca indica cosa si sta cercando, e le schede mostrano il proprio nome finché il pannello è abbastanza largo — man mano che si restringe, prima solo la scheda attiva mantiene il nome, poi restano solo le icone. In basso: il selettore del vault, **Apri nota giornaliera** e **Impostazioni**. Il pulsante a doppia freccia accanto alle tre viste comprime o espande tutte le cartelle in una volta, e **Mostra nell'albero dei file** nel menu ⋮ dell'editor mostra la nota aperta direttamente nell'albero. Nella vista **File**, un'intestazione mostra il nome e l'icona del vault corrente.
-- **Ordina**: il pulsante accanto al campo di ricerca ordina l’albero dei file per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo la stessa chiave inverte la direzione. Sottocartelle e l’`index.md` di una cartella restano sempre in cima; la scelta viene ricordata su questo dispositivo.
+- **Ordina**: il pulsante accanto al campo di ricerca ordina l’albero dei file per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo la stessa chiave inverte la direzione. Sottocartelle e l’`index.md` di una cartella restano sempre in cima; la scelta viene ricordata su questo dispositivo. Finché è attiva una ricerca, lo stesso pulsante ordina invece i risultati: **Pertinenza**, **Ultima modifica**, **Titolo** o **Percorso**.
 - **Barra del titolo** — le tue schede aperte. Le schede possono essere riordinate trascinandole e spostate tra i riquadri dell'editor.
 - **Area dell'editor** — dove leggi e scrivi. Tramite il menu della scheda (**Dividi a destra** / **Dividi in basso**) o le scorciatoie `Ctrl+Alt+V` / `Ctrl+Alt+S` dividi l'editor in due riquadri, ad es. una nota accanto a un database.
 - **Altre finestre**: una nota nella propria finestra mostra a destra la stessa barra laterale di contesto (struttura, grafo, database, backlink, proprietà; il calendario resta nella finestra principale), apribile e chiudibile dalla barra del titolo. Il menu **⋮** dell'editor lì fa lo stesso che nella finestra principale: **Cronologia delle versioni…** e la risoluzione dei conflitti si aprono nella finestra della nota, **Mostra nell'albero dei file** porta in primo piano la finestra con l'albero dei file selezionando il file, e un clic destro su una scheda offre lo stesso menu della scheda (senza **Apri in una nuova finestra** — la scheda è già in una).

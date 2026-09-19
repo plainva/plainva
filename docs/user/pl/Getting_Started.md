@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-16
+Stan na: 2026-09-19
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -65,7 +65,7 @@ Wybierz nowy, pusty folder lokalny, a przy tworzeniu online pusty folder chmurow
 ## Interfejs
 
 - **Lewy pasek boczny** — trzy widoki: **Pliki** (drzewo plików), **Tagi** (wszystkie `#tagi` w vaulcie) i **Bazy danych** (każda `.base` w vaulcie, pogrupowana według folderu — kliknij, aby ją otworzyć); **Ostatnio otwarte** i **Zakładki** to sekcje nad przełącznikiem widoków, więc pozostają widoczne we wszystkich trzech widokach. Na samej górze znajduje się pole wyszukiwania, a obok niego **+** dla Nowa notatka, Nowy folder, Nowa baza i Notatka dzienna. Tekst zastępczy w polu wyszukiwania pokazuje, czego dotyczy wyszukiwanie, a karty pokazują swoje nazwy, dopóki panel jest wystarczająco szeroki — w miarę zwężania najpierw tylko aktywna karta zachowuje nazwę, a potem zostają same ikony. Na dole: przełącznik vaultów, **Otwórz notatkę dzienną** i **Ustawienia**. Przycisk z podwójną strzałką obok czterech widoków zwija lub rozwija wszystkie foldery naraz, a **Pokaż w drzewie plików** w menu ⋮ edytora pokazuje otwartą notatkę bezpośrednio w drzewie. W widoku **Pliki** nagłówek pokazuje nazwę i ikonę aktualnego vaultu.
-- **Sortowanie** — przycisk obok pola wyszukiwania porządkuje drzewo plików według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór tego samego klucza odwraca kierunek. Podfoldery i `index.md` folderu zawsze zostają na początku; wybór jest zapamiętywany na tym urządzeniu.
+- **Sortowanie** — przycisk obok pola wyszukiwania porządkuje drzewo plików według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór tego samego klucza odwraca kierunek. Podfoldery i `index.md` folderu zawsze zostają na początku; wybór jest zapamiętywany na tym urządzeniu. Gdy wyszukiwanie jest aktywne, ten sam przycisk sortuje wyniki: **Trafność**, **Ostatnia zmiana**, **Tytuł** lub **Ścieżka**.
 - **Pasek tytułu** — otwarte karty. Karty można przeciągać, zmieniając ich kolejność, oraz przenosić między panelami edytora.
 - **Obszar edytora** — tu czytasz i piszesz. Przez menu karty (**Podziel w prawo** / **Podziel w dół**) lub skróty `Ctrl+Alt+V` / `Ctrl+Alt+S` dzielisz edytor na dwa panele, np. notatkę obok bazy danych.
 - **Kolejne okna** — notatka w osobnym oknie pokazuje po prawej ten sam pasek boczny kontekstu (konspekt, graf, bazy danych, backlinki, właściwości; kalendarz zostaje w oknie głównym), zwijany i rozwijany z paska tytułu. Menu **⋮** edytora robi tam to samo co w oknie głównym: **Historia wersji…** i rozwiązywanie konfliktów otwierają się w oknie notatki, **Pokaż w drzewie plików** przywołuje na wierzch okno z drzewem plików i zaznacza plik, a kliknięcie prawym przyciskiem na kartę oferuje to samo menu karty (bez **Otwórz w nowym oknie** — karta już jest w swoim).

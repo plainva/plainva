@@ -47,7 +47,7 @@ import {
 } from "./fileTreeModel";
 import { detectMac } from "./WindowControls";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_FOLDER_SORT, type FolderSort } from "@plainva/ui";
+import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/ui";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -372,7 +372,9 @@ export const FileTree: React.FC<{
   onExpandedStateChange?: (hasExpanded: boolean) => void;
   /** Order of a folder's files (P11): title, last modified or created. */
   sort?: FolderSort;
-}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange, sort = DEFAULT_FOLDER_SORT }) => {
+  /** The order of the search hits while a query is active (finding 2026-09-19); null = relevance. */
+  searchSort?: SearchSort | null;
+}> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange, sort = DEFAULT_FOLDER_SORT, searchSort = null }) => {
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
@@ -419,7 +421,7 @@ export const FileTree: React.FC<{
   // The sidebar owns the search box (plan Suche P3); the built-in fallback
   // field is gone — without an externalQuery the tree simply shows everything.
   const effectiveQuery = externalQuery ?? "";
-  const searchPage = useSearchPages(queryService, effectiveQuery, fileTreeVersion);
+  const searchPage = useSearchPages(queryService, effectiveQuery, fileTreeVersion, 40, searchSort);
   // Derive search rows in the same render as the query. An effect mirror
   // briefly rendered every tree entry as a search hit before the first page.
   const files: typeof treeFiles = useMemo(() => effectiveQuery.trim()

@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-16
+Dernière mise à jour : 2026-09-19
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -65,7 +65,7 @@ Choisissez un nouveau dossier local vide et, pour créer en ligne, un dossier cl
 ## L'interface
 
 - **Barre latérale gauche** — trois vues : **Fichiers** (l'arborescence de fichiers), **Tags** (tous les `#tags` du vault) et **Bases de données** (chaque `.base` du vault, regroupée par dossier — un clic l'ouvre) ; **Ouverts récemment** et **Signets** sont des sections au-dessus du sélecteur de vues, elles restent donc visibles dans les trois vues. Tout en haut se trouve le champ de recherche, avec un **+** à côté pour Nouvelle note, Nouveau dossier, Nouvelle base et Note quotidienne. Le texte indicatif du champ de recherche précise ce qui est recherché, et les onglets affichent leur nom tant que le panneau est assez large — à mesure qu'il se rétrécit, seul l'onglet actif garde d'abord son nom, puis seules les icônes restent. En bas : le sélecteur de vault, **Ouvrir la note quotidienne** et **Paramètres**. Le bouton à double chevron à côté des trois vues replie ou déplie tous les dossiers d'un coup, et **Afficher dans l'arborescence de fichiers** dans le menu ⋮ de l'éditeur affiche directement la note ouverte dans l'arborescence. Dans la vue **Fichiers**, un en-tête affiche le nom et l'icône du vault actuel.
-- **Trier** — le bouton à côté du champ de recherche classe l’arborescence par **Titre**, **Dernière modification** ou **Création** ; choisir à nouveau la même clé inverse le sens. Les sous-dossiers et l’`index.md` d’un dossier restent toujours en tête ; le choix est mémorisé sur cet appareil.
+- **Trier** — le bouton à côté du champ de recherche classe l’arborescence par **Titre**, **Dernière modification** ou **Création** ; choisir à nouveau la même clé inverse le sens. Les sous-dossiers et l’`index.md` d’un dossier restent toujours en tête ; le choix est mémorisé sur cet appareil. Tant qu'une recherche est active, le même bouton trie les résultats : **Pertinence**, **Dernière modification**, **Titre** ou **Chemin**.
 - **Barre de titre** — vos onglets ouverts. Les onglets peuvent être réordonnés par glisser-déposer et déplacés entre les volets de l'éditeur.
 - **Zone de l'éditeur** — où vous lisez et écrivez. Via le menu de l'onglet (**Scinder à droite** / **Scinder en bas**) ou les raccourcis `Ctrl+Alt+V` / `Ctrl+Alt+S`, vous scindez l'éditeur en deux volets, par exemple une note à côté d'une base de données.
 - **Autres fenêtres** — une note dans sa propre fenêtre affiche à droite la même barre latérale de contexte (plan, graphe, bases de données, backlinks, propriétés ; le calendrier reste dans la fenêtre principale), repliable depuis la barre de titre. Le menu **⋮** de l'éditeur y fait la même chose que dans la fenêtre principale : **Historique des versions…** et la résolution des conflits s'ouvrent dans la fenêtre de la note, **Afficher dans l'arborescence de fichiers** ramène au premier plan la fenêtre avec l'arborescence de fichiers et sélectionne le fichier, et un clic droit sur un onglet propose le même menu de l'onglet (sans **Ouvrir dans une nouvelle fenêtre** — l'onglet y est déjà).

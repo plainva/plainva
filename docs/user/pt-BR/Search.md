@@ -1,6 +1,6 @@
 # Busca
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-19
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
@@ -10,7 +10,7 @@ O campo no topo da barra lateral pesquisa títulos e conteúdo em todo o vault. 
 
 A busca reage enquanto você digita: prefixos de palavra já encontram resultados ("Proj" encontra "Projeto plano") — sem precisar de Enter. O **X** à direita do campo limpa a busca atual (ou pressione `Esc`); a barra lateral volta então a mostrar a árvore de arquivos normal.
 
-A pesquisa lista cada ocorrência com um trecho, o caminho dos títulos e o número da linha. Abrir uma linha seleciona exatamente essa ocorrência; várias correspondências na mesma nota aparecem separadas. A contagem inclui apenas os resultados já carregados. Você pode carregar mais ocorrências. As setas mudam a seleção e Enter a abre. Carregamento, resultados vazios e erros são indicados; uma nova consulta descarta respostas antigas. Se uma edição impedir a identificação inequívoca da ocorrência, uma mensagem explica isso. As mesmas ocorrências estão disponíveis no alternador rápido e na pesquisa móvel. Ao voltar à pesquisa no celular, a consulta, os resultados carregados e a posição da lista são restaurados.
+A pesquisa lista cada ocorrência com um trecho, o caminho dos títulos e o número da linha. Abrir uma linha seleciona exatamente essa ocorrência; várias correspondências na mesma nota aparecem separadas. A contagem inclui apenas os resultados já carregados. Você pode carregar mais ocorrências. As setas mudam a seleção e Enter a abre. Carregamento, resultados vazios e erros são indicados; uma nova consulta descarta respostas antigas. Se uma edição impedir a identificação inequívoca da ocorrência, uma mensagem explica isso. As mesmas ocorrências estão disponíveis no alternador rápido e na pesquisa móvel. Ao voltar à pesquisa no celular, a consulta, os resultados carregados e a posição da lista são restaurados. Os resultados vêm por **Relevância**, a menos que você escolha **Última alteração**, **Título** ou **Caminho** com o botão de ordenação ao lado do campo de busca (no telefone: na barra da tela de busca); carregar mais mantém a ordem escolhida.
 
 O campo de busca também se aplica às outras visualizações da barra lateral: em **Tags** ele filtra a lista de tags, em **Favoritos** filtra os favoritos.
 

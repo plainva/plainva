@@ -1,6 +1,6 @@
 # Search
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-19
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
@@ -10,7 +10,7 @@ The field at the top of the sidebar searches titles and contents across the vaul
 
 Search reacts while you type: word prefixes already match ("Projec" finds "Project plan") — no Enter needed. The **X** at the right of the field clears the current search (or press `Esc`); the sidebar then shows the normal file tree again.
 
-Search lists individual occurrences with a text excerpt, heading path and line number. Opening a row selects that exact occurrence; several matches in the same note appear separately. The displayed count includes only results already loaded. You can load more occurrences. Arrow keys move between occurrences and Enter opens the selection. Loading, empty results and errors are shown explicitly; new input discards obsolete answers. If an edited occurrence can no longer be identified uniquely, a message explains this. The same occurrences are available in the quick switcher and mobile search. Returning to search on the phone restores the query, loaded results and list position.
+Search lists individual occurrences with a text excerpt, heading path and line number. Opening a row selects that exact occurrence; several matches in the same note appear separately. The displayed count includes only results already loaded. You can load more occurrences. Arrow keys move between occurrences and Enter opens the selection. Loading, empty results and errors are shown explicitly; new input discards obsolete answers. If an edited occurrence can no longer be identified uniquely, a message explains this. The same occurrences are available in the quick switcher and mobile search. Returning to search on the phone restores the query, loaded results and list position. Hits come by **Relevance** unless you pick **Last modified**, **Title** or **Path** with the sort button next to the search field (on the phone: in the bar of the search screen); loading more keeps the chosen order.
 
 The search field also applies to the other sidebar views: in **Tags** it filters the tag list, in **Bookmarks** the bookmarks.
 

@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-16
+Última revisão: 2026-09-19
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -65,7 +65,7 @@ Escolha uma pasta local nova e vazia e, para criar online, uma pasta de nuvem va
 ## A interface
 
 - **Barra lateral esquerda** — três visualizações: **Arquivos** (a árvore de arquivos), **Tags** (todas as `#tags` do vault) e **Bancos de dados** (cada `.base` do vault, agrupado por pasta — clique para abrir); **Abertos recentemente** e **Favoritos** são seções acima do seletor de visualizações, então permanecem visíveis nas três visualizações. Bem no topo fica o campo de busca, com um **+** ao lado para Nova nota, Nova pasta, Nova base e Nota diária. O texto de exemplo do campo de busca indica o que está sendo buscado, e as abas mostram seus nomes enquanto o painel for largo o suficiente — à medida que ele se estreita, primeiro só a aba ativa mantém o nome, e depois só os ícones permanecem. Embaixo: o seletor de vault, **Abrir nota diária** e **Configurações**. O botão de seta dupla ao lado das três visualizações recolhe ou expande todas as pastas de uma vez, e **Mostrar na árvore de arquivos** no menu ⋮ do editor mostra a nota aberta diretamente na árvore. Na visualização **Arquivos**, um cabeçalho mostra o nome e o ícone do vault atual.
-- **Ordenar** — o botão ao lado do campo de busca ordena a árvore de arquivos por **Título**, **Última alteração** ou **Criação**; escolher a mesma opção de novo inverte a direção. Subpastas e o `index.md` de uma pasta ficam sempre na frente; a escolha é lembrada neste dispositivo.
+- **Ordenar** — o botão ao lado do campo de busca ordena a árvore de arquivos por **Título**, **Última alteração** ou **Criação**; escolher a mesma opção de novo inverte a direção. Subpastas e o `index.md` de uma pasta ficam sempre na frente; a escolha é lembrada neste dispositivo. Enquanto uma busca está ativa, o mesmo botão ordena os resultados: **Relevância**, **Última alteração**, **Título** ou **Caminho**.
 - **Barra de título** — suas abas abertas. As abas podem ser reordenadas arrastando e movidas entre painéis do editor.
 - **Área do editor** — onde você lê e escreve. Pelo menu da aba (**Dividir à direita** / **Dividir abaixo**) ou pelos atalhos `Ctrl+Alt+V` / `Ctrl+Alt+S` você divide o editor em dois painéis, por exemplo uma nota ao lado de um banco de dados.
 - **Outras janelas** — uma nota em sua própria janela mostra à direita a mesma barra lateral de contexto (estrutura, grafo, bancos de dados, backlinks, propriedades; o calendário fica na janela principal), recolhível pela barra de título. O menu **⋮** do editor faz ali o mesmo que na janela principal: **Histórico de versões…** e a resolução de conflitos abrem na janela da nota, **Mostrar na árvore de arquivos** traz para frente a janela com a árvore de arquivos e seleciona o arquivo, e clicar com o botão direito em uma aba oferece o mesmo menu da aba (sem **Abrir em nova janela** — a aba já está em uma).

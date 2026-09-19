@@ -1,6 +1,6 @@
 # Ricerca
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-19
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
@@ -10,7 +10,7 @@ Il campo in alto nella barra laterale cerca titoli e contenuti nell’intero vau
 
 La ricerca reagisce mentre digiti: i prefissi delle parole trovano già corrispondenza ("Proget" trova "Progetto piano") — non serve premere Invio. La **X** a destra del campo cancella la ricerca corrente (oppure premi `Esc`); la barra laterale mostra quindi di nuovo il normale albero dei file.
 
-La ricerca elenca le singole occorrenze con un estratto, il percorso delle intestazioni e il numero di riga. Aprendo una riga viene selezionata proprio quell’occorrenza; più corrispondenze nella stessa nota compaiono separatamente. Il conteggio comprende solo i risultati già caricati. Puoi caricare altre occorrenze. Le frecce cambiano la selezione e Invio la apre. Caricamento, risultati vuoti ed errori sono indicati; una nuova ricerca scarta le vecchie risposte. Se una modifica impedisce di identificare un’occorrenza senza ambiguità, compare un avviso. Le stesse occorrenze sono disponibili nel selettore rapido e nella ricerca mobile. Tornando alla ricerca sul telefono vengono ripristinati la query, i risultati caricati e la posizione della lista.
+La ricerca elenca le singole occorrenze con un estratto, il percorso delle intestazioni e il numero di riga. Aprendo una riga viene selezionata proprio quell’occorrenza; più corrispondenze nella stessa nota compaiono separatamente. Il conteggio comprende solo i risultati già caricati. Puoi caricare altre occorrenze. Le frecce cambiano la selezione e Invio la apre. Caricamento, risultati vuoti ed errori sono indicati; una nuova ricerca scarta le vecchie risposte. Se una modifica impedisce di identificare un’occorrenza senza ambiguità, compare un avviso. Le stesse occorrenze sono disponibili nel selettore rapido e nella ricerca mobile. Tornando alla ricerca sul telefono vengono ripristinati la query, i risultati caricati e la posizione della lista. I risultati arrivano per **Pertinenza**, a meno che tu non scelga **Ultima modifica**, **Titolo** o **Percorso** con il pulsante di ordinamento accanto al campo di ricerca (sul telefono: nella barra della ricerca); caricandone altri l'ordine scelto resta.
 
 Il campo di ricerca si applica anche alle altre viste della barra laterale: in **Tag** filtra l'elenco dei tag, in **Segnalibri** i segnalibri.
 

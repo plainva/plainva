@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { SheetGrip } from "../components/SheetGrip";
+import { SortSheet } from "../components/SortSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,7 +16,6 @@ import {
   Trash2,
   X,
   ArrowUpDown,
-  Check,
 } from "lucide-react";
 import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
@@ -646,27 +646,21 @@ export function BrowseScreen({
         </div>
       )}
 
+      {/* The one sort sheet of the app (finding 2026-09-19): search hits and
+          backlinks open the same component. */}
       {sortSheet && (
-        <div className="m-sheet-backdrop" onClick={() => setSortSheet(false)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="browse-sort-sheet">
-            <SheetGrip onClose={() => setSortSheet(false)} />
-            <p className="m-sheet-title">{t("browse.sortBy")}</p>
-            {(["title", "modified", "created"] as const).map((key) => (
-              <button
-                key={key}
-                className="m-row"
-                onClick={() => chooseSort(key)}
-                aria-pressed={sort.key === key}
-              >
-                {sort.key === key ? <Check size={ICON.head} /> : <span className="m-row-spacer" />}
-                <span>{t(key === "title" ? "browse.sortTitle" : key === "modified" ? "browse.sortModified" : "browse.sortCreated")}</span>
-                {sort.key === key && (
-                  <span className="m-row-detail">{t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SortSheet
+          testId="browse-sort-sheet"
+          title={t("browse.sortBy")}
+          options={(["title", "modified", "created"] as const).map((key) => ({
+            key,
+            label: t(key === "title" ? "browse.sortTitle" : key === "modified" ? "browse.sortModified" : "browse.sortCreated"),
+          }))}
+          active={sort.key}
+          direction={t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}
+          onChoose={chooseSort}
+          onClose={() => setSortSheet(false)}
+        />
       )}
 
       {conflictSheet && (

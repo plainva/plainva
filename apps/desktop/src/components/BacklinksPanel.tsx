@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
-import { Link as LinkIcon, FileText } from "lucide-react";
+import { ArrowUpDown, Link as LinkIcon, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { backlinkContexts, contextChain, groupBacklinks, type BacklinkContext } from "./backlinksModel";
-import { EmptyState, errorText, ICON, setPendingSearchJump } from "@plainva/ui";
+import { BACKLINK_SORT_KEYS, Button, EmptyState, backlinkTitle, errorText, ICON, listSortLabelKey, nextBacklinkSort, readStoredBacklinkSort, setPendingSearchJump, sortBacklinks, writeStoredBacklinkSort, type BacklinkSort, type BacklinkSortKey } from "@plainva/ui";
+import { DropdownMenu } from "./DropdownMenu";
 
 interface BacklinksPanelProps {
   activePath: string | null;
@@ -21,6 +22,9 @@ interface BacklinkItem {
   line_number?: number | null;
   /** The heading or block the link points at (issue #92) — the index keeps it. */
   anchor?: string | null;
+  /** The linking note's title and modification time — what the rows are named and sorted by (finding 2026-09-19). */
+  source_title?: string | null;
+  source_mtime?: number | null;
 }
 
 export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange }: BacklinksPanelProps) {
@@ -36,7 +40,21 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
 
   // One row per linking file — repeated links inside the same note collapse
   // into a single entry with an occurrence badge (maintainer request 2026-07-04).
-  const grouped = useMemo(() => groupBacklinks(backlinks), [backlinks]);
+  // …in the reader's order (finding 2026-09-19). The list had none at all: the
+  // query carried no ORDER BY, so the same note could show its backlinks
+  // differently from one open to the next. Title A–Z unless chosen otherwise;
+  // the choice is remembered per device, like the file tree's.
+  const [sort, setSort] = useState<BacklinkSort>(() => readStoredBacklinkSort());
+  const [sortMenu, setSortMenu] = useState(false);
+  const sortBtnRef = useRef<HTMLButtonElement>(null);
+  const chooseSort = (key: BacklinkSortKey) => {
+    setSort((current) => {
+      const next = nextBacklinkSort(current, key);
+      writeStoredBacklinkSort(next);
+      return next;
+    });
+  };
+  const grouped = useMemo(() => sortBacklinks(groupBacklinks(backlinks), sort), [backlinks, sort]);
   // Which place links to WHICH heading (issue #92): the anchor per source line.
   const anchorAt = useMemo(() => {
     const m = new Map<string, string>();
@@ -107,8 +125,42 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
   // One row per file, and under it its places (P7): the heading chain and the
   // parent list items as a muted breadcrumb, the line itself below; a click
   // on a place lands on that line, a click on the file opens it as before.
+  const sortControl = (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', position: 'relative' }}>
+      <Button
+        ref={sortBtnRef}
+        variant="ghost"
+        size="sm"
+        icon={<ArrowUpDown size={ICON.meta} />}
+        aria-haspopup="menu"
+        aria-expanded={sortMenu}
+        data-tip={t('browse.sortBy')}
+        data-testid="backlinks-sort"
+        onClick={() => setSortMenu((open) => !open)}
+      >
+        {t(listSortLabelKey(sort.key))}
+      </Button>
+      <DropdownMenu
+        open={sortMenu}
+        anchorRef={sortBtnRef}
+        onClose={() => setSortMenu(false)}
+        align="right"
+        ariaLabel={t('browse.sortBy')}
+        items={BACKLINK_SORT_KEYS.map((key) => ({
+          id: `backlinks-sort-${key}`,
+          label: t(listSortLabelKey(key)),
+          hint: sort.key === key ? t(sort.dir === 'asc' ? 'browse.sortAsc' : 'browse.sortDesc') : undefined,
+          active: sort.key === key,
+          onSelect: () => chooseSort(key),
+        }))}
+      />
+    </div>
+  );
+
   const listItems = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      {/* One row is already in order; the control earns its place from two on. */}
+      {grouped.length > 1 && sortControl}
       {grouped.map((link) => (
         <div key={link.source_path}>
           <div
@@ -119,7 +171,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
             <FileText size={ICON.ui} color="var(--accent-color)" style={{ marginTop: '2px', flexShrink: 0 }} />
             <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 'var(--text-ui)', fontWeight: 500, color: 'var(--accent-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {link.source_path.split(/[/\\]/).pop()}
+                {backlinkTitle(link)}
               </div>
               <div className="pv-backlink-context" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {link.source_path}

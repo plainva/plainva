@@ -1,6 +1,6 @@
 # Zoeken
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-09-19
 
 Plainva biedt drie manieren om te zoeken: volledige-tekstzoekfunctie over de hele vault, de snelkiezer om bestanden te openen, en zoeken & vervangen binnen een notitie.
 
@@ -10,7 +10,7 @@ Het veld bovenaan de zijbalk doorzoekt titels en inhoud in de hele vault. Een lo
 
 Zoeken reageert terwijl je typt: woordvoorvoegsels leveren al treffers op ("Projec" vindt "Projectplan") — je hoeft niet op Enter te drukken. De **X** rechts in het veld wist de huidige zoekopdracht (of druk op `Esc`); de zijbalk toont dan weer de normale bestandsboom.
 
-De zoeklijst toont afzonderlijke vindplaatsen met een tekstfragment, het pad van koppen en het regelnummer. Een rij opent precies de gekozen vindplaats; meerdere treffers in dezelfde notitie staan apart. De teller telt alleen reeds geladen resultaten. Je kunt meer vindplaatsen laden. Pijltjestoetsen verplaatsen de selectie en Enter opent deze. Laden, lege resultaten en fouten worden vermeld; nieuwe invoer verwerpt verouderde antwoorden. Als een gewijzigde vindplaats niet meer eenduidig te herkennen is, verschijnt een melding. Dezelfde vindplaatsen zijn beschikbaar in de snelkiezer en mobiel zoeken. Teruggaan naar zoeken op de telefoon herstelt de zoekopdracht, geladen resultaten en lijstpositie.
+De zoeklijst toont afzonderlijke vindplaatsen met een tekstfragment, het pad van koppen en het regelnummer. Een rij opent precies de gekozen vindplaats; meerdere treffers in dezelfde notitie staan apart. De teller telt alleen reeds geladen resultaten. Je kunt meer vindplaatsen laden. Pijltjestoetsen verplaatsen de selectie en Enter opent deze. Laden, lege resultaten en fouten worden vermeld; nieuwe invoer verwerpt verouderde antwoorden. Als een gewijzigde vindplaats niet meer eenduidig te herkennen is, verschijnt een melding. Dezelfde vindplaatsen zijn beschikbaar in de snelkiezer en mobiel zoeken. Teruggaan naar zoeken op de telefoon herstelt de zoekopdracht, geladen resultaten en lijstpositie. De treffers komen op **Relevantie**, tenzij je met de sorteerknop naast het zoekveld (op de telefoon: in de balk van het zoekscherm) **Laatst gewijzigd**, **Titel** of **Pad** kiest; meer laden houdt de gekozen volgorde aan.
 
 Het zoekveld werkt ook op de andere zijbalkweergaven: in **Tags** filtert het de tagslijst, in **Bladwijzers** de bladwijzers.
 

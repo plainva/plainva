@@ -1,15 +1,17 @@
 import { trimChars } from "@plainva/core";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Clock, FilePlus, Search } from "lucide-react";
+import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
 import {
   useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
   rememberSearch, SearchField,
-  setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge} from "@plainva/ui";
+  setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
+  IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
 
 /** First plain search term (no operators/exclusions) — the jump target. */
@@ -70,7 +72,19 @@ export function SearchScreen({
     void vault.queryService?.listNotes().then(setCorpus).catch(() => {});
     void loadRecentSearches(vault.vaultId).then(setRecent).catch(() => {});
   }, [vault, revision]);
-  const searchPage = useSearchPages(vault.queryService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision);
+  // The order of the hits (finding 2026-09-19): relevance unless chosen
+  // otherwise, remembered per device - the same memory the desktop reads.
+  const [sort, setSort] = useState<SearchSort>(() => readStoredSearchSort());
+  const [sortSheet, setSortSheet] = useState(false);
+  const chooseSort = (key: SearchSortKey) => {
+    setSort((current) => {
+      const next = nextSearchSort(current, key);
+      writeStoredSearchSort(next);
+      return next;
+    });
+    setSortSheet(false);
+  };
+  const searchPage = useSearchPages(vault.queryService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
   const results = searchPage.hits;
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -196,7 +210,23 @@ export function SearchScreen({
             value={query}
           />
         }
+        actions={
+          <IconButton label={t("browse.sortBy")} active={sort.key !== "relevance"} data-testid="search-sort" onClick={() => setSortSheet(true)}>
+            <ArrowUpDown size={ICON.head} />
+          </IconButton>
+        }
       />
+      {sortSheet && (
+        <SortSheet
+          testId="search-sort-sheet"
+          title={t("browse.sortBy")}
+          options={SEARCH_SORT_KEYS.map((key) => ({ key, label: t(listSortLabelKey(key)) }))}
+          active={sort.key}
+          direction={sort.key === "relevance" ? undefined : t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}
+          onChoose={chooseSort}
+          onClose={() => setSortSheet(false)}
+        />
+      )}
       {parsed.mode === "idle" ? (
         <>
           {recent.length > 0 && (

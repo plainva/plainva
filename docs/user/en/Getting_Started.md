@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-16
+Last updated: 2026-09-19
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -65,7 +65,7 @@ Choose a new, empty local folder and, for online creation, an empty cloud folder
 ## The interface
 
 - **Left sidebar** — three views: **Files** (the file tree), **Tags** (all `#tags` in the vault) and **Databases** (every `.base` in the vault, grouped by folder — click one to open it); **Recently opened** and **Bookmarks** are sections above the view switch, so they stay visible in all three views. At the very top sits the search field with a **+** beside it for New Note, New Folder, New Base and Daily Note. The search placeholder says what is being searched, and the tabs carry their names as long as the panel is wide enough — as it narrows, first only the active tab keeps its name, then the icons speak alone. At the bottom: the vault switcher, **Open Daily Note** and **Settings**. The double-chevron button next to the three views collapses or expands all folders at once, and **Reveal in file tree** in the editor's ⋮ menu jumps straight to the open note in the tree. In the **Files** view, a header shows the current vault's name and icon.
-- **Sort** — the button next to the search field orders the file tree by **Title**, **Last modified** or **Created**; choosing the same key again reverses the direction. Subfolders and a folder's `index.md` always stay in front; the choice is remembered on this device.
+- **Sort** — the button next to the search field orders the file tree by **Title**, **Last modified** or **Created**; choosing the same key again reverses the direction. Subfolders and a folder's `index.md` always stay in front; the choice is remembered on this device. While a search is active, the same button sorts the hits instead: **Relevance**, **Last modified**, **Title** or **Path**.
 - **Title bar** — your open tabs. Tabs can be reordered by dragging and moved between editor panes.
 - **Editor area** — where you read and write. Via the tab menu (**Split right** / **Split down**) or the shortcuts `Ctrl+Alt+V` / `Ctrl+Alt+S` you split the editor into two panes, e.g. a note next to a database.
 - **Further windows** — a note in its own window shows the same context sidebar on the right (outline, graph, databases, backlinks, properties; the calendar stays with the main window), folded and unfolded from the title bar. The editor's **⋮** menu does there what it does in the main window: **Version history…** and conflict resolution open in the note's window, **Reveal in file tree** brings the window with the file tree forward with the file selected, and right-clicking a tab offers the same tab menu (without **Open in new window** — the tab already is in one).

@@ -12,25 +12,32 @@ import { outlineContextFor, type OutlineContext } from "./outline";
 
 export interface BacklinkOccurrence {
   source_path: string;
+  /** The linking note's indexed title and modification time (finding 2026-09-19: rows are named and sorted by them). */
+  source_title?: string | null;
+  source_mtime?: number | null;
   /** 1-based line of the link in the source, or null/undefined for frontmatter links and old indexes. */
   line_number?: number | null;
 }
 
 export interface GroupedBacklink {
   source_path: string;
+  /** The note's title as indexed; null when the index has none (old index, no H1) - `backlinkTitle` falls back to the file name. */
+  title: string | null;
+  /** Last modification of the linking note, or null when unknown. */
+  mtime: number | null;
   /** How many links in that file point at the active note. */
   count: number;
   /** The distinct lines those links stand on, ascending; empty when unknown. */
   lines: number[];
 }
 
-/** Collapses occurrences by source file, keeping the first-seen order. */
+/** Collapses occurrences by source file, keeping the first-seen order - which the query makes definite (path, then line); `sortBacklinks` applies the reader's choice. */
 export function groupBacklinks(links: BacklinkOccurrence[]): GroupedBacklink[] {
   const groups = new Map<string, GroupedBacklink>();
   for (const link of links) {
     let g = groups.get(link.source_path);
     if (!g) {
-      g = { source_path: link.source_path, count: 0, lines: [] };
+      g = { source_path: link.source_path, title: link.source_title?.trim() || null, mtime: typeof link.source_mtime === "number" ? link.source_mtime : null, count: 0, lines: [] };
       groups.set(link.source_path, g);
     }
     g.count += 1;

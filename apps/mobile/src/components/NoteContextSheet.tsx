@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
@@ -22,6 +22,17 @@ import {
   groupBacklinks,
   setPendingSearchJump,
   type BacklinkContext,
+  BACKLINK_SORT_KEYS,
+  Chip,
+  backlinkTitle,
+  listSortLabelKey,
+  nextBacklinkSort,
+  readStoredBacklinkSort,
+  sortBacklinks,
+  writeStoredBacklinkSort,
+  type BacklinkSort,
+  type BacklinkSortKey,
+  type GroupedBacklink,
 } from "@plainva/ui";
 import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -104,7 +115,19 @@ export function NoteContextSheet({
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
-  const [backlinks, setBacklinks] = useState<Array<{ path: string; title: string; count: number; places: BacklinkContext[] }>>([]);
+  const [backlinks, setBacklinks] = useState<Array<GroupedBacklink & { places: BacklinkContext[] }>>([]);
+  // The reader's order (finding 2026-09-19): the list had none — the query
+  // carried no ORDER BY. Title A–Z unless chosen otherwise; the same
+  // device-local memory the desktop panel reads.
+  const [backlinkSort, setBacklinkSort] = useState<BacklinkSort>(() => readStoredBacklinkSort());
+  const chooseBacklinkSort = (key: BacklinkSortKey) => {
+    setBacklinkSort((current) => {
+      const next = nextBacklinkSort(current, key);
+      writeStoredBacklinkSort(next);
+      return next;
+    });
+  };
+  const orderedBacklinks = useMemo(() => sortBacklinks(backlinks, backlinkSort), [backlinks, backlinkSort]);
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [adding, setAdding] = useState(false);
   const [governing, setGoverning] = useState<Awaited<ReturnType<typeof resolveGoverningBaseOf>>>(null);
@@ -151,7 +174,7 @@ export function NoteContextSheet({
             const source = await vaultOps.read(vault, g.source_path).catch(() => null);
             if (source !== null) places = backlinkContexts(source, g.lines);
           }
-          bl.push({ path: g.source_path, title: g.source_path.split("/").pop()!.replace(/\.md$/i, ""), count: g.count, places });
+          bl.push({ ...g, places });
         }
         if (!stale) setBacklinks(bl);
       }
@@ -425,17 +448,32 @@ export function NoteContextSheet({
             (backlinks.length === 0 ? (
               <p className="m-hint">{t("mobile.noBacklinks")}</p>
             ) : (
-              backlinks.map((b) => (
-                <div key={b.path}>
+              <>
+              {/* One row is already in order; the chips earn their place from
+                  two on. The active chip again flips the direction — the file
+                  tree's rule, and the desktop panel's. */}
+              {orderedBacklinks.length > 1 && (
+                <div className="m-chiprow" role="group" aria-label={t("browse.sortBy")} data-testid="backlinks-sort">
+                  {BACKLINK_SORT_KEYS.map((key) => (
+                    <Chip key={key} selected={backlinkSort.key === key} onClick={() => chooseBacklinkSort(key)}>
+                      {t(listSortLabelKey(key))}
+                      {backlinkSort.key === key ? (backlinkSort.dir === "asc" ? " ↑" : " ↓") : ""}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              {orderedBacklinks.map((b) => (
+                <div key={b.source_path}>
                   <button
                     className="m-row"
+                    data-testid="backlink-row"
                     onClick={() => {
                       onClose();
-                      onOpenNote(b.path);
+                      onOpenNote(b.source_path);
                     }}
                   >
                     <FileText size={ICON.head} />
-                    <span>{b.title}</span>
+                    <span>{backlinkTitle(b)}</span>
                     {b.count > 1 && <span className="m-badge-muted">×{b.count}</span>}
                   </button>
                   {/* Its places (P7): breadcrumb of headings and list parents,
@@ -448,9 +486,9 @@ export function NoteContextSheet({
                         data-testid="backlink-place"
                         key={ctx.line}
                         onClick={() => {
-                          setPendingSearchJump({ path: b.path, line: ctx.line, term: ctx.lineText });
+                          setPendingSearchJump({ path: b.source_path, line: ctx.line, term: ctx.lineText });
                           onClose();
-                          onOpenNote(b.path);
+                          onOpenNote(b.source_path);
                         }}
                       >
                         <span className="m-backlink-place">
@@ -461,7 +499,8 @@ export function NoteContextSheet({
                     );
                   })}
                 </div>
-              ))
+              ))}
+              </>
             ))}
 
           {tab === "outline" &&

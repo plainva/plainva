@@ -6,6 +6,8 @@ export interface MenuItem {
   label: string;
   icon?: ReactNode;
   hint?: string;
+  /** The current choice of a pick-one menu (a sort key) - the menu primitive's `is-active` look. */
+  active?: boolean;
   danger?: boolean;
   disabled?: boolean;
   onSelect: () => void;
@@ -58,6 +60,7 @@ export function DropdownMenu({
             key={item.id}
             icon={item.icon}
             hint={item.hint}
+            active={item.active}
             danger={item.danger}
             disabled={item.disabled}
             onSelect={item.onSelect}

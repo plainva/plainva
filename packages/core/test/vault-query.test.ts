@@ -372,6 +372,36 @@ describe("VaultQueryService", () => {
     expect(backlinks[0].property_key).toBe("projekt");
   });
 
+  /**
+   * Finding 2026-09-19: the statement had no ORDER BY, so a note could list its
+   * backlinks differently from one open to the next. The base order is definite
+   * now, and the title and time a sort menu needs ride along.
+   */
+  it("returns backlinks in a definite order, with the title and time of each source", async () => {
+    db.mockedResults.push([{ source_path: "a.md", source_title: "Alpha", source_mtime: 42, target_path: "world", line_number: 3 }]);
+    db.mockedResults.push([{ path: "a.md" }, { path: "world.md" }]);
+    const backlinks = await queryService.getBacklinks("world.md");
+    expect(db.queries[0].query).toContain("f.title as source_title");
+    expect(db.queries[0].query).toContain("f.mtime_local as source_mtime");
+    expect(db.queries[0].query).toMatch(/ORDER BY f\.path COLLATE NOCASE ASC, l\.line_number ASC/);
+    expect(backlinks[0]).toMatchObject({ source_title: "Alpha", source_mtime: 42 });
+  });
+
+  it("orders search hits by the reader's choice, and only ever by a column from its own table", async () => {
+    const orderOf = async (order?: { key: "relevance" | "modified" | "title" | "path"; dir: "asc" | "desc" } | null) => {
+      db.queries.length = 0;
+      db.mockedResults.push([]);
+      await queryService.searchFullText("task", 10, 0, false, order);
+      return /ORDER BY (.+)/.exec(db.queries[0].query)![1].trim();
+    };
+    expect(await orderOf()).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
+    expect(await orderOf({ key: "relevance", dir: "asc" })).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
+    expect(await orderOf({ key: "modified", dir: "desc" })).toBe("f.mtime_local DESC, f.path ASC");
+    expect(await orderOf({ key: "modified", dir: "asc" })).toBe("f.mtime_local ASC, f.path ASC");
+    expect(await orderOf({ key: "title", dir: "asc" })).toBe("f.title COLLATE NOCASE ASC, f.path ASC");
+    expect(await orderOf({ key: "path", dir: "desc" })).toBe("f.path COLLATE NOCASE DESC, f.path ASC");
+  });
+
   it("resolves property-scoped relation sources onto their targets", async () => {
     // corpus
     db.mockedResults.push([

@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-16
+Última actualización: 2026-09-19
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -65,7 +65,7 @@ Elige una carpeta local nueva y vacía y, para crear en línea, una carpeta de n
 ## La interfaz
 
 - **Barra lateral izquierda** — tres vistas: **Archivos** (el árbol de archivos), **Etiquetas** (todas las `#etiquetas` del vault) y **Bases de datos** (cada `.base` del vault, agrupada por carpeta — haz clic para abrirla); **Abiertos recientemente** y **Marcadores** son secciones encima del selector de vistas, así que permanecen visibles en las tres vistas. En la parte superior está el campo de búsqueda, con un **+** al lado para Nueva nota, Nueva carpeta, Nueva base y Nota diaria. El texto de ejemplo del campo de búsqueda indica qué se está buscando, y las pestañas muestran su nombre mientras el panel sea suficientemente ancho — a medida que se estrecha, primero solo la pestaña activa conserva su nombre, y después solo quedan los iconos. Abajo: el selector de vaults, **Abrir nota diaria** y **Configuración**. El botón de doble flecha junto a las tres vistas contrae o expande todas las carpetas de una vez, y **Mostrar en el árbol de archivos** en el menú ⋮ del editor muestra la nota abierta directamente en el árbol. En la vista **Archivos**, un encabezado muestra el nombre y el icono del vault actual.
-- **Ordenar**: el botón junto al campo de búsqueda ordena el árbol de archivos por **Título**, **Última modificación** o **Creación**; elegir la misma opción otra vez invierte la dirección. Las subcarpetas y el `index.md` de una carpeta siempre van delante; la elección se recuerda en este dispositivo.
+- **Ordenar**: el botón junto al campo de búsqueda ordena el árbol de archivos por **Título**, **Última modificación** o **Creación**; elegir la misma opción otra vez invierte la dirección. Las subcarpetas y el `index.md` de una carpeta siempre van delante; la elección se recuerda en este dispositivo. Mientras hay una búsqueda activa, el mismo botón ordena los resultados: **Relevancia**, **Última modificación**, **Título** o **Ruta**.
 - **Barra de título** — tus pestañas abiertas. Las pestañas se pueden reordenar arrastrándolas y mover entre paneles del editor.
 - **Área del editor** — donde lees y escribes. A través del menú de la pestaña (**Dividir a la derecha** / **Dividir abajo**) o los atajos `Ctrl+Alt+V` / `Ctrl+Alt+S` divides el editor en dos paneles, por ejemplo una nota junto a una base de datos.
 - **Más ventanas**: una nota en su propia ventana muestra a la derecha la misma barra lateral de contexto (esquema, grafo, bases de datos, backlinks, propiedades; el calendario se queda en la ventana principal), que se pliega y despliega desde la barra de título. El menú **⋮** del editor hace ahí lo mismo que en la ventana principal: **Historial de versiones…** y la resolución de conflictos se abren en la ventana de la nota, **Mostrar en el árbol de archivos** trae al frente la ventana con el árbol de archivos y selecciona el archivo, y el clic derecho en una pestaña ofrece el mismo menú de la pestaña (sin **Abrir en una ventana nueva** — la pestaña ya está en una).

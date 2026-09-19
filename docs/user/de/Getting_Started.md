@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-09-16
+Stand: 2026-09-19
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -65,7 +65,7 @@ Wähle einen neuen, leeren lokalen Ordner und bei einer Online-Neuanlage einen l
 ## Die Oberfläche
 
 - **Linke Seitenleiste** — drei Ansichten: **Dateien** (der Dateibaum), **Tags** (alle `#tags` im Vault) und **Datenbanken** (jede `.base` im Vault, nach Ordner gruppiert — ein Klick öffnet sie); **Zuletzt geöffnet** und **Lesezeichen** stehen als Abschnitte über dem Ansichts-Umschalter und bleiben deshalb in allen drei Ansichten sichtbar. Ganz oben liegt das Suchfeld, daneben ein **+** für Neue Notiz, Neuer Ordner, Neue Base und Tageseintrag. Der Platzhalter im Suchfeld sagt, was gerade durchsucht wird, und die Reiter tragen ihren Namen, solange die Leiste breit genug ist — wird sie schmaler, behält zuerst nur noch der aktive Reiter seinen Namen, dann bleiben die Symbole. Unten: Vault-Wechsler, **Tägliche Notiz öffnen** und **Einstellungen**. Ein Klick auf das Doppelpfeil-Symbol neben den Ansichten klappt alle Ordner auf einmal ein oder aus, und **Im Dateibaum anzeigen** im ⋮-Menü des Editors zeigt die geöffnete Notiz direkt im Baum. In der Ansicht **Dateien** zeigt eine Kopfzeile den Namen und das Icon des aktuellen Vaults.
-- **Sortieren** — der Knopf neben dem Suchfeld ordnet den Dateibaum nach **Titel**, **Zuletzt geändert** oder **Erstellt**; dieselbe Wahl noch einmal kehrt die Richtung um. Unterordner und die `index.md` eines Ordners bleiben immer vorn; die Wahl merkt sich dieses Gerät.
+- **Sortieren** — der Knopf neben dem Suchfeld ordnet den Dateibaum nach **Titel**, **Zuletzt geändert** oder **Erstellt**; dieselbe Wahl noch einmal kehrt die Richtung um. Unterordner und die `index.md` eines Ordners bleiben immer vorn; die Wahl merkt sich dieses Gerät. Solange eine Suche aktiv ist, sortiert derselbe Knopf stattdessen die Treffer: **Relevanz**, **Zuletzt geändert**, **Titel** oder **Pfad**.
 - **Titelleiste** — Deine geöffneten Tabs. Tabs lassen sich per Drag umsortieren und zwischen Editor-Bereichen verschieben.
 - **Editor-Bereich** — hier liest und schreibst Du. Über das Tab-Menü (**Rechts teilen** / **Unten teilen**) oder die Kürzel `Strg+Alt+V` / `Strg+Alt+S` teilst Du den Editor in zwei Bereiche (Split), z. B. für Notiz + Datenbank nebeneinander.
 - **Weitere Fenster** — eine Notiz in einem eigenen Fenster zeigt rechts dieselbe Kontext-Seitenleiste (Gliederung, Graph, Datenbanken, Backlinks, Eigenschaften; der Kalender bleibt beim Hauptfenster), ein- und ausklappbar über die Titelleiste. Das **⋮**-Menü des Editors tut dort dasselbe wie im Hauptfenster: **Versionsverlauf…** und die Konfliktlösung öffnen im Fenster der Notiz, **Im Dateibaum anzeigen** holt das Fenster mit dem Dateibaum nach vorn und markiert die Datei, und ein Rechtsklick auf einen Tab bietet dasselbe Tab-Menü (ohne **In neuem Fenster öffnen** — der Tab ist schon in einem).

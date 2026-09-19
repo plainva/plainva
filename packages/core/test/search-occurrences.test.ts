@@ -36,7 +36,7 @@ describe("bounded result pages", () => {
     const second = await service.searchOccurrencesPage("task", { cursor: first.next, limit: 2 });
     expect(second.hits.map((hit) => [hit.path, hit.occurrence?.from])).toEqual([["A.md", 10], ["B.md", 0]]);
     expect(second.next).toBeNull();
-    expect(search).toHaveBeenCalledWith("task", 17, 0, true);
+    expect(search).toHaveBeenCalledWith("task", 17, 0, true, null);
   });
   it("examines at most sixteen notes, rejects obsolete queries and observes cancellation", async () => {
     const service = new VaultQueryService(new MockDatabaseAdapter());
@@ -44,9 +44,38 @@ describe("bounded result pages", () => {
     const page = await service.searchOccurrencesPage("task", { cursor: { query: "old", noteOffset: 900, from: 500 } });
     expect(page.hits).toHaveLength(16);
     expect(page.next?.noteOffset).toBe(16);
-    expect(search).toHaveBeenCalledWith("task", 17, 0, true);
+    expect(search).toHaveBeenCalledWith("task", 17, 0, true, null);
     const abort = new AbortController(); abort.abort();
     await expect(service.searchOccurrencesPage("task", { signal: abort.signal })).rejects.toThrow();
     expect(search).toHaveBeenCalledTimes(1);
+  });
+  /**
+   * The order is part of the request (finding 2026-09-19). Hits arrive page by
+   * page, so the ORDER has to be the statement's: a page sorted after the fact
+   * would reshuffle the list with every "load more". And a cursor belongs to
+   * the order it was cut from - offset 16 by title is not offset 16 by time.
+   */
+  it("hands the chosen order to the statement and stamps it on the cursor", async () => {
+    const service = new VaultQueryService(new MockDatabaseAdapter());
+    const search = vi.spyOn(service, "searchFullText").mockResolvedValue(Array.from({ length: 17 }, (_, i) => row(`${i}.md`, "task")));
+    const page = await service.searchOccurrencesPage("task", { order: { key: "modified", dir: "desc" } });
+    expect(search).toHaveBeenCalledWith("task", 17, 0, true, { key: "modified", dir: "desc" });
+    expect(page.next).toMatchObject({ query: "task", order: "modified:desc", noteOffset: 16 });
+    // The same order continues where the cursor stands ...
+    await service.searchOccurrencesPage("task", { cursor: page.next, order: { key: "modified", dir: "desc" } });
+    expect(search).toHaveBeenLastCalledWith("task", 17, 16, true, { key: "modified", dir: "desc" });
+    // ... another order, or the other direction, starts over.
+    await service.searchOccurrencesPage("task", { cursor: page.next, order: { key: "title", dir: "asc" } });
+    expect(search).toHaveBeenLastCalledWith("task", 17, 0, true, { key: "title", dir: "asc" });
+    await service.searchOccurrencesPage("task", { cursor: page.next, order: { key: "modified", dir: "asc" } });
+    expect(search).toHaveBeenLastCalledWith("task", 17, 0, true, { key: "modified", dir: "asc" });
+  });
+  it("reads a cursor from before the option as relevance", async () => {
+    const service = new VaultQueryService(new MockDatabaseAdapter());
+    const search = vi.spyOn(service, "searchFullText").mockResolvedValue([row("A.md", "task")]);
+    await service.searchOccurrencesPage("task", { cursor: { query: "task", noteOffset: 32, from: 0 } });
+    expect(search).toHaveBeenLastCalledWith("task", 17, 32, true, null);
+    await service.searchOccurrencesPage("task", { cursor: { query: "task", noteOffset: 32, from: 0 }, order: { key: "relevance", dir: "desc" } });
+    expect(search).toHaveBeenLastCalledWith("task", 17, 32, true, { key: "relevance", dir: "desc" });
   });
 });

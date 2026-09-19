@@ -65,7 +65,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
 import { Plus, ChevronsDownUp, ChevronsUpDown, FolderTree, RefreshCw, ArrowUpDown } from "lucide-react";
-import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
+import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey,
+  SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
@@ -230,6 +231,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     setTreeSort((current) => {
       const next = nextFolderSort(current, key);
       writeStoredFolderSort(next);
+      return next;
+    });
+  };
+  // While a query is active the same button orders the HITS (finding
+  // 2026-09-19): one control next to the search field, and it means whatever
+  // the list below it currently is. Remembered per device, like the tree's.
+  const [searchSort, setSearchSort] = useState<SearchSort>(() => readStoredSearchSort());
+  /** The files view with a query in the field: the list below the button is search hits, not the tree. */
+  const searching = leftSidebarTab === "files" && leftQueryDebounced.trim() !== "";
+  const chooseSearchSort = (key: SearchSortKey) => {
+    setSearchSort((current) => {
+      const next = nextSearchSort(current, key);
+      writeStoredSearchSort(next);
       return next;
     });
   };
@@ -1202,7 +1216,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               data-tip={t('browse.sortBy')}
               data-testid="sidebar-sort"
               onClick={() => setShowSortMenu((s) => !s)}
-              className={`pv-btn pv-btn--ghost${treeSort.key !== 'title' ? ' is-active' : ''}`}
+              className={`pv-btn pv-btn--ghost${(searching ? searchSort.key !== 'relevance' : treeSort.key !== 'title') ? ' is-active' : ''}`}
               style={{ width: 34, height: 34, padding: 0 }}
             >
               <ArrowUpDown size={ICON.ui} />
@@ -1212,12 +1226,21 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               anchorRef={sortBtnRef}
               onClose={() => setShowSortMenu(false)}
               ariaLabel={t('browse.sortBy')}
-              items={(['title', 'modified', 'created'] as const).map((key) => ({
-                id: `sort-${key}`,
-                label: t(key === 'title' ? 'browse.sortTitle' : key === 'modified' ? 'browse.sortModified' : 'browse.sortCreated'),
-                hint: treeSort.key === key ? t(treeSort.dir === 'asc' ? 'browse.sortAsc' : 'browse.sortDesc') : undefined,
-                onSelect: () => chooseTreeSort(key),
-              }))}
+              items={searching
+                ? SEARCH_SORT_KEYS.map((key) => ({
+                    id: `search-sort-${key}`,
+                    label: t(listSortLabelKey(key)),
+                    // Relevance has no direction; the others say which way they run.
+                    hint: searchSort.key === key && key !== 'relevance' ? t(searchSort.dir === 'asc' ? 'browse.sortAsc' : 'browse.sortDesc') : undefined,
+                    active: searchSort.key === key,
+                    onSelect: () => chooseSearchSort(key),
+                  }))
+                : (['title', 'modified', 'created'] as const).map((key) => ({
+                    id: `sort-${key}`,
+                    label: t(key === 'title' ? 'browse.sortTitle' : key === 'modified' ? 'browse.sortModified' : 'browse.sortCreated'),
+                    hint: treeSort.key === key ? t(treeSort.dir === 'asc' ? 'browse.sortAsc' : 'browse.sortDesc') : undefined,
+                    onSelect: () => chooseTreeSort(key),
+                  }))}
             />
           </div>
           <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -1326,6 +1349,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   onRenameTabPrefix={renameTabPrefix}
                   externalQuery={leftQueryDebounced}
                   sort={treeSort}
+                  searchSort={searchSort}
                   onOpenInSplit={openPathInSplit}
                   isBookmarked={(p, type = "file") => bookmarks.some((b) => b.type === type && b.path === p)}
                   onToggleBookmarkPath={toggleBookmark}

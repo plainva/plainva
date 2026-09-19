@@ -41,12 +41,32 @@ export interface SearchResult extends FileRecord {
   titleHighlighted?: string | null;
 }
 
+/**
+ * The order of search hits (finding 2026-09-19). Relevance was the only one;
+ * a reader looking for "the note I changed yesterday" had no way to say so.
+ * The order is part of the QUERY, not a client-side shuffle: hits arrive page
+ * by page, and a page sorted after the fact would reorder under the reader's
+ * eyes with every "load more".
+ */
+export type SearchOrderKey = "relevance" | "modified" | "title" | "path";
+export interface SearchOrder {
+  key: SearchOrderKey;
+  dir: "asc" | "desc";
+}
+
+/** The cursor's word for an order — a page belongs to the order it was cut from. */
+export function searchOrderId(order: SearchOrder | null | undefined): string {
+  return !order || order.key === "relevance" ? "relevance" : `${order.key}:${order.dir}`;
+}
+
 export interface SearchPageCursor {
   query: string;
   noteOffset: number;
   from: number;
   path?: string;
   mtime?: number;
+  /** `searchOrderId` of the order this cursor continues; absent = relevance (cursors from before the option). */
+  order?: string;
 }
 export interface SearchPage { hits: SearchResult[]; next: SearchPageCursor | null }
 
@@ -71,6 +91,9 @@ export interface TaskAnchorRecord {
 
 export interface LinkRecord {
   source_path: string;
+  /** The linking note's indexed title and modification time — what a backlink list names and sorts its rows by. */
+  source_title?: string | null;
+  source_mtime?: number | null;
   target_path: string;
   link_type: string;
   anchor?: string | null;
@@ -140,7 +163,7 @@ export class VaultQueryService {
    * parseSearchQuery — every text term becomes a quoted prefix token, so
    * results appear while typing and no input can raise FTS5 syntax errors.
    */
-  async searchFullText(query: string, limit: number = 50, offset = 0, includeSource = false): Promise<SearchResult[]> {
+  async searchFullText(query: string, limit: number = 50, offset = 0, includeSource = false, order?: SearchOrder | null): Promise<SearchResult[]> {
     const parsed = parseSearchQuery(query);
     if (isEmptySearchQuery(parsed)) return [];
 
@@ -167,6 +190,12 @@ export class VaultQueryService {
         NULL AS snippet, NULL AS titleHighlighted`;
       from = `files f`;
       orderBy = `f.mtime_local DESC`;
+    }
+    // A chosen order replaces the ranking (finding 2026-09-19). Only literals
+    // from this table reach the statement — never the caller's strings.
+    if (order && order.key !== "relevance") {
+      const column = order.key === "modified" ? "f.mtime_local" : order.key === "title" ? "f.title COLLATE NOCASE" : "f.path COLLATE NOCASE";
+      orderBy = `${column} ${order.dir === "asc" ? "ASC" : "DESC"}`;
     }
 
     if (parsed.notMatch !== null) {
@@ -203,12 +232,16 @@ export class VaultQueryService {
   }
 
   /** At most sixteen notes and one display page per call; no invented total. */
-  async searchOccurrencesPage(query: string, options: { cursor?: SearchPageCursor | null; limit?: number; signal?: AbortSignal } = {}): Promise<SearchPage> {
-    const cursor = options.cursor?.query === query ? options.cursor : null;
+  async searchOccurrencesPage(query: string, options: { cursor?: SearchPageCursor | null; limit?: number; signal?: AbortSignal; order?: SearchOrder | null } = {}): Promise<SearchPage> {
+    // A cursor continues ONE query in ONE order. A page cut from another order
+    // would resume at an offset that means something else there, so it is
+    // dropped like a cursor of another query and the list starts over.
+    const order = searchOrderId(options.order);
+    const cursor = options.cursor?.query === query && (options.cursor.order ?? "relevance") === order ? options.cursor : null;
     const limit = Math.min(100, Math.max(1, options.limit ?? 40));
     const offset = Math.max(0, cursor?.noteOffset ?? 0);
     options.signal?.throwIfAborted();
-    const rows = await this.searchFullText(query, 17, offset, true);
+    const rows = await this.searchFullText(query, 17, offset, true, options.order ?? null);
     options.signal?.throwIfAborted();
     const hits: SearchResult[] = [];
     for (let index = 0; index < Math.min(16, rows.length); index++) {
@@ -220,10 +253,10 @@ export class VaultQueryService {
       hits.push(...visible.map((hit) => ({ ...record, titleHighlighted: null, ...hit })));
       // Operator-only/title-only matches remain navigable even without a body address.
       if (!occurrences.length && from === 0) hits.push(record);
-      if (occurrences.length > visible.length) return { hits, next: { query, noteOffset: offset + index, from: visible[visible.length - 1]?.occurrence.to ?? from, path: record.path, mtime: record.mtime_local } };
-      if (hits.length >= limit) return { hits, next: index + 1 < rows.length ? { query, noteOffset: offset + index + 1, from: 0 } : null };
+      if (occurrences.length > visible.length) return { hits, next: { query, order, noteOffset: offset + index, from: visible[visible.length - 1]?.occurrence.to ?? from, path: record.path, mtime: record.mtime_local } };
+      if (hits.length >= limit) return { hits, next: index + 1 < rows.length ? { query, order, noteOffset: offset + index + 1, from: 0 } : null };
     }
-    return { hits, next: rows.length > 16 ? { query, noteOffset: offset + 16, from: 0 } : null };
+    return { hits, next: rows.length > 16 ? { query, order, noteOffset: offset + 16, from: 0 } : null };
   }
 
   /**
@@ -574,11 +607,18 @@ export class VaultQueryService {
     const targetBasename = targetPath.split(/[/\\]/).pop()?.replace(/\.md$/, "");
 
     // 1. Fetch all candidate links matching the basename
+    // Ordered (finding 2026-09-19): the statement had no ORDER BY, so the rows
+    // came in whatever order the link table held them and the same note could
+    // list its backlinks differently from one open to the next. Path and line
+    // make the base order definite; the panels sort by the reader's choice on
+    // top of it, using the title and the time that ride along here.
     let sql = `
-      SELECT f.path as source_path, l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
+      SELECT f.path as source_path, f.title as source_title, f.mtime_local as source_mtime,
+        l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
       FROM links l
       JOIN files f ON f.id = l.source_id
       WHERE l.target_path LIKE ? ESCAPE '\\'
+      ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC
     `;
     const likeQuery = `%${targetBasename?.replace(/[\\%_]/g, '\\$&')}%`;
     const candidateLinks = await this.db.query<LinkRecord>(sql, [likeQuery]);

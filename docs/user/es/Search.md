@@ -1,6 +1,6 @@
 # Buscar
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-19
 
 Plainva ofrece tres formas de buscar: búsqueda de texto completo en todo el vault, el selector rápido para abrir archivos, y buscar y reemplazar dentro de una nota.
 
@@ -10,7 +10,7 @@ El campo superior de la barra lateral busca títulos y contenidos en todo el vau
 
 La búsqueda reacciona mientras escribes: los prefijos de palabra ya coinciden ("Proy" encuentra "Proyecto plan") — no hace falta pulsar Enter. La **X** a la derecha del campo borra la búsqueda actual (o pulsa `Esc`); la barra lateral vuelve entonces a mostrar el árbol de archivos normal.
 
-La búsqueda muestra cada aparición con un fragmento, la ruta de encabezados y el número de línea. Al abrir una fila se selecciona esa aparición concreta; varias coincidencias de una misma nota aparecen por separado. El contador incluye solo los resultados ya cargados. Puedes cargar más apariciones. Las flechas cambian la selección y Enter la abre. Se indican la carga, los resultados vacíos y los errores; una nueva consulta descarta respuestas anteriores. Si una edición impide identificar la aparición de forma inequívoca, se muestra un aviso. Estas apariciones también están disponibles en el selector rápido y la búsqueda móvil. Al volver a la búsqueda en el teléfono se recuperan la consulta, los resultados cargados y la posición de la lista.
+La búsqueda muestra cada aparición con un fragmento, la ruta de encabezados y el número de línea. Al abrir una fila se selecciona esa aparición concreta; varias coincidencias de una misma nota aparecen por separado. El contador incluye solo los resultados ya cargados. Puedes cargar más apariciones. Las flechas cambian la selección y Enter la abre. Se indican la carga, los resultados vacíos y los errores; una nueva consulta descarta respuestas anteriores. Si una edición impide identificar la aparición de forma inequívoca, se muestra un aviso. Estas apariciones también están disponibles en el selector rápido y la búsqueda móvil. Al volver a la búsqueda en el teléfono se recuperan la consulta, los resultados cargados y la posición de la lista. Los resultados llegan por **Relevancia**, salvo que elijas **Última modificación**, **Título** o **Ruta** con el botón de ordenar junto al campo de búsqueda (en el teléfono: en la barra de la búsqueda); al cargar más se mantiene el orden elegido.
 
 El campo de búsqueda también se aplica a las demás vistas de la barra lateral: en **Etiquetas** filtra la lista de etiquetas, en **Marcadores** los marcadores.
 

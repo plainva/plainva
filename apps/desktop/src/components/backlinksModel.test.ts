@@ -10,8 +10,8 @@ describe("groupBacklinks", () => {
       { source_path: "a.md" },
     ]);
     expect(grouped).toEqual([
-      { source_path: "a.md", count: 3, lines: [] },
-      { source_path: "b.md", count: 1, lines: [] },
+      { source_path: "a.md", title: null, mtime: null, count: 3, lines: [] },
+      { source_path: "b.md", title: null, mtime: null, count: 1, lines: [] },
     ]);
   });
 
@@ -35,7 +35,15 @@ describe("groupBacklinks", () => {
       { source_path: "a.md", line_number: 12 },
       { source_path: "a.md", line_number: null },
     ]);
-    expect(grouped).toEqual([{ source_path: "a.md", count: 4, lines: [3, 12] }]);
+    expect(grouped).toEqual([{ source_path: "a.md", title: null, mtime: null, count: 4, lines: [3, 12] }]);
+  });
+
+  it("carries the source's title and time along — what the rows are named and sorted by (finding 2026-09-19)", () => {
+    const grouped = groupBacklinks([
+      { source_path: "a.md", source_title: " Alpha ", source_mtime: 42 },
+      { source_path: "b.md", source_title: "", source_mtime: null },
+    ]);
+    expect(grouped.map((g) => [g.title, g.mtime])).toEqual([["Alpha", 42], [null, null]]);
   });
 });
 

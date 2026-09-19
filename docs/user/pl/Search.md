@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-09-15
+Stan na: 2026-09-19
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -10,7 +10,7 @@ Pole u góry panelu bocznego przeszukuje tytuły i treść w całym sejfie. Loka
 
 Wyszukiwanie reaguje w trakcie pisania: prefiksy słów pasują już od razu ("Projek" znajduje "Projekt plan") — bez potrzeby naciskania Enter. **X** po prawej stronie pola czyści bieżące wyszukiwanie (albo naciśnij `Esc`); pasek boczny pokazuje wtedy znowu zwykłe drzewo plików.
 
-Lista pokazuje poszczególne wystąpienia wraz z fragmentem tekstu, ścieżką nagłówków i numerem wiersza. Otwarcie pozycji zaznacza dokładnie wybrane wystąpienie; kilka dopasowań w tej samej notatce jest pokazanych osobno. Licznik obejmuje tylko załadowane wyniki. Można wczytać kolejne wystąpienia. Strzałki zmieniają wybór, a Enter go otwiera. Ładowanie, brak wyników i błędy są wyraźnie wskazane; nowe zapytanie odrzuca stare odpowiedzi. Gdy po edycji nie można jednoznacznie odnaleźć wystąpienia, pojawia się komunikat. Te same wystąpienia są dostępne w szybkim przełączniku i wyszukiwaniu mobilnym. Powrót do wyszukiwania na telefonie przywraca zapytanie, wczytane wyniki i pozycję listy.
+Lista pokazuje poszczególne wystąpienia wraz z fragmentem tekstu, ścieżką nagłówków i numerem wiersza. Otwarcie pozycji zaznacza dokładnie wybrane wystąpienie; kilka dopasowań w tej samej notatce jest pokazanych osobno. Licznik obejmuje tylko załadowane wyniki. Można wczytać kolejne wystąpienia. Strzałki zmieniają wybór, a Enter go otwiera. Ładowanie, brak wyników i błędy są wyraźnie wskazane; nowe zapytanie odrzuca stare odpowiedzi. Gdy po edycji nie można jednoznacznie odnaleźć wystąpienia, pojawia się komunikat. Te same wystąpienia są dostępne w szybkim przełączniku i wyszukiwaniu mobilnym. Powrót do wyszukiwania na telefonie przywraca zapytanie, wczytane wyniki i pozycję listy. Wyniki są ułożone według pola **Trafność**, chyba że przyciskiem sortowania obok pola wyszukiwania (na telefonie: na pasku ekranu wyszukiwania) wybierzesz **Ostatnia zmiana**, **Tytuł** lub **Ścieżka**; doładowanie kolejnych zachowuje wybraną kolejność.
 
 Pole wyszukiwania działa też w pozostałych widokach paska bocznego: w **Tagi** filtruje listę tagów, w **Zakładki** — zakładki.
 

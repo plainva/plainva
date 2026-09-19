@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-16
+Laatst bijgewerkt: 2026-09-19
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -65,7 +65,7 @@ Kies een nieuwe, lege lokale map en bij online aanmaken een lege cloudmap. Besta
 ## De interface
 
 - **Linkerzijbalk** — drie weergaven: **Bestanden** (de bestandsboom), **Tags** (alle `#tags` in de vault) en **Databases** (elke `.base` in de vault, gegroepeerd per map — klik om te openen); **Onlangs geopend** en **Bladwijzers** zijn secties boven de weergavewisselaar, dus blijven ze zichtbaar in alle drie de weergaven. Helemaal bovenaan staat het zoekveld, met ernaast een **+** voor Nieuwe notitie, Nieuwe map, Nieuwe base en Dagnotitie. De placeholdertekst van het zoekveld laat zien waarnaar wordt gezocht, en de tabbladen tonen hun naam zolang het paneel breed genoeg is — naarmate het smaller wordt, behoudt eerst alleen het actieve tabblad zijn naam, en blijven daarna alleen de iconen over. Onderaan: vault-wisselaar, **Dagnotitie openen** en **Instellingen**. De dubbele-pijl-knop naast de drie weergaven vouwt alle mappen in één keer in of uit, en **Tonen in bestandsboom** in het ⋮-menu van de editor toont de geopende notitie direct in de boom. In de weergave **Bestanden** toont een header de naam en het icoon van de huidige vault.
-- **Sorteren** — de knop naast het zoekveld ordent de bestandsboom op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; dezelfde keuze nog eens keert de richting om. Submappen en de `index.md` van een map blijven altijd vooraan; de keuze wordt op dit apparaat onthouden.
+- **Sorteren** — de knop naast het zoekveld ordent de bestandsboom op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; dezelfde keuze nog eens keert de richting om. Submappen en de `index.md` van een map blijven altijd vooraan; de keuze wordt op dit apparaat onthouden. Zolang er een zoekopdracht actief is, sorteert dezelfde knop de treffers: **Relevantie**, **Laatst gewijzigd**, **Titel** of **Pad**.
 - **Titelbalk** — je geopende tabbladen. Tabbladen kun je verslepen om te herordenen en tussen editorpanelen te verplaatsen.
 - **Editorgebied** — hier lees en schrijf je. Via het tabbladmenu (**Rechts splitsen** / **Onder splitsen**) of de sneltoetsen `Ctrl+Alt+V` / `Ctrl+Alt+S` splits je de editor in twee panelen, bijv. een notitie naast een database.
 - **Extra vensters** — een notitie in een eigen venster toont rechts dezelfde contextzijbalk (overzicht, graaf, databases, backlinks, eigenschappen; de kalender blijft bij het hoofdvenster), in- en uitklapbaar via de titelbalk. Het **⋮**-menu van de editor doet daar hetzelfde als in het hoofdvenster: **Versiegeschiedenis…** en de conflictoplossing openen in het venster van de notitie, **Tonen in bestandsboom** haalt het venster met de bestandsboom naar voren en markeert het bestand, en rechtsklikken op een tabblad biedt hetzelfde tabbladmenu (zonder **In nieuw venster openen** — het tabblad zit al in een venster).
