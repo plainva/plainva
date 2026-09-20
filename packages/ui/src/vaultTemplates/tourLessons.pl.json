@@ -1,12 +1,14 @@
 {
   "folder": "Przewodnik", "open": "Otwórz", "try": "Wypróbuj", "result": "Co się zmienia", "more": "Więcej możliwości — opcjonalnie", "overview": "Spis treści", "previous": "Wstecz", "next": "Dalej", "handbook": "Podręcznik",
   "intro": "Zacznij od małego ćwiczenia lub otwórz od razu bazę danych. Pierwsze pięć etapów pokazuje codzienną pracę; pozostałe są opcjonalne. Na pierwsze zapoznanie przeznacz około 10–15 minut, a na próby tyle czasu, ile chcesz. Przykłady są fikcyjne i możesz je zmieniać.",
-  "version": "Wersja danych: 2026-09-11. Daty odnoszą się do dnia utworzenia tego Vaultu. Aktualizacje szablonów dotyczą wyłącznie przyszłych nowych Vaultów; nigdy nie zmieniają ani nie uzupełniają tego Vaultu.",
+  "version": "Wersja danych: 2026-09-20. Daty odnoszą się do dnia utworzenia tego Vaultu. Aktualizacje szablonów dotyczą wyłącznie przyszłych nowych Vaultów; nigdy nie zmieniają ani nie uzupełniają tego Vaultu.",
   "labels": { "effort": "Nakład (minuty)", "open": "Otwarte zadania", "progress": "Ukończone (%)", "planned": "Planowane minuty", "dependencies": "Czeka na", "graph": "Połączenia", "labels": "Etykiety", "colored": "Kolorowe notatki", "tagged": "Notatki przewodnika", "icons": "Notatki z ikonami" },
   "milestone": "Omówić wynik", "captureTask": "Wybrać przydatny następny krok",
   "emptyProject": "Twój następny mały projekt",
   "emptyProjectBody": "Pusty przykład na następny krok. Nie ma jeszcze powiązanych zadań: liczba wynosi 0, a planowane minuty pozostają puste, dopóki nie pojawi się nakład pracy.",
   "journalPast": "Przykładowe podsumowanie: jeden przydatny następny krok i czas na przerwę.", "journalFuture": "Przykładowy plan: zostawić czas na konkretne zadanie. To zamiar, nie opis wykonanej pracy.", "journalToday": "Co sprawiłoby, że ten dzień byłby udany? Napisz zdanie i wybierz małe zadanie.",
+  "journalEntriesToday": ["Otwarty vault wycieczki. Ta linia to wpis dziennika.", "Wypróbować własny wpis dziennika: jedna linia, zapisana z godziną", "Dziennik pokazuje te wpisy ze wszystkich dni #tour"],
+  "journalEntriesYesterday": ["Przynieść z piwnicy segregator podatkowy", "Krótki spacer po pracy"],
   "reviewTitle": "Wieczór czytania — szkic", "reviewBody": "Fikcyjny przykład do sprawdzenia: będziemy czytać razem przez 30 minut. Forma pozostaje szkicem; stara data celowo zachęca do ponownej weryfikacji.", "standaloneTitle": "Pomysł bez połączeń", "standaloneBody": "Ta notatka celowo nie ma jeszcze linków. Włącz osamotnione notatki w grafie, znajdź ją i połącz z czymś przydatnym.",
   "cheatExtra": "## Małe elementy\n\n- Lista\n  - Podpunkt\n\n```text\nKod zachowuje *te znaki*.\n```\n\n[Wróć do tego nagłówka](#małe-elementy). Wypróbuj menu ukośnika w pustym wierszu.",
   "steps": [

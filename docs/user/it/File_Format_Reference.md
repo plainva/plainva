@@ -620,3 +620,13 @@ views:
 - **Eccezione di promemoria.** `remind: off` silenzia il promemoria di un'attività; `remind: 30` ricorda 30 minuti prima del suo orario (ha senso solo per un'attività con orario). Senza la proprietà si applicano le impostazioni.
 - **Stati della casella.** `- [ ]` aperta, `- [x]` completata, `- [/]` in corso, `- [-]` annullata. In corso conta come aperta, annullata come chiusa; una sottoattività annullata esce dal conteggio `file.tasks`. Plainva scrive `[/]` e `[-]` solo quando scegli **Imposta stato**.
 - **Simboli di priorità su una casella.** Letti: 🔺 ⏫ (alta), 🔼 (media), 🔽 ⏬ (bassa). Scritti: ⏫, 🔼 o 🔽, posizionati davanti al primo campo datato.
+
+<!-- journal-2026-09-20 -->
+## Voci di diario
+
+- **Dove.** Sotto un'intestazione della nota giornaliera il cui testo è l'intestazione del diario del vault (impostazione **Intestazione del diario**, predefinita `Journal`); il livello dell'intestazione (da `#` a `######`) non ha importanza. La sezione termina alla successiva intestazione di primo livello della nota. Le righe dentro blocchi di codice e commenti HTML non sono voci.
+- **Forma scritta.** `- HH:mm Testo` — ora locale del dispositivo nel formato 24 ore, uno spazio, poi il testo. Le righe successive della stessa voce sono righe di continuazione, indentate fino al testo. Una voce di tipo attività porta la casella di controllo davanti all'orario: `- [ ] HH:mm Testo`.
+- **Letti anche.** `HH:mm:ss`, un'ora a una sola cifra (`9:05`), i marcatori `*` e `+`, ogni stato della casella di controllo (`[ ]`, `[x]`, `[/]`, `[-]`), ed elenchi con righe vuote tra le voci. Una riga di elenco senza orario non è una voce e viene lasciata invariata.
+- **Ordine.** Le nuove voci vengono accodate alla fine della sezione, prima delle righe vuote finali; l'elenco mantiene il marcatore e la spaziatura che la nota già usa. Un'intestazione mancante viene aggiunta con il testo configurato come `## Journal` alla fine della nota, separata da una riga vuota. Nessuna riga esistente viene riformattata; le terminazioni di riga (LF o CRLF) e il frontmatter restano come sono.
+- **Unione.** Quando due dispositivi hanno aggiunto voci alla stessa sezione, la sincronizzazione unisce le voci per orario — intere voci, mai singole righe; le righe identiche una sola volta, quella locale per prima a parità di orario. Questo vale anche quando entrambi i dispositivi hanno creato la nota. Ogni altra differenza è un conflitto come prima.
+- **Impostazione.** `journalHeading` fa parte del profilo delle impostazioni del vault, accanto alla cartella e al formato delle note giornaliere, così ogni dispositivo legge la stessa intestazione.

@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Última revisão: 2026-09-09
+Última revisão: 2026-09-20
 
 Se um serviço WebDAV, CalDAV ou S3 retornar uma página de login ou um inventário incompleto, o Plainva informa um erro de sincronização. Essa resposta não é tratada como uma pasta ou lista de calendários vazia e não provoca exclusões deduzidas do seu conteúdo. Isso vale tanto no desktop quanto no celular.
 
@@ -9,6 +9,8 @@ Se um arquivo local não puder ser enviado por um erro de permissão ou leitura,
 As alterações offline são preservadas mesmo após várias renomeações. O Plainva conclui as movimentações relacionadas antes de enviar o conteúdo atual; uma operação com falha retém as tarefas dependentes. Se a origem remota não existir, o Plainva envia o arquivo local ou o conteúdo da pasta para o novo local. O conteúdo que não puder ser lido permanece na fila com um erro para nova tentativa.
 
 A confirmação vale apenas para a exclusão realizada. Ela é mantida nas novas tentativas após erros de conexão ou uma reinicialização; novos arquivos no mesmo local não a herdam. A confirmação adicional de uma exclusão em massa pausada e a opção de restaurar afetam apenas as tarefas exibidas. Exclusões grandes que já estavam na fila antes desta atualização podem precisar de uma nova confirmação.
+
+Entradas do diário que dois dispositivos anexam à mesma nota diária antes de terem sincronizado não são um conflito: o Plainva as mescla por horário e mantém cada linha dos dois dispositivos — mesmo quando os dois dispositivos criaram a nota do dia de forma independente. Toda outra alteração simultânea em uma nota é tratada como antes. Veja [Diário](Journal.md).
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 

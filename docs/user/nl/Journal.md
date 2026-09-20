@@ -1,0 +1,62 @@
+# Journaal
+
+Laatst bijgewerkt: 2026-09-20
+
+Het journaal is de snelle manier om iets vast te leggen zonder een notitie te openen: een gedachte, een telefoongesprek, een regel over de dag. Elk item is een gewone lijstregel met een tijdstip — `- 14:05 Router staat in de kelder` — onder een kop van de **dagnotitie van vandaag**. Er is geen nieuw bestandsformaat en geen database: de items leven in je dagnotities, leesbaar in elke editor en verenigbaar met de journaal-plugins van Obsidian (Thino, Knomo).
+
+## Een item schrijven
+
+Eén veld, één **Enter**. Plainva zet het tijdstip; jij typt alleen de tekst. Tags, links en een tweede regel typ je gewoon mee — de tekst is gewoon Markdown.
+
+- **Op de desktop:** `Ctrl+Shift+J` opent het veld **Journaalitem** vanaf overal in Plainva. Hetzelfde veld staat in het **＋**-menu van de zijbalk, in de opdrachtenpalet en in het systeemvakmenu (**Journaalitem**). `Enter` slaat op, `Shift+Enter` begint een nieuwe regel, `Esc` verwerpt.
+- **Op de telefoon:** de **＋**-knop biedt **Journaalitem** aan; het journaalscherm heeft een eigen pen-knop. Ook een lange druk op het app-pictogram biedt **Journaalitem** aan — als app-snelkoppeling onder Android, als snelle actie onder iOS. `Enter` blijft daar een regeleinde; **Item opslaan** slaat op.
+- **Vanuit het deelvenster (telefoon):** kies Plainva en vink **Naar het Journaal** aan — tekst en link worden het item, gedeelde bestanden komen in de bijlagenmap terecht en worden ingesloten.
+- **Met een foto:** het veld op de telefoon heeft **Foto toevoegen**; op de desktop plak je een afbeelding uit het klembord in het veld. De foto komt terecht waar bijlagen komen en wordt in het item ingesloten.
+
+Bestaat de dagnotitie van vandaag nog niet, dan wordt ze onderweg aangemaakt — vanuit je dagnotitie-sjabloon, zonder de vragen ervan te stellen. Na het opslaan meldt een melding **Item opgeslagen** en biedt **Ongedaan maken** aan.
+
+Het veld kent twee soorten, **Taak** en **Journaal**. **Taak** geeft het getypte door aan de [takenweergave](Tasks.md), waar een taak op de gebruikelijke manier ontstaat. De chip **Als taak** is iets anders: hij houdt het item in het journaal en geeft het een selectievakje (`- [ ] 14:05 Onderdeel bestellen`), zodat het ook in de takenweergave verschijnt onder **Uit notities**.
+
+## De journaalweergave
+
+**Journaal openen** (actiebalk op de desktop, **Onderdelen** op de telefoon, of de opdrachtenpalet) toont alle dagen als één stroom: de nieuwste dag bovenaan, binnen een dag het nieuwste item eerst. Links openen, tags zijn pillen, een ingesloten afbeelding verschijnt als voorbeeld, en een lang item wordt ingeklapt — **Meer** opent het.
+
+- **Zoeken en filteren:** het zoekveld doorzoekt de geladen dagen; de chips **Alle**, **Alleen taken** en de meest gebruikte tags beperken de stroom. Een klik op een tag in een item filtert daarop.
+- **Oudere dagen:** Plainva laadt de laatste 14 dagen die items hebben. **Oudere laden** haalt het volgende stuk op; **Naar een dag springen** opent de datumkiezer, waarin dagen met items zijn gemarkeerd, en laadt zo ver terug als de gekozen dag ligt.
+- **Notitie openen** in de kop van een dag opent die dagnotitie; een klik op een item opent de notitie op die regel.
+- **Selectievakjes** van taakitems kun je direct in de stroom afvinken. Ze gedragen zich als in de takenweergave, inclusief de voltooiingsdatum en de eerstvolgende vervaldatum van een herhalende taak.
+
+Elk item heeft een menu (rechtsklik of **⋯** op de desktop; **⋯**, een lange druk of een veegbeweging op de telefoon): **Bewerken** wijzigt de tekst ter plekke en behoudt de tijd, **Kopiëren** kopieert de tekst, **Omzetten in een taak** voegt het selectievakje toe en **Weer omzetten in een item** verwijdert het weer, **Tonen in de notitie** springt naar de regel, **Verwijderen** verwijdert het item — met **Ongedaan maken** in de melding die daarna volgt.
+
+De items van één dag staan ook waar je die dag bekijkt: onder de kalender in de rechterzijbalk van de desktop (voor de dag van de geopende dagnotitie, anders vandaag), en op het scherm **Vandaag** van de telefoon voor de gekozen dag. Beide hebben een klein veld dat precies in die dag schrijft, en **Alle dagen** leidt naar de stroom.
+
+## Hoe een item wordt opgeslagen
+
+```markdown
+## Journal
+
+- 09:12 Werkplaats gebeld #klant
+- [ ] 10:30 Onderdeel bestellen
+- 14:05 Router staat in de kelder
+  De sleutel ligt bij mevrouw Berger.
+```
+
+- Items worden aan het einde van de sectie toegevoegd, zodat het bestand chronologisch leesbaar blijft; de weergave toont het nieuwste bovenaan.
+- De kop heet standaard **Journal** en kan per vault worden gewijzigd onder **Instellingen → Vault → Inhoud en structuur** (**Kop van het journaal**; op de telefoon onder **Instellingen → Inhoud en structuur**). Het niveau ervan maakt niet uit. Ontbreekt de kop, dan voegt Plainva `## Journal` toe aan het einde van de notitie. Het wijzigen van de instelling hernoemt bestaande koppen niet.
+- Plainva leest ook `- 14:05:30 Tekst` (met seconden) en items met een selectievakje, en het zet de lijst voort zoals je notitie ze schrijft (`-`, `*` of `+`, met of zonder lege regels tussen de items). Bestaande regels worden nooit opnieuw opgemaakt.
+- Een wijziging die niet veilig kan worden geplaatst — bijvoorbeeld omdat een codeblok in de sectie nooit is gesloten — wordt met een melding geweigerd, en het veld behoudt je tekst.
+
+Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
+
+## Twee apparaten tegelijk
+
+Voegen twee apparaten items toe aan dezelfde dagnotitie voordat ze zijn gesynchroniseerd, dan is dat **geen conflict**: Plainva voegt de items samen op tijdstip, en elke regel van beide apparaten blijft behouden. Dat geldt ook wanneer beide apparaten de notitie van de dag onafhankelijk van elkaar hebben aangemaakt. Elke andere gelijktijdige wijziging aan de notitie wordt net zo zorgvuldig behandeld als voorheen (zie [Sync-compatibiliteit](Sync_Compatibility.md)).
+
+## Globale snelle invoer (desktop, optioneel)
+
+Onder **Instellingen → Opstarten en gedrag → Globale snelle invoer** kun je **Overal vastleggen met een systeembrede sneltoets** inschakelen. De sneltoets — standaard `Ctrl+Alt+J` (`Cmd+Option+J` onder macOS) — opent dan een klein venster met het invoerveld, ook als een ander programma op de voorgrond staat, zolang Plainva actief is (ook in het systeemvak). `Enter` schrijft het item in de dagnotitie van vandaag van de vault die in Plainva geopend is, en sluit het venster; `Esc` verwerpt.
+
+- **Wijzigen** legt een nieuwe sneltoets vast: druk de gewenste combinatie in, met `Ctrl`, `Alt` of de Windows-/Command-toets. **Standaard herstellen** brengt de standaard terug.
+- Gebruikt een ander programma de sneltoets al, of neemt het systeem hem niet aan, dan zegt Plainva dat onder de schakelaar, in plaats van een sneltoets te laten staan die niets doet.
+- Onder **Wayland** (Linux) geeft het systeem programma's geen systeembrede sneltoets; Plainva zegt dat en registreert niets. Het item in het systeemvak en `Ctrl+Shift+J` leiden naar hetzelfde veld.
+- De sneltoets hoort bij het apparaat en maakt geen deel uit van het instellingenprofiel.

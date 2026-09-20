@@ -954,3 +954,61 @@ test('the journal: capture lands on top, an entry becomes a task the task view k
   await expect(page.getByRole('button', { name: /Order the spare part/ })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('the journal and an OPEN daily note: unsaved typing stays, the entry arrives in the editor, nothing becomes a conflict (plan Journal J2)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date();
+    const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    (window as any).__today = today;
+    fs[`/test-vault/${today}.md`] = '# Today\n\nplan\n\n## Journal\n\n- 08:00 first\n';
+  });
+  await openVault(page);
+  const today = await page.evaluate(() => (window as any).__today as string);
+  const path = `/test-vault/${today}.md`;
+  await page.getByText(today, { exact: true }).first().click();
+  const editor = page.locator('.cm-content');
+  await expect(editor).toContainText('first');
+
+  // The sidebar shows the journal of the open daily note's day, with its field.
+  const section = page.getByTestId('journal-day-section');
+  await expect(section).toContainText('first');
+  const field = section.getByTestId('journal-section-input');
+
+  // Type into the note and capture AT ONCE — inside the editor's one-second save
+  // window, so the typing is still unsaved when the entry is written. (The
+  // capture dialog would do too, but its first opening loads a chunk and can
+  // outlast that second; the field is there already.)
+  await page.locator('.cm-line', { hasText: /^plan$/ }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' typed and unsaved');
+  const typedAt = Date.now();
+  await field.fill('second, from the dialog');
+  await field.press('Enter');
+  await expect(field).toHaveValue('');
+  // The capture really met an UNSAVED note. What this run pins is the OUTCOME;
+  // that the pending save is flushed BEFORE the note is read is pinned in
+  // journalWrite.test.ts - the mock adapter here has no conflict copies, so a
+  // missing flush would not show in this run the way it does in the app.
+  expect(Date.now() - typedAt).toBeLessThan(900);
+
+  // Both are on disk: what was typed, and the entry under it.
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), path)).toMatch(/^# Today\n\nplan typed and unsaved\n\n## Journal\n\n- 08:00 first\n- \d{2}:\d{2} second, from the dialog\n$/);
+  // The open editor adopted the line without a reload and without losing the typing.
+  await expect(editor).toContainText('second, from the dialog');
+  await expect(editor).toContainText('plan typed and unsaved');
+  // No conflict copy, no conflict banner: the pending save went first.
+  const conflicts = await page.evaluate(() => Object.keys((window as any).mockFs).filter((key) => /conflict/i.test(key)));
+  expect(conflicts).toEqual([]);
+  await expect(page.locator('[data-testid="conflict-banner"]')).toHaveCount(0);
+
+  // Typing on afterwards saves on top of the entry instead of over it.
+  await page.locator('.cm-line', { hasText: /^plan typed and unsaved$/ }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), path), { timeout: 15000 }).toMatch(/plan typed and unsaved!\n\n## Journal\n\n- 08:00 first\n- \d{2}:\d{2} second, from the dialog\n$/);
+  expect(errors).toEqual([]);
+});

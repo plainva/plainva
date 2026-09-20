@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-09-10
+Dernière mise à jour : 2026-09-20
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -23,6 +23,8 @@ Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier*
 |---|---|
 | `Ctrl+N` | Nouvelle note dans le dossier sélectionné |
 | `Ctrl+Shift+D` | Ouvrir la note quotidienne d'aujourd'hui |
+| `Ctrl+Shift+J` | Écrire une entrée de journal dans la note quotidienne d'aujourd'hui |
+| `Ctrl+Alt+J` | Capture rapide globale — à l'échelle du système, optionnel (voir [Journal](Journal.md)) |
 | `F2` | Renommer la note active |
 | `Ctrl+Alt+Gauche` / `Ctrl+Alt+Droite` | Retour / Avancer (historique de navigation) |
 

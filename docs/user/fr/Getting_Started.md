@@ -107,6 +107,8 @@ Le format de date utilise les mêmes jetons qu’Obsidian : `YYYY` année, `MM` 
 
 Le **Calendrier** à droite est un aperçu du jour : un **clic** sur une date ouvre l'[onglet calendrier](Calendar_and_Tasks.md) à ce jour ; un **clic droit** ouvre un menu qui indique le jour en haut et propose **Ouvrir le calendrier**, **Note quotidienne** ainsi que les événements et tâches à échéance de ce jour. Les jours avec une note quotidienne portent une petite **icône soleil**, les jours avec des événements des points colorés par calendrier. Le bouton **Aujourd'hui** revient au mois en cours ; cliquer sur le libellé du mois ouvre un sélecteur rapide de mois/année. Vous pouvez aussi y activer **Afficher les numéros de semaine** pour ajouter une colonne de semaine ISO — le réglage est mémorisé.
 
+Le moyen le plus rapide d'entrer dans la note d'aujourd'hui est le **journal** : `Ctrl+Shift+J` prend une ligne, y appose l'heure et l'ajoute sous le titre **Journal** de la note quotidienne d'aujourd'hui — sans ouvrir la note. **Ouvrir le journal** dans la barre d'actions affiche les entrées de tous les jours comme un seul flux. Voir [Journal](Journal.md).
+
 ## Paramètres
 
 **Paramètres** (icône d'engrenage en bas de la barre d'actions tout à gauche, ou `Ctrl+,`) se ferment via le **X** en haut à droite, `Esc` ou un clic en dehors de la fenêtre. Les modifications sont enregistrées immédiatement et automatiquement — seuls les identifiants cloud sont appliqués délibérément via **Connexion** dans la zone **Comptes cloud** (voir [Configurer la synchronisation](Sync_Setup.md)). Les paramètres se composent de deux parties ; chaque zone dans le panneau de gauche ouvre sa propre page, où les paramètres se trouvent dans des cartes de groupe nommées :

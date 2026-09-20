@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-09-15
+Stand: 2026-09-20
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -23,6 +23,8 @@ Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du 
 |---|---|
 | `Strg+N` | Neue Notiz im gewählten Ordner |
 | `Strg+Umschalt+D` | Heutige Tagesnotiz öffnen |
+| `Strg+Umschalt+J` | Journal-Eintrag in die heutige Tagesnotiz schreiben |
+| `Strg+Alt+J` | Globale Schnellerfassung — systemweit, optional (siehe [Journal](Journal.md)) |
 | `F2` | Aktive Notiz umbenennen |
 | `Strg+Alt+Links` / `Strg+Alt+Rechts` | Zurück / Vor (Navigationsverlauf) |
 

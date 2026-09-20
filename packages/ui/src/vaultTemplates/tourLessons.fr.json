@@ -1,12 +1,14 @@
 {
   "folder": "Visite", "open": "Ouvrir", "try": "À essayer", "result": "Le résultat", "more": "Pour aller plus loin — facultatif", "overview": "Vue d’ensemble", "previous": "Précédent", "next": "Suivant", "handbook": "Guide",
   "intro": "Commencez par un petit exercice ou ouvrez directement une base ci-dessous. Les cinq premières étapes présentent le travail quotidien ; la suite est facultative. Comptez environ 10 à 15 minutes pour découvrir les lieux, puis prenez votre temps pour essayer. Tous les exemples sont fictifs et modifiables.",
-  "version": "Version des données : 2026-09-11. Les dates correspondent à la création de ce Vault. Les mises à jour des modèles concernent uniquement les futurs nouveaux Vaults ; celui-ci ne sera jamais modifié ni complété par un modèle.",
+  "version": "Version des données : 2026-09-20. Les dates correspondent à la création de ce Vault. Les mises à jour des modèles concernent uniquement les futurs nouveaux Vaults ; celui-ci ne sera jamais modifié ni complété par un modèle.",
   "labels": { "effort": "Effort (minutes)", "open": "Tâches ouvertes", "progress": "Terminées (%)", "planned": "Minutes prévues", "dependencies": "Attend", "graph": "Connexions", "labels": "Étiquettes", "colored": "Notes colorées", "tagged": "Notes de la visite", "icons": "Notes avec icônes" },
   "milestone": "Faire le bilan", "captureTask": "Choisir une prochaine étape utile",
   "emptyProject": "Votre prochain petit projet",
   "emptyProjectBody": "Un exemple vide pour votre prochaine étape. Aucune tâche liée : le nombre est 0 et les minutes prévues restent vides tant qu’aucun effort n’est renseigné.",
   "journalPast": "Exemple de bilan : une prochaine étape utile, avec du temps pour une pause.", "journalFuture": "Exemple de programme : réserver du temps à une tâche précise. C’est une intention, pas un travail déjà réalisé.", "journalToday": "Qu’est-ce qui rendrait cette journée utile ? Écrivez une phrase et choisissez une petite tâche.",
+  "journalEntriesToday": ["Ouvert le vault de la visite. Cette ligne est une entrée de journal.", "Essayer une entrée de journal à soi : une ligne, enregistrée avec l'heure", "Le journal montre ces entrées pour tous les jours #tour"],
+  "journalEntriesYesterday": ["Remonter le classeur des impôts de la cave", "Petite promenade après le travail"],
   "reviewTitle": "Soirée lecture — brouillon", "reviewBody": "Exemple fictif à relire : nous lirons ensemble pendant 30 minutes. Le format reste un brouillon ; l’ancienne date invite à une nouvelle vérification.", "standaloneTitle": "Une idée sans liens", "standaloneBody": "Cette note n’a volontairement aucun lien. Affichez les notes isolées dans le graphe, trouvez-la puis reliez-la à une idée pertinente.",
   "cheatExtra": "## Petits éléments\n\n- Une liste\n  - Un sous-point\n\n```text\nLe code conserve *ces caractères*.\n```\n\n[Revenir à ce titre](#petits-éléments). Sur une ligne vide, essayez le menu slash.",
   "steps": [

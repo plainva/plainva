@@ -9,6 +9,7 @@ import {
   editJournalEntry,
   ensureDailyNote,
   setJournalEntryTaskState,
+  setPlatformServices,
   toggleJournalEntryTask,
   undoJournalChange,
   type DailyNoteCreateConfig,
@@ -229,5 +230,53 @@ describe("changing an entry", () => {
     await vault.writeTextFile(PATH, "## Journal\n- 12:00 other\n");
     const entry = parseJournal(NOTE).entries[0];
     expect(await editJournalEntry(filesOf(vault), { path: PATH, entry, heading: "Journal" }, { text: "x" })).toEqual({ ok: false, reason: "missing" });
+  });
+});
+
+describe("an open editor is part of the write path", () => {
+  // The rule of every shared write (graph actions, mention linking): the open
+  // editor's pending save goes to disk BEFORE the note is read. Without it that
+  // save overwrites the entry a second later, or the two meet as a conflict.
+  afterEach(() => setPlatformServices(null as never));
+
+  it("flushes the editor's unsaved typing first, so the entry lands on top of it and nothing is lost", async () => {
+    await vault.createDir("Journal");
+    await vault.writeTextFile(PATH, "# Sunday\n\n## Journal\n\n- 09:00 first\n");
+    const order: string[] = [];
+    // The editor holds a sentence that is not on disk yet; the flush writes it.
+    setPlatformServices({
+      flushPendingSave: async (path: string) => {
+        order.push(`flush:${path}`);
+        const disk = await vault.readTextFile(path);
+        if (!disk.includes("typed and unsaved")) await vault.writeTextFile(path, disk.replace("# Sunday\n", "# Sunday\n\ntyped and unsaved\n"));
+      },
+    } as never);
+    const files = filesOf(vault);
+    const spied: JournalFiles = { ...files, readTextFile: async (path) => { order.push("read"); return files.readTextFile(path); } };
+
+    const result = await appendJournalEntry(spied, { date: DAY, text: "second", heading: "Journal", now: NOW });
+
+    expect(result.ok).toBe(true);
+    expect(order[0]).toBe(`flush:${PATH}`);
+    expect(order.indexOf("read")).toBeGreaterThan(0);
+    expect(await vault.readTextFile(PATH)).toBe("# Sunday\n\ntyped and unsaved\n\n## Journal\n\n- 09:00 first\n- 14:05 second\n");
+  });
+
+  it("does the same before an edit, a delete and an undo", async () => {
+    await vault.createDir("Journal");
+    await vault.writeTextFile(PATH, "## Journal\n\n- 09:00 first\n- 10:00 second\n");
+    const flushed: string[] = [];
+    setPlatformServices({ flushPendingSave: async (path: string) => void flushed.push(path) } as never);
+    const files = filesOf(vault);
+    const entry = (raw: string, time: string) => parseJournal(raw, { heading: "Journal" }).entries.find((e) => e.time === time)!;
+
+    const edited = await editJournalEntry(files, { path: PATH, entry: entry(await vault.readTextFile(PATH), "09:00"), heading: "Journal" }, { text: "first, reworded" });
+    expect(edited.ok).toBe(true);
+    const removed = await deleteJournalEntry(files, { path: PATH, entry: entry(await vault.readTextFile(PATH), "10:00"), heading: "Journal" });
+    expect(removed.ok && removed.undo).toBeTruthy();
+    expect(await undoJournalChange(files, (removed as { undo: NonNullable<unknown> }).undo as never, "Journal")).toBe(true);
+
+    expect(flushed).toEqual([PATH, PATH, PATH]);
+    expect(await vault.readTextFile(PATH)).toBe("## Journal\n\n- 09:00 first, reworded\n- 10:00 second\n");
   });
 });

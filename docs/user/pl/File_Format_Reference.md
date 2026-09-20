@@ -620,3 +620,13 @@ views:
 - **Wyjątek przypomnienia.** `remind: off` wycisza przypomnienie jednego zadania; `remind: 30` przypomina 30 minut przed jego godziną (ma sens tylko dla zadania z godziną). Bez tej właściwości obowiązują ustawienia.
 - **Stany pola wyboru.** `- [ ]` otwarte, `- [x]` ukończone, `- [/]` w toku, `- [-]` anulowane. W toku liczy się jako otwarte, anulowane jako zamknięte; anulowane podzadanie opuszcza licznik `file.tasks`. Plainva zapisuje `[/]` i `[-]` tylko wtedy, gdy wybierzesz **Ustaw stan**.
 - **Znaczniki priorytetu na polu wyboru.** Odczyt: 🔺 ⏫ (wysoki), 🔼 (średni), 🔽 ⏬ (niski). Zapis: ⏫, 🔼 lub 🔽, umieszczony przed pierwszym polem z datą.
+
+<!-- journal-2026-09-20 -->
+## Wpisy dziennika
+
+- **Gdzie.** Pod nagłówkiem notatki dziennej, którego tekst jest nagłówkiem dziennika vaulta (ustawienie **Nagłówek dziennika**, domyślnie `Journal`); poziom nagłówka (`#` do `######`) nie ma znaczenia. Sekcja kończy się na następnym nagłówku najwyższego poziomu notatki. Wiersze wewnątrz bloków kodu i komentarzy HTML nie są wpisami.
+- **Forma zapisu.** `- HH:mm Tekst` — 24-godzinny czas lokalny urządzenia, jedna spacja, potem tekst. Kolejne wiersze tego samego wpisu to wiersze kontynuacji, wcięte do tekstu. Wpis zadania niesie pole wyboru przed godziną: `- [ ] HH:mm Tekst`.
+- **Odczytywane również.** `HH:mm:ss`, jednocyfrowa godzina (`9:05`), znaczniki `*` i `+`, każdy stan pola wyboru (`[ ]`, `[x]`, `[/]`, `[-]`) oraz listy z pustymi liniami między wpisami. Wiersz listy bez godziny nie jest wpisem i pozostaje nietknięty.
+- **Kolejność.** Nowe wpisy są dopisywane na końcu sekcji, przed końcowymi pustymi liniami; lista zachowuje znacznik i odstępy, których notatka już używa. Brakujący nagłówek jest dodawany ze skonfigurowanym tekstem jako `## Journal` na końcu notatki, w odstępie jednej pustej linii. Żaden istniejący wiersz nie jest przeformatowywany; zakończenia linii (LF lub CRLF) i frontmatter pozostają takie, jakie są.
+- **Scalanie.** Gdy dwa urządzenia dopisały do tej samej sekcji, synchronizacja jednoczy wpisy według godziny — całe wpisy, nigdy pojedyncze wiersze; identyczne wiersze raz, przy równych godzinach najpierw lokalny. Dotyczy to też sytuacji, gdy oba urządzenia utworzyły notatkę. Każda inna różnica jest konfliktem jak dotychczas.
+- **Ustawienie.** `journalHeading` jest częścią profilu ustawień vaulta, obok folderu i formatu notatek dziennych, dzięki czemu każde urządzenie odczytuje ten sam nagłówek.

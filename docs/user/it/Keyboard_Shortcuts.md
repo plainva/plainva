@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-09-10
+Ultimo aggiornamento: 2026-09-20
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -23,6 +23,8 @@ Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**
 |---|---|
 | `Ctrl+N` | Nuova nota nella cartella selezionata |
 | `Ctrl+Shift+D` | Apri la nota giornaliera di oggi |
+| `Ctrl+Shift+J` | Scrive una voce di diario nella nota giornaliera di oggi |
+| `Ctrl+Alt+J` | Cattura rapida globale — a livello di sistema, opzionale (vedi [Diario](Journal.md)) |
 | `F2` | Rinomina la nota attiva |
 | `Ctrl+Alt+Sinistra` / `Ctrl+Alt+Destra` | Indietro / Avanti (cronologia di navigazione) |
 

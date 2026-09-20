@@ -1,6 +1,6 @@
 # Plainva Sync-compatibiliteit
 
-Laatst bijgewerkt: 2026-09-09
+Laatst bijgewerkt: 2026-09-20
 
 Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inventaris terugstuurt, meldt Plainva een synchronisatiefout. Die reactie wordt niet als een lege map of kalenderlijst behandeld en leidt niet tot daaruit afgeleide verwijderingen. Dit geldt op desktop en mobiel.
 
@@ -9,6 +9,8 @@ Als een lokaal bestand door een toegangs- of leesfout niet kan worden geüpload,
 Offline wijzigingen blijven behouden, ook na meerdere naamswijzigingen. Plainva voltooit de bijbehorende verplaatsingen voordat de huidige inhoud wordt geüpload; bij een fout wachten afhankelijke taken. Ontbreekt de externe bron, dan uploadt Plainva het nog aanwezige lokale bestand of de mapinhoud naar de nieuwe locatie. Onleesbare inhoud blijft met een fout in de wachtrij staan om opnieuw te proberen.
 
 Een bevestiging geldt alleen voor de daadwerkelijk uitgevoerde verwijdering. Ze blijft behouden bij nieuwe pogingen na een verbindingsfout of herstart; nieuwe bestanden op dezelfde locatie nemen haar niet over. De extra bevestiging bij een gepauzeerde massaverwijdering en de herstelkeuze gelden alleen voor de getoonde taken. Grote verwijderingen die al vóór deze update in de wachtrij stonden, kunnen opnieuw om bevestiging vragen.
+
+Journaalitems die twee apparaten aan dezelfde dagnotitie toevoegen voordat ze zijn gesynchroniseerd, zijn geen conflict: Plainva voegt ze samen op tijdstip en behoudt elke regel van beide apparaten — ook wanneer beide apparaten de notitie van de dag onafhankelijk van elkaar hebben aangemaakt. Elke andere gelijktijdige wijziging aan een notitie wordt behandeld zoals voorheen. Zie [Journaal](Journal.md).
 
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 

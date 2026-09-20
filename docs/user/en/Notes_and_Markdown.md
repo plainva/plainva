@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -134,6 +134,8 @@ Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **
 ## Daily notes
 
 **Open Daily Note** (sidebar) or a click in the **Calendar** creates today's note using your date format in the configured daily notes folder, optionally from a template.
+
+A daily note can also hold a **journal**: short entries with a time (`- 14:05 Text`) under the heading **Journal**, written with `Ctrl+Shift+J` or **Journal entry** and read across all days in the journal view. They are ordinary list lines — see [Journal](Journal.md).
 
 ## Tasks, formulas, diagrams and footnotes
 

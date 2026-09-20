@@ -107,6 +107,8 @@ Format daty używa tych samych znaczników co Obsidian: `YYYY` rok, `MM` miesią
 
 **Kalendarz** po prawej to podgląd dnia: **kliknięcie** daty otwiera [kartę kalendarza](Calendar_and_Tasks.md) na ten dzień; **kliknięcie prawym przyciskiem** otwiera menu, które u góry nazywa dany dzień i oferuje **Otwórz kalendarz**, **Notatka dzienna** oraz wydarzenia i zadania z terminem tego dnia. Dni z notatką dzienną są oznaczone małym symbolem **słońca**, dni z wydarzeniami — kolorowymi kropkami dla każdego kalendarza. Przycisk **Dziś** przywraca bieżący miesiąc; kliknięcie etykiety miesiąca otwiera szybki wybór miesiąca i roku. Tam możesz też włączyć **Pokaż numery tygodni**, aby dodać kolumnę tygodnia ISO — ustawienie jest zapamiętywane.
 
+Najszybszą drogą do dzisiejszej notatki jest **dziennik**: `Ctrl+Shift+J` bierze jedną linijkę, stempluje godzinę i dopisuje ją pod nagłówkiem **Journal** dzisiejszej notatki dziennej — bez otwierania notatki. **Otwórz dziennik** na pasku akcji pokazuje wpisy wszystkich dni jako jeden strumień. Zobacz [Dziennik](Journal.md).
+
 ## Ustawienia
 
 **Ustawienia** (ikona zębatki na dole paska akcji przy lewej krawędzi lub `Ctrl+,`) zamykasz przyciskiem **X** w prawym górnym rogu, klawiszem `Esc` lub kliknięciem poza oknem. Zmiany zapisują się od razu i automatycznie — tylko dane dostępowe w chmurze stosujesz świadomie przez **Logowanie** w obszarze **Konta w chmurze** (patrz [Konfiguracja synchronizacji](Sync_Setup.md)). Ustawienia dzielą się na dwie części; każdy obszar na lewym pasku otwiera własną stronę, na której ustawienia znajdują się w nazwanych kartach grup:

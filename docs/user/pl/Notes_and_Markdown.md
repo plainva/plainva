@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-19
+Stan na: 2026-09-20
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -134,6 +134,8 @@ Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) ofe
 ## Notatki dzienne
 
 **Otwórz notatkę dzienną** (pasek boczny) lub kliknięcie w **Kalendarzu** tworzy dzisiejszą notatkę zgodnie z Twoim **formatem daty**, w skonfigurowanym **folderze bazowym notatek dziennych**, opcjonalnie z szablonu.
+
+Notatka dzienna może też nieść **dziennik**: krótkie wpisy z godziną (`- 14:05 Tekst`) pod nagłówkiem **Journal**, zapisywane przez `Ctrl+Shift+J` lub **Wpis dziennika** i odczytywane ze wszystkich dni w widoku dziennika. To zwykłe wiersze listy — zobacz [Dziennik](Journal.md).
 
 ## Zadania, formuły, diagramy i przypisy
 

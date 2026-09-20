@@ -107,6 +107,8 @@ Het datumformaat gebruikt dezelfde tokens als Obsidian: `YYYY` jaar, `MM` maand,
 
 De **Kalender** rechts is een dagoverzicht: een **klik** op een datum opent het [agenda-tabblad](Calendar_and_Tasks.md) op die dag; een **rechtsklik** opent een menu dat de dag bovenaan noemt en **Agenda openen**, **Dagnotitie** en de afspraken en taken met vervaldatum van die dag aanbiedt. Dagen met een dagnotitie dragen een klein **zonsymbool**, dagen met afspraken kleurpunten per agenda. De knop **Vandaag** brengt je terug naar de huidige maand; een klik op het maandlabel opent een snelkeuze voor maand en jaar. Daar schakel je ook **Weeknummers tonen** in om een ISO-weekkolom toe te voegen — de instelling wordt onthouden.
 
+De snelste weg naar de notitie van vandaag is het **journaal**: `Ctrl+Shift+J` neemt één regel, zet er de tijd op en voegt hem toe onder de kop **Journal** van de dagnotitie van vandaag — zonder de notitie te openen. **Journaal openen** in de actiebalk toont de items van alle dagen als één stroom. Zie [Journaal](Journal.md).
+
 ## Instellingen
 
 **Instellingen** (tandwielicoon onderaan de actiebalk uiterst links, of `Ctrl+,`) sluit je via de **X** rechtsboven, `Esc` of een klik buiten het venster. Wijzigingen worden direct en automatisch opgeslagen — alleen cloudtoegangsgegevens pas je bewust toe via **Aanmelden** in het gebied **Cloudaccounts** (zie [Sync instellen](Sync_Setup.md)). Instellingen bestaan uit twee delen; elk gebied in de linkerbalk opent zijn eigen pagina, waar de instellingen in benoemde groepskaarten staan:

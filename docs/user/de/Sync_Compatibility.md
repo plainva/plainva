@@ -1,6 +1,6 @@
 # Plainva Sync-Kompatibilität
 
-Stand: 2026-09-09
+Stand: 2026-09-20
 
 Antwortet ein WebDAV-, CalDAV- oder S3-Dienst mit einer Anmeldeseite oder einer unvollständigen Bestandsliste, meldet Plainva einen Abgleichfehler. Diese Antwort gilt nicht als leerer Ordner oder Kalenderbestand und löst keine daraus abgeleiteten Löschungen aus. Das gilt auf Desktop und Mobil.
 
@@ -9,6 +9,8 @@ Kann eine lokale Datei wegen fehlender Rechte oder eines Lesefehlers nicht hochg
 Offline vorgenommene Änderungen bleiben auch bei mehreren Umbenennungen erhalten. Plainva führt zusammengehörige Verschiebungen vor dem Upload des aktuellen Inhalts aus; ein fehlgeschlagener Vorgang hält die davon abhängigen Aufträge zurück. Fehlt die entfernte Quelle beim Umbenennen, lädt Plainva die noch vorhandene lokale Datei oder den Ordnerinhalt am neuen Ort hoch. Unlesbare Inhalte bleiben als Fehler zur Wiederholung vorgemerkt.
 
 Eine Löschbestätigung gilt nur für den tatsächlich ausgeführten Löschvorgang. Sie bleibt für dessen Wiederholung nach einem Verbindungsfehler oder Neustart erhalten; neu angelegte Dateien am gleichen Ort übernehmen sie nicht. Die zusätzliche Nachfrage bei einer angehaltenen Massenlöschung und die Wahl zur Wiederherstellung betreffen nur die dort angezeigten Aufträge. Für größere Löschungen, die schon vor dem Update in der Warteschlange lagen, kann einmalig eine erneute Bestätigung nötig sein.
+
+Journal-Einträge, die zwei Geräte an dieselbe Tagesnotiz anhängen, bevor sie sich abgeglichen haben, sind kein Konflikt: Plainva vereinigt sie nach Uhrzeit und behält jede Zeile beider Geräte — auch wenn beide Geräte die Notiz des Tages unabhängig voneinander angelegt haben. Jede andere gleichzeitige Änderung an einer Notiz wird behandelt wie bisher. Siehe [Journal](Journal.md).
 
 Plainva synchronisiert Vaults über austauschbare Sync-Adapter. Diese Seite zeigt, welche Dienste Du heute schon nutzen kannst — direkt integriert, über das WebDAV-Protokoll oder über den Desktop-Sync-Client des jeweiligen Anbieters.
 

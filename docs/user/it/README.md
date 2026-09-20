@@ -1,6 +1,6 @@
 # Guida utente di Plainva
 
-Ultimo aggiornamento: 2026-08-21
+Ultimo aggiornamento: 2026-09-20
 
 Questa traduzione è stata generata automaticamente — le correzioni sono benvenute.
 
@@ -27,6 +27,7 @@ Plainva è un editor di vault Markdown: le tue note sono semplici file Markdown 
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Configurare la sincronizzazione con OneDrive e Dropbox usando una registrazione app personale |
 | [Ricerca](Search.md) | Ricerca full-text, selettore rapido, trova e sostituisci, tag |
 | [Attività](Tasks.md) | La vista delle attività di tutto il vault: ogni casella di controllo nelle tue note, con filtri per stato/tag/cartella/scadenza e spunta con un clic |
+| [Diario](Journal.md) | La voce rapida nella nota giornaliera di oggi: catturare da qualsiasi punto, la vista del diario su tutti i giorni, come vengono salvate le voci e la scorciatoia globale opzionale |
 | [Calendario e attività esterne](Calendar_and_Tasks.md) | Collegare calendari CalDAV/Google/Microsoft, la scheda del calendario, le note delle riunioni e la sincronizzazione degli elenchi attività esterni con il database attività |
 | [Cattura e-mail](Email_Capture.md) | IMAP di sola lettura: il visualizzatore sandbox, salvare le e-mail come note/.eml/attività e ottenere i contenuti senza inviare |
 | [Grafo](Graph.md) | Grafo contestuale, mappa del vault con modalità di pulizia e viaggio nel tempo, grafo come vista database |

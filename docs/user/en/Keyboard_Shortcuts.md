@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-09-10
+Last reviewed: 2026-09-20
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -23,6 +23,8 @@ Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shor
 |---|---|
 | `Ctrl+N` | New note in the selected folder |
 | `Ctrl+Shift+D` | Open today's daily note |
+| `Ctrl+Shift+J` | Write a journal entry into today's daily note |
+| `Ctrl+Alt+J` | Global quick capture — system-wide, optional (see [Journal](Journal.md)) |
 | `F2` | Rename the active note |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Back / forward (navigation history) |
 

@@ -41,6 +41,10 @@ export function journalFiles(vault: MobileVault): JournalFiles {
     writeTextFile: async (path, content) => {
       await vaultOps.save(vault, path, content);
       syncSoon();
+      // An open editor of this note adopts the line (its pending save was
+      // flushed before the read); the app's own write is never reported as
+      // a change from outside.
+      window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path } }));
       listeners.forEach((listener) => listener(path));
     },
   };

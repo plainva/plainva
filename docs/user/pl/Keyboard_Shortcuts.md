@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-09-10
+Stan na: 2026-09-20
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -23,6 +23,8 @@ Stan na: 2026-09-10
 |---|---|
 | `Ctrl+N` | Nowa notatka w wybranym folderze |
 | `Ctrl+Shift+D` | Otwórz/utwórz dzisiejszą notatkę |
+| `Ctrl+Shift+J` | Zapisz wpis dziennika w dzisiejszej notatce dziennej |
+| `Ctrl+Alt+J` | Globalne szybkie zapisywanie — systemowe, opcjonalne (zobacz [Dziennik](Journal.md)) |
 | `F2` | Zmień nazwę aktywnej notatki |
 | `Ctrl+Alt+Lewo` / `Ctrl+Alt+Prawo` | Wstecz / Do przodu (historia nawigacji) |
 

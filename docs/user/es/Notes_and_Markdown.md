@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-09-19
+Última actualización: 2026-09-20
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -134,6 +134,8 @@ Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`
 ## Notas diarias
 
 **Abrir nota diaria** (barra lateral) o un clic en el **Calendario** crea la nota de hoy usando tu **formato de fecha** en la **carpeta base de notas diarias** configurada, opcionalmente a partir de una plantilla.
+
+Una nota diaria también puede llevar un **diario**: entradas breves con una hora (`- 14:05 Texto`) bajo el encabezado **Journal**, escritas con `Ctrl+Shift+J` o **Entrada de diario** y leídas a través de todos los días en la vista del diario. Son líneas de lista normales — ver [Diario](Journal.md).
 
 ## Tareas, fórmulas, diagramas y notas al pie
 

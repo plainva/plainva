@@ -13,7 +13,7 @@ import pt from "./tourLessons.pt-BR.json";
 import zh from "./tourLessons.zh-CN.json";
 import ja from "./tourLessons.ja.json";
 
-export const TOUR_DATA_VERSION = "2026-09-11";
+export const TOUR_DATA_VERSION = "2026-09-20";
 const LESSONS: Record<string, typeof en> = { en, de, fr, es, it, nl, pl, "pt-BR": pt, "zh-CN": zh, ja };
 export const tourLessons = (language: string): typeof en => LESSONS[language] ?? en;
 
@@ -93,6 +93,20 @@ export function addTourLearning(def: VaultTemplateDefinition, s: TourStrings, la
     n.properties!.plainva = pv;
     if (i < 5) n.properties!.labels = [i % 2 ? l.labels.colored : l.labels.tagged];
   });
+  // Today and yesterday carry a journal (plan Journal, J8), so the journal view of
+  // a new tour vault is not empty. The heading is the literal default the
+  // setting reads in EVERY language — translated, the entries would be
+  // invisible — and the times are data, so only the texts are translated.
+  const journalOf = (offset: number): string => {
+    const [first, second, third] = l.journalEntriesToday;
+    const [morning, evening] = l.journalEntriesYesterday;
+    // Plain entries today: stop 02 sends the learner to THE checkbox of today's
+    // note, and a second open box would make that ambiguous. Yesterday shows a
+    // task entry that is already done — no open task is added anywhere.
+    if (offset === 0) return `\n## Journal\n\n- 08:40 ${first}\n- 11:15 ${second}\n- 14:05 ${third}\n`;
+    if (offset === -1) return `\n## Journal\n\n- [x] 09:30 ${morning}\n- 17:50 ${evening}\n`;
+    return "";
+  };
   // Replace only freshly generated sample days. No later-open date shifting.
   const withoutDays = notes.filter(n => !n.path.startsWith(`${f.journal}/`));
   for (let offset = -3; offset <= 3; offset++) {
@@ -101,7 +115,7 @@ export function addTourLearning(def: VaultTemplateDefinition, s: TourStrings, la
       offset < 3 ? link(notePath(f.journal, token(offset + 1)), l.next) : ""].filter(Boolean).join(" · ");
     withoutDays.push({ path: notePath(f.journal, token(offset)), type: "Daily Note", properties: {
       [k.date]: token(offset), [k.mood]: s.options.mood[offset < 0 ? 1 : 0], [k.topics]: ["tour"],
-    }, body: `# ${token(offset)}\n\n${neighbors}\n\n${offset < 0 ? l.journalPast : offset > 0 ? l.journalFuture : l.journalToday}\n\n${link(firstTask)}\n${offset === 0 ? `\n- [ ] ${l.captureTask}\n` : ""}` });
+    }, body: `# ${token(offset)}\n\n${neighbors}\n\n${offset < 0 ? l.journalPast : offset > 0 ? l.journalFuture : l.journalToday}\n\n${link(firstTask)}\n${offset === 0 ? `\n- [ ] ${l.captureTask}\n` : ""}${journalOf(offset)}` });
   }
   const dailyTemplate = withoutDays.find(n => n.path === `${f.templates}/${s.templates.daily.file}`)!;
   delete dailyTemplate.properties!.datum;

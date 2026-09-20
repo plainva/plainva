@@ -107,6 +107,8 @@ Das Datumsformat nutzt dieselben Kürzel wie Obsidian: `YYYY` Jahr, `MM` Monat, 
 
 Der **Kalender** rechts ist eine Tagesübersicht: Ein **Klick** auf ein Datum öffnet den [Kalender-Tab](Calendar_and_Tasks.md) an diesem Tag; ein **Rechtsklick** öffnet ein Menü, das oben den Tag nennt und **Kalender öffnen**, **Tageseintrag** sowie die Termine und fälligen Aufgaben des Tages anbietet. Tage mit einer Tagesnotiz tragen ein kleines **Sonnen-Symbol**, Tage mit Terminen farbige Punkte je Kalender. Der **Heute**-Knopf bringt Dich zurück zum aktuellen Monat; ein Klick auf das Monatslabel öffnet eine Schnellauswahl für Monat und Jahr. Dort blendest Du über **Kalenderwochen anzeigen** auch eine KW-Spalte ein — die Einstellung bleibt gespeichert.
 
+Der schnellste Weg in die heutige Notiz ist das **Journal**: `Strg+Umschalt+J` nimmt eine Zeile, setzt die Uhrzeit und hängt sie unter der Überschrift **Journal** an die heutige Tagesnotiz an — ohne die Notiz zu öffnen. **Journal öffnen** in der Aktionsleiste zeigt die Einträge aller Tage als einen Strom. Siehe [Journal](Journal.md).
+
 ## Einstellungen
 
 **Einstellungen** (Zahnrad unten in der Aktionsleiste ganz links oder `Strg+,`) schließen über das **X** oben rechts, `Esc` oder einen Klick außerhalb des Fensters. Änderungen speichern sofort automatisch — nur Cloud-Zugangsdaten übernimmst Du bewusst per **Verbinden** im Bereich **Cloud-Konten** (siehe [Sync einrichten](Sync_Setup.md)). Die Einstellungen sind zweigeteilt; jeder Bereich in der linken Leiste öffnet seine eigene Seite, auf der die Einstellungen in benannten Gruppen-Karten liegen:

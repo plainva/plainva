@@ -1,6 +1,6 @@
 # Atalhos de Teclado
 
-Última revisão: 2026-09-10
+Última revisão: 2026-09-20
 
 Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para abrir a janela de atalhos a qualquer momento. Ela agrupa todos os atalhos e gestos do mouse em áreas que você alterna pelos chips na parte superior, tem um campo de busca que abrange todas as áreas e detecta automaticamente a sua plataforma: mostra `Ctrl`/`Alt` no Windows e no Linux, e `⌘`/`⌥` no macOS. Nas tabelas abaixo, portanto, `Ctrl` significa `⌘` no macOS, e `Alt` significa `⌥`.
 
@@ -23,6 +23,8 @@ Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para a
 |---|---|
 | `Ctrl+N` | Nova nota na pasta selecionada |
 | `Ctrl+Shift+D` | Abrir a nota diária de hoje |
+| `Ctrl+Shift+J` | Escrever uma entrada de diário na nota diária de hoje |
+| `Ctrl+Alt+J` | Captura rápida global — em todo o sistema, opcional (veja [Diário](Journal.md)) |
 | `F2` | Renomear a nota ativa |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Voltar / avançar (histórico de navegação) |
 

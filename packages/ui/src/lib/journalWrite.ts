@@ -12,8 +12,13 @@
  * The write itself goes through whatever the shell hands in — the desktop's
  * vault adapter, the phone's `vaultOps.save` — so own-write marking, backups,
  * the index and an encrypted workspace are the shell's one way, not a second.
- * An open editor receives the line through the existing path for changes from
- * outside; typed text stays (`mergeEditorText`, which knows journal lines).
+ *
+ * An OPEN editor of the note is part of the path, the way it is for every shared
+ * write (graph actions, mention linking): its pending save is flushed BEFORE the
+ * note is read — otherwise that save would overwrite the entry a second later,
+ * or the two would meet as a conflict — and the shell's write tells the editor
+ * afterwards, so the clean buffer adopts the line. What was typed is on disk by
+ * then and stays.
  */
 import {
   insertJournalEntry,
@@ -29,6 +34,7 @@ import {
   type JournalEntryRef,
   type TaskBoxState,
 } from "@plainva/core";
+import { flushPendingSave } from "../platform/services";
 
 export interface JournalFiles {
   /** The daily note for a day, created without questions when it is missing; `null` = it cannot be created. */
@@ -67,6 +73,8 @@ async function changeNote(
   transform: Transform,
 ): Promise<{ ok: true; before: string; after: string; entry: JournalEntry } | { ok: false; reason: JournalWriteFailure }> {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    // Unsaved typing in an open editor goes to disk first (see the head of this file).
+    await flushPendingSave(path);
     const raw = await files.readTextFile(path);
     const edit = transform(raw);
     if (!edit.ok) return edit;
@@ -180,6 +188,7 @@ export async function deleteJournalEntry(files: JournalFiles, target: JournalTar
  */
 export async function undoJournalChange(files: Pick<JournalFiles, "readTextFile" | "writeTextFile">, undo: JournalUndo, heading: string): Promise<boolean> {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    await flushPendingSave(undo.path);
     const raw = await files.readTextFile(undo.path);
     let next: string | null;
     if (raw === undo.after) next = undo.before;

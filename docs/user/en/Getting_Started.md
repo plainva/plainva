@@ -107,6 +107,8 @@ The date format uses the same tokens as Obsidian: `YYYY` year, `MM` month, `DD` 
 
 The **Calendar** on the right is a day overview: **clicking** a date opens the [calendar tab](Calendar_and_Tasks.md) at that day; a **right-click** opens a menu that names the day at the top and offers **Open calendar**, **Daily Note** and that day's events and due tasks. Days with a daily note carry a tiny **sun glyph**, days with events colored dots per calendar. The **Today** button returns to the current month; clicking the month label opens a quick month/year picker. There you can also enable **Show week numbers** to add an ISO week column — the setting is remembered.
 
+The quickest way into today's note is the **journal**: `Ctrl+Shift+J` takes one line, stamps the time and appends it under the **Journal** heading of today's daily note — without opening the note. **Open journal** in the action rail shows the entries of all days as one stream. See [Journal](Journal.md).
+
 ## Settings
 
 **Settings** (gear icon at the bottom of the leftmost action rail, or `Ctrl+,`) close via the **X** in the top right, `Esc` or a click outside the window. Changes are saved immediately and automatically — only cloud credentials are applied deliberately via **Sign in** in the **Cloud accounts** area (see [Sync Setup](Sync_Setup.md)). Settings come in two parts; every area in the left rail opens its own page, where the settings sit in named group cards:

@@ -63,6 +63,10 @@ export function useJournalFiles(): JournalFiles | null {
       writeTextFile: async (path, content) => {
         await vaultAdapter.writeTextFile(path, content);
         await written(path);
+        // An open editor of this note adopts the line (its pending save was
+        // flushed before the read). The adapter counts this write as the app's
+        // own, so no watcher would ever tell it.
+        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath } }));
       },
     };
   }, [vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate]);

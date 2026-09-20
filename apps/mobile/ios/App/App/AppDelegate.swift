@@ -67,7 +67,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         "nl": ["new-note": "Nieuwe notitie", "new-task": "Nieuwe taak", "journal": "Journaalitem", "today": "Vandaag"],
         "pl": ["new-note": "Nowa notatka", "new-task": "Nowe zadanie", "journal": "Wpis do dziennika", "today": "Dzisiaj"],
         "pt": ["new-note": "Nova nota", "new-task": "Nova tarefa", "journal": "Entrada do diário", "today": "Hoje"],
-        "zh": ["new-note": "新建笔记", "new-task": "新建任务", "journal": "写日记", "today": "今天"],
+        "zh": ["new-note": "新建笔记", "new-task": "新建任务", "journal": "写日志", "today": "今天"],
     ]
 
     private func installQuickActions(_ application: UIApplication) {

@@ -620,3 +620,13 @@ views:
 - **Reminder exception.** `remind: off` silences the reminder of one task; `remind: 30` reminds 30 minutes before its time (only meaningful for a task with a time). Without the property the settings apply.
 - **Checkbox states.** `- [ ]` open, `- [x]` done, `- [/]` in progress, `- [-]` cancelled. In progress counts as open, cancelled as closed; a cancelled sub-task leaves the `file.tasks` count. Plainva writes `[/]` and `[-]` only when you choose **Set state**.
 - **Priority marks on a checkbox.** Read: 🔺 ⏫ (high), 🔼 (medium), 🔽 ⏬ (low). Written: ⏫, 🔼 or 🔽, placed in front of the first dated field.
+
+<!-- journal-2026-09-20 -->
+## Journal entries
+
+- **Where.** Under a heading of the daily note whose text is the vault's journal heading (setting **Journal heading**, default `Journal`); the heading's level (`#` to `######`) does not matter. The section ends at the next heading of the note's top level. Lines inside code fences and HTML comments are not entries.
+- **Written form.** `- HH:mm Text` — 24-hour local time of the device, one space, then the text. Further lines of the same entry are continuation lines, indented to the text. A task entry carries the checkbox in front of the time: `- [ ] HH:mm Text`.
+- **Read as well.** `HH:mm:ss`, a single-digit hour (`9:05`), the bullets `*` and `+`, every checkbox state (`[ ]`, `[x]`, `[/]`, `[-]`), and lists with blank lines between the entries. A list line without a time is not an entry and is left alone.
+- **Order.** New entries are appended at the end of the section, before trailing blank lines; the list keeps the bullet and the spacing the note already uses. A missing heading is added with the configured text as `## Journal` at the end of the note, one blank line apart. No existing line is reformatted; line endings (LF or CRLF) and the frontmatter stay as they are.
+- **Merging.** When two devices appended to the same section, sync unites the entries by time — whole entries, never single lines; identical lines once, the local one first on equal times. This also applies when both devices created the note. Every other difference is a conflict as before.
+- **Setting.** `journalHeading` is part of the vault's settings profile, next to the daily-note folder and format, so every device reads the same heading.

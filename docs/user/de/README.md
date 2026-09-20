@@ -1,6 +1,6 @@
 # Plainva Nutzerhandbuch
 
-Stand: 2026-08-21
+Stand: 2026-09-20
 
 Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-Dateien in einem Ordner („Vault") auf Deinem Rechner — kein Datenbank-Silo, kein Zwang zu einem Cloud-Konto. Dieses Handbuch erklärt, wie Du mit Plainva arbeitest und wie die Dateiformate funktionieren.
 
@@ -25,6 +25,7 @@ Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | OneDrive- und Dropbox-Sync mit eigener App-Registrierung einrichten |
 | [Suche](Search.md) | Volltextsuche, Schnellwechsel, Suchen & Ersetzen, Tags |
 | [Aufgaben](Tasks.md) | Die vault-weite Aufgabenansicht: jede Checkbox über alle Notizen, mit Status-/Tag-/Ordner-/Fälligkeitsfiltern und Ein-Klick-Umschalten |
+| [Journal](Journal.md) | Der schnelle Eintrag in die heutige Tagesnotiz: Erfassen von überall, die Journal-Ansicht über alle Tage, wie Einträge gespeichert werden, und das optionale globale Tastenkürzel |
 | [Kalender & externe Aufgaben](Calendar_and_Tasks.md) | CalDAV-/Google-/Microsoft-Kalender verbinden, der Kalender-Tab, Meeting-Notizen und der Abgleich externer Aufgabenlisten mit der Aufgabendatenbank |
 | [E-Mail-Capture](Email_Capture.md) | IMAP und Microsoft-Mail (experimentell): der Sandbox-Viewer, Mails als Notiz/.eml/Aufgabe ablegen sowie Verfassen und Senden |
 | [Graph](Graph.md) | Kontext-Graph, Vault-Karte mit Aufräum-Modus und Zeitreise, Graph als Datenbank-Ansicht |

@@ -620,3 +620,13 @@ views:
 - **Exception de rappel.** `remind: off` rend muet le rappel d'une tâche ; `remind: 30` rappelle 30 minutes avant son heure (utile seulement pour une tâche avec une heure). Sans la propriété, les réglages s'appliquent.
 - **États de la case à cocher.** `- [ ]` ouverte, `- [x]` terminée, `- [/]` en cours, `- [-]` annulée. En cours compte comme ouverte, annulée comme fermée ; une sous-tâche annulée sort du décompte `file.tasks`. Plainva n'écrit `[/]` et `[-]` que lorsque vous choisissez **Définir l'état**.
 - **Marques de priorité sur une case à cocher.** Lues : 🔺 ⏫ (haute), 🔼 (moyenne), 🔽 ⏬ (basse). Écrites : ⏫, 🔼 ou 🔽, placées devant le premier champ daté.
+
+<!-- journal-2026-09-20 -->
+## Entrées de journal
+
+- **Où.** Sous un titre de la note quotidienne dont le texte est le titre du journal du vault (réglage **Titre du journal**, valeur par défaut `Journal`) ; le niveau du titre (`#` à `######`) n'a pas d'importance. La section se termine au titre suivant du niveau le plus haut de la note. Les lignes à l'intérieur des blocs de code et des commentaires HTML ne sont pas des entrées.
+- **Forme écrite.** `- HH:mm Texte` — heure locale de l'appareil au format 24 heures, un espace, puis le texte. Les lignes suivantes de la même entrée sont des lignes de continuation, indentées jusqu'au texte. Une entrée de tâche porte la case à cocher devant l'heure : `- [ ] HH:mm Texte`.
+- **Également lu.** `HH:mm:ss`, une heure à un seul chiffre (`9:05`), les puces `*` et `+`, chaque état de case à cocher (`[ ]`, `[x]`, `[/]`, `[-]`), et les listes avec des lignes vides entre les entrées. Une ligne de liste sans heure n'est pas une entrée et reste inchangée.
+- **Ordre.** Les nouvelles entrées sont ajoutées à la fin de la section, avant les lignes vides finales ; la liste garde la puce et l'espacement que la note utilise déjà. Un titre manquant est ajouté avec le texte configuré comme `## Journal` à la fin de la note, à une ligne vide de distance. Aucune ligne existante n'est reformatée ; les fins de ligne (LF ou CRLF) et le frontmatter restent tels quels.
+- **Fusion.** Quand deux appareils ont ajouté du contenu à la même section, la synchronisation réunit les entrées par heure — des entrées entières, jamais des lignes isolées ; les lignes identiques une seule fois, l'entrée locale en premier à heure égale. Cela vaut aussi quand les deux appareils ont créé la note. Toute autre différence reste un conflit comme avant.
+- **Réglage.** `journalHeading` fait partie du profil des paramètres du vault, à côté du dossier et du format de la note quotidienne, afin que chaque appareil lise le même titre.

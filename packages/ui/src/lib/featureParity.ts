@@ -473,7 +473,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason:
       "A phone gives an app no system-wide key. What the shortcut is for — an entry " +
       "without opening the app first — the phone reaches its own way: the launcher " +
-      "shortcut and quick action \"Journal\" and the share target \"Into the journal\". " +
+      "shortcut and quick action \"Journal entry\" and the share target \"Into the journal\". " +
       "On the desktop it is opt-in and off by default; under a Wayland session the " +
       "platform gives applications no global shortcut either, and the setting says " +
       "so instead of registering one that never fires.",

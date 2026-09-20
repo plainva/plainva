@@ -620,3 +620,13 @@ views:
 - **Excepción de recordatorio.** `remind: off` silencia el recordatorio de una tarea; `remind: 30` avisa 30 minutos antes de su hora (solo tiene sentido en una tarea con hora). Sin la propiedad se aplican los ajustes.
 - **Estados de la casilla.** `- [ ]` abierta, `- [x]` hecha, `- [/]` en curso, `- [-]` cancelada. En curso cuenta como abierta, cancelada como cerrada; una subtarea cancelada sale del recuento `file.tasks`. Plainva escribe `[/]` y `[-]` solo cuando eliges **Establecer estado**.
 - **Marcas de prioridad en una casilla.** Leídas: 🔺 ⏫ (alta), 🔼 (media), 🔽 ⏬ (baja). Escritas: ⏫, 🔼 o 🔽, colocadas delante del primer campo con fecha.
+
+<!-- journal-2026-09-20 -->
+## Entradas del diario
+
+- **Dónde.** Bajo un encabezado de la nota diaria cuyo texto es el encabezado del diario configurado en el vault (ajuste **Encabezado del diario**, predeterminado `Journal`); el nivel del encabezado (`#` a `######`) no importa. La sección termina en el siguiente encabezado del nivel superior de la nota. Las líneas dentro de bloques de código y comentarios HTML no son entradas.
+- **Forma escrita.** `- HH:mm Texto` — hora local del dispositivo en formato de 24 horas, un espacio y después el texto. Las líneas siguientes de la misma entrada son líneas de continuación, sangradas hasta el texto. Una entrada de tarea lleva la casilla delante de la hora: `- [ ] HH:mm Texto`.
+- **También se lee.** `HH:mm:ss`, una hora de un solo dígito (`9:05`), las viñetas `*` y `+`, todos los estados de casilla (`[ ]`, `[x]`, `[/]`, `[-]`), y listas con líneas en blanco entre las entradas. Una línea de lista sin hora no es una entrada y se deja como está.
+- **Orden.** Las entradas nuevas se añaden al final de la sección, antes de las líneas en blanco finales; la lista conserva la viñeta y el espaciado que la nota ya usa. Un encabezado que falta se añade con el texto configurado como `## Journal` al final de la nota, con una línea en blanco de separación. Ninguna línea existente se reformatea; los finales de línea (LF o CRLF) y el frontmatter se quedan como están.
+- **Fusión.** Cuando dos dispositivos añadieron a la misma sección, la sincronización une las entradas por hora — entradas completas, nunca líneas sueltas; las líneas idénticas una sola vez, con la local primero en caso de horas iguales. Esto también se aplica cuando ambos dispositivos crearon la nota. Cualquier otra diferencia es un conflicto como antes.
+- **Ajuste.** `journalHeading` forma parte del perfil de configuración del vault, junto a la carpeta y el formato de la nota diaria, para que todos los dispositivos lean el mismo encabezado.

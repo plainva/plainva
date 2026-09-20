@@ -620,3 +620,13 @@ views:
 - **Exceção de lembrete.** `remind: off` silencia o lembrete de uma tarefa; `remind: 30` avisa 30 minutos antes do seu horário (só faz sentido para uma tarefa com horário). Sem a propriedade, valem as configurações.
 - **Estados da caixa de seleção.** `- [ ]` aberta, `- [x]` concluída, `- [/]` em andamento, `- [-]` cancelada. Em andamento conta como aberta, cancelada como fechada; uma subtarefa cancelada sai da contagem `file.tasks`. O Plainva só escreve `[/]` e `[-]` quando você escolhe **Definir estado**.
 - **Marcas de prioridade em uma caixa de seleção.** Lidas: 🔺 ⏫ (alta), 🔼 (média), 🔽 ⏬ (baixa). Escritas: ⏫, 🔼 ou 🔽, colocadas na frente do primeiro campo com data.
+
+<!-- journal-2026-09-20 -->
+## Entradas do diário
+
+- **Onde.** Sob um título da nota diária cujo texto é o título do diário do vault (configuração **Título do diário**, padrão `Journal`); o nível do título (`#` a `######`) não importa. A seção termina no próximo título de nível superior da nota. Linhas dentro de blocos de código e comentários HTML não são entradas.
+- **Forma escrita.** `- HH:mm Text` — hora local do dispositivo em formato 24 horas, um espaço, depois o texto. Outras linhas da mesma entrada são linhas de continuação, recuadas até o texto. Uma entrada de tarefa traz a caixa de seleção na frente da hora: `- [ ] HH:mm Text`.
+- **Também lido.** `HH:mm:ss`, uma hora com um único dígito (`9:05`), os marcadores `*` e `+`, todo estado de caixa de seleção (`[ ]`, `[x]`, `[/]`, `[-]`) e listas com linhas em branco entre as entradas. Uma linha de lista sem horário não é uma entrada e permanece intocada.
+- **Ordem.** Novas entradas são anexadas ao final da seção, antes de linhas em branco finais; a lista mantém o marcador e o espaçamento que a nota já usa. Um título ausente é adicionado com o texto configurado como `## Journal` ao final da nota, com uma linha em branco de distância. Nenhuma linha existente é reformatada; as quebras de linha (LF ou CRLF) e o frontmatter permanecem como estão.
+- **Mesclagem.** Quando dois dispositivos anexam à mesma seção, a sincronização une as entradas por horário — entradas inteiras, nunca linhas isoladas; linhas idênticas uma única vez, a local primeiro quando os horários coincidem. Isso também vale quando os dois dispositivos criaram a nota. Toda outra diferença é um conflito como antes.
+- **Configuração.** `journalHeading` faz parte do perfil de configurações do vault, ao lado da pasta e do formato da nota diária, para que todo dispositivo leia o mesmo título.

@@ -620,3 +620,13 @@ views:
 - **Erinnerungs-Ausnahme.** `remind: off` schaltet die Erinnerung einer einzelnen Aufgabe stumm; `remind: 30` erinnert 30 Minuten vor ihrer Uhrzeit (nur sinnvoll bei einer Aufgabe mit Uhrzeit). Ohne die Eigenschaft gelten die Einstellungen.
 - **Checkbox-Zustände.** `- [ ]` offen, `- [x]` erledigt, `- [/]` in Arbeit, `- [-]` abgebrochen. „In Arbeit“ zählt als offen, „abgebrochen“ als geschlossen; eine abgebrochene Unteraufgabe verlässt die Zählung `file.tasks`. Plainva schreibt `[/]` und `[-]` nur, wenn Du **Zustand setzen** wählst.
 - **Prioritäts-Zeichen an einer Checkbox.** Gelesen: 🔺 ⏫ (hoch), 🔼 (mittel), 🔽 ⏬ (niedrig). Geschrieben: ⏫, 🔼 oder 🔽, vor dem ersten Datumsfeld.
+
+<!-- journal-2026-09-20 -->
+## Journal-Einträge
+
+- **Wo.** Unter einer Überschrift der Tagesnotiz, deren Text die Journal-Überschrift des Vaults ist (Einstellung **Überschrift des Journals**, Vorgabe `Journal`); die Ebene der Überschrift (`#` bis `######`) spielt keine Rolle. Der Abschnitt endet an der nächsten Überschrift der obersten Ebene der Notiz. Zeilen in Code-Zäunen und HTML-Kommentaren sind keine Einträge.
+- **Geschriebene Form.** `- HH:mm Text` — 24-Stunden-Ortszeit des Geräts, ein Leerzeichen, dann der Text. Weitere Zeilen desselben Eintrags sind Folgezeilen, eingerückt bis zum Text. Ein Aufgaben-Eintrag trägt das Kästchen vor der Uhrzeit: `- [ ] HH:mm Text`.
+- **Ebenfalls gelesen.** `HH:mm:ss`, eine einstellige Stunde (`9:05`), die Aufzählungszeichen `*` und `+`, jeder Kästchen-Zustand (`[ ]`, `[x]`, `[/]`, `[-]`) und Listen mit Leerzeilen zwischen den Einträgen. Eine Listenzeile ohne Uhrzeit ist kein Eintrag und bleibt unberührt.
+- **Reihenfolge.** Neue Einträge werden ans Ende des Abschnitts angehängt, vor abschließenden Leerzeilen; die Liste behält das Aufzählungszeichen und die Abstände, die die Notiz schon verwendet. Eine fehlende Überschrift wird mit dem eingestellten Text als `## Journal` am Ende der Notiz angelegt, mit einer Leerzeile Abstand. Keine bestehende Zeile wird umformatiert; Zeilenenden (LF oder CRLF) und das Frontmatter bleiben, wie sie sind.
+- **Zusammenführen.** Haben zwei Geräte an denselben Abschnitt angehängt, vereinigt der Sync die Einträge nach Uhrzeit — ganze Einträge, nie einzelne Zeilen; identische Zeilen einmal, bei gleicher Uhrzeit die lokale zuerst. Das gilt auch, wenn beide Geräte die Notiz angelegt haben. Jeder andere Unterschied ist ein Konflikt wie bisher.
+- **Einstellung.** `journalHeading` gehört zum Einstellungsprofil des Vaults, neben Ordner und Format der Tagesnotiz, damit jedes Gerät dieselbe Überschrift liest.

@@ -1,12 +1,14 @@
 {
   "folder": "Rondleiding", "open": "Openen", "try": "Probeer het", "result": "Wat verandert", "more": "Verder verkennen — optioneel", "overview": "Overzicht", "previous": "Vorige", "next": "Volgende", "handbook": "Handleiding",
   "intro": "Begin met een kleine oefening of open meteen een database. De eerste vijf stappen tonen dagelijks gebruik; de rest is optioneel. Reken op ongeveer 10–15 minuten voor een eerste indruk en neem de tijd om dingen te proberen. Alle voorbeelden zijn verzonnen en aanpasbaar.",
-  "version": "Gegevensversie: 2026-09-11. De datums horen bij de aanmaak van deze Vault. Sjabloonupdates gelden alleen voor toekomstige nieuwe Vaults; deze wordt nooit door een sjabloon gewijzigd of aangevuld.",
+  "version": "Gegevensversie: 2026-09-20. De datums horen bij de aanmaak van deze Vault. Sjabloonupdates gelden alleen voor toekomstige nieuwe Vaults; deze wordt nooit door een sjabloon gewijzigd of aangevuld.",
   "labels": { "effort": "Inspanning (minuten)", "open": "Open taken", "progress": "Voltooid (%)", "planned": "Geplande minuten", "dependencies": "Wacht op", "graph": "Verbindingen", "labels": "Labels", "colored": "Gekleurde notities", "tagged": "Notities van de rondleiding", "icons": "Notities met pictogrammen" },
   "milestone": "Het resultaat bespreken", "captureTask": "Een nuttige volgende stap kiezen",
   "emptyProject": "Je volgende kleine project",
   "emptyProjectBody": "Een leeg voorbeeld voor je volgende stap. Er zijn nog geen taken gekoppeld: het aantal is 0 en geplande minuten blijven leeg totdat er een waarde voor de inspanning is.",
   "journalPast": "Voorbeeldterugblik: één nuttige volgende stap en tijd voor een pauze.", "journalFuture": "Voorbeeldplan: tijd vrijhouden voor een gerichte taak. Dit is een voornemen, geen verslag van afgerond werk.", "journalToday": "Wat zou vandaag nuttig maken? Schrijf één zin en kies een kleine taak.",
+  "journalEntriesToday": ["De tour-vault geopend. Deze regel is een journaalitem.", "Zelf een journaalitem proberen: één regel, opgeslagen met de tijd", "Het journaal toont deze items van alle dagen #tour"],
+  "journalEntriesYesterday": ["De belastingmap uit de kelder halen", "Korte wandeling na het werk"],
   "reviewTitle": "Leesavond — concept", "reviewBody": "Verzonnen voorbeeld om te beoordelen: we lezen samen 30 minuten. De vorm is nog een concept; de oude datum vraagt bewust om een nieuwe controle.", "standaloneTitle": "Een idee zonder links", "standaloneBody": "Deze notitie heeft bewust nog geen links. Toon losse notities in de graaf, vind deze en verbind haar met iets passends.",
   "cheatExtra": "## Kleine bouwstenen\n\n- Een lijst\n  - Een subpunt\n\n```text\nCode bewaart *deze tekens*.\n```\n\n[Terug naar deze kop](#kleine-bouwstenen). Probeer het slashmenu op een lege regel.",
   "steps": [

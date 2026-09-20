@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-20
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -134,6 +134,8 @@ Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw 
 ## Dagelijkse notities
 
 **Dagnotitie openen** (zijbalk) of een klik in de **Kalender** maakt de notitie van vandaag aan volgens je **datumformaat** in de ingestelde **basismap voor dagelijkse notities**, optioneel vanuit een sjabloon.
+
+Een dagnotitie kan ook een **journaal** bevatten: korte items met een tijdstip (`- 14:05 Tekst`) onder de kop **Journal**, geschreven met `Ctrl+Shift+J` of **Journaalitem** en gelezen over alle dagen heen in de journaalweergave. Het zijn gewone lijstregels — zie [Journaal](Journal.md).
 
 ## Taken, formules, diagrammen en voetnoten
 

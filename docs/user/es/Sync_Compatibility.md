@@ -1,6 +1,6 @@
 # Compatibilidad de sincronización de Plainva
 
-Última actualización: 2026-09-09
+Última actualización: 2026-09-20
 
 Si un servicio WebDAV, CalDAV o S3 devuelve una página de inicio de sesión o un inventario incompleto, Plainva muestra un error de sincronización. Esa respuesta no se interpreta como una carpeta o una lista de calendarios vacía ni se deducen eliminaciones de ella. Esto se aplica tanto en escritorio como en móvil.
 
@@ -9,6 +9,8 @@ Si un archivo local no se puede subir por un error de permisos o de lectura, la 
 Los cambios realizados sin conexión se conservan incluso tras varios cambios de nombre. Plainva completa los movimientos relacionados antes de subir el contenido actual; una operación fallida retiene las tareas que dependen de ella. Si falta el origen remoto, Plainva sube el archivo local o el contenido de la carpeta a la nueva ubicación. El contenido que no se puede leer permanece en la cola con un error para volver a intentarlo.
 
 La confirmación solo se aplica a la eliminación realizada. Se conserva al reintentar tras un error de conexión o un reinicio; los archivos nuevos creados en la misma ubicación no la heredan. La confirmación adicional de una eliminación masiva pausada y la opción de restaurar solo afectan a las tareas mostradas. Las eliminaciones grandes en cola desde antes de esta actualización pueden requerir una nueva confirmación.
+
+Las entradas de diario que dos dispositivos añaden a la misma nota diaria antes de haberse sincronizado no son un conflicto: Plainva las une por hora y conserva cada línea de ambos dispositivos — también cuando ambos dispositivos crearon la nota del día de forma independiente. Cualquier otro cambio simultáneo en una nota se trata como antes. Ver [Diario](Journal.md).
 
 Plainva sincroniza vaults mediante adaptadores de sincronización intercambiables. Esta página muestra qué servicios puedes usar hoy — integrados directamente, mediante el protocolo WebDAV, o mediante el propio cliente de escritorio de sincronización del proveedor.
 

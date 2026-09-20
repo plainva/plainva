@@ -1,6 +1,6 @@
 # Plainva Sync Compatibility
 
-Last reviewed: 2026-09-09
+Last reviewed: 2026-09-20
 
 If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete inventory, Plainva reports a sync error. It does not treat that response as an empty folder or calendar inventory or infer deletions from it. This applies on desktop and mobile.
 
@@ -9,6 +9,8 @@ If a local file cannot be uploaded because of a permission or read error, its ta
 Offline edits are preserved across repeated renames. Plainva completes related moves before uploading the current content; a failed operation holds back dependent tasks. If a remote rename source is missing, Plainva uploads the remaining local file or folder contents at the new location. Unreadable content stays queued with an error for retry.
 
 A deletion confirmation applies only to the deletion actually performed. It survives retries after connection errors or a restart; new files created at the same location do not inherit it. The additional prompt for a paused mass deletion and its restore option affect only the tasks shown there. Large deletions already queued before this update may need confirmation once more.
+
+Journal entries that two devices append to the same daily note before they have synced are not a conflict: Plainva merges them by time and keeps every line of both devices — also when both devices created the day's note independently. Every other simultaneous change to a note is handled as before. See [Journal](Journal.md).
 
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 

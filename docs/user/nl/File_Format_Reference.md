@@ -620,3 +620,13 @@ views:
 - **Uitzondering op de herinnering.** `remind: off` schakelt de herinnering van één taak uit; `remind: 30` herinnert 30 minuten voor het tijdstip (alleen zinvol bij een taak met een tijdstip). Zonder deze eigenschap gelden de instellingen.
 - **Statussen van selectievakjes.** `- [ ]` open, `- [x]` klaar, `- [/]` bezig, `- [-]` geannuleerd. Bezig telt als open, geannuleerd als afgerond; een geannuleerde subtaak verlaat de telling `file.tasks`. Plainva schrijft `[/]` en `[-]` alleen wanneer je **Status instellen** kiest.
 - **Prioriteitstekens op een selectievakje.** Gelezen: 🔺 ⏫ (hoog), 🔼 (gemiddeld), 🔽 ⏬ (laag). Geschreven: ⏫, 🔼 of 🔽, geplaatst voor het eerste datumveld.
+
+<!-- journal-2026-09-20 -->
+## Journaalitems
+
+- **Waar.** Onder een kop van de dagnotitie waarvan de tekst de journaalkop van de vault is (instelling **Kop van het journaal**, standaard `Journal`); het niveau van de kop (`#` tot `######`) maakt niet uit. De sectie eindigt bij de volgende kop van het hoogste niveau van de notitie. Regels binnen codeblokken en HTML-commentaar zijn geen items.
+- **Geschreven vorm.** `- HH:mm Tekst` — 24-uurs lokale tijd van het apparaat, één spatie, dan de tekst. Verdere regels van hetzelfde item zijn vervolgregels, ingesprongen tot de tekst. Een taakitem draagt het selectievakje vóór het tijdstip: `- [ ] HH:mm Tekst`.
+- **Ook gelezen.** `HH:mm:ss`, een enkelcijferig uur (`9:05`), de opsommingstekens `*` en `+`, elke status van een selectievakje (`[ ]`, `[x]`, `[/]`, `[-]`), en lijsten met lege regels tussen de items. Een lijstregel zonder tijdstip is geen item en blijft onaangeroerd.
+- **Volgorde.** Nieuwe items worden aan het einde van de sectie toegevoegd, vóór afsluitende lege regels; de lijst behoudt het opsommingsteken en de spatiëring die de notitie al gebruikt. Een ontbrekende kop wordt met de ingestelde tekst als `## Journal` aan het einde van de notitie toegevoegd, met één lege regel ertussen. Geen enkele bestaande regel wordt opnieuw opgemaakt; regeleindes (LF of CRLF) en de frontmatter blijven zoals ze zijn.
+- **Samenvoegen.** Hebben twee apparaten aan dezelfde sectie toegevoegd, dan verenigt de synchronisatie de items op tijdstip — hele items, nooit losse regels; identieke regels eenmaal, bij een gelijk tijdstip de lokale eerst. Dat geldt ook wanneer beide apparaten de notitie hebben aangemaakt. Elk ander verschil is een conflict zoals voorheen.
+- **Instelling.** `journalHeading` maakt deel uit van het instellingenprofiel van de vault, naast de map en het formaat van de dagnotitie, zodat elk apparaat dezelfde kop leest.

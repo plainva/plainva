@@ -1,12 +1,14 @@
 {
   "folder": "Percorso", "open": "Apri", "try": "Prova", "result": "Cosa cambia", "more": "Esplora ancora — facoltativo", "overview": "Indice", "previous": "Indietro", "next": "Avanti", "handbook": "Manuale",
   "intro": "Inizia con un piccolo esercizio oppure apri direttamente un database. Le prime cinque tappe mostrano il lavoro quotidiano; il resto è facoltativo. Prevedi circa 10–15 minuti per orientarti e tutto il tempo che vuoi per provare. Gli esempi sono inventati e puoi modificarli.",
-  "version": "Versione dei dati: 2026-09-11. Le date si riferiscono alla creazione di questo vault. Gli aggiornamenti dei modelli valgono solo per nuovi vault futuri; questo vault non viene mai modificato o integrato da un modello.",
+  "version": "Versione dei dati: 2026-09-20. Le date si riferiscono alla creazione di questo vault. Gli aggiornamenti dei modelli valgono solo per nuovi vault futuri; questo vault non viene mai modificato o integrato da un modello.",
   "labels": { "effort": "Impegno (minuti)", "open": "Attività aperte", "progress": "Completate (%)", "planned": "Minuti previsti", "dependencies": "Attende", "graph": "Collegamenti", "labels": "Etichette", "colored": "Note colorate", "tagged": "Note del percorso", "icons": "Note con icone" },
   "milestone": "Valutare il risultato", "captureTask": "Scegliere un prossimo passo utile",
   "emptyProject": "Il tuo prossimo piccolo progetto",
   "emptyProjectBody": "Un esempio vuoto per il tuo prossimo passo. Non ci sono attività collegate: il conteggio è 0 e i minuti previsti restano vuoti finché non viene indicato un impegno.",
   "journalPast": "Bilancio di esempio: un prossimo passo utile e tempo per una pausa.", "journalFuture": "Programma di esempio: lasciare tempo per un’attività precisa. È un’intenzione, non un resoconto di lavoro svolto.", "journalToday": "Cosa renderebbe utile questa giornata? Scrivi una frase e scegli una piccola attività.",
+  "journalEntriesToday": ["Aperto il vault del tour. Questa riga è una voce di diario.", "Provare una voce di diario propria: una riga, salvata con l'ora", "Il diario mostra queste voci di tutti i giorni #tour"],
+  "journalEntriesYesterday": ["Portare su dalla cantina la cartella delle tasse", "Breve passeggiata dopo il lavoro"],
   "reviewTitle": "Serata di lettura — bozza", "reviewBody": "Esempio inventato da rivedere: leggeremo insieme per 30 minuti. Il formato è ancora una bozza; la data passata invita a verificarlo nuovamente.", "standaloneTitle": "Un’idea senza collegamenti", "standaloneBody": "Questa nota è volutamente senza collegamenti. Mostra le note isolate nel grafo, trovala e collegala a qualcosa di pertinente.",
   "cheatExtra": "## Piccoli elementi\n\n- Un elenco\n  - Un punto annidato\n\n```text\nIl codice mantiene *questi segni*.\n```\n\n[Torna a questo titolo](#piccoli-elementi). Prova il menu slash su una riga vuota.",
   "steps": [

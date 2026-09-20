@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-09-10
+Última actualización: 2026-09-20
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -23,6 +23,8 @@ Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir e
 |---|---|
 | `Ctrl+N` | Nueva nota en la carpeta seleccionada |
 | `Ctrl+Shift+D` | Abrir la nota diaria de hoy |
+| `Ctrl+Shift+J` | Escribir una entrada de diario en la nota diaria de hoy |
+| `Ctrl+Alt+J` | Captura rápida global — de todo el sistema, opcional (ver [Diario](Journal.md)) |
 | `F2` | Renombrar la nota activa |
 | `Ctrl+Alt+Izquierda` / `Ctrl+Alt+Derecha` | Atrás / Adelante (historial de navegación) |
 

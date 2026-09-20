@@ -1,12 +1,14 @@
 {
   "folder": "Recorrido", "open": "Abrir", "try": "Pruébalo", "result": "Qué cambia", "more": "Explorar más — opcional", "overview": "Índice", "previous": "Anterior", "next": "Siguiente", "handbook": "Manual",
   "intro": "Empieza con un pequeño ejercicio o abre una base directamente. Las cinco primeras paradas muestran el uso diario; el resto es opcional. Calcula unos 10–15 minutos para una primera visita y todo el tiempo que necesites para probar. Los ejemplos son ficticios y puedes cambiarlos.",
-  "version": "Versión de datos: 2026-09-11. Las fechas corresponden a la creación de este Vault. Las actualizaciones de plantillas solo afectan a futuros Vaults nuevos; nunca modifican ni completan este.",
+  "version": "Versión de datos: 2026-09-20. Las fechas corresponden a la creación de este Vault. Las actualizaciones de plantillas solo afectan a futuros Vaults nuevos; nunca modifican ni completan este.",
   "labels": { "effort": "Esfuerzo (minutos)", "open": "Tareas abiertas", "progress": "Completadas (%)", "planned": "Minutos previstos", "dependencies": "Espera a", "graph": "Conexiones", "labels": "Etiquetas", "colored": "Notas con color", "tagged": "Notas del recorrido", "icons": "Notas con iconos" },
   "milestone": "Revisar el resultado", "captureTask": "Elegir un siguiente paso útil",
   "emptyProject": "Tu próximo pequeño proyecto",
   "emptyProjectBody": "Un ejemplo vacío para tu siguiente paso. Aún no hay tareas vinculadas: el recuento es 0 y los minutos previstos quedan vacíos hasta que haya un valor de esfuerzo.",
   "journalPast": "Reflexión de ejemplo: un siguiente paso útil y tiempo para descansar.", "journalFuture": "Plan de ejemplo: reservar tiempo para una tarea concreta. Es una intención, no trabajo realizado.", "journalToday": "¿Qué haría útil el día de hoy? Escribe una frase y elige una tarea pequeña.",
+  "journalEntriesToday": ["Abrí el vault del tour. Esta línea es una entrada de diario.", "Probar una entrada de diario propia: una línea, guardada con la hora", "El diario muestra estas entradas de todos los días #tour"],
+  "journalEntriesYesterday": ["Subir la carpeta de impuestos del sótano", "Paseo corto después del trabajo"],
   "reviewTitle": "Tarde de lectura — borrador", "reviewBody": "Ejemplo ficticio para revisar: leeremos juntos durante 30 minutos. El formato es un borrador; la fecha antigua invita a comprobarlo de nuevo.", "standaloneTitle": "Una idea sin enlaces", "standaloneBody": "Esta nota aún no tiene enlaces a propósito. Muestra las notas aisladas en el grafo, búscala y conéctala con algo relevante.",
   "cheatExtra": "## Bloques pequeños\n\n- Una lista\n  - Un punto anidado\n\n```text\nEl código conserva *estos signos*.\n```\n\n[Volver a este título](#bloques-pequeños). Prueba el menú de barra en una línea vacía.",
   "steps": [

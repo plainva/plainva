@@ -1,6 +1,6 @@
 # Zgodność synchronizacji Plainva
 
-Stan na: 2026-09-09
+Stan na: 2026-09-20
 
 Jeśli usługa WebDAV, CalDAV lub S3 zwróci stronę logowania albo niepełną listę zasobów, Plainva zgłosi błąd synchronizacji. Nie potraktuje takiej odpowiedzi jako pustego folderu lub pustej listy kalendarzy i nie wywnioskuje z niej usunięć. Dotyczy to wersji komputerowej i mobilnej.
 
@@ -9,6 +9,8 @@ Jeśli nie można przesłać lokalnego pliku z powodu błędu uprawnień lub odc
 Zmiany wprowadzone offline są zachowywane również po wielokrotnej zmianie nazwy. Plainva kończy powiązane przenoszenia przed wysłaniem aktualnej treści; nieudana operacja wstrzymuje zależne zadania. Jeśli brakuje zdalnego źródła, Plainva wysyła pozostały lokalny plik lub zawartość folderu do nowej lokalizacji. Nieczytelna zawartość pozostaje w kolejce z błędem do ponowienia.
 
 Potwierdzenie dotyczy tylko faktycznie wykonanej operacji usunięcia. Jest zachowywane przy ponowieniach po błędzie połączenia lub restarcie; nowe pliki w tej samej lokalizacji go nie dziedziczą. Dodatkowe potwierdzenie wstrzymanego masowego usuwania i opcja przywrócenia dotyczą tylko wyświetlonych zadań. Duże operacje usuwania oczekujące już przed aktualizacją mogą wymagać ponownego potwierdzenia.
+
+Wpisy dziennika, które dwa urządzenia dopisują do tej samej notatki dziennej, zanim się zsynchronizują, nie są konfliktem: Plainva scala je według godziny i zachowuje każdą linię obu urządzeń — również gdy oba urządzenia utworzyły notatkę dnia niezależnie od siebie. Każda inna jednoczesna zmiana notatki jest obsługiwana tak jak dotychczas. Zobacz [Dziennik](Journal.md).
 
 Plainva synchronizuje vaulty przez wymienne adaptery synchronizacji. Ta strona pokazuje, które usługi możesz już dziś wykorzystać — bezpośrednio zintegrowane, przez protokół WebDAV lub przez własnego klienta desktopowego danego dostawcy.
 

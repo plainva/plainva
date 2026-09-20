@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-09-10
+Laatst bijgewerkt: 2026-09-20
 
 Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het venster met sneltoetsen te openen. Het groepeert elke sneltoets en muisgebaar in gebieden waartussen je bovenaan met de chips wisselt, heeft een zoekveld dat over alle gebieden werkt, en herkent je platform automatisch: het toont `Ctrl`/`Alt` onder Windows en Linux en `⌘`/`⌥` onder macOS. In de tabellen hieronder betekent `Ctrl` daarom `⌘` op macOS en `Alt` betekent `⌥`.
 
@@ -23,6 +23,8 @@ Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het
 |---|---|
 | `Ctrl+N` | Nieuwe notitie in de geselecteerde map |
 | `Ctrl+Shift+D` | Dagnotitie van vandaag openen |
+| `Ctrl+Shift+J` | Journaalitem in de dagnotitie van vandaag schrijven |
+| `Ctrl+Alt+J` | Globale snelle invoer — systeembreed, optioneel (zie [Journaal](Journal.md)) |
 | `F2` | De actieve notitie hernoemen |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | Terug / vooruit (navigatiegeschiedenis) |
 

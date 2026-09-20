@@ -107,6 +107,8 @@ O formato de data usa os mesmos tokens do Obsidian: `YYYY` ano, `MM` mês, `DD` 
 
 O **Calendário** à direita é uma visão geral do dia: **clicar** em uma data abre a [aba do calendário](Calendar_and_Tasks.md) naquele dia; um **clique com o botão direito** abre um menu que nomeia o dia no topo e oferece **Abrir calendário**, **Nota diária** e os eventos e as tarefas com vencimento daquele dia. Dias com uma nota diária trazem um pequeno **ícone de sol**, dias com eventos, pontos coloridos por calendário. O botão **Hoje** leva você de volta ao mês atual; clicar no nome do mês abre um seletor rápido de mês/ano. Lá você também pode ativar **Mostrar números da semana** para adicionar uma coluna com a semana ISO — a configuração é lembrada.
 
+A forma mais rápida de chegar à nota de hoje é o **diário**: `Ctrl+Shift+J` recebe uma linha, carimba a hora e a acrescenta sob o título **Journal** da nota diária de hoje — sem abrir a nota. **Abrir diário** na barra de ações mostra as entradas de todos os dias como um único fluxo. Veja [Diário](Journal.md).
+
 ## Configurações
 
 **Configurações** (ícone de engrenagem na parte inferior da barra de ações à extrema esquerda, ou `Ctrl+,`) fecham pelo **X** no canto superior direito, `Esc` ou um clique fora da janela. As alterações são salvas imediatamente e automaticamente — apenas as credenciais na nuvem são aplicadas deliberadamente por **Login** na área **Contas na nuvem** (veja [Configurar Sincronização](Sync_Setup.md)). As configurações se dividem em duas partes; cada área na barra lateral esquerda abre sua própria página, onde as configurações ficam em cartões de grupo nomeados:

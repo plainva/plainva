@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-19
+Stand: 2026-09-20
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -134,6 +134,8 @@ Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Ne
 ## Tägliche Notizen
 
 **Tägliche Notiz öffnen** (Seitenleiste) oder ein Klick im **Kalender** erstellt die Notiz des Tages nach Deinem **Datumsformat** im eingestellten **Basis-Ordner für tägliche Notizen**, optional aus einer Vorlage.
+
+Eine Tagesnotiz kann auch ein **Journal** tragen: kurze Einträge mit Uhrzeit (`- 14:05 Text`) unter der Überschrift **Journal**, geschrieben mit `Strg+Umschalt+J` oder **Journal-Eintrag** und über alle Tage hinweg gelesen in der Journal-Ansicht. Es sind gewöhnliche Listenzeilen — siehe [Journal](Journal.md).
 
 ## Aufgaben, Formeln, Diagramme und Fußnoten
 

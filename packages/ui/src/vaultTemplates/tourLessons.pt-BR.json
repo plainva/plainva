@@ -1,12 +1,14 @@
 {
   "folder": "Passeio", "open": "Abrir", "try": "Experimente", "result": "O que muda", "more": "Explorar mais — opcional", "overview": "Visão geral", "previous": "Anterior", "next": "Próxima", "handbook": "Manual",
   "intro": "Comece com um exercício pequeno ou abra um banco diretamente. As cinco primeiras etapas mostram o uso diário; o restante é opcional. Reserve cerca de 10–15 minutos para conhecer o espaço e quanto tempo quiser para experimentar. Os exemplos são fictícios e podem ser alterados.",
-  "version": "Versão dos dados: 2026-09-11. As datas correspondem à criação deste Vault. Atualizações de modelos valem somente para novos Vaults futuros; este nunca é alterado ou complementado por um modelo.",
+  "version": "Versão dos dados: 2026-09-20. As datas correspondem à criação deste Vault. Atualizações de modelos valem somente para novos Vaults futuros; este nunca é alterado ou complementado por um modelo.",
   "labels": { "effort": "Esforço (minutos)", "open": "Tarefas abertas", "progress": "Concluídas (%)", "planned": "Minutos planejados", "dependencies": "Aguarda", "graph": "Conexões", "labels": "Rótulos", "colored": "Notas coloridas", "tagged": "Notas do passeio", "icons": "Notas com ícones" },
   "milestone": "Avaliar o resultado", "captureTask": "Escolher um próximo passo útil",
   "emptyProject": "Seu próximo pequeno projeto",
   "emptyProjectBody": "Um exemplo vazio para seu próximo passo. Ainda não há tarefas vinculadas: a contagem é 0 e os minutos planejados ficam vazios até existir um valor de esforço.",
   "journalPast": "Reflexão de exemplo: um próximo passo útil e tempo para uma pausa.", "journalFuture": "Plano de exemplo: reservar tempo para uma tarefa específica. É uma intenção, não um relato de trabalho concluído.", "journalToday": "O que tornaria o dia de hoje útil? Escreva uma frase e escolha uma tarefa pequena.",
+  "journalEntriesToday": ["Abri o vault do tour. Esta linha é uma entrada de diário.", "Experimentar uma entrada de diário própria: uma linha, salva com a hora", "O diário mostra estas entradas de todos os dias #tour"],
+  "journalEntriesYesterday": ["Buscar a pasta de impostos no porão", "Caminhada curta depois do trabalho"],
   "reviewTitle": "Noite de leitura — rascunho", "reviewBody": "Exemplo fictício para revisar: vamos ler juntos por 30 minutos. O formato ainda é um rascunho; a data antiga pede uma nova verificação.", "standaloneTitle": "Uma ideia sem links", "standaloneBody": "Esta nota ainda não tem links de propósito. Mostre notas isoladas no grafo, encontre-a e conecte-a a algo relevante.",
   "cheatExtra": "## Pequenos blocos\n\n- Uma lista\n  - Um subitem\n\n```text\nO código mantém *estes sinais*.\n```\n\n[Voltar a este título](#pequenos-blocos). Experimente o menu de barra em uma linha vazia.",
   "steps": [
