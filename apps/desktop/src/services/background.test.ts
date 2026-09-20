@@ -12,9 +12,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/plugin-autostart", () => ({ enable: vi.fn(), disable: vi.fn(), isEnabled: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+const listen = vi.hoisted(() => vi.fn());
+vi.mock("@tauri-apps/api/event", () => ({ listen }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { applyAutostart, turnTrayOn } from "./background";
+import { applyAutostart, onTrayNewTask, turnTrayOn } from "./background";
 
 const port = (over: Partial<Parameters<typeof turnTrayOn>[0]> = {}) => ({
   enable: vi.fn(async () => {}),
@@ -88,5 +90,44 @@ describe("applyAutostart", () => {
     const p = autoPort(true);
     expect(await applyAutostart(false, p)).toBe(false);
     expect(p.disable).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("onTrayNewTask", () => {
+  it("runs the handler when the tray asks for a new task", async () => {
+    let fire: () => void = () => {};
+    listen.mockImplementationOnce(async (_event: string, cb: () => void) => { fire = cb; return () => {}; });
+    const handler = vi.fn();
+    await onTrayNewTask(handler);
+    expect(listen).toHaveBeenCalledWith("plainva-tray-new-task", expect.any(Function));
+    fire();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("unsubscribes without an error when the event plugin is not there", async () => {
+    // Tauri's unlisten is async under a synchronous type and REJECTS where the
+    // plugin internals are missing (the browser of the E2E suite). Unhandled,
+    // that is a page error - the search suite caught exactly that.
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on("unhandledRejection", onRejection);
+    try {
+      listen.mockImplementationOnce(async () => async () => { throw new TypeError("Cannot read properties of undefined (reading 'unregisterListener')"); });
+      const rejecting = await onTrayNewTask(() => {});
+      expect(() => rejecting()).not.toThrow();
+      listen.mockImplementationOnce(async () => () => { throw new Error("sync failure"); });
+      const throwing = await onTrayNewTask(() => {});
+      expect(() => throwing()).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+    }
+  });
+
+  it("is a no-op where there is no tray to listen to", async () => {
+    listen.mockImplementationOnce(async () => { throw new Error("not a desktop shell"); });
+    const unsubscribe = await onTrayNewTask(() => {});
+    expect(() => unsubscribe()).not.toThrow();
   });
 });

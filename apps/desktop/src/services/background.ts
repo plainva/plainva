@@ -41,9 +41,27 @@ export async function enableTray(): Promise<void> {
  * the desktop shell, where there is no tray to listen to.
  */
 export async function onTrayNewTask(handler: () => void): Promise<() => void> {
+  return listenToTray("plainva-tray-new-task", handler);
+}
+
+/**
+ * One tray event, with an unsubscribe that cannot throw. Tauri's `unlisten` is
+ * asynchronous under its synchronous type and reaches into the event plugin's
+ * internals; where those are missing — the browser the E2E suite runs in, a
+ * window that is already closing — it REJECTS, and an unhandled rejection is a
+ * page error. A listener that is already gone is not a problem.
+ */
+async function listenToTray(event: string, handler: () => void): Promise<() => void> {
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return await listen("plainva-tray-new-task", () => handler());
+    const unlisten = await listen(event, () => handler());
+    return () => {
+      try {
+        void Promise.resolve(unlisten() as unknown).catch(() => undefined);
+      } catch {
+        /* see above */
+      }
+    };
   } catch {
     return () => undefined;
   }
