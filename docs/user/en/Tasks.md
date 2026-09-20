@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-15
+Last updated: 2026-09-20
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -33,7 +33,7 @@ Tasks are grouped by note; the note title is a heading you can click to open the
 
 The bar at the top narrows the list:
 
-- **Open / Done / All** — by checkbox state (starts on **Open**).
+- **Open / Done / All** — by checkbox state (starts on **Open**). This filter belongs to the list **All**; the planner lists **Today**, **Upcoming**, **Inbox** and **Done** answer that question by themselves.
 - **Filter tasks…** — free text; matches the task text.
 - **All folders** — only tasks in the chosen folder (and its subfolders).
 - **All tags** — only tasks carrying a chosen inline `#tag`.
@@ -64,11 +64,11 @@ Every checkbox row carries a database icon: **Move to the task database**. One c
 
 **Right-click** the icon to pick a different database as the target instead; without a standard database, the click opens that picker right away. Everything stays plain Markdown: the new task is an ordinary note with frontmatter, and the link in the origin note is a normal `[[wiki link]]`.
 
-**+ New task** in the section header creates an entry directly in the task database (same storage folder, template and defaults as a promoted checkbox) and opens it. Checkboxes written in a note stay in that note — they only become database tasks when you move them.
+**+ New task** in the section header puts the cursor into the capture field above the lists (see *Planner, quick capture, priority and states* below). The task is created directly in the task database — same storage folder, template and defaults as a promoted checkbox — and a notice offers **Open**. Checkboxes written in a note stay in that note — they only become database tasks when you move them.
 
 ## Blocking time for a task
 
-Tasks in Plainva are **day-granular**: a task has a due date, not a time of day. When you want to reserve a window for one, Plainva creates a **calendar event** — that is the object which owns a time range, renders with overlaps in the grid and syncs with your calendar account.
+A task has a due date and may carry a **time of day** (`2026-09-21T14:00`) — that is when Plainva reminds you. A time is a moment, not a span. When you want to reserve a window for one, Plainva creates a **calendar event** — that is the object which owns a time range, renders with overlaps in the grid and syncs with your calendar account.
 
 The calendar icon on a task row opens **Block time**: the date (prefilled with the due date), the start, and the duration (15 min, 30 min, 1 h, 2 h or **Custom**), plus a calendar picker when more than one calendar accepts writes. The event carries the task's title and links back to the note. A **right-click** on the row shows the same actions as the sheet on the phone: done/open, move to database, repeat, block time.
 
@@ -146,3 +146,16 @@ Native database tasks still skip missed periods. A saved destination plan preven
 ## Restore task filters
 
 Status, search text, folder, tag, “Only with due date” and hidden-task visibility are remembered per vault on this device, including after opening a note or restarting. “Reset filters” returns to open tasks without additional filters. Unavailable folders and tags remain visible and can be removed through the folder/tag selector. Forgetting the vault removes this view state. The standard task database remains the existing vault setting; filters are not synced.
+
+<!-- planner-capture-2026-09-20 -->
+## Planner, quick capture, priority and states
+
+The Tasks view opens on **Today**. The lists — a rail on the left on the desktop, a segment above the list on the phone — are **Today** (what is due today, with **Overdue** on top), **Upcoming** (the next 14 days, by day), **Inbox** (open tasks without a date), **All** (the two sections described above, with the **Open**/**Done**/**All** filter) and **Done**. Every list draws from both sources, the task database and the checkboxes in your notes, ordered by priority, then time, then title. The other filters apply to every list, and the chosen list is remembered per vault. On the desktop the rail also lists the most frequent tags as one-click filters; on the phone the **Today** screen leads into the planner's **Today**.
+
+Above the lists sits the capture field; on the phone **+ New task** and the **＋** button open it as a sheet. Type one line — `Send offer tomorrow 2pm !!! #client weekly` — and press Enter: Plainva creates the task in the task database. It understands today, tomorrow, the day after tomorrow, weekdays, "in 3 days", "next week", dates in digits, a time (`14:30`, `2pm`), a rhythm (daily, weekly, monthly, yearly, "every Monday", "every 2 weeks"), `!`, `!!` and `!!!` for low, medium and high priority, and `#tags` — the words in the language of the app, digits and signs in any language. Everything it recognised is marked inside the field and listed below it as a removable brick **before** anything is saved; take a brick away and its words simply count as title again. On the phone, quick buttons write the same words for you. If the task database names a provider list, a chip decides whether the task is created there too.
+
+**Set priority** in a row's menu (right-click on the desktop, press and hold on the phone) offers **high**, **medium**, **low** and **none**; a flag in front of the title shows it. In the task database the priority is a select column: a database created now has it, an older one gets it the first time you set a priority — never by merely being opened. A checkbox carries the mark of the Obsidian Tasks plugin on its line: Plainva reads 🔺 and ⏫ as high, 🔼 as medium, 🔽 and ⏬ as low, and writes ⏫, 🔼 or 🔽.
+
+`- [/]` (**In progress**) and `- [-]` (**Cancelled**) are tasks too. They get a box of their own in the editor, in reading mode and in every list; in progress counts as open, cancelled as closed. A click still only moves between open and done — it completes a task in progress and reopens a cancelled one. **Set state** in the row menu sets the two states; Plainva never writes them on its own.
+
+More ways in: **New task** in the tray menu on the desktop (when Plainva keeps running in the background), on Android the launcher shortcut **New task** (press and hold the app icon), and on the phone **Create as a task** when you share something to Plainva — the text and the attachments end up in the task's note. How a task with a time reminds you is described under [Calendar & external tasks](Calendar_and_Tasks.md).

@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-19
+Última revisão: 2026-09-20
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -208,3 +208,8 @@ Em uma janela separada ou em uma segunda janela completa, clique com o botão di
 Adicione um favorito pelo menu de contexto de um arquivo ou pasta. Os favoritos de pastas mostram um ícone próprio: no celular abrem a pasta, no desktop a expandem na árvore. Renomear e mover itens no Plainva também atualiza favoritos de subpastas e arquivos. Destinos ausentes continuam sinalizados; remova esses favoritos explicitamente.
 
 Ao abrir um cofre, o Plainva importa automaticamente favoritos de arquivos e pastas do Obsidian, inclusive grupos. Tipo e caminho evitam duplicatas. O arquivo do Obsidian permanece intacto. Perfis de configuração transportam as pastas separadamente; um perfil antigo sem esse campo mantém os favoritos de pastas existentes.
+
+<!-- planner-capture-2026-09-20 -->
+## Uma lista de pendências sobre suas notas
+
+A [visão de tarefas](Tasks.md) transforma as caixas de seleção das suas notas e os itens do seu banco de tarefas em uma única lista de pendências: **Hoje** com o que está atrasado no topo, **Em breve**, **Caixa de entrada** e **Concluídas**. Um campo de captura entende uma frase inteira — `Ligar para o dentista amanhã 9h30 !!` — e mostra o que entendeu antes de salvar qualquer coisa.

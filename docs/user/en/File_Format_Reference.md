@@ -611,3 +611,12 @@ views:
 - `does not contain`: `!file.tags.contains("#work")`
 - `is empty`: `file.tags.isEmpty()`
 - `is not empty`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Task properties: time, priority, reminder, states
+
+- **Due time.** A task's due property — the database's date column, `due` in an English vault — may carry a time: `due: 2026-09-21T14:00`. Plainva reads the time whatever the column is typed as; a bare day (`2026-09-21`) and midnight (`T00:00`) both mean "no time". A task database created by Plainva types the column as date & time; an older one keeps its plain date column until you accept the one-time offer to switch. Towards Google, Microsoft and CalDAV a task still travels with its day only.
+- **Priority.** A select column whose name means "priority" in one of Plainva's ten languages (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). The rank is the position of the option: first = high, second = medium, third = low; empty = none. The wording of the options is yours.
+- **Reminder exception.** `remind: off` silences the reminder of one task; `remind: 30` reminds 30 minutes before its time (only meaningful for a task with a time). Without the property the settings apply.
+- **Checkbox states.** `- [ ]` open, `- [x]` done, `- [/]` in progress, `- [-]` cancelled. In progress counts as open, cancelled as closed; a cancelled sub-task leaves the `file.tasks` count. Plainva writes `[/]` and `[-]` only when you choose **Set state**.
+- **Priority marks on a checkbox.** Read: 🔺 ⏫ (high), 🔼 (medium), 🔽 ⏬ (low). Written: ⏫, 🔼 or 🔽, placed in front of the first dated field.

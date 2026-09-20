@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-09-15
+Stand: 2026-09-20
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -33,7 +33,7 @@ Aufgaben sind nach Notiz gruppiert; der Notiztitel ist eine Überschrift, die Du
 
 Die Leiste oben grenzt die Liste ein:
 
-- **Offen / Erledigt / Alle** — nach Checkbox-Zustand (startet bei **Offen**).
+- **Offen / Erledigt / Alle** — nach Checkbox-Zustand (startet bei **Offen**). Dieser Filter gehört zur Liste **Alle**; die Planer-Listen **Heute**, **Demnächst**, **Eingang** und **Erledigt** beantworten diese Frage selbst.
 - **Aufgaben filtern…** — Freitext; passt auf den Aufgabentext.
 - **Alle Ordner** — nur Aufgaben im gewählten Ordner (und seinen Unterordnern).
 - **Alle Tags** — nur Aufgaben mit einem gewählten Inline-`#tag`.
@@ -64,11 +64,11 @@ Jede Checkbox-Zeile trägt ein Datenbank-Symbol: **Zur Aufgaben-Datenbank versch
 
 Mit einem **Rechtsklick** auf das Symbol wählst Du stattdessen eine andere Datenbank als Ziel; ohne festgelegte Standard-Datenbank öffnet schon der Klick diese Auswahl. Alles bleibt reines Markdown: Die neue Aufgabe ist eine gewöhnliche Notiz mit Frontmatter, der Link in der Ursprungsnotiz ein normaler `[[Wiki-Link]]`.
 
-**+ Neue Aufgabe** in der Kopfzeile der Sektion legt einen Eintrag direkt in der Aufgaben-Datenbank an (gleicher Ablage-Ordner, gleiche Vorlage und Vorbelegungen wie beim Verschieben einer Checkbox) und öffnet ihn. In einer Notiz geschriebene Checkboxen bleiben in dieser Notiz — sie werden erst zu Datenbank-Aufgaben, wenn Du sie verschiebst.
+**+ Neue Aufgabe** in der Kopfzeile der Sektion setzt den Cursor in das Erfassungsfeld über den Listen (siehe unten *Planer, Schnellerfassung, Priorität und Zustände*). Die Aufgabe entsteht direkt in der Aufgaben-Datenbank — gleicher Ablage-Ordner, gleiche Vorlage und Vorbelegung wie beim Verschieben einer Checkbox —, und ein Hinweis bietet **Öffnen** an. In einer Notiz geschriebene Checkboxen bleiben in dieser Notiz — zu Datenbank-Aufgaben werden sie erst, wenn Du sie verschiebst.
 
 ## Zeit für eine Aufgabe blocken
 
-Aufgaben sind in Plainva **taggenau**: Eine Aufgabe hat ein Fälligkeitsdatum, keine Uhrzeit. Wenn Du Dir für eine Aufgabe ein Zeitfenster reservieren willst, legt Plainva dafür einen **Termin** an — das ist das Objekt, das einen Zeitraum kennt, im Raster mit Überschneidungen dargestellt wird und mit Deinem Kalender-Konto synchronisiert.
+Eine Aufgabe hat ein Fälligkeitsdatum und kann eine **Uhrzeit** tragen (`2026-09-21T14:00`) — zu ihr erinnert Dich Plainva. Eine Uhrzeit ist ein Zeitpunkt, kein Zeitraum. Wenn Du Dir für eine Aufgabe ein Zeitfenster reservieren willst, legt Plainva dafür einen **Termin** an — das ist das Objekt, das einen Zeitraum kennt, im Raster mit Überschneidungen dargestellt wird und mit Deinem Kalender-Konto synchronisiert.
 
 Das Kalender-Symbol an einer Aufgabenzeile öffnet **Zeit blocken**: Datum (mit der Fälligkeit vorbelegt), Beginn und **Dauer** (15 min, 30 min, 1 h, 2 h oder **Eigene**), bei mehreren beschreibbaren Kalendern zusätzlich die Kalenderauswahl. Der Termin trägt den Titel der Aufgabe und verlinkt zurück auf die Notiz. Ein **Rechtsklick** auf die Zeile zeigt dieselben Aktionen wie das Blatt am Telefon: Erledigt/Offen, In Datenbank verschieben, Wiederholung, Zeit blocken.
 
@@ -146,3 +146,16 @@ Native Datenbankaufgaben behalten ihr eigenes Verhalten: überfällige Perioden 
 ## Filter wiederherstellen
 
 Status, Suchtext, Ordner, Tag, „Nur mit Fälligkeit“ und die Anzeige ausgeblendeter Aufgaben bleiben pro Vault auf diesem Gerät erhalten, auch nach dem Öffnen einer Notiz oder einem Neustart. „Filter zurücksetzen“ zeigt wieder offene Aufgaben ohne weitere Filter. Nicht mehr verfügbare Ordner und Tags bleiben als solche sichtbar und können über die Ordner-/Tag-Auswahl entfernt werden. „Vault vergessen“ entfernt diesen Ansichtszustand. Die Standard-Aufgabendatenbank bleibt die bestehende Vault-Einstellung; Filter werden nicht synchronisiert.
+
+<!-- planner-capture-2026-09-20 -->
+## Planer, Schnellerfassung, Priorität und Zustände
+
+Die Aufgabenansicht öffnet sich auf **Heute**. Die Listen — am Desktop eine Leiste links, am Telefon ein Segment über der Liste — sind **Heute** (was heute fällig ist, mit **Überfällig** obenauf), **Demnächst** (die nächsten 14 Tage, nach Tag), **Eingang** (offene Aufgaben ohne Datum), **Alle** (die beiden oben beschriebenen Sektionen mit dem Filter **Offen**/**Erledigt**/**Alle**) und **Erledigt**. Jede Liste schöpft aus beiden Quellen, der Aufgaben-Datenbank und den Checkboxen in Deinen Notizen, geordnet nach Priorität, dann Uhrzeit, dann Titel. Die übrigen Filter wirken auf jede Liste, und die gewählte Liste merkt sich Plainva je Vault. Am Desktop führt die Leiste außerdem die häufigsten Tags als Ein-Klick-Filter; am Telefon führt der Bildschirm **Heute** in die Planer-Liste **Heute**.
+
+Über den Listen steht das Erfassungsfeld; am Telefon öffnen **+ Neue Aufgabe** und der **＋**-Knopf es als Blatt. Tippe eine Zeile — `Angebot abschicken morgen 14 Uhr !!! #kunde wöchentlich` — und drücke Enter: Plainva legt die Aufgabe in der Aufgaben-Datenbank an. Es versteht heute, morgen, übermorgen, Wochentage, „in 3 Tagen“, „nächste Woche“, Datumsangaben in Ziffern, eine Uhrzeit (`14:30`, `14 Uhr`), einen Rhythmus (täglich, wöchentlich, monatlich, jährlich, „jeden Montag“, „alle 2 Wochen“), `!`, `!!` und `!!!` für niedrige, mittlere und hohe Priorität sowie `#tags` — die Wörter in der Sprache der App, Ziffern und Zeichen in jeder Sprache. Alles Erkannte ist im Feld hinterlegt und steht darunter als abwählbarer Baustein, **bevor** etwas gespeichert wird; nimmst Du einen Baustein weg, zählen seine Wörter einfach wieder zum Titel. Am Telefon schreiben Schnellknöpfe dieselben Wörter für Dich. Nennt die Aufgaben-Datenbank eine Anbieter-Liste, entscheidet ein Chip, ob die Aufgabe auch dort angelegt wird.
+
+**Priorität setzen** im Menü einer Zeile (Rechtsklick am Desktop, gedrückt halten am Telefon) bietet **hoch**, **mittel**, **niedrig** und **keine**; eine Fahne vor dem Titel zeigt sie. In der Aufgaben-Datenbank ist die Priorität eine Auswahl-Spalte: eine jetzt angelegte Datenbank hat sie, eine ältere bekommt sie, wenn Du zum ersten Mal eine Priorität setzt — nie durch bloßes Öffnen. Eine Checkbox trägt das Zeichen des Obsidian-Tasks-Plugins in ihrer Zeile: Plainva liest 🔺 und ⏫ als hoch, 🔼 als mittel, 🔽 und ⏬ als niedrig und schreibt ⏫, 🔼 oder 🔽.
+
+`- [/]` (**In Arbeit**) und `- [-]` (**Abgebrochen**) sind ebenfalls Aufgaben. Sie bekommen im Editor, im Lesemodus und in jeder Liste ein eigenes Kästchen; „in Arbeit“ zählt als offen, „abgebrochen“ als geschlossen. Ein Klick schaltet weiterhin nur zwischen offen und erledigt — er erledigt eine Aufgabe in Arbeit und öffnet eine abgebrochene wieder. **Zustand setzen** im Zeilenmenü setzt die beiden Zustände; von sich aus schreibt Plainva sie nie.
+
+Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im Hintergrund weiterläuft), unter Android der Startmenü-Eintrag **Neue Aufgabe** (App-Symbol gedrückt halten) und am Telefon **Als Aufgabe anlegen**, wenn Du etwas an Plainva teilst — Text und Anhänge landen in der Notiz der Aufgabe. Wie eine Aufgabe mit Uhrzeit erinnert, steht unter [Kalender & externe Aufgaben](Calendar_and_Tasks.md).

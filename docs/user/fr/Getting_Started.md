@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-19
+Dernière mise à jour : 2026-09-20
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -208,3 +208,8 @@ Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic dr
 Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement.
 
 À l’ouverture d’un coffre, Plainva importe automatiquement les favoris de fichiers et dossiers d’Obsidian, groupes compris. Le type et le chemin évitent les doublons. Le fichier Obsidian reste intact. Les profils transportent les dossiers séparément ; un ancien profil sans ce champ conserve les favoris de dossiers existants.
+
+<!-- planner-capture-2026-09-20 -->
+## Une liste de tâches sur vos notes
+
+La [vue Tâches](Tasks.md) transforme les cases à cocher de vos notes et les entrées de votre base de tâches en une seule liste de choses à faire : **Aujourd'hui** avec ce qui est en retard en haut, **À venir**, **Boîte de réception** et **Terminées**. Un champ de saisie comprend une phrase entière — `Appeler le dentiste demain 9h30 !!` — et montre ce qu'il a compris avant d'enregistrer quoi que ce soit.

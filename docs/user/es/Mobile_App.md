@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-16
+Última actualización: 2026-09-20
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -282,3 +282,8 @@ El icono seleccionado mantiene su separación del borde en la barra compacta. La
 En **Editor y notas** puedes desactivar **Ocultar controles automáticamente al leer**. De forma predeterminada, la cabecera y el lápiz se ocultan al bajar. Vuelven al subir, al principio de la nota, al seleccionar texto, abrir un control o el teclado, o mostrar un aviso de conflicto. El área desplazable mantiene su tamaño y se respeta la preferencia de movimiento. La barra de la tableta sigue visible; en el escritorio puedes usar el modo de concentración.
 
 **Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.
+
+<!-- planner-capture-2026-09-20 -->
+## Tareas: planificador y captura rápida
+
+La pantalla de tareas se abre en **Hoy**; el segmento encima de la lista alterna entre **Hoy**, **Próximamente**, **Bandeja de entrada**, **Todas** y **Hechas**. **+ Nueva tarea** y el botón **＋** abren la hoja de captura: una línea como `Enviar oferta mañana 14:00 !!!`, con cada parte reconocida mostrada como un bloque eliminable antes de guardarse, y botones rápidos para quien prefiera no escribir. En Android, mantener pulsado el icono de la app también ofrece **Nueva tarea**. Cuando compartes un texto, un enlace o un archivo con Plainva, **Crear como tarea** lo coloca en la base de datos de tareas en lugar de la carpeta de entrada. Detalles: [Tareas](Tasks.md).

@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-09-15
+Última actualización: 2026-09-20
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -33,7 +33,7 @@ Las tareas se agrupan por nota; el título de la nota es un encabezado en el que
 
 La barra en la parte superior reduce la lista:
 
-- **Abiertas / Hechas / Todas** — según el estado de la casilla (empieza en **Abiertas**).
+- **Abiertas / Hechas / Todas** — según el estado de la casilla (empieza en **Abiertas**). Este filtro pertenece a la lista **Todas**; las listas del planificador **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas** responden esa pregunta por sí solas.
 - **Filtrar tareas…** — texto libre; coincide con el texto de la tarea.
 - **Todas las carpetas** — solo tareas en la carpeta elegida (y sus subcarpetas).
 - **Todas las etiquetas** — solo tareas que llevan una `#tag` en línea elegida.
@@ -64,11 +64,11 @@ Cada fila de casilla lleva un icono de base de datos: **Mover a la base de datos
 
 Haz **clic derecho** en el icono para elegir en su lugar otra base de datos como destino; sin una base de datos de tareas predeterminada, el clic abre ese selector directamente. Todo sigue siendo Markdown puro: la nueva tarea es una nota normal con frontmatter, y el enlace en la nota de origen es un `[[enlace interno]]` normal.
 
-**+ Nueva tarea** en la cabecera de la sección crea una entrada directamente en la base de datos de tareas (misma carpeta de almacenamiento, plantilla y valores por defecto que al mover una casilla) y la abre. Las casillas escritas en una nota permanecen en esa nota: solo se convierten en tareas de la base cuando las mueves.
+**+ Nueva tarea** en la cabecera de la sección coloca el cursor en el campo de captura situado encima de las listas (ver *Planificador, captura rápida, prioridad y estados* más abajo). La tarea se crea directamente en la base de datos de tareas — misma carpeta de almacenamiento, misma plantilla y los mismos valores predeterminados que al promover una casilla — y un aviso ofrece **Abrir**. Las casillas escritas en una nota permanecen en esa nota — solo se convierten en tareas de la base de datos cuando las mueves.
 
 ## Bloquear tiempo para una tarea
 
-En Plainva las tareas tienen granularidad **diaria**: una tarea tiene fecha de vencimiento, no una hora. Cuando quieras reservar un hueco para una de ellas, Plainva crea un **evento** — ese es el objeto que posee un intervalo de tiempo, se dibuja con sus solapamientos en la cuadrícula y se sincroniza con tu cuenta de calendario.
+Una tarea tiene una fecha de vencimiento y puede llevar una **hora del día** (`2026-09-21T14:00`) — es entonces cuando Plainva te avisa. Una hora es un instante, no un intervalo. Cuando quieras reservar un hueco para una de ellas, Plainva crea un **evento** — ese es el objeto que posee un intervalo de tiempo, se dibuja con sus solapamientos en la cuadrícula y se sincroniza con tu cuenta de calendario.
 
 El icono de calendario en una fila de tarea abre **Bloquear tiempo**: la fecha (prerrellenada con el vencimiento), el inicio y la **Duración** (15 min, 30 min, 1 h, 2 h o **Personalizada**), además de un selector de calendario cuando hay más de uno con permiso de escritura. El evento lleva el título de la tarea y enlaza de vuelta a la nota. Un **clic derecho** en la fila muestra las mismas acciones que la hoja en el teléfono: hecha/abierta, mover a la base de datos, repetición, bloquear tiempo.
 
@@ -146,3 +146,16 @@ Las tareas nativas de base de datos siguen saltando períodos vencidos. Un plan 
 ## Restaurar filtros de tareas
 
 El estado, texto de búsqueda, carpeta, etiqueta, filtro de vencimiento y visibilidad de tareas ocultas se recuerdan por bóveda en este dispositivo, incluso al abrir una nota o reiniciar. « Restablecer filtros » vuelve a las tareas abiertas sin otros filtros. Las carpetas y etiquetas no disponibles siguen visibles y se pueden quitar desde sus selectores. Olvidar la bóveda elimina este estado. La base de tareas predeterminada conserva su configuración de bóveda; los filtros no se sincronizan.
+
+<!-- planner-capture-2026-09-20 -->
+## Planificador, captura rápida, prioridad y estados
+
+La vista de tareas se abre en **Hoy**. Las listas — una barra a la izquierda en el escritorio, un segmento encima de la lista en el teléfono — son **Hoy** (lo que vence hoy, con **Atrasadas** arriba), **Próximamente** (los próximos 14 días, por día), **Bandeja de entrada** (tareas abiertas sin fecha), **Todas** (las dos secciones descritas arriba, con el filtro **Abiertas**/**Hechas**/**Todas**) y **Hechas**. Cada lista se nutre de ambas fuentes, la base de datos de tareas y las casillas de tus notas, ordenadas por prioridad, luego por hora, luego por título. Los demás filtros se aplican a cada lista, y la lista elegida se recuerda por vault. En el escritorio, la barra también lista las etiquetas más frecuentes como filtros de un clic; en el teléfono, la pantalla **Hoy** lleva a la **Hoy** del planificador.
+
+Encima de las listas está el campo de captura; en el teléfono, **+ Nueva tarea** y el botón **＋** lo abren como una hoja. Escribe una línea — `Enviar oferta mañana 14:00 !!! #cliente cada semana` — y pulsa Intro: Plainva crea la tarea en la base de datos de tareas. Entiende hoy, mañana, pasado mañana, los días de la semana, «en 3 días», «la próxima semana», fechas en cifras, una hora (`14:30`, `2 pm`), un ritmo (diario, semanal, mensual, anual, «cada lunes», «cada 2 semanas»), `!`, `!!` y `!!!` para prioridad baja, media y alta, y `#tags` — las palabras en el idioma de la aplicación, cifras y signos en cualquier idioma. Todo lo reconocido queda marcado dentro del campo y se lista debajo como un bloque eliminable **antes** de que se guarde nada; si quitas un bloque, sus palabras vuelven a contar simplemente como título. En el teléfono, unos botones rápidos escriben las mismas palabras por ti. Si la base de datos de tareas nombra una lista de un proveedor, un chip decide si la tarea se crea también allí.
+
+**Establecer prioridad** en el menú de una fila (clic derecho en el escritorio, mantener pulsado en el teléfono) ofrece **alta**, **media**, **baja** y **ninguna**; una bandera delante del título la muestra. En la base de datos de tareas, la prioridad es una columna de selección: una base de datos creada ahora ya la tiene, una más antigua la recibe la primera vez que estableces una prioridad — nunca por el simple hecho de abrirla. Una casilla lleva la marca del plugin Obsidian Tasks en su línea: Plainva lee 🔺 y ⏫ como alta, 🔼 como media, 🔽 y ⏬ como baja, y escribe ⏫, 🔼 o 🔽.
+
+`- [/]` (**En curso**) y `- [-]` (**Cancelada**) también son tareas. Reciben su propia casilla en el editor, en el modo de lectura y en cada lista; en curso cuenta como abierta, cancelada como cerrada. Un clic solo sigue alternando entre abierta y hecha — completa una tarea en curso y reabre una cancelada. **Establecer estado** en el menú de la fila fija los dos estados; Plainva no los escribe nunca por su cuenta.
+
+Más formas de entrada: **Nueva tarea** en el menú de la bandeja del sistema en el escritorio (cuando Plainva sigue ejecutándose en segundo plano), en Android el acceso directo del launcher **Nueva tarea** (mantén pulsado el icono de la app), y en el teléfono **Crear como tarea** cuando compartes algo con Plainva — el texto y los archivos adjuntos terminan en la nota de la tarea. Cómo te avisa una tarea con hora se describe en [Calendario y tareas externas](Calendar_and_Tasks.md).

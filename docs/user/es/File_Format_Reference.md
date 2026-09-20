@@ -611,3 +611,12 @@ views:
 - `no contiene`: `!file.tags.contains("#work")`
 - `está vacío`: `file.tags.isEmpty()`
 - `no está vacío`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Propiedades de la tarea: hora, prioridad, recordatorio, estados
+
+- **Hora de vencimiento.** La propiedad de vencimiento de una tarea — la columna de fecha de la base de datos, `vencimiento` en un vault en español — puede llevar una hora: `vencimiento: 2026-09-21T14:00`. Plainva lee la hora sea cual sea el tipo de la columna; un día puro (`2026-09-21`) y la medianoche (`T00:00`) significan ambos «sin hora». Una base de datos de tareas creada por Plainva tipa la columna como fecha y hora; una más antigua conserva su columna de fecha simple hasta que aceptas la oferta puntual de cambiar. Hacia Google, Microsoft y CalDAV, una tarea sigue viajando solo con su día.
+- **Prioridad.** Una columna de selección cuyo nombre significa «prioridad» en uno de los diez idiomas de Plainva (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). El rango es la posición de la opción: la primera = alta, la segunda = media, la tercera = baja; vacía = ninguna. El texto de las opciones lo decides tú.
+- **Excepción de recordatorio.** `remind: off` silencia el recordatorio de una tarea; `remind: 30` avisa 30 minutos antes de su hora (solo tiene sentido en una tarea con hora). Sin la propiedad se aplican los ajustes.
+- **Estados de la casilla.** `- [ ]` abierta, `- [x]` hecha, `- [/]` en curso, `- [-]` cancelada. En curso cuenta como abierta, cancelada como cerrada; una subtarea cancelada sale del recuento `file.tasks`. Plainva escribe `[/]` y `[-]` solo cuando eliges **Establecer estado**.
+- **Marcas de prioridad en una casilla.** Leídas: 🔺 ⏫ (alta), 🔼 (media), 🔽 ⏬ (baja). Escritas: ⏫, 🔼 o 🔽, colocadas delante del primer campo con fecha.

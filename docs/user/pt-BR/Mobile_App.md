@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-09-16
+Última atualização: 2026-09-20
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -282,3 +282,8 @@ O ícone selecionado mantém espaço até a borda na barra compacta. As áreas d
 Em **Editor e notas**, você pode desativar **Ocultar controles automaticamente durante a leitura**. Por padrão, cabeçalho e lápis se recolhem ao rolar para baixo. Eles voltam ao subir, no início da nota, com seleção de texto, controle aberto, teclado ou aviso de conflito. A área de rolagem mantém o tamanho e respeita a preferência de movimento. A barra do tablet permanece visível; no desktop há o modo de foco.
 
 **Abrir imagem** está disponível para imagens locais na leitura, prévia e menu de contexto. No visualizador móvel, use dois dedos, toque duplo ou botões; **Redefinir zoom** mostra a imagem inteira. Voltar retorna à nota. Pressionar a imagem incorporada mantém as ações do sistema e a seleção de regiões para comentários.
+
+<!-- planner-capture-2026-09-20 -->
+## Tarefas: planejador e captura rápida
+
+A tela de tarefas abre em **Hoje**; o segmento acima da lista alterna entre **Hoje**, **Em breve**, **Caixa de entrada**, **Todas** e **Concluídas**. **+ Nova tarefa** e o botão **＋** abrem a folha de captura: uma linha como `Enviar oferta amanhã 14h !!!`, com cada parte reconhecida exibida como um bloco removível antes de ser salva, e botões rápidos para quem preferir não digitar. No Android, tocar e segurar o ícone do aplicativo também oferece **Nova tarefa**. Quando você compartilha um texto, um link ou um arquivo com o Plainva, **Criar como tarefa** o coloca no banco de tarefas em vez da pasta de entrada. Detalhes: [Tarefas](Tasks.md).

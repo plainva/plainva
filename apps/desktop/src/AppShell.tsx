@@ -5,6 +5,7 @@ const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
+import { onTrayNewTask } from "./services/background";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -1105,6 +1106,23 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     newEvent: cloudServices.calendar ? () => { openView(CALENDAR_TAB_PATH); requestNew("event"); } : undefined,
     newTask: () => { openView(TASKS_TAB_PATH); requestNew("task"); },
   });
+
+  // "New task" in the tray menu (plan Aufgaben-Oberflaeche, B6): the backend has
+  // already brought the window up; this opens the tasks view with the capture
+  // field focused — the same request the ribbon and the palette make.
+  const trayNewTask = useStableHandler(() => { openView(TASKS_TAB_PATH); requestNew("task"); });
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    let gone = false;
+    void onTrayNewTask(trayNewTask).then((unsubscribe) => {
+      if (gone) unsubscribe();
+      else off = unsubscribe;
+    });
+    return () => {
+      gone = true;
+      off?.();
+    };
+  }, [trayNewTask]);
 
   // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
   // the non-memoized daily helper); this stable wrapper opens today's note.

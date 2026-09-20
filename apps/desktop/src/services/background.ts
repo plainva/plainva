@@ -28,9 +28,25 @@ export const BACKGROUND_OFFERED_KEY = "backgroundOffered";
 export async function enableTray(): Promise<void> {
   await invoke("tray_enable", {
     openLabel: i18n.t("background.trayOpen"),
+    newTaskLabel: i18n.t("background.trayNewTask"),
     nextLabel: i18n.t("background.trayNoNext"),
     quitLabel: i18n.t("background.trayQuit"),
   });
+}
+
+/**
+ * "New task" in the tray menu (plan Aufgaben-Oberflaeche, B6). The backend has
+ * already brought the window up; the handler opens the tasks view with the
+ * capture field focused. Resolves to an unsubscribe — and to a no-op outside
+ * the desktop shell, where there is no tray to listen to.
+ */
+export async function onTrayNewTask(handler: () => void): Promise<() => void> {
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    return await listen("plainva-tray-new-task", () => handler());
+  } catch {
+    return () => undefined;
+  }
 }
 
 export async function disableTray(): Promise<void> {

@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-09-19
+Stand: 2026-09-20
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -208,3 +208,8 @@ Klicke in einem Nebenfenster oder zweiten Vollfenster mit rechts auf den Tab und
 Im Kontextmenü einer Datei oder eines Ordners kannst Du ein Lesezeichen hinzufügen. Ordner-Lesezeichen zeigen ein Ordnersymbol: Mobil öffnen sie den Ordner, am Desktop wird er im Dateibaum aufgeklappt. Umbenennen und Verschieben in Plainva aktualisieren auch Lesezeichen auf Unterordner und enthaltene Dateien. Fehlende Ziele bleiben mit einem Hinweis sichtbar; entferne sie ausdrücklich aus den Lesezeichen.
 
 Beim Öffnen des Vaults übernimmt Plainva Datei- und Ordner-Lesezeichen aus Obsidian automatisch, auch aus Gruppen. Typ und Pfad verhindern doppelte Einträge. Die Obsidian-Datei bleibt unverändert. Im Einstellungsprofil reisen Ordner getrennt von Dateilesezeichen; ein älteres Profil ohne Ordnerfeld löscht vorhandene Ordner-Lesezeichen nicht.
+
+<!-- planner-capture-2026-09-20 -->
+## Eine To-do-Liste über Deinen Notizen
+
+Die [Aufgabenansicht](Tasks.md) macht aus den Checkboxen in Deinen Notizen und den Einträgen Deiner Aufgaben-Datenbank eine To-do-Liste: **Heute** mit dem Überfälligen obenauf, **Demnächst**, **Eingang** und **Erledigt**. Ein Erfassungsfeld versteht einen ganzen Satz — `Zahnarzt anrufen morgen 9:30 !!` — und zeigt, was es verstanden hat, bevor es etwas speichert.

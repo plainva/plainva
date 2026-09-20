@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-09-15
+Última revisão: 2026-09-20
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -33,7 +33,7 @@ As tarefas são agrupadas por nota; o título da nota é um cabeçalho no qual v
 
 A barra no topo restringe a lista:
 
-- **Abertas / Concluídas / Todas** — pelo estado da caixa de seleção (começa em **Abertas**).
+- **Abertas / Concluídas / Todas** — pelo estado da caixa de seleção (começa em **Abertas**). Esse filtro pertence à lista **Todas**; as listas do planejador **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas** respondem a essa pergunta por si mesmas.
 - **Filtrar tarefas…** — texto livre; corresponde ao texto da tarefa.
 - **Todas as pastas** — apenas tarefas na pasta escolhida (e suas subpastas).
 - **Todas as tags** — apenas tarefas com uma `#tag` inline escolhida.
@@ -64,11 +64,11 @@ Toda linha de tarefa traz um ícone de banco de dados: **Mover para o banco de t
 
 **Clique com o botão direito** no ícone para escolher outro banco de dados como destino; sem um banco de tarefas padrão definido, o clique já abre esse seletor imediatamente. Tudo permanece Markdown puro: a nova tarefa é uma nota comum com frontmatter, e o link na nota de origem é um `[[wiki link]]` normal.
 
-**+ Nova tarefa** no cabeçalho da seção cria uma entrada diretamente no banco de tarefas (mesma pasta de armazenamento, modelo e preenchimentos de quando você move uma caixa) e a abre. Caixas de seleção escritas em uma nota permanecem nela — só viram tarefas do banco quando você as move.
+**+ Nova tarefa** no cabeçalho da seção coloca o cursor no campo de captura acima das listas (veja *Planejador, captura rápida, prioridade e estados* mais abaixo). A tarefa é criada diretamente no banco de tarefas — mesma pasta de armazenamento, mesmo modelo e os mesmos padrões de uma caixa de seleção promovida — e um aviso oferece **Abrir**. Caixas de seleção escritas em uma nota permanecem nessa nota — só se tornam tarefas do banco quando você as move.
 
 ## Bloqueando tempo para uma tarefa
 
-No Plainva, as tarefas têm granularidade **diária**: uma tarefa tem data de vencimento, não horário. Quando você quiser reservar uma janela para uma delas, o Plainva cria um **evento** — esse é o objeto que possui um intervalo de tempo, aparece com sobreposições na grade e sincroniza com sua conta de calendário.
+Uma tarefa tem uma data de vencimento e pode ter um **horário do dia** (`2026-09-21T14:00`) — é quando o Plainva te avisa. Um horário é um instante, não um intervalo. Quando você quiser reservar uma janela para uma delas, o Plainva cria um **evento** — esse é o objeto que possui um intervalo de tempo, aparece com sobreposições na grade e sincroniza com sua conta de calendário.
 
 O ícone de calendário em uma linha de tarefa abre **Bloquear tempo**: a data (preenchida com o vencimento), o início e a **Duração** (15 min, 30 min, 1 h, 2 h ou **Personalizada**), além de um seletor de calendário quando mais de um aceita gravação. O evento leva o título da tarefa e cria um link de volta para a nota. Um **clique com o botão direito** na linha mostra as mesmas ações da folha no celular: concluída/aberta, mover para o banco, repetição, bloquear tempo.
 
@@ -146,3 +146,16 @@ Tarefas nativas de banco de dados continuam pulando períodos perdidos. Um plano
 ## Restaurar filtros de tarefas
 
 Status, texto de pesquisa, pasta, tag, filtro de prazo e visibilidade de tarefas ocultas são lembrados por cofre neste dispositivo, inclusive após abrir uma nota ou reiniciar. “Redefinir filtros” volta às tarefas abertas sem outros filtros. Pastas e tags indisponíveis continuam visíveis e podem ser removidas nos respectivos seletores. Esquecer o cofre remove esse estado de visualização. A base de tarefas padrão continua sendo a configuração do cofre; os filtros não são sincronizados.
+
+<!-- planner-capture-2026-09-20 -->
+## Planejador, captura rápida, prioridade e estados
+
+A visão de tarefas abre em **Hoje**. As listas — uma barra à esquerda no computador, um segmento acima da lista no telefone — são **Hoje** (o que vence hoje, com **Atrasadas** no topo), **Em breve** (os próximos 14 dias, por dia), **Caixa de entrada** (tarefas abertas sem data), **Todas** (as duas seções descritas acima, com o filtro **Abertas**/**Concluídas**/**Todas**) e **Concluídas**. Cada lista vem das duas fontes, o banco de tarefas e as caixas de seleção das suas notas, ordenadas por prioridade, depois por horário, depois por título. Os demais filtros valem para cada lista, e a lista escolhida é lembrada por vault. No computador, a barra também lista as tags mais frequentes como filtros de um clique; no telefone, a tela **Hoje** leva ao **Hoje** do planejador.
+
+Acima das listas fica o campo de captura; no telefone, **+ Nova tarefa** e o botão **＋** o abrem como uma folha. Digite uma linha — `Enviar oferta amanhã 14h !!! #cliente toda semana` — e pressione Enter: o Plainva cria a tarefa no banco de tarefas. Ele entende hoje, amanhã, depois de amanhã, os dias da semana, “em 3 dias”, “semana que vem”, datas em algarismos, um horário (`14:30`, `14h`), uma recorrência (diária, semanal, mensal, anual, “toda segunda-feira”, “a cada 2 semanas”), `!`, `!!` e `!!!` para prioridade baixa, média e alta, e `#tags` — as palavras no idioma do aplicativo, algarismos e sinais em qualquer idioma. Tudo o que é reconhecido fica marcado dentro do campo e listado abaixo como um bloco removível **antes** de qualquer coisa ser salva; remova um bloco e as palavras dele voltam a contar simplesmente como título. No telefone, botões rápidos escrevem as mesmas palavras por você. Se o banco de tarefas indicar uma lista de um provedor, um chip decide se a tarefa também é criada lá.
+
+**Definir prioridade** no menu de uma linha (clique com o botão direito no computador, toque e segure no telefone) oferece **alta**, **média**, **baixa** e **nenhuma**; uma bandeira na frente do título a mostra. No banco de tarefas, a prioridade é uma coluna de seleção: um banco criado agora já a tem, um mais antigo a recebe na primeira vez que você define uma prioridade — nunca só por ser aberto. Uma caixa de seleção carrega a marca do plugin Obsidian Tasks em sua linha: o Plainva lê 🔺 e ⏫ como alta, 🔼 como média, 🔽 e ⏬ como baixa, e escreve ⏫, 🔼 ou 🔽.
+
+`- [/]` (**Em andamento**) e `- [-]` (**Cancelada**) também são tarefas. Elas ganham uma caixa própria no editor, no modo de leitura e em cada lista; em andamento conta como aberta, cancelada como fechada. Um clique continua alternando só entre aberta e concluída — ele conclui uma tarefa em andamento e reabre uma cancelada. **Definir estado** no menu da linha define os dois estados; o Plainva nunca os escreve por conta própria.
+
+Mais formas de entrada: **Nova tarefa** no menu da bandeja no computador (quando o Plainva continua rodando em segundo plano), no Android o atalho do launcher **Nova tarefa** (toque e segure o ícone do aplicativo), e no telefone **Criar como tarefa** quando você compartilha algo com o Plainva — o texto e os anexos terminam na nota da tarefa. Como uma tarefa com horário te avisa está descrito em [Calendário e tarefas externas](Calendar_and_Tasks.md).

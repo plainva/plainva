@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-16
+Stan na: 2026-09-20
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -282,3 +282,8 @@ Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku
 W **Edytor i notatki** możesz wyłączyć **Automatycznie ukrywaj elementy sterujące podczas czytania**. Domyślnie nagłówek i ołówek chowają się przy przewijaniu w dół. Wracają przy ruchu w górę, na początku notatki, przy zaznaczeniu tekstu, otwartym panelu, klawiaturze lub komunikacie o konflikcie. Obszar przewijania zachowuje rozmiar i respektuje ustawienia ruchu. Pasek tabletu pozostaje widoczny; komputer ma tryb skupienia.
 
 **Otwórz obraz** jest dostępne dla lokalnych obrazów w trybie czytania, podglądzie i menu kontekstowym. W mobilnej przeglądarce użyj dwóch palców, podwójnego stuknięcia lub przycisków; **Resetuj powiększenie** pokazuje cały obraz. Wstecz wraca do notatki. Przytrzymanie zachowuje akcje systemu, a zaznaczanie regionu do komentarza nadal działa.
+
+<!-- planner-capture-2026-09-20 -->
+## Zadania: planer i szybkie dodawanie
+
+Ekran zadań otwiera się na **Dziś**; segment nad listą przełącza między **Dziś**, **Nadchodzące**, **Skrzynka**, **Wszystkie** i **Ukończone**. **+ Nowe zadanie** i przycisk **＋** otwierają arkusz szybkiego dodawania: jedna linijka, na przykład `Wysłać ofertę jutro 14:00 !!!`, z każdą rozpoznaną częścią pokazaną jako usuwalny klocek przed zapisaniem, oraz szybkimi przyciskami dla tych, którzy wolą nie pisać. Na Androidzie przytrzymanie ikony aplikacji oferuje też **Nowe zadanie**. Gdy udostępnisz tekst, link lub plik Plainvie, **Utwórz jako zadanie** umieszcza go w bazie zadań zamiast w folderze skrzynki. Szczegóły: [Zadania](Tasks.md).

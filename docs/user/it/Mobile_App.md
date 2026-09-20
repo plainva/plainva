@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-09-16
+Ultimo aggiornamento: 2026-09-20
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -282,3 +282,8 @@ L’icona selezionata mantiene il margine nella barra compatta. Le aree di tocco
 In **Editor e note** puoi disattivare **Nascondi automaticamente i controlli durante la lettura**. Per impostazione predefinita, intestazione e matita si nascondono scorrendo in basso. Tornano scorrendo in alto, all’inizio della nota, selezionando testo, aprendo controlli o tastiera, o con un avviso di conflitto. L’area scorrevole mantiene le dimensioni e rispetta la preferenza di movimento. La barra del tablet resta visibile; sul desktop usa la modalità concentrazione.
 
 **Apri immagine** è disponibile per immagini locali in lettura, anteprima e nel menu contestuale. Nel visualizzatore mobile usa due dita, doppio tocco o pulsanti; **Reimposta zoom** mostra l’intera immagine. Indietro torna alla nota. La pressione prolungata conserva le azioni del sistema e puoi ancora selezionare una regione da commentare.
+
+<!-- planner-capture-2026-09-20 -->
+## Attività: pianificatore e cattura rapida
+
+La schermata delle attività si apre su **Oggi**; il segmento sopra l'elenco passa tra **Oggi**, **Prossimamente**, **In entrata**, **Tutte** e **Completate**. **+ Nuova attività** e il pulsante **＋** aprono il foglio di cattura: una riga come `Inviare offerta domani alle 14:00 !!!`, con ogni parte riconosciuta mostrata come un blocco rimovibile prima del salvataggio, e pulsanti rapidi per chi preferisce non digitare. Su Android, tenere premuta l'icona dell'app offre anche **Nuova attività**. Quando condividi un testo, un link o un file con Plainva, **Crea come attività** lo mette nel database delle attività invece che nella cartella in entrata. Dettagli: [Attività](Tasks.md).

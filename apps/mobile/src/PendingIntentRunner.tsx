@@ -16,6 +16,7 @@ export function PendingIntentRunner({
   pendingShortcut,
   setPendingShortcut,
   onCapture,
+  onNewTask,
   onOpenToday,
   onOpenNote,
   onOpenCalendar,
@@ -23,6 +24,8 @@ export function PendingIntentRunner({
   pendingShortcut: string | null;
   setPendingShortcut: (v: string | null) => void;
   onCapture: () => void;
+  /** Opens the tasks tab with the quick-capture sheet (launcher shortcut "new-task", B6). */
+  onNewTask: () => void;
   onOpenToday: () => void;
   onOpenNote: (path: string) => void;
   onOpenCalendar: (focus?: CalendarFocus) => void;
@@ -45,6 +48,7 @@ export function PendingIntentRunner({
     if (!pendingShortcut) return;
     setPendingShortcut(null);
     if (pendingShortcut === "new-note") onCapture();
+    else if (pendingShortcut === "new-task") onNewTask();
     else if (pendingShortcut === "today") onOpenToday();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingShortcut]);

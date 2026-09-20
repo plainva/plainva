@@ -611,3 +611,12 @@ views:
 - `enthält nicht`: `!file.tags.contains("#work")`
 - `ist leer`: `file.tags.isEmpty()`
 - `ist nicht leer`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Aufgaben-Eigenschaften: Uhrzeit, Priorität, Erinnerung, Zustände
+
+- **Uhrzeit der Fälligkeit.** Die Fälligkeits-Eigenschaft einer Aufgabe — die Datumsspalte der Datenbank, in einem deutschen Vault `frist` — kann eine Uhrzeit tragen: `frist: 2026-09-21T14:00`. Plainva liest die Uhrzeit unabhängig vom Typ der Spalte; ein reiner Tag (`2026-09-21`) und Mitternacht (`T00:00`) bedeuten beide „keine Uhrzeit“. Eine von Plainva angelegte Aufgaben-Datenbank typisiert die Spalte als Datum & Uhrzeit; eine ältere behält ihre reine Datumsspalte, bis Du das einmalige Angebot zur Umstellung annimmst. Zu Google, Microsoft und CalDAV reist eine Aufgabe weiterhin nur mit ihrem Tag.
+- **Priorität.** Eine Auswahl-Spalte, deren Name in einer der zehn Plainva-Sprachen „Priorität“ bedeutet (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). Der Rang ist die Position der Option: erste = hoch, zweite = mittel, dritte = niedrig; leer = keine. Den Wortlaut der Optionen bestimmst Du.
+- **Erinnerungs-Ausnahme.** `remind: off` schaltet die Erinnerung einer einzelnen Aufgabe stumm; `remind: 30` erinnert 30 Minuten vor ihrer Uhrzeit (nur sinnvoll bei einer Aufgabe mit Uhrzeit). Ohne die Eigenschaft gelten die Einstellungen.
+- **Checkbox-Zustände.** `- [ ]` offen, `- [x]` erledigt, `- [/]` in Arbeit, `- [-]` abgebrochen. „In Arbeit“ zählt als offen, „abgebrochen“ als geschlossen; eine abgebrochene Unteraufgabe verlässt die Zählung `file.tasks`. Plainva schreibt `[/]` und `[-]` nur, wenn Du **Zustand setzen** wählst.
+- **Prioritäts-Zeichen an einer Checkbox.** Gelesen: 🔺 ⏫ (hoch), 🔼 (mittel), 🔽 ⏬ (niedrig). Geschrieben: ⏫, 🔼 oder 🔽, vor dem ersten Datumsfeld.

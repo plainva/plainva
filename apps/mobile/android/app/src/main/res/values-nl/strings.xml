@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="shortcut_new_note">Nieuwe notitie</string>
+    <string name="shortcut_new_task">Nieuwe taak</string>
     <string name="shortcut_today">Vandaag</string>
 </resources>

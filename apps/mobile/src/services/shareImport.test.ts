@@ -35,6 +35,31 @@ describe("durable inbound transfers", () => {
     for (const target of f.contents.keys()) expect(target.split("/").every(part => new TextEncoder().encode(part).length <= 255)).toBe(true);
     expect(f.contents.get(path)).not.toContain("�"); expect(f.port.finishShare).toHaveBeenCalledTimes(1);
   });
+  it("'as a task': the note lands where the host says a task belongs, with the text and the attachment in its body", async () => {
+    const f = fixture();
+    const asTask = vi.fn(async ({ title, body }: { title: string; body: string }) => ({
+      folder: "Aufgaben",
+      text: `---\nstatus: Offen\n---\n# ${title}\n\n${body}\n`,
+    }));
+    const path = await importSharedContent(f.port, f.get(), { ...f.context, asTask });
+    expect(path).toBe("Aufgaben/Agenda (aaaaaaaa).md");
+    expect(asTask).toHaveBeenCalledTimes(1);
+    const note = f.contents.get(path) as string;
+    expect(note).toContain("status: Offen");
+    expect(note).toContain("# Agenda");
+    expect(note).toContain("https://example.test/agenda");
+    expect(note).toContain("![[Attachments/Shared/aaaaaaaa-1111-2222-3333-444444444444/1-sketch.png]]");
+    // The plan is durable: a second run finishes THIS plan and asks nobody again.
+    expect(f.get().plan?.notePath).toBe(path);
+    await importSharedContent(f.port, f.get(), { ...f.context, asTask }).catch(() => undefined);
+    expect(asTask).toHaveBeenCalledTimes(1);
+  });
+  it("'as a task' refuses a folder that is not a safe vault path, before anything is planned or written", async () => {
+    const f = fixture();
+    await expect(importSharedContent(f.port, f.get(), { ...f.context, asTask: async () => ({ folder: "../outside", text: "x" }) })).rejects.toThrow("SHARE_INVALID");
+    expect(f.port.beginImport).not.toHaveBeenCalled();
+    expect(f.files.writeTextFile).not.toHaveBeenCalled();
+  });
   it("rejects a same-size payload whose digest changed before writing or acknowledging", async () => {
     const f = fixture(); f.payload[4] = 73;
     await expect(importSharedContent(f.port, f.get(), f.context)).rejects.toThrow("SHARE_INCOMPLETE");

@@ -49,6 +49,16 @@ export interface ShareImportContext {
   ensureOpen(): Promise<void>;
   signal?: AbortSignal;
   onProgress?(done: number, total: number): void;
+  /**
+   * "As a task" (plan Aufgaben-Oberflaeche, B6): instead of a plain note in
+   * `folder`, the shared content becomes an entry of the task database — title
+   * from the subject or the first line, text and attachment links in the body.
+   * The host says WHERE a task belongs and what it looks like; this pipeline
+   * keeps owning the path and the write, so a retry still lands in one place.
+   * Asked only while the plan is being made: a share whose plan already exists
+   * is finished as planned.
+   */
+  asTask?(input: { title: string; body: string }): Promise<{ folder: string; text: string }>;
 }
 
 /** One durable native plan owns every path; no automatic rename after a retry. */
@@ -67,14 +77,17 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
   if (!share.plan) {
     if (ctx.folder && !safePath(ctx.folder)) throw new Error("SHARE_INVALID");
     const title = safeName(share.subject.trim() || share.text.split("\n")[0].slice(0, 60).trim() || share.files[0]?.name.replace(/\.[^.]+$/, "") || "Shared");
-    const stem = `${ctx.folder ? ctx.folder + "/" : ""}${title} (${share.id.slice(0, 8)})`;
+    const files = share.files.map((f, i) => ({ id: f.id, path: `Attachments/Shared/${share.id}/${i + 1}-${safeName(f.name)}` }));
+    const links = files.map(f => `${share.files.find(s => s.id === f.id)!.mime.startsWith("image/") ? "!" : ""}[[${f.path}]]`);
+    const task = ctx.asTask ? await ctx.asTask({ title, body: [share.text, ...links].filter(Boolean).join("\n\n") }) : null;
+    const folder = task ? task.folder : ctx.folder;
+    if (task && !safePath(folder)) throw new Error("SHARE_INVALID");
+    const stem = `${folder ? folder + "/" : ""}${title} (${share.id.slice(0, 8)})`;
     let notePath = stem + ".md";
     for (let n = 2; await ctx.files.exists(notePath); n++) {
       await guard(); if (n > 100) throw new Error("SHARE_TARGET_CHANGED"); notePath = `${stem} ${n}.md`;
     }
-    const files = share.files.map((f, i) => ({ id: f.id, path: `Attachments/Shared/${share.id}/${i + 1}-${safeName(f.name)}` }));
-    const links = files.map(f => `${share.files.find(s => s.id === f.id)!.mime.startsWith("image/") ? "!" : ""}[[${f.path}]]`);
-    const noteText = ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
+    const noteText = task ? task.text : ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
     share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
   }
   const plan = share.plan!;

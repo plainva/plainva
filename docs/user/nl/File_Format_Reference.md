@@ -611,3 +611,12 @@ views:
 - `bevat niet`: `!file.tags.contains("#work")`
 - `is leeg`: `file.tags.isEmpty()`
 - `is niet leeg`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Taakeigenschappen: tijd, prioriteit, herinnering, statussen
+
+- **Vervaltijdstip.** De vervaleigenschap van een taak — de datumkolom van de database, `vervaldatum` in een Nederlandse vault — kan een tijdstip dragen: `vervaldatum: 2026-09-21T14:00`. Plainva leest het tijdstip ongeacht het type van de kolom; een kale dag (`2026-09-21`) en middernacht (`T00:00`) betekenen beide ‘geen tijdstip’. Een door Plainva aangemaakte takendatabase typeert de kolom als datum & tijd; een oudere behoudt zijn gewone datumkolom totdat je het eenmalige aanbod om over te schakelen accepteert. Naar Google, Microsoft en CalDAV reist een taak nog altijd met alleen zijn dag.
+- **Prioriteit.** Een keuzekolom waarvan de naam in een van Plainva's tien talen ‘prioriteit’ betekent (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). De rang is de positie van de optie: eerste = hoog, tweede = gemiddeld, derde = laag; leeg = geen. De bewoording van de opties bepaal je zelf.
+- **Uitzondering op de herinnering.** `remind: off` schakelt de herinnering van één taak uit; `remind: 30` herinnert 30 minuten voor het tijdstip (alleen zinvol bij een taak met een tijdstip). Zonder deze eigenschap gelden de instellingen.
+- **Statussen van selectievakjes.** `- [ ]` open, `- [x]` klaar, `- [/]` bezig, `- [-]` geannuleerd. Bezig telt als open, geannuleerd als afgerond; een geannuleerde subtaak verlaat de telling `file.tasks`. Plainva schrijft `[/]` en `[-]` alleen wanneer je **Status instellen** kiest.
+- **Prioriteitstekens op een selectievakje.** Gelezen: 🔺 ⏫ (hoog), 🔼 (gemiddeld), 🔽 ⏬ (laag). Geschreven: ⏫, 🔼 of 🔽, geplaatst voor het eerste datumveld.

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ICON, notifyFileOps, toast, useStableHandler } from "@plainva/ui";
-import { FileText, Folder, Paperclip } from "lucide-react";
+import { Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTaskNote, toast, useStableHandler } from "@plainva/ui";
+import { CheckSquare, FileText, Folder, Paperclip } from "lucide-react";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../services/mobileWorkspaceSecurity";
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
-import type { MobileVault } from "../services/vaultService";
+import { vaultOps, type MobileVault } from "../services/vaultService";
+import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
 import { FolderPickerSheet } from "./FolderPickerSheet";
 import { SheetGrip } from "./SheetGrip";
@@ -23,6 +24,18 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   const [error, setError] = useState<string | null>(null), [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false), [progress, setProgress] = useState("");
   const [plannedVaultName, setPlannedVaultName] = useState("");
+  // "As a task" (plan Aufgaben-Oberflaeche, B6): offered when a task database is
+  // set. The provider chip follows the capture sheet's rule — it appears only
+  // when the database names a list, and it starts on.
+  const taskDb = getMobileSettings().taskDatabase.trim();
+  const [asTask, setAsTask] = useState(false), [providerList, setProviderList] = useState<string | null>(null), [atProvider, setAtProvider] = useState(true);
+  useEffect(() => {
+    if (!taskDb || !asTask) return;
+    let stale = false;
+    const adapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
+    void providerListLabel(adapter, taskDb).then(name => { if (!stale) setProviderList(name ?? null); }).catch(() => { if (!stale) setProviderList(null); });
+    return () => { stale = true; };
+  }, [taskDb, asTask, vault]);
   const dismissed = useRef(new Set<string>()), abort = useRef<AbortController | null>(null);
   const entry = entries.find(e => e.id === selected) ?? entries[0];
   useEffect(() => {
@@ -57,9 +70,20 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   const importEntry = async () => {
     if (!entry || busy) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null);
+    const taskAdapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
+    const makesTask = asTask && !!taskDb && !entry.plan;
+    let taskTitle = "";
     try {
       const path = await importSharedContent(port, entry, {
         vaultId: vault.vaultId, files: vault.files, folder, signal: controller.signal,
+        ...(makesTask ? {
+          asTask: async ({ title, body }) => {
+            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: getMobileSettings().defaultNoteType, trailer: body ? "\n" + body + "\n" : undefined });
+            if (!prepared.ok) throw new Error("SHARE_TASK_UNAVAILABLE");
+            taskTitle = title;
+            return { folder: prepared.folder, text: prepared.content };
+          },
+        } : {}),
         ensureOpen: async () => {
           if ((await getActiveVaultEntry()).id !== vault.vaultId) throw new Error("SHARE_OTHER_VAULT");
           const status = await getMobileWorkspaceStatus(vault.vaultId);
@@ -69,11 +93,14 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
       });
       await vault.reindexPaths([path]).catch(() => toast.error(t("shareInbox.indexIssue")));
       notifyFileOps([{ type: "create", path }]);
+      // The note is the deliverable and exists; the provider copy is the
+      // addition — same order and same reporting as every other way of creating a task.
+      if (makesTask && taskTitle && providerList && atProvider) await sendTaskToProviderList(taskAdapter, taskDb, path, taskTitle).catch(() => toast.error(t("tasks.providerCreateFailed")));
       toast.info(t("shareInbox.saved")); if (!controller.signal.aborted) onImported(path); await refresh();
     } catch (failure) {
       if (controller.signal.aborted) return;
       const code = failure instanceof Error ? failure.message : "";
-      setError(code === "SHARE_LOCKED" ? t("shareInbox.locked") : code === "SHARE_OTHER_VAULT" ? t("shareInbox.otherVault") : code === "SHARE_TARGET_CHANGED" ? t("shareInbox.targetChanged") : t("shareInbox.writeFailed"));
+      setError(code === "SHARE_TASK_UNAVAILABLE" ? t("tasks.promoteNoFolder") : code === "SHARE_LOCKED" ? t("shareInbox.locked") : code === "SHARE_OTHER_VAULT" ? t("shareInbox.otherVault") : code === "SHARE_TARGET_CHANGED" ? t("shareInbox.targetChanged") : t("shareInbox.writeFailed"));
       await refresh();
     } finally { setBusy(false); setProgress(""); }
   };
@@ -96,10 +123,16 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         {entry.text && <p className="m-hint m-share-preview">{entry.text.slice(0, 1000)}{entry.text.length > 1000 ? "…" : ""}</p>}
         {entry.files.map(file => <div className="m-row" key={file.id}><Paperclip size={ICON.head} /><span className="m-share-preview">{file.name} · {Math.ceil(file.size / 1024)} KB</span></div>)}
         <p className="m-sectionlabel">{t("shareInbox.destination")}</p>
-        <p className="m-hint m-share-preview">{entry.plan ? `${entry.plan.vaultId === vault.vaultId ? vaultName : plannedVaultName || t("shareInbox.chooseVault")} / ${entry.plan.notePath}` : `${vaultName} / ${folder || "/"}`}</p>
+        <p className="m-hint m-share-preview">{entry.plan ? `${entry.plan.vaultId === vault.vaultId ? vaultName : plannedVaultName || t("shareInbox.chooseVault")} / ${entry.plan.notePath}` : asTask && taskDb ? `${vaultName} / ${noteDisplayName(taskDb.split("/").pop() ?? taskDb)}` : `${vaultName} / ${folder || "/"}`}</p>
+        {!entry.plan && taskDb && (
+          <div className="pv-capture-quick">
+            <Chip testId="share-as-task" icon={<CheckSquare size={ICON.meta} />} selected={asTask} onClick={() => setAsTask(x => !x)}>{t("shareInbox.asTask")}</Chip>
+            {asTask && providerList && <Chip testId="share-task-provider" selected={atProvider} onClick={() => setAtProvider(x => !x)}>{t("tasks.alsoCreateAt", { list: providerList })}</Chip>}
+          </div>
+        )}
         <div className="m-btnrow">
           <Button variant="ghost" disabled={busy} onClick={() => { close(); onChooseVault(); }}>{t("shareInbox.chooseVault")}</Button>
-          {!entry.plan && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
+          {!entry.plan && !asTask && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
         </div>
         {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => { close(); onUnlock(); }}>{t("workspaceSecurity.unlock")}</Button></Banner>}
         {entry.status !== "ready" && <Banner kind={entry.status === "failed" ? "error" : "info"}>{t(entry.status === "failed" ? "shareInbox.incomplete" : "shareInbox.receiving")}</Banner>}

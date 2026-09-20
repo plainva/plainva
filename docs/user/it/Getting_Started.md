@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-19
+Ultimo aggiornamento: 2026-09-20
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -208,3 +208,8 @@ In una finestra separata o in una seconda finestra completa, fai clic destro sul
 Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri.
 
 All’apertura di un vault, Plainva importa automaticamente i segnalibri di file e cartelle da Obsidian, gruppi compresi. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.
+
+<!-- planner-capture-2026-09-20 -->
+## Un elenco di cose da fare sulle tue note
+
+La [vista Attività](Tasks.md) trasforma le caselle nelle tue note e le voci del tuo database delle attività in un'unica lista di cose da fare: **Oggi** con ciò che è in ritardo in cima, **Prossimamente**, **In entrata** e **Completate**. Un campo di cattura capisce una frase intera — `Chiamare il dentista domani alle 9:30 !!` — e mostra ciò che ha capito prima di salvare qualcosa.

@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-09-20
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -33,7 +33,7 @@ Les tâches sont regroupées par note ; le titre de la note est un en-tête sur 
 
 La barre en haut restreint la liste :
 
-- **Ouvertes / Terminées / Toutes** — selon l'état de la case à cocher (commence sur **Ouvertes**).
+- **Ouvertes / Terminées / Toutes** — selon l'état de la case à cocher (commence sur **Ouvertes**). Ce filtre appartient à la liste **Toutes** ; les listes du planificateur **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées** répondent à cette question par elles-mêmes.
 - **Filtrer les tâches…** — texte libre ; correspond au texte de la tâche.
 - **Tous les dossiers** — uniquement les tâches du dossier choisi (et de ses sous-dossiers).
 - **Toutes les étiquettes** — uniquement les tâches portant un `#tag` en ligne choisi.
@@ -64,11 +64,11 @@ Chaque ligne de case à cocher porte une icône de base de données : **Déplace
 
 **Clic droit** sur l'icône pour choisir une autre base de données comme cible à la place ; sans base de tâches par défaut, le clic ouvre directement ce sélecteur. Tout reste du Markdown pur : la nouvelle tâche est une note ordinaire avec un frontmatter, et le lien dans la note d'origine est un `[[lien wiki]]` normal.
 
-**+ Nouvelle tâche** dans l'en-tête de la section crée une entrée directement dans la base de tâches (même dossier de stockage, même modèle et mêmes valeurs par défaut qu'une case déplacée) et l'ouvre. Les cases écrites dans une note y restent : elles ne deviennent des tâches de la base que lorsque vous les déplacez.
+**+ Nouvelle tâche** dans l'en-tête de la section place le curseur dans le champ de saisie au-dessus des listes (voir *Planificateur, saisie rapide, priorité et états* plus bas). La tâche est créée directement dans la base de tâches — même dossier de stockage, même modèle et mêmes valeurs par défaut qu'une case à cocher promue — et une notification propose **Ouvrir**. Les cases à cocher écrites dans une note restent dans cette note — elles ne deviennent des tâches de la base de données que lorsque vous les déplacez.
 
 ## Bloquer du temps pour une tâche
 
-Dans Plainva, les tâches ont une granularité **journalière** : une tâche a une date d'échéance, pas une heure. Lorsque vous voulez réserver un créneau pour l'une d'elles, Plainva crée un **événement** — c'est l'objet qui possède une plage horaire, s'affiche avec ses chevauchements dans la grille et se synchronise avec votre compte d'agenda.
+Une tâche a une date d'échéance et peut porter une **heure de la journée** (`2026-09-21T14:00`) — c'est à ce moment-là que Plainva vous le rappelle. Une heure est un instant, pas une durée. Lorsque vous voulez réserver un créneau pour l'une d'elles, Plainva crée un **événement** — c'est l'objet qui possède une plage horaire, s'affiche avec ses chevauchements dans la grille et se synchronise avec votre compte d'agenda.
 
 L'icône d'agenda sur une ligne de tâche ouvre **Bloquer du temps** : la date (préremplie avec l'échéance), le début et la **Durée** (15 min, 30 min, 1 h, 2 h ou **Personnalisée**), plus un sélecteur d'agenda si plusieurs agendas acceptent l'écriture. L'événement reprend le titre de la tâche et renvoie vers la note. Un **clic droit** sur la ligne affiche les mêmes actions que la feuille sur le téléphone : terminée/ouverte, déplacer vers la base, répétition, bloquer du temps.
 
@@ -146,3 +146,16 @@ Les tâches natives de base de données sautent toujours les périodes manquées
 ## Retrouver les filtres des tâches
 
 Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par coffre sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le coffre efface cet état. La base de tâches par défaut reste le réglage du coffre ; les filtres ne sont pas synchronisés.
+
+<!-- planner-capture-2026-09-20 -->
+## Planificateur, saisie rapide, priorité et états
+
+La vue Tâches s'ouvre sur **Aujourd'hui**. Les listes — une barre à gauche sur le bureau, un segment au-dessus de la liste sur le téléphone — sont **Aujourd'hui** (ce qui est dû aujourd'hui, avec **En retard** en haut), **À venir** (les 14 prochains jours, par jour), **Boîte de réception** (tâches ouvertes sans date), **Toutes** (les deux sections décrites ci-dessus, avec le filtre **Ouvertes**/**Terminées**/**Toutes**) et **Terminées**. Chaque liste puise dans les deux sources, la base de tâches et les cases à cocher de vos notes, triées par priorité, puis par heure, puis par titre. Les autres filtres s'appliquent à chaque liste, et la liste choisie est mémorisée par vault. Sur le bureau, la barre liste aussi les tags les plus fréquents comme filtres en un clic ; sur le téléphone, l'écran **Aujourd'hui** mène à l'**Aujourd'hui** du planificateur.
+
+Au-dessus des listes se trouve le champ de saisie ; sur le téléphone, **+ Nouvelle tâche** et le bouton **＋** l'ouvrent sous forme de feuille. Tapez une ligne — `Envoyer offre demain 14h !!! #client chaque semaine` — et appuyez sur Entrée : Plainva crée la tâche dans la base de tâches. Il comprend aujourd'hui, demain, après-demain, les jours de la semaine, « dans 3 jours », « la semaine prochaine », les dates en chiffres, une heure (`14:30`, `14h`), un rythme (quotidien, hebdomadaire, mensuel, annuel, « chaque lundi », « toutes les 2 semaines »), `!`, `!!` et `!!!` pour une priorité basse, moyenne et haute, et `#tags` — les mots dans la langue de l'application, les chiffres et les signes dans n'importe quelle langue. Tout ce qui est reconnu est marqué dans le champ et listé en dessous sous la forme d'un bloc amovible **avant** que quoi que ce soit ne soit enregistré ; retirez un bloc et ses mots recomptent simplement comme titre. Sur le téléphone, des boutons rapides écrivent les mêmes mots pour vous. Si la base de tâches désigne une liste d'un fournisseur, une puce décide si la tâche y est créée aussi.
+
+**Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque du plugin Obsidian Tasks sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
+
+`- [/]` (**En cours**) et `- [-]` (**Annulée**) sont aussi des tâches. Elles reçoivent leur propre case dans l'éditeur, en mode lecture et dans chaque liste ; en cours compte comme ouverte, annulée comme fermée. Un clic continue de basculer seulement entre ouverte et terminée — il termine une tâche en cours et rouvre une tâche annulée. **Définir l'état** dans le menu de la ligne fixe les deux états ; Plainva ne les écrit jamais de lui-même.
+
+D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de notification sur le bureau (quand Plainva continue de tourner en arrière-plan), sur Android le raccourci du lanceur **Nouvelle tâche** (appui long sur l'icône de l'application), et sur le téléphone **Créer comme tâche** quand vous partagez quelque chose vers Plainva — le texte et les pièces jointes finissent dans la note de la tâche. La façon dont une tâche avec une heure vous le rappelle est décrite dans [Calendrier et tâches externes](Calendar_and_Tasks.md).

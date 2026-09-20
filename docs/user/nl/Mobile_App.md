@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-16
+Laatst bijgewerkt: 2026-09-20
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -282,3 +282,8 @@ Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanra
 Bij **Editor en notities** kun je **Bediening tijdens het lezen automatisch verbergen** uitschakelen. Standaard verdwijnen kopbalk en potlood bij omlaag scrollen. Ze keren terug bij omhoog scrollen, bovenaan de notitie, bij tekstselectie, een open bedieningselement, het toetsenbord of een conflictmelding. Het schuifgebied houdt dezelfde grootte en de bewegingsvoorkeur wordt gevolgd. De tabletrail blijft zichtbaar; op desktop gebruik je focusmodus.
 
 **Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.
+
+<!-- planner-capture-2026-09-20 -->
+## Taken: planner en snel vastleggen
+
+Het takenscherm opent op **Vandaag**; het segment boven de lijst wisselt tussen **Vandaag**, **Binnenkort**, **Inbox**, **Alle** en **Klaar**. **+ Nieuwe taak** en de **＋**-knop openen het invoerblad: één regel zoals `Offerte versturen morgen 14:00 !!!`, waarbij elk herkend onderdeel als verwijderbaar blokje wordt getoond voordat het wordt opgeslagen, met snelknoppen voor wie liever niet typt. Op Android biedt het ingedrukt houden van het app-icoon ook **Nieuwe taak**. Deel je een tekst, een link of een bestand met Plainva, dan zet **Als taak aanmaken** dit in de takendatabase in plaats van de inbox-map. Details: [Taken](Tasks.md).

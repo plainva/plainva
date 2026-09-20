@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Static launcher shortcuts (M3E package J): both fire VIEW intents on the
+<!-- Static launcher shortcuts (M3E package J): all fire VIEW intents on the
      app's own scheme; the JS appUrlOpen handler routes them (App.tsx). -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
@@ -10,6 +10,18 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="com.plainva.app://shortcut/new-note"
+            android:targetPackage="com.plainva.app"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+    <!-- Opens the tasks tab with the quick-capture sheet (plan Aufgaben-Oberflaeche, B6). -->
+    <shortcut
+        android:shortcutId="new-task"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_task">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app://shortcut/new-task"
             android:targetPackage="com.plainva.app"
             android:targetClass="com.plainva.app.MainActivity" />
     </shortcut>

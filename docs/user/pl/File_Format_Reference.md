@@ -611,3 +611,12 @@ views:
 - `nie zawiera`: `!file.tags.contains("#work")`
 - `jest puste`: `file.tags.isEmpty()`
 - `nie jest puste`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Właściwości zadania: godzina, priorytet, przypomnienie, stany
+
+- **Godzina terminu.** Właściwość terminu zadania — kolumna daty w bazie danych, `termin` w polskim vaulcie — może nosić godzinę: `termin: 2026-09-21T14:00`. Plainva odczytuje godzinę niezależnie od typu kolumny; sam dzień (`2026-09-21`) i północ (`T00:00`) oznaczają oba „brak godziny”. Baza zadań utworzona przez Plainvę typuje tę kolumnę jako data i godzina; starsza zachowuje zwykłą kolumnę daty, dopóki nie przyjmiesz jednorazowej propozycji przełączenia. W stronę Google, Microsoft i CalDAV zadanie nadal podróżuje tylko ze swoim dniem.
+- **Priorytet.** Kolumna wyboru, której nazwa w jednym z dziesięciu języków Plainvy oznacza „priorytet” (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). Ranga to pozycja opcji: pierwsza = wysoki, druga = średni, trzecia = niski; pusta = brak. Treść opcji zależy od Ciebie.
+- **Wyjątek przypomnienia.** `remind: off` wycisza przypomnienie jednego zadania; `remind: 30` przypomina 30 minut przed jego godziną (ma sens tylko dla zadania z godziną). Bez tej właściwości obowiązują ustawienia.
+- **Stany pola wyboru.** `- [ ]` otwarte, `- [x]` ukończone, `- [/]` w toku, `- [-]` anulowane. W toku liczy się jako otwarte, anulowane jako zamknięte; anulowane podzadanie opuszcza licznik `file.tasks`. Plainva zapisuje `[/]` i `[-]` tylko wtedy, gdy wybierzesz **Ustaw stan**.
+- **Znaczniki priorytetu na polu wyboru.** Odczyt: 🔺 ⏫ (wysoki), 🔼 (średni), 🔽 ⏬ (niski). Zapis: ⏫, 🔼 lub 🔽, umieszczony przed pierwszym polem z datą.

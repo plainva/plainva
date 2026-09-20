@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-19
+Última actualización: 2026-09-20
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -208,3 +208,8 @@ En una ventana separada o en una segunda ventana completa, haz clic derecho en l
 Añade un marcador desde el menú contextual de un archivo o una carpeta. Los marcadores de carpetas muestran un icono de carpeta: en el móvil abren la carpeta y en el escritorio la expanden en el árbol. Mover o renombrar elementos en Plainva actualiza también los marcadores de subcarpetas y archivos. Los destinos ausentes permanecen señalados; elimina esos marcadores expresamente.
 
 Al abrir una bóveda, Plainva importa automáticamente los marcadores de archivos y carpetas de Obsidian, incluidos los grupos. El tipo y la ruta evitan duplicados. El archivo de Obsidian no cambia. Los perfiles de configuración transportan las carpetas por separado; un perfil antiguo sin ese campo conserva los marcadores de carpetas existentes.
+
+<!-- planner-capture-2026-09-20 -->
+## Una lista de pendientes sobre tus notas
+
+La [vista de tareas](Tasks.md) convierte las casillas de tus notas y las entradas de tu base de datos de tareas en una única lista de pendientes: **Hoy** con lo atrasado arriba, **Próximamente**, **Bandeja de entrada** y **Hechas**. Un campo de captura entiende una frase completa — `Llamar al dentista mañana 9:30 !!` — y muestra lo que entendió antes de guardar nada.

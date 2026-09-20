@@ -611,3 +611,12 @@ views:
 - `ne contient pas`: `!file.tags.contains("#work")`
 - `est vide`: `file.tags.isEmpty()`
 - `n'est pas vide`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Propriétés de la tâche : heure, priorité, rappel, états
+
+- **Heure d'échéance.** La propriété d'échéance d'une tâche — la colonne de date de la base de tâches, `échéance` dans un vault en français — peut porter une heure : `échéance: 2026-09-21T14:00`. Plainva lit l'heure quel que soit le type de la colonne ; un jour seul (`2026-09-21`) et minuit (`T00:00`) signifient tous deux « pas d'heure ». Une base de tâches créée par Plainva type la colonne en date et heure ; une plus ancienne garde sa simple colonne de date jusqu'à ce que vous acceptiez l'offre unique de changement. Vers Google, Microsoft et CalDAV, une tâche continue de voyager avec son jour seul.
+- **Priorité.** Une colonne à sélection dont le nom signifie « priorité » dans l'une des dix langues de Plainva (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). Le rang est la position de l'option : la première = haute, la deuxième = moyenne, la troisième = basse ; vide = aucune. Le libellé des options vous appartient.
+- **Exception de rappel.** `remind: off` rend muet le rappel d'une tâche ; `remind: 30` rappelle 30 minutes avant son heure (utile seulement pour une tâche avec une heure). Sans la propriété, les réglages s'appliquent.
+- **États de la case à cocher.** `- [ ]` ouverte, `- [x]` terminée, `- [/]` en cours, `- [-]` annulée. En cours compte comme ouverte, annulée comme fermée ; une sous-tâche annulée sort du décompte `file.tasks`. Plainva n'écrit `[/]` et `[-]` que lorsque vous choisissez **Définir l'état**.
+- **Marques de priorité sur une case à cocher.** Lues : 🔺 ⏫ (haute), 🔼 (moyenne), 🔽 ⏬ (basse). Écrites : ⏫, 🔼 ou 🔽, placées devant le premier champ daté.

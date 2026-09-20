@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -208,3 +208,8 @@ In a separate or second full window, right-click a tab and choose **Return to ma
 Add a bookmark from a file or folder context menu. Folder bookmarks have a folder icon: mobile opens the folder, while desktop expands it in the file tree. Renaming and moving items in Plainva also updates bookmarks for nested folders and their files. Missing targets stay visible with a label; remove those bookmarks explicitly.
 
 When a vault opens, Plainva automatically imports file and folder bookmarks from Obsidian, including groups. Type and path prevent duplicates. The Obsidian file stays unchanged. Settings profiles carry folder bookmarks separately from files; an older profile without a folder field keeps existing folder bookmarks.
+
+<!-- planner-capture-2026-09-20 -->
+## A to-do list over your notes
+
+The [Tasks view](Tasks.md) turns the checkboxes in your notes and the entries of your task database into one to-do list: **Today** with what is overdue on top, **Upcoming**, **Inbox** and **Done**. A capture field understands a whole sentence — `Call the dentist tomorrow 9:30 !!` — and shows what it understood before it saves anything.

@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-16
+Stand: 2026-09-20
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -282,3 +282,8 @@ Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. D
 Unter **Editor & Notizen** kannst Du **Beim Lesen Leisten automatisch ausblenden** abschalten. Standardmäßig fahren Kopfzeile und Bleistift beim Herunterscrollen ein. Die erste Aufwärtsbewegung, der Notizanfang, eine Textauswahl, eine offene Bedienfläche, die Tastatur oder ein Konflikthinweis holen die Bedienelemente zurück. Die Scrollfläche bleibt gleich groß; die Bewegungseinstellung wird berücksichtigt. Das Tablet-Rail bleibt sichtbar. Am Desktop blendet der Fokusmodus die umgebenden Leisten aus.
 
 **Bild öffnen** steht bei lokalen Bildern in der Lesedarstellung und Live-Vorschau sowie im Bild-Kontextmenü bereit. Mobil vergrößerst Du im Bildbetrachter mit zwei Fingern, einem Doppeltipp oder den Zoomknöpfen; **Zoom zurücksetzen** zeigt das ganze Bild. Zurück führt zur Notiz. Langes Drücken auf das eingebettete Bild bleibt für die Bildaktionen des Betriebssystems erhalten, ebenso die Markierung einer Bildregion für Kommentare.
+
+<!-- planner-capture-2026-09-20 -->
+## Aufgaben: Planer und Schnellerfassung
+
+Der Aufgaben-Bildschirm öffnet sich auf **Heute**; das Segment über der Liste wechselt zwischen **Heute**, **Demnächst**, **Eingang**, **Alle** und **Erledigt**. **+ Neue Aufgabe** und der **＋**-Knopf öffnen das Erfassungsblatt: eine Zeile wie `Angebot abschicken morgen 14 Uhr !!!`, jeder erkannte Teil steht vor dem Speichern als abwählbarer Baustein darunter, und Schnellknöpfe helfen allen, die nicht tippen wollen. Unter Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Aufgabe**. Teilst Du einen Text, einen Link oder eine Datei an Plainva, legt **Als Aufgabe anlegen** den Inhalt in der Aufgaben-Datenbank statt im Eingangsordner ab. Einzelheiten: [Aufgaben](Tasks.md).

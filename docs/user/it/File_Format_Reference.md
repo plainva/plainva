@@ -611,3 +611,12 @@ views:
 - `non contiene`: `!file.tags.contains("#work")`
 - `è vuoto`: `file.tags.isEmpty()`
 - `non è vuoto`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Proprietà dell'attività: orario, priorità, promemoria, stati
+
+- **Orario di scadenza.** La proprietà di scadenza di un'attività — la colonna data del database, `scadenza` in un vault in italiano — può avere un orario: `scadenza: 2026-09-21T14:00`. Plainva legge l'orario indipendentemente dal tipo della colonna; un giorno puro (`2026-09-21`) e la mezzanotte (`T00:00`) significano entrambi «nessun orario». Un database delle attività creato da Plainva tipizza la colonna come data e ora; uno più vecchio mantiene la sua colonna di sola data finché non accetti l'offerta una tantum di passare a data e ora. Verso Google, Microsoft e CalDAV un'attività viaggia ancora solo con il suo giorno.
+- **Priorità.** Una colonna a selezione il cui nome significa «priorità» in una delle dieci lingue di Plainva (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). Il rango è la posizione dell'opzione: la prima = alta, la seconda = media, la terza = bassa; vuota = nessuna. Il testo delle opzioni lo decidi tu.
+- **Eccezione di promemoria.** `remind: off` silenzia il promemoria di un'attività; `remind: 30` ricorda 30 minuti prima del suo orario (ha senso solo per un'attività con orario). Senza la proprietà si applicano le impostazioni.
+- **Stati della casella.** `- [ ]` aperta, `- [x]` completata, `- [/]` in corso, `- [-]` annullata. In corso conta come aperta, annullata come chiusa; una sottoattività annullata esce dal conteggio `file.tasks`. Plainva scrive `[/]` e `[-]` solo quando scegli **Imposta stato**.
+- **Simboli di priorità su una casella.** Letti: 🔺 ⏫ (alta), 🔼 (media), 🔽 ⏬ (bassa). Scritti: ⏫, 🔼 o 🔽, posizionati davanti al primo campo datato.

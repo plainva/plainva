@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-09-15
+Stan na: 2026-09-20
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -33,7 +33,7 @@ Zadania są pogrupowane według notatki; tytuł notatki to nagłówek, który mo
 
 Pasek na górze zawęża listę:
 
-- **Otwarte / Ukończone / Wszystkie** — według stanu pola wyboru (domyślnie **Otwarte**).
+- **Otwarte / Ukończone / Wszystkie** — według stanu pola wyboru (zaczyna się od **Otwarte**). Ten filtr należy do listy **Wszystkie**; listy plannera **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** same odpowiadają na to pytanie.
 - **Filtruj zadania…** — dowolny tekst; dopasowuje treść zadania.
 - **Wszystkie foldery** — tylko zadania w wybranym folderze (i jego podfolderach).
 - **Wszystkie tagi** — tylko zadania z wybranym tagiem `#tag` w treści.
@@ -64,11 +64,11 @@ Każdy wiersz zadania niesie ikonę bazy danych: **Przenieś do bazy zadań**. J
 
 **Kliknij prawym przyciskiem** ikonę, aby zamiast tego wybrać inną bazę danych jako cel; jeśli nie ustawiono domyślnej bazy danych, kliknięcie od razu otwiera ten wybór. Wszystko pozostaje zwykłym Markdownem: nowe zadanie to zwykła notatka z frontmatter, a link w notatce źródłowej to normalny `[[link wiki]]`.
 
-**+ Nowe zadanie** w nagłówku sekcji tworzy wpis bezpośrednio w bazie zadań (ten sam folder zapisu, szablon i wartości domyślne co przy przenoszeniu pola wyboru) i otwiera go. Pola wyboru napisane w notatce w niej pozostają — zadaniami bazy stają się dopiero wtedy, gdy je przeniesiesz.
+**+ Nowe zadanie** w nagłówku sekcji ustawia kursor w polu szybkiego dodawania nad listami (zobacz niżej *Planer, szybkie dodawanie, priorytet i stany*). Zadanie powstaje bezpośrednio w bazie zadań — ten sam folder przechowywania, szablon i wartości domyślne co przy przenoszeniu pola wyboru — a powiadomienie oferuje **Otwórz**. Pola wyboru zapisane w notatce zostają w tej notatce — zadaniami w bazie danych stają się dopiero, gdy je przeniesiesz.
 
 ## Blokowanie czasu na zadanie
 
-Zadania w Plainvie mają dokładność **dzienną**: zadanie ma termin, a nie godzinę. Gdy chcesz zarezerwować na nie okno czasowe, Plainva tworzy **wydarzenie** — to obiekt, który ma zakres czasu, pokazuje nakładanie się w siatce i synchronizuje się z Twoim kontem kalendarza.
+Zadanie ma termin i może mieć określoną **godzinę** (`2026-09-21T14:00`) — to właśnie wtedy Plainva Ci przypomni. Godzina to chwila, a nie przedział czasu. Gdy chcesz zarezerwować na nie okno czasowe, Plainva tworzy **wydarzenie** — to obiekt, który ma zakres czasu, pokazuje nakładanie się w siatce i synchronizuje się z Twoim kontem kalendarza.
 
 Ikona kalendarza w wierszu zadania otwiera **Zablokuj czas**: datę (wypełnioną terminem), początek i **Czas trwania** (15 min, 30 min, 1 godz., 2 godz. lub **Własny**), a przy kilku zapisywalnych kalendarzach także wybór kalendarza. Wydarzenie nosi tytuł zadania i odsyła z powrotem do notatki. **Kliknięcie prawym przyciskiem** wiersza pokazuje te same akcje co arkusz na telefonie: wykonane/otwarte, przenieś do bazy, powtarzanie, zablokuj czas.
 
@@ -146,3 +146,16 @@ Natywne zadania bazy nadal pomijają zaległe okresy. Zapisany plan docelowy zap
 ## Przywracanie filtrów zadań
 
 Status, wyszukiwany tekst, folder, tag, filtr terminu i widoczność ukrytych zadań są zapamiętywane dla każdego sejfu na tym urządzeniu, także po otwarciu notatki lub ponownym uruchomieniu. „Resetuj filtry” przywraca otwarte zadania bez innych filtrów. Niedostępne foldery i tagi pozostają widoczne i można je usunąć w ich selektorach. Zapomnienie sejfu usuwa ten stan widoku. Domyślna baza zadań pozostaje ustawieniem sejfu; filtry nie są synchronizowane.
+
+<!-- planner-capture-2026-09-20 -->
+## Planer, szybkie dodawanie, priorytet i stany
+
+Widok zadań otwiera się na liście **Dziś**. Listy — na komputerze pasek po lewej, na telefonie segment nad listą — to **Dziś** (co jest dziś do zrobienia, z **Zaległe** na górze), **Nadchodzące** (najbliższe 14 dni, dzień po dniu), **Skrzynka** (otwarte zadania bez daty), **Wszystkie** (obie opisane wyżej sekcje z filtrem **Otwarte**/**Ukończone**/**Wszystkie**) oraz **Ukończone**. Każda lista czerpie z obu źródeł, bazy zadań i pól wyboru w Twoich notatkach, uporządkowana według priorytetu, potem godziny, potem tytułu. Pozostałe filtry działają na każdej liście, a wybrana lista jest zapamiętywana dla każdego vaultu. Na komputerze pasek pokazuje też najczęstsze tagi jako filtry jednym kliknięciem; na telefonie ekran **Dziś** prowadzi do listy plannera **Dziś**.
+
+Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadanie** i przycisk **＋** otwierają je jako arkusz. Wpisz jedną linijkę — `Wysłać ofertę jutro 14:00 !!! #klient co tydzień` — i naciśnij Enter: Plainva utworzy zadanie w bazie zadań. Rozpoznaje dziś, jutro, pojutrze, dni tygodnia, „za 3 dni”, „w przyszłym tygodniu”, daty cyframi, godzinę (`14:30`, `2pm`), rytm (codziennie, co tydzień, co miesiąc, co rok, „w każdy poniedziałek”, „co 2 tygodnie”), `!`, `!!` i `!!!` dla niskiego, średniego i wysokiego priorytetu oraz `#tagi` — słowa w języku aplikacji, cyfry i znaki w dowolnym języku. Wszystko, co zostanie rozpoznane, jest zaznaczone w polu i wypisane pod nim jako usuwalny klocek, **zanim** cokolwiek zostanie zapisane; usuń klocek, a jego słowa po prostu znów liczą się jako tytuł. Na telefonie te same słowa wpisują za Ciebie szybkie przyciski. Jeśli baza zadań wskazuje listę dostawcy, plakietka decyduje, czy zadanie powstanie także tam.
+
+**Ustaw priorytet** w menu wiersza (prawy klik na komputerze, przytrzymanie na telefonie) oferuje **wysoki**, **średni**, **niski** i **brak**; pokazuje go flaga przed tytułem. W bazie zadań priorytet jest kolumną wyboru: baza utworzona teraz już ją ma, starsza otrzymuje ją, gdy pierwszy raz ustawisz priorytet — nigdy przez samo otwarcie. Pole wyboru nosi w swoim wierszu znak wtyczki Obsidian Tasks: Plainva odczytuje 🔺 i ⏫ jako wysoki, 🔼 jako średni, 🔽 i ⏬ jako niski, a zapisuje ⏫, 🔼 lub 🔽.
+
+`- [/]` (**W toku**) i `- [-]` (**Anulowane**) to również zadania. W edytorze, w trybie czytania i na każdej liście dostają własne pole; w toku liczy się jako otwarte, anulowane jako zamknięte. Kliknięcie nadal przełącza tylko między otwartym a ukończonym — kończy zadanie w toku i otwiera ponownie anulowane. **Ustaw stan** w menu wiersza ustawia te dwa stany; Plainva nigdy nie zapisuje ich samodzielnie.
+
+Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).

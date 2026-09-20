@@ -447,6 +447,7 @@ export default function App() {
   const runPendingIntents = (
     <PendingIntentRunner
       onCapture={capture}
+      onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
       onOpenToday={() => openDaily(isoOf(new Date()))}

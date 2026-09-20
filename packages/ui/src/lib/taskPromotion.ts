@@ -161,7 +161,7 @@ async function freePath(adapter: TaskPromotionAdapter, folder: string, stem: str
   return prefix + name + ".md";
 }
 
-async function readTemplate(adapter: TaskPromotionAdapter, config: BaseConfigShape): Promise<string | null> {
+async function readTemplate(adapter: Pick<TaskPromotionAdapter, "readTextFile">, config: BaseConfigShape): Promise<string | null> {
   if (!config.newItemTemplate) return null;
   try {
     return await adapter.readTextFile(config.newItemTemplate);
@@ -275,6 +275,23 @@ export interface CreateTaskOptions {
 export async function createTaskInDatabase(
   opts: CreateTaskOptions
 ): Promise<{ ok: true; notePath: string } | { ok: false; reason: "dbUnreadable" | "noFolder" }> {
+  const prepared = await prepareTaskNote(opts);
+  if (!prepared.ok) return prepared;
+  const notePath = await freePath(opts.adapter, prepared.folder, taskFileStem(opts.title) ?? opts.title);
+  await opts.adapter.writeTextFile(notePath, prepared.content);
+  return { ok: true, notePath };
+}
+
+/**
+ * The folder and the content a new task note would get — WITHOUT choosing a
+ * path or writing anything. `createTaskInDatabase` is this plus a free path and
+ * one write; the phone's share import (plan Aufgaben-Oberflaeche, B6) owns its
+ * path and its write through a durable native plan, and only needs to know
+ * where a task belongs and what it looks like.
+ */
+export async function prepareTaskNote(
+  opts: Omit<CreateTaskOptions, "adapter"> & { adapter: Pick<TaskPromotionAdapter, "readTextFile" | "exists"> }
+): Promise<{ ok: true; folder: string; content: string } | { ok: false; reason: "dbUnreadable" | "noFolder" }> {
   const { adapter, dbPath, title, noteType } = opts;
   let config: BaseConfigShape;
   try {
@@ -285,7 +302,6 @@ export async function createTaskInDatabase(
   const target = resolveNewItemTarget(config);
   if (!target.folder) return { ok: false, reason: "noFolder" };
 
-  const notePath = await freePath(adapter, target.folder, taskFileStem(title) ?? title);
   const templateText = await readTemplate(adapter, config);
 
   const prefills: Record<string, unknown> = {};
@@ -321,6 +337,5 @@ export async function createTaskInDatabase(
   });
   const withTrailer = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
   const content = opts.repeat ? writeRepeatRule(withTrailer, opts.repeat) : withTrailer;
-  await adapter.writeTextFile(notePath, content);
-  return { ok: true, notePath };
+  return { ok: true, folder: target.folder, content };
 }

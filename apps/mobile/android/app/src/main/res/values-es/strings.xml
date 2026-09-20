@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="shortcut_new_note">Nueva nota</string>
+    <string name="shortcut_new_task">Nueva tarea</string>
     <string name="shortcut_today">Hoy</string>
 </resources>

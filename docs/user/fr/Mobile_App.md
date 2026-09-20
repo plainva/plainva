@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-09-16
+Dernière mise à jour : 2026-09-20
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -282,3 +282,8 @@ L’icône sélectionnée garde une marge dans la barre compacte. Les zones tact
 Dans **Éditeur et notes**, vous pouvez désactiver **Masquer automatiquement les commandes pendant la lecture**. Par défaut, l’en-tête et le crayon se retirent en descendant. Ils reviennent en remontant, au début de la note, lors d’une sélection, d’une commande ouverte, du clavier ou d’un avis de conflit. La zone de défilement garde sa taille et le réglage de mouvement est respecté. Le rail de la tablette reste visible ; le bureau propose le mode concentration.
 
 **Ouvrir l’image** est disponible pour les images locales en lecture, en aperçu et dans le menu contextuel. Le visualiseur mobile propose le zoom à deux doigts, le double appui et les boutons ; **Réinitialiser le zoom** affiche toute l’image. Retour ramène à la note. L’appui long conserve les actions du système et les régions d’image restent commentables.
+
+<!-- planner-capture-2026-09-20 -->
+## Tâches : planificateur et saisie rapide
+
+L'écran des tâches s'ouvre sur **Aujourd'hui** ; le segment au-dessus de la liste bascule entre **Aujourd'hui**, **À venir**, **Boîte de réception**, **Toutes** et **Terminées**. **+ Nouvelle tâche** et le bouton **＋** ouvrent la feuille de saisie : une ligne comme `Envoyer offre demain 14h !!!`, chaque partie reconnue s'affichant comme un bloc amovible avant l'enregistrement, avec des boutons rapides pour qui préfère ne pas taper. Sur Android, un appui long sur l'icône de l'application propose aussi **Nouvelle tâche**. Quand vous partagez un texte, un lien ou un fichier vers Plainva, **Créer comme tâche** le place dans la base de tâches au lieu du dossier de réception. Détails : [Tâches](Tasks.md).

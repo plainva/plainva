@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-09-20
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -33,7 +33,7 @@ Le attività sono raggruppate per nota; il titolo della nota compare come intest
 
 La barra in alto restringe l'elenco:
 
-- **Aperte / Completate / Tutte** — in base allo stato della casella di controllo (parte da **Aperte**).
+- **Aperte / Completate / Tutte** — in base allo stato della casella (inizia su **Aperte**). Questo filtro appartiene all'elenco **Tutte**; gli elenchi del pianificatore **Oggi**, **Prossimamente**, **In entrata** e **Completate** rispondono da soli a questa domanda.
 - **Filtra attività…** — testo libero; corrisponde al testo dell'attività.
 - **Tutte le cartelle** — solo le attività nella cartella scelta (e nelle sue sottocartelle).
 - **Tutti i tag** — solo le attività che portano un `#tag` in linea scelto.
@@ -64,11 +64,11 @@ Ogni riga di attività porta un'icona di database: **Sposta nel database delle a
 
 **Clic destro** sull'icona per scegliere invece un database diverso come destinazione; senza un database predefinito, il clic apre subito quel selettore. Tutto resta puro Markdown: la nuova attività è una nota normale con frontmatter, e il link nella nota di origine è un normale `[[wiki-link]]`.
 
-**+ Nuova attività** nell'intestazione della sezione crea una voce direttamente nel database attività (stessa cartella di archiviazione, stesso modello e stessi valori predefiniti dello spostamento di una casella) e la apre. Le caselle scritte in una nota restano in quella nota: diventano attività del database solo quando le sposti.
+**+ Nuova attività** nell'intestazione della sezione posiziona il cursore nel campo di cattura sopra gli elenchi (vedi *Pianificatore, cattura rapida, priorità e stati* più sotto). L'attività viene creata direttamente nel database delle attività — stessa cartella di archiviazione, stesso modello e valori predefiniti di una casella promossa — e una notifica offre **Apri**. Le caselle scritte in una nota restano in quella nota — diventano attività del database solo quando le sposti.
 
 ## Bloccare tempo per un'attività
 
-In Plainva le attività hanno granularità **giornaliera**: un'attività ha una data di scadenza, non un orario. Quando vuoi riservarle una finestra, Plainva crea un **evento** — è l'oggetto che possiede un intervallo di tempo, viene disegnato con le sovrapposizioni nella griglia e si sincronizza con il tuo account calendario.
+Un'attività ha una data di scadenza e può avere un **orario del giorno** (`2026-09-21T14:00`) — è il momento in cui Plainva te lo ricorda. Un orario è un istante, non un intervallo. Quando vuoi riservarle una finestra, Plainva crea un **evento** — è l'oggetto che possiede un intervallo di tempo, viene disegnato con le sovrapposizioni nella griglia e si sincronizza con il tuo account calendario.
 
 L'icona del calendario su una riga attività apre **Blocca tempo**: la data (precompilata con la scadenza), l'inizio e la **Durata** (15 min, 30 min, 1 h, 2 h o **Personalizzata**), più un selettore di calendario quando più di uno accetta scritture. L'evento porta il titolo dell'attività e rimanda alla nota. Un **clic destro** sulla riga mostra le stesse azioni del foglio sul telefono: completata/aperta, sposta nel database, ripetizione, blocca tempo.
 
@@ -146,3 +146,16 @@ Le attività native del database saltano ancora i periodi scaduti. Un piano di d
 ## Ripristinare i filtri delle attività
 
 Stato, ricerca, cartella, tag, filtro di scadenza e visibilità delle attività nascoste vengono ricordati per vault su questo dispositivo, anche dopo aver aperto una nota o riavviato. « Reimposta filtri » torna alle attività aperte senza altri filtri. Cartelle e tag non disponibili restano visibili e possono essere rimossi dai relativi selettori. Dimenticare il vault elimina questo stato. Il database predefinito delle attività rimane nelle impostazioni del vault; i filtri non vengono sincronizzati.
+
+<!-- planner-capture-2026-09-20 -->
+## Pianificatore, cattura rapida, priorità e stati
+
+La vista Attività si apre su **Oggi**. Gli elenchi — una barra a sinistra sul desktop, un segmento sopra l'elenco sul telefono — sono **Oggi** (ciò che scade oggi, con **In ritardo** in cima), **Prossimamente** (i prossimi 14 giorni, per giorno), **In entrata** (attività aperte senza data), **Tutte** (le due sezioni descritte sopra, con il filtro **Aperte**/**Completate**/**Tutte**) e **Completate**. Ogni elenco attinge da entrambe le fonti, il database delle attività e le caselle nelle tue note, ordinate per priorità, poi per orario, poi per titolo. Gli altri filtri si applicano a ogni elenco, e l'elenco scelto viene ricordato per vault. Sul desktop la barra elenca anche i tag più frequenti come filtri a un clic; sul telefono la schermata **Oggi** porta all'**Oggi** del pianificatore.
+
+Sopra gli elenchi si trova il campo di cattura; sul telefono, **+ Nuova attività** e il pulsante **＋** lo aprono come foglio. Digita una riga — `Inviare offerta domani alle 14:00 !!! #cliente ogni settimana` — e premi Invio: Plainva crea l'attività nel database delle attività. Riconosce oggi, domani, dopodomani, i giorni della settimana, «tra 3 giorni», «la prossima settimana», le date in cifre, un orario (`14:30`, `14h`), una ricorrenza (giornaliera, settimanale, mensile, annuale, «ogni lunedì», «ogni 2 settimane»), `!`, `!!` e `!!!` per priorità bassa, media e alta, e `#tags` — le parole nella lingua dell'app, cifre e segni in qualsiasi lingua. Tutto ciò che riconosce viene evidenziato nel campo ed elencato sotto come un blocco rimovibile **prima** che venga salvato qualcosa; togli un blocco e le sue parole tornano semplicemente a contare come titolo. Sul telefono, dei pulsanti rapidi scrivono le stesse parole al posto tuo. Se il database delle attività indica un elenco di un provider, un chip decide se l'attività viene creata anche lì.
+
+**Imposta priorità** nel menu di una riga (clic destro sul desktop, tocco prolungato sul telefono) offre **alta**, **media**, **bassa** e **nessuna**; una bandierina davanti al titolo la mostra. Nel database delle attività, la priorità è una colonna a selezione: un database creato ora ce l'ha già, uno più vecchio la riceve la prima volta che imposti una priorità — mai per il solo fatto di essere aperto. Una casella porta il simbolo del plugin Obsidian Tasks sulla sua riga: Plainva legge 🔺 e ⏫ come alta, 🔼 come media, 🔽 e ⏬ come bassa, e scrive ⏫, 🔼 o 🔽.
+
+`- [/]` (**In corso**) e `- [-]` (**Annullata**) sono anch'esse attività. Ricevono una propria casella nell'editor, in modalità lettura e in ogni elenco; in corso conta come aperta, annullata come chiusa. Un clic continua a spostarsi solo tra aperta e completata — completa un'attività in corso e riapre una annullata. **Imposta stato** nel menu della riga imposta i due stati; Plainva non li scrive mai da sola.
+
+Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md).

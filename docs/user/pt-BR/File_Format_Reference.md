@@ -611,3 +611,12 @@ views:
 - `não contém`: `!file.tags.contains("#work")`
 - `está vazio`: `file.tags.isEmpty()`
 - `não está vazio`: `!file.tags.isEmpty()`
+
+<!-- planner-capture-2026-09-20 -->
+## Propriedades da tarefa: horário, prioridade, lembrete, estados
+
+- **Horário de vencimento.** A propriedade de vencimento de uma tarefa — a coluna de data do banco, `vencimento` em um vault em português — pode ter um horário: `vencimento: 2026-09-21T14:00`. O Plainva lê o horário seja qual for o tipo da coluna; um dia puro (`2026-09-21`) e a meia-noite (`T00:00`) significam ambos “sem horário”. Um banco de tarefas criado pelo Plainva tipa a coluna como data e hora; um mais antigo mantém sua coluna de data simples até você aceitar a oferta única de mudar. Para Google, Microsoft e CalDAV, uma tarefa ainda viaja só com o seu dia.
+- **Prioridade.** Uma coluna de seleção cujo nome significa “prioridade” em um dos dez idiomas do Plainva (`priority`, `priorität`, `prioridad`, `priorité`, `priorità`, `優先度`, `prioriteit`, `priorytet`, `prioridade`, `优先级`). O nível é dado pela posição da opção: a primeira = alta, a segunda = média, a terceira = baixa; vazia = nenhuma. O texto das opções é você quem decide.
+- **Exceção de lembrete.** `remind: off` silencia o lembrete de uma tarefa; `remind: 30` avisa 30 minutos antes do seu horário (só faz sentido para uma tarefa com horário). Sem a propriedade, valem as configurações.
+- **Estados da caixa de seleção.** `- [ ]` aberta, `- [x]` concluída, `- [/]` em andamento, `- [-]` cancelada. Em andamento conta como aberta, cancelada como fechada; uma subtarefa cancelada sai da contagem `file.tasks`. O Plainva só escreve `[/]` e `[-]` quando você escolhe **Definir estado**.
+- **Marcas de prioridade em uma caixa de seleção.** Lidas: 🔺 ⏫ (alta), 🔼 (média), 🔽 ⏬ (baixa). Escritas: ⏫, 🔼 ou 🔽, colocadas na frente do primeiro campo com data.

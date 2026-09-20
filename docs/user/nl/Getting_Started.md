@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-20
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -208,3 +208,8 @@ Klik in een apart of tweede volledig venster met rechts op het tabblad en kies *
 Voeg een bladwijzer toe via het contextmenu van een bestand of map. Mapbladwijzers hebben een mapicoon: mobiel opent de map, desktop vouwt deze in de bestandsboom uit. Hernoemen en verplaatsen in Plainva werkt ook bladwijzers van onderliggende mappen en bestanden bij. Ontbrekende doelen blijven gemarkeerd staan; verwijder deze bladwijzers zelf.
 
 Bij het openen van een kluis importeert Plainva automatisch bestands- en mapbladwijzers uit Obsidian, inclusief groepen. Type en pad voorkomen duplicaten. Het Obsidian-bestand blijft ongewijzigd. Instellingenprofielen vervoeren mappen apart; een ouder profiel zonder mapveld behoudt bestaande mapbladwijzers.
+
+<!-- planner-capture-2026-09-20 -->
+## Een to-dolijst over je notities
+
+De [Takenweergave](Tasks.md) verandert de selectievakjes in je notities en de items in je takendatabase in één to-dolijst: **Vandaag** met wat te laat is bovenaan, **Binnenkort**, **Inbox** en **Klaar**. Een invoerveld begrijpt een hele zin — `Tandarts bellen morgen 9:30 !!` — en toont wat het begrepen heeft voordat het iets opslaat.

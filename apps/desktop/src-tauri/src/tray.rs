@@ -56,6 +56,7 @@ pub fn tray_active<R: Runtime>(app: &AppHandle<R>) -> bool {
 pub fn tray_enable(
     app: AppHandle,
     open_label: String,
+    new_task_label: String,
     next_label: String,
     quit_label: String,
 ) -> Result<(), String> {
@@ -68,12 +69,15 @@ pub fn tray_enable(
     }
 
     let open = MenuItem::with_id(&app, "open", &open_label, true, None::<&str>).map_err(|e| e.to_string())?;
+    // Capturing a task is the one thing worth doing from a hidden window: it
+    // brings the window up on the tasks view with the capture field focused.
+    let new_task = MenuItem::with_id(&app, "new-task", &new_task_label, true, None::<&str>).map_err(|e| e.to_string())?;
     // Disabled on purpose: it reports, it does not act. Clicking the appointment
     // itself belongs in the calendar, which "open" leads to.
     let next = MenuItem::with_id(&app, "next", &next_label, false, None::<&str>).map_err(|e| e.to_string())?;
     let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
     let quit = MenuItem::with_id(&app, "quit", &quit_label, true, None::<&str>).map_err(|e| e.to_string())?;
-    let menu = Menu::with_items(&app, &[&open, &next, &sep, &quit]).map_err(|e| e.to_string())?;
+    let menu = Menu::with_items(&app, &[&open, &new_task, &next, &sep, &quit]).map_err(|e| e.to_string())?;
 
     let icon = TrayIconBuilder::new()
         .icon(app.default_window_icon().cloned().ok_or("no app icon")?)
@@ -82,6 +86,11 @@ pub fn tray_enable(
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main(app),
+            "new-task" => {
+                show_main(app);
+                // The window decides what "new task" means; the tray only asks.
+                let _ = app.emit("plainva-tray-new-task", ());
+            }
             // Ending the app from the tray must really end it — a "quit" that
             // only hides is the trap this whole file exists to avoid.
             "quit" => app.exit(0),
