@@ -81,6 +81,11 @@ tauri-plugin-autostart = "2.5.1"
 # registration in lib.rs sits behind #[cfg(desktop)].
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
+# The global quick capture (opt-in, off by default): ONE system-wide shortcut
+# that opens a small capture window while Plainva runs in the background.
+# Registered from the central window only (capabilities/default.json); nothing
+# is registered until the user switches it on. Desktop only, like the crate.
+tauri-plugin-global-shortcut = "2"
 
 [dev-dependencies]
 # Scope-coverage test only: the same glob the fs plugin matches paths with.

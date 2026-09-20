@@ -105,6 +105,26 @@ void i18nReady.then(async () => {
   initPimTrace();
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
+  if (windowParams.role === "capture") {
+    // The quick-capture window of the global shortcut (plan Journal, J7): one
+    // field, no vault, no providers — it opens while the user is somewhere else
+    // and has to be there at once. What it captures travels the bus.
+    const { QuickCaptureApp } = await import("./QuickCaptureApp");
+    const { installAppearanceSync } = await import("./services/appearanceSync");
+    void installAppearanceSync().catch(() => {
+      /* no bus: nothing to follow */
+    });
+    root.render(
+      <React.StrictMode>
+        <ErrorBoundary>
+          <QuickCaptureApp />
+          <TooltipHost />
+        </ErrorBoundary>
+      </React.StrictMode>,
+    );
+    return;
+  }
+
   if (!isOwnerWindow) {
     // Client window: the client-mode provider reads the vault and hands writes
     // to the owner. The shell is imported here, not at module level, so the

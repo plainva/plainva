@@ -4729,5 +4729,23 @@
     "fieldDay": "Voce per {{date}} …",
     "trayEntry": "Voce di diario",
     "shareToJournal": "Nel diario"
+  },
+  "quickCapture": {
+    "section": "Cattura rapida globale",
+    "enable": "Cattura da qualsiasi punto con una scorciatoia di sistema",
+    "enableDesc": "Apre una piccola finestra con il campo di inserimento del diario, anche quando in primo piano c'è un'altra applicazione. Funziona finché Plainva è in esecuzione, anche nell'area di notifica.",
+    "shortcut": "Scorciatoia",
+    "record": "Cambia",
+    "recording": "Premi ora la nuova scorciatoia … Esc annulla.",
+    "reset": "Ripristina il valore predefinito",
+    "needsModifier": "Usa Ctrl, Alt o il tasto Windows/Comando insieme a un altro tasto.",
+    "unsupportedKey": "Una scorciatoia di sistema non può terminare con questo tasto.",
+    "failedTaken": "Non è stato possibile registrare la scorciatoia: probabilmente la usa un'altra applicazione. Scegline un'altra.",
+    "failedInvalid": "Il sistema non accetta questa scorciatoia. Scegline un'altra.",
+    "failedWayland": "Questa sessione desktop usa Wayland, che non offre alle applicazioni scorciatoie di sistema. La voce «Voce di diario» dell'area di notifica e Ctrl+Maiusc+J in Plainva portano allo stesso campo.",
+    "note": "La scorciatoia appartiene a questo dispositivo e non viaggia con il profilo delle impostazioni. Se Plainva non è in esecuzione, nulla risponde alla scorciatoia.",
+    "windowTitle": "Plainva – Voce di diario",
+    "noVault": "In Plainva non è aperto alcun vault, quindi non c'è dove scrivere la voce.",
+    "failed": "Non è stato possibile salvare la voce. Plainva è ancora in esecuzione?"
   }
 }

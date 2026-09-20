@@ -2575,6 +2575,36 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-journal-editing { padding: var(--space-2) var(--space-3); }
 .pv-journal-more { display: flex; justify-content: center; padding: var(--space-3) 0; }
 .pv-journal-section { display: flex; flex-direction: column; gap: var(--space-2); }
+/* The quick-capture window of the global shortcut (desktop): the capture field
+   fills a small undecorated window; the bar on top is its drag handle. The
+   hairline stands in for the frame the OS does not draw. */
+.pv-journal-quick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  height: 100vh;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-main);
+  overflow: hidden;
+}
+.pv-journal-quick-bar { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); user-select: none; }
+.pv-journal-quick-title { flex: 1; font-size: var(--text-sm); font-weight: 500; }
+/* The chosen shortcut as key caps (settings of the global quick capture). */
+.pv-journal-keys { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pv-journal-key {
+  min-width: 1.5em;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  background: var(--bg-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  text-align: center;
+}
 
 /* Personal encrypted-workspace setup and diagnostics (Security & Sharing). */
 .pv-security-wizard { display: flex; flex-direction: column; gap: var(--space-3); }

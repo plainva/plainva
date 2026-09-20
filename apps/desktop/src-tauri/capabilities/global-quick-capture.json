@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "global-quick-capture",
+  "description": "The global quick capture (opt-in, off by default). The central window alone may register, replace and release the ONE system-wide shortcut the user chose; no other window can touch global shortcuts. Desktop platforms only — the plugin does not exist elsewhere.",
+  "platforms": ["linux", "macOS", "windows"],
+  "windows": ["main"],
+  "permissions": [
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered"
+  ]
+}

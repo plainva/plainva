@@ -464,6 +464,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       verified: "2026-09-11",
   },
   {
+    id: "global-quick-capture",
+    title: "Global quick capture: a system-wide shortcut opens a small capture window",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A phone gives an app no system-wide key. What the shortcut is for — an entry " +
+      "without opening the app first — the phone reaches its own way: the launcher " +
+      "shortcut and quick action \"Journal\" and the share target \"Into the journal\". " +
+      "On the desktop it is opt-in and off by default; under a Wayland session the " +
+      "platform gives applications no global shortcut either, and the setting says " +
+      "so instead of registering one that never fires.",
+    verified: "2026-09-20",
+  },
+  {
     id: "haptics",
     title: "Haptic feedback at gesture thresholds",
     area: "platform",

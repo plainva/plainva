@@ -17,11 +17,19 @@
  * status bar. It is a CLIENT like the other two: it reads the vault locally and
  * delegates every write to the owner. Only the owner keeps the background
  * services, so "full" describes what the window DRAWS, never what it runs.
+ *
+ * `capture` is the quick-capture window of the global shortcut: one text field,
+ * no vault, no content. It belongs to no vault on purpose — what it captures
+ * goes to whatever vault the central window shows, and the central window
+ * writes it.
  */
-export type WindowRole = "owner" | "aux" | "compose" | "full";
+export type WindowRole = "owner" | "aux" | "compose" | "full" | "capture";
 
-/** Every role that is not the owner — i.e. every window running in client mode. */
-const CLIENT_ROLES: readonly WindowRole[] = ["aux", "compose", "full"];
+/** The windows `windowManager` opens, records and restores: each shows a vault. */
+export type VaultWindowRole = Exclude<WindowRole, "owner" | "capture">;
+
+/** Every role that is not the owner — i.e. every window that leaves the writing to it. */
+const CLIENT_ROLES: readonly WindowRole[] = ["aux", "compose", "full", "capture"];
 
 /**
  * A window that opens with a prepared split instead of a single piece of
@@ -108,7 +116,7 @@ export function windowStatePrefix(label: string): string {
 
 /** Builds the query an auxiliary window is opened with. */
 export function buildWindowQuery(params: {
-  role: Exclude<WindowRole, "owner">;
+  role: VaultWindowRole;
   vaultPath: string;
   content?: string | null;
   label: string;

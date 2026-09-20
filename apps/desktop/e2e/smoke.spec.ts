@@ -2832,6 +2832,73 @@ test('background settings: two switches, both off, and the reminder condition fo
 });
 
 
+test('global quick capture: off by default, the shortcut is recorded, and a refusal is said instead of left half-on (plan Journal J7)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const saved: Record<string, any> = {};
+    (window as any).__shortcutCalls = [] as string[];
+    (window as any).__takenShortcuts = ['Control+Alt+K'];
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|set' && args && typeof args.key === 'string') { saved[args.key] = args.value; return null; }
+      if (cmd === 'plugin:store|get' && args && args.key in saved) return [saved[args.key], true];
+      if (cmd === 'plugin:autostart|is_enabled') return false;
+      if (cmd === 'desktop_session_kind') return 'other';
+      if (cmd === 'plugin:global-shortcut|register') {
+        const shortcut = String(args.shortcuts[0]);
+        if ((window as any).__takenShortcuts.includes(shortcut)) throw new Error('HotKey already registered');
+        (window as any).__shortcutCalls.push(`register:${shortcut}`);
+        return null;
+      }
+      if (cmd === 'plugin:global-shortcut|unregister') {
+        (window as any).__shortcutCalls.push(`unregister:${args.shortcuts[0]}`);
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  // Nothing is registered on start: the feature is opt-in.
+  expect(await page.evaluate(() => (window as any).__shortcutCalls)).toEqual([]);
+
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
+  const card = dlg.getByRole('group', { name: /Globale Schnellerfassung|Global quick capture/ });
+  await expect(card).toBeVisible();
+  const toggle = card.getByRole('switch');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*J/);
+
+  // Switching it on registers the default shortcut.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => page.evaluate(() => (window as any).__shortcutCalls)).toEqual(['register:CommandOrControl+Alt+J']);
+
+  // A bare key is no system-wide shortcut: the recorder says what it needs and keeps listening.
+  await card.getByTestId('quick-capture-record').click();
+  await page.keyboard.press('j');
+  await expect(card).toContainText(/Strg, Alt|Ctrl, Alt/);
+  // One another application holds: the old one is released, the refusal is said, nothing is half-on.
+  await page.keyboard.press('Control+Alt+K');
+  await expect(card).toContainText(/nicht registrieren|could not be registered/);
+  await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*K/);
+  expect(await page.evaluate(() => (window as any).__shortcutCalls)).toEqual(['register:CommandOrControl+Alt+J', 'unregister:CommandOrControl+Alt+J']);
+
+  // A free one works, and the warning goes.
+  await card.getByTestId('quick-capture-record').click();
+  await page.keyboard.press('Control+Alt+L');
+  await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*L/);
+  await expect(card).not.toContainText(/nicht registrieren|could not be registered/);
+  await expect.poll(() => page.evaluate(() => (window as any).__shortcutCalls.slice(-1))).toEqual(['register:Control+Alt+L']);
+
+  // Off releases it.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect.poll(() => page.evaluate(() => (window as any).__shortcutCalls.slice(-1))).toEqual(['unregister:Control+Alt+L']);
+});
+
+
 
 
 test('List indent: continuation text aligns under the item text at every level, with spaces, tabs, numbers and a task box', async ({ page }) => {

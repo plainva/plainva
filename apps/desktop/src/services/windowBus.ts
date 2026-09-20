@@ -282,6 +282,13 @@ export interface RpcMap {
    * window does not have. Exactly one of the two is set.
    */
   "reveal-in-tree": { args: { path?: string; tag?: string }; result: { where: "owner" | "window" | "none" } };
+  /**
+   * The quick-capture window hands over what was typed; the central window
+   * writes it into today's daily note of the vault IT shows. A refusal comes
+   * back as a sentence in the app's language — the capture window shows it and
+   * keeps the text.
+   */
+  "journal-capture": { args: { text: string; task: boolean }; result: { ok: true } | { ok: false; message: string } };
   "owner-surface": {
     args: {
       surface:
@@ -493,6 +500,8 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   // Routes by the CALLER's vault, like open-content: the tree it wants may
   // belong to a window that is not the central one.
   "reveal-in-tree": "app",
+  // The capture window belongs to no vault; the central window decides where it goes.
+  "journal-capture": "app",
   "draft-record": "app",
   "draft-clear": "app",
   "flush-pending": "app",

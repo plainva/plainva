@@ -4729,5 +4729,23 @@
     "fieldDay": "Entrée pour {{date}} …",
     "trayEntry": "Entrée de journal",
     "shareToJournal": "Vers le journal"
+  },
+  "quickCapture": {
+    "section": "Capture rapide globale",
+    "enable": "Capturer de partout avec un raccourci à l'échelle du système",
+    "enableDesc": "Ouvre une petite fenêtre avec le champ de saisie du journal, même lorsqu'une autre application est au premier plan. Cela fonctionne tant que Plainva est en cours d'exécution, y compris dans la zone de notification.",
+    "shortcut": "Raccourci",
+    "record": "Modifier",
+    "recording": "Appuyez maintenant sur le nouveau raccourci … Échap annule.",
+    "reset": "Rétablir la valeur par défaut",
+    "needsModifier": "Utilisez Ctrl, Alt ou la touche Windows/Commande avec une autre touche.",
+    "unsupportedKey": "Un raccourci à l'échelle du système ne peut pas se terminer par cette touche.",
+    "failedTaken": "Le raccourci n'a pas pu être enregistré ; une autre application l'utilise probablement. Veuillez en choisir un autre.",
+    "failedInvalid": "Le système n'accepte pas ce raccourci. Veuillez en choisir un autre.",
+    "failedWayland": "Cette session de bureau fonctionne sous Wayland, qui ne donne aux applications aucun raccourci à l'échelle du système. L'entrée « Entrée de journal » de la zone de notification et Ctrl+Maj+J dans Plainva mènent au même champ.",
+    "note": "Le raccourci appartient à cet appareil et ne voyage pas avec le profil de réglages. Tant que Plainva n'est pas lancé, rien ne répond au raccourci.",
+    "windowTitle": "Plainva – Entrée de journal",
+    "noVault": "Aucun vault n'est ouvert dans Plainva ; il n'y a donc nulle part où écrire l'entrée.",
+    "failed": "L'entrée n'a pas pu être enregistrée. Plainva est-il toujours en cours d'exécution ?"
   }
 }

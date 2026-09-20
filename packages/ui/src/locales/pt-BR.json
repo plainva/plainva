@@ -4729,5 +4729,23 @@
     "fieldDay": "Entrada para {{date}} …",
     "trayEntry": "Entrada de diário",
     "shareToJournal": "Para o diário"
+  },
+  "quickCapture": {
+    "section": "Captura rápida global",
+    "enable": "Capturar de qualquer lugar com um atalho de todo o sistema",
+    "enableDesc": "Abre uma pequena janela com o campo de entrada do diário, mesmo quando outro aplicativo está em primeiro plano. Funciona enquanto o Plainva estiver em execução — também na área de notificação.",
+    "shortcut": "Atalho",
+    "record": "Alterar",
+    "recording": "Pressione agora o novo atalho … Esc cancela.",
+    "reset": "Restaurar o padrão",
+    "needsModifier": "Use Ctrl, Alt ou a tecla Windows/Command junto com outra tecla.",
+    "unsupportedKey": "Um atalho de todo o sistema não pode terminar nesta tecla.",
+    "failedTaken": "Não foi possível registrar o atalho — provavelmente outro aplicativo o utiliza. Escolha outro.",
+    "failedInvalid": "O sistema não aceita este atalho. Escolha outro.",
+    "failedWayland": "Esta sessão de área de trabalho usa Wayland, que não oferece atalhos de todo o sistema aos aplicativos. A entrada “Entrada de diário” da área de notificação e Ctrl+Shift+J dentro do Plainva levam ao mesmo campo.",
+    "note": "O atalho pertence a este dispositivo e não viaja com o perfil de configurações. Se o Plainva não estiver em execução, nada responde ao atalho.",
+    "windowTitle": "Plainva – Entrada de diário",
+    "noVault": "Nenhum vault está aberto no Plainva, então não há onde escrever a entrada.",
+    "failed": "Não foi possível salvar a entrada. O Plainva ainda está em execução?"
   }
 }

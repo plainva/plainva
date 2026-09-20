@@ -4674,5 +4674,23 @@
     "fieldDay": "Item voor {{date}} …",
     "trayEntry": "Journaalitem",
     "shareToJournal": "Naar het Journaal"
+  },
+  "quickCapture": {
+    "section": "Globale snelle invoer",
+    "enable": "Overal vastleggen met een systeembrede sneltoets",
+    "enableDesc": "Opent een klein venster met het invoerveld van het journaal, ook als een ander programma op de voorgrond staat. Het werkt zolang Plainva actief is, ook in het systeemvak.",
+    "shortcut": "Sneltoets",
+    "record": "Wijzigen",
+    "recording": "Druk nu op de nieuwe sneltoets … Esc annuleert.",
+    "reset": "Standaard herstellen",
+    "needsModifier": "Gebruik Ctrl, Alt of de Windows-/Command-toets samen met een andere toets.",
+    "unsupportedKey": "Een systeembrede sneltoets kan niet op deze toets eindigen.",
+    "failedTaken": "De sneltoets kon niet worden geregistreerd; waarschijnlijk gebruikt een ander programma hem. Kies een andere.",
+    "failedInvalid": "Het systeem accepteert deze sneltoets niet. Kies een andere.",
+    "failedWayland": "Deze bureaubladsessie draait op Wayland, dat programma's geen systeembrede sneltoets geeft. Het item ‘Journaalitem’ in het systeemvak en Ctrl+Shift+J in Plainva leiden naar hetzelfde veld.",
+    "note": "De sneltoets hoort bij dit apparaat en reist niet mee met het instellingenprofiel. Als Plainva niet actief is, reageert er niets op de sneltoets.",
+    "windowTitle": "Plainva – Journaalitem",
+    "noVault": "In Plainva is geen vault geopend, dus er is geen plek om het item te schrijven.",
+    "failed": "Het item kon niet worden opgeslagen. Is Plainva nog actief?"
   }
 }

@@ -4619,5 +4619,23 @@
     "fieldDay": "{{date}}的条目 …",
     "trayEntry": "日记条目",
     "shareToJournal": "存入日记"
+  },
+  "quickCapture": {
+    "section": "全局快速记录",
+    "enable": "用系统级快捷键随时随地记录",
+    "enableDesc": "即使其他应用在前台，也会打开一个只有日记输入框的小窗口。只要 Plainva 在运行（包括在通知区域中）就可以使用。",
+    "shortcut": "快捷键",
+    "record": "更改",
+    "recording": "现在按下新的快捷键 … 按 Esc 取消。",
+    "reset": "恢复默认",
+    "needsModifier": "请将 Ctrl、Alt 或 Windows/Command 键与另一个键组合使用。",
+    "unsupportedKey": "系统级快捷键不能以这个键结尾。",
+    "failedTaken": "无法注册该快捷键，可能已被其他应用占用。请另选一个。",
+    "failedInvalid": "系统不接受这个快捷键。请另选一个。",
+    "failedWayland": "此桌面会话运行在 Wayland 上，它不向应用提供系统级快捷键。通知区域中的“日记条目”和 Plainva 内的 Ctrl+Shift+J 可打开同一个输入框。",
+    "note": "该快捷键属于这台设备，不会随设置配置文件同步。Plainva 未运行时，按下它不会有任何反应。",
+    "windowTitle": "Plainva – 日记条目",
+    "noVault": "Plainva 中没有打开任何仓库，因此无处写入该条目。",
+    "failed": "无法保存该条目。Plainva 还在运行吗？"
   }
 }

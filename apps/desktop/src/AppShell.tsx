@@ -79,7 +79,8 @@ import {
   openPresetWindow,
   openFullWindow,
 } from "./services/windowManager";
-import { currentWindowParams, windowStateKey } from "./services/windowContext";
+import { currentWindowParams, isOwnerWindow, windowStateKey } from "./services/windowContext";
+import { useQuickCaptureSink } from "./hooks/useJournal";
 import "./App.css";
 
 /**
@@ -1143,6 +1144,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       offs.forEach((off) => off());
     };
   }, [trayNewTask, trayJournal]);
+
+  // The global quick capture (plan Journal, J7, opt-in): while a vault is open
+  // this shell takes what the capture window hands over, and the shortcut that
+  // was switched on in an earlier session is registered again. Off is the
+  // default — then nothing is registered and the plugin is not even loaded.
+  useQuickCaptureSink();
+  useEffect(() => {
+    if (!isOwnerWindow()) return;
+    void import("./services/quickCapture").then(({ initQuickCapture }) => initQuickCapture()).catch(() => undefined);
+  }, []);
 
   // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
   // the non-memoized daily helper); this stable wrapper opens today's note.

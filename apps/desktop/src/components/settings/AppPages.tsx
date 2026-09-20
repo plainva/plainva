@@ -15,6 +15,7 @@ import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, isPimTraceEnabled, setPimTraceEnabled, Switch, type CustomThemeDesign } from "@plainva/ui";
 import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
+import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
@@ -325,6 +326,7 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
       </SettingCard>
       <WindowSettings />
       <BackgroundSettings />
+      <QuickCaptureSettings />
       <SettingCard label={t("settings.groupHints", { defaultValue: "Hinweise" })}>
         <SettingRow label={t("settings.showCompatWarning")}>
           <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={(e) => p.onShowCompatibilityWarning(e.target.checked)} />

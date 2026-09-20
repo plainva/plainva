@@ -19,6 +19,7 @@ mod tray;
 mod unzip;
 
 mod secure_store;
+mod session;
 
 // --- Google OAuth loopback redirect listener (ADR 0006, phase 5.1 G2) ---
 //
@@ -339,6 +340,12 @@ pub fn run() {
         }
     }));
 
+    // The global quick capture. The plugin only provides the mechanism: no
+    // shortcut exists until the central window registers the one the user
+    // chose (services/quickCapture.ts), and it is off by default.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+
     builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
@@ -395,6 +402,7 @@ pub fn run() {
             tray::tray_enable,
             tray::tray_disable,
             tray::tray_set_next,
+            session::desktop_session_kind,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             checked_fs::checked_path_exists,

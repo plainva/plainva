@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "capture-window",
+  "description": "Permissions for the quick-capture window (capture-*). It shows one text field and hands what was typed to the central window over the window bus, which writes the journal entry. It reads the settings store for theme and language and can close, focus and move itself — nothing else: no filesystem, no SQL, no HTTP, no dialogs, no window creation.",
+  "windows": ["capture-*"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-start-dragging",
+    "store:default"
+  ]
+}

@@ -4674,5 +4674,23 @@
     "fieldDay": "Entry for {{date}} …",
     "trayEntry": "Journal entry",
     "shareToJournal": "Into the journal"
+  },
+  "quickCapture": {
+    "section": "Global quick capture",
+    "enable": "Capture from anywhere with a system-wide shortcut",
+    "enableDesc": "Opens a small window with the journal's entry field, even while another application is in front. It works as long as Plainva is running — in the tray, too.",
+    "shortcut": "Shortcut",
+    "record": "Change",
+    "recording": "Press the new shortcut now … Esc cancels.",
+    "reset": "Reset to default",
+    "needsModifier": "Use Ctrl, Alt or the Windows/Command key together with another key.",
+    "unsupportedKey": "A system-wide shortcut cannot end in this key.",
+    "failedTaken": "The shortcut could not be registered — another application probably uses it. Please choose a different one.",
+    "failedInvalid": "The system does not accept this shortcut. Please choose a different one.",
+    "failedWayland": "This desktop session runs on Wayland, which gives applications no system-wide shortcut. The tray entry “Journal entry” and Ctrl+Shift+J inside Plainva lead to the same field.",
+    "note": "The shortcut belongs to this device and does not travel with the settings profile. While Plainva is not running, nothing answers it.",
+    "windowTitle": "Plainva – Journal entry",
+    "noVault": "No vault is open in Plainva, so there is nowhere to write the entry.",
+    "failed": "The entry could not be saved. Is Plainva still running?"
   }
 }

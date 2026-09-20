@@ -1038,3 +1038,24 @@ describe("workspace revisions for an auxiliary window (finding 2026-09-07)", () 
     dispose();
   });
 });
+
+describe("the quick-capture window hands its text over (plan Journal, J7)", () => {
+  it("answers with the shell's verdict, and says so when no vault is open to take it", async () => {
+    const { setQuickCaptureSink } = await import("./quickCapture");
+    const { wire, dispose } = await setup();
+    // The capture window belongs to no vault: its bus names none.
+    const capture = createWindowBus(wire("capture-main"), 200, () => null);
+
+    const without = await capture.request("journal-capture", { text: "a thought", task: false });
+    expect(without.ok).toBe(false);
+
+    const taken: Array<{ text: string; task: boolean }> = [];
+    const off = setQuickCaptureSink(async (input) => { taken.push(input); return { ok: true }; });
+    expect(await capture.request("journal-capture", { text: "a thought", task: true })).toEqual({ ok: true });
+    expect(taken).toEqual([{ text: "a thought", task: true }]);
+
+    off();
+    await capture.dispose();
+    dispose();
+  });
+});

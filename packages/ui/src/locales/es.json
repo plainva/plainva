@@ -4729,5 +4729,23 @@
     "fieldDay": "Entrada para {{date}} …",
     "trayEntry": "Entrada de diario",
     "shareToJournal": "Al diario"
+  },
+  "quickCapture": {
+    "section": "Captura rápida global",
+    "enable": "Capturar desde cualquier lugar con un atajo de todo el sistema",
+    "enableDesc": "Abre una ventana pequeña con el campo de entrada del diario, aunque otra aplicación esté en primer plano. Funciona mientras Plainva esté en ejecución, también en el área de notificación.",
+    "shortcut": "Atajo",
+    "record": "Cambiar",
+    "recording": "Pulsa ahora el nuevo atajo … Esc cancela.",
+    "reset": "Restablecer el predeterminado",
+    "needsModifier": "Usa Ctrl, Alt o la tecla Windows/Comando junto con otra tecla.",
+    "unsupportedKey": "Un atajo de todo el sistema no puede terminar en esta tecla.",
+    "failedTaken": "No se pudo registrar el atajo; probablemente lo usa otra aplicación. Elige otro.",
+    "failedInvalid": "El sistema no acepta este atajo. Elige otro.",
+    "failedWayland": "Esta sesión de escritorio funciona con Wayland, que no ofrece a las aplicaciones atajos de todo el sistema. La entrada «Entrada de diario» del área de notificación y Ctrl+Mayús+J dentro de Plainva llevan al mismo campo.",
+    "note": "El atajo pertenece a este dispositivo y no viaja con el perfil de ajustes. Si Plainva no está en ejecución, nada responde al atajo.",
+    "windowTitle": "Plainva – Entrada de diario",
+    "noVault": "No hay ningún vault abierto en Plainva, así que no hay dónde escribir la entrada.",
+    "failed": "No se pudo guardar la entrada. ¿Sigue Plainva en ejecución?"
   }
 }

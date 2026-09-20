@@ -4674,5 +4674,23 @@
     "fieldDay": "Eintrag für {{date}} …",
     "trayEntry": "Journal-Eintrag",
     "shareToJournal": "Ins Journal"
+  },
+  "quickCapture": {
+    "section": "Globale Schnellerfassung",
+    "enable": "Von überall mit einem systemweiten Tastenkürzel erfassen",
+    "enableDesc": "Öffnet ein kleines Fenster mit dem Eintragsfeld des Journals, auch wenn gerade ein anderes Programm vorn liegt. Das funktioniert, solange Plainva läuft — auch im Infobereich.",
+    "shortcut": "Tastenkürzel",
+    "record": "Ändern",
+    "recording": "Drücke jetzt das neue Tastenkürzel … Esc bricht ab.",
+    "reset": "Auf Vorgabe zurücksetzen",
+    "needsModifier": "Nimm Strg, Alt oder die Windows-/Befehlstaste zusammen mit einer weiteren Taste.",
+    "unsupportedKey": "Auf dieser Taste kann ein systemweites Tastenkürzel nicht enden.",
+    "failedTaken": "Das Tastenkürzel ließ sich nicht registrieren — vermutlich benutzt es ein anderes Programm. Bitte wähle ein anderes.",
+    "failedInvalid": "Das System nimmt dieses Tastenkürzel nicht an. Bitte wähle ein anderes.",
+    "failedWayland": "Diese Desktop-Sitzung läuft unter Wayland, das Programmen kein systemweites Tastenkürzel gibt. Der Eintrag „Journal-Eintrag“ im Infobereich und Strg+Umschalt+J in Plainva führen zum selben Feld.",
+    "note": "Das Tastenkürzel gehört zu diesem Gerät und wandert nicht mit dem Einstellungsprofil. Läuft Plainva nicht, antwortet nichts darauf.",
+    "windowTitle": "Plainva – Journal-Eintrag",
+    "noVault": "In Plainva ist kein Vault geöffnet, deshalb gibt es keinen Ort für den Eintrag.",
+    "failed": "Der Eintrag konnte nicht gespeichert werden. Läuft Plainva noch?"
   }
 }

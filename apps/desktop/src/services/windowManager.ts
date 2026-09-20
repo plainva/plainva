@@ -1,4 +1,4 @@
-import { buildWindowQuery, windowStatePrefix, type WindowPreset, type WindowRole } from "./windowContext";
+import { buildWindowQuery, windowStatePrefix, type VaultWindowRole, type WindowPreset } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { getWindowBus } from "./windowBus";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
@@ -25,7 +25,7 @@ import { detectMac } from "../components/WindowControls";
 export interface AuxWindowRecord {
   /** Tauri window label — `aux-<n>` / `compose-<n>`, the bus address too. */
   label: string;
-  role: Exclude<WindowRole, "owner">;
+  role: VaultWindowRole;
   vaultPath: string;
   /** Vault-relative path or a `plainva://` pseudo path; null for a blank window. */
   content: string | null;
@@ -105,7 +105,7 @@ let counter = 0;
  * because opening yields at its first await: two requests in flight must not
  * compute the same address.
  */
-function nextLabel(role: Exclude<WindowRole, "owner">): string {
+function nextLabel(role: VaultWindowRole): string {
   // Never hand out a name that is already taken. `counter` starts at 0 in every
   // process, while the per-window layouts in localStorage outlive the process --
   // so a fresh window used to inherit the tabs of a long-closed stranger that
@@ -266,7 +266,7 @@ export function auxWindowChrome(mac: boolean): { decorations: boolean; titleBarS
  * windows and a label is never reused while its window lives.
  */
 export async function openAuxWindow(params: {
-  role: Exclude<WindowRole, "owner">;
+  role: VaultWindowRole;
   vaultPath: string;
   content?: string | null;
   title?: string;

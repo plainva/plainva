@@ -91,7 +91,7 @@ describe("file row actions", () => {
     expect(open.map((a) => a.id)).toEqual(["toggle", "edit", "delete"]);
     expect(open[0].label).toBe("Erledigt");
     expect(journalRowActions(t, { isTask: true, done: true, toggle: noop })[0].label).toBe("Offen");
-    expect(open.at(-1)).toMatchObject({ id: "delete", danger: true });
+    expect(open[open.length - 1]).toMatchObject({ id: "delete", danger: true });
     // Swipe carries the frequent ones; the rest stay in the menu and the sheet.
     const plain = journalRowActions(t, { isTask: false, done: false, edit: noop, copy: noop, toTask: noop, showInNote: noop, delete: noop });
     expect(plain.filter((a) => a.swipe).map((a) => a.id)).toEqual(["edit", "toTask", "delete"]);

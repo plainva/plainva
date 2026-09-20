@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { normalizeJournalHeading, type JournalEntry } from "@plainva/core";
 import {
@@ -16,7 +16,9 @@ import { journalHeadingKey, useVault } from "../contexts/VaultContext";
 import { dailyNoteFiles, makeDailyPathProvider, readDailyNoteConfig } from "../services/dailyNotes";
 import { applyIndexChanges } from "../services/fileActions";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
+import { setQuickCaptureSink } from "../services/quickCapture";
 import { getSettingsStore } from "../services/settingsStore";
+import { isOwnerWindow } from "../services/windowContext";
 
 /**
  * The journal on the desktop (plan Journal, J2/J4): the shared write path with
@@ -80,12 +82,16 @@ export const journalFailureKey = (reason: JournalWriteFailure): string => FAILUR
 
 export interface JournalCaptureInput { text: string; task: boolean; date?: Date }
 
+/** What a capture came to. `message` is the sentence for a refusal; `null` = nothing worth a sentence (empty text). */
+type CaptureOutcome = { ok: true; path: string; entry: JournalEntry } | { ok: false; message: string | null };
+
 /**
- * Capture with the toast every entry point shares: "Entry saved · Undo".
- * Resolves with the entry, or `null` when nothing was written — the caller
- * keeps the typed text in that case.
+ * One capture for every way in. A success answers with the toast all of them
+ * share — "Entry saved · Undo" — and a refusal comes back as a sentence, so the
+ * caller decides where it is said: as a toast in this window, or inside the
+ * quick-capture window, where a toast over here would not be seen.
  */
-export function useJournalCapture(): (input: JournalCaptureInput) => Promise<{ path: string; entry: JournalEntry } | null> {
+function useCaptureWithOutcome(): (input: JournalCaptureInput) => Promise<CaptureOutcome> {
   const { vaultPath } = useVault();
   const files = useJournalFiles();
   const { t } = useTranslation();
@@ -101,22 +107,52 @@ export function useJournalCapture(): (input: JournalCaptureInput) => Promise<{ p
     }
   });
 
-  return useStableHandler(async ({ text, task, date }: JournalCaptureInput) => {
-    if (!files || !vaultPath) return null;
+  return useStableHandler(async ({ text, task, date }: JournalCaptureInput): Promise<CaptureOutcome> => {
+    if (!files || !vaultPath) return { ok: false, message: t("quickCapture.noVault") };
     try {
       const heading = await readJournalHeading(vaultPath);
       const result = await appendJournalEntry(files, { date: date ?? new Date(), text, heading, task });
       if (!result.ok) {
         // An empty text is not an error worth a sentence; the field simply stays.
-        if (result.reason !== "empty") toast.error(t(journalFailureKey(result.reason)));
-        return null;
+        return { ok: false, message: result.reason === "empty" ? null : t(journalFailureKey(result.reason)) };
       }
       const token = result.undo;
       toast.success(t("journal.saved"), token ? { label: t("common.undo"), run: () => void undo(token, heading) } : undefined);
-      return { path: result.path, entry: result.entry };
+      return { ok: true, path: result.path, entry: result.entry };
     } catch (error) {
-      toast.error(errorText(error));
-      return null;
+      return { ok: false, message: errorText(error) };
     }
   });
+}
+
+/**
+ * Capture from inside this window. Resolves with the entry, or `null` when
+ * nothing was written — the caller keeps the typed text in that case.
+ */
+export function useJournalCapture(): (input: JournalCaptureInput) => Promise<{ path: string; entry: JournalEntry } | null> {
+  const capture = useCaptureWithOutcome();
+  return useStableHandler(async (input: JournalCaptureInput) => {
+    const outcome = await capture(input);
+    if (outcome.ok) return { path: outcome.path, entry: outcome.entry };
+    if (outcome.message) toast.error(outcome.message);
+    return null;
+  });
+}
+
+/**
+ * The global quick capture's way in (plan Journal, J7): while a vault is open,
+ * this shell takes what the capture window hands over. The refusal travels back
+ * as a sentence — that window shows it and keeps the text.
+ */
+export function useQuickCaptureSink(): void {
+  const { vaultPath } = useVault();
+  const { t } = useTranslation();
+  const capture = useCaptureWithOutcome();
+  const sink = useStableHandler(async ({ text, task }: { text: string; task: boolean }) => {
+    const outcome = await capture({ text, task });
+    return outcome.ok ? ({ ok: true } as const) : ({ ok: false, message: outcome.message ?? t("quickCapture.failed") } as const);
+  });
+  // The central window only: the bus hands captures to it, and a full second
+  // window - the same shell in client mode - has nothing to answer.
+  useEffect(() => (vaultPath && isOwnerWindow() ? setQuickCaptureSink(sink) : undefined), [vaultPath, sink]);
 }

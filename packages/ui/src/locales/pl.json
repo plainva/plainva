@@ -4784,5 +4784,23 @@
     "fieldDay": "Wpis na {{date}} …",
     "trayEntry": "Wpis dziennika",
     "shareToJournal": "Do dziennika"
+  },
+  "quickCapture": {
+    "section": "Globalne szybkie zapisywanie",
+    "enable": "Zapisuj z dowolnego miejsca systemowym skrótem klawiszowym",
+    "enableDesc": "Otwiera małe okno z polem wpisu dziennika, nawet gdy na pierwszym planie jest inny program. Działa, dopóki Plainva jest uruchomiona — także w obszarze powiadomień.",
+    "shortcut": "Skrót klawiszowy",
+    "record": "Zmień",
+    "recording": "Naciśnij teraz nowy skrót … Esc anuluje.",
+    "reset": "Przywróć domyślny",
+    "needsModifier": "Użyj Ctrl, Alt albo klawisza Windows/Command razem z innym klawiszem.",
+    "unsupportedKey": "Skrót systemowy nie może kończyć się tym klawiszem.",
+    "failedTaken": "Nie udało się zarejestrować skrótu — prawdopodobnie używa go inny program. Wybierz inny.",
+    "failedInvalid": "System nie przyjmuje tego skrótu. Wybierz inny.",
+    "failedWayland": "Ta sesja pulpitu działa w Waylandzie, który nie daje programom skrótów systemowych. Pozycja „Wpis dziennika” w obszarze powiadomień i Ctrl+Shift+J w Plainvie prowadzą do tego samego pola.",
+    "note": "Skrót należy do tego urządzenia i nie wędruje z profilem ustawień. Gdy Plainva nie jest uruchomiona, nic na niego nie odpowiada.",
+    "windowTitle": "Plainva – Wpis dziennika",
+    "noVault": "W Plainvie nie jest otwarty żaden vault, więc nie ma gdzie zapisać wpisu.",
+    "failed": "Nie udało się zapisać wpisu. Czy Plainva nadal działa?"
   }
 }

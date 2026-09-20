@@ -24,6 +24,7 @@ import { clearDraft, recordDraft } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
+import { runQuickCapture } from "./quickCapture";
 
 /**
  * The owner half of the window bus (multi-window P0).
@@ -719,6 +720,13 @@ export async function installOwnerAppBus(): Promise<() => void> {
     }),
   );
 
+  offs.push(
+    // The quick-capture window (plan Journal, J7) holds a text and nothing
+    // else: no vault, no write access. The shell with the open vault takes it
+    // (services/quickCapture.ts); without one the answer says so and the
+    // window keeps the text.
+    await bus.handle("journal-capture", ({ text, task }) => runQuickCapture({ text, task })),
+  );
 
   return () => {
     for (const off of offs.splice(0)) {
