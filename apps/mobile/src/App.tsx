@@ -7,7 +7,6 @@ import { Cloud, FileText, Plus } from "lucide-react";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
-  buildDailyNotePath,
   getVaultTemplates,
   ICON,
   sanitizeAreaOrder,
@@ -88,16 +87,10 @@ import { isoOf } from "./lib/dates";
 // (search/More/settings/vault) into an overlay stack ABOVE the tabs — any
 // bottom-bar tap dismisses them, tapping the active tab returns to its root.
 
-/**
- * Same file name as the desktop would choose. It used to be hard-coded ISO
- * here, so a vault set to another daily-note format got a SECOND note for the
- * same day the moment the phone touched it (S14).
- */
-const dailyPathFor = (iso: string) => {
-  const s = getMobileSettings();
+/** The local day an ISO key names. Path and file name come from the shared daily-note rule (S14, plan Journal J2). */
+const dayOfIso = (iso: string): Date => {
   const [y, m, d] = iso.split("-").map(Number);
-  const { fullPath, dateStr } = buildDailyNotePath(new Date(y, m - 1, d), s.dailyFormat, s.dailyFolder);
-  return { path: fullPath, title: dateStr };
+  return new Date(y, m - 1, d);
 };
 
 export default function App() {
@@ -435,12 +428,11 @@ export default function App() {
   };
 
   const openDaily = (iso: string) => {
-    const { path, title } = dailyPathFor(iso);
     // Push into the current context: back returns to Today/Calendar (R2).
     // Fresh dailies seed from the configured template (package I).
-    void vaultOps.ensureDailyNote(vault, path, title).then((created) => {
+    void vaultOps.ensureDailyNote(vault, dayOfIso(iso)).then((daily) => {
       // null = the daily template's questions were cancelled, so no note exists.
-      if (created) openNote(path);
+      if (daily) openNote(daily.path);
     });
   };
 

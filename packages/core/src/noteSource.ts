@@ -35,6 +35,49 @@ export function noteSlugger(): (text: string) => string {
   };
 }
 
+/** Maps a parsed node back to its range in the unmodified note. */
+function sourceRanger(raw: string, clean: ReturnType<typeof stripAnchorMarkers>): (node: SourceNode) => NoteSourceRange {
+  const lines = [0];
+  for (let i = 0; i < raw.length; i++) if (raw[i] === "\n") lines.push(i + 1);
+  return (node) => {
+    const from = clean.toRaw(node.position!.start.offset);
+    let lo = 0, hi = lines.length;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (lines[mid] <= from) lo = mid + 1; else hi = mid; }
+    return { from, to: clean.toRaw(node.position!.end.offset, "before"), line: lo };
+  };
+}
+
+export interface NoteOutlineNode extends NoteSourceRange {
+  /** The Markdown block type: `heading`, `list`, `paragraph`, `code`, `yaml`, … */
+  type: string;
+  /** Level and text of a heading. */
+  level?: number;
+  text?: string;
+  /** The items of a list, each with its own range. */
+  items?: NoteSourceRange[];
+}
+
+/**
+ * The TOP-LEVEL blocks of a note, in order. A heading inside a list item or a
+ * quote is not in here, and neither is a line inside a code fence that merely
+ * looks like one — which is what a caller needs who wants to know where a
+ * section really ends. Ranges are UTF-16 offsets in the unmodified note, `line`
+ * is 1-based, as in `analyzeNoteSource`.
+ */
+export function analyzeNoteOutline(raw: string): NoteOutlineNode[] {
+  const clean = stripAnchorMarkers(raw);
+  const range = sourceRanger(raw, clean);
+  const outline: NoteOutlineNode[] = [];
+  for (const node of treeFor(clean.text).children ?? []) {
+    if (!node.position) continue;
+    const entry: NoteOutlineNode = { ...range(node), type: node.type };
+    if (node.type === "heading") { entry.level = node.depth!; entry.text = textOf(node); }
+    if (node.type === "list") entry.items = (node.children ?? []).filter((item) => item.position).map(range);
+    outline.push(entry);
+  }
+  return outline;
+}
+
 /** All ranges are UTF-16 offsets in the unmodified note, as in CodeMirror. */
 export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; blocks: NoteBlock[] } {
   const clean = stripAnchorMarkers(raw);
@@ -42,14 +85,7 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
   const headings: NoteHeading[] = [];
   const blocks: NoteBlock[] = [];
   const slug = noteSlugger();
-  const lines = [0];
-  for (let i = 0; i < raw.length; i++) if (raw[i] === "\n") lines.push(i + 1);
-  const range = (node: SourceNode): NoteSourceRange => {
-    const from = clean.toRaw(node.position!.start.offset);
-    let lo = 0, hi = lines.length;
-    while (lo < hi) { const mid = (lo + hi) >>> 1; if (lines[mid] <= from) lo = mid + 1; else hi = mid; }
-    return { from, to: clean.toRaw(node.position!.end.offset, "before"), line: lo };
-  };
+  const range = sourceRanger(raw, clean);
   const walk = (parent: SourceNode, ancestors: SourceNode[]) => {
     for (const [index, node] of (parent.children ?? []).entries()) {
       if (!node.position || node.type === "code" || node.type === "yaml" || node.type === "html") continue;

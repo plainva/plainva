@@ -465,6 +465,56 @@ describe("SyncWorker", () => {
     expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
   });
 
+  describe("two devices append to the journal of the same daily note (plan Journal, E6)", () => {
+    const day = "Journal/2026-09-20.md";
+    const base = "# 2026-09-20\n\n## Journal\n\n- 08:00 breakfast\n\n## Notes\n";
+    const desk = base.replace("- 08:00 breakfast\n", "- 08:00 breakfast\n- 10:45 call with the workshop\n");
+    const phone = base.replace("- 08:00 breakfast\n", "- 08:00 breakfast\n- 09:10 on the train\n- 12:30 lunch\n");
+
+    it("unites both sides by time, writes no .CONFLICT copy and pushes the result", async () => {
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([[day, "etag-phone"]]) });
+      target.download.mockResolvedValueOnce(new TextEncoder().encode(phone));
+      stateRepo.getAllStates.mockResolvedValueOnce(new Map([[day, { local_sha256: await sha(desk), base_sha256: await sha(base), remote_etag: "etag-old" }]]));
+      stateRepo.getBaseText.mockResolvedValueOnce(base);
+      vault.exists.mockResolvedValueOnce(true);
+      vault.readTextFile.mockResolvedValueOnce(desk);
+
+      await worker.runCycle();
+
+      const writes = vault.writeTextFile.mock.calls;
+      expect(writes.map((c: any[]) => c[0])).toEqual([day]);
+      expect(writes[0][1]).toBe("# 2026-09-20\n\n## Journal\n\n- 08:00 breakfast\n- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n\n## Notes\n");
+      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+    });
+
+    it("unites two daily notes that were created apart, with no common ancestor", async () => {
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([[day, "etag-phone"]]) });
+      target.download.mockResolvedValueOnce(new TextEncoder().encode(phone));
+      vault.exists.mockResolvedValueOnce(true);
+      vault.readTextFile.mockResolvedValueOnce(desk);
+
+      await worker.runCycle();
+
+      const writes = vault.writeTextFile.mock.calls;
+      expect(writes.map((c: any[]) => c[0])).toEqual([day]);
+      expect(writes[0][1]).toContain("- 09:10 on the train\n- 10:45 call with the workshop\n- 12:30 lunch\n");
+      expect(queue.queueWrite).toHaveBeenCalledWith(day);
+    });
+
+    it("still preserves the local note when the two differ in anything but journal entries", async () => {
+      target.pull.mockResolvedValueOnce({ etagMap: new Map([[day, "etag-phone"]]) });
+      target.download.mockResolvedValueOnce(new TextEncoder().encode(phone.replace("## Notes\n", "## Notes\n\nA paragraph from the phone.\n")));
+      vault.exists.mockResolvedValueOnce(true);
+      vault.readTextFile.mockResolvedValueOnce(desk.replace("# 2026-09-20", "# Sunday"));
+
+      await worker.runCycle();
+
+      const writes = vault.writeTextFile.mock.calls;
+      expect(writes[0][0]).toMatch(/2026-09-20\.CONFLICT-.*\.md$/);
+      expect(writes[0][1]).toContain("# Sunday");
+    });
+  });
+
   it("does not rewrite the local file when reconciled content equals local (no echo)", async () => {
     const base = "A\n\nB\n\nC";
     const local = "A\n\nB-mine\n\nC";

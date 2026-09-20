@@ -1,4 +1,4 @@
-import { applyTemplatePlaceholders, setPendingTemplateCaret } from "@plainva/ui";
+import { ensureDailyNote, noteStamp, setPendingTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
@@ -10,7 +10,6 @@ import {
   DEFAULT_DAILY_NOTE_TYPE,
 } from "../contexts/VaultContext";
 import { buildDailyNotePath, existingDailyNoteDays, parseDailyNoteDate } from "@plainva/ui";
-import { withOkfDefaults } from "./newNote";
 
 export { buildDailyNotePath };
 
@@ -80,26 +79,8 @@ export interface DailyNoteOptions {
     Promise<{ text: string; cursor: number | null } | null>;
 }
 
-/**
- * The reference instant a daily-note template interpolates against: the day the
- * note is FOR, carrying the CURRENT wall-clock time. Both halves matter —
- * `{{date}}` (and later `{{date+N}}`) must follow the note's day even when a
- * past or future daily is created, while `{{time}}` means the moment of
- * creation. Passing the raw midnight `date` would silently turn every
- * `{{time}}` into "00:00".
- */
-export function noteStamp(date: Date, now: Date = new Date()): Date {
-  const stamp = new Date(date);
-  stamp.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-  return stamp;
-}
+export { noteStamp };
 
-/**
- * Resolves the daily note for `date`: returns its path if it exists, otherwise
- * creates it (from the configured template, creating the folder as needed) and
- * returns the new path. Returns null if the user declined the create dialog.
- * Opening/refresh is left to the caller.
- */
 /**
  * Resolver for `{{daily+1}}` / `{{daily-1}}` (plan Vorlagen-Engine, E6): the
  * PATH of the daily note that many days from the reference instant. The
@@ -129,82 +110,58 @@ export async function makeDailyPathProvider(
   };
 }
 
+/** The vault's daily-note settings, in the shape the shared building block takes. */
+export async function readDailyNoteConfig(vaultPath: string): Promise<DailyNoteCreateConfig> {
+  const store = await getSettingsStore();
+  return {
+    folder: (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "",
+    format: (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD",
+    templateFolder: (await store.get<string>(templateFolderKey(vaultPath))) || "Templates",
+    template: (await store.get<string>(dailyNoteTemplateKey(vaultPath))) || "",
+    noteType: (await store.get<string>(dailyNoteTypeKey(vaultPath)))?.trim() || DEFAULT_DAILY_NOTE_TYPE,
+  };
+}
+
+/** Writes a new note through the adapter, creating the folders on the way. */
+export function dailyNoteFiles(adapter: DailyNoteAdapter): DailyNoteFiles {
+  return {
+    exists: (path) => adapter.exists(path),
+    readTextFile: (path) => adapter.readTextFile(path),
+    createNote: async (path, content) => {
+      const parts = path.split(/[/\\]/).filter(Boolean).slice(0, -1);
+      let curr = "";
+      for (const part of parts) {
+        curr = curr ? `${curr}/${part}` : part;
+        if (!(await adapter.exists(curr))) await adapter.createDir(curr);
+      }
+      await adapter.writeTextFile(path, content);
+    },
+  };
+}
+
+/**
+ * Resolves the daily note for `date`: returns its path if it exists, otherwise
+ * creates it (from the configured template, creating the folder as needed) and
+ * returns the new path. Returns null if the user declined the create dialog or
+ * the template's questions. Opening/refresh is left to the caller.
+ */
 export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOptions): Promise<string | null> {
   const { vaultPath, adapter, onIndex, confirmCreate, confirmMessage, confirmTitle } = opts;
-  const store = await getSettingsStore();
-  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "";
-  const rawFormat = (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "YYYY-MM-DD";
-  const tmplFolder = (await store.get<string>(templateFolderKey(vaultPath))) || "Templates";
-  const tmplName = (await store.get<string>(dailyNoteTemplateKey(vaultPath))) || "";
-
-  const { fullPath, dateStr } = buildDailyNotePath(date, rawFormat, folder);
-
-  if (await adapter.exists(fullPath)) {
-    return fullPath;
-  }
-
-  if (confirmCreate) {
-    const msg = confirmMessage ? confirmMessage(fullPath) : `Create ${fullPath}?`;
-    const ok = await appConfirm({ title: confirmTitle ?? "Daily note", message: msg, kind: "info" });
-    if (!ok) return null;
-  }
-
-  let content = "";
-  let caretInBody: number | null = null;
-  if (tmplName) {
-    const tmplPath = tmplFolder ? `${tmplFolder.replace(/[/\\]+$/, "")}/${tmplName}` : tmplName;
-    if (await adapter.exists(tmplPath)) {
-      // The template goes through the SHARED engine, never through raw
-      // replaces (plan Vorlagen-Engine, P0). Three raw `.replace` calls used to
-      // stand here, and everything else the engine does was silently missing:
-      //   - `{{cursor}}` / `{{prompt:…}}` stayed in the file as LITERALS;
-      //   - the template-only plainva keys were INHERITED. Every template made
-      //     with "create new template" carries `plainva.tasks: false`, so each
-      //     daily note built from one opted itself out of the Tasks view —
-      //     its tasks were invisible with no hint anywhere. `templateFor`
-      //     leaked the same way and filed the daily note as a template.
-      // Mobile has always called the engine here; this closes that divergence.
-      const raw = await adapter.readTextFile(tmplPath);
-      const stamp = noteStamp(date);
-      if (opts.resolveTemplate) {
-        const answered = await opts.resolveTemplate(raw, { title: dateStr, now: stamp, folder });
-        if (!answered) return null; // cancelled → no daily note is created
-        content = answered.text;
-        caretInBody = answered.cursor;
-      } else {
-        content = applyTemplatePlaceholders(raw, dateStr, stamp);
-      }
-    }
-  }
-
-  // Blank daily notes get an H1 with the date name (same rule as new notes) —
-  // a template, when present, fully defines the body instead.
-  if (!content) content = `# ${dateStr}\n`;
-
-  // OKF write rule: a template's own `type` wins, missing pieces are added.
-  const dailyType =
-    (await store.get<string>(dailyNoteTypeKey(vaultPath)))?.trim() || DEFAULT_DAILY_NOTE_TYPE;
-  const bodyLength = content.length;
-  content = withOkfDefaults(content, dailyType);
-  // `{{cursor}}` is measured in the template body; the written file may carry
-  // OKF frontmatter in front of it, so shift by whatever was prepended.
-  if (caretInBody !== null) {
-    setPendingTemplateCaret({ path: fullPath, offset: caretInBody + (content.length - bodyLength) });
-  }
-
-  if (folder) {
-    const parts = folder.split(/[/\\]/).filter(Boolean);
-    let curr = "";
-    for (const p of parts) {
-      curr = curr ? `${curr}/${p}` : p;
-      if (!(await adapter.exists(curr))) {
-        await adapter.createDir(curr);
-      }
-    }
-  }
-
-  await adapter.writeTextFile(fullPath, content);
+  // The rule itself lives in packages/ui (plan Journal, J2): the phone and the
+  // journal capture run the same one. The template goes through the SHARED
+  // engine there, never through raw replaces (plan Vorlagen-Engine, P0) — raw
+  // replaces left `{{cursor}}`/`{{prompt:…}}` in the file as literals and let
+  // the template-only `plainva` keys leak into every daily note.
+  const ensured = await ensureDailyNote(date, await readDailyNoteConfig(vaultPath), dailyNoteFiles(adapter), {
+    confirmCreate: confirmCreate
+      ? (path) => appConfirm({ title: confirmTitle ?? "Daily note", message: confirmMessage ? confirmMessage(path) : `Create ${path}?`, kind: "info" })
+      : undefined,
+    resolveTemplate: opts.resolveTemplate,
+  });
+  if (!ensured) return null;
+  if (!ensured.created) return ensured.path;
+  if (ensured.cursor !== null) setPendingTemplateCaret({ path: ensured.path, offset: ensured.cursor });
   await onIndex();
-  opts.onCreated?.(fullPath);
-  return fullPath;
+  opts.onCreated?.(ensured.path);
+  return ensured.path;
 }

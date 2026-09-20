@@ -3,6 +3,7 @@ export * from "./workspace/index.js";
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
 export * from "./noteSource.js";
+export * from "./journal.js";
 export * from "./vault/searchOccurrences.js";
 export * from "./markdown-serializer.js";
 export * from "./metadata.js";

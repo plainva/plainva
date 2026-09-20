@@ -146,6 +146,8 @@ export * from "./lib/listSort";
 export * from "./lib/scrollMemory";
 export * from "./lib/imageTarget";
 export * from "./lib/dailyNotes";
+export * from "./lib/dailyNoteCreate";
+export * from "./lib/journalWrite";
 export * from "./lib/readSelectionVerbs";
 export * from "./lib/baseViewState";
 export * from "./lib/backlinks";

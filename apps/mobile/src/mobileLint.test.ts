@@ -1443,7 +1443,10 @@ describe("vault operations report themselves to the overview updater", () => {
     }
     // Every creation path reports; the count guards against a new one slipping
     // in without a report (raise it deliberately, with the site next to it).
-    expect(svc.match(/reportCreated\(/g)?.length).toBe(7);
+    // Six since the daily note is created in ONE place — the shared
+    // `ensureDailyNote` of packages/ui (plan Journal, J2); the template branch
+    // and the skeleton branch used to report separately.
+    expect(svc.match(/reportCreated\(/g)?.length).toBe(6);
   });
 
   it("does not report from the indexer's callbacks", () => {

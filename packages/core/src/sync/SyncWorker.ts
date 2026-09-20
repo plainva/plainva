@@ -4,7 +4,7 @@ import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
-import { mergeText } from "../conflict-resolver.js";
+import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { findCollidingPath } from "./pathIdentity.js";
@@ -963,6 +963,20 @@ export class SyncWorker {
   }
 
   /**
+   * Two diverging versions and no common ancestor. One case is not in doubt:
+   * both devices created today's daily note and each appended to its journal —
+   * the two differ only in journal entries, and those are united by their time
+   * (`mergeWithoutBase`). Every other divergence keeps the careful path: the
+   * local version is preserved as .CONFLICT and the remote one adopted.
+   */
+  private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[]): Promise<string> {
+    const united = mergeWithoutBase(localContent, remoteContent);
+    if (!united.hasConflicts) return united.mergedText;
+    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate));
+    return remoteContent;
+  }
+
+  /**
    * Byte-wise reconciliation for binary files (no text decode, no 3-way merge). If the
    * local copy diverged from both the base and the remote, it is preserved as a binary
    * `.CONFLICT` sibling and the remote is adopted; otherwise the remote is fast-forwarded
@@ -1335,17 +1349,13 @@ export class SyncWorker {
             mergedContent = mergeRes.mergedText;
           }
         } else {
-          const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
-          changedPaths.push(cp);
-          mergedContent = remoteContent;
+          mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths);
         }
       } else {
         // No reliable base (e.g. first connect) and content diverges. Never
         // silently overwrite the working copy: preserve it as .CONFLICT and
         // adopt remote as canonical local.
-        const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
-        changedPaths.push(cp);
-        mergedContent = remoteContent;
+        mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths);
       }
     }
 

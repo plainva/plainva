@@ -66,6 +66,7 @@ import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateIn
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
   buildDailyNotePath,
+  ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, type BookmarkEntry,
   parseRecentsFile,
@@ -1128,41 +1129,33 @@ export const vaultOps = {
   },
 
   /**
-   * Daily note create-or-open (package I): a configured daily template seeds
-   * fresh dailies (placeholders interpolated, OKF frontmatter secured —
-   * desktop dailyNotesTemplate contract); without one the plain skeleton.
+   * Daily note create-or-open. The rule is the shared `ensureDailyNote` of
+   * packages/ui (plan Journal, J2) — the desktop runs the same one. This used
+   * to be the phone's own way, and it had drifted: the template was read
+   * against "now" (so `{{date}}` in a note opened for last Tuesday said today),
+   * the configured note type was ignored when there was no template, and a
+   * template with frontmatter but no `type` never got one.
+   *
+   * "interactive" is a PERSON opening the note: a `{{prompt:…}}` in the daily
+   * template asks (P6). "headless" is the journal capture creating the note on
+   * the way: questions resolve to nothing (decision E4).
    */
-  async ensureDailyNote(v: MobileVault, path: string, title: string): Promise<string | null> {
-    if (await v.files.exists(path)) return path;
+  async ensureDailyNote(v: MobileVault, date: Date, mode: "interactive" | "headless" = "interactive"): Promise<EnsuredDailyNote | null> {
     const ms = getMobileSettings();
-    if (ms.dailyTemplate) {
-      const tplPath = `${ms.templateFolder}/${ms.dailyTemplate}`;
-      // A missing template file falls back to the skeleton below.
-      const raw = await this.read(v, tplPath).catch(() => null);
-      if (raw !== null) {
-        // Opening today's note is a PERSON's action, so a `{{prompt:…}}` in
-        // the daily template asks rather than resolving to nothing (P6).
-        const answered = await applyTemplateInteractive(raw, {
-          title,
-          now: new Date(),
-          folder: path.split("/").slice(0, -1).join("/"),
-          vaultName: (await getActiveVaultEntry()).name || "Plainva",
-        });
-        if (!answered) return null; // cancelled → no daily note is created
-        const content = /^---\r?\n/.test(answered.text)
-          ? answered.text
-          : `---\ntype: ${ms.dailyNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
-        await this.save(v, path, content);
-        reportCreated(path);
-        if (answered.cursor !== null) {
-          setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
-        }
-        return path;
-      }
-    }
-    await this.save(v, path, OKF("Daily Note", title, ""));
-    reportCreated(path);
-    return path;
+    const vaultName = (await getActiveVaultEntry()).name || "Plainva";
+    const ensured = await ensureSharedDailyNote(
+      date,
+      { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: ms.dailyNoteType },
+      { exists: (path) => v.files.exists(path), readTextFile: (path) => this.read(v, path), createNote: (path, content) => this.save(v, path, content) },
+      {
+        resolveTemplate: mode === "interactive" ? (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultName }) : undefined,
+        templateContext: { vaultName },
+      },
+    );
+    if (!ensured?.created) return ensured;
+    reportCreated(ensured.path);
+    if (ensured.cursor !== null) setPendingTemplateCaret({ path: ensured.path, offset: ensured.cursor });
+    return ensured;
   },
 
   async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
