@@ -23,7 +23,7 @@ async function createTour(page: Page, context: BrowserContext) {
   await page.goto("/");
   await page.getByRole("button", { name: /Start locally/ }).click();
   await page.getByRole("button", { name: "Plainva Tour", exact: true }).click();
-  await expect.poll(() => readFile(page, "Welcome.md").catch(() => "")).toContain("Tour data version: 2026-09-11");
+  await expect.poll(() => readFile(page, "Welcome.md").catch(() => "")).toContain("Tour data version: 2026-09-20");
   await expect.poll(() => readFile(page, "Tour/10 Sharing and automation.md").catch(() => "")).toContain("experimental");
   await dismissHighlights(page);
   return sql;

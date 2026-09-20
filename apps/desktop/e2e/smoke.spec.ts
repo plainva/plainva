@@ -2682,7 +2682,7 @@ test('Create vault: the Plainva tour is the recommended card and scaffolds a ful
   expect(String(pinboard)).toContain('file.tags.contains');
   expect(files.filter(p => /\/Tour\/\d{2} /.test(p))).toHaveLength(10);
   const welcome = await page.evaluate((paths) => String((window as any).mockFs[paths.find(p => /\/(Willkommen|Welcome)\.md$/.test(p))!]), files);
-  expect(welcome).toContain('2026-09-11');
+  expect(welcome).toContain('2026-09-20');
   const sample = await page.evaluate((paths) => JSON.parse((window as any).mockFs[paths.find(p => p.endsWith('/tour-import.json'))!]), files);
   expect(sample.activeNotes).toHaveLength(2);
 
