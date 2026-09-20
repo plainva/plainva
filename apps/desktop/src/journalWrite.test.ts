@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   appendJournalEntry,
+  appendPlannedJournalEntry,
   deleteJournalEntry,
   editJournalEntry,
   ensureDailyNote,
@@ -123,6 +124,32 @@ describe("appendJournalEntry", () => {
     const readOnly: JournalFiles = { ...filesOf(vault), writeTextFile: async () => { throw new Error("workspace_write_denied"); } };
     await expect(appendJournalEntry(readOnly, { date: DAY, text: "x", heading: "Journal", now: NOW })).rejects.toThrow("workspace_write_denied");
     expect(await vault.readTextFile(PATH)).toBe("## Journal\n");
+  });
+});
+
+describe("appendPlannedJournalEntry — the share target plans before it writes", () => {
+  const planned = { date: "2026-09-20", time: "14:05", heading: "Journal", text: "Agenda\nhttps://example.test/agenda\n![[Attachments/Shared/x/1-sketch.png]]" };
+
+  it("writes the planned entry with the planned time, into the note of the planned day", async () => {
+    const path = await appendPlannedJournalEntry(filesOf(vault, { ...CONFIG, template: "" }), planned);
+    expect(path).toBe(PATH);
+    expect(await vault.readTextFile(PATH)).toContain("- 14:05 Agenda\n  https://example.test/agenda\n  ![[Attachments/Shared/x/1-sketch.png]]\n");
+  });
+
+  it("is idempotent: a retry after a crash finds its own entry and writes nothing", async () => {
+    const files = filesOf(vault, { ...CONFIG, template: "" });
+    await appendPlannedJournalEntry(files, planned);
+    const once = await vault.readTextFile(PATH);
+    expect(await appendPlannedJournalEntry(files, planned)).toBe(PATH);
+    expect(await vault.readTextFile(PATH)).toBe(once);
+    // Another share in the same minute is another entry.
+    await appendPlannedJournalEntry(files, { ...planned, text: "Something else" });
+    expect(parseJournal(await vault.readTextFile(PATH)).entries.map((e) => e.text.split("\n")[0])).toEqual(["Agenda", "Something else"]);
+  });
+
+  it("resolves with null for an entry that cannot be written", async () => {
+    expect(await appendPlannedJournalEntry(filesOf(vault), { ...planned, time: "25:00" })).toBeNull();
+    expect(await appendPlannedJournalEntry({ ...filesOf(vault), ensureDailyNote: async () => null }, planned)).toBeNull();
   });
 });
 

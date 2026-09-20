@@ -890,3 +890,67 @@ test('the planner: Today with Overdue on top, Upcoming by day, Inbox — and qui
   expect(note).toContain('# Rechnung schreiben');
   await expect(input).toHaveValue('');
 });
+
+test('the journal: capture lands on top, an entry becomes a task the task view knows, delete has an undo (plan Journal J4/J5)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const key = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    (window as any).__dayKey = key;
+    // Yesterday's daily note has a journal; today's note does not exist yet.
+    fs[`/test-vault/${key(-1)}.md`] = '# Yesterday\n\n## Journal\n\n- 09:12 Called the workshop #client\n- [ ] 10:30 Order the spare part\n\n## Notes\n\nkeep me\n';
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-journal').click();
+  const view = page.getByTestId('journal-view');
+  await expect(view.getByTestId('journal-day')).toHaveCount(1);
+  await expect(view).toContainText('Called the workshop');
+
+  // Capture with the keyboard shortcut: one field, one Enter — today's note is created on the way.
+  await page.keyboard.press('Control+Shift+J');
+  const dialog = page.getByTestId('journal-capture-dialog');
+  await expect(dialog.getByTestId('journal-capture-target')).toContainText(/will be created|wird angelegt/);
+  await dialog.getByTestId('journal-capture-input').fill('Router is in the basement #client');
+  await dialog.getByTestId('journal-capture-input').press('Enter');
+  await expect(dialog).toBeHidden();
+  const todayPath = await page.evaluate(() => `/test-vault/${(window as any).__dayKey(0)}.md`);
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p] ?? ''), todayPath)).toMatch(/## Journal\n\n- \d{2}:\d{2} Router is in the basement #client\n$/);
+  // The new day stands on top of the stream, its entry in it.
+  await expect(view.getByTestId('journal-day')).toHaveCount(2);
+  await expect(view.getByTestId('journal-day').first()).toContainText('Router is in the basement');
+
+  // The tag chip filters the stream; "All" takes the filter back.
+  await view.getByTestId('journal-filter-tag').first().click();
+  await expect(view.getByTestId('journal-entry')).toHaveCount(2);
+  await view.getByTestId('journal-filter-all').click();
+  await expect(view.getByTestId('journal-entry')).toHaveCount(3);
+
+  // Turn the new entry into a task: a checkbox the task view already knows (E8).
+  await view.getByTestId('journal-day').first().getByTestId('journal-entry-menu').click();
+  await page.getByTestId('journal-ctx-toTask').click();
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), todayPath)).toMatch(/- \[ \] \d{2}:\d{2} Router is in the basement #client/);
+  await expect(view.getByTestId('journal-day').first().getByTestId('journal-entry-toggle')).toBeVisible();
+
+  // Delete yesterday's plain entry, then take it back: the note is byte for byte what it was.
+  const yesterdayPath = await page.evaluate(() => `/test-vault/${(window as any).__dayKey(-1)}.md`);
+  const before = await page.evaluate((p) => String((window as any).mockFs[p]), yesterdayPath);
+  await view.getByTestId('journal-entry').filter({ hasText: 'Called the workshop' }).getByTestId('journal-entry-menu').click();
+  await page.getByTestId('journal-ctx-delete').click();
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), yesterdayPath)).not.toContain('Called the workshop');
+  // The capture's own "Entry saved · Undo" may still be up; this is the delete's.
+  await page.locator('.pv-toast').filter({ hasText: /Entry deleted|Eintrag gelöscht/ }).locator('.pv-toast-action').click();
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), yesterdayPath)).toBe(before);
+  await expect(view).toContainText('Called the workshop');
+
+  // Both task entries stand in the task view under "From notes".
+  await openTasks(page);
+  await expect(page.getByRole('button', { name: /Router is in the basement/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Order the spare part/ })).toBeVisible();
+  expect(errors).toEqual([]);
+});

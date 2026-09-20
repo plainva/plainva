@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  addDaysToKey, Button, Chip, nextPriorityWord, setCaptureWord, TaskCaptureField, TextInput,
+  addDaysToKey, Button, Chip, nextPriorityWord, Segmented, setCaptureWord, TaskCaptureField, TextInput,
   type CaptureResult, type TaskCaptureApi,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
@@ -18,17 +18,23 @@ import { SheetGrip } from "./SheetGrip";
 export function TaskCaptureSheet({
   todayKey,
   providerList,
+  initialValue = "",
   onClose,
   onSubmit,
+  onSwitchToJournal,
 }: {
   todayKey: string;
+  /** Text a request brought along — the journal sheet's kind switch hands over what was typed. */
+  initialValue?: string;
+  /** The other kind of the capture (plan Journal, J4): takes the typed text to the journal sheet. */
+  onSwitchToJournal?: (text: string) => void;
   /** Name of the provider list a new task can also go to; null = none set. */
   providerList: string | null;
   onClose: () => void;
   onSubmit: (result: CaptureResult, alsoAtProvider: boolean) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   // Starts on, because choosing a list for the database already WAS the decision;
   // the chip is there so a single task can stay in the vault (same as the desktop).
@@ -104,6 +110,18 @@ export function TaskCaptureSheet({
       <div className="pv-sheet m-sheet" data-testid="task-capture-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("tasks.newTask")}</p>
+        {onSwitchToJournal && (
+          <Segmented
+            ariaLabel={t("journal.kindLabel")}
+            size="sm"
+            value="task"
+            onChange={(kind) => { if (kind === "journal") onSwitchToJournal(value); }}
+            options={[
+              { value: "task", label: t("journal.kindTask"), testId: "capture-kind-task" },
+              { value: "journal", label: t("journal.kindJournal"), testId: "capture-kind-journal" },
+            ]}
+          />
+        )}
         <TaskCaptureField
           autoFocus
           value={value}

@@ -53,6 +53,7 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     keyboard: [
       { descKey: "shortcuts.newNoteFolder", keys: [["Mod", "N"]] },
       { descKey: "sidebar.newDaily", keys: [["Mod", "Shift", "D"]] },
+      { descKey: "journal.newEntry", keys: [["Mod", "Shift", "J"]] },
       { descKey: "shortcuts.renameFile", keys: [["F2"]] },
       { descKey: "shortcuts.deleteSelection", keys: [["Del"]] },
       { descKey: "shortcuts.navBack", keys: [["Mod", "Alt", "←"]] },

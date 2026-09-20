@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Calendar, Columns2, Download, FileText, FolderOpen,
-  Gauge, Keyboard, ListChecks, Mail, MessageSquare, Moon, Palette, Pencil, Printer, RefreshCw, Replace,
+  Gauge, Keyboard, ListChecks, Mail, MessageSquare, Moon, NotebookText, Palette, Pencil, Printer, RefreshCw, Replace,
   Rows2, Save, Search, Settings, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
 import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../lib/newCatalog";
@@ -52,11 +52,15 @@ export interface CommandDeps {
    */
   newEvent?: () => void;
   newTask?: () => void;
+  /** Opens the journal capture (Mod+Shift+J): one line into today's daily note. */
+  newJournalEntry?: () => void;
   openQuickSwitcher?: () => void;
   openTemplatePicker?: () => void;
   openGraph?: () => void;
   openTasks?: () => void;
   openCalendar?: () => void;
+  /** Opens the journal stream over all daily notes. */
+  openJournal?: () => void;
   openMail?: () => void;
   /** Every open comment in the vault, grouped by note (Stufe D, D9). */
   openComments?: () => void;
@@ -150,6 +154,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openGraph, (run) => ({ id: "open-graph", group: "open", icon: Waypoints, titleKey: "graph.open", titleDefault: "Graph öffnen", hint: "Mod+Shift+G", run })),
     need(d.openTasks, (run) => ({ id: "open-tasks", group: "open", icon: ListChecks, titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run })),
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
+    need(d.openJournal, (run) => ({ id: "open-journal", group: "open", icon: NotebookText, titleKey: "journal.open", titleDefault: "Journal öffnen", run })),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "comments.commentOverview", titleDefault: "Offene Kommentare", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),
@@ -200,6 +205,7 @@ export function newHandlersOf(d: CommandDeps): NewHandlers {
     note: ni ? () => ni("file") : undefined,
     noteFromTemplate: ni ? () => ni("file", { fromTemplate: true }) : undefined,
     daily: d.openDailyNote,
+    journal: d.newJournalEntry,
     folder: ni ? () => ni("folder") : undefined,
     base: ni ? () => ni("base") : undefined,
     template: d.createTemplate,

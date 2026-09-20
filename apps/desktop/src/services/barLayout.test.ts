@@ -244,8 +244,9 @@ describe("an action added by an app update", () => {
 
   it("arrives beside the action it belongs to instead of landing in the hidden half", async () => {
     // What an install from before the two creation actions looks like: the old
-    // eight ids, all visible. Such an install predates the comment overview too,
-    // so the same start adopts three ids, each beside the action it belongs to.
+    // eight ids, all visible. Such an install predates the comment overview and
+    // the journal too, so the same start adopts four ids, each beside the action
+    // it belongs to.
     storeValues[barLayoutDefaultKey("ribbon")] = {
       order: ["new", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
       visibleCount: 8,
@@ -255,12 +256,13 @@ describe("an action added by an app update", () => {
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
     expect(stored.order.slice(0, 3)).toEqual(["new", "newFolder", "newBase"]);
-    expect(stored.order.slice(-3)).toEqual(["mail", "comments", "palette"]);
+    expect(stored.order.slice(-4)).toEqual(["mail", "comments", "journal", "palette"]);
     // Grown with them: appended at the end they would exist but be hidden, and
     // the update would look like it did nothing.
-    expect(stored.visibleCount).toBe(11);
+    expect(stored.visibleCount).toBe(12);
     expect(visibleAreas(stored)).toContain("newBase");
     expect(visibleAreas(stored)).toContain("comments");
+    expect(visibleAreas(stored)).toContain("journal");
   });
 
   it("puts the comment overview beside the other views, not at the end", async () => {
@@ -277,8 +279,24 @@ describe("an action added by an app update", () => {
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
     expect(stored.order.indexOf("comments")).toBe(stored.order.indexOf("mail") + 1);
-    expect(stored.visibleCount).toBe(11);
+    // The journal (plan Journal, J5) follows the overview it arrives with.
+    expect(stored.order.indexOf("journal")).toBe(stored.order.indexOf("comments") + 1);
+    expect(stored.visibleCount).toBe(12);
     expect(visibleAreas(stored)).toContain("comments");
+    expect(visibleAreas(stored)).toContain("journal");
+  });
+
+  it("adopts the journal on an install that already has the comment overview", async () => {
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "palette"],
+      visibleCount: 11,
+    };
+
+    await migrateLegacyBarLayouts(null);
+
+    const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(stored.order.slice(-3)).toEqual(["comments", "journal", "palette"]);
+    expect(stored.visibleCount).toBe(12);
   });
 
   it("leaves them hidden when the action they follow is hidden", async () => {
@@ -296,7 +314,7 @@ describe("an action added by an app update", () => {
 
   it("runs harmlessly on every start once the ids are stored", async () => {
     storeValues[barLayoutDefaultKey("ribbon")] = {
-      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "palette"],
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"],
       visibleCount: 4,
     };
     setSpy.mockClear();

@@ -77,6 +77,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   dailyNotesFormat: "YYYY-MM-DD",
   dailyNoteTemplate: "",
   dailyNoteType: "Daily Note",
+  journalHeading: "Journal",
   templateFolder: "Templates",
   attachmentFolder: "Attachments",
   inboxFolder: "Inbox",
@@ -196,6 +197,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "dailyNotesFormat", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "dailyFormat" },
   { logical: "dailyNoteTemplate", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "dailyTemplate" },
   { logical: "dailyNoteType", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "dailyNoteType" },
+  // The heading the journal entries of a daily note stand under (plan Journal,
+  // E3). A VAULT field that travels: two devices with different headings would
+  // each write their own section into the same note - a silent error.
+  { logical: "journalHeading", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "journalHeading" },
   { logical: "templateFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "templateFolder" },
   { logical: "attachmentFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "attachmentFolder" },
   { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "inboxFolder" },

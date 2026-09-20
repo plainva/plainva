@@ -2,5 +2,6 @@
 <resources>
     <string name="shortcut_new_note">Nieuwe notitie</string>
     <string name="shortcut_new_task">Nieuwe taak</string>
+    <string name="shortcut_journal">Journaalitem</string>
     <string name="shortcut_today">Vandaag</string>
 </resources>

@@ -57,6 +57,7 @@ pub fn tray_enable(
     app: AppHandle,
     open_label: String,
     new_task_label: String,
+    journal_label: String,
     next_label: String,
     quit_label: String,
 ) -> Result<(), String> {
@@ -72,12 +73,15 @@ pub fn tray_enable(
     // Capturing a task is the one thing worth doing from a hidden window: it
     // brings the window up on the tasks view with the capture field focused.
     let new_task = MenuItem::with_id(&app, "new-task", &new_task_label, true, None::<&str>).map_err(|e| e.to_string())?;
+    // The journal entry is the other thing worth doing from a hidden window:
+    // one line into today's daily note, no note to open first.
+    let journal = MenuItem::with_id(&app, "journal", &journal_label, true, None::<&str>).map_err(|e| e.to_string())?;
     // Disabled on purpose: it reports, it does not act. Clicking the appointment
     // itself belongs in the calendar, which "open" leads to.
     let next = MenuItem::with_id(&app, "next", &next_label, false, None::<&str>).map_err(|e| e.to_string())?;
     let sep = PredefinedMenuItem::separator(&app).map_err(|e| e.to_string())?;
     let quit = MenuItem::with_id(&app, "quit", &quit_label, true, None::<&str>).map_err(|e| e.to_string())?;
-    let menu = Menu::with_items(&app, &[&open, &new_task, &next, &sep, &quit]).map_err(|e| e.to_string())?;
+    let menu = Menu::with_items(&app, &[&open, &new_task, &journal, &next, &sep, &quit]).map_err(|e| e.to_string())?;
 
     let icon = TrayIconBuilder::new()
         .icon(app.default_window_icon().cloned().ok_or("no app icon")?)
@@ -90,6 +94,10 @@ pub fn tray_enable(
                 show_main(app);
                 // The window decides what "new task" means; the tray only asks.
                 let _ = app.emit("plainva-tray-new-task", ());
+            }
+            "journal" => {
+                show_main(app);
+                let _ = app.emit("plainva-tray-journal", ());
             }
             // Ending the app from the tray must really end it — a "quit" that
             // only hides is the trap this whole file exists to avoid.

@@ -499,6 +499,8 @@ export const AUTO_OPEN_LAST_VAULT_KEY = "autoOpenLastVault";
  * `okf_version` lives in the root index.md only — OKF v0.2, E1 2026-08-20). */
 export const defaultNoteTypeKey = (vaultPath: string) => `defaultNoteType_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNoteTypeKey = (vaultPath: string) => `dailyNoteType_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Heading the journal entries of a daily note stand under (plan Journal, E3); empty = "Journal". */
+export const journalHeadingKey = (vaultPath: string) => `journalHeading_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 /**

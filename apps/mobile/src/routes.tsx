@@ -42,6 +42,7 @@ import { SearchScreen } from "./screens/SearchScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
 import { CommentsScreen } from "./screens/CommentsScreen";
+import { JournalScreen } from "./screens/JournalScreen";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -103,6 +104,8 @@ export interface RouteContext {
   quickNewDatabase: () => void;
   /** Creates a note in the folder on screen — the empty state's one action. */
   captureNote: () => void;
+  /** Opens the capture sheet on its journal kind (plan Journal, J4); the text is what a kind switch brought along. */
+  captureJournal: (text?: string) => void;
   /** What this shell can do — the shared registry with mobile deps (S15). */
   commands: AppCommand[];
   /** The navigation bar's arrangement — the shared bar model's fifth bar (S10). */
@@ -328,6 +331,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onBack={c.pop}
       onOpenDate={c.openDaily}
       onOpenNote={c.openNote}
+      onOpenJournal={() => c.push({ kind: "journal", path: "" })}
       onOpenTasks={() => {
         taskViewStore(c.vault.vaultId).set("list", "today");
         c.push({ kind: "tasks", path: "" });
@@ -380,7 +384,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (
-    <TasksScreen bump={c.bump} onBack={c.pop} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />
+    <TasksScreen bump={c.bump} onBack={c.pop} onCaptureJournal={c.captureJournal} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />
   ),
   databases: (_e, c) => (
     <DatabasesScreen
@@ -403,6 +407,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   // Pushed when the comment overview sits outside the bar: same screen, only
   // with a Back arrow instead of the menu button.
   comments: (_e, c) => <CommentsScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  journal: (_e, c) => <JournalScreen bump={c.bump} onBack={c.pop} onNewEntry={() => c.captureJournal()} onOpenNote={c.openNote} vault={c.vault} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which
@@ -467,6 +472,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenDate={c.openDaily}
       onOpenNote={c.openNote}
+      onOpenJournal={() => c.push({ kind: "journal", path: "" })}
       onOpenTasks={() => {
         taskViewStore(c.vault.vaultId).set("list", "today");
         c.push({ kind: "tasks", path: "" });
@@ -506,13 +512,22 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       vault={c.vault}
     />
   ),
-  tasks: (c) => <TasksScreen bump={c.bump} onMenu={() => c.push({ kind: "settings", path: "" })} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
+  tasks: (c) => <TasksScreen bump={c.bump} onCaptureJournal={c.captureJournal} onMenu={() => c.push({ kind: "settings", path: "" })} onOpenBase={c.openBase} onOpenNote={c.openNote} vault={c.vault} />,
   // Not gated on a cloud service the way calendar and mail are: comments hang
   // on a vault, not on an account, so a plain local vault has them too.
   comments: (c) => (
     <CommentsScreen
       bump={c.bump}
       onMenu={() => c.push({ kind: "settings", path: "" })}
+      onOpenNote={c.openNote}
+      vault={c.vault}
+    />
+  ),
+  journal: (c) => (
+    <JournalScreen
+      bump={c.bump}
+      onMenu={() => c.push({ kind: "settings", path: "" })}
+      onNewEntry={() => c.captureJournal()}
       onOpenNote={c.openNote}
       vault={c.vault}
     />

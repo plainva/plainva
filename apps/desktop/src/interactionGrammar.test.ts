@@ -122,7 +122,8 @@ describe('one "New …" catalog (E4)', () => {
   });
 
   it("the catalog's order is the one both shells show", () => {
-    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "folder", "base", "template", "event", "task"]);
+    // `journal` stands next to `daily`: it is a line in that note, not a file of its own (plan Journal, J4).
+    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template", "event", "task"]);
   });
 });
 

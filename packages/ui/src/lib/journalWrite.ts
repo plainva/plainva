@@ -18,6 +18,7 @@
 import {
   insertJournalEntry,
   journalTimeOf,
+  parseJournal,
   removeJournalEntry,
   replaceJournalEntry,
   restoreJournalEntry,
@@ -87,6 +88,12 @@ export interface JournalCapture {
   task?: boolean;
   /** The moment of capture; the entry is stamped with its local time. */
   now?: Date;
+  /**
+   * A time that was decided earlier (`HH:mm`) and wins over `now` — a share that
+   * was planned before it was written keeps its time across a retry, which is
+   * what lets the retry find its own entry instead of writing a second one.
+   */
+  time?: string;
 }
 
 /** One thought into the journal of its day. The daily note is created on the way when it is missing. */
@@ -94,7 +101,7 @@ export async function appendJournalEntry(files: JournalFiles, capture: JournalCa
   if (!capture.text.trim()) return { ok: false, reason: "empty" };
   const note = await files.ensureDailyNote(capture.date);
   if (!note) return { ok: false, reason: "no-note" };
-  const time = journalTimeOf(capture.now ?? new Date());
+  const time = capture.time ?? journalTimeOf(capture.now ?? new Date());
   const task: TaskBoxState | null = capture.task ? "open" : null;
   const changed = await changeNote(files, note.path, (raw) => insertJournalEntry(raw, { heading: capture.heading, time, text: capture.text, task }));
   if (!changed.ok) return changed;
@@ -102,6 +109,35 @@ export async function appendJournalEntry(files: JournalFiles, capture: JournalCa
     ok: true, path: note.path, entry: changed.entry, createdNote: note.created,
     undo: { path: note.path, before: changed.before, after: changed.after, kind: "insert", entry: changed.entry },
   };
+}
+
+/** An entry whose day, time and text were fixed BEFORE it is written — the share target plans its import durably. */
+export interface PlannedJournalEntry {
+  /** Local day `YYYY-MM-DD`. */
+  date: string;
+  /** `HH:mm`. */
+  time: string;
+  heading: string;
+  text: string;
+}
+
+/**
+ * Writes a planned entry and resolves with the note it went to — or `null` when
+ * it cannot be written. IDEMPOTENT: a retry after a crash finds the entry a
+ * finished attempt left behind (same time, same text as the writer spells it)
+ * and writes nothing.
+ */
+export async function appendPlannedJournalEntry(files: JournalFiles, planned: PlannedJournalEntry): Promise<string | null> {
+  const [year, month, day] = planned.date.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const probe = insertJournalEntry("", { heading: planned.heading, time: planned.time, text: planned.text });
+  if (!probe.ok) return null;
+  const note = await files.ensureDailyNote(date);
+  if (!note) return null;
+  const existing = parseJournal(await files.readTextFile(note.path), { heading: planned.heading }).entries;
+  if (existing.some((entry) => entry.time === probe.entry.time && entry.text === probe.entry.text)) return note.path;
+  const result = await appendJournalEntry(files, { date, text: planned.text, heading: planned.heading, time: planned.time });
+  return result.ok ? result.path : null;
 }
 
 export interface JournalTarget { path: string; entry: JournalEntryRef; heading: string }

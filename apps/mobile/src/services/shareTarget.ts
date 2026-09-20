@@ -2,12 +2,32 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 
 export const SHARE_LIMITS = { files: 10, fileBytes: 25 * 1024 * 1024, totalBytes: 50 * 1024 * 1024, textBytes: 512 * 1024, chunkBytes: 256 * 1024 } as const;
 export interface SharedFile { id: string; name: string; mime: string; size: number; sha256: string }
+/**
+ * "Into the journal" (plan Journal, J4): the share becomes ONE entry of a day's
+ * journal instead of a note of its own. Date, time, heading and text are fixed
+ * when the plan is made, so a retry finds its own entry instead of writing a
+ * second one.
+ */
+export interface ShareJournalEntry {
+  /** Local day `YYYY-MM-DD`. */
+  date: string;
+  /** `HH:mm`. */
+  time: string;
+  heading: string;
+  text: string;
+}
 export interface ShareImportPlan {
   version: 1;
   vaultId: string;
   notePath: string;
   noteText: string;
   files: Array<{ id: string; path: string }>;
+  /**
+   * Additive: both native stores keep the plan verbatim, and a build that does
+   * not know the field never makes such a plan. With it, `notePath` names the
+   * daily note and `noteText` stays empty.
+   */
+  journal?: ShareJournalEntry;
 }
 export interface PendingShare {
   version: 1;

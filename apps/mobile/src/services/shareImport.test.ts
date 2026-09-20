@@ -54,6 +54,49 @@ describe("durable inbound transfers", () => {
     await importSharedContent(f.port, f.get(), { ...f.context, asTask }).catch(() => undefined);
     expect(asTask).toHaveBeenCalledTimes(1);
   });
+  it("'into the journal': the attachment is copied, and the host appends ONE planned entry instead of a note", async () => {
+    const f = fixture();
+    const toJournal = vi.fn(async () => ({ date: "2026-09-20", time: "14:05", heading: "Journal", notePath: "Journal/2026-09-20.md" }));
+    const appendJournal = vi.fn(async () => "Journal/2026-09-20.md");
+    const path = await importSharedContent(f.port, f.get(), { ...f.context, toJournal, appendJournal });
+    expect(path).toBe("Journal/2026-09-20.md");
+    expect(appendJournal).toHaveBeenCalledWith({
+      date: "2026-09-20", time: "14:05", heading: "Journal",
+      text: "Agenda\nA shared text\nhttps://example.test/agenda\n![[Attachments/Shared/aaaaaaaa-1111-2222-3333-444444444444/1-sketch.png]]",
+    });
+    // No note of its own, the attachment where every shared file goes, and the share is acknowledged.
+    expect(f.files.writeTextFile).not.toHaveBeenCalled();
+    expect([...f.contents.keys()]).toEqual(["Attachments/Shared/aaaaaaaa-1111-2222-3333-444444444444/1-sketch.png"]);
+    expect(f.get().plan).toMatchObject({ notePath: "Journal/2026-09-20.md", noteText: "" });
+    expect(f.port.finishShare).toHaveBeenCalledTimes(1);
+  });
+  it("'into the journal' resumes from the plan: the same entry again, whatever the chips say now", async () => {
+    const f = fixture();
+    const toJournal = vi.fn(async () => ({ date: "2026-09-20", time: "14:05", heading: "Journal", notePath: "Journal/2026-09-20.md" }));
+    // The first attempt dies while the entry is being written …
+    await expect(importSharedContent(f.port, f.get(), { ...f.context, toJournal, appendJournal: async () => { throw new Error("SHARE_WRITE_FAILED"); } })).rejects.toThrow("SHARE_WRITE_FAILED");
+    expect(f.port.finishShare).not.toHaveBeenCalled();
+    // … the retry neither plans again nor copies the file again, and hands over the SAME entry.
+    const appendJournal = vi.fn(async () => "Journal/2026-09-20.md");
+    await importSharedContent(f.port, f.get(), { ...f.context, appendJournal });
+    expect(toJournal).toHaveBeenCalledTimes(1);
+    expect(f.files.writeBinaryFile).toHaveBeenCalledTimes(1);
+    expect(appendJournal).toHaveBeenCalledWith(expect.objectContaining({ time: "14:05", date: "2026-09-20" }));
+    // A host that cannot append must not acknowledge a journal plan.
+    const g = fixture();
+    await importSharedContent(g.port, g.get(), { ...g.context, toJournal, appendJournal: async () => { throw new Error("stop"); } }).catch(() => undefined);
+    await expect(importSharedContent(g.port, g.get(), g.context)).rejects.toThrow("SHARE_INVALID");
+    expect(g.port.finishShare).not.toHaveBeenCalled();
+  });
+  it("'into the journal' refuses a plan whose entry is malformed", async () => {
+    for (const journal of [{ date: "20.09.2026", time: "14:05", heading: "Journal", text: "x" }, { date: "2026-09-20", time: "2pm", heading: "Journal", text: "x" }, { date: "2026-09-20", time: "14:05", heading: " ", text: "x" }, { date: "2026-09-20", time: "14:05", heading: "Journal", text: "  " }]) {
+      const f = fixture(), entry = f.get();
+      entry.plan = { version: 1, vaultId: "test-vault", notePath: "Journal/2026-09-20.md", noteText: "", files: [{ id: entry.files[0].id, path: `Attachments/Shared/${entry.id}/1-sketch.png` }], journal };
+      f.set(entry);
+      await expect(importSharedContent(f.port, f.get(), { ...f.context, appendJournal: async () => "x.md" })).rejects.toThrow("SHARE_INVALID");
+      expect(f.files.writeBinaryFile).not.toHaveBeenCalled();
+    }
+  });
   it("'as a task' refuses a folder that is not a safe vault path, before anything is planned or written", async () => {
     const f = fixture();
     await expect(importSharedContent(f.port, f.get(), { ...f.context, asTask: async () => ({ folder: "../outside", text: "x" }) })).rejects.toThrow("SHARE_INVALID");

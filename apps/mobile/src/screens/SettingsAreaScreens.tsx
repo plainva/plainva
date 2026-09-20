@@ -7,6 +7,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
+import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import {
   getMobileSettings,
@@ -269,6 +270,15 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
               <TextInput
                 onChange={(e) => update({ dailyNoteType: e.target.value })}
                 value={settings.dailyNoteType}
+              />
+            </SettingField>
+            <SettingField hint={t("settings.journalHeadingDesc")} label={t("settings.journalHeading")}>
+              <TextInput
+                data-testid="journal-heading"
+                onBlur={(e) => update({ journalHeading: normalizeJournalHeading(e.target.value) })}
+                onChange={(e) => update({ journalHeading: e.target.value })}
+                placeholder={DEFAULT_JOURNAL_HEADING}
+                value={settings.journalHeading}
               />
             </SettingField>
             <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>

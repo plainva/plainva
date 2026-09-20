@@ -187,6 +187,21 @@ describe("nav state (overlay + tab stacks)", () => {
     const pushed = pushEntry(initialNavState("notes"), { kind: "mail", path: "" });
     expect(showsCaptureFab(navTop(pushed), pushed.activeTab)).toBe(false);
   });
+
+  it("leaves the journal its own pen, and reserves the strip under its list (plan Journal, J5)", () => {
+    const journalTab = initialNavState("journal");
+    expect(showsCaptureFab(navTop(journalTab), journalTab.activeTab)).toBe(false);
+    expect(reservesFabStrip(navTop(journalTab), journalTab.activeTab)).toBe(true);
+
+    // Reached from Today or the areas sheet it is a pushed entry.
+    const pushed = pushEntry(initialNavState("today"), { kind: "journal", path: "" });
+    expect(showsCaptureFab(navTop(pushed), pushed.activeTab)).toBe(false);
+    expect(reservesFabStrip(navTop(pushed), pushed.activeTab)).toBe(true);
+
+    // A note opened from the journal is a note again: nothing floats, nothing is reserved.
+    const note = pushEntry(pushed, { kind: "note", path: "2026-09-20.md" });
+    expect(reservesFabStrip(navTop(note), note.activeTab)).toBe(false);
+  });
 });
 
 describe("ensureVisibleTab (plan P5)", () => {

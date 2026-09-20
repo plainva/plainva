@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fileRowActions, mailRowActions, newEntries, NEW_ITEM_ORDER, pickRowActions, ROW_ACTION_IDS, taskRowActions } from "@plainva/ui";
+import { fileRowActions, journalRowActions, mailRowActions, newEntries, NEW_ITEM_ORDER, pickRowActions, ROW_ACTION_IDS, taskRowActions } from "@plainva/ui";
 
 /**
  * The one list per row kind (Design-Runde Bedienung 2026-09-04, E2) and the
@@ -75,8 +75,26 @@ describe("file row actions", () => {
       versionHistory: noop, resolveConflict: noop, reveal: noop, copyPath: noop, removeFromList: noop, delete: noop,
     });
     expect(every.map((a) => a.id)).toEqual([...ROW_ACTION_IDS.file]);
-    const task = taskRowActions(t, { done: false, toggle: noop, promote: noop, repeat: noop, block: noop });
+    const task = taskRowActions(t, { done: false, toggle: noop, promote: noop, repeat: noop, block: noop, priority: noop, state: noop });
     expect(task.map((a) => a.id)).toEqual([...ROW_ACTION_IDS.task]);
+    // A journal entry is a plain line or a task, never both: the catalog is the union of the two, in its order.
+    const caps = { done: false, toggle: noop, edit: noop, copy: noop, toTask: noop, toEntry: noop, showInNote: noop, delete: noop };
+    const plain = journalRowActions(t, { ...caps, isTask: false }).map((a) => a.id);
+    const asTask = journalRowActions(t, { ...caps, isTask: true }).map((a) => a.id);
+    expect(plain).toEqual(["edit", "copy", "toTask", "showInNote", "delete"]);
+    expect(asTask).toEqual(["toggle", "edit", "copy", "toEntry", "showInNote", "delete"]);
+    expect(ROW_ACTION_IDS.journal.filter((id) => plain.includes(id) || asTask.includes(id))).toEqual([...ROW_ACTION_IDS.journal]);
+  });
+
+  it("a journal entry offers only what its handler serves, names the box by its state, and keeps delete last", () => {
+    const open = journalRowActions(t, { isTask: true, done: false, toggle: noop, delete: noop, edit: noop });
+    expect(open.map((a) => a.id)).toEqual(["toggle", "edit", "delete"]);
+    expect(open[0].label).toBe("Erledigt");
+    expect(journalRowActions(t, { isTask: true, done: true, toggle: noop })[0].label).toBe("Offen");
+    expect(open.at(-1)).toMatchObject({ id: "delete", danger: true });
+    // Swipe carries the frequent ones; the rest stay in the menu and the sheet.
+    const plain = journalRowActions(t, { isTask: false, done: false, edit: noop, copy: noop, toTask: noop, showInNote: noop, delete: noop });
+    expect(plain.filter((a) => a.swipe).map((a) => a.id)).toEqual(["edit", "toTask", "delete"]);
   });
 });
 
@@ -90,6 +108,6 @@ describe("the New catalog", () => {
   });
 
   it("the flat order is the grouped order", () => {
-    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "folder", "base", "template", "event", "task"]);
+    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template", "event", "task"]);
   });
 });

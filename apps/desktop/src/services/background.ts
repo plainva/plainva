@@ -29,6 +29,7 @@ export async function enableTray(): Promise<void> {
   await invoke("tray_enable", {
     openLabel: i18n.t("background.trayOpen"),
     newTaskLabel: i18n.t("background.trayNewTask"),
+    journalLabel: i18n.t("journal.trayEntry"),
     nextLabel: i18n.t("background.trayNoNext"),
     quitLabel: i18n.t("background.trayQuit"),
   });
@@ -42,6 +43,11 @@ export async function enableTray(): Promise<void> {
  */
 export async function onTrayNewTask(handler: () => void): Promise<() => void> {
   return listenToTray("plainva-tray-new-task", handler);
+}
+
+/** "Journal entry" in the tray menu (plan Journal, J4): the window is up, the handler opens the capture. */
+export async function onTrayJournal(handler: () => void): Promise<() => void> {
+  return listenToTray("plainva-tray-journal", handler);
 }
 
 /**

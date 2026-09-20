@@ -5,7 +5,7 @@ const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
-import { onTrayNewTask } from "./services/background";
+import { onTrayJournal, onTrayNewTask } from "./services/background";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -32,9 +32,11 @@ const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
+const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
@@ -191,6 +193,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  // The journal capture (plan Journal, J4). `null` = closed; the text is what a kind switch brought along.
+  const [journalCapture, setJournalCapture] = useState<{ text: string } | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   // A client window follows the owner's vault (plan E7): it shows WHICH vault it
@@ -293,9 +297,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // The user's sidebar choice is global. Full-surface/non-note tabs temporarily
   // close it because their context panels have no useful active document; that
   // temporary state must not overwrite what comes back for the next note.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p === JOURNAL_TAB_PATH ? "journal" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal"): boolean => {
     if (kind !== "editor") return true;
     return localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed")) === "1";
   };
@@ -847,6 +851,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
         closeActiveTab();
+      } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {
+        // Journal entry: one line into today's daily note (plan Journal, J4).
+        e.preventDefault();
+        setJournalCapture((open) => open ?? { text: "" });
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "d") {
         // Today's daily note (a dedicated listener owns the daily-note helper).
         e.preventDefault();
@@ -1105,24 +1113,36 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     openDailyNote: openTodayDailyNote,
     newEvent: cloudServices.calendar ? () => { openView(CALENDAR_TAB_PATH); requestNew("event"); } : undefined,
     newTask: () => { openView(TASKS_TAB_PATH); requestNew("task"); },
+    newJournalEntry: () => setJournalCapture({ text: "" }),
   });
 
   // "New task" in the tray menu (plan Aufgaben-Oberflaeche, B6): the backend has
   // already brought the window up; this opens the tasks view with the capture
   // field focused — the same request the ribbon and the palette make.
   const trayNewTask = useStableHandler(() => { openView(TASKS_TAB_PATH); requestNew("task"); });
+  // The capture has two kinds. A task is made where tasks live: the tasks view
+  // takes what was typed, and a sentence says why the view changed.
+  const handoverToTasks = useStableHandler((text: string) => {
+    openView(TASKS_TAB_PATH);
+    requestNew("task", text);
+    toast.info(t("journal.handoverTask"));
+  });
+  // "Journal entry" next to it (plan Journal, J4) opens the capture dialog.
+  const trayJournal = useStableHandler(() => setJournalCapture((open) => open ?? { text: "" }));
   useEffect(() => {
-    let off: (() => void) | undefined;
+    const offs: Array<() => void> = [];
     let gone = false;
-    void onTrayNewTask(trayNewTask).then((unsubscribe) => {
-      if (gone) unsubscribe();
-      else off = unsubscribe;
-    });
+    for (const subscribe of [onTrayNewTask(trayNewTask), onTrayJournal(trayJournal)]) {
+      void subscribe.then((unsubscribe) => {
+        if (gone) unsubscribe();
+        else offs.push(unsubscribe);
+      });
+    }
     return () => {
       gone = true;
-      off?.();
+      offs.forEach((off) => off());
     };
-  }, [trayNewTask]);
+  }, [trayNewTask, trayJournal]);
 
   // Mod+Shift+D dispatches an event (the global keydown handler cannot depend on
   // the non-memoized daily helper); this stable wrapper opens today's note.
@@ -1199,6 +1219,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenCalendar={cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined}
         onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
         onOpenComments={() => openView(COMMENTS_TAB_PATH)}
+        onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
@@ -1498,6 +1519,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       </Suspense>
                     ) : path.startsWith(COMPARISON_PREFIX) ? (
                       <Suspense fallback={null}><ComparisonWindow key={path} path={path} onClose={() => closeTab(i, pane.activeIndex)} /></Suspense>
+                    ) : path === JOURNAL_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <JournalView
+                          onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)}
+                          onHandoverTask={handoverToTasks}
+                        />
+                      </Suspense>
                     ) : path === COMMENTS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <CommentsOverview onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
@@ -1594,6 +1622,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             requestCalendarDay(dayKey);
             openView(CALENDAR_TAB_PATH);
           }}
+          onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}
@@ -1646,6 +1675,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openDailyNote: () => { void handleOpenDailyNote(new Date()); },
             newEvent: newHandlers.event,
             newTask: newHandlers.task,
+            newJournalEntry: newHandlers.journal,
             openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
             openTemplatePicker: () => setShowTemplatePicker(true),
             openGraph: () => openView(GRAPH_TAB_PATH),
@@ -1653,6 +1683,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openCalendar: () => openView(CALENDAR_TAB_PATH),
             openMail: () => openView(MAIL_TAB_PATH),
             openComments: () => openView(COMMENTS_TAB_PATH),
+            openJournal: () => openView(JOURNAL_TAB_PATH),
             openCommsWindow: vaultPath ? openCommsWindow : undefined,
             // Dispatched rather than called, so a client window travels the
             // listener above instead of needing a capability it does not have.
@@ -1800,6 +1831,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />
+          </Suspense>
+        )}
+        {journalCapture && (
+          <Suspense fallback={null}>
+            <JournalCaptureDialog
+              initialText={journalCapture.text}
+              onClose={() => setJournalCapture(null)}
+              onHandoverTask={(text) => { setJournalCapture(null); handoverToTasks(text); }}
+            />
           </Suspense>
         )}
       </Suspense>

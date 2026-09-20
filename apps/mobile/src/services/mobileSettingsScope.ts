@@ -68,6 +68,8 @@ export interface VaultScopedSettings {
    */
   defaultNoteType: string;
   dailyNoteType: string;
+  /** Heading the journal entries of a daily note stand under (plan Journal, E3). */
+  journalHeading: string;
   /**
    * The `.base` this vault designated as its task database (vault-relative
    * path; empty = none). The phone's tasks area shows its entries and promotes
@@ -203,6 +205,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "dailyFormat",
   "defaultNoteType",
   "dailyNoteType",
+  "journalHeading",
   "taskDatabase",
   "backupIntervalSeconds",
   "backupMaxPerFile",
@@ -261,6 +264,7 @@ export function vaultDefaults(): VaultScopedSettings {
     dailyFormat: profileDefault<string>("dailyNotesFormat")!,
     defaultNoteType: profileDefault<string>("defaultNoteType")!,
     dailyNoteType: profileDefault<string>("dailyNoteType")!,
+    journalHeading: profileDefault<string>("journalHeading")!,
     taskDatabase: profileDefault<string>("taskDatabase")!,
     backupIntervalSeconds: profileDefault<number>("backupSnapshotIntervalSeconds")!,
     backupMaxPerFile: profileDefault<number>("backupMaxCountPerFile")!,
@@ -315,6 +319,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     dailyFormat: src.dailyFormat ?? d.dailyFormat,
     defaultNoteType: src.defaultNoteType ?? d.defaultNoteType,
     dailyNoteType: src.dailyNoteType ?? d.dailyNoteType,
+    journalHeading: src.journalHeading ?? d.journalHeading,
     taskDatabase: src.taskDatabase ?? d.taskDatabase,
     backupIntervalSeconds: src.backupIntervalSeconds ?? d.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? d.backupMaxPerFile,

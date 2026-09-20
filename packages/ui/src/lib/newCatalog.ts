@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, CalendarPlus, Database, FilePlus, FileText, FolderPlus, ListPlus } from "lucide-react";
+import { CalendarDays, CalendarPlus, Database, FilePlus, FileText, FolderPlus, ListPlus, NotebookPen } from "lucide-react";
 
 /**
  * Everything "New …" can make, once (Design-Runde Bedienung 2026-09-04, E4).
@@ -16,7 +16,7 @@ import { CalendarDays, CalendarPlus, Database, FilePlus, FileText, FolderPlus, L
  * a term or a task goes to the calendar or the task database. Both shells show
  * the groups in this order.
  */
-export type NewItemId = "note" | "noteFromTemplate" | "daily" | "folder" | "base" | "template" | "event" | "task";
+export type NewItemId = "note" | "noteFromTemplate" | "daily" | "journal" | "folder" | "base" | "template" | "event" | "task";
 export type NewGroupId = "content" | "pim";
 
 export interface NewItemMeta {
@@ -30,7 +30,7 @@ export interface NewItemMeta {
 }
 
 export const NEW_GROUPS: ReadonlyArray<{ id: NewGroupId; items: readonly NewItemId[] }> = [
-  { id: "content", items: ["note", "noteFromTemplate", "daily", "folder", "base", "template"] },
+  { id: "content", items: ["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template"] },
   { id: "pim", items: ["event", "task"] },
 ];
 
@@ -38,6 +38,9 @@ export const NEW_ITEMS: Record<NewItemId, NewItemMeta> = {
   note: { commandId: "new-note", icon: FilePlus, titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N" },
   noteFromTemplate: { commandId: "new-note-from-template", icon: FileText, titleKey: "fileTree.newFromTemplate", titleDefault: "Neue Notiz aus Vorlage …" },
   daily: { commandId: "daily-note", icon: CalendarDays, titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D" },
+  // A line in today's daily note, not a file of its own (plan Journal, J4) - it
+  // stands next to the daily note because that is where it lands.
+  journal: { commandId: "journal-entry", icon: NotebookPen, titleKey: "journal.newEntry", titleDefault: "Journal-Eintrag", hint: "Mod+Shift+J" },
   folder: { commandId: "new-folder", icon: FolderPlus, titleKey: "common.newFolder", titleDefault: "Neuer Ordner" },
   base: { commandId: "new-base", icon: Database, titleKey: "fileTree.newBaseHere", titleDefault: "Neue Datenbank (.base)" },
   template: { commandId: "template-new", icon: FileText, titleKey: "database.createTemplate", titleDefault: "Neue Vorlage erstellen" },

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { EmptyState } from "@plainva/ui";
 import { COMPARISON_PREFIX } from "../services/comparisonWindow";
 const ComparisonWindow = lazy(() => import("./ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 
 const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
 const BaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
@@ -12,6 +12,7 @@ const TasksView = lazy(() => import("./tasks/TasksView").then((m) => ({ default:
 const CalendarView = lazy(() => import("./pimcal/CalendarView").then((m) => ({ default: m.CalendarView })));
 const MailView = lazy(() => import("./mail/MailView").then((m) => ({ default: m.MailView })));
 const CommentsOverview = lazy(() => import("./comments/CommentsOverview").then((m) => ({ default: m.CommentsOverview })));
+const JournalView = lazy(() => import("./journal/JournalView").then((m) => ({ default: m.JournalView })));
 
 interface Props {
   path: string;
@@ -56,6 +57,8 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
         <MailView onOpenPath={(p) => onOpenPath(p)} isActivePane={isActivePane} />
       ) : path === COMMENTS_TAB_PATH ? (
         <CommentsOverview onOpenPath={(p) => onOpenPath(p)} />
+      ) : path === JOURNAL_TAB_PATH ? (
+        <JournalView onOpenPath={(p) => onOpenPath(p)} />
       ) : path.endsWith(".base") ? (
         <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} />
       ) : (

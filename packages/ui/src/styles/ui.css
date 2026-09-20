@@ -2530,6 +2530,52 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-capture-hint { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 .pv-capture-hint[role="alert"] { color: var(--error-text); }
 
+/* The journal (plan Journal, J4/J5). Layout only: every visible surface is a
+   primitive — field, chip, row, card — which the themes already restyle. */
+.pv-journal-dialog { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-journal-capture { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-journal-capture-row { display: flex; align-items: flex-start; gap: var(--space-2); }
+.pv-journal-capture-row .pv-journal-capture-input { flex: 1; min-width: 0; resize: vertical; }
+.pv-journal-time {
+  flex: none;
+  min-width: 3.5em;
+  padding-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* An entry reads as its line in the note: the time — a column down the day —,
+   the box of a task entry, the text. Everything hangs on the FIRST line: the
+   row aligns to its top, and the box and the "more" button are centred on a box
+   of exactly one line's height (they overflow it evenly, the row's padding
+   takes that up). */
+.pv-journal-row { --pv-journal-lh: calc(var(--text-md) * 1.45); align-items: flex-start; }
+/* The entry IS the content and runs as long as it is — its own fold cuts at six
+   lines; the content row's two-line clamp would cut it at two. */
+.pv-journal-row .pv-grouprow-title { display: block; overflow: visible; -webkit-line-clamp: unset; line-clamp: unset; line-height: var(--pv-journal-lh); }
+.pv-journal-row .pv-grouprow-end { height: var(--pv-journal-lh); }
+.pv-journal-line { display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.pv-journal-line .pv-journal-body { flex: 1; }
+.pv-journal-line .pv-journal-time { padding: 0; line-height: var(--pv-journal-lh); }
+.pv-journal-box { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--control-sm); height: var(--pv-journal-lh); }
+.pv-journal-view { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.pv-journal-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-3) var(--space-2); }
+.pv-journal-head-title { margin: 0; font-size: var(--text-lg); font-weight: 500; }
+.pv-journal-head-search { flex: 1; min-width: 12rem; max-width: 28rem; }
+.pv-journal-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: 0 var(--space-3) var(--space-2); }
+.pv-journal-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--space-3) var(--space-4); }
+.pv-journal-days { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-journal-count { color: var(--text-faint); font-weight: 400; }
+.pv-journal-body { display: block; min-width: 0; }
+.pv-journal-text { white-space: pre-line; overflow-wrap: anywhere; }
+.pv-journal-fold { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
+.pv-journal-images { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.pv-journal-image { max-width: min(100%, 16rem); max-height: 10rem; border-radius: var(--radius-md); object-fit: cover; }
+.pv-journal-editing { padding: var(--space-2) var(--space-3); }
+.pv-journal-more { display: flex; justify-content: center; padding: var(--space-3) 0; }
+.pv-journal-section { display: flex; flex-direction: column; gap: var(--space-2); }
+
 /* Personal encrypted-workspace setup and diagnostics (Security & Sharing). */
 .pv-security-wizard { display: flex; flex-direction: column; gap: var(--space-3); }
 .pv-security-steps { display: flex; gap: var(--space-2); flex-wrap: wrap; }

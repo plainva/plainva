@@ -40,6 +40,7 @@ import { createNavActions, restoreSession } from "./services/navActions";
 import { bindConflictStore } from "./services/conflictState";
 import { useNavPersistence } from "./services/sessionState";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
+import { JournalCaptureSheet } from "./components/JournalCaptureSheet";
 import { createDatabase } from "./services/baseOps";
 import { createTemplatePrompt, newNoteFromTemplate } from "./services/templatePrompt";
 import { applyTemplateSettings, getMobileSettings, updateMobileSettings } from "./services/mobileSettings";
@@ -122,6 +123,8 @@ export default function App() {
   const slots = shownBarTabs(barLayout, isRailClass(windowClass));
   const [oauthPick, setOauthPick] = useState(false);
   const [fromTemplate, setFromTemplate] = useState(false);
+  // The capture sheet's journal kind (plan Journal, J4). `null` = closed; the text is what a kind switch brought along.
+  const [journalCapture, setJournalCapture] = useState<{ text: string } | null>(null);
   // The Android back listener registers once; it reads the live state here.
   const navRef = useRef(nav);
   useEffect(() => {
@@ -440,6 +443,7 @@ export default function App() {
     <PendingIntentRunner
       onCapture={capture}
       onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
+      onJournal={() => setJournalCapture({ text: "" })}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
       onOpenToday={() => openDaily(isoOf(new Date()))}
@@ -608,6 +612,7 @@ export default function App() {
     note: capture,
     noteFromTemplate: () => setFromTemplate(true),
     daily: () => openDaily(isoOf(new Date())),
+    journal: () => setJournalCapture({ text: "" }),
     folder: quickNewFolder,
     base: quickNewDatabase,
     event: () => { requestNew("event"); void tabTapped("today", setNav); },
@@ -621,6 +626,8 @@ export default function App() {
     openDaily: () => openDaily(isoOf(new Date())),
     newEvent: newHandlers.event,
     newTask: newHandlers.task,
+    newJournalEntry: newHandlers.journal,
+    openJournal: () => setNav((st) => tapTab(st, "journal")),
     openSearch: () => push({ kind: "search", path: "" }),
     openFindReplace: () => push({ kind: "findreplace", path: "" }),
     openGraph: () => setNav((st) => tapTab(st, "graph")),
@@ -638,6 +645,7 @@ export default function App() {
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
     openAttachment,
     captureNote: capture,
+    captureJournal: (text = "") => setJournalCapture({ text }),
     commands,
     barLayout, onBarLayout,
   };
@@ -730,6 +738,14 @@ export default function App() {
           createFolder={oauthCreateFolder}
           onPick={(folder) => { setOauthPick(false); void finishConnect(folder); }}
           onClose={() => { setOauthPick(false); cancelConnect(); }}
+        />
+      )}
+      {journalCapture && (
+        <JournalCaptureSheet
+          initialText={journalCapture.text}
+          onClose={() => setJournalCapture(null)}
+          onSwitchToTask={(text) => { setJournalCapture(null); requestNew("task", text); void tabTapped("tasks", setNav); toast.info(t("journal.handoverTask")); }}
+          vault={vault}
         />
       )}
       {fromTemplate && (

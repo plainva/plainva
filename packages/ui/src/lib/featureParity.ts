@@ -478,16 +478,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "launcher-shortcuts",
-    title: "Long-press launcher shortcuts (new note, new task, today)",
+    title: "Long-press launcher shortcuts (new note, new task, today, journal)",
     area: "platform",
     kind: "decision",
     desktop: null,
     desktopReason:
-      "An Android launcher affordance with no desktop counterpart; the same " +
-      "actions are one keystroke away there (Mod+N, Mod+Shift+D) and sit in the " +
-      "ribbon, and the tray menu carries \"New task\" for a window that is " +
-      "hidden. Note this is Android-only even within mobile — iOS carries no " +
-      "equivalent shortcut items today.",
+      "A launcher affordance of the phone (Android app shortcuts, iOS quick " +
+      "actions — one table, guarded by launcherShortcuts.test.ts) with no desktop " +
+      "counterpart; the same actions are one keystroke away there (Mod+N, " +
+      "Mod+Shift+D, Mod+Shift+J) and sit in the ribbon, and the tray menu carries " +
+      "\"New task\" and \"Journal entry\" for a window that is hidden.",
     mobile: "yes",
     verified: "2026-09-20",
   },

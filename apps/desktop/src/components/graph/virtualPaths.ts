@@ -10,7 +10,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import { CalendarRange, ListChecks, Mail, MessageSquare, Waypoints } from "lucide-react";
+import { CalendarRange, ListChecks, Mail, MessageSquare, NotebookText, Waypoints } from "lucide-react";
 import { COMPARISON_PREFIX } from "../../services/comparisonWindow";
 
 export const GRAPH_TAB_PATH = "plainva://graph";
@@ -18,6 +18,8 @@ export const TASKS_TAB_PATH = "plainva://tasks";
 export const CALENDAR_TAB_PATH = "plainva://calendar";
 export const MAIL_TAB_PATH = "plainva://mail";
 export const COMMENTS_TAB_PATH = "plainva://comments";
+/** The journal stream over all daily notes (plan Journal, J5). */
+export const JOURNAL_TAB_PATH = "plainva://journal";
 
 export function isVirtualPath(path: string | null | undefined): boolean {
   return typeof path === "string" && path.startsWith("plainva://");
@@ -38,6 +40,7 @@ const VIRTUAL_TAB_META: Record<string, VirtualTabMeta> = {
   [CALENDAR_TAB_PATH]: { labelKey: "rightPanel.calendar", defaultLabel: "Kalender", icon: CalendarRange },
   [MAIL_TAB_PATH]: { labelKey: "mail.title", defaultLabel: "E-Mail", icon: Mail },
   [COMMENTS_TAB_PATH]: { labelKey: "comments.commentOverview", defaultLabel: "Kommentare", icon: MessageSquare },
+  [JOURNAL_TAB_PATH]: { labelKey: "journal.title", defaultLabel: "Journal", icon: NotebookText },
 };
 
 /** Localized label key + icon for a virtual tab path; null for vault files. */

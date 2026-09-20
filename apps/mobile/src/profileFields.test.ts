@@ -70,6 +70,9 @@ describe("profile field catalog", () => {
       "defaultCalendar",
       "defaultNoteType",
       "inboxFolder",
+      // Plan Journal, E3: the journal heading is a vault convention. Two devices
+      // with different headings would each write their own section.
+      "journalHeading",
       "mailFolder",
       "mailRemoteImages",
       "meetingFolder",

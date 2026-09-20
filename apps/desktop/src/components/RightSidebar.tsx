@@ -3,6 +3,7 @@ import { ChevronDown, Database, CalendarDays, Link as LinkIcon, SlidersHorizonta
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
+import { JournalSidebarSection } from "./journal/JournalSidebarSection";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { PropertiesSection } from "./PropertiesSection";
 import { OutlineSection } from "./OutlineSection";
@@ -77,6 +78,8 @@ interface RightSidebarProps {
   onSelectDate: (date: Date) => void;
   /** Opens the calendar tab focused on the given day (widget peek/menu). */
   onOpenCalendarDay?: (dayKey: string) => void;
+  /** Opens the journal tab — "all days" of the journal section under the calendar (plan Journal, J5). */
+  onOpenJournal?: () => void;
   loadMarkedDates: (dates: Date[]) => Promise<Set<string>>;
   /** Date of the open daily note (if any), highlighted with precedence over today. */
   activeDailyDate?: Date | null;
@@ -91,7 +94,7 @@ interface RightSidebarProps {
   sections?: readonly SectionId[];
 }
 
-export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
+export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
@@ -255,7 +258,15 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   };
 
   const renderBody = (id: SectionId) => {
-    if (id === "calendar") return <CalendarWidget weekRow={step === "minimal"} onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
+    if (id === "calendar") {
+      return (
+        <>
+          <CalendarWidget weekRow={step === "minimal"} onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />
+          {/* The journal of the day the sidebar is about: the open daily note's day, otherwise today. */}
+          {onOpenJournal && <JournalSidebarSection activeDate={activeDailyDate ?? null} onOpenPath={onOpenPath} onOpenJournal={onOpenJournal} />}
+        </>
+      );
+    }
     if (id === "outline") return <OutlineSection />;
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
     if (id === "databases") return <NoteDatabasesSection context={dbContext} activePath={activePath} onOpenPath={onOpenPath} />;

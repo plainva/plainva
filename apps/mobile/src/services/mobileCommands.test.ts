@@ -52,6 +52,19 @@ describe("mobile commands", () => {
     expect(h.newNote).toHaveBeenCalledOnce();
   });
 
+  it("offers the journal's two commands where the shell serves them (plan Journal, J4/J5)", () => {
+    const h = host({ newJournalEntry: vi.fn(), openJournal: vi.fn() });
+    const cmds = buildMobileCommands(h);
+    cmds.find((c) => c.id === "journal-entry")!.run();
+    cmds.find((c) => c.id === "open-journal")!.run();
+    expect(h.newJournalEntry).toHaveBeenCalledOnce();
+    expect(h.openJournal).toHaveBeenCalledOnce();
+    // A host without them offers neither — a command that does nothing is worse than none.
+    const ids = buildMobileCommands(host()).map((c) => c.id);
+    expect(ids).not.toContain("journal-entry");
+    expect(ids).not.toContain("open-journal");
+  });
+
   it("hides the note commands while nothing is open", () => {
     const cmds = buildMobileCommands(host({ activeNote: () => null }));
     const rename = cmds.find((c) => c.id === "rename-active")!;

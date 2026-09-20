@@ -148,6 +148,7 @@ export * from "./lib/imageTarget";
 export * from "./lib/dailyNotes";
 export * from "./lib/dailyNoteCreate";
 export * from "./lib/journalWrite";
+export * from "./lib/journalFeed";
 export * from "./lib/readSelectionVerbs";
 export * from "./lib/baseViewState";
 export * from "./lib/backlinks";
@@ -279,6 +280,10 @@ export * from "./components/QrScanner";
 export * from "./hooks/useFocusTrap";
 export * from "./hooks/useTaskDuplicates";
 export * from "./hooks/useTodayKey";
+export * from "./hooks/useMinuteClock";
+export * from "./hooks/useJournalFeed";
+export * from "./hooks/useJournalActions";
+export * from "./hooks/useJournalDay";
 export * from "./hooks/useHoldDrag";
 
 // Editor layer (M0.4): the CodeMirror session and its portable plugins.
@@ -352,6 +357,9 @@ export * from "./components/TaskPriorityFlag";
 export * from "./components/TaskStateIcon";
 export * from "./components/TaskPlannerNav";
 export * from "./components/TaskCaptureField";
+export * from "./components/JournalCaptureField";
+export * from "./components/JournalDayList";
+export * from "./components/JournalDaySection";
 export * from "./services/docMeta";
 export * from "./services/dynamicDate";
 export * from "./services/imageFiles";

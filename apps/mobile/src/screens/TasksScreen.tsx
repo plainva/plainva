@@ -113,6 +113,7 @@ export function TasksScreen({
   onMenu,
   onOpenNote,
   onOpenBase,
+  onCaptureJournal,
 }: {
   vault: MobileVault;
   bump: number;
@@ -121,6 +122,8 @@ export function TasksScreen({
   onMenu?: () => void;
   onOpenNote: (path: string) => void;
   onOpenBase?: (path: string) => void;
+  /** The capture sheet's other kind (plan Journal, J4): the app's journal sheet takes the typed text. */
+  onCaptureJournal?: (text: string) => void;
 }) {
   const { t } = useTranslation();
   // The list stays on screen while it reloads (finding 2026-09-20, the
@@ -687,13 +690,13 @@ export function TasksScreen({
    * line in, one task note out, with its date, time, priority, tags and rhythm.
    * The desktop's twin is TaskCaptureBar.
    */
-  const [capture, setCapture] = useState<{ providerList: string | null } | null>(null);
-  const createDbTask = useCallback(() => {
+  const [capture, setCapture] = useState<{ providerList: string | null; text: string } | null>(null);
+  const createDbTask = useCallback((text = "") => {
     if (!taskDb) return;
     // The list the database names (C4, S17): the chip only appears when there IS one.
     void providerListLabel(promotionAdapter, taskDb)
       .catch(() => null)
-      .then((name) => setCapture({ providerList: name ?? null }));
+      .then((name) => setCapture({ providerList: name ?? null, text }));
   }, [taskDb, promotionAdapter]);
   const createFromCapture = useCallback(
     async (result: CaptureResult, alsoAtProvider: boolean) => {
@@ -1093,7 +1096,7 @@ export function TasksScreen({
                   {t("tasks.openDb")}
                 </Button>
               )}
-              <Button variant="tonal" data-testid="task-db-new" onClick={createDbTask}>
+              <Button variant="tonal" data-testid="task-db-new" onClick={() => createDbTask()}>
                 {t("tasks.newDbTask")}
               </Button>
             </div>
@@ -1109,7 +1112,7 @@ export function TasksScreen({
         <EmptyState
           action={
             taskDb ? (
-              <Button data-testid="tasks-empty-new" onClick={createDbTask} variant="tonal">
+              <Button data-testid="tasks-empty-new" onClick={() => createDbTask()} variant="tonal">
                 {t("tasks.newDbTask")}
               </Button>
             ) : undefined
@@ -1262,7 +1265,14 @@ export function TasksScreen({
       )}
 
       {capture && (
-        <TaskCaptureSheet todayKey={todayKey} providerList={capture.providerList} onClose={() => setCapture(null)} onSubmit={createFromCapture} />
+        <TaskCaptureSheet
+          todayKey={todayKey}
+          providerList={capture.providerList}
+          initialValue={capture.text}
+          onClose={() => setCapture(null)}
+          onSubmit={createFromCapture}
+          onSwitchToJournal={onCaptureJournal ? (text) => { setCapture(null); onCaptureJournal(text); } : undefined}
+        />
       )}
 
       {taskSheet && (

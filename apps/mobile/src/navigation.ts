@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import {CalendarDays, Home, ListChecks, Mail, MessageSquare, Sun, Waypoints} from "lucide-react";
+import {CalendarDays, Home, ListChecks, Mail, MessageSquare, NotebookText, Sun, Waypoints} from "lucide-react";
 import type { CloudProviderFamily } from "@plainva/ui";
 
 /**
@@ -27,7 +27,7 @@ import type { CloudProviderFamily } from "@plainva/ui";
  * ids the pool no longer knows (E3: no migration notice, there are no users
  * but the maintainer).
  */
-export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph" | "comments";
+export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph" | "comments" | "journal";
 
 export interface TabDef {
   id: TabScreenId;
@@ -54,6 +54,9 @@ export const TAB_POOL: TabDef[] = [
   // whole pool — so it is reachable the moment it exists, and being outside the
   // bar is the normal state for most of the pool rather than an oversight.
   { id: "comments", icon: MessageSquare, labelKey: "comments.commentOverview" },
+  // The journal stream (plan Journal, J5). Like comments it hangs on the vault,
+  // not on an account, and is reachable from the areas sheet the moment it exists.
+  { id: "journal", icon: NotebookText, labelKey: "journal.title" },
 ];
 
 /**
@@ -82,7 +85,7 @@ export const TAB_POOL: TabDef[] = [
  *  adding a kind to the union without adding it here does not compile. */
 export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
-  "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "cleanup", "tags", "bookmarks",
+  "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
   "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration",
@@ -104,6 +107,7 @@ export type NavKind =
   | "databases"
   | "graphmap"
   | "comments"
+  | "journal"
   | "cleanup"
   | "tags"
   | "bookmarks"
@@ -179,6 +183,7 @@ export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   mail: [],
   graph: [],
   comments: [],
+  journal: [],
 });
 
 export function initialNavState(activeTab: TabScreenId): NavState {
@@ -205,12 +210,18 @@ export function activeFolderPath(state: NavState): string {
  * the screen's own. Two stacked FABs mean a surface has no main action at all
  * (device report B2, 2026-07-26) — hence the tab id, not just the top entry:
  * a tab ROOT has no entry to look at.
+ *
+ * The journal is the second such surface (plan Journal, J5): its main action is
+ * "write an entry", and the pen is the screen's own.
  */
 export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolean {
-  if (!top) return activeTab !== "mail";
+  if (!top) return activeTab !== "mail" && activeTab !== "journal";
   if (top.kind === "mail") return false;
   return top.kind === "folder";
 }
+
+/** The journal screen, as a tab root or pushed (from Today, from the areas sheet). */
+const isJournal = (top?: NavEntry, activeTab?: TabScreenId): boolean => (top ? top.kind === "journal" : activeTab === "journal");
 
 /**
  * Whether the surface has to reserve the FAB strip at its end. The capture
@@ -220,7 +231,8 @@ export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolea
  * floating button cannot forget the strip again.
  */
 export function reservesFabStrip(top?: NavEntry, activeTab?: TabScreenId): boolean {
-  return showsCaptureFab(top, activeTab) || top?.kind === "base";
+  // The journal floats its pen where the capture menu would be; the last entry's menu must not sit under it.
+  return showsCaptureFab(top, activeTab) || top?.kind === "base" || isJournal(top, activeTab);
 }
 
 /**
@@ -393,4 +405,5 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   mail: { kind: "mail", path: "" },
   graph: { kind: "graphmap", path: "" },
   comments: { kind: "comments", path: "" },
+  journal: { kind: "journal", path: "" },
 };

@@ -1,5 +1,5 @@
 import type { IVaultAdapter } from "@plainva/core";
-import { SHARE_LIMITS, validateShare, type PendingShare, type SharedFile, type ShareImportPlan, type ShareTargetPort } from "./shareTarget";
+import { SHARE_LIMITS, validateShare, type PendingShare, type SharedFile, type ShareImportPlan, type ShareJournalEntry, type ShareTargetPort } from "./shareTarget";
 
 const active = new Map<string, { vaultId: string; run: Promise<string> }>();
 function safeName(name: string): string {
@@ -25,6 +25,9 @@ function checkPlan(plan: ShareImportPlan, share: PendingShare, vaultId: string):
     || new Set(plan.files.map(f => f.path.toLowerCase())).size !== plan.files.length
     || plan.files.some(f => !safePath(f.path) || !f.path.startsWith(`Attachments/Shared/${share.id}/`) || !share.files.some(s => s.id === f.id))
     || new Set(plan.files.map(f => f.id)).size !== plan.files.length) throw new Error("SHARE_INVALID");
+  const j = plan.journal;
+  if (j !== undefined && (!j || !/^\d{4}-\d{2}-\d{2}$/.test(j.date) || !/^\d{2}:\d{2}$/.test(j.time) || typeof j.heading !== "string" || !j.heading.trim() || j.heading.length > 200
+    || typeof j.text !== "string" || !j.text.trim() || new TextEncoder().encode(j.text).length > SHARE_LIMITS.textBytes + 16384 || plan.noteText !== "")) throw new Error("SHARE_INVALID");
 }
 async function readFile(port: ShareTargetPort, shareId: string, file: SharedFile, guard: () => Promise<void>) {
   const bytes = new Uint8Array(file.size);
@@ -59,6 +62,18 @@ export interface ShareImportContext {
    * is finished as planned.
    */
   asTask?(input: { title: string; body: string }): Promise<{ folder: string; text: string }>;
+  /**
+   * "Into the journal" (plan Journal, J4): the shared text and the attachment
+   * links become one journal entry. Asked only while the plan is being made;
+   * the host names the day, the time, the heading and the daily note.
+   */
+  toJournal?(): Promise<Omit<ShareJournalEntry, "text"> & { notePath: string }>;
+  /**
+   * Writes a planned journal entry and resolves with the note it went to. It
+   * has to be idempotent — a retry after a crash calls it again with the same
+   * entry. Handed in whenever a journal plan may have to be resumed.
+   */
+  appendJournal?(entry: ShareJournalEntry): Promise<string>;
 }
 
 /** One durable native plan owns every path; no automatic rename after a retry. */
@@ -79,19 +94,29 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
     const title = safeName(share.subject.trim() || share.text.split("\n")[0].slice(0, 60).trim() || share.files[0]?.name.replace(/\.[^.]+$/, "") || "Shared");
     const files = share.files.map((f, i) => ({ id: f.id, path: `Attachments/Shared/${share.id}/${i + 1}-${safeName(f.name)}` }));
     const links = files.map(f => `${share.files.find(s => s.id === f.id)!.mime.startsWith("image/") ? "!" : ""}[[${f.path}]]`);
-    const task = ctx.asTask ? await ctx.asTask({ title, body: [share.text, ...links].filter(Boolean).join("\n\n") }) : null;
-    const folder = task ? task.folder : ctx.folder;
-    if (task && !safePath(folder)) throw new Error("SHARE_INVALID");
-    const stem = `${folder ? folder + "/" : ""}${title} (${share.id.slice(0, 8)})`;
-    let notePath = stem + ".md";
-    for (let n = 2; await ctx.files.exists(notePath); n++) {
-      await guard(); if (n > 100) throw new Error("SHARE_TARGET_CHANGED"); notePath = `${stem} ${n}.md`;
+    const journal = ctx.toJournal ? await ctx.toJournal() : null;
+    if (journal) {
+      // One entry: what was shared, then the attachments, line by line — the
+      // journal writes further lines as continuation lines of the entry.
+      const text = [share.subject.trim(), share.text.trim(), ...links].filter(Boolean).join("\n") || title;
+      const { notePath, ...stamp } = journal;
+      share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText: "", files, journal: { ...stamp, text } } })).entry);
+    } else {
+      const task = ctx.asTask ? await ctx.asTask({ title, body: [share.text, ...links].filter(Boolean).join("\n\n") }) : null;
+      const folder = task ? task.folder : ctx.folder;
+      if (task && !safePath(folder)) throw new Error("SHARE_INVALID");
+      const stem = `${folder ? folder + "/" : ""}${title} (${share.id.slice(0, 8)})`;
+      let notePath = stem + ".md";
+      for (let n = 2; await ctx.files.exists(notePath); n++) {
+        await guard(); if (n > 100) throw new Error("SHARE_TARGET_CHANGED"); notePath = `${stem} ${n}.md`;
+      }
+      const noteText = task ? task.text : ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
+      share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
     }
-    const noteText = task ? task.text : ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
-    share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
   }
   const plan = share.plan!;
   checkPlan(plan, share, ctx.vaultId);
+  let journalPath: string | null = null;
   if (!share.noteWritten) {
     for (const [index, file] of share.files.entries()) {
       await guard();
@@ -110,7 +135,10 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
       ctx.onProgress?.(index + 1, share.files.length + 1);
     }
     await guard();
-    if (await ctx.files.exists(plan.notePath)) {
+    if (plan.journal) {
+      if (!ctx.appendJournal) throw new Error("SHARE_INVALID");
+      journalPath = await ctx.appendJournal(plan.journal);
+    } else if (await ctx.files.exists(plan.notePath)) {
       if (await ctx.files.readTextFile(plan.notePath) !== plan.noteText) throw new Error("SHARE_TARGET_CHANGED");
     } else {
       await ctx.files.writeTextFile(plan.notePath, plan.noteText);
@@ -121,5 +149,5 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
   await guard();
   await port.finishShare({ id: share.id });
   ctx.onProgress?.(share.files.length + 1, share.files.length + 1);
-  return plan.notePath;
+  return journalPath ?? plan.notePath;
 }

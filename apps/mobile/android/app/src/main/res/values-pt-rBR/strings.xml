@@ -2,5 +2,6 @@
 <resources>
     <string name="shortcut_new_note">Nova nota</string>
     <string name="shortcut_new_task">Nova tarefa</string>
+    <string name="shortcut_journal">Entrada do diário</string>
     <string name="shortcut_today">Hoje</string>
 </resources>

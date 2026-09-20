@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        installQuickActions(application)
+        // `true` on purpose: a quick action that launched the app is then delivered to
+        // `performActionFor` below, the one place that handles it.
         return true
     }
 
@@ -44,6 +46,49 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Feel free to add additional processing here, but if you want the App API to support
         // tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    // MARK: - Home Screen quick actions (plan Journal, J4)
+    //
+    // The same four entries as the Android launcher shortcuts (res/xml/shortcuts.xml),
+    // and they travel the same way: as `com.plainva.app://shortcut/<id>` through the
+    // App plugin, so the web layer needs no second route. The titles are set at run
+    // time from this table instead of InfoPlist.strings - they are the Android labels,
+    // and `launcherShortcuts.test.ts` fails when the two platforms drift apart.
+    private static let quickActionOrder = ["new-note", "new-task", "journal", "today"]
+    private static let quickActionSymbols = ["new-note": "square.and.pencil", "new-task": "checkmark.circle", "journal": "book", "today": "sun.max"]
+    private static let quickActionTitles: [String: [String: String]] = [
+        "en": ["new-note": "New note", "new-task": "New task", "journal": "Journal entry", "today": "Today"],
+        "de": ["new-note": "Neue Notiz", "new-task": "Neue Aufgabe", "journal": "Journal-Eintrag", "today": "Heute"],
+        "es": ["new-note": "Nueva nota", "new-task": "Nueva tarea", "journal": "Entrada de diario", "today": "Hoy"],
+        "fr": ["new-note": "Nouvelle note", "new-task": "Nouvelle tâche", "journal": "Entrée de journal", "today": "Aujourd'hui"],
+        "it": ["new-note": "Nuova nota", "new-task": "Nuova attività", "journal": "Voce di diario", "today": "Oggi"],
+        "ja": ["new-note": "新規ノート", "new-task": "新規タスク", "journal": "ジャーナルに記入", "today": "今日"],
+        "nl": ["new-note": "Nieuwe notitie", "new-task": "Nieuwe taak", "journal": "Journaalitem", "today": "Vandaag"],
+        "pl": ["new-note": "Nowa notatka", "new-task": "Nowe zadanie", "journal": "Wpis do dziennika", "today": "Dzisiaj"],
+        "pt": ["new-note": "Nova nota", "new-task": "Nova tarefa", "journal": "Entrada do diário", "today": "Hoje"],
+        "zh": ["new-note": "新建笔记", "new-task": "新建任务", "journal": "写日记", "today": "今天"],
+    ]
+
+    private func installQuickActions(_ application: UIApplication) {
+        let language = Locale.preferredLanguages.first.map { String($0.prefix(2)) } ?? "en"
+        let titles = AppDelegate.quickActionTitles[language] ?? AppDelegate.quickActionTitles["en"]!
+        application.shortcutItems = AppDelegate.quickActionOrder.compactMap { id in
+            guard let title = titles[id] else { return nil }
+            let icon = AppDelegate.quickActionSymbols[id].map { UIApplicationShortcutIcon(systemImageName: $0) }
+            return UIApplicationShortcutItem(type: "com.plainva.app.shortcut." + id, localizedTitle: title, localizedSubtitle: nil, icon: icon, userInfo: nil)
+        }
+    }
+
+    func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
+        let prefix = "com.plainva.app.shortcut."
+        guard shortcutItem.type.hasPrefix(prefix), let url = URL(string: "com.plainva.app://shortcut/" + shortcutItem.type.dropFirst(prefix.count)) else {
+            completionHandler(false)
+            return
+        }
+        // The App plugin keeps the URL until the web layer listens (warm start) and
+        // hands it out as the launch URL (cold start).
+        completionHandler(ApplicationDelegateProxy.shared.application(application, open: url, options: [:]))
     }
 
 }

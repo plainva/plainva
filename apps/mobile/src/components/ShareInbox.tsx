@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTaskNote, toast, useStableHandler } from "@plainva/ui";
-import { CheckSquare, FileText, Folder, Paperclip } from "lucide-react";
+import { CheckSquare, FileText, Folder, NotebookPen, Paperclip } from "lucide-react";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../services/mobileWorkspaceSecurity";
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
+import { appendPlannedJournalEntry, planSharedJournalEntry } from "../services/journalService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
@@ -29,6 +30,9 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
   // when the database names a list, and it starts on.
   const taskDb = getMobileSettings().taskDatabase.trim();
   const [asTask, setAsTask] = useState(false), [providerList, setProviderList] = useState<string | null>(null), [atProvider, setAtProvider] = useState(true);
+  // "Into the journal" (plan Journal, J4): the share becomes one entry of today's
+  // daily note instead of a note of its own. It and "as a task" exclude each other.
+  const [toJournal, setToJournal] = useState(false);
   useEffect(() => {
     if (!taskDb || !asTask) return;
     let stale = false;
@@ -71,11 +75,15 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
     if (!entry || busy) return;
     const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null);
     const taskAdapter = { readTextFile: (p: string) => vaultOps.read(vault, p), writeTextFile: (p: string, c: string) => vaultOps.save(vault, p, c), exists: (p: string) => vault.files.exists(p) };
-    const makesTask = asTask && !!taskDb && !entry.plan;
+    const makesTask = asTask && !toJournal && !!taskDb && !entry.plan;
+    const intoJournal = toJournal && !entry.plan;
     let taskTitle = "";
     try {
       const path = await importSharedContent(port, entry, {
         vaultId: vault.vaultId, files: vault.files, folder, signal: controller.signal,
+        // A journal plan may have to be RESUMED after a restart, whatever the chips say now.
+        appendJournal: (planned) => appendPlannedJournalEntry(vault, planned),
+        ...(intoJournal ? { toJournal: async () => planSharedJournalEntry() } : {}),
         ...(makesTask ? {
           asTask: async ({ title, body }) => {
             const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: getMobileSettings().defaultNoteType, trailer: body ? "\n" + body + "\n" : undefined });
@@ -92,7 +100,8 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         onProgress: (done, total) => setProgress(t("shareInbox.progress", { done, total })),
       });
       await vault.reindexPaths([path]).catch(() => toast.error(t("shareInbox.indexIssue")));
-      notifyFileOps([{ type: "create", path }]);
+      // A journal entry lands in a note that usually exists already; only a new note is announced as created.
+      if (!intoJournal && !entry.plan?.journal) notifyFileOps([{ type: "create", path }]);
       // The note is the deliverable and exists; the provider copy is the
       // addition — same order and same reporting as every other way of creating a task.
       if (makesTask && taskTitle && providerList && atProvider) await sendTaskToProviderList(taskAdapter, taskDb, path, taskTitle).catch(() => toast.error(t("tasks.providerCreateFailed")));
@@ -123,16 +132,17 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         {entry.text && <p className="m-hint m-share-preview">{entry.text.slice(0, 1000)}{entry.text.length > 1000 ? "…" : ""}</p>}
         {entry.files.map(file => <div className="m-row" key={file.id}><Paperclip size={ICON.head} /><span className="m-share-preview">{file.name} · {Math.ceil(file.size / 1024)} KB</span></div>)}
         <p className="m-sectionlabel">{t("shareInbox.destination")}</p>
-        <p className="m-hint m-share-preview">{entry.plan ? `${entry.plan.vaultId === vault.vaultId ? vaultName : plannedVaultName || t("shareInbox.chooseVault")} / ${entry.plan.notePath}` : asTask && taskDb ? `${vaultName} / ${noteDisplayName(taskDb.split("/").pop() ?? taskDb)}` : `${vaultName} / ${folder || "/"}`}</p>
-        {!entry.plan && taskDb && (
+        <p className="m-hint m-share-preview">{entry.plan ? `${entry.plan.vaultId === vault.vaultId ? vaultName : plannedVaultName || t("shareInbox.chooseVault")} / ${entry.plan.notePath}` : toJournal ? `${vaultName} / ${planSharedJournalEntry().notePath}` : asTask && taskDb ? `${vaultName} / ${noteDisplayName(taskDb.split("/").pop() ?? taskDb)}` : `${vaultName} / ${folder || "/"}`}</p>
+        {!entry.plan && (
           <div className="pv-capture-quick">
-            <Chip testId="share-as-task" icon={<CheckSquare size={ICON.meta} />} selected={asTask} onClick={() => setAsTask(x => !x)}>{t("shareInbox.asTask")}</Chip>
+            <Chip testId="share-to-journal" icon={<NotebookPen size={ICON.meta} />} selected={toJournal} onClick={() => { setToJournal(x => !x); setAsTask(false); }}>{t("journal.shareToJournal")}</Chip>
+            {taskDb && <Chip testId="share-as-task" icon={<CheckSquare size={ICON.meta} />} selected={asTask} onClick={() => { setAsTask(x => !x); setToJournal(false); }}>{t("shareInbox.asTask")}</Chip>}
             {asTask && providerList && <Chip testId="share-task-provider" selected={atProvider} onClick={() => setAtProvider(x => !x)}>{t("tasks.alsoCreateAt", { list: providerList })}</Chip>}
           </div>
         )}
         <div className="m-btnrow">
           <Button variant="ghost" disabled={busy} onClick={() => { close(); onChooseVault(); }}>{t("shareInbox.chooseVault")}</Button>
-          {!entry.plan && !asTask && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
+          {!entry.plan && !asTask && !toJournal && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
         </div>
         {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => { close(); onUnlock(); }}>{t("workspaceSecurity.unlock")}</Button></Banner>}
         {entry.status !== "ready" && <Banner kind={entry.status === "failed" ? "error" : "info"}>{t(entry.status === "failed" ? "shareInbox.incomplete" : "shareInbox.receiving")}</Banner>}

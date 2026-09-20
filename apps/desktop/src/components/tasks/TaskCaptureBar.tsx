@@ -15,6 +15,7 @@ export function TaskCaptureBar({
   todayKey,
   providerList,
   focusTick,
+  initialValue = "",
   onSubmit,
 }: {
   todayKey: string;
@@ -22,11 +23,13 @@ export function TaskCaptureBar({
   providerList: string | null;
   /** Bumped by "New task" from the ribbon, the palette or the section button. */
   focusTick: number;
+  /** Text a request brought along (the capture dialog's kind switch); the bar is keyed by such a request. */
+  initialValue?: string;
   /** Resolves true when the task was created. */
   onSubmit: (result: CaptureResult, alsoAtProvider: boolean) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   // Starts on, because choosing a list for the database already WAS the
   // decision; the chip is there so a single task can stay in the vault.
   const [atProvider, setAtProvider] = useState(true);

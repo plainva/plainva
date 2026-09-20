@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, TextInput, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -9,7 +9,7 @@ import { CommentNotificationSettings } from "../comments/CommentNotificationSett
 import { PimAccountsSection } from "../pim/PimAccountsSection";
 import { MailAccountsSection } from "../mail/MailAccountsSection";
 import { DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE } from "../../contexts/VaultContext";
-import { DEFAULT_BACKUP_RETENTION, type OkfVersionState } from "@plainva/core";
+import { DEFAULT_BACKUP_RETENTION, DEFAULT_JOURNAL_HEADING, type OkfVersionState } from "@plainva/core";
 import type { FolderTemplateRule, TypeTemplateRule } from "@plainva/ui";
 import { DEFAULT_ZIP_KEEP } from "../../services/backupPolicy";
 
@@ -100,6 +100,9 @@ export interface ContentPageProps {
   onDefaultNoteType: (v: string) => void;
   dailyNoteType: string;
   onDailyNoteType: (v: string) => void;
+  /** Heading the journal entries of a daily note stand under (plan Journal, E3). */
+  journalHeading: string;
+  onJournalHeading: (v: string) => void;
   /** Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b) — device-local. */
   verifierName: string;
   onVerifierName: (v: string) => void;
@@ -349,6 +352,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           ) : (
             <input autoComplete="off" value={p.dailyNoteTemplate} onChange={(e) => p.onDailyNoteTemplate(e.target.value)} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
           )}
+        </SettingRow>
+        <SettingRow label={t("settings.journalHeading")} desc={t("settings.journalHeadingDesc")}>
+          <TextInput autoComplete="off" value={p.journalHeading} onChange={(e) => p.onJournalHeading(e.target.value)} placeholder={DEFAULT_JOURNAL_HEADING} data-testid="journal-heading" />
         </SettingRow>
       </SettingCard>
 

@@ -159,6 +159,39 @@ export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
   return out.filter((a): a is RowActionSpec => a !== null);
 }
 
+/* --------------------------------------------------------------- journal */
+
+export interface JournalRowCaps {
+  /** The entry is a task (`- [ ] 14:05 …`) and whether its box is closed. */
+  isTask: boolean;
+  done: boolean;
+  /** Task entries only: the box, through the task view's own write path. */
+  toggle?: () => void;
+  edit?: () => void;
+  copy?: () => void;
+  /** Plain entry → checkbox task the task view already knows (plan Journal, E8). */
+  toTask?: () => void;
+  /** Task entry → plain entry again. */
+  toEntry?: () => void;
+  showInNote?: () => void;
+  delete?: () => void;
+}
+
+export function journalRowActions(t: RowActionT, c: JournalRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.isTask && c.toggle
+      ? { id: "toggle", label: c.done ? t("tasks.open", { defaultValue: "Offen" }) : t("tasks.done", { defaultValue: "Erledigt" }), icon: c.done ? Square : CheckSquare, run: c.toggle, swipe: true }
+      : null,
+    c.edit ? { id: "edit", label: t("journal.edit", { defaultValue: "Bearbeiten" }), icon: Pencil, run: c.edit, swipe: true } : null,
+    c.copy ? { id: "copy", label: t("common.copy", { defaultValue: "Kopieren" }), icon: Copy, run: c.copy } : null,
+    !c.isTask && c.toTask ? { id: "toTask", label: t("journal.toTask", { defaultValue: "In Aufgabe umwandeln" }), icon: CheckSquare, run: c.toTask, swipe: true } : null,
+    c.isTask && c.toEntry ? { id: "toEntry", label: t("journal.toEntry", { defaultValue: "Wieder zum Eintrag machen" }), icon: Square, run: c.toEntry } : null,
+    c.showInNote ? { id: "showInNote", label: t("journal.showInNote", { defaultValue: "In der Notiz zeigen" }), icon: Eye, run: c.showInNote } : null,
+    c.delete ? { id: "delete", label: t("common.delete", { defaultValue: "Löschen" }), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
 /* ------------------------------------------------------------------ file */
 
 export interface FileRowCaps {
@@ -232,7 +265,8 @@ export function fileRowActions(t: RowActionT, c: FileRowCaps): RowActionSpec[] {
  */
 export const ROW_ACTION_IDS = {
   mail: ["open", "read", "unread", "flag", "unflag", "move", "snooze", "unsnooze", "junk", "delete"],
-  task: ["toggle", "promote", "repeat", "block"],
+  task: ["toggle", "promote", "repeat", "block", "priority", "state"],
+  journal: ["toggle", "edit", "copy", "toTask", "toEntry", "showInNote", "delete"],
   file: [
     "openNewTab", "openSplitRight", "openSplitDown", "rename", "duplicate", "move", "overview", "bookmark", "versionHistory",
     "resolveConflict", "reveal", "copyPath", "removeFromList", "delete",

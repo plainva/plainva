@@ -495,8 +495,13 @@ export function TasksView({ onOpenPath }: Props) {
     },
     [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]
   );
-  const [captureFocus, setCaptureFocus] = useState(0);
-  const focusCapture = useCallback(() => setCaptureFocus((x) => x + 1), []);
+  // `seeded` counts the requests that BROUGHT text (the capture dialog's kind
+  // switch, plan Journal J4): the bar is keyed by it, so such a request starts
+  // it over with that text instead of an effect writing into its state.
+  const [captureSeed, setCaptureSeed] = useState({ focus: 0, seeded: 0, text: "" });
+  const focusCapture = useCallback((text = "") => {
+    setCaptureSeed((s) => (text ? { focus: s.focus + 1, seeded: s.seeded + 1, text } : { ...s, focus: s.focus + 1 }));
+  }, []);
 
   // "New task" from anywhere (Design-Runde E4): the shell opens this view and
   // parks the request; without a task database there is nothing to create in,
@@ -935,7 +940,7 @@ export function TasksView({ onOpenPath }: Props) {
       <div className="pv-planner-split">
       <TaskPlannerNav variant="rail" value={list} onChange={setList} counts={planner.counts} allCount={openCount} tags={railTags} activeTag={tag} onTag={setTag} />
       <div className="pv-planner-main">
-      {taskDb && <TaskCaptureBar todayKey={todayKey} providerList={providerList} focusTick={captureFocus} onSubmit={createFromCapture} />}
+      {taskDb && <TaskCaptureBar key={captureSeed.seeded} initialValue={captureSeed.text} todayKey={todayKey} providerList={providerList} focusTick={captureSeed.focus} onSubmit={createFromCapture} />}
       {list !== "all" ? (
         <div className="pv-planner-scroll">
           {duplicatesNotice}
@@ -964,7 +969,7 @@ export function TasksView({ onOpenPath }: Props) {
                 {filteredDbRows.length}
               </span>
               <div style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0 }}>
-                <Button variant="primary" size="sm" onClick={focusCapture} data-testid="task-db-new">
+                <Button variant="primary" size="sm" onClick={() => focusCapture()} data-testid="task-db-new">
                   {t("tasks.newDbTask")}
                 </Button>
                 <button

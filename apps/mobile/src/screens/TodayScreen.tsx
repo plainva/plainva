@@ -14,6 +14,7 @@ import { vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { useEventEditor } from "../components/useEventEditor";
 import type { PimEventRow } from "@plainva/core";
+import { TodayJournalSection } from "../components/TodayJournalSection";
 
 /**
  * Today tab as a day view (R3.5; M3E mockup 6): the strip SELECTS a day
@@ -34,6 +35,7 @@ export function TodayScreen({
   onMenu,
   onOpenDate,
   onOpenTasks,
+  onOpenJournal,
   onOpenNote,
 }: {
   /** Absent when this surface is pushed — the root offers the search. */
@@ -46,6 +48,8 @@ export function TodayScreen({
   onOpenDate: (iso: string) => void;
   /** Opens the tasks screen on its "Today" list (planner B1) — what is due and what is late, across both sources. */
   onOpenTasks?: () => void;
+  /** Opens the journal screen — "all days" of the journal section (plan Journal, J5). */
+  onOpenJournal?: () => void;
   onOpenNote: (path: string) => void;
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
@@ -240,6 +244,10 @@ export function TodayScreen({
           {dailyExists ? t("mobile.open") : t("mobile.create")}
         </Button>
       </div>
+
+      {/* The journal of the selected day, right under its daily note — that is
+          where the entries live (plan Journal, J5). */}
+      {onOpenJournal && <TodayJournalSection bump={bump} dayKey={selectedIso} onOpenJournal={onOpenJournal} onOpenNote={onOpenNote} vault={vault} />}
 
       {/* Where I have to be, and what I owe — as TWO named sections with
           counters, the way the mockup shows them. They used to be one mixed
