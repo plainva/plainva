@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -161,7 +161,7 @@ The phone carries slightly less: the arrangement of the four **desktop** bars st
 
 Diagnostics now separate **last checked** (local profile fields), **last downloaded**, **last applied** and **last actually sent**. “Sent” changes only after a successful cloud write; unchanged rounds therefore update the check and download, but not the sent time. Secret results appear separately as counts for imported, unchanged, rejected, stale, failed or waiting for an account. They contain only stable reason codes — no account id, password, token or raw error. A legacy-client notice means Plainva should be updated on every participating device; this device ignores the retired Google client data.
 
-**Deletions travel.** A deletion you confirmed stays in a journal (`.plainva/sync/deletions.json`) for 90 days and is mirrored on every other device without a question — after a restart too, and even when many files are missing there at once. When many files are missing in the cloud without the journal explaining them, Plainva pauses the mirroring and asks: **apply the deletions** or **keep them locally** (then it uploads the files again as new). The same goes for task lists: a deletion carried out at the provider also removes the task note on the other device, as long as it is unchanged there.
+**Deletions travel.** A deletion you confirmed stays in a journal (`.plainva/sync/deletions.json`) for 90 days and is mirrored on every other device without a question — after a restart too, and even when many files are missing there at once. When many files are missing in the cloud without the journal explaining them, Plainva pauses the mirroring and asks: **apply the deletions** or **keep them locally** (then it uploads the files again as new). The same goes for task lists: a deletion carried out at the provider also removes the task note on the other device, as long as it is unchanged there. Before it asks — and before it removes a single file here — Plainva checks with the cloud directly: it asks for a sample of the missing files one by one. If even one of them is there, the cloud's list was incomplete: nothing is deleted, nobody is asked, and the sync status shows **The cloud answered incompletely — nothing was deleted** with **Check again**. A journal entry is written only after a file was found gone and removed here, and an entry whose file turns up in the cloud again is taken back; **Check deletion log** under **About & diagnostics** does that on request. If the cloud folder of a vault that has synced before cannot be found, Plainva no longer creates an empty replacement but reports it — you then choose the existing folder.
 
 ## Errors and automatic retries
 

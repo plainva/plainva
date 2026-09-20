@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-09-16
+Stand: 2026-09-20
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -161,7 +161,7 @@ Das Telefon trägt davon etwas weniger: Die Anordnung der vier **Desktop**-Leist
 
 Die Diagnose trennt jetzt **zuletzt geprüft** (lokale Profilfelder), **zuletzt heruntergeladen**, **zuletzt übernommen** und **zuletzt tatsächlich gesendet**. „Gesendet“ ändert sich nur nach einem erfolgreichen Schreiben in die Cloud; unveränderte Runden aktualisieren daher Prüfung und Download, aber nicht den Sendezeitpunkt. Secret-Ergebnisse stehen separat als Anzahlen für importiert, unverändert, abgelehnt, veraltet, fehlerhaft oder auf ein Konto wartend. Sie enthalten nur stabile Grundcodes — keine Konto-ID, kein Passwort, keinen Token und keinen Rohfehler. Ein Altclient-Hinweis bedeutet, dass Plainva auf allen beteiligten Geräten aktualisiert werden sollte; dieses Gerät ignoriert die ausgemusterten Google-Clientdaten.
 
-**Löschungen reisen mit.** Eine Löschung, die Du bestätigt hast, steht 90 Tage lang in einem Journal (`.plainva/sync/deletions.json`) und wird auf jedem anderen Gerät ohne Rückfrage nachvollzogen — auch nach einem Neustart und auch dann, wenn dort viele Dateien auf einmal fehlen. Fehlen dagegen viele Dateien in der Cloud, ohne dass das Journal sie erklärt, hält Plainva das Spiegeln an und fragt: **Löschungen übernehmen** oder **lokal behalten** (dann lädt es die Dateien als neue wieder hoch). Dasselbe gilt für Aufgabenlisten: eine beim Anbieter ausgeführte Löschung räumt die Aufgaben-Notiz auch auf dem anderen Gerät ab, sofern sie dort unverändert ist.
+**Löschungen reisen mit.** Eine Löschung, die Du bestätigt hast, steht 90 Tage lang in einem Journal (`.plainva/sync/deletions.json`) und wird auf jedem anderen Gerät ohne Rückfrage nachvollzogen — auch nach einem Neustart und auch dann, wenn dort viele Dateien auf einmal fehlen. Fehlen dagegen viele Dateien in der Cloud, ohne dass das Journal sie erklärt, hält Plainva das Spiegeln an und fragt: **Löschungen übernehmen** oder **lokal behalten** (dann lädt es die Dateien als neue wieder hoch). Dasselbe gilt für Aufgabenlisten: eine beim Anbieter ausgeführte Löschung räumt die Aufgaben-Notiz auch auf dem anderen Gerät ab, sofern sie dort unverändert ist. Bevor Plainva fragt — und bevor es hier auch nur eine Datei entfernt —, prüft es direkt bei der Cloud nach: Es fragt nach einer Stichprobe der fehlenden Dateien einzeln. Ist auch nur eine davon vorhanden, war die Liste der Cloud unvollständig: Nichts wird gelöscht, niemand wird gefragt, und der Sync-Status zeigt **Die Cloud hat unvollständig geantwortet — nichts wurde gelöscht** mit **Erneut prüfen**. Ein Journal-Eintrag entsteht erst, nachdem eine Datei geprüft fehlte und hier entfernt wurde, und ein Eintrag, dessen Datei in der Cloud wieder auftaucht, wird zurückgenommen; **Löschprotokoll prüfen** unter **Über & Diagnose** tut das auf Wunsch sofort. Findet Plainva den Cloud-Ordner eines Vaults nicht, der schon synchronisiert hat, legt es keinen leeren Ersatz mehr an, sondern meldet es — Du wählst dann den vorhandenen Ordner.
 
 ## Fehler und automatische Wiederholung
 

@@ -438,6 +438,16 @@ function SyncErrorDialog({
   // confirmed reset — the fail-closed guard never downgrades on its own
   // (Stilllegen P2). Ordinary failures never show this.
   const encryptionBricked = error?.reason === "manifest-invalid" || error?.reason === "encrypted-without-key";
+  // Two states that are not failures to retry (finding 2026-09-20): a listing
+  // its own files contradict — nothing was deleted, and the way on is to list
+  // again — and a cloud folder that is gone, which only the folder picker fixes.
+  const incomplete = error?.listingIncomplete ?? null;
+  const rootMissing = error?.reason === "root-missing";
+  const shownMessage = incomplete
+    ? t(incomplete.empty ? "sync.listingIncompleteEmpty" : "sync.listingIncompleteBody", {
+        missing: incomplete.missing, total: incomplete.confirmed, present: incomplete.present, probed: incomplete.probed,
+      })
+    : rootMissing ? t("sync.rootMissingBody") : message;
   const handleResetEncryption = async () => {
     const ok = await appConfirm({
       title: t("sync.resetEncryptionTitle", { defaultValue: "Verschlüsselung zurücksetzen?" }),
@@ -453,22 +463,22 @@ function SyncErrorDialog({
     <Modal
       onClose={onClose}
       size="sm"
-      title={t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
-      icon={<AlertTriangle size={ICON.head} style={{ color: "var(--error-text)" }} />}
+      title={incomplete ? t("sync.listingIncompleteTitle") : t("sync.errorTitle", { defaultValue: "Sync-Fehler" })}
+      icon={<AlertTriangle size={ICON.head} style={{ color: incomplete ? "var(--warning-text)" : "var(--error-text)" }} />}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
           {!recovered && encryptionBricked && (
             <Button variant="danger-soft" onClick={handleResetEncryption}>{t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" })}</Button>
           )}
-          {!recovered && !encryptionBricked && (authError
+          {!recovered && !encryptionBricked && (authError || rootMissing
             ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>
-            : <Button variant="primary" onClick={onRetry}>{t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>)}
+            : <Button variant="primary" onClick={onRetry}>{incomplete ? t("sync.listingIncompleteRetry") : t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>)}
         </>
       }
     >
-        <div style={{ padding: "1rem", background: "var(--error-bg)", color: "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
-          {message}
+        <div data-testid={incomplete ? "sync-listing-incomplete" : undefined} style={{ padding: "1rem", background: incomplete ? "var(--warning-bg)" : "var(--error-bg)", color: incomplete ? "var(--warning-text)" : "var(--error-text)", borderRadius: "var(--radius-xs)", wordBreak: "break-word", fontSize: "var(--text-md)", maxHeight: "300px", overflowY: "auto" }}>
+          {shownMessage}
         </div>
         {(recovered || retrying) && (
           <p style={{ margin: "0.85rem 0 0", color: recovered ? "var(--success-text)" : "var(--text-muted)", fontWeight: 600 }}>
@@ -477,7 +487,7 @@ function SyncErrorDialog({
               : t("sync.retrying", { defaultValue: "Plainva versucht die Synchronisierung erneut …" })}
           </p>
         )}
-        <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+        {!incomplete && !rootMissing && <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
           {encryptionBricked
             ? t("sync.encryptionErrorHint", { defaultValue: "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück." })
             : error?.workspaceFailure === "integrity"
@@ -487,7 +497,7 @@ function SyncErrorDialog({
             : authError
               ? t("sync.authErrorHint", { defaultValue: "Die Anmeldung ist abgelaufen oder wurde widerrufen. Stelle die Verbindung in den Sync-Einstellungen neu her." })
               : t("sync.transientErrorHint", { defaultValue: "Das war wahrscheinlich ein vorübergehendes Netzwerk- oder Providerproblem. Plainva versucht solche Fehler automatisch erneut." })}
-        </p>
+        </p>}
         {dialogConflicts.length > 0 && (
           <div style={{ marginTop: "0.85rem" }}>
             <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: "0.35rem" }}>

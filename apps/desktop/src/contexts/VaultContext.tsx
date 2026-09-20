@@ -5,19 +5,19 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { readDriveDestination, readSyncRootFolder } from "../services/syncRootFolder";
+import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createLimiter, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createLimiter, formatListingReport, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { workspaceSyncFailureText } from "@plainva/ui";
@@ -25,6 +25,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
 import { CommentStoreLockedError } from "@plainva/core";
+import type { JournalCheckResult } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
 import { installCommentFaultReporter } from "../services/commentFaults";
@@ -83,6 +84,12 @@ export interface VaultSyncWorker {
    * "Vault neu einlesen" falls back to triggerImmediate without it.
    */
   fullResync?: () => Promise<void>;
+  /**
+   * Checks the synced deletion log against the remote and takes back entries
+   * whose file exists (finding 2026-09-20). Only the plain sync worker keeps
+   * such a log.
+   */
+  verifyDeletionJournal?: (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
 }
 
@@ -905,6 +912,11 @@ export const VaultProvider: React.FC<{
       // mass data loss). The first pull's reconcile adopts/merges the remote instead, and
       // onFirstCycleComplete then sweeps only the genuinely local-only files.
       let deferInitialEnqueue = true;
+      // What the sync worker removes itself is not the user's deletion (finding
+      // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
+      // and `onLocalFileDeleted` below asks once and then queues nothing. Without
+      // this, 898 wrongly mirrored files went back up as 898 remote deletions.
+      const ownDeletions = new OwnDeletionRegister();
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
         onExternalModification: (path) => {
@@ -925,6 +937,9 @@ export const VaultProvider: React.FC<{
         onLocalFileDeleted: (path) => {
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
           if (workspaceMaterializedPaths.delete(path)) return;
+          // The worker mirrored a remote deletion: its sync_state is already
+          // gone and the remote has nothing left to delete.
+          if (ownDeletions.consume(path)) return;
           if (hasSyncTarget) {
             if (permissionedWorkspaceAdapter) {
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
@@ -1150,6 +1165,14 @@ export const VaultProvider: React.FC<{
         syncTargetRef.current = null; // cleared each load; set to the raw target below
         syncProviderRef.current = null;
         let target: ISyncTarget | null = null;
+        // A vault that has synced before never gets a freshly created remote
+        // folder (finding 2026-09-20): not finding the folder is then an error
+        // with a way out, not a reason to compare 1142 known files against an
+        // empty one.
+        const hasSyncedBefore = await syncRepo.hasConfirmedRemoteFiles().catch(() => false);
+        // Drive only: the folder id learned by NAME, kept until a listing of it
+        // has held (see onFullListingTrusted below).
+        let resolvedDriveRoot: { id: string; path: string } | null = null;
         // Microsoft accounts connected through the union consent keep ONE
         // refresh token in the account slot; the file sync then only asks the
         // broker for an access token instead of rotating a copy of its own
@@ -1176,6 +1199,11 @@ export const VaultProvider: React.FC<{
           );
           if (driveTokenProvider) driveTarget.accessTokenProvider = driveTokenProvider;
           driveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
+          driveTarget.allowRootCreation = !hasSyncedBefore;
+          // Resolved by name because no id is stored yet — the affected vault of
+          // 2026-09-20 had neither name nor id and looked "Plainva" up on every
+          // start. The id is stored once a full listing of this folder has held.
+          if (!driveDestination.id) driveTarget.onRootFolderResolved = (info) => { resolvedDriveRoot = { id: info.id, path: info.path }; };
           target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || oneDriveTokenProvider)) {
           syncProvider = "onedrive";
@@ -1205,6 +1233,7 @@ export const VaultProvider: React.FC<{
             };
           }
           oneDriveTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
+          oneDriveTarget.allowRootCreation = !hasSyncedBefore;
           target = oneDriveTarget;
         } else if (dropboxReady && dropboxCreds && dropboxCreds.refreshToken) {
           syncProvider = "dropbox";
@@ -1225,6 +1254,7 @@ export const VaultProvider: React.FC<{
             dropboxCreds.refreshToken = refreshToken;
           };
           dropboxTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
+          dropboxTarget.allowRootCreation = !hasSyncedBefore;
           target = dropboxTarget;
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
@@ -1233,7 +1263,9 @@ export const VaultProvider: React.FC<{
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
-          target = new WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          const webdavTarget = new WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          webdavTarget.allowRootCreation = !hasSyncedBefore;
+          target = webdavTarget;
         }
 
         if (target) {
@@ -1380,8 +1412,28 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal });
+            syncWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions });
             firstSyncSettled = false;
+            // The listing contradicts itself: facts for the dialog, null once a
+            // listing holds again. Set BEFORE the status, so the error entry the
+            // status creates already carries them (finding 2026-09-20).
+            syncWorker.onListingIncomplete = (info) => {
+              syncStatusStore.set(path, { listingIncomplete: info });
+            };
+            // One line of numbers per noteworthy listing — never a name (plan A0).
+            syncWorker.onListingMetrics = (report) => {
+              logDiagnostic("sync", formatListingReport(report, syncProvider));
+            };
+            // A full listing of the folder resolved by name has held: from now on
+            // the ID addresses it, and a rename or move in Drive cannot send this
+            // vault into a fresh, empty folder any more (plan A4).
+            syncWorker.onFullListingTrusted = () => {
+              const root = resolvedDriveRoot;
+              if (!root) return;
+              resolvedDriveRoot = null;
+              writeSyncRootFolder(path, "drive", root.path, root.id)
+                .catch((e) => console.error("[VaultContext] could not store the Drive folder id", e));
+            };
             // Reported every cycle, empty included, so a renamed pair takes the
             // card down again by itself. Not on the encrypted worker: that one
             // stores sealed objects under content hashes, so the remote never
@@ -1455,17 +1507,22 @@ export const VaultProvider: React.FC<{
                 }
               })();
             };
-            syncWorker.onDeletionMirroringSuspended = ({ missing, confirmed }) => {
+            syncWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
               // The pull-side guard tripped and the journal does not explain the
-              // absences: either somebody deleted outside the app, or the cloud
-              // answered incompletely. Until now this was a dead end (an error
-              // status with no exit) — and the held files went back UP on the
-              // next cycle, undoing a deletion nobody here could see. Ask, with
-              // Cancel/Escape on the safe branch: keep the local copies.
+              // absences. Since 2026-09-20 the worker has ASKED the remote about a
+              // sample of them first: had one been alive, there would be no
+              // question at all (onListingIncomplete). So the dialog can say what
+              // was checked instead of offering "deleted elsewhere — or the cloud
+              // answered incompletely" and leaving the person to guess. Without a
+              // definitive answer (a provider that cannot be asked, or rows
+              // without an id) it says that, too. Cancel/Escape and the focus sit
+              // on the safe branch: keep the local copies.
               void (async () => {
                 const applyHere = await appConfirm({
                   title: i18n.t("sync.pullGuardTitle"),
-                  message: i18n.t("sync.pullGuardBody", { n: missing, total: confirmed }),
+                  message: absent > 0
+                    ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
+                    : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
                   kind: "danger",
                   confirmLabel: i18n.t("sync.pullGuardApply"),
                   cancelLabel: i18n.t("sync.pullGuardKeep"),

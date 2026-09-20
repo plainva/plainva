@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-09-16
+Ultimo aggiornamento: 2026-09-20
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -161,7 +161,7 @@ Il telefono ne porta un po' meno: la disposizione delle quattro barre **desktop*
 
 La diagnostica separa ora **ultimo controllo** (campi del profilo locale), **ultimo download**, **ultima applicazione** e **ultimo invio effettivo**. “Inviato” cambia solo dopo una scrittura nel cloud riuscita; i cicli invariati aggiornano quindi controllo e download, ma non l’orario di invio. Gli esiti dei segreti sono separati come conteggi di importati, invariati, rifiutati, obsoleti, in errore o in attesa di un account. Contengono solo codici motivo stabili — mai ID account, password, token o errori grezzi. Un avviso di client precedente indica che Plainva va aggiornato su tutti i dispositivi partecipanti; questo dispositivo ignora i dati Google client ritirati.
 
-**Le cancellazioni viaggiano.** Una cancellazione che hai confermato resta 90 giorni in un registro (`.plainva/sync/deletions.json`) e viene replicata su ogni altro dispositivo senza domande, anche dopo un riavvio e anche se lì mancano molti file insieme. Se invece nel cloud mancano molti file senza che il registro li spieghi, Plainva ferma la replica e chiede: **applicare le cancellazioni** o **tenerle in locale** (in tal caso ricarica i file come nuovi). Lo stesso vale per gli elenchi attività: una cancellazione eseguita presso il fornitore rimuove la nota attività anche sull’altro dispositivo, purché lì sia invariata.
+**Le cancellazioni viaggiano.** Una cancellazione che hai confermato resta 90 giorni in un registro (`.plainva/sync/deletions.json`) e viene replicata su ogni altro dispositivo senza domande, anche dopo un riavvio e anche se lì mancano molti file insieme. Se invece nel cloud mancano molti file senza che il registro li spieghi, Plainva ferma la replica e chiede: **applicare le cancellazioni** o **tenerle in locale** (in tal caso ricarica i file come nuovi). Lo stesso vale per gli elenchi attività: una cancellazione eseguita presso il fornitore rimuove la nota attività anche sull’altro dispositivo, purché lì sia invariata. Prima di chiedere — e prima di togliere qui anche un solo file — Plainva verifica direttamente con il cloud: chiede uno per uno un campione dei file mancanti. Se anche uno solo c'è, l'elenco del cloud era incompleto: non viene eliminato nulla, nessuno viene interpellato e lo stato della sincronizzazione mostra **Il cloud ha risposto in modo incompleto: non è stato eliminato nulla** con **Controlla di nuovo**. Una voce del registro viene scritta solo dopo che un file è risultato davvero assente ed è stato tolto qui, e una voce il cui file ricompare nel cloud viene ritirata; **Controlla il registro delle eliminazioni**, in **Informazioni e diagnostica**, lo fa su richiesta. Se la cartella cloud di un vault già sincronizzato non viene trovata, Plainva non crea più un sostituto vuoto ma lo segnala: a quel punto scegli la cartella esistente.
 
 ## Errori e nuovo tentativo automatico
 

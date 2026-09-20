@@ -55,7 +55,31 @@ export interface TaskDeletionEntry {
   deviceId: string;
 }
 
-export type DeletionJournalEntry = PathDeletionEntry | TaskDeletionEntry;
+/**
+ * A path deletion that turned out to be WRONG: the file exists remotely
+ * (finding 2026-09-20 — a confirmation given on the word of an incomplete
+ * listing put some 900 living files into the journal, and every other device
+ * would have mirrored an absence of theirs without asking). A retraction voids
+ * every path entry covering `path` that is not newer than it; a later, real
+ * deletion of the same path counts again.
+ *
+ * Additive: a client from before this kind skips what it does not know (see
+ * `parseDeletionJournal`), so the format version stays where it is.
+ */
+export interface PathRetractionEntry {
+  kind: "retract";
+  /** Vault-relative, forward slashes. A retracted folder covers its children. */
+  path: string;
+  retractedAt: number;
+  deviceId: string;
+}
+
+export type DeletionJournalEntry = PathDeletionEntry | TaskDeletionEntry | PathRetractionEntry;
+
+/** The moment an entry speaks for — what merge order and retention go by. */
+export function entryTime(e: DeletionJournalEntry): number {
+  return e.kind === "retract" ? e.retractedAt : e.deletedAt;
+}
 
 export interface TaskDeletionKey {
   uid: string;
@@ -72,16 +96,19 @@ export function normalizeJournalPath(path: string): string {
 }
 
 function entryKey(e: DeletionJournalEntry): string {
-  return e.kind === "path"
-    ? `path:${e.path}`
-    : `task:${e.provider ?? ""}|${e.identity ?? ""}|${e.list}|${e.uid}`;
+  if (e.kind === "path") return `path:${e.path}`;
+  if (e.kind === "retract") return `retract:${e.path}`;
+  return `task:${e.provider ?? ""}|${e.identity ?? ""}|${e.list}|${e.uid}`;
 }
 
 function isEntry(v: unknown): v is DeletionJournalEntry {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  if (typeof e.deletedAt !== "number" || !Number.isFinite(e.deletedAt)) return false;
   if (typeof e.deviceId !== "string") return false;
+  if (e.kind === "retract") {
+    return typeof e.retractedAt === "number" && Number.isFinite(e.retractedAt) && typeof e.path === "string" && e.path.length > 0;
+  }
+  if (typeof e.deletedAt !== "number" || !Number.isFinite(e.deletedAt)) return false;
   if (e.kind === "path") return typeof e.path === "string" && e.path.length > 0;
   if (e.kind === "task") return typeof e.uid === "string" && typeof e.list === "string";
   return false;
@@ -105,6 +132,10 @@ export function parseDeletionJournal(text: string | null | undefined): DeletionJ
       const path = normalizeJournalPath(raw.path);
       if (!path) continue;
       out.push({ kind: "path", path, deletedAt: raw.deletedAt, deviceId: raw.deviceId });
+    } else if (raw.kind === "retract") {
+      const path = normalizeJournalPath(raw.path);
+      if (!path) continue;
+      out.push({ kind: "retract", path, retractedAt: raw.retractedAt, deviceId: raw.deviceId });
     } else {
       out.push({
         kind: "task",
@@ -120,7 +151,7 @@ export function parseDeletionJournal(text: string | null | undefined): DeletionJ
   return out;
 }
 
-/** Union by identity; the newer `deletedAt` wins for the same path/task. */
+/** Union by identity; the newer time wins for the same path/task/retraction. */
 export function mergeDeletionEntries(
   ...lists: ReadonlyArray<ReadonlyArray<DeletionJournalEntry>>
 ): DeletionJournalEntry[] {
@@ -129,10 +160,10 @@ export function mergeDeletionEntries(
     for (const e of list) {
       const k = entryKey(e);
       const prev = byKey.get(k);
-      if (!prev || e.deletedAt > prev.deletedAt) byKey.set(k, e);
+      if (!prev || entryTime(e) > entryTime(prev)) byKey.set(k, e);
     }
   }
-  return [...byKey.values()].sort((a, b) => a.deletedAt - b.deletedAt || entryKey(a).localeCompare(entryKey(b)));
+  return [...byKey.values()].sort((a, b) => entryTime(a) - entryTime(b) || entryKey(a).localeCompare(entryKey(b)));
 }
 
 export function pruneDeletionEntries(
@@ -141,7 +172,7 @@ export function pruneDeletionEntries(
   retentionMs: number = DELETION_JOURNAL_RETENTION_MS
 ): DeletionJournalEntry[] {
   const cutoff = now - retentionMs;
-  return entries.filter((e) => e.deletedAt >= cutoff);
+  return entries.filter((e) => entryTime(e) >= cutoff);
 }
 
 export function serializeDeletionJournal(entries: ReadonlyArray<DeletionJournalEntry>): string {
@@ -244,13 +275,55 @@ export class DeletionJournal {
    */
   explainsPath(path: string, since: number | null = null): PathDeletionEntry | null {
     const p = normalizeJournalPath(path);
+    const voidUpTo = this.retractedUpTo(p);
     let best: PathDeletionEntry | null = null;
     for (const e of this.entries) {
       if (e.kind !== "path" || !pathEntryCovers(e, p)) continue;
       if (since !== null && e.deletedAt < since) continue;
+      // Taken back (finding 2026-09-20): the path was seen alive after this entry.
+      if (e.deletedAt <= voidUpTo) continue;
       if (!best || e.deletedAt > best.deletedAt) best = e;
     }
     return best;
+  }
+
+  /** The latest retraction covering `p` (its own, or one of an ancestor folder); -Infinity when none. */
+  private retractedUpTo(p: string): number {
+    let latest = Number.NEGATIVE_INFINITY;
+    for (const e of this.entries) {
+      if (e.kind !== "retract") continue;
+      if (p !== e.path && !p.startsWith(e.path + "/")) continue;
+      if (e.retractedAt > latest) latest = e.retractedAt;
+    }
+    return latest;
+  }
+
+  /**
+   * Takes deletions back: each of `paths` was SEEN ALIVE on the remote, so an
+   * entry claiming its deletion is wrong — whoever wrote it. Only paths an
+   * active entry explains are recorded (a retraction for nothing would only
+   * grow the file). Returns the paths it took back.
+   */
+  async retractPaths(paths: ReadonlyArray<string>): Promise<string[]> {
+    await this.load();
+    const at = this.now();
+    const fresh: PathRetractionEntry[] = [];
+    const seen = new Set<string>();
+    for (const raw of paths) {
+      const path = normalizeJournalPath(raw);
+      if (!path || seen.has(path) || path.startsWith(".plainva")) continue;
+      seen.add(path);
+      if (!this.explainsPath(path)) continue;
+      fresh.push({ kind: "retract", path, retractedAt: at, deviceId: this.deviceId });
+    }
+    if (fresh.length === 0) return [];
+    await this.adopt(mergeDeletionEntries(this.entries, fresh));
+    return fresh.map((e) => e.path);
+  }
+
+  /** Path entries that still explain something — what a journal check has to look at. */
+  activePathEntries(): PathDeletionEntry[] {
+    return this.entries.filter((e): e is PathDeletionEntry => e.kind === "path" && e.deletedAt > this.retractedUpTo(e.path));
   }
 
   findTask(key: TaskDeletionKey): TaskDeletionEntry | null {

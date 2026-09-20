@@ -1,5 +1,6 @@
 import { SyncEngine } from "./SyncEngine.js";
-import { ISyncTarget } from "./ISyncTarget.js";
+import { ISyncTarget, type ListingMetrics, type RemotePresence } from "./ISyncTarget.js";
+import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
@@ -9,7 +10,7 @@ import { isTextFile } from "./fileType.js";
 import { findCollidingPath } from "./pathIdentity.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
-import { classifySyncError, syncErrorMessage, type SyncErrorKind } from "./errorKind.js";
+import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErrorKind } from "./errorKind.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -19,8 +20,12 @@ import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "
 // should now reach for a different module.
 export { classifySyncError, syncErrorMessage, type SyncErrorKind };
 
-/** Fatal protocol reasons kept for the recovery UI (settings-sync plan §3.5). */
-export type SyncErrorReason = FatalSyncProtocolError["reason"];
+/**
+ * Fatal protocol reasons kept for the recovery UI (settings-sync plan §3.5),
+ * plus the one state that needs a different way out than "retry": the remote
+ * folder of a vault that has synced before is gone (finding 2026-09-20).
+ */
+export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing";
 
 /**
  * The structured reason of a fatal protocol error, or undefined for ordinary
@@ -28,7 +33,61 @@ export type SyncErrorReason = FatalSyncProtocolError["reason"];
  * in the sync-error dialog (Stilllegen P2) — ordinary failures get no button.
  */
 export function syncErrorReason(error: unknown): SyncErrorReason | undefined {
+  if (error instanceof SyncRootMissingError) return "root-missing";
   return error instanceof FatalSyncProtocolError ? error.reason : undefined;
+}
+
+/**
+ * The remote listing contradicts itself (finding 2026-09-20): files it does not
+ * carry were asked for one by one and ARE there. Nothing is deleted and nobody
+ * is asked — the listing is wrong, not the vault. Facts only; the shell has the
+ * language. `empty` marks the case "the listing came back with no file at all".
+ */
+export interface ListingIncompleteInfo {
+  /** Previously synced files the listing did not carry. */
+  missing: number;
+  /** Previously synced files altogether. */
+  confirmed: number;
+  /** How many of the missing were asked for directly. */
+  probed: number;
+  /** How many of those exist. At least one, or this state would not be raised. */
+  present: number;
+  empty: boolean;
+}
+
+/**
+ * One full listing in numbers (finding 2026-09-20, plan A0) — never a name or a
+ * path. `folders` of the worst-hit parents are keyed by a short hash of their
+ * path, which says "one folder lost 412 files" without saying which.
+ */
+export interface ListingReport extends ListingMetrics {
+  /** Previously synced files this device knows. */
+  known: number;
+  /** Of those, not in the listing. */
+  missing: number;
+  /** First full listing of this worker — after a start or a new sign-in. */
+  firstOfSession: boolean;
+  worstFolders: Array<{ key: string; missing: number }>;
+}
+
+/** What the person is asked when the pull-side guard trips (plan A5). */
+export interface SuspendedDeletionInfo {
+  missing: number;
+  confirmed: number;
+  /** Direct probes behind the question: how many were asked, how many are definitely gone. */
+  probed: number;
+  absent: number;
+}
+
+/** Outcome of `SyncWorker.verifyDeletionJournal`. */
+export interface JournalCheckResult {
+  checked: number;
+  /** Entries taken back because their file exists remotely. */
+  retracted: number;
+  /** Entries whose file is definitely gone — they stay. */
+  absent: number;
+  /** Entries the provider could not answer for — they stay. */
+  unknown: number;
 }
 
 
@@ -202,6 +261,64 @@ const MASS_DELETE_MIN = 10;
 const MASS_DELETE_SHARE = 0.2;
 
 /**
+ * How many of the files a listing does not carry are asked for directly before
+ * anything is deleted or anyone is asked (finding 2026-09-20). Twenty metadata
+ * requests, and only in a cycle that is about to mirror deletions.
+ */
+const PROBE_SAMPLE = 20;
+
+/**
+ * A journal entry is only taken back automatically once it is this old. The
+ * deleting device writes the entry BEFORE its remote DELETE runs (the intent
+ * must survive a crash in between), so for a moment "listed and journaled" is
+ * the ordinary state of a real deletion — not a contradiction.
+ */
+const JOURNAL_RETRACT_GRACE_MS = 24 * 60 * 60 * 1000;
+
+/** Probes that fail in a row before a journal check gives up (it is a network call each). */
+const JOURNAL_CHECK_MAX_FAILURES = 3;
+
+/** Short, stable, meaningless key for a folder path — FNV-1a, six hex digits. */
+function folderKey(path: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < path.length; i++) {
+    h ^= path.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 6);
+}
+
+function parentFolder(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx > 0 ? path.substring(0, idx) : "";
+}
+
+/**
+ * Which of the missing files to ask about. Files with a recorded provider id
+ * come first — for an id-based provider they are the only ones that can answer
+ * "definitely gone" — and within each group the choice is random, so a listing
+ * that lost one folder cannot hide behind a sample drawn from another.
+ * Everything is asked when there are no more than `size`.
+ */
+export function pickProbeSample<T extends { state: { remote_id: string | null } }>(
+  missing: ReadonlyArray<T>,
+  size: number,
+  random: () => number = Math.random
+): T[] {
+  if (missing.length <= size) return [...missing];
+  const shuffle = (items: T[]): T[] => {
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  };
+  const withId = shuffle(missing.filter((m) => m.state.remote_id));
+  const withoutId = shuffle(missing.filter((m) => !m.state.remote_id));
+  return [...withId, ...withoutId].slice(0, size);
+}
+
+/**
  * Download prefetch defaults (hardening P3.3). Only the network `download()`
  * is overlapped — write + merge + sync_state + the failure counters stay
  * strictly sequential in listing order, which keeps the WAL single-writer,
@@ -230,10 +347,20 @@ export interface SyncWorkerOptions {
    * push-side guard either. Undefined = the guards behave exactly as before.
    */
   deletionJournal?: DeletionJournal;
+  /**
+   * Register of the deletions the worker carries out itself (plan A2). The
+   * shell creates it, hands it over here and asks it in `onLocalFileDeleted`:
+   * a file the WORKER removed must not come back as a queued remote delete.
+   */
+  ownDeletions?: OwnDeletionRegister;
 }
 
-/** What became of one remote deletion the worker tried to mirror locally. */
-export type MirrorDeletionOutcome = "deleted" | "gone" | "keptLocalEdits" | "collision" | "localOnly";
+/**
+ * What became of one remote deletion the worker tried to mirror locally.
+ * `stillRemote`: a direct probe found the file alive — the listing was wrong
+ * about it, and nothing was touched (finding 2026-09-20).
+ */
+export type MirrorDeletionOutcome = "deleted" | "gone" | "keptLocalEdits" | "collision" | "localOnly" | "stillRemote";
 
 /** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
 export interface DeletionReport {
@@ -387,11 +514,34 @@ export class SyncWorker {
    * deleted elsewhere) or keepSuspendedDeletionsLocal() (keep the local copies
    * and upload them again). Re-armed once the condition clears.
    */
-  public onDeletionMirroringSuspended?: (info: { missing: number; confirmed: number }) => void;
-  private suspendedMirroringApproved = false;
+  public onDeletionMirroringSuspended?: (info: SuspendedDeletionInfo) => void;
   private suspendedMirroringSignaled = false;
   /** The paths the last suspended cycle held back — what the two answers act on. */
   private suspendedMissingPaths: string[] = [];
+  /**
+   * The answer "delete them here too" covers exactly the files the question
+   * was about (finding 2026-09-20). It used to be one flag for whatever the
+   * NEXT listing was missing — a question about 38 files could have carried
+   * out 974 deletions.
+   */
+  private approvedMissingPaths = new Set<string>();
+  /**
+   * The listing contradicts itself — raised with the facts, lowered with null
+   * once a listing holds again. Never a question: there is nothing to decide.
+   */
+  public onListingIncomplete?: (info: ListingIncompleteInfo | null) => void;
+  private listingIncompleteSignaled = false;
+  /** One line of numbers per noteworthy full listing (plan A0). */
+  public onListingMetrics?: (report: ListingReport) => void;
+  private sawFullListing = false;
+  private lastReportedFiles: number | null = null;
+  /**
+   * A full listing held: nothing it did not carry turned out to be alive. The
+   * shell uses the moment to store what it learned by name only — the Drive
+   * folder id (plan A4). Storing it on a listing that does NOT hold would make
+   * a wrong folder permanent.
+   */
+  public onFullListingTrusted?: () => void;
   /** Fired after every cycle that mirrored or held back at least one deletion. */
   public onDeletionReport?: (report: DeletionReport) => void;
   private readonly deletionJournal?: DeletionJournal;
@@ -553,16 +703,20 @@ export class SyncWorker {
 
   /**
    * Answer to onDeletionMirroringSuspended: the files really were deleted
-   * elsewhere — mirror them on the next (full-listing) cycle, and write the
-   * confirmation into the journal so no further device asks again.
+   * elsewhere — mirror them on the next (full-listing) cycle.
+   *
+   * Nothing is written to the journal HERE any more (finding 2026-09-20). The
+   * click used to put every path into the synced journal at once, before a
+   * single file had been checked or removed — and a confirmation given on the
+   * word of an incomplete listing became the truth for every other device,
+   * which mirror a journaled absence without asking. The entry is now written
+   * per file, by the cycle, after a direct probe found the file gone and the
+   * local copy was removed (see the mirroring loop).
    */
   public approveSuspendedDeletions(): void {
-    this.suspendedMirroringApproved = true;
-    if (this.deletionJournal && this.suspendedMissingPaths.length > 0) {
-      this.deletionJournal.recordPaths(this.suspendedMissingPaths).catch((e) => {
-        console.error("[SyncWorker] recording approved deletions in the journal failed:", e);
-      });
-    }
+    for (const p of this.suspendedMissingPaths) this.approvedMissingPaths.add(p);
+    this.suspendedMissingPaths = [];
+    this.suspendedMirroringSignaled = false;
     this.cursor = undefined; // full listing next cycle -> the missing set is re-derived
     this.triggerImmediate();
   }
@@ -577,6 +731,7 @@ export class SyncWorker {
     const paths = this.suspendedMissingPaths;
     this.suspendedMissingPaths = [];
     for (const p of paths) {
+      this.approvedMissingPaths.delete(p);
       if (!(await this.vault.exists(p))) continue;
       await this.stateRepo.deleteSyncState(p);
       await this.queue.queueWrite(p);
@@ -888,16 +1043,127 @@ export class SyncWorker {
     path: string,
     stateMap: Map<string, SyncState>,
     changedPaths: string[],
-    collisions?: NameCollision[]
+    collisions?: NameCollision[],
+    /** Ask the remote for this one file first (listing-derived absences only). */
+    verify = false
   ): Promise<MirrorDeletionOutcome> {
-    return withPathMutation(this.stateRepo, [path], () => this.mirrorRemoteDeletionLocked(path, stateMap, changedPaths, collisions));
+    return withPathMutation(this.stateRepo, [path], () => this.mirrorRemoteDeletionLocked(path, stateMap, changedPaths, collisions, verify));
+  }
+
+  /**
+   * One full listing in numbers for the host's diagnostics (plan A0). Emitted
+   * for the first listing of this worker, whenever something is missing, and
+   * when the file count moved noticeably — a provider without a change token
+   * lists every cycle, and a line every thirty seconds would push everything
+   * else out of a 200-entry log.
+   */
+  private reportListing(
+    metrics: ListingMetrics | undefined,
+    pullMs: number,
+    listedFiles: number,
+    known: number,
+    missingPaths: string[]
+  ): void {
+    const firstOfSession = !this.sawFullListing;
+    this.sawFullListing = true;
+    const files = metrics?.files ?? listedFiles;
+    const previous = this.lastReportedFiles;
+    const moved = previous === null || Math.abs(files - previous) > Math.max(10, previous * 0.05);
+    if (!this.onListingMetrics || (!firstOfSession && missingPaths.length === 0 && !moved)) return;
+    this.lastReportedFiles = files;
+    const perFolder = new Map<string, number>();
+    for (const p of missingPaths) {
+      const key = folderKey(parentFolder(p));
+      perFolder.set(key, (perFolder.get(key) ?? 0) + 1);
+    }
+    const worstFolders = [...perFolder]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([key, missing]) => ({ key, missing }));
+    try {
+      this.onListingMetrics({
+        folders: metrics?.folders ?? 0,
+        pages: metrics?.pages ?? 0,
+        files,
+        ms: metrics?.ms ?? pullMs,
+        ...(metrics?.rootId ? { rootId: metrics.rootId } : {}),
+        known,
+        missing: missingPaths.length,
+        firstOfSession,
+        worstFolders,
+      });
+    } catch (e) {
+      console.error("[SyncWorker] onListingMetrics consumer failed:", e);
+    }
+  }
+
+  /**
+   * Checks the deletion journal against the remote (plan A3, "Löschprotokoll
+   * prüfen"): every entry that still explains something is asked for by path,
+   * and an entry whose file EXISTS is taken back — that repairs a journal a
+   * wrong confirmation filled (finding 2026-09-20), on this device and, through
+   * the journal's own sync, on every other. An entry the provider cannot answer
+   * for stays. Paths with a DELETE still queued here are skipped: that deletion
+   * simply has not happened yet.
+   */
+  public async verifyDeletionJournal(onProgress?: (done: number, total: number) => void): Promise<JournalCheckResult> {
+    const result: JournalCheckResult = { checked: 0, retracted: 0, absent: 0, unknown: 0 };
+    if (!this.deletionJournal) return result;
+    await this.deletionJournal.load();
+    const queued = await this.queue.getPendingDeletePaths();
+    const entries = this.deletionJournal
+      .activePathEntries()
+      .filter((e) => !queued.some((p) => e.path === p || e.path.startsWith(p + "/")));
+    if (entries.length === 0 || !this.target.probeExists) {
+      result.unknown = entries.length;
+      return result;
+    }
+    const alivePaths: string[] = [];
+    let failures = 0;
+    for (const entry of entries) {
+      let presence: RemotePresence;
+      try {
+        presence = await this.target.probeExists({ path: entry.path, remoteId: null });
+        failures = 0;
+      } catch (e) {
+        if (++failures >= JOURNAL_CHECK_MAX_FAILURES) throw e;
+        presence = "unknown";
+      }
+      result.checked++;
+      if (presence === "present") alivePaths.push(entry.path);
+      else if (presence === "absent") result.absent++;
+      else result.unknown++;
+      onProgress?.(result.checked, entries.length);
+    }
+    result.retracted = (await this.deletionJournal.retractPaths(alivePaths)).length;
+    // Publish the corrected journal now rather than at the next poll.
+    if (result.retracted > 0) this.triggerImmediate();
+    return result;
+  }
+
+  /**
+   * Asks the target for ONE file, by the id this device recorded for it
+   * (finding 2026-09-20). "unknown" covers a target that cannot be asked, an
+   * id-based provider without an id for the path, and a probe that failed:
+   * none of them is evidence, and the callers treat it as none.
+   */
+  private async probePresence(path: string, state: SyncState | null | undefined): Promise<RemotePresence> {
+    if (!this.target.probeExists) return "unknown";
+    this.noteCycleActivity();
+    try {
+      return await this.target.probeExists({ path, remoteId: state?.remote_id ?? null });
+    } catch (e) {
+      console.warn(`[SyncWorker] existence probe failed for ${path}; treated as unknown`, e);
+      return "unknown";
+    }
   }
 
   private async mirrorRemoteDeletionLocked(
     path: string,
     stateMap: Map<string, SyncState>,
     changedPaths: string[],
-    collisions?: NameCollision[]
+    collisions?: NameCollision[],
+    verify = false
   ): Promise<MirrorDeletionOutcome> {
     if (isLocalOnlyPath(path)) return "localOnly";
 
@@ -925,7 +1191,20 @@ export class SyncWorker {
       ? await sha256Hash(await this.vault.readTextFile(path))
       : await sha256Bytes(await this.vault.readBinaryFile(path));
     if (state?.base_sha256 && localSha === state.base_sha256) {
-      await this.vault.deleteItem(path);
+      // The invariant of plan A1: no local file is removed on the word of a
+      // listing while the target can be asked about the file itself. A probe
+      // that finds it alive ends the matter — for this file, and the cycle
+      // treats it as proof that the listing cannot be trusted.
+      if (verify && (await this.probePresence(path, state)) === "present") return "stillRemote";
+      // The indexer will report this file as vanished; the shell must be able
+      // to tell that the WORKER removed it (plan A2) — marked before, not after.
+      this.options.ownDeletions?.mark(path);
+      try {
+        await this.vault.deleteItem(path);
+      } catch (e) {
+        this.options.ownDeletions?.unmark(path);
+        throw e;
+      }
       await this.stateRepo.deleteSyncState(path);
       changedPaths.push(path);
       return "deleted";
@@ -1217,10 +1496,12 @@ export class SyncWorker {
           console.warn("[SyncWorker] getStartCursor failed; staying on full listings", e);
         }
       }
+      const pullStartedAt = Date.now();
       const pullResult = doFullListing
         ? await this.target.pull()
         : await this.target.pull(this.cursor);
       const now = Date.now();
+      const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());
       const structuralPending = await this.queue.getPendingStructuralPaths();
       const awaitingStructure = (path: string): boolean =>
@@ -1318,8 +1599,60 @@ export class SyncWorker {
         );
       }
 
+      // 2a. Provider ids (finding 2026-09-20). Only pushes used to record one, so
+      // a vault this device mostly PULLED had none — and without an id an
+      // id-based provider cannot be asked about one particular file. The
+      // snapshot keeps this to the rows that actually differ: after the first
+      // listing a no-op cycle issues no statement at all.
+      if (pullResult.idMap && alive()) {
+        for (const [path, id] of pullResult.idMap) {
+          if (isLocalOnlyPath(path)) continue;
+          const known = stateMap.get(path);
+          if (known && known.remote_id === id) continue;
+          try {
+            await this.stateRepo.updateRemoteId(path, id);
+            if (known) known.remote_id = id;
+          } catch (e) {
+            console.warn(`[SyncWorker] could not record the remote id of ${path}`, e);
+          }
+        }
+      }
+
+      // 2a'. A path the remote LISTS is alive, whatever the journal says about it
+      // (finding 2026-09-20: some 900 living files were journaled as deleted).
+      // Entries younger than the grace period are left alone — the deleting
+      // device journals before its remote DELETE runs — and so is a path whose
+      // DELETE still waits in this device's own queue.
+      if (this.deletionJournal && alive()) {
+        try {
+          const cutoff = now - JOURNAL_RETRACT_GRACE_MS;
+          const stale = this.deletionJournal.activePathEntries().filter((e) => e.deletedAt <= cutoff);
+          if (stale.length > 0) {
+            const queuedDeletes = await this.queue.getPendingDeletePaths();
+            const awaitsOwnDelete = (path: string) => queuedDeletes.some((p) => path === p || path.startsWith(p + "/"));
+            const alivePaths: string[] = [];
+            for (const path of remotePaths) {
+              if (isLocalOnlyPath(path) || awaitsOwnDelete(path)) continue;
+              const entry = this.deletionJournal.explainsPath(path);
+              if (entry && entry.deletedAt <= cutoff) alivePaths.push(path);
+            }
+            const retracted = await this.deletionJournal.retractPaths(alivePaths);
+            if (retracted.length > 0) {
+              console.warn(`[SyncWorker] took back ${retracted.length} journal entr${retracted.length === 1 ? "y" : "ies"}: the remote lists the file(s)`);
+            }
+          }
+        } catch (e) {
+          console.warn("[SyncWorker] journal self-check failed; the journal stays as it is", e);
+        }
+      }
+
       // 2b. Mirror remote deletions.
       let deletionMirroringSuspended: string | null = null;
+      let listingIncomplete: ListingIncompleteInfo | null = null;
+      // Assigned from inside closures below; read through this accessor wherever
+      // the VALUE is needed, because control-flow analysis cannot see those
+      // assignments and would type the variable as `null` for good.
+      const incompleteListing = (): ListingIncompleteInfo | null => listingIncomplete;
       const deletionReport: DeletionReport = { mirrored: 0, explained: 0, keptLocalEdits: [] };
       const noteMirror = (path: string, outcome: MirrorDeletionOutcome, explained: boolean) => {
         if (outcome === "deleted") {
@@ -1348,14 +1681,16 @@ export class SyncWorker {
             noteMirror(path, outcome, this.deletionJournal?.explainsPath(path) != null);
           });
         }
-      } else if (alive() && remotePaths.size > 0) {
+      } else if (alive() && (remotePaths.size > 0 || Boolean(this.target.probeExists))) {
         // FULL listing: derive deletions from files we confirmed before that are now
-        // missing. Only run on a non-empty listing so a transient empty/failed listing can
-        // never trigger a mass local delete.
+        // missing.
         //
-        // KNOWN, INTENTIONAL LIMIT: a genuine "everything deleted remotely" is NOT mirrored
-        // — we choose safety (never destroy local data on a broken/empty listing) over
-        // completeness.
+        // An EMPTY listing only takes part when the target can be asked about single
+        // files (finding 2026-09-20): then it is a listing like any other — probed,
+        // and at most a QUESTION, never a silent mass delete (see `emptyListing`
+        // below). A target that cannot be asked keeps the old rule: an empty listing
+        // derives nothing, because it cannot be told from a failed one.
+        const emptyListing = remotePaths.size === 0;
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
           if (isLocalOnlyPath(path)) continue;
@@ -1379,58 +1714,175 @@ export class SyncWorker {
           missing.push(candidate);
         }
 
-        // An absence the journal explains — a human confirmed the deletion on
-        // another device (or here, before a restart) — is mirrored regardless of
-        // how many there are: the guard below exists for listings that LOOK
-        // broken, and a confirmed deletion is not one. An entry older than our
-        // last sync of the file does not count: the file was recreated since.
-        const explained: Array<{ path: string; state: SyncState }> = [];
-        const unexplained: Array<{ path: string; state: SyncState }> = [];
-        for (const candidate of missing) {
-          const entry = this.deletionJournal?.explainsPath(candidate.path, candidate.state.last_sync_ts ?? null) ?? null;
-          (entry ? explained : unexplained).push(candidate);
-        }
-        for (const { path } of explained) {
-          if (!alive()) break;
-          await guardPullStep(path, async () => {
-            noteMirror(path, await this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions), true);
-          });
-        }
+        // Numbers first (plan A0): whatever happens below, this listing leaves its
+        // counters behind — never a name.
+        this.reportListing(pullResult.listing, pullMs, remotePaths.size, confirmed.length, missing.map((m) => m.path));
 
-        // Sanity guard: when an implausibly large share of previously confirmed files
-        // vanishes at once WITHOUT the journal explaining it, assume a broken/partial
-        // listing (truncated response, parser miss, server hiccup) rather than a
-        // genuine mass deletion — suspend mirroring, surface a sync error and ask the
-        // host ONCE (P1: a dead end with no exit was how a wanted deletion kept
-        // coming back). The user's answer arrives as approveSuspendedDeletions()
-        // or keepSuspendedDeletionsLocal().
-        const looksBroken =
-          unexplained.length > MASS_DELETE_MIN && unexplained.length > confirmed.length * MASS_DELETE_SHARE;
-        if (looksBroken && !this.suspendedMirroringApproved) {
-          deletionMirroringSuspended = `${unexplained.length} of ${confirmed.length} previously synced files are missing from the remote listing; deletion mirroring suspended for safety`;
-          console.warn(`[SyncWorker] ${deletionMirroringSuspended}`);
-          this.suspendedMissingPaths = unexplained.map((m) => m.path);
-          if (!this.suspendedMirroringSignaled) {
-            this.suspendedMirroringSignaled = true;
-            try {
-              this.onDeletionMirroringSuspended?.({ missing: unexplained.length, confirmed: confirmed.length });
-            } catch (e) {
-              console.error("[SyncWorker] onDeletionMirroringSuspended consumer failed:", e);
+        // Plan A1 — ask before believing (finding 2026-09-20). A listing that does
+        // not carry a file is a CLAIM about it. Up to PROBE_SAMPLE of the missing
+        // files are asked for directly, preferring those with a recorded id (the
+        // only definitive answer an id-based provider can give). One that is
+        // alive settles it: the listing is wrong, nothing is deleted, nobody asked.
+        const canProbe = Boolean(this.target.probeExists);
+        const verdicts = new Map<string, RemotePresence>();
+        if (canProbe) {
+          for (const candidate of pickProbeSample(missing, PROBE_SAMPLE)) {
+            if (!alive()) break;
+            verdicts.set(candidate.path, await this.probePresence(candidate.path, candidate.state));
+          }
+        }
+        const alivePaths = [...verdicts].filter(([, v]) => v === "present").map(([p]) => p);
+        const absentCount = [...verdicts.values()].filter((v) => v === "absent").length;
+        const contradict = (path: string) => {
+          if (!alivePaths.includes(path)) alivePaths.push(path);
+          listingIncomplete = {
+            missing: missing.length,
+            confirmed: confirmed.length,
+            probed: Math.max(verdicts.size, alivePaths.length),
+            present: alivePaths.length,
+            empty: emptyListing,
+          };
+        };
+        for (const path of [...alivePaths]) contradict(path);
+
+        if (!listingIncomplete) {
+          // An absence the journal explains — a human confirmed the deletion on
+          // another device (or here, before a restart) — is mirrored regardless of
+          // how many there are: the guard below exists for listings that LOOK
+          // broken, and a confirmed deletion is not one. An entry older than our
+          // last sync of the file does not count: the file was recreated since.
+          //
+          // Since 2026-09-20 that privilege needs corroboration: at least one probe
+          // that found a file definitely GONE (or a target that cannot be asked at
+          // all — then the journal is all there is, as before). A journal can be
+          // wrong; with nothing to back it, its absences are asked about like any
+          // other. An empty listing never gets the privilege.
+          const corroborated = !emptyListing && (!canProbe || absentCount > 0);
+          const explained: Array<{ path: string; state: SyncState }> = [];
+          const unexplained: Array<{ path: string; state: SyncState }> = [];
+          for (const candidate of missing) {
+            const entry = this.deletionJournal?.explainsPath(candidate.path, candidate.state.last_sync_ts ?? null) ?? null;
+            (entry && corroborated ? explained : unexplained).push(candidate);
+          }
+
+          // Every listing-derived deletion is verified per file right before the
+          // local copy goes (`verify`) — a sampled file that already answered
+          // "absent" is not asked twice. A file found alive ends the mirroring
+          // for this cycle on the spot.
+          const mirrorVerified = async (
+            candidates: Array<{ path: string; state: SyncState }>,
+            explainedByJournal: boolean
+          ): Promise<string[]> => {
+            const removed: string[] = [];
+            for (const { path } of candidates) {
+              if (!alive() || listingIncomplete) break;
+              await guardPullStep(path, async () => {
+                const outcome = await this.mirrorRemoteDeletion(
+                  path, stateMap, changedPaths, nameCollisions, canProbe && verdicts.get(path) !== "absent"
+                );
+                if (outcome === "stillRemote") {
+                  contradict(path);
+                  return;
+                }
+                noteMirror(path, outcome, explainedByJournal);
+                if (outcome === "deleted") removed.push(path);
+              });
+            }
+            return removed;
+          };
+
+          await mirrorVerified(explained, true);
+
+          // What the person already said yes to — exactly those files, nothing the
+          // question did not show. The journal entry follows the ACT (plan A3).
+          const approved = unexplained.filter((c) => this.approvedMissingPaths.has(c.path));
+          const open = unexplained.filter((c) => !this.approvedMissingPaths.has(c.path));
+          if (approved.length > 0 && !listingIncomplete) {
+            const removed = await mirrorVerified(approved, false);
+            for (const c of approved) this.approvedMissingPaths.delete(c.path);
+            if (removed.length > 0 && this.deletionJournal) {
+              try {
+                await this.deletionJournal.recordPaths(removed);
+              } catch (e) {
+                console.error("[SyncWorker] recording carried-out deletions in the journal failed:", e);
+              }
             }
           }
-        } else {
-          for (const { path } of unexplained) {
-            if (!alive()) break;
-            await guardPullStep(path, async () => {
-              noteMirror(path, await this.mirrorRemoteDeletion(path, stateMap, changedPaths, nameCollisions), false);
-            });
+          // An approval for a path that is no longer missing has nothing left to do.
+          const stillMissing = new Set(missing.map((m) => m.path));
+          for (const p of [...this.approvedMissingPaths]) if (!stillMissing.has(p)) this.approvedMissingPaths.delete(p);
+
+          // Sanity guard: when an implausibly large share of previously confirmed files
+          // vanishes at once WITHOUT the journal explaining it, this needs a human —
+          // suspend mirroring, surface a sync error and ask the host ONCE (P1: a dead
+          // end with no exit was how a wanted deletion kept coming back). By now the
+          // probes have found none of them alive; the question carries that result.
+          // The answer arrives as approveSuspendedDeletions() or
+          // keepSuspendedDeletionsLocal(). An empty listing always asks.
+          const looksBroken = open.length > 0 && (emptyListing ||
+            (open.length > MASS_DELETE_MIN && open.length > confirmed.length * MASS_DELETE_SHARE));
+          if (listingIncomplete) {
+            // handled below
+          } else if (looksBroken) {
+            deletionMirroringSuspended = `${open.length} of ${confirmed.length} previously synced files are missing from the remote listing; deletion mirroring suspended for safety`;
+            console.warn(`[SyncWorker] ${deletionMirroringSuspended}`);
+            this.suspendedMissingPaths = open.map((m) => m.path);
+            if (!this.suspendedMirroringSignaled) {
+              this.suspendedMirroringSignaled = true;
+              try {
+                this.onDeletionMirroringSuspended?.({
+                  missing: open.length,
+                  confirmed: confirmed.length,
+                  probed: verdicts.size,
+                  absent: absentCount,
+                });
+              } catch (e) {
+                console.error("[SyncWorker] onDeletionMirroringSuspended consumer failed:", e);
+              }
+            }
+          } else {
+            await mirrorVerified(open, false);
+            if (!listingIncomplete) {
+              // Condition cleared (listing complete again, or the answer was carried
+              // out): re-arm the guard for a NEW incident.
+              this.suspendedMirroringSignaled = false;
+              this.suspendedMissingPaths = [];
+            }
           }
-          if (!looksBroken) {
-            // Condition cleared (listing complete again, or the answer was carried
-            // out): re-arm the guard for a NEW incident.
-            this.suspendedMirroringApproved = false;
-            this.suspendedMirroringSignaled = false;
-            this.suspendedMissingPaths = [];
+        }
+
+        const info = incompleteListing();
+        if (info) {
+          console.warn(
+            `[SyncWorker] the remote listing is incomplete: ${info.missing} of ${info.confirmed} synced files are missing from it, ` +
+              `but ${info.present} of ${info.probed} asked for directly exist; nothing is deleted`
+          );
+          // A file that is alive is not deleted, whatever the journal says about it.
+          if (this.deletionJournal) {
+            try {
+              await this.deletionJournal.retractPaths(alivePaths);
+            } catch (e) {
+              console.warn("[SyncWorker] could not take back journal entries for living files", e);
+            }
+          }
+        }
+      }
+      // Raised with the facts, lowered once a full listing holds again.
+      if (doFullListing && alive()) {
+        const incomplete = incompleteListing();
+        if (incomplete) {
+          this.listingIncompleteSignaled = true;
+          try {
+            this.onListingIncomplete?.(incomplete);
+          } catch (e) {
+            console.error("[SyncWorker] onListingIncomplete consumer failed:", e);
+          }
+        } else if (this.listingIncompleteSignaled) {
+          this.listingIncompleteSignaled = false;
+          try {
+            this.onListingIncomplete?.(null);
+          } catch (e) {
+            console.error("[SyncWorker] onListingIncomplete consumer failed:", e);
           }
         }
       }
@@ -1515,7 +1967,9 @@ export class SyncWorker {
 
       console.log(`[SyncWorker] cycle done (${changedPaths.length} local change(s) from remote, ${pullFailureCount} pull failure(s))`);
       this.onProgress?.(null); // clear progress; the cycle's work is done
-      this.consecutiveFailures = 0;
+      // An incomplete listing keeps counting (see the status block below): every
+      // re-check is a full tree walk, so they are spaced out like failures.
+      if (!listingIncomplete) this.consecutiveFailures = 0;
 
       // Advance the incremental-pull state for the NEXT cycle — but ONLY when every
       // pull step succeeded. A skipped file's sync_state did not advance, so replaying
@@ -1527,10 +1981,21 @@ export class SyncWorker {
       // (undefined for non-token providers -> stays on full listings); after a clean
       // cursor pull, adopt the follow-up token and count toward the next full pass.
       if (pullFailureCount === 0) {
-        if (doFullListing) {
+        if (doFullListing && listingIncomplete) {
+          // A listing its own files contradict establishes nothing: no cursor is
+          // adopted, so the next cycle lists in full again (finding 2026-09-20).
+          this.cursor = undefined;
+        } else if (doFullListing) {
           this.cursor = seededCursor;
           this.cyclesSinceFull = 0;
           this.lastFullListingAt = Date.now();
+          if (!deletionMirroringSuspended) {
+            try {
+              this.onFullListingTrusted?.();
+            } catch (e) {
+              console.error("[SyncWorker] onFullListingTrusted consumer failed:", e);
+            }
+          }
         } else {
           if (pullResult.nextCursor) this.cursor = pullResult.nextCursor;
           this.cyclesSinceFull++;
@@ -1573,10 +2038,20 @@ export class SyncWorker {
         console.error("[SyncWorker] onNameCollisions failed:", e);
       }
 
+      const incompleteNow = incompleteListing();
       if (deletionsHeld) {
         // The user has a pending decision (execute or discard the held remote
         // deletions); keep the error status visible until it is made.
         this.setStatus("error", deletionsHeld);
+      } else if (incompleteNow) {
+        // Not a question and not a failure of ours: the remote answered with a
+        // listing that its own files contradict. Say so with the numbers; the
+        // next cycle lists in full again, a little later each time.
+        this.consecutiveFailures++;
+        this.setStatus(
+          "error",
+          `The remote listing is incomplete: ${incompleteNow.missing} of ${incompleteNow.confirmed} synced files are missing from it, but ${incompleteNow.present} of ${incompleteNow.probed} checked directly exist. Nothing was deleted; Plainva will list again.`
+        );
       } else if (deletionMirroringSuspended) {
         // Pull/push worked, but the listing looked broken — the user must learn
         // why deletions are not being mirrored (clicking the status opens the

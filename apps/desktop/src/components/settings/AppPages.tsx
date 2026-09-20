@@ -13,6 +13,7 @@ import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, isPimTraceEnabled, setPimTraceEnabled, Switch, type CustomThemeDesign } from "@plainva/ui";
+import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
@@ -398,11 +399,33 @@ export interface AboutPageProps {
   onExportPerfMetrics: () => void;
   onExportDiagnostics: () => void;
   onReportIssue: () => void;
+  /**
+   * Checks the synced deletion log against the cloud and takes back entries
+   * whose file still exists (finding 2026-09-20). Absent without a file sync.
+   */
+  onCheckDeletionLog?: (onProgress: (done: number, total: number) => void) => Promise<JournalCheckResult>;
 }
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
   const [pimTrace, setPimTrace] = React.useState(isPimTraceEnabled);
+  const [journalBusy, setJournalBusy] = React.useState(false);
+  const [journalNote, setJournalNote] = React.useState<string | null>(null);
+  const checkDeletionLog = async () => {
+    if (!p.onCheckDeletionLog || journalBusy) return;
+    setJournalBusy(true);
+    try {
+      const result = await p.onCheckDeletionLog((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })));
+      setJournalNote(result.checked === 0 && result.unknown === 0
+        ? t("sync.journalCheckEmpty")
+        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown }));
+    } catch (e) {
+      console.error("[settings] deletion log check failed", e);
+      setJournalNote(t("sync.journalCheckFailed"));
+    } finally {
+      setJournalBusy(false);
+    }
+  };
   return (
     <div>
       <AreaHead areaId="about" />
@@ -426,6 +449,16 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
         <SettingRow label={t("settings.pimTrace")} desc={t("settings.pimTraceDesc")}>
           <Switch checked={pimTrace} label={t("settings.pimTrace")} onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }} />
         </SettingRow>
+        {/* The deletion log travels to every device and explains absences there
+            without a question — so a wrong entry is worth a way to find it
+            (finding 2026-09-20). The result replaces the hint. */}
+        {p.onCheckDeletionLog && (
+          <SettingRow label={t("sync.journalCheck")} desc={journalNote ?? t("sync.journalCheckHint")}>
+            <Button variant="secondary" size="sm" disabled={journalBusy} onClick={() => void checkDeletionLog()} data-testid="check-deletion-log">
+              {t("sync.journalCheck")}
+            </Button>
+          </SettingRow>
+        )}
         <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>

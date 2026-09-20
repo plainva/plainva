@@ -232,6 +232,34 @@ export class SyncStateRepository {
     );
   }
 
+  /**
+   * Has this vault ever confirmed a file with a remote? The shells ask before
+   * they build a sync target (finding 2026-09-20): a vault that has synced
+   * before must never get a freshly created, empty remote folder — every known
+   * file would count as missing against it.
+   */
+  async hasConfirmedRemoteFiles(): Promise<boolean> {
+    const rows = await this.db.query<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM sync_state WHERE remote_etag IS NOT NULL AND path NOT LIKE '.plainva%'`
+    );
+    return Number(rows[0]?.n ?? 0) > 0;
+  }
+
+  /**
+   * Records the provider object id of an EXISTING row and touches nothing else
+   * (finding 2026-09-20). Only pushes used to store an id, so a vault that was
+   * mostly pulled had none — and without an id an id-based provider cannot be
+   * asked whether one particular file still exists. A listing knows every id;
+   * the worker hands them over here. Never inserts: a path without a row has
+   * not been reconciled yet, and its row will carry the id when it is.
+   */
+  async updateRemoteId(path: string, remoteId: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE sync_state SET remote_id = ? WHERE path = ? AND (remote_id IS NULL OR remote_id != ?)`,
+      [remoteId, path, remoteId]
+    );
+  }
+
   async updateBaseState(path: string, baseSha256: string | null, baseEtag: string | null): Promise<void> {
     await this.db.execute(
       `INSERT INTO sync_state (path, base_sha256, base_etag)

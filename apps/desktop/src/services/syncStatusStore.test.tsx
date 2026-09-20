@@ -98,6 +98,21 @@ describe("useDisplaySyncStatus", () => {
     expect(captureSyncErrorSnapshot(V)).toEqual(captured);
   });
 
+  it("carries an incomplete listing's facts into the error the dialog opens on (finding 2026-09-20)", () => {
+    // The worker reports the facts FIRST and the status second, so the entry the
+    // status creates already holds them — the dialog says it in the user's
+    // language instead of showing the core's English sentence.
+    const facts = { missing: 974, confirmed: 1142, probed: 20, present: 20, empty: false };
+    syncStatusStore.set(V, { listingIncomplete: facts });
+    syncStatusStore.set(V, { status: "error", message: "The remote listing is incomplete: …", provider: "drive" });
+    expect(captureSyncErrorSnapshot(V)).toMatchObject({ listingIncomplete: facts, provider: "drive" });
+
+    // Lowered by the worker once a listing holds again; a later failure is an ordinary one.
+    syncStatusStore.set(V, { listingIncomplete: null });
+    syncStatusStore.set(V, { status: "error", message: "Google Drive request timed out after 30s" });
+    expect(captureSyncErrorSnapshot(V)?.listingIncomplete ?? null).toBeNull();
+  });
+
   it("distinguishes authentication failures from transient provider failures", () => {
     expect(isSyncAuthenticationError("Drive token refresh failed: 401 invalid_grant")).toBe(true);
     expect(isSyncAuthenticationError("Google Drive request timed out after 30s")).toBe(false);

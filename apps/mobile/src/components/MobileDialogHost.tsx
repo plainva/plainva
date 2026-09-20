@@ -108,10 +108,14 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
 
         {dialog.kind === "confirm" && (
           <div className="m-btnrow">
-            <Button variant="ghost" onClick={cancel}>
-              {t("common.cancel")}
+            {/* A NAMED safe branch is an action of its own, and the one the
+                sheet recommends (deletion guards, 2026-09-20): it carries the
+                emphasis. A plain "Cancel" stays the quiet ghost it always was. */}
+            <Button variant={dialog.cancelLabel ? "primary" : "ghost"} onClick={cancel} data-testid="confirm-safe">
+              {dialog.cancelLabel ?? t("common.cancel")}
             </Button>
             <Button
+              data-testid="confirm-act"
               variant={dialog.danger ? "danger" : "primary"}
               onClick={() => {
                 dialog.resolve(true);

@@ -1,6 +1,6 @@
-import { syncHttpError } from "./errorKind.js";
+import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
@@ -107,6 +107,13 @@ export class DropboxSyncTarget implements ISyncTarget {
    * found — see the note on the same hook in DriveSyncTarget.
    */
   public onRootFolderCreated?: (name: string) => void;
+
+  /**
+   * False once the vault has synced files before: a root that cannot be found
+   * is then an error with a way out, never a reason to create an empty
+   * replacement and compare every known file against it (finding 2026-09-20).
+   */
+  public allowRootCreation = true;
 
   private announcedRootCreated = false;
 
@@ -369,6 +376,7 @@ export class DropboxSyncTarget implements ISyncTarget {
     if (res.status === 409) {
       const summary = await this.errorSummary(res);
       if (summary.includes("not_found")) {
+        if (!this.allowRootCreation) throw new SyncRootMissingError(this.rootPath, "Dropbox");
         // First connect: the vault root doesn't exist yet — create it, report empty.
         const create = await this.rpc("files/create_folder_v2", { path: this.rootPath, autorename: false });
         if (!create.ok && create.status !== 409) {
@@ -389,9 +397,12 @@ export class DropboxSyncTarget implements ISyncTarget {
     // are reported so the worker can create locally missing (possibly empty)
     // folders.
     const folders: string[] = [];
+    const startedAt = Date.now();
+    let pages = 0;
     for (;;) {
       if (!res.ok) throw syncHttpError(`Dropbox list failed: ${res.status} ${res.statusText}`, res);
       const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
+      pages++;
       for (const entry of json.entries || []) {
         if (entry[".tag"] === "folder") {
           const rel = this.relPathFor(entry);
@@ -408,7 +419,7 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
 
     console.log(`[Dropbox] list ${this.rootPath} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
-    return { etagMap, folders };
+    return { etagMap, folders, listing: { folders: folders.length + 1, pages, files: etagMap.size, ms: Date.now() - startedAt } };
   }
 
   /** One `files/get_metadata` (C31); marker as in `pull` (`fileEtag`). */
@@ -429,6 +440,15 @@ export class DropboxSyncTarget implements ISyncTarget {
       size: typeof entry.size === "number" && entry.size >= 0 ? entry.size : 0,
       ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
     };
+  }
+
+  /**
+   * Path-addressed store: the metadata call reads the object itself, so both
+   * answers are definitive (the worker asks before it deletes a local file on
+   * the word of a listing — finding 2026-09-20).
+   */
+  public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
+    return (await this.stat(probe.path)) ? "present" : "absent";
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

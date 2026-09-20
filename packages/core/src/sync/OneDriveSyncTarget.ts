@@ -1,6 +1,6 @@
-import { syncHttpError } from "./errorKind.js";
+import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -272,6 +272,13 @@ export class OneDriveSyncTarget implements ISyncTarget {
    */
   public onRootFolderCreated?: (name: string) => void;
 
+  /**
+   * False once the vault has synced files before: a root that cannot be found
+   * is then an error with a way out, never a reason to create an empty
+   * replacement and compare every known file against it (finding 2026-09-20).
+   */
+  public allowRootCreation = true;
+
   private announcedRootCreated = false;
 
   /**
@@ -436,13 +443,15 @@ export class OneDriveSyncTarget implements ISyncTarget {
     // Empty-folder sync (2026-07-17): the walk reports every remote folder so
     // the worker can create locally missing (possibly empty) ones.
     const folders: string[] = [];
+    const startedAt = Date.now();
     const rootExists = await this.listInto("", etagMap, folders);
     if (!rootExists) {
+      if (!this.allowRootCreation) throw new SyncRootMissingError(this.rootName, "OneDrive");
       // First connect: the app root doesn't exist yet — create it, report empty.
       await this.ensureFolder("");
     }
     console.log(`[OneDrive] listing -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
-    return { etagMap, folders };
+    return { etagMap, folders, listing: { folders: folders.length + 1, pages: 0, files: etagMap.size, ms: Date.now() - startedAt } };
   }
 
   /**
@@ -540,6 +549,15 @@ export class OneDriveSyncTarget implements ISyncTarget {
       size: typeof item.size === "number" && item.size >= 0 ? item.size : 0,
       ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
     };
+  }
+
+  /**
+   * Path-addressed store: the metadata call reads the object itself, so both
+   * answers are definitive (the worker asks before it deletes a local file on
+   * the word of a listing — finding 2026-09-20).
+   */
+  public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
+    return (await this.stat(probe.path)) ? "present" : "absent";
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

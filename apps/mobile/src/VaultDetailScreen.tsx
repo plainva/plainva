@@ -328,7 +328,30 @@ export function VaultDetailScreen({
             </Button>
           )}
         </div>
-        {isActive && status.message && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
+        {/* A listing its own files contradict (finding 2026-09-20): said in the
+            user's language with the numbers, as a state — nothing was deleted,
+            nobody is asked, and the way on is to list again. It replaces the
+            worker's English status sentence for the same cycle. */}
+        {isActive && status.listingIncomplete && (
+          <Banner kind="warning" rounded>
+            <strong data-testid="sync-listing-incomplete">{t("sync.listingIncompleteTitle")}</strong>
+            <p className="m-hint">
+              {t(status.listingIncomplete.empty ? "sync.listingIncompleteEmpty" : "sync.listingIncompleteBody", {
+                missing: status.listingIncomplete.missing,
+                total: status.listingIncomplete.confirmed,
+                present: status.listingIncomplete.present,
+                probed: status.listingIncomplete.probed,
+              })}
+            </p>
+            <Button variant="tonal" disabled={busy} onClick={() => syncNow()}>{t("sync.listingIncompleteRetry")}</Button>
+          </Banner>
+        )}
+        {/* The cloud folder of a vault that has synced before is gone: Plainva
+            created no replacement (plan A4), and the row below picks the folder. */}
+        {isActive && status.rootMissing && !status.listingIncomplete && (
+          <Banner kind="error" rounded>{t("sync.rootMissingBody")}</Banner>
+        )}
+        {isActive && status.message && !status.listingIncomplete && !status.rootMissing && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
         {isActive && status.collisions.length > 0 && (
           // A decision, not a failure: the sync keeps running for every other
           // file. It used to arrive as one English sentence inside the error

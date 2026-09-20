@@ -868,6 +868,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onExportPerfMetrics={() => { void handleExportPerfMetrics(); }}
                       onExportDiagnostics={() => { void handleExportDiagnostics(); }}
                       onReportIssue={() => { void handleReportIssue(); }}
+                      // Only the plain file sync keeps a deletion log; the encrypted
+                      // workspace worker stores sealed objects and has none.
+                      onCheckDeletionLog={syncWorker?.verifyDeletionJournal
+                        ? (onProgress) => syncWorker.verifyDeletionJournal!(onProgress)
+                        : undefined}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>

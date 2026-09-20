@@ -195,7 +195,7 @@ describe("operation-specific deletion confirmation", () => {
     await w.runCycle();
     expect(prompt).not.toHaveBeenCalled();
     expect(deleted).toHaveLength(12);
-    expect(journal.list().find((e) => e.kind === "path" && e.path === initial[0].file_path)?.deletedAt).toBe(initial[0].delete_confirmed_at);
+    expect(journal.activePathEntries().find((e) => e.path === initial[0].file_path)?.deletedAt).toBe(initial[0].delete_confirmed_at);
   });
 
   it("keeps the confirmed operation if its intent cannot be saved in the journal", async () => {

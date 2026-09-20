@@ -21,7 +21,7 @@
  * worker's capability checks keep reflecting real abilities; token-refresh hooks
  * are forwarded.
  */
-import type { ISyncTarget, RemoteStat, PullResult, PushResult, SyncOperation } from "../sync/ISyncTarget.js";
+import type { ISyncTarget, RemoteStat, RemoteProbe, RemotePresence, PullResult, PushResult, SyncOperation } from "../sync/ISyncTarget.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { isSealedBlob, openBlob, readBlobKeyId, sealBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "./errors.js";
@@ -67,6 +67,10 @@ export class EncryptingSyncTarget implements ISyncTarget {
     // The sealed object is what is stored, so its size and marker are the
     // honest answer; workspace objects are sideband paths and never sealed.
     if (inner.stat) this.stat = (p) => inner.stat!(p);
+    // Names are never sealed, so an existence probe passes straight through —
+    // without it, turning content encryption on would switch the deletion
+    // safeguard off (finding 2026-09-20).
+    if (inner.probeExists) this.probeExists = (probe) => inner.probeExists!(probe);
     if (inner.getStartCursor) this.getStartCursor = () => inner.getStartCursor!();
     if (inner.listFolders) this.listFolders = (p) => inner.listFolders!(p);
     if (inner.createFolder) this.createFolder = (p) => inner.createFolder!(p);
@@ -119,6 +123,7 @@ export class EncryptingSyncTarget implements ISyncTarget {
   // Optional methods assigned in the constructor when the inner target has them.
   remoteEtag?: (filePath: string) => Promise<string | null>;
   stat?: (filePath: string) => Promise<RemoteStat | null>;
+  probeExists?: (probe: RemoteProbe) => Promise<RemotePresence>;
   getStartCursor?: () => Promise<string>;
   listFolders?: (path: string) => Promise<string[]>;
   createFolder?: (path: string) => Promise<void>;

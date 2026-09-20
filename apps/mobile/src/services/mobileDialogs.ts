@@ -2,8 +2,9 @@
  * In-app dialogs (R3.3, decision E4): M3 bottom sheets replace the native
  * Capacitor Dialog prompts/confirms and the OS <select> dropdowns on every
  * UI surface — promise API after the desktop appDialogs pattern, rendered
- * by MobileDialogHost (mounted once in main.tsx). Only the sync service's
- * mass-delete guard intentionally stays on the native dialog.
+ * by MobileDialogHost (mounted once in main.tsx). The sync service's two
+ * deletion guards joined on 2026-09-20: the native two-button dialog could not
+ * name its safe branch ("Keep and upload again"), and naming it is the point.
  */
 
 export interface MobileSelectOption {
@@ -41,6 +42,8 @@ export type MobileDialog =
       kind: "confirm";
       danger?: boolean;
       confirmLabel?: string;
+      /** Names the safe branch where "Cancel" would hide what it does. */
+      cancelLabel?: string;
       resolve: (ok: boolean) => void;
     })
   | (BaseRequest & {
@@ -125,6 +128,7 @@ export function mConfirm(opts: {
   message?: string;
   danger?: boolean;
   confirmLabel?: string;
+  cancelLabel?: string;
 }): Promise<boolean> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "confirm", id: nextId++, ...opts, resolve }];

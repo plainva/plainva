@@ -1,6 +1,6 @@
 import { syncHttpError } from "./errorKind.js";
 import { fetchWithTransferTimeout } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -362,6 +362,15 @@ export class S3SyncTarget implements ISyncTarget {
       size: Number.isFinite(size) && size >= 0 ? size : 0,
       ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }),
     };
+  }
+
+  /**
+   * Path-addressed store: the metadata call reads the object itself, so both
+   * answers are definitive (the worker asks before it deletes a local file on
+   * the word of a listing — finding 2026-09-20).
+   */
+  public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
+    return (await this.stat(probe.path)) ? "present" : "absent";
   }
 
   private async headExists(encodedKey: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-09-16
+Última revisão: 2026-09-20
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -161,7 +161,7 @@ O telefone carrega um pouco menos: a disposição das quatro barras do **desktop
 
 O diagnóstico agora separa **última verificação** (campos locais do perfil), **último download**, **última aplicação** e **último envio real**. “Enviado” só muda depois de uma gravação bem-sucedida na nuvem; rodadas sem alteração atualizam a verificação e o download, mas não o horário de envio. Os resultados de segredos aparecem separadamente como contagens de importados, inalterados, rejeitados, desatualizados, com erro ou aguardando uma conta. Eles contêm apenas códigos de motivo estáveis — nunca ID da conta, senha, token ou erro bruto. Um aviso de cliente antigo significa que o Plainva deve ser atualizado em todos os dispositivos participantes; este dispositivo ignora os dados antigos do cliente Google.
 
-**Exclusões viajam.** Uma exclusão que você confirmou fica 90 dias em um diário (`.plainva/sync/deletions.json`) e é espelhada em todos os outros dispositivos sem perguntar — também após um reinício e mesmo quando muitos arquivos faltam lá de uma vez. Se, por outro lado, faltam muitos arquivos na nuvem sem que o diário os explique, o Plainva pausa o espelhamento e pergunta: **aplicar as exclusões** ou **manter localmente** (então ele envia os arquivos de novo como novos). O mesmo vale para listas de tarefas: uma exclusão feita no provedor também remove a nota de tarefa no outro dispositivo, desde que ela esteja inalterada lá.
+**Exclusões viajam.** Uma exclusão que você confirmou fica 90 dias em um diário (`.plainva/sync/deletions.json`) e é espelhada em todos os outros dispositivos sem perguntar — também após um reinício e mesmo quando muitos arquivos faltam lá de uma vez. Se, por outro lado, faltam muitos arquivos na nuvem sem que o diário os explique, o Plainva pausa o espelhamento e pergunta: **aplicar as exclusões** ou **manter localmente** (então ele envia os arquivos de novo como novos). O mesmo vale para listas de tarefas: uma exclusão feita no provedor também remove a nota de tarefa no outro dispositivo, desde que ela esteja inalterada lá. Antes de perguntar — e antes de remover aqui um único arquivo —, o Plainva confere diretamente com a nuvem: pergunta um a um por uma amostra dos arquivos ausentes. Se ao menos um deles estiver lá, a lista da nuvem estava incompleta: nada é excluído, ninguém é perguntado e o status da sincronização mostra **A nuvem respondeu de forma incompleta — nada foi excluído** com **Verificar novamente**. Uma entrada do registro só é escrita depois que o arquivo foi constatado ausente e removido aqui, e uma entrada cujo arquivo reaparece na nuvem é retirada; **Verificar o registro de exclusões**, em **Sobre e diagnóstico**, faz isso quando você pedir. Se a pasta na nuvem de um vault que já sincronizou não for encontrada, o Plainva não cria mais um substituto vazio, e sim avisa — aí você escolhe a pasta existente.
 
 ## Erros e nova tentativa automática
 

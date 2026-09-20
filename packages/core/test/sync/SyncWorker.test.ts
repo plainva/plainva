@@ -1126,7 +1126,8 @@ describe("SyncWorker", () => {
       await worker.runCycle();
 
       expect(vault.deleteItem).not.toHaveBeenCalled();
-      expect(suspended).toHaveBeenCalledWith({ missing: 11, confirmed: 12 });
+      // This target cannot be asked about single files, so the question carries no probe result.
+      expect(suspended).toHaveBeenCalledWith({ missing: 11, confirmed: 12, probed: 0, absent: 0 });
     });
 
     it("mirrors deletions the journal explains without tripping the guard", async () => {

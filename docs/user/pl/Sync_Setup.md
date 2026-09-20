@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-16
+Stan na: 2026-09-20
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -161,7 +161,7 @@ Telefon przenosi tego nieco mniej: układ czterech pasków **desktopowych** zost
 
 Diagnostyka rozdziela teraz **ostatnio sprawdzono** (lokalne pola profilu), **ostatnio pobrano**, **ostatnio zastosowano** i **ostatnio faktycznie wysłano**. „Wysłano” zmienia się tylko po udanym zapisie w chmurze; niezmienione przebiegi aktualizują więc sprawdzenie i pobranie, ale nie czas wysłania. Wyniki sekretów są osobno podane jako liczby zaimportowanych, niezmienionych, odrzuconych, nieaktualnych, błędnych lub czekających na konto. Zawierają wyłącznie stabilne kody powodów — bez identyfikatora konta, hasła, tokenu i surowego błędu. Ostrzeżenie o starym kliencie oznacza, że Plainva trzeba zaktualizować na wszystkich uczestniczących urządzeniach; to urządzenie ignoruje wycofane dane klienta Google.
 
-**Usunięcia podróżują.** Potwierdzone przez Ciebie usunięcie pozostaje 90 dni w dzienniku (`.plainva/sync/deletions.json`) i jest odwzorowywane na każdym innym urządzeniu bez pytania — także po restarcie i nawet gdy brakuje tam naraz wielu plików. Jeśli natomiast w chmurze brakuje wielu plików, których dziennik nie wyjaśnia, Plainva wstrzymuje odwzorowanie i pyta: **zastosować usunięcia** czy **zachować lokalnie** (wtedy wysyła pliki ponownie jako nowe). To samo dotyczy list zadań: usunięcie wykonane u dostawcy usuwa notatkę zadania także na drugim urządzeniu, o ile jest tam niezmieniona.
+**Usunięcia podróżują.** Potwierdzone przez Ciebie usunięcie pozostaje 90 dni w dzienniku (`.plainva/sync/deletions.json`) i jest odwzorowywane na każdym innym urządzeniu bez pytania — także po restarcie i nawet gdy brakuje tam naraz wielu plików. Jeśli natomiast w chmurze brakuje wielu plików, których dziennik nie wyjaśnia, Plainva wstrzymuje odwzorowanie i pyta: **zastosować usunięcia** czy **zachować lokalnie** (wtedy wysyła pliki ponownie jako nowe). To samo dotyczy list zadań: usunięcie wykonane u dostawcy usuwa notatkę zadania także na drugim urządzeniu, o ile jest tam niezmieniona. Zanim Plainva zapyta — i zanim usunie tutaj choćby jeden plik — sprawdza to bezpośrednio w chmurze: pyta pojedynczo o próbę brakujących plików. Jeśli choć jeden z nich tam jest, lista z chmury była niepełna: nic nie zostaje usunięte, nikt nie jest pytany, a stan synchronizacji pokazuje **Chmura odpowiedziała niekompletnie — nic nie zostało usunięte** z przyciskiem **Sprawdź ponownie**. Wpis w dzienniku powstaje dopiero po stwierdzeniu, że pliku naprawdę nie ma, i po usunięciu go tutaj, a wpis, którego plik znów pojawia się w chmurze, zostaje wycofany; **Sprawdź dziennik usunięć** w sekcji **Informacje i diagnostyka** robi to na żądanie. Jeśli nie da się znaleźć folderu w chmurze dla vaultu, który był już synchronizowany, Plainva nie tworzy już pustego zamiennika, tylko to zgłasza — wtedy wybierasz istniejący folder.
 
 ## Błędy i automatyczne ponawianie
 

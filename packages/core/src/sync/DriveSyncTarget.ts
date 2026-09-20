@@ -1,10 +1,10 @@
 import { fetchWithTransferTimeout, TransferCancelledError, discardResponse } from "./transferTimeout.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, ListingMetrics } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry, parseRetryAfterMs } from "./httpRetry.js";
-import { SyncProviderError } from "./errorKind.js";
+import { SyncProviderError, SyncRootMissingError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
 
@@ -261,6 +261,23 @@ export class DriveSyncTarget implements ISyncTarget {
    */
   public onRootFolderCreated?: (name: string) => void;
 
+  /**
+   * Fired once when the root was resolved BY NAME (no stored id): the shell
+   * keeps the id and, once a listing of it has proved plausible, stores it —
+   * from then on `creds.rootFolderId` addresses the folder and a rename or a
+   * move in Drive can no longer send the vault into a fresh, empty folder
+   * (finding 2026-09-20: the affected vault had neither a name nor an id
+   * stored and resolved the built-in name on every start).
+   */
+  public onRootFolderResolved?: (info: { id: string; path: string; created: boolean }) => void;
+
+  /**
+   * False once the vault has synced files before: a root that cannot be found
+   * is then an error with a way out (pick the folder), never a reason to
+   * create an empty replacement and compare 1142 known files against it.
+   */
+  public allowRootCreation = true;
+
   /** Single-flight guard (P3.1): N parallel 401s must not stampede N refreshes. */
   private refreshInFlight: Promise<void> | null = null;
 
@@ -319,6 +336,14 @@ export class DriveSyncTarget implements ISyncTarget {
     let parentId = "root";
     let created = false;
     for (const segment of this.rootName.replace(/\\/g, "/").split("/").filter((s) => s.length > 0)) {
+      if (!this.allowRootCreation) {
+        // A vault that has synced before never gets a replacement folder
+        // (finding 2026-09-20): not found is an answer the user has to see.
+        const found = await this.findFolder(segment, parentId);
+        if (!found) throw new SyncRootMissingError(this.rootName, "Google Drive");
+        parentId = found;
+        continue;
+      }
       const step = await this.findOrCreateFolderEx(segment, parentId);
       parentId = step.id;
       if (step.created) created = true;
@@ -327,6 +352,7 @@ export class DriveSyncTarget implements ISyncTarget {
     this.cacheFolder("", this.rootFolderId);
     // Announced AFTER the id is cached so the notice cannot repeat per call.
     if (created) this.onRootFolderCreated?.(this.rootName);
+    this.onRootFolderResolved?.({ id: this.rootFolderId, path: this.rootName, created });
     return this.rootFolderId;
   }
 
@@ -779,16 +805,30 @@ export class DriveSyncTarget implements ISyncTarget {
     this.cacheFolder("", rootId);
     const etagMap = new Map<string, string>();
     const mtimeMap = new Map<string, number>();
-    await this.listFolder(rootId, "", etagMap, mtimeMap);
+    const idMap = new Map<string, string>();
+    // Counters only (finding 2026-09-20): a listing that answers 200 with a
+    // fraction of the tree leaves nothing else behind to reason about.
+    const walk = { folders: 0, pages: 0, files: 0 };
+    const startedAt = Date.now();
+    await this.listFolder(rootId, "", etagMap, mtimeMap, idMap, walk);
     // Empty-folder sync (2026-07-17): the walk above cached every remote
     // folder path — report them (minus the vault root "") so the worker can
     // create locally missing EMPTY folders.
     const folders = [...this.folderToId.keys()].filter((p) => p !== "");
-    return { etagMap, folders, mtimeMap };
+    const listing: ListingMetrics = { ...walk, ms: Date.now() - startedAt, rootId: rootId.slice(0, 6) };
+    return { etagMap, folders, mtimeMap, idMap, listing };
   }
 
-  private async listFolder(folderId: string, prefix: string, etagMap: Map<string, string>, mtimeMap?: Map<string, number>): Promise<void> {
+  private async listFolder(
+    folderId: string,
+    prefix: string,
+    etagMap: Map<string, string>,
+    mtimeMap?: Map<string, number>,
+    idMap?: Map<string, string>,
+    walk?: { folders: number; pages: number; files: number }
+  ): Promise<void> {
     let pageToken: string | undefined;
+    if (walk) walk.folders++;
     do {
       const params = new URLSearchParams({
         q: `${driveQueryString(folderId)} in parents and trashed=false`,
@@ -799,6 +839,7 @@ export class DriveSyncTarget implements ISyncTarget {
       const res = await this.authedFetch("GET", `${DRIVE_API}/files?${params.toString()}`);
       if (!res.ok) throw await driveResponseError("folder listing", res);
       const json = (await res.json()) as { files: DriveFile[]; nextPageToken?: string };
+      if (walk) walk.pages++;
       for (const f of json.files || []) {
         const path = prefix ? `${prefix}/${f.name}` : f.name;
         if (f.mimeType === FOLDER_MIME) {
@@ -809,14 +850,16 @@ export class DriveSyncTarget implements ISyncTarget {
             continue;
           }
           this.cacheFolder(path, f.id);
-          await this.listFolder(f.id, path, etagMap, mtimeMap);
+          await this.listFolder(f.id, path, etagMap, mtimeMap, idMap, walk);
         } else if (isGoogleNative(f.mimeType)) {
           // Google-native files (Docs/Sheets/Slides/...) have no binary content and
           // cannot be downloaded with alt=media (they return 403). They are not vault
           // content, so skip them entirely.
           continue;
         } else if (!path.includes(".CONFLICT")) {
+          if (walk) walk.files++;
           this.cachePath(path, f.id);
+          idMap?.set(path, f.id);
           etagMap.set(path, f.md5Checksum || f.modifiedTime || f.id);
           if (mtimeMap && f.modifiedTime) {
             const t = Date.parse(f.modifiedTime);
@@ -830,6 +873,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
   private async pullChanges(cursor: string): Promise<PullResult> {
     const etagMap = new Map<string, string>();
+    const idMap = new Map<string, string>();
     const deleted: string[] = [];
     // Empty-folder sync (2026-07-17): folders the cursor pull registers as
     // brand-new are reported so the worker creates them locally right away
@@ -938,6 +982,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
         if (path && !path.includes(".CONFLICT")) {
           etagMap.set(path, f.md5Checksum || f.modifiedTime || f.id);
+          idMap.set(path, ch.fileId);
         }
       }
 
@@ -947,11 +992,41 @@ export class DriveSyncTarget implements ISyncTarget {
 
     return {
       etagMap,
+      idMap,
       deleted,
       nextCursor,
       needsFullListing: needsFullListing || undefined,
       folders: newFolders.length > 0 ? newFolders : undefined,
     };
+  }
+
+  /**
+   * Does this one file still exist — asked of the OBJECT, not of a search
+   * (finding 2026-09-20). `files.get` by id reads the file's own metadata; the
+   * listing and every lookup by name go through Drive's search, and on that day
+   * both answered 200 with a fraction of the tree. So only the id gives a
+   * negative answer worth acting on: 404 or `trashed` is `absent`. Without an
+   * id a name lookup can still prove presence, but "not found" stays `unknown`.
+   */
+  public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
+    if (probe.path.includes(".CONFLICT")) return "unknown";
+    if (probe.remoteId) {
+      const res = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(probe.remoteId)}?fields=id,trashed`);
+      if (res.status === 404) {
+        discardResponse(res);
+        return "absent";
+      }
+      if (!res.ok) throw await driveResponseError("existence probe", res);
+      const f = (await res.json()) as { id?: string; trashed?: boolean };
+      return f.trashed ? "absent" : "present";
+    }
+    try {
+      return (await this.findFileId(probe.path)) ? "present" : "unknown";
+    } catch (e) {
+      // "Several files of that name" is a finding of its own, not an absence.
+      if (e instanceof SyncProviderError) throw e;
+      return "unknown";
+    }
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

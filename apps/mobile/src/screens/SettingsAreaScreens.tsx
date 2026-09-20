@@ -14,6 +14,7 @@ import {
   type DefaultView,
 } from "../services/mobileSettings";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
+import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
@@ -436,6 +437,24 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   const [hailing, setHailing] = useState(false);
   const [okfInfo, setOkfInfo] = useState(false);
   const [pimTrace, setPimTrace] = useState(isPimTraceEnabled);
+  // "Check deletion log" (finding 2026-09-20): the desktop's row, the same
+  // worker call. Present only while a plain file sync runs.
+  const checkJournal = deletionLogChecker();
+  const [journalBusy, setJournalBusy] = useState(false);
+  const [journalNote, setJournalNote] = useState<string | null>(null);
+  const runJournalCheck = () => {
+    if (!checkJournal || journalBusy) return;
+    setJournalBusy(true);
+    void checkJournal((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })))
+      .then((result) => setJournalNote(result.checked === 0 && result.unknown === 0
+        ? t("sync.journalCheckEmpty")
+        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown })))
+      .catch((e) => {
+        console.error("[settings] deletion log check failed", e);
+        setJournalNote(t("sync.journalCheckFailed"));
+      })
+      .finally(() => setJournalBusy(false));
+  };
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -502,6 +521,13 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
               />}
               title={t("settings.pimTrace")}
             />
+            {checkJournal && (
+              <Row
+                end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                onClick={runJournalCheck}
+                title={t("sync.journalCheck")}
+              />
+            )}
             <Row
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               onClick={() => setOkfInfo(true)}
@@ -510,6 +536,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("settings.pimTraceDesc")}</p>
+        {checkJournal && <p className="m-hint" data-testid="deletion-log-note">{journalNote ?? t("sync.journalCheckHint")}</p>}
       </div>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}

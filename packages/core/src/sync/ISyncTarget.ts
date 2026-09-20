@@ -115,6 +115,50 @@ export interface PullResult {
    * it undefined and the worker keeps the remote listing order.
    */
   mtimeMap?: Map<string, number>;
+  /**
+   * Optional: path -> provider object id for id-based providers (Drive). The
+   * worker persists it as `remote_id`, so a later existence probe can ask for
+   * the OBJECT instead of trusting a listing or a name search (finding
+   * 2026-09-20). Before this only pushed files carried an id; a vault that was
+   * mostly pulled had none, and nothing could be verified.
+   */
+  idMap?: Map<string, string>;
+  /**
+   * Optional: what the listing cost and delivered — counters only, never a
+   * name. The worker adds its own view (known files, missing files) and hands
+   * the line to the host's diagnostics, so an incomplete listing that answers
+   * with HTTP 200 leaves numbers behind (finding 2026-09-20).
+   */
+  listing?: ListingMetrics;
+}
+
+/** Counters of one full listing (see `PullResult.listing`). */
+export interface ListingMetrics {
+  /** Folders walked, the root included. 0 for flat stores. */
+  folders: number;
+  /** List requests answered, i.e. result pages. */
+  pages: number;
+  /** Files the listing returned BEFORE the worker's own filters. */
+  files: number;
+  /** Wall-clock duration of the listing. */
+  ms: number;
+  /** Shortened id of the listed root, for id-based providers. */
+  rootId?: string;
+}
+
+/**
+ * Answer of a direct existence probe (`ISyncTarget.probeExists`).
+ *
+ * `unknown` is a real answer, not an error: an id-based provider asked by PATH
+ * can only search, and a search that finds nothing proves nothing when the
+ * listing that raised the doubt came from the same search. Errors still throw.
+ */
+export type RemotePresence = "present" | "absent" | "unknown";
+
+export interface RemoteProbe {
+  path: string;
+  /** Provider object id recorded for the path, when one is known. */
+  remoteId?: string | null;
 }
 
 /**
@@ -172,6 +216,16 @@ export interface ISyncTarget {
    * store still re-reads what it wrote; only the existence probe got cheaper.
    */
   stat?(filePath: string): Promise<RemoteStat | null>;
+  /**
+   * Optional: does this ONE file still exist remotely — answered without the
+   * listing that raised the doubt (finding 2026-09-20: a Drive listing came
+   * back with HTTP 200 and 168 of 1142 files; the worker offered to delete the
+   * other 974 locally). Path-addressed stores answer through their metadata
+   * call; an id-based provider asks for the object by `remoteId` and answers
+   * `unknown` when all it could do is search by name. The worker never deletes
+   * a local file on a listing alone when the target can be asked.
+   */
+  probeExists?(probe: RemoteProbe): Promise<RemotePresence>;
   /**
    * Optional: a fresh change token representing "now", for change-token providers (Drive
    * `changes.getStartPageToken`). The worker fetches one right before a full listing and

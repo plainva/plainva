@@ -39,6 +39,19 @@ export class SyncProviderError extends Error {
   }
 }
 
+/**
+ * The remote folder of a vault that HAS synced before cannot be found. Creating
+ * a fresh one would be the quiet way into "every known file is missing"
+ * (finding 2026-09-20), so the target refuses and the shell offers the folder
+ * picker. Always fatal: waiting does not bring a folder back.
+ */
+export class SyncRootMissingError extends Error {
+  constructor(public readonly root: string, provider: string) {
+    super(`${provider} has no folder "${root}", and this vault has synced before. Plainva did not create a new one — choose the existing destination in the sync settings.`);
+    this.name = "SyncRootMissingError";
+  }
+}
+
 /** Keep a server's retry delay when a provider turns a response into an error. */
 export function syncHttpError(message: string, response: Response): SyncProviderError {
   return new SyncProviderError(message, response.status, false, parseRetryAfterMs(response.headers?.get?.("Retry-After") ?? null) ?? undefined);

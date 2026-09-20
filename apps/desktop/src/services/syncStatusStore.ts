@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, WorkspaceSyncFailureKind } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { connectionErrorText, logDiagnostic } from "@plainva/ui";
 
@@ -48,9 +48,16 @@ export interface SyncStatusSnapshot {
    * than the sentence the core used to build in English.
    */
   collisions: readonly NameCollision[];
+  /**
+   * The remote listing contradicts itself (finding 2026-09-20): files it does
+   * not carry were asked for one by one and exist. Facts, not a sentence — the
+   * dialog says it in the user's language and offers "check again" instead of
+   * a retry of something that did not fail. Null once a listing holds again.
+   */
+  listingIncomplete?: ListingIncompleteInfo | null;
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [] };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], listingIncomplete: null };
 
 const listeners = new Set<() => void>();
 
@@ -62,6 +69,7 @@ export interface SyncErrorEntry {
   provider: SyncProviderId | null;
   reason?: SyncErrorReason;
   authRecoverable?: boolean;
+  listingIncomplete?: ListingIncompleteInfo | null;
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
 const MAX_ERROR_HISTORY = 20;
@@ -122,6 +130,7 @@ export const syncStatusStore = {
         reason: merged.reason,
         authRecoverable: merged.authRecoverable,
         workspaceFailure: merged.workspaceFailure,
+        listingIncomplete: merged.listingIncomplete ?? null,
       });
       if (st.errorHistory.length > MAX_ERROR_HISTORY) st.errorHistory.splice(0, st.errorHistory.length - MAX_ERROR_HISTORY);
       logDiagnostic("sync", merged.message);
@@ -173,6 +182,7 @@ export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSna
       provider: current.provider,
       reason: current.reason,
       authRecoverable: current.authRecoverable,
+      listingIncomplete: current.listingIncomplete ?? null,
     };
   }
   return syncStatusStore.getLatestError(vaultPath);

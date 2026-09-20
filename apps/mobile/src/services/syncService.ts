@@ -17,9 +17,11 @@ import {
   type ISyncTarget,
   type WorkspaceObjectStore,
   type NameCollision,
+  type ListingIncompleteInfo,
+  type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -27,6 +29,7 @@ import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeA
 import i18n from "@plainva/ui/i18n";
 import { workspaceSyncFailureText } from "@plainva/ui";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
+import { mConfirm } from "./mobileDialogs";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
@@ -122,9 +125,17 @@ interface SyncState {
    * needs the pairs, not a sentence.
    */
   collisions: readonly NameCollision[];
+  /**
+   * The remote listing contradicts itself (finding 2026-09-20): files it does
+   * not carry were asked for one by one and exist. Facts for the sync screen —
+   * nothing was deleted, and the way on is "check again". Null otherwise.
+   */
+  listingIncomplete: ListingIncompleteInfo | null;
+  /** The remote folder of a vault that has synced before is gone (plan A4). */
+  rootMissing: boolean;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [] };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], listingIncomplete: null, rootMissing: false };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -148,11 +159,25 @@ export function currentDeletionJournal(): DeletionJournal | null {
   return deletionJournal;
 }
 
+type JournalChecker = (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
+let journalChecker: JournalChecker | null = null;
+
+/**
+ * "Check deletion log" of the diagnostics screen (finding 2026-09-20): asks the
+ * remote about every synced deletion entry and takes back the ones whose file
+ * still exists. Null while no plain file sync runs — the encrypted workspace
+ * worker keeps no such log.
+ */
+export function deletionLogChecker(): JournalChecker | null {
+  return journalChecker;
+}
+
 function setState(next: {
   status: MobileSyncStatus;
   message: string | null;
   errorKind?: "pair-required" | "workspace-integrity" | "authentication";
   retryAt?: number;
+  rootMissing?: boolean;
 }): void {
   if (next.message) next = { ...next, message: connectionErrorText(next.message) ?? next.message };
   const finished = state.status === "syncing" && next.status === "idle";
@@ -172,8 +197,17 @@ function setState(next: {
     // Survives a status change: the pair is still there whether the cycle
     // succeeded or failed, and only the worker's next report clears it.
     collisions: state.collisions,
+    // Same rule: raised and lowered by the worker's own report, not by a status.
+    listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
+    rootMissing: next.rootMissing ?? false,
   };
   for (const l of listeners) l();
+}
+
+function setListingIncomplete(info: ListingIncompleteInfo | null): void {
+  if (state.listingIncomplete === info) return;
+  state = { ...state, listingIncomplete: info };
+  for (const fn of listeners) fn();
 }
 
 function setProgress(progress: { current: number; total: number } | null): void {
@@ -459,6 +493,7 @@ export function stopSync(): void {
   worker?.stop();
   worker = null;
   deletionJournal = null;
+  journalChecker = null;
 }
 
 /**
@@ -471,6 +506,7 @@ export async function stopSyncAndDrain(): Promise<void> {
   const w = worker;
   worker = null;
   deletionJournal = null;
+  journalChecker = null;
   if (w) await w.stopAndDrain();
 }
 
@@ -743,6 +779,18 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  // A vault that has synced before never gets a freshly created remote folder
+  // (finding 2026-09-20): not finding it is then an error with a way out, not
+  // a reason to compare every known file against an empty one. Probes and
+  // pickers build their targets elsewhere and keep the default.
+  const hasSyncedBefore = (await v.syncRepo?.hasConfirmedRemoteFiles().catch(() => false)) ?? false;
+  if ("allowRootCreation" in rawTarget) (rawTarget as { allowRootCreation: boolean }).allowRootCreation = !hasSyncedBefore;
+  // Drive only: the folder id learned by NAME, kept until a full listing of it
+  // has held — then stored, so the id addresses the folder from now on (A4).
+  let resolvedDriveRoot: { id: string; path: string } | null = null;
+  if (rawTarget instanceof DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
+    rawTarget.onRootFolderResolved = (info) => { resolvedDriveRoot = { id: info.id, path: info.path }; };
+  }
   if (!v.workspaceRuntime) {
     // Probe for an encrypted-workspace genesis so a plaintext local vault is
     // never synced blindly against a workspace remote. A transport/auth failure
@@ -830,10 +878,24 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,
     deletionJournal: journal,
+    ownDeletions: v.ownDeletions,
   });
-  w.onStatusChange = (status, errorMsg, _reason, retryAt) => {
-    setState({ status, message: errorMsg ?? null, retryAt });
+  w.onStatusChange = (status, errorMsg, reason, retryAt) => {
+    setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing" });
   };
+  // The listing contradicts itself: facts for the sync screen, null once a
+  // listing holds again (finding 2026-09-20). Never a question.
+  w.onListingIncomplete = setListingIncomplete;
+  // One line of numbers per noteworthy listing — never a name (plan A0).
+  w.onListingMetrics = (report) => logDiagnostic("sync", formatListingReport(report, p.provider));
+  w.onFullListingTrusted = () => {
+    const root = resolvedDriveRoot;
+    if (!root) return;
+    resolvedDriveRoot = null;
+    void writeSyncRootFolder(v.vaultId, "drive", root.path, root.id)
+      .catch((e) => console.error("[syncService] could not store the Drive folder id", e));
+  };
+  journalChecker = (onProgress) => w.verifyDeletionJournal(onProgress);
   w.onNameCollisions = setCollisions;
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
@@ -853,15 +915,17 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
     notifyPulledFiles(paths);
   };
   w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-    // Native dialog via the Dialog plugin (window.confirm silently returns
-    // false in the Capacitor 8 WebView); Cancel takes the safe restore
-    // branch. Localized with the shared sync.massDelete* strings (P5).
-    void import("@capacitor/dialog").then(async ({ Dialog }) => {
-      const { value } = await Dialog.confirm({
+    // The app's own sheet since 2026-09-20 (it was the native two-button
+    // dialog): the safe branch has a NAME and carries the emphasis, the
+    // destructive one is styled as such. Dismissing the sheet takes the safe
+    // restore branch. Localized with the shared sync.massDelete* strings (P5).
+    void (async () => {
+      const value = await mConfirm({
         title: i18n.t("sync.massDeleteTitle"),
         message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
-        okButtonTitle: i18n.t("sync.massDeleteConfirm"),
-        cancelButtonTitle: i18n.t("sync.massDeleteRestore"),
+        danger: true,
+        confirmLabel: i18n.t("sync.massDeleteConfirm"),
+        cancelLabel: i18n.t("sync.massDeleteRestore"),
       });
       if (value) {
         w.approveMassDeletion();
@@ -877,17 +941,23 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
         console.error("[syncService] discardMassDeletion failed", e);
         toast.error(i18n.t("sync.massDeleteRestoreFailed"));
       }
-    });
+    })();
   };
-  w.onDeletionMirroringSuspended = ({ missing, confirmed }) => {
+  w.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
     // Pull-side guard with an exit (P1): the journal does not explain these
-    // absences, so a person decides — and Cancel keeps the local copies.
-    void import("@capacitor/dialog").then(async ({ Dialog }) => {
-      const { value } = await Dialog.confirm({
+    // absences, so a person decides. Since 2026-09-20 the worker has asked the
+    // remote about a sample first — had one been alive there would be no
+    // question (onListingIncomplete) — so the sheet says what was checked, or
+    // that nothing could be. Dismissing keeps the local copies.
+    void (async () => {
+      const value = await mConfirm({
         title: i18n.t("sync.pullGuardTitle"),
-        message: i18n.t("sync.pullGuardBody", { n: missing, total: confirmed }),
-        okButtonTitle: i18n.t("sync.pullGuardApply"),
-        cancelButtonTitle: i18n.t("sync.pullGuardKeep"),
+        message: absent > 0
+          ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
+          : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
+        danger: true,
+        confirmLabel: i18n.t("sync.pullGuardApply"),
+        cancelLabel: i18n.t("sync.pullGuardKeep"),
       });
       if (value) {
         w.approveSuspendedDeletions();
@@ -900,7 +970,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider): Promise<void>
         console.error("[syncService] keepSuspendedDeletionsLocal failed", e);
         toast.error(i18n.t("sync.pullGuardFailed"));
       }
-    });
+    })();
   };
   w.onDeletionReport = (report) => {
     // Same rule as the desktop: a deletion kept back because of unsynced local

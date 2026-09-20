@@ -1,7 +1,7 @@
-import { syncHttpError } from "./errorKind.js";
+import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 
@@ -299,6 +299,12 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
   }
 
+  /**
+   * False once the vault has synced files before: a folder that is gone is then
+   * an error with a way out, never an empty remote (finding 2026-09-20).
+   */
+  public allowRootCreation = true;
+
   // WebDAV has no incremental change token: the `cursor` argument from the
   // ISyncTarget contract is intentionally ignored and a full PROPFIND listing is
   // always returned. Deletions are derived by the worker from the listing diff.
@@ -317,6 +323,14 @@ export class WebDavSyncTarget implements ISyncTarget {
     if (res.ok) {
       responses = this.parseListing(await res.text());
     } else if (res.status === 404) {
+      // A vault that has synced before and a folder that is gone: say so
+      // instead of reporting an empty remote (finding 2026-09-20).
+      if (!this.allowRootCreation) {
+        // The path only: never the host, never anything a credential could sit in.
+        let folder = "/";
+        try { folder = decodeURIComponent(new URL(this.creds.url).pathname) || "/"; } catch { /* keep "/" */ }
+        throw new SyncRootMissingError(folder, "The WebDAV server");
+      }
       return { etagMap: new Map() };
     } else if (res.status === 403) {
       // RFC 4918 allows servers to refuse infinite-depth PROPFIND (Apache
@@ -494,6 +508,15 @@ export class WebDavSyncTarget implements ISyncTarget {
       size: entry.size ?? 0,
       ...(entry.modifiedAt === undefined ? {} : { modifiedAt: entry.modifiedAt }),
     };
+  }
+
+  /**
+   * Path-addressed store: the metadata call reads the object itself, so both
+   * answers are definitive (the worker asks before it deletes a local file on
+   * the word of a listing — finding 2026-09-20).
+   */
+  public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
+    return (await this.stat(probe.path)) ? "present" : "absent";
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

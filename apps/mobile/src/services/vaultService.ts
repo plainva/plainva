@@ -19,6 +19,7 @@ import {
   createWorkspaceObjectId,
   SyncQueue,
   SyncStateRepository,
+  OwnDeletionRegister,
   VaultIndexer,
   VaultQueryService,
   type IDatabaseAdapter,
@@ -112,6 +113,13 @@ export interface MobileVault {
   backup: BackupVaultAdapter | null;
   syncQueue: SyncQueue | null;
   syncRepo: SyncStateRepository | null;
+  /**
+   * What the sync worker removes itself is not the user's deletion (finding
+   * 2026-09-20, desktop twin in VaultContext): the worker marks a path before
+   * it mirrors a remote deletion, and the indexer's delete callback asks once
+   * and then queues nothing.
+   */
+  ownDeletions: OwnDeletionRegister;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
   workspaceState: SqlWorkspaceStateStore | null;
   /** Raw index DB (also carries the pim_* tables) — the calendar/PIM runtime. */
@@ -462,6 +470,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter | null;
   let syncRepo: SyncStateRepository | null;
+  const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
   let queryService: VaultQueryService | null;
   let searchAvailable = false;
@@ -581,6 +590,11 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         void enqueueLocal(path);
       },
       onLocalFileDeleted: (path) => {
+        // The worker mirrored a remote deletion (finding 2026-09-20): nothing is
+        // left to delete remotely, and queueing it is how a wrongly mirrored
+        // file went back up as a remote deletion. Asked first, so the mark is
+        // consumed whether or not enqueueing is on yet.
+        if (ownDeletions.consume(path)) return;
         if (!syncEnqueueEnabled || isInternal(path)) return;
         if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) return workspaceState!.enqueue("delete", path); }).catch(() => {}); }
         else if (queue) void queue.queueDelete(path).catch(() => {});
@@ -636,6 +650,7 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     backup,
     syncQueue: queue,
     syncRepo,
+    ownDeletions,
     workspaceRuntime,
     workspaceState,
     db,
