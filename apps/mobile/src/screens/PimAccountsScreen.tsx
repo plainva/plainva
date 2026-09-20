@@ -104,6 +104,7 @@ export function PimAccountsScreen({
   const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
   const [taskDays, setTaskDays] = useState(() => getMobileSettings().reminderTaskLeadDays);
   const [taskAt, setTaskAt] = useState(() => getMobileSettings().reminderTaskAtMinutes);
+  const [taskTimedLead, setTaskTimedLead] = useState(() => getMobileSettings().reminderTaskTimedLead);
   const [reminderCalendars, setReminderCalendars] = useState<string[]>(() => getMobileSettings().reminderCalendars);
   const reminderState = useSyncExternalStore(subscribeReminderState, getReminderState);
   // The form knows the three network providers; the device account has no form (it is one tap on its tile).
@@ -286,6 +287,17 @@ export function PimAccountsScreen({
     if (picked === null) return;
     saveReminder({ reminderLeadMinutes: Number(picked) }, () => setLead(Number(picked)));
   }, [lead, leadLabel, saveReminder, t]);
+
+  /** A task with a time reminds at ITS time; this is how long before (E10). */
+  const pickTaskTimedLead = useCallback(async () => {
+    const picked = await mSelect({
+      title: t("reminders.tasksTimedLead"),
+      options: [0, 5, 10, 15, 30, 60, 120].map((m) => ({ value: String(m), label: m === 0 ? t("reminders.leadAtTime") : leadLabel(m) })),
+      value: String(taskTimedLead),
+    });
+    if (picked === null) return;
+    saveReminder({ reminderTaskTimedLead: Number(picked) }, () => setTaskTimedLead(Number(picked)));
+  }, [taskTimedLead, leadLabel, saveReminder, t]);
 
   const pickAllDay = useCallback(async () => {
     // Used to be six fixed day+time combinations, which hid both questions:
@@ -693,6 +705,15 @@ export function PimAccountsScreen({
                 end={<><span className="m-prop-val">{taskTimeLabel(taskDays, taskAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
                 onClick={() => void pickTaskTime()}
                 title={t("reminders.tasksNoTime")}
+              />
+            ) : null}
+            {remindTasks ? (
+              <Row
+                data-testid="reminder-task-timed-lead"
+                end={<><span className="m-prop-val">{taskTimedLead === 0 ? t("reminders.leadAtTime") : leadLabel(taskTimedLead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                onClick={() => void pickTaskTimedLead()}
+                subtitle={t("reminders.tasksTimedLeadDesc")}
+                title={t("reminders.tasksTimedLead")}
               />
             ) : null}
             <Row

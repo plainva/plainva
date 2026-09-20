@@ -37,6 +37,15 @@ export interface ReminderRule {
   taskLeadDays: number;
   /** … at this minute of that day (local). 540 = 09:00. */
   taskAtMinutes: number;
+  /**
+   * Tasks WITH a time of day: minutes before it (plan Aufgaben-Oberfläche, E10).
+   *
+   * Their own lead, default 0. They used to borrow `defaultLeadMinutes`, the
+   * appointment's — but "15 minutes before the meeting" is travel time, and a
+   * task at 14:00 is the moment to DO it. Optional so a caller that predates it
+   * keeps its behaviour.
+   */
+  taskTimedLeadMinutes?: number;
 }
 
 export interface ReminderSubject {
@@ -139,7 +148,8 @@ export function planReminders(
       );
       if (at !== null) all.push({ at, subject });
     } else {
-      all.push({ at: subject.startTs - rule.defaultLeadMinutes * 60_000, subject, leadMinutes: rule.defaultLeadMinutes });
+      const lead = subject.kind === "task" ? rule.taskTimedLeadMinutes ?? rule.defaultLeadMinutes : rule.defaultLeadMinutes;
+      all.push({ at: subject.startTs - lead * 60_000, subject, leadMinutes: lead });
     }
   }
 

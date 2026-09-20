@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Ban, Bookmark, BookmarkMinus, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, Star, StarOff,
+  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -132,6 +132,8 @@ export interface TaskRowCaps {
   repeat?: () => void;
   /** Blocks time for it in a calendar. */
   block?: () => void;
+  /** Opens the shell's priority picker (high, medium, low, none). */
+  priority?: () => void;
 }
 
 export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
@@ -149,6 +151,7 @@ export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
     c.promote ? { id: "promote", label: t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" }), icon: Database, run: c.promote, swipe: true } : null,
     c.repeat ? { id: "repeat", label: t("tasks.repeat", { defaultValue: "Wiederholung" }), icon: Repeat, run: c.repeat } : null,
     c.block ? { id: "block", label: t("pim.blockTime", { defaultValue: "Zeit blocken" }), icon: CalendarPlus, run: c.block, swipe: true } : null,
+    c.priority ? { id: "priority", label: t("tasks.prioritySet", { defaultValue: "Priorität setzen" }), icon: Flag, run: c.priority } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

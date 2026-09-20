@@ -54,7 +54,17 @@ describe("device-local task filters", () => {
   });
   it("rejects unknown versions and malformed values; never accepts the task database as a filter", () => {
     for (const raw of ["broken", "[]", '{"version":0,"text":"old"}', '{"version":2,"text":"future"}']) expect(parseTaskViewState(raw).text).toBe("");
-    expect(parseTaskViewState('{"version":1,"status":"bad","text":false,"folder":[],"dueOnly":"yes","taskDatabase":"Tasks.base"}'))
-      .toEqual({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false });
+    expect(parseTaskViewState('{"version":1,"status":"bad","text":false,"folder":[],"dueOnly":"yes","list":"someday","taskDatabase":"Tasks.base"}'))
+      .toEqual({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, list: "today" });
+  });
+
+  it("remembers the planner list, and resetting the filters leaves it alone", () => {
+    expect(parseTaskViewState('{"version":1,"list":"inbox"}').list).toBe("inbox");
+    const store = taskViewStore("planner-list");
+    store.set("list", "upcoming");
+    store.set("text", "steuer");
+    store.reset();
+    expect(store.snapshot()).toMatchObject({ list: "upcoming", text: "" });
+    forgetTaskViewState("planner-list");
   });
 });

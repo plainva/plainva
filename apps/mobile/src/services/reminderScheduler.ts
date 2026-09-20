@@ -3,10 +3,12 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import {
   parseBaseConfig,
   planReminders,
+  readTaskSnoozes,
   reminderText,
   resolveTaskCompletionModel,
   taskDbDueKey,
   taskDbRows,
+  taskReminderSubjects,
   type PlannedReminder,
   type ReminderReason,
   type ReminderRule,
@@ -51,9 +53,10 @@ export interface ReminderIntent {
   accountId: string;
   calendarId: string;
   startTs: number;
-  /** `meeting` opens the meeting note, `done` ticks the task off, `open` is a
-   * plain tap on the notification itself. */
-  action: "open" | "meeting" | "done";
+  /** `meeting` opens the meeting note, `done` ticks the task off, `later1h` and
+   * `laterTomorrow` park the task's reminder (B4), `open` is a plain tap on
+   * the notification itself. */
+  action: "open" | "meeting" | "done" | "later1h" | "laterTomorrow";
 }
 
 let pendingIntent: ReminderIntent | null = null;
@@ -84,7 +87,15 @@ async function registerActionTypes(): Promise<void> {
   await LocalNotifications.registerActionTypes({
     types: [
       { id: ACTION_EVENT, actions: [{ id: "meeting", title: i18n.t("reminders.actionMeeting") }] },
-      { id: ACTION_TASK, actions: [{ id: "done", title: i18n.t("reminders.actionDone") }] },
+      {
+        id: ACTION_TASK,
+        // Three is what Android shows; iOS would take a fourth.
+        actions: [
+          { id: "done", title: i18n.t("reminders.actionDone") },
+          { id: "later1h", title: i18n.t("reminders.actionLaterHour") },
+          { id: "laterTomorrow", title: i18n.t("reminders.actionLaterTomorrow") },
+        ],
+      },
     ],
   }).catch(() => {});
 }
@@ -115,7 +126,8 @@ export function initReminderScheduler(): void {
   void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
     const extra = (event.notification.extra ?? {}) as Partial<ReminderIntent>;
     if (!extra.uid) return;
-    const action = event.actionId === "meeting" || event.actionId === "done" ? event.actionId : "open";
+    const known = ["meeting", "done", "later1h", "laterTomorrow"] as const;
+    const action = (known as readonly string[]).includes(event.actionId) ? (event.actionId as (typeof known)[number]) : "open";
     pendingIntent = {
       kind: extra.kind === "task" ? "task" : "event",
       uid: extra.uid,
@@ -285,6 +297,7 @@ async function runOnce(): Promise<void> {
     allDayAtMinutes: settings.reminderAllDayAtMinutes,
     taskLeadDays: settings.reminderTaskLeadDays,
     taskAtMinutes: settings.reminderTaskAtMinutes,
+    taskTimedLeadMinutes: settings.reminderTaskTimedLead,
   };
   const now = Date.now();
   const windowEndTs = now + WINDOW_DAYS * 86_400_000;
@@ -374,26 +387,10 @@ async function dueTaskSubjects(
     // would find nothing. A database whose due column is not typed as a date
     // has no due key at all — and every task in it is silently undateable.
     const hasDueColumn = taskDbDueKey(config) !== null;
-    const out: ReminderSubject[] = [];
-    for (const row of rows) {
-      if (row.done || !row.due) continue;
-      const [y, m, d] = row.due.split("-").map(Number);
-      if (!y || !m || !d) continue;
-      const startTs = new Date(y, m - 1, d, 0, row.dueMinutes ?? 0).getTime();
-      if (startTs > windowEndTs + 86_400_000 || startTs < now - 86_400_000) continue;
-      out.push({
-        key: row.path,
-        kind: "task",
-        title: row.title,
-        startTs,
-        // Without a time the task is a day, and gets the TASK day rule (E1)
-        // — not the all-day appointment rule it used to borrow.
-        allDay: row.dueMinutes === undefined,
-        startDate: row.due,
-        accountId: "",
-        calendarId: "",
-      });
-    }
+    // One rule with the desktop (`taskReminderSubjects`): a task with a time
+    // reminds at its time, `remind` in the note is the exception per task, and
+    // a parked "later" replaces the regular moment until it has passed.
+    const out = taskReminderSubjects(rows, { now, windowEndTs, snoozes: readTaskSnoozes(vault.vaultId, now) });
     return { subjects: out, reason: hasDueColumn ? "ok" : "taskDueNotDate" };
   } catch {
     // A missing or unreadable task database must not cost the appointments —

@@ -24,6 +24,8 @@ export interface DueTask {
    * calendar cell never touches the disk to find out (issue #34, wave 4). A
    * mirrored provider task is never offered a repetition, so it never counts. */
   repeats: boolean;
+  /** Raw `remind` property of the note (`off` or minutes) — see `taskReminders`. */
+  remind?: unknown;
 }
 
 export interface DueTaskDeps {
@@ -82,6 +84,7 @@ export async function loadTaskOverlay(deps: DueTaskDeps): Promise<TaskOverlay> {
       dueMinutes: parsed.minutes,
       done,
       repeats: !isMirroredNamespace(r["plainva"]) && repeatFromNamespace(r["plainva"]) != null,
+      ...(r["remind"] !== undefined && r["remind"] !== null && r["remind"] !== "" ? { remind: r["remind"] } : {}),
     });
   }
   return { tasks: out, completion, dueKey };

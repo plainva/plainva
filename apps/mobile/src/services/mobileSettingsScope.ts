@@ -107,6 +107,10 @@ export interface VaultScopedSettings {
    *  line saying so. A task WITH a due time keeps using the lead time. */
   reminderTaskLeadDays: number;
   reminderTaskAtMinutes: number;
+  /** A task WITH a due time reminds at its time, this many minutes before
+   *  (plan Aufgaben-Oberfläche, E10). Its own lead, default 0 — it used to
+   *  borrow the appointment's, and "15 minutes before" is travel time. */
+  reminderTaskTimedLead: number;
   /** Which calendars remind, as `accountId cal-id` keys. EMPTY MEANS ALL — a
    *  new calendar then reminds by default instead of falling silently through a
    *  list that was written before it existed. */
@@ -213,6 +217,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "remindTasks",
   "reminderTaskLeadDays",
   "reminderTaskAtMinutes",
+  "reminderTaskTimedLead",
   "reminderCalendars",
   "calendarOverlays",
   "mailFolder",
@@ -269,6 +274,7 @@ export function vaultDefaults(): VaultScopedSettings {
     reminderAllDayAtMinutes: 19 * 60,
     reminderTaskLeadDays: 0,
     reminderTaskAtMinutes: 9 * 60,
+    reminderTaskTimedLead: 0,
     remindTasks: false,
     reminderCalendars: [],
     calendarOverlays: [],
@@ -322,6 +328,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     reminderAllDayAtMinutes: src.reminderAllDayAtMinutes ?? d.reminderAllDayAtMinutes,
     reminderTaskLeadDays: src.reminderTaskLeadDays ?? d.reminderTaskLeadDays,
     reminderTaskAtMinutes: src.reminderTaskAtMinutes ?? d.reminderTaskAtMinutes,
+    reminderTaskTimedLead: src.reminderTaskTimedLead ?? d.reminderTaskTimedLead,
     remindTasks: src.remindTasks ?? d.remindTasks,
     reminderCalendars: src.reminderCalendars ?? d.reminderCalendars,
     calendarOverlays: src.calendarOverlays ?? d.calendarOverlays,

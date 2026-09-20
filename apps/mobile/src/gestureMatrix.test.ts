@@ -78,8 +78,16 @@ describe("a task row can be held too", () => {
   it("a tap still opens, and is not swallowed by the hold", () => {
     expect(
       [...tasks.matchAll(/if \(rowPress\.clicked\(\)\)/g)].length,
-      "both rows must check whether the hold already consumed the gesture",
-    ).toBe(2);
+      "the two rows of 'All' and the planner row must check whether the hold already consumed the gesture",
+    ).toBe(3);
+  });
+
+  it("a planner row is held and swiped like the rows of 'All'", () => {
+    // The planner lists (B1) draw their rows through the shared TaskPlannerList;
+    // the hold and the swipe are handed in, so Today and Inbox do not become
+    // the one place where a row can only be tapped.
+    expect(tasks).toMatch(/rowProps=\{\(row\) => \(\{\s*onPointerDown: \(e: ReactPointerEvent\) => \{[\s\S]{0,160}startRowPress\(e, \(\) => setTaskSheet\(acts\)\)/);
+    expect(tasks).toMatch(/wrapRow=\{\(row, element\) => \{[\s\S]{0,160}<SwipeRow actions=\{rowActions\(acts\)\}>/);
   });
 });
 

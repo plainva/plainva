@@ -393,6 +393,21 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
 [data-theme-name="lcars"] .pv-field:focus {
   border-bottom-color: var(--accent-color);
 }
+/* Quick capture: the console look moves to the mirror layer BEHIND the input —
+   an opaque field on top would hide the marks under the recognised words. */
+[data-theme-name="lcars"] .pv-capture-box .pv-capture-input {
+  background: transparent;
+}
+[data-theme-name="lcars"] .pv-capture-mirror {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: #0A0A0A;
+}
+[data-theme-name="lcars"] .pv-capture-mirror mark {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--lcars-4) 45%, transparent);
+}
 [data-theme-name="lcars"] .pv-side-section-header {
   background: var(--lcars-4);
   color: #000000;

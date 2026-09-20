@@ -24,6 +24,7 @@ import {
   reminderCalendarsKey,
   reminderLeadKey,
   reminderTaskAtKey,
+  reminderTaskTimedLeadKey,
   reminderTaskLeadKey,
   remindTasksKey,
   type ReminderSettings as Settings,
@@ -174,6 +175,7 @@ export function ReminderSettings() {
         if (patch.allDayAtMinutes !== undefined) await store.set(reminderAllDayAtKey(vaultPath), rule.allDayAtMinutes);
         if (patch.taskLeadDays !== undefined) await store.set(reminderTaskLeadKey(vaultPath), rule.taskLeadDays);
         if (patch.taskAtMinutes !== undefined) await store.set(reminderTaskAtKey(vaultPath), rule.taskAtMinutes);
+        if (patch.taskTimedLeadMinutes !== undefined) await store.set(reminderTaskTimedLeadKey(vaultPath), rule.taskTimedLeadMinutes);
         await store.save();
         window.dispatchEvent(new CustomEvent("plainva-reminders-changed"));
       })();
@@ -252,6 +254,19 @@ export function ReminderSettings() {
           testId="reminder-tasktime"
           onChange={(d, m) => saveRule({ taskLeadDays: d, taskAtMinutes: m })}
         />
+      )}
+
+      {/* A task with a time reminds at ITS time; this is how long before (E10). */}
+      {settings.tasks && (
+        <SettingRow label={t("reminders.tasksTimedLead")} desc={t("reminders.tasksTimedLeadDesc")}>
+          <Select
+            ariaLabel={t("reminders.tasksTimedLead")}
+            value={String(settings.rule.taskTimedLeadMinutes ?? 0)}
+            onChange={(v) => saveRule({ taskTimedLeadMinutes: Number(v) })}
+            options={LEAD_CHOICES.map((m) => ({ value: String(m), label: m === 0 ? t("reminders.leadAtTime") : leadLabel(m) }))}
+            data-testid="reminder-task-timed-lead"
+          />
+        </SettingRow>
       )}
 
       {settings.enabled && (

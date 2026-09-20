@@ -143,6 +143,33 @@ export function toIsoDateTime(d: Date): string {
   return `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * Whether a date value carries a time of day worth showing.
+ *
+ * A `datetime` column holds days as well as moments — a task database keeps
+ * "due Friday" next to "due Friday 14:00" in ONE column (plan Aufgaben-
+ * Oberfläche, E9). A bare day must not read "00:00", and midnight is what a
+ * bare day looks like once a tool has stamped it, so it counts as "no time"
+ * here exactly as it does where the due time is read (`parseDueValue`).
+ */
+export function dateValueHasTime(value: string): boolean {
+  const m = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})/.exec(String(value).trim());
+  return !!m && !(m[1] === "00" && m[2] === "00");
+}
+
+/**
+ * What a datetime editor should write: the day alone when no time was chosen
+ * (00:00), so clearing a task's time is "set it to midnight" and the note stays
+ * free of a meaningless `T00:00`.
+ */
+export function dateTimeEditorValue(day: string, time: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(time.trim());
+  const hh = m ? Number(m[1]) : 0;
+  const mm = m ? Number(m[2]) : 0;
+  if (!m || (hh === 0 && mm === 0) || hh > 23 || mm > 59) return day;
+  return `${day}T${pad(hh)}:${pad(mm)}`;
+}
+
 /** Display formats of a date value (plan W4/P12): `long` is the verbose form the
  * properties panel always used; the `.base` views default to the short locale form. */
 export type DateDisplayFormat = "default" | "long" | "iso" | "relative";
@@ -161,6 +188,8 @@ export function formatDateValue(
   if (!value) return "";
   const d = parseLocalDate(value);
   if (!d) return value;
+  // A day in a datetime column is shown as a day (see dateValueHasTime).
+  if (includeTime && !dateValueHasTime(value)) includeTime = false;
   try {
     if (format === "iso") {
       return includeTime ? toIsoDateTime(d) : toIsoDate(d);

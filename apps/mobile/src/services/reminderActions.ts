@@ -1,8 +1,10 @@
-import { toast } from "@plainva/ui";
+import { snoozeMoment, snoozeTask, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getPimCache, openMeetingNoteFor } from "./pim/pimService";
 import { setTaskDone } from "./taskCompletionAction";
-import type { ReminderIntent } from "./reminderScheduler";
+import { rescheduleReminders, type ReminderIntent } from "./reminderScheduler";
+import { getMobileSettings } from "./mobileSettings";
+import { getMobileVault } from "./vaultService";
 
 /**
  * What a tapped reminder actually does (S11).
@@ -41,6 +43,24 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
         if (result.spawnFailed) toast.error(i18n.t("tasks.repeatFailed"));
         else if (result.spawnedDue) toast.info(i18n.t("tasks.repeatSpawned", { date: result.spawnedDue }));
         else if (result.changed) toast.info(i18n.t("reminders.taskDone"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+      return;
+    }
+    if (intent.action === "later1h" || intent.action === "laterTomorrow") {
+      // "Later" parks ONE moment for this task on this device; the scheduler
+      // plans it instead of the regular reminder until it has passed (B4).
+      try {
+        const now = Date.now();
+        const until = snoozeMoment(intent.action === "later1h" ? "hour" : "tomorrow", now, getMobileSettings().reminderTaskAtMinutes);
+        snoozeTask((await getMobileVault()).vaultId, intent.uid, until, now);
+        await rescheduleReminders();
+        toast.info(
+          i18n.t("reminders.snoozedUntil", {
+            time: new Intl.DateTimeFormat(i18n.language, { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(until)),
+          })
+        );
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       }

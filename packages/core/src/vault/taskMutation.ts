@@ -1,6 +1,6 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
 import { GFM_TASK_LINE, scanTasks, type ScannedTask } from "./taskScan.js";
-import { nextTasksDates, readTasksMetadata, setTasksField, tasksDayNumber } from "./taskMetadata.js";
+import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 
 export interface ChecklistMutationOptions { today?: string; newId?: () => string }
 export interface ChecklistMutationResult { content: string; changed: boolean }
@@ -50,4 +50,26 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
   lines[task.line] = match[1] + (checked ? "x" : " ") + suffix + body + cr;
   if (successor !== null) lines.splice(task.line, 0, successor);
   return { content: lines.join("\n"), changed: true };
+}
+
+/**
+ * Rewrites the TEXT of one checkbox line — everything after the `[ ]` marker.
+ * Indent, list marker, box and line ending stay byte for byte; a rewrite that
+ * returns the text unchanged writes nothing.
+ */
+export function rewriteChecklistTaskText(content: string, index: number, rewrite: (text: string) => string): ChecklistMutationResult {
+  const task = scanTasks(content)[index];
+  if (!task) return { content, changed: false };
+  const lines = content.split("\n"), raw = lines[task.line], cr = raw.endsWith("\r") ? "\r" : "";
+  const match = GFM_TASK_LINE.exec(raw)!;
+  const body = raw.slice(match[0].length).replace(/\r$/, "");
+  const next = rewrite(body);
+  if (next === body) return { content, changed: false };
+  lines[task.line] = match[0] + next + cr;
+  return { content: lines.join("\n"), changed: true };
+}
+
+/** Sets or clears the priority mark of one checkbox (1 = high … 3 = low, 0 = none). */
+export function setChecklistTaskPriority(content: string, index: number, rank: 0 | 1 | 2 | 3): ChecklistMutationResult {
+  return rewriteChecklistTaskText(content, index, (text) => setTasksPriority(text, rank));
 }

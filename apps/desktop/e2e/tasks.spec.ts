@@ -243,6 +243,17 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/**
+ * Opens the tasks view on "All" — the view as it has always been (database
+ * section, then notes grouped by note), which is what most of this file is
+ * about. Since the planner (B1) the view opens on "Today"; the planner's own
+ * lists have their test further down.
+ */
+async function openTasks(page: any) {
+  await page.getByTestId('ribbon-tasks').click();
+  await page.getByTestId('tasks-list-all').click();
+}
+
 async function openVault(page: any) {
   await page.goto('/');
   await expect(page.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
@@ -252,7 +263,7 @@ test('Tasks metadata stays visible and a repeated completion keeps one successor
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Todo.md'] = '# Todo\n- [ ] Weekly audit ➕ 2026-08-01 🆔 audit-1 🔁 every week 📅 2026-09-01\n- [ ] Unusual rule 🆔 unusual-1 🔁 every month on the last';
   });
-  await openVault(page); await page.getByTestId('ribbon-tasks').click();
+  await openVault(page); await openTasks(page);
   const original = page.getByRole('button', { name: /Weekly audit/ });
   await expect(original.getByTestId('task-metadata')).toContainText('audit-1');
   await expect(original.getByTestId('task-metadata')).toContainText('2026-08-01');
@@ -274,7 +285,7 @@ test('Tasks metadata stays visible and a repeated completion keeps one successor
 
 test('tasks view aggregates checkboxes across notes, filters by status, and toggles one back to disk', async ({ page }) => {
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   // Default "open" filter: the two open tasks show, the done one is hidden.
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
@@ -314,7 +325,7 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
 
 test('hiding a note writes plainva.tasks: false and drops it until "show hidden"', async ({ page }) => {
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
 
   // Hide the Todo group via its eye button (writes the opt-out marker to disk).
@@ -368,7 +379,7 @@ test('promoting a checkbox creates a task note in the standard database and link
     fs.__taskDb = 'Aufgaben.base';
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   // The database section renders above the note groups — still empty.
   const dbSection = page.getByTestId('task-db-section');
@@ -416,7 +427,7 @@ test('the database section marks completed entries done and the status filter ap
     fs['/test-vault/Aufgaben/Finished task.md'] = '---\nstatus: Erledigt\n---\n# Finished task\n';
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   const dbSection = page.getByTestId('task-db-section');
   await expect(dbSection).toBeVisible();
@@ -448,7 +459,7 @@ test('the database-section status is editable inline (toggle + option menu) and 
     fs['/test-vault/Aufgaben/Steuer.md'] = '---\nstatus: Offen\n---\n# Steuer\n';
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   const dbSection = page.getByTestId('task-db-section');
   const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
@@ -510,7 +521,7 @@ test('with a done-checkbox column the overview checkbox writes the CHECKBOX prop
     fs['/test-vault/Aufgaben/Steuer.md'] = '---\nerledigt: false\nstatus: Offen\n---\n# Steuer\n';
   }, CHECKBOX_TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   const dbSection = page.getByTestId('task-db-section');
   const row = dbSection.locator('[data-testid="task-db-row"]').filter({ hasText: 'Steuer' });
@@ -535,7 +546,7 @@ test('without a standard database the promote button offers the database picker'
     // NO fs.__taskDb — no standard database configured.
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   // No database section without a configured standard DB.
   await expect(page.getByTestId('task-db-section')).toHaveCount(0);
@@ -569,7 +580,7 @@ test('block time on a task offers date/start/duration and reaches the provider (
     ];
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   // The database row carries the action; a checkbox row carries it too.
   await expect(page.getByTestId('task-db-block')).toBeVisible();
@@ -625,7 +636,7 @@ test('a repeating task spawns its next occurrence when checked off (issue #34, w
       '---\ntype: task\nstatus: Offen\nplainva:\n  pim:\n    uid: remote-1\n---\n\n# Remote\n';
   }, [TASK_DB_YAML, due] as const);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   const rows = page.getByTestId('task-db-row');
   await expect(rows).toHaveCount(2);
@@ -658,7 +669,7 @@ test('the repeat dialog writes and clears the rule (issue #34, wave 3)', async (
     fs['/test-vault/Aufgaben/Steuer.md'] = '---\ntype: task\nstatus: Offen\nfrist: 2026-08-03\n---\n\n# Steuer\n';
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   await page.getByTestId('task-db-repeat').click();
   await expect(page.getByTestId('task-repeat-modal')).toBeVisible();
@@ -708,7 +719,7 @@ test('Task rows: the trailing controls line up whether or not a row fills them',
     ]);
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   const rows = page.getByTestId('task-db-row');
   await expect(rows).toHaveCount(2);
@@ -745,7 +756,7 @@ test('Task rows: the trailing controls line up whether or not a row fills them',
 
 test('task filters survive note navigation and restart; missing selections can be cleared', async ({ page }) => {
   await page.addInitScript(() => {
-    if (!localStorage.getItem('plainva-task-view-/test-vault')) localStorage.setItem('plainva-task-view-/test-vault', JSON.stringify({ version: 1, status: 'all', text: 'old search', folder: 'Removed', tag: 'missing', dueOnly: true, showHidden: true }));
+    if (!localStorage.getItem('plainva-task-view-/test-vault')) localStorage.setItem('plainva-task-view-/test-vault', JSON.stringify({ version: 1, status: 'all', text: 'old search', folder: 'Removed', tag: 'missing', dueOnly: true, showHidden: true, list: 'all' }));
   });
   await openVault(page); await page.getByTestId('ribbon-tasks').click();
   const search = page.getByPlaceholder(/Filter tasks|Aufgaben filtern/);
@@ -758,7 +769,8 @@ test('task filters survive note navigation and restart; missing selections can b
   await page.getByTestId('ribbon-tasks').click(); await expect(search).toHaveValue('milk');
   await page.reload(); await page.getByTestId('ribbon-tasks').click(); await expect(search).toHaveValue('milk');
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem('plainva-task-view-/test-vault')!));
-  expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false });
+  // Resetting the filters leaves the chosen list alone (planner B1).
+  expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false, list: 'all' });
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
 });
 
@@ -784,7 +796,7 @@ test('tasks that exist more than once: the notice, the review, and only the empt
     ];
   }, TASK_DB_YAML);
   await openVault(page);
-  await page.getByTestId('ribbon-tasks').click();
+  await openTasks(page);
 
   // One task is claimed by more than one note — the single one does not count.
   await expect(page.getByTestId('task-duplicates-banner')).toContainText('1');
@@ -811,4 +823,70 @@ test('tasks that exist more than once: the notice, the review, and only the empt
   await expect(page.getByTestId('task-duplicates-remove')).toHaveCount(0);
   await page.getByTestId('task-duplicates-putaway').click();
   await expect(page.getByTestId('task-duplicates-banner')).toHaveCount(0);
+});
+
+test('the planner: Today with Overdue on top, Upcoming by day, Inbox — and quick capture writes every field (B1/B2)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const key = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs['/test-vault/Aufgaben/Steuer.md'] = `---\nstatus: Offen\nfrist: ${key(-2)}\n---\n# Steuer\n`;
+    fs['/test-vault/Aufgaben/Angebot.md'] = `---\nstatus: Offen\nfrist: ${key(0)}T14:00\n---\n# Angebot\n`;
+    fs['/test-vault/Aufgaben/Bericht.md'] = `---\nstatus: Offen\nfrist: ${key(3)}\n---\n# Bericht\n`;
+    fs['/test-vault/Aufgaben/Irgendwann.md'] = '---\nstatus: Offen\n---\n# Irgendwann\n';
+    // A checkbox in a note, due today: the planner reads both sources.
+    fs['/test-vault/Todo.md'] = `# Todo\n- [ ] Drucker einrichten 📅 ${key(0)}\n- [ ] ohne Datum\n`;
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  // Opens on Today: what is late leads, then today — database and note side by side.
+  const list = page.getByTestId('task-planner-list');
+  await expect(page.getByTestId('task-planner-section-overdue')).toContainText('Steuer');
+  const today = page.getByTestId('task-planner-section-today');
+  await expect(today).toContainText('Angebot');
+  // The clock follows the language: 14:00, or 02:00 PM in English.
+  await expect(today).toContainText(/14:00|02:00\sPM/);
+  await expect(today).toContainText('Drucker einrichten');
+  await expect(list).not.toContainText('Bericht');
+  await expect(page.getByTestId('tasks-list-overdue')).toHaveText(/1 \+ 2/);
+
+  await page.getByTestId('tasks-list-upcoming').click();
+  await expect(page.getByTestId('task-planner-section-day')).toContainText('Bericht');
+  await page.getByTestId('tasks-list-inbox').click();
+  await expect(page.getByTestId('task-planner-section-inbox')).toContainText('Irgendwann');
+  await expect(page.getByTestId('task-planner-section-inbox')).toContainText('ohne Datum');
+
+  // Ticking a checkbox row in the planner writes the note, like the row in "All".
+  await page.getByTestId('tasks-list-today').click();
+  await today.locator('[data-testid="task-planner-row"]', { hasText: 'Drucker einrichten' }).getByTestId('task-planner-toggle').click();
+  await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [x] Drucker einrichten');
+
+  // Quick capture: what is recognised shows as bricks BEFORE anything is saved.
+  const input = page.getByTestId('task-capture-input');
+  await input.fill('Rechnung schreiben tomorrow 9:30 #kunde weekly');
+  const bricks = page.getByTestId('task-capture-bricks');
+  await expect(bricks.getByTestId('task-capture-brick-date')).toBeVisible();
+  await expect(bricks.getByTestId('task-capture-brick-time')).toContainText('09:30');
+  await expect(bricks.getByTestId('task-capture-brick-tag')).toContainText('kunde');
+  await expect(bricks.getByTestId('task-capture-brick-repeat')).toBeVisible();
+  await input.press('Enter');
+
+  await expect.poll(async () => page.evaluate(() => Object.keys((window as any).mockFs).some((p) => p.includes('Rechnung schreiben')))).toBe(true);
+  const note = await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    return String(fs[Object.keys(fs).find((p) => p.includes('Rechnung schreiben'))!]);
+  });
+  expect(note).toMatch(/frist: "?\d{4}-\d{2}-\d{2}T09:30/);
+  expect(note).toContain('kunde');
+  expect(note).toMatch(/repeat:/);
+  expect(note).toContain('# Rechnung schreiben');
+  await expect(input).toHaveValue('');
 });

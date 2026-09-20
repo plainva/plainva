@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { type CuratedOption, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { type CuratedOption, dateTimeEditorValue, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -62,9 +62,13 @@ export function CellEditSheet({
   const isRelation = input === "relation" || input === "link";
   const isDate = input === "date" || input === "datetime";
 
-  const [text, setText] = useState(() =>
-    Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value),
-  );
+  const [text, setText] = useState(() => {
+    const raw = Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value);
+    // A bare day in a datetime column: the native picker only takes a full
+    // moment, so it starts at 00:00 — which stands for "no time" and is written
+    // back as the day alone (dateTimeEditorValue; the desktop's picker agrees).
+    return input === "datetime" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00` : raw;
+  });
   const [multi, setMulti] = useState<string[]>(() => toArray(value));
   const [free, setFree] = useState("");
   const [query, setQuery] = useState("");
@@ -237,7 +241,10 @@ export function CellEditSheet({
               type={input === "datetime" ? "datetime-local" : "date"}
               value={text}
             />
-            <IconButton label={t("common.ok", { defaultValue: "OK" })} onClick={() => onCommit(text)}>
+            <IconButton
+              label={t("common.ok", { defaultValue: "OK" })}
+              onClick={() => onCommit(input === "datetime" && text.includes("T") ? dateTimeEditorValue(text.slice(0, 10), text.slice(11)) : text)}
+            >
               <Check size={ICON.head} />
             </IconButton>
           </div>

@@ -415,6 +415,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "task-reminder-actions",
+    title: "Done and Later on a task reminder",
+    area: "pim",
+    kind: "decision",
+    desktop: "partial",
+    desktopReason:
+      "The desktop backend of the notification plugin builds a notification from " +
+      "title and body only and registers neither buttons nor click reports " +
+      "(tauri-plugin-notification 2.3.3, src/desktop.rs - the same limit that makes " +
+      "the desktop keep its own timers). The OS notification therefore cannot carry " +
+      "Done or Later; the toast that accompanies it opens the task, where ticking it " +
+      "off is one click. Task time, the task lead and the per-task `remind` exception " +
+      "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20).",
+    mobile: "yes",
+    verified: "2026-09-20",
+  },
+  {
     id: "camera-capture",
     title: "Insert a photo from camera or gallery",
     area: "platform",

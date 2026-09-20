@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useSyncExternalStore, type SetStateAction } from "react";
 import type { TaskStatusFilter } from "./taskList";
+import { isTaskViewList, type TaskViewList } from "./taskPlanner";
 import { taskDuplicatesSeenKey } from "./taskDuplicatesSeen";
 
 export interface TaskViewState {
   status: TaskStatusFilter; text: string; folder: string; tag: string; dueOnly: boolean; showHidden: boolean;
+  /** Which list the view shows (planner B1). Not a filter: "reset filters" leaves it alone. */
+  list: TaskViewList;
 }
 export type TaskViewStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 export const taskViewStateKey = (vault: string) => `plainva-task-view-${vault}`;
-const defaults = (): TaskViewState => ({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false });
+const defaults = (): TaskViewState => ({ status: "open", text: "", folder: "", tag: "", dueOnly: false, showHidden: false, list: "today" });
 function defaultStorage(): TaskViewStorage | null { try { return globalThis.localStorage ?? null; } catch { return null; } }
 
 export function parseTaskViewState(raw: string | null): TaskViewState {
@@ -19,6 +22,7 @@ export function parseTaskViewState(raw: string | null): TaskViewState {
     if (p.status === "open" || p.status === "done" || p.status === "all") next.status = p.status;
     for (const key of ["text", "folder", "tag"] as const) if (typeof p[key] === "string") next[key] = p[key].slice(0, 4096);
     for (const key of ["dueOnly", "showHidden"] as const) if (typeof p[key] === "boolean") next[key] = p[key];
+    if (isTaskViewList(p.list)) next.list = p.list;
   } catch { /* A broken local preference must not prevent opening tasks. */ }
   return next;
 }
@@ -41,7 +45,7 @@ class TaskViewStore {
     if (this.state[key] === next) return;
     this.replace({ ...this.state, [key]: next });
   }
-  reset = () => this.replace(defaults());
+  reset = () => this.replace({ ...defaults(), list: this.state.list });
   private replace(next: TaskViewState) {
     this.state = next; this.dirty = true; this.emit(); clearTimeout(this.timer);
     this.timer = setTimeout(this.flush, 250);
@@ -94,6 +98,7 @@ export function useTaskViewState(vault: string | null) {
     setTag: (value: SetStateAction<string>) => store.set("tag", value),
     setDueOnly: (value: SetStateAction<boolean>) => store.set("dueOnly", value),
     setShowHidden: (value: SetStateAction<boolean>) => store.set("showHidden", value), resetFilters: store.reset,
+    setList: (value: SetStateAction<TaskViewList>) => store.set("list", value),
   }), [store]);
   return { ...state, ...actions };
 }

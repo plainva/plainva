@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { toast } from "@plainva/ui";
+import { taskViewStore, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { connectDevicePimAccount } from "./services/pim/pimService";
 import { devicePermissionKey } from "./services/pim/devicePermission";
@@ -323,7 +323,17 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <NavBarScreen onBack={c.pop} onChange={c.onBarLayout} value={c.barLayout} />
   ),
   today: (_e, c) => (
-    <TodayScreen bump={c.bump} onBack={c.pop} onOpenDate={c.openDaily} onOpenNote={c.openNote} vault={c.vault} />
+    <TodayScreen
+      bump={c.bump}
+      onBack={c.pop}
+      onOpenDate={c.openDaily}
+      onOpenNote={c.openNote}
+      onOpenTasks={() => {
+        taskViewStore(c.vault.vaultId).set("list", "today");
+        c.push({ kind: "tasks", path: "" });
+      }}
+      vault={c.vault}
+    />
   ),
   pimcalendar: (e, c) => (
     <PimCalendarScreen
@@ -457,6 +467,10 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenDate={c.openDaily}
       onOpenNote={c.openNote}
+      onOpenTasks={() => {
+        taskViewStore(c.vault.vaultId).set("list", "today");
+        c.push({ kind: "tasks", path: "" });
+      }}
       onSearch={() => c.push({ kind: "search", path: "" })}
       vault={c.vault}
     />

@@ -4,6 +4,8 @@ import {
   coerceForType,
   defaultValueForType,
   formatDateValue,
+  dateTimeEditorValue,
+  dateValueHasTime,
   parseLocalDate,
   tagSegments,
   stripWikiLink,
@@ -98,6 +100,25 @@ describe("propertyModel.formatDateValue", () => {
   it("formats the default (short locale) form", () => {
     expect(formatDateValue("2026-07-03", false, "de-DE", "default")).toBe("03.07.2026");
     expect(formatDateValue("2026-07-03T09:05", true, "de-DE", "default")).toContain("09:05");
+  });
+
+  it("shows a DAY in a datetime column as a day — never as 00:00 (plan Aufgaben-Oberflaeche, E9)", () => {
+    // A task database keeps "due Friday" next to "due Friday 14:00" in one column.
+    expect(formatDateValue("2026-07-03", true, "de-DE", "default")).toBe("03.07.2026");
+    expect(formatDateValue("2026-07-03T00:00", true, "de-DE", "default")).toBe("03.07.2026");
+    expect(formatDateValue("2026-07-03", true, "de-DE", "iso")).toBe("2026-07-03");
+    expect(formatDateValue("2026-07-03T14:00", true, "de-DE", "default")).toContain("14:00");
+    expect(dateValueHasTime("2026-07-03")).toBe(false);
+    expect(dateValueHasTime("2026-07-03T00:00")).toBe(false);
+    expect(dateValueHasTime("2026-07-03 09:05")).toBe(true);
+  });
+
+  it("a datetime editor writes the day alone when no time was chosen", () => {
+    expect(dateTimeEditorValue("2026-07-03", "14:30")).toBe("2026-07-03T14:30");
+    expect(dateTimeEditorValue("2026-07-03", "9:05")).toBe("2026-07-03T09:05");
+    expect(dateTimeEditorValue("2026-07-03", "00:00")).toBe("2026-07-03");
+    expect(dateTimeEditorValue("2026-07-03", "")).toBe("2026-07-03");
+    expect(dateTimeEditorValue("2026-07-03", "25:00")).toBe("2026-07-03");
   });
 
   it("formats iso as the canonical ISO string", () => {

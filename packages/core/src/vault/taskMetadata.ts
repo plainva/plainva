@@ -78,6 +78,54 @@ export function setTasksField(text: string, field: Field, value: string | null):
   const at = block && block.index > 0 && /\s/.test(tail[block.index - 1]) ? tail.slice(0, block.index).trimEnd().length : tail.length;
   return text.slice(0, at) + " " + symbol + " " + value + text.slice(at);
 }
+/**
+ * Priority marks of the Tasks plugin. READ in three ranks — 🔺 and ⏫ as high,
+ * 🔼 as medium, 🔽 and ⏬ as low — because a to-do list has room for three and
+ * a vault written elsewhere must not lose its "highest". Plainva writes one mark
+ * per rank and only when somebody changes the priority here.
+ */
+const PRIORITY_RANK: Record<string, 1 | 2 | 3> = { "🔺": 1, "⏫": 1, "🔼": 2, "🔽": 3, "⏬": 3 };
+const PRIORITY_MARK: Record<1 | 2 | 3, string> = { 1: "⏫", 2: "🔼", 3: "🔽" };
+const priorityMarks = /(?:^|(?<=\s))(🔺|⏫|🔼|🔽|⏬)\uFE0F?(?=\s|$)/gu;
+
+/** 1 = high … 3 = low, 0 = none. The first mark outside code counts. */
+export function readTasksPriority(text: string): 0 | 1 | 2 | 3 {
+  const ranges = codeSpanRanges(text);
+  for (const match of text.matchAll(priorityMarks)) {
+    if (outsideCode(text, match.index, ranges)) return PRIORITY_RANK[match[1]];
+  }
+  return 0;
+}
+
+/** The task text without its priority marks — for a view that draws a flag instead. */
+export function stripTasksPriority(text: string): string {
+  const ranges = codeSpanRanges(text);
+  let out = "";
+  let at = 0;
+  for (const match of text.matchAll(priorityMarks)) {
+    if (!outsideCode(text, match.index, ranges)) continue;
+    out += text.slice(at, match.index);
+    at = match.index + match[0].length;
+  }
+  return (out + text.slice(at)).replace(/\s{2,}/g, " ").trim();
+}
+
+/**
+ * Sets the priority of a task line: every mark outside code goes, and the one
+ * mark of the new rank is put in front of the first dated field (where the
+ * Tasks plugin writes it) or at the end. Rank 0 only removes.
+ */
+export function setTasksPriority(text: string, rank: 0 | 1 | 2 | 3): string {
+  const bare = stripTasksPriority(text);
+  if (rank === 0) return bare;
+  const first = tokens(bare)[0];
+  const block = /\s\^[A-Za-z0-9_-]+\s*$/.exec(bare);
+  const at = first ? first.from : block ? block.index + 1 : bare.length;
+  const head = bare.slice(0, at).trimEnd();
+  const tail = bare.slice(at).trimStart();
+  return [head, PRIORITY_MARK[rank], tail].filter((part) => part.length > 0).join(" ");
+}
+
 /** Tasks advances one occurrence from its reference, including overdue ones.
  * The native Plainva generator deliberately skips missed dates instead. */
 export function nextTasksDates(meta: TasksMetadata, today: string): Pick<TasksMetadata, "due" | "scheduled" | "start"> | null {

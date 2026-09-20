@@ -1,3 +1,4 @@
+import { priorityOfValue, resolveTaskPriorityModel } from "./taskPriority";
 import { defineBase } from "../vaultTemplates/baseBuilders";
 import { serializeBaseConfig } from "../base/baseFormat";
 import { safeFileStem } from "./fileStem";
@@ -35,6 +36,14 @@ export interface TaskDbLabels {
   dueKey: string;
   /** Status option values open / in progress / done (i18n `tasks.dbStatus*`). */
   statusOptions: [string, string, string];
+  /**
+   * Localized key and options (high, medium, low) of the priority column
+   * (i18n `tasks.dbPriorityKey`, `tasks.priority*`; plan Aufgaben-Oberfläche,
+   * B3). Optional, so a caller that knows nothing of priorities still builds
+   * the database it always built.
+   */
+  priorityKey?: string;
+  priorityOptions?: [string, string, string];
 }
 
 /** Minimal adapter surface the creation needs (satisfied by IVaultAdapter). */
@@ -59,7 +68,12 @@ export function buildTaskDbFile(stem: string, labels: TaskDbLabels): { path: str
     columns: [
       { key: labels.doneKey, input: "checkbox" },
       { key: "status", input: "status", options: [...labels.statusOptions] },
-      { key: labels.dueKey, input: "date" },
+      // Date & time, since tasks can carry a time of day (E9). A task without one
+      // is simply a day in this column — shown as a day, never as 00:00.
+      { key: labels.dueKey, input: "datetime" },
+      ...(labels.priorityKey && labels.priorityOptions
+        ? [{ key: labels.priorityKey, input: "select" as const, options: [...labels.priorityOptions] }]
+        : []),
     ],
     views: [
       { name: labels.viewTable, type: "table" },
@@ -225,6 +239,10 @@ export interface TaskDbRow {
   done: boolean;
   /** ISO day of the database's date column, or null. */
   due: string | null;
+  /** 1 = high … 3 = low, 0 = none — from the database's priority column, if it has one. */
+  priority?: 0 | 1 | 2 | 3;
+  /** Raw `remind` property: the task's own say about its reminder (`off` or minutes; see taskReminders). */
+  remind?: unknown;
   /**
    * Minutes into that day, when the column is a `datetime` and carries a time
    * (S6). It was always cut off here — ten characters, and the clock the note
@@ -256,6 +274,7 @@ export function taskDbRows(
 ): TaskDbRow[] {
   const statusModel = statusModelOf(completion);
   const dueKey = taskDbDueKey(config);
+  const priorityModel = resolveTaskPriorityModel(config);
   return rows.map((r) => {
     const rawStatus =
       statusModel && r[statusModel.key] != null && r[statusModel.key] !== "" ? String(r[statusModel.key]) : null;
@@ -273,6 +292,8 @@ export function taskDbRows(
         : false,
       due: parsedDue?.day ?? null,
       dueMinutes: parsedDue?.minutes,
+      ...(priorityModel ? { priority: priorityOfValue(r[priorityModel.key], priorityModel) } : {}),
+      ...(r["remind"] !== undefined && r["remind"] !== null && r["remind"] !== "" ? { remind: r["remind"] } : {}),
     };
   });
 }

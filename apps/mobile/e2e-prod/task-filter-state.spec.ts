@@ -8,7 +8,7 @@ test("task filters return after note navigation and restart with a clearable mis
   const sql = await installSqlBridge(context);
   await context.addInitScript(() => {
     localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off", tabSlots: ["browse", "tasks", "settings"], barTabCount: 3 }));
-    if (!localStorage.getItem("plainva-task-view-local")) localStorage.setItem("plainva-task-view-local", JSON.stringify({ version: 1, status: "all", text: "old", folder: "Removed", tag: "missing", dueOnly: true, showHidden: true }));
+    if (!localStorage.getItem("plainva-task-view-local")) localStorage.setItem("plainva-task-view-local", JSON.stringify({ version: 1, status: "all", text: "old", folder: "Removed", tag: "missing", dueOnly: true, showHidden: true, list: "all" }));
   });
   try {
     await page.goto("/"); await waitForVaultDirectory(page);
@@ -32,6 +32,6 @@ test("task filters return after note navigation and restart with a clearable mis
     if (await page.getByTestId("note-menu").isVisible()) await page.getByRole("button", { name: /^Back$/ }).click();
     if (!await search.isVisible()) await tasks.click();
     await expect(search).toHaveValue("remember");
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("plainva-task-view-local")!))).toEqual({ version: 1, status: "all", text: "remember", folder: "", tag: "", dueOnly: false, showHidden: false });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("plainva-task-view-local")!))).toEqual({ version: 1, status: "all", text: "remember", folder: "", tag: "", dueOnly: false, showHidden: false, list: "all" });
   } finally { sql.close(); }
 });

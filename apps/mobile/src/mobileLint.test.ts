@@ -3052,13 +3052,17 @@ describe("tasks created on the phone reach the provider list", () => {
   });
 
   it("asks before sending, and only when there is something to ask about", () => {
-    // The switch is the phone's own affordance (the desktop prompt resolves to
-    // a plain string and cannot carry one). It appears only when the database
-    // names a reachable list, and it starts ON — choosing a list already is
-    // the decision; the switch exists so a single task can stay in the vault.
-    expect(tasks).toMatch(/const listName = await providerListLabel\(/);
-    expect(tasks).toMatch(/listName \?[\s\S]{0,120}initial: true/);
-    expect(tasks).toMatch(/if \(answer\.checked\) await sendTaskToProviderList\(/);
+    // Since the quick capture (plan Aufgaben-Oberfläche, B2) the question is a
+    // chip in the capture sheet rather than a checkbox in a title prompt. The
+    // rule is unchanged: it appears only when the database names a reachable
+    // list, and it starts ON — choosing a list already is the decision; the
+    // chip exists so a single task can stay in the vault.
+    const capture = stripComments(readFileSync(join(SRC, "components/TaskCaptureSheet.tsx"), "utf8"));
+    expect(tasks).toMatch(/providerListLabel\(promotionAdapter, taskDb\)/);
+    expect(capture).toMatch(/\{providerList && \(/);
+    expect(capture).toMatch(/const \[atProvider, setAtProvider\] = useState\(true\)/);
+    expect(capture).toMatch(/onSubmit\(result, providerList !== null && atProvider\)/);
+    expect(tasks).toMatch(/if \(alsoAtProvider\) await sendTaskToProviderList\(/);
   });
 
   it("lets the phone SET the list, not only read it", () => {

@@ -2451,6 +2451,85 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--text-muted);
 }
 
+/* ── Task planner and quick capture (plan Aufgaben-Oberflaeche, B1/B2) ───────
+   The list switch (rail on the desktop, segment on the phone), the planner's
+   sections and the capture field. Cards, rows, chips and the input are the
+   shared primitives; this family places them and adds three marks of its own:
+   the active rail entry, the priority flag and the recognised words inside the
+   capture field. All of them paint from shared tokens. */
+.pv-planner-split { display: flex; flex: 1; min-height: 0; }
+.pv-planner-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pv-planner-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2) var(--space-3) var(--space-4); }
+.pv-planner-rail {
+  flex: 0 0 auto;
+  width: 13rem;
+  padding: var(--space-2);
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow-y: auto;
+}
+.pv-planner-rail .pv-grouprow { border-radius: var(--radius-md); border-bottom: none; }
+.pv-planner-rail .pv-grouprow.is-on {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-weight: 600;
+}
+.pv-planner-railhead {
+  margin: var(--space-3) var(--space-2) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pv-planner-late { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--warning-text); font-weight: 600; }
+.pv-planner-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-planner-none { margin: 0 var(--space-2); font-size: var(--text-ui); color: var(--text-muted); }
+.pv-planner-closed { color: var(--text-muted); text-decoration: line-through; }
+.pv-planner-flag { display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); color: var(--text-muted); }
+.pv-planner-flag[data-priority="1"] { color: var(--warning-text); }
+.pv-planner-flag[data-priority="2"] { color: var(--accent-color); }
+.pv-planner-flag svg { fill: currentColor; fill-opacity: 0.25; }
+.pv-planner-source { margin-left: auto; font-size: var(--text-sm); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
+.pv-planner-segment { margin-bottom: var(--space-2); }
+
+.pv-capture { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; }
+.pv-capture-box { position: relative; }
+/* The mirror and the input share ONE box: same font, inset and height, so a
+   mark sits exactly under its word. The input paints no ground of its own. */
+.pv-capture-mirror,
+.pv-capture-box .pv-capture-input {
+  font: inherit;
+  font-size: var(--text-md);
+  letter-spacing: normal;
+  padding: 0 var(--space-3);
+  height: var(--control-lg);
+  line-height: var(--control-lg);
+  width: 100%;
+  box-sizing: border-box;
+  white-space: pre;
+}
+.pv-capture-mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  pointer-events: none;
+}
+.pv-capture-mirror mark {
+  color: transparent;
+  background: var(--accent-container);
+  border-radius: var(--radius-xs);
+}
+.pv-capture-box .pv-capture-input { position: relative; background: transparent; }
+.pv-capture-bricks { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.pv-capture-quick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pv-capture-hint { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-capture-hint[role="alert"] { color: var(--error-text); }
+
 /* Personal encrypted-workspace setup and diagnostics (Security & Sharing). */
 .pv-security-wizard { display: flex; flex-direction: column; gap: var(--space-3); }
 .pv-security-steps { display: flex; gap: var(--space-2); flex-wrap: wrap; }

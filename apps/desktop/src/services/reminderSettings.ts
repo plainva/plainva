@@ -27,6 +27,8 @@ export const reminderAllDayAtKey = (v: string) => `reminderAllDayAtMinutes_${b64
 export const remindTasksKey = (v: string) => `remindTasks_${b64(v)}`;
 export const reminderTaskLeadKey = (v: string) => `reminderTaskLeadDays_${b64(v)}`;
 export const reminderTaskAtKey = (v: string) => `reminderTaskAtMinutes_${b64(v)}`;
+/** Lead of a task that carries a time of day (plan Aufgaben-Oberfläche, E10). */
+export const reminderTaskTimedLeadKey = (v: string) => `reminderTaskTimedLeadMinutes_${b64(v)}`;
 export const reminderCalendarsKey = (v: string) => `reminderCalendars_${b64(v)}`;
 
 export interface ReminderSettings {
@@ -49,6 +51,9 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
     // rather than the evening before (E1).
     taskLeadDays: 0,
     taskAtMinutes: 9 * 60,
+    // A task at 14:00 is announced AT 14:00 — the appointment's "15 minutes
+    // before" is travel time, which a task does not have (E10).
+    taskTimedLeadMinutes: 0,
   },
   tasks: false,
   calendars: [],
@@ -69,6 +74,7 @@ export async function loadReminderSettings(store: ISettingsStore, vaultPath: str
       allDayAtMinutes: num(await store.get(reminderAllDayAtKey(vaultPath)), d.rule.allDayAtMinutes, 0),
       taskLeadDays: num(await store.get(reminderTaskLeadKey(vaultPath)), d.rule.taskLeadDays, 0),
       taskAtMinutes: num(await store.get(reminderTaskAtKey(vaultPath)), d.rule.taskAtMinutes, 0),
+      taskTimedLeadMinutes: num(await store.get(reminderTaskTimedLeadKey(vaultPath)), d.rule.taskTimedLeadMinutes ?? 0, 0),
     },
     tasks: (await store.get<boolean>(remindTasksKey(vaultPath))) ?? d.tasks,
     calendars: Array.isArray(calendars) ? calendars.filter((c): c is string => typeof c === "string") : d.calendars,

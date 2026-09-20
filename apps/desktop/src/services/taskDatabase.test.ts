@@ -65,7 +65,8 @@ describe("taskDatabase (PIM plan 1a)", () => {
     expect(cfg.columns.erledigt).toMatchObject({ input: "checkbox" });
     expect(cfg.columns.status).toMatchObject({ input: "status" });
     expect((cfg.columns.status.options ?? []).map((o: { value: string }) => o.value)).toEqual(["Offen", "In Arbeit", "Erledigt"]);
-    expect(cfg.columns.frist).toMatchObject({ input: "date" });
+    // Date & time since tasks can carry a time of day (plan Aufgaben-Oberflaeche, E9).
+    expect(cfg.columns.frist).toMatchObject({ input: "datetime" });
     expect(cfg.views).toHaveLength(3);
     expect(cfg.views[0]).toMatchObject({ type: "table", name: "Tabelle" });
     expect(cfg.views[0].order).toEqual(["file.name", "erledigt", "status", "frist"]);

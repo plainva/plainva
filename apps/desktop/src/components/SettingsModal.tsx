@@ -608,6 +608,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
         dueKey: t("tasks.dbDueKey"),
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
+        priorityKey: t("tasks.dbPriorityKey"),
+        priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
       });
       if (!path) return;
       // Optimistic list entry — the index picks the new file up via the

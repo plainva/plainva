@@ -137,6 +137,21 @@
     inset 2px 2px 0 #0A0A0A;
 }
 
+/* Quick capture: the white well is the mirror layer BEHIND the input — an
+   opaque field on top would hide the marks under the recognised words. The
+   bevel stays on the input, which paints no ground of its own here. */
+[data-theme-name="win95"] .pv-capture-box .pv-capture-input {
+  background: transparent;
+}
+[data-theme-name="win95"] .pv-capture-mirror {
+  background: #FFFFFF;
+  border-radius: 0;
+}
+[data-theme-name="win95"] .pv-capture-mirror mark {
+  border-radius: 0;
+  background: #C0C7E8;
+}
+
 /* Menus/popovers: raised silver panels with the navy selection bar —
    the signature Win95 menu look. */
 [data-theme-name="win95"] .pv-menu,

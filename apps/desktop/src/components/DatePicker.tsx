@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { DateJumpPicker, formatDateValue, localIsoKey, useWeekStartDay } from "@plainva/ui";
+import { DateJumpPicker, dateTimeEditorValue, dateValueHasTime, formatDateValue, localIsoKey, parseLocalDate, useWeekStartDay } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -24,15 +24,15 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
   const [isOpen, setIsOpen] = useState(!!autoOpen);
   const weekStart = useWeekStartDay();
 
-  // Parse initial value or default to now
-  let initialDate = new Date();
-  if (value) {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) initialDate = d;
-  }
+  // Parse the initial value in LOCAL time, or default to now. `new Date("2026-09-21")`
+  // is UTC midnight: a bare day then showed "02:00" in the time field, and
+  // confirming wrote that invented time into the note. A day without a time
+  // starts at 00:00, which stands for "no time" (dateTimeEditorValue).
+  const parsed = value ? parseLocalDate(value) : null;
+  const initialDate = parsed ?? new Date();
 
   const [selectedDay, setSelectedDay] = useState(localIsoKey(initialDate));
-  const [timeStr, setTimeStr] = useState(format(initialDate, "HH:mm"));
+  const [timeStr, setTimeStr] = useState(parsed && !dateValueHasTime(value) ? "00:00" : format(initialDate, "HH:mm"));
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -91,8 +91,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
 
   const handleConfirm = () => {
     if (includeTime) {
-      const [hh, mm] = timeStr.split(":");
-      onChange(`${selectedDay}T${String(parseInt(hh || "0", 10)).padStart(2, "0")}:${String(parseInt(mm || "0", 10)).padStart(2, "0")}`);
+      onChange(dateTimeEditorValue(selectedDay, timeStr));
     } else {
       onChange(selectedDay);
     }

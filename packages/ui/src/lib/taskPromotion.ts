@@ -4,6 +4,9 @@ import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { buildNewItemContent } from "./newItemContent";
 import { taskDbFileStem } from "./taskDatabase";
+import { priorityValue, resolveTaskPriorityModel } from "./taskPriority";
+import { writeRepeatRule, type RepeatRule } from "./taskRecurrence";
+import type { TaskPriority } from "./taskPlanner";
 
 /**
  * Checkbox-task promotion, shared by both shells (S23).
@@ -248,6 +251,18 @@ export interface CreateTaskOptions {
   dueDate?: string;
   /** Appended below the generated note — e.g. the sender of a captured mail. */
   trailer?: string;
+  /**
+   * Minutes into the due day (quick capture, B2). The due property then reads
+   * `YYYY-MM-DDTHH:mm` — the form `parseDueValue` has always understood; to the
+   * providers the task still goes with its day only.
+   */
+  dueMinutes?: number | null;
+  /** Tags typed into the capture line; merged with the ones the database hands down. */
+  tags?: readonly string[];
+  /** Written when the database HAS a priority column — creating a task never adds one. */
+  priority?: TaskPriority;
+  /** Plainva's own recurrence (`plainva.repeat`). */
+  repeat?: RepeatRule | null;
 }
 
 /**
@@ -287,17 +302,25 @@ export async function createTaskInDatabase(
   if (doneKey) prefills[doneKey] = false;
   if (opts.dueDate) {
     const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
-    if (dueKey) prefills[dueKey] = opts.dueDate;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const time = opts.dueMinutes != null ? `T${pad(Math.floor(opts.dueMinutes / 60))}:${pad(opts.dueMinutes % 60)}` : "";
+    if (dueKey) prefills[dueKey] = `${opts.dueDate}${time}`;
+  }
+  if (opts.priority) {
+    const model = resolveTaskPriorityModel(config);
+    const value = model ? priorityValue(opts.priority, model) : null;
+    if (model && value) prefills[model.key] = value;
   }
 
   const built = buildNewItemContent({
     templateText,
     noteType,
     title,
-    inheritTags: target.inheritTags ?? [],
+    inheritTags: [...new Set([...(target.inheritTags ?? []), ...(opts.tags ?? [])])],
     prefills,
   });
-  const content = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
+  const withTrailer = opts.trailer ? (built.trimEnd() + "\n") + opts.trailer : built;
+  const content = opts.repeat ? writeRepeatRule(withTrailer, opts.repeat) : withTrailer;
   await adapter.writeTextFile(notePath, content);
   return { ok: true, notePath };
 }

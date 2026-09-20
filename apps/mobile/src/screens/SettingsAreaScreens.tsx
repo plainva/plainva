@@ -192,6 +192,8 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
         dueKey: t("tasks.dbDueKey"),
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
+        priorityKey: t("tasks.dbPriorityKey"),
+        priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
       }).catch(() => null);
       if (!path) return;
       update({ taskDatabase: path });

@@ -1,7 +1,9 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import {
   planReminders,
+  readTaskSnoozes,
   reminderText,
+  taskReminderSubjects,
   toast,
   type PlannedReminder,
   type ReminderReason,
@@ -333,25 +335,10 @@ async function collectSubjects(
         : null;
       if (!dbPath) reason = "noTaskDb";
       else if (overlay && overlay.dueKey === null) reason = "taskDueNotDate";
-      for (const task of overlay?.tasks ?? []) {
-        if (task.done) continue;
-        const [y, m, d] = task.due.split("-").map(Number);
-        if (!y || !m || !d) continue;
-        const startTs = new Date(y, m - 1, d, 0, task.dueMinutes ?? 0).getTime();
-        if (startTs > windowEndTs + 86_400_000 || startTs < now - 86_400_000) continue;
-        subjects.push({
-          key: task.path,
-          kind: "task",
-          title: task.title,
-          startTs,
-          // Without a time the task is a day, and gets the TASK day rule
-          // (E1) — not the all-day appointment rule it used to borrow.
-          allDay: task.dueMinutes === undefined,
-          startDate: task.due,
-          accountId: "",
-          calendarId: "",
-        });
-      }
+      // One rule with the phone (`taskReminderSubjects`): a task with a time
+      // reminds at its time, `remind` in the note is the exception per task,
+      // and a parked "later" replaces the regular moment until it has passed.
+      subjects.push(...taskReminderSubjects(overlay?.tasks ?? [], { now, windowEndTs, snoozes: readTaskSnoozes(deps.vaultPath, now) }));
     } catch (e) {
       // An unreadable task database must never cost the appointments — but it
       // must not pass unmentioned either, which is what it used to do.

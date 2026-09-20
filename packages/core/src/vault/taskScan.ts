@@ -10,7 +10,7 @@
 export const GFM_TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
 export const GFM_TASK_FENCE = /^\s*(?:```|~~~)/;
 const TASK_LINE = GFM_TASK_LINE, FENCE = GFM_TASK_FENCE;
-import { readTasksMetadata } from "./taskMetadata.js";
+import { readTasksMetadata, readTasksPriority } from "./taskMetadata.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { findInlineTagsInLine } from "../tagRule.js";
 
@@ -33,6 +33,8 @@ export interface ScannedTask {
   taskId?: string;
   recurrence?: string;
   recurrenceSupported?: boolean;
+  /** 1 = high … 3 = low, from a Tasks-plugin priority mark; absent = none. */
+  priority?: 1 | 2 | 3;
 }
 
 /** Extracts every GFM task checkbox from a note's raw markdown, in order. */
@@ -52,6 +54,7 @@ export function scanTasks(content: string): ScannedTask[] {
     if (!m) continue;
     const text = lines[i].slice(m[0].length).trim();
     const metadata = readTasksMetadata(text);
+    const priority = readTasksPriority(text);
     if (metadata.recurrence !== null && nativeRecurrenceOwner === undefined) nativeRecurrenceOwner = readFrontmatterPath(content, ["plainva", "repeat"]) != null || readFrontmatterPath(content, ["plainva", "pim", "uid"]) != null;
     let following = i + 1;
     while (following < lines.length && !lines[following].trim()) following++;
@@ -71,6 +74,7 @@ export function scanTasks(content: string): ScannedTask[] {
       ...(metadata.scheduled ? { scheduled: metadata.scheduled } : {}),
       ...(metadata.start ? { start: metadata.start } : {}),
       ...(metadata.taskId ? { taskId: metadata.taskId } : {}),
+      ...(priority ? { priority } : {}),
       ...(metadata.recurrence !== null ? { recurrence: metadata.recurrence, recurrenceSupported: !!metadata.repeatRule && !nativeRecurrenceOwner && !continuation } : {}),
     });
     ordinal++;

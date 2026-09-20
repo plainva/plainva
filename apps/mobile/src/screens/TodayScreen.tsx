@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, CheckSquare, FileText, Square, Trash2 } from "lucide-react";
+import { CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
 import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listPimEvents } from "../services/pim/pimService";
@@ -33,6 +33,7 @@ export function TodayScreen({
   onBack,
   onMenu,
   onOpenDate,
+  onOpenTasks,
   onOpenNote,
 }: {
   /** Absent when this surface is pushed — the root offers the search. */
@@ -43,6 +44,8 @@ export function TodayScreen({
   /** App settings in the leading slot of a root surface (N1.5). */
   onMenu?: () => void;
   onOpenDate: (iso: string) => void;
+  /** Opens the tasks screen on its "Today" list (planner B1) — what is due and what is late, across both sources. */
+  onOpenTasks?: () => void;
   onOpenNote: (path: string) => void;
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
@@ -291,6 +294,16 @@ export function TodayScreen({
           <SectionLabel end={dayTasks.length > 0 ? dayTasks.length : undefined}>
             {t("mobile.todayDue")}
           </SectionLabel>
+          {/* This card answers for the SELECTED day and for the task database
+              only; the planner's "Today" adds what is overdue and the checkboxes
+              in notes. A row, because it leads somewhere. */}
+          {onOpenTasks && (
+            <GroupCard>
+              <RowList>
+                <Row data-testid="today-open-planner" icon={<ListTodo size={ICON.head} />} title={t("tasks.plannerOpenToday")} onClick={onOpenTasks} />
+              </RowList>
+            </GroupCard>
+          )}
           {dayTasks.length === 0 ? (
             <GroupCard className="m-daycard-empty">
               <p className="m-hint">{t("mobile.todayNoDue")}</p>

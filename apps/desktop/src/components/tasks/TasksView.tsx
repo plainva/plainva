@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat } from "lucide-react";
-import { resolveTaskOrdinal, tasksDescription, setFrontmatterPath, deleteFrontmatterPath, type TaskRecord } from "@plainva/core";
+import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
+import { resolveTaskOrdinal, setChecklistTaskPriority, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskRecord } from "@plainva/core";
 import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -13,10 +13,10 @@ import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecurringAtProviderNamespace, repeatFromNamespace, RowActionList, taskRowActions, writeRepeatRule, type RepeatRule, type TaskRowCaps } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { TaskDuplicatesNotice } from "./TaskDuplicatesNotice";
+import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
-import { appPromptChecked } from "../../services/appDialogs";
 import {
   calendarPickerOptions,
   minutesToTime,
@@ -29,6 +29,8 @@ import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
 import { localIsoKey } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
+import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
+import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -59,10 +61,9 @@ function renderInlineNodes(nodes: InlineNode[], keyPrefix = ""): React.ReactNode
 }
 
 /** Task line without the `#tags` and `📅 date` — those already render as chips
- * and a due pill, so they must not appear twice in the text. */
-function stripTaskMeta(text: string): string {
-  return tasksDescription(text).replace(/(^|\s)#[\p{L}\p{N}][\p{L}\p{N}_/-]*/gu, "$1").replace(/\s{2,}/g, " ").trim();
-}
+ * and a due pill, so they must not appear twice in the text. One rule with the
+ * planner rows and the phone (`taskDisplayText`). */
+const stripTaskMeta = taskDisplayText;
 
 /** Task text rendered as inline markdown (bold/italic/code/==highlight==/links),
  * meta stripped; falls back to the raw text, then the empty label. */
@@ -114,7 +115,7 @@ export function TasksView({ onOpenPath }: Props) {
   const tasks = useMemo(() => keptListRows(taskList, queryService ?? null), [taskList, queryService]);
   const loading = keptListLoading(taskList, queryService ?? null);
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
-  const { status, text, folder, tag, dueOnly, showHidden, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, resetFilters } = useTaskViewState(vaultPath);
+  const { status, text, folder, tag, dueOnly, showHidden, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setList, resetFilters } = useTaskViewState(vaultPath);
   const [templateFolder, setTemplateFolder] = useState("Templates");
   const [refreshTick, setRefreshTick] = useState(0);
   // A listTasks() call reads the FTS snapshot asynchronously. A checkbox write
@@ -124,7 +125,7 @@ export function TasksView({ onOpenPath }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
-  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
+  const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; priority?: TaskPriority; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** Date column of the task database — the generated occurrence writes its
    * next due date there. */
@@ -417,56 +418,90 @@ export function TasksView({ onOpenPath }: Props) {
     [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, sendToProvider, t]
   );
 
-  /** Create an entry directly in the task database (issue #34): the section
-   *  could only tick and open, so adding a task meant opening the `.base`. */
-  const createDbTask = useCallback(async () => {
-    if (!vaultAdapter || !vaultPath || !taskDb) return;
-    // The list the database names (C4/C18). The switch only appears when there
-    // IS one — and it starts on, because choosing a list is already the
-    // decision; it is there so a single task can stay in the vault. Same rule
-    // and same default as the phone, which has had it since S17.
-    const listName = await providerListLabel({ adapter: vaultAdapter, dbPath: taskDb, pimRuntime });
-    const answer = await appPromptChecked({
-      title: t("tasks.newDbTask"),
-      message: t("tasks.newDbTaskPrompt"),
-      confirmLabel: t("common.confirm"),
-      ...(listName ? { checkbox: { label: t("tasks.alsoCreateAt", { list: listName }), initial: true } } : {}),
-    });
-    const title = answer?.value ?? null;
-    if (title === null || !title.trim()) return;
-    try {
-      const res = await createTaskInDatabase({
-        adapter: vaultAdapter,
-        dbPath: taskDb,
-        title: title.trim(),
-        noteType: await getConfiguredNoteType(vaultPath),
-      });
-      if (!res.ok) {
-        toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteFailed"));
-        return;
+  /** The provider list this database also creates its tasks in, for the
+   *  capture's chip (C4/C18); null = none set, and then there is no chip. */
+  const [providerList, setProviderList] = useState<string | null>(null);
+  useEffect(() => {
+    if (!vaultAdapter || !taskDb) return;
+    let alive = true;
+    void providerListLabel({ adapter: vaultAdapter, dbPath: taskDb, pimRuntime })
+      .then((name) => { if (alive) setProviderList(name ?? null); })
+      .catch(() => { if (alive) setProviderList(null); });
+    return () => { alive = false; };
+  }, [vaultAdapter, taskDb, pimRuntime, fileTreeVersion]);
+
+  /**
+   * Quick capture (plan Aufgaben-Oberfläche, B2): one line in, one task note
+   * out — with its date, time, priority, tags and rhythm. It replaced the title
+   * prompt of "+ New task" (issue #34), which could only name a task. The note
+   * is not opened: capturing is the point, and the toast offers the way in.
+   */
+  const createFromCapture = useCallback(
+    async (result: CaptureResult, alsoAtProvider: boolean): Promise<boolean> => {
+      if (!vaultAdapter || !vaultPath || !taskDb) return false;
+      try {
+        const res = await createTaskInDatabase({
+          adapter: vaultAdapter,
+          dbPath: taskDb,
+          title: result.title,
+          noteType: await getConfiguredNoteType(vaultPath),
+          ...(result.due ? { dueDate: result.due, dueMinutes: result.minutes } : {}),
+          tags: result.tags,
+          priority: result.priority,
+          repeat: result.repeat,
+        });
+        if (!res.ok) {
+          toast.error(res.reason === "noFolder" ? t("tasks.promoteNoFolder") : t("tasks.promoteFailed"));
+          return false;
+        }
+        if (indexer) {
+          await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => {});
+          triggerFileTreeUpdate([res.notePath]);
+          notifyFileOps([{ type: "create", path: res.notePath }]);
+        }
+        // …and, if the database names a provider list AND the chip stayed on,
+        // create it there too (C4, S16). The note is the deliverable and already
+        // exists; this is the addition, so its failures are REPORTED and never
+        // cost the note.
+        if (alsoAtProvider) await sendToProvider(taskDb, res.notePath, result.title, result.due ?? undefined);
+        setRefreshTick((x) => x + 1);
+        toast.success(t("tasks.captureCreated", { name: result.title }), { label: t("tasks.captureOpen"), run: () => onOpenPath(res.notePath, false) });
+        // A database from before tasks had times types its due column as a day:
+        // the time is in the note and the planner shows it, the database's own
+        // table does not. Offered once per database, never done unasked (E9).
+        if (result.minutes !== null) {
+          const dayOnly = await shouldOfferDueTimeColumn((path) => vaultAdapter.readTextFile(path), vaultPath, taskDb);
+          if (dayOnly) {
+            toast.info(t("tasks.dueTimeOffer", { name: dayOnly }), {
+              label: t("tasks.dueTimeOfferAction"),
+              run: () => {
+                void convertDueColumnToDateTime(vaultAdapter, taskDb)
+                  .then(async (key) => {
+                    if (!key) return;
+                    if (indexer) await applyIndexChanges(indexer, { added: [taskDb] }).catch(() => undefined);
+                    toast.info(t("tasks.dueTimeConverted", { name: key }));
+                  })
+                  .catch((e) => toast.error(errorText(e)));
+              },
+            });
+          }
+        }
+        return true;
+      } catch (e) {
+        console.error("[TasksView] creating a database task failed", e);
+        toast.error(t("tasks.promoteFailed"));
+        return false;
       }
-      if (indexer) {
-        await applyIndexChanges(indexer, { added: [res.notePath] }).catch(() => {});
-        triggerFileTreeUpdate([res.notePath]);
-        notifyFileOps([{ type: "create", path: res.notePath }]);
-      }
-      // …and, if the database names a provider list AND the switch stayed on,
-      // create it there too (C4, S16). The note is the deliverable and already
-      // exists; this is the addition, so its failures are REPORTED and never
-      // cost the note.
-      if (answer?.checked) await sendToProvider(taskDb, res.notePath, title.trim());
-      setRefreshTick((x) => x + 1);
-      onOpenPath(res.notePath, false);
-    } catch (e) {
-      console.error("[TasksView] creating a database task failed", e);
-      toast.error(t("tasks.promoteFailed"));
-    }
-  }, [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, pimRuntime, t]);
+    },
+    [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]
+  );
+  const [captureFocus, setCaptureFocus] = useState(0);
+  const focusCapture = useCallback(() => setCaptureFocus((x) => x + 1), []);
 
   // "New task" from anywhere (Design-Runde E4): the shell opens this view and
   // parks the request; without a task database there is nothing to create in,
   // and the section above says so.
-  useEffect(() => consumePendingNew("task", () => { void createDbTask(); }), [createDbTask]);
+  useEffect(() => consumePendingNew("task", focusCapture), [focusCapture]);
 
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
@@ -536,8 +571,33 @@ export function TasksView({ onOpenPath }: Props) {
 
   const groups = useMemo(() => groupTasksByNote(filtered).map((g) => [g.path, g] as const), [filtered]);
 
-  const toggle = useCallback(
-    async (task: TaskRecord) => {
+  // The planner (B1): both sources in one row shape, sorted into Today (with
+  // Overdue on top), Upcoming, Inbox and Done. The view's filters apply — all
+  // but the status filter, which a planner list answers by itself.
+  const todayKey = useTodayKey();
+  const plannerRows = useMemo(() => {
+    const db = filterTaskDbRows(dbRows ?? [], { status: "all", dueOnly, text });
+    const notes = filterTasks(visibleTasks, { status: "all", folder, tag, dueOnly, text, includeHidden: true });
+    const meta = new Map((dbRows ?? []).map((r) => [r.path, { repeats: r.repeat !== null, mirrored: r.mirrored, repeatsAtProvider: r.providerRepeats }]));
+    return [...plannerRowsFromDb(db, (path) => meta.get(path)), ...plannerRowsFromTasks(notes)];
+  }, [dbRows, visibleTasks, folder, tag, dueOnly, text]);
+  const planner = useMemo(() => buildPlanner(plannerRows, todayKey), [plannerRows, todayKey]);
+  const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
+  /** The tags that occur most among the open tasks — the rail's one-click filters. */
+  const railTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tk of visibleTasks) if (!tk.done) for (const g of tk.tags) counts.set(g, (counts.get(g) ?? 0) + 1);
+    return [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 6);
+  }, [visibleTasks]);
+
+  /**
+   * ONE write path for every change to a checkbox line — the tick, and since the
+   * planner the priority mark (B3). `mutate` edits the fresh file at the
+   * verified ordinal; `optimistic` is what the row shows until the index
+   * catches up.
+   */
+  const mutateCheckbox = useCallback(
+    async (task: TaskRecord, mutate: (fresh: string, ordinal: number) => ChecklistMutationResult, optimistic: (row: TaskRecord) => TaskRecord) => {
       if (!vaultAdapter) return;
       taskMutationGate.begin();
       try {
@@ -550,12 +610,10 @@ export function TasksView({ onOpenPath }: Props) {
           setRefreshTick((x) => x + 1);
           return;
         }
-        const res = toggleTaskAtIndex(fresh, ordinal, !task.done);
+        const res = mutate(fresh, ordinal);
         if (!res.changed) { taskMutationGate.finish(); return; }
         await vaultAdapter.writeTextFile(task.path, res.content);
-        setTasks((prev) =>
-          prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? { ...t2, done: !t2.done } : t2))
-        );
+        setTasks((prev) => prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? optimistic(t2) : t2)));
       } catch (error) {
         console.error("[TasksView] updating a checkbox task failed", task.path, error);
         taskMutationGate.finish();
@@ -581,6 +639,10 @@ export function TasksView({ onOpenPath }: Props) {
       if (reindexed) triggerFileTreeUpdate([task.path]);
     },
     [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks]
+  );
+  const toggle = useCallback(
+    (task: TaskRecord) => mutateCheckbox(task, (fresh, ordinal) => toggleTaskAtIndex(fresh, ordinal, !task.done), (row) => ({ ...row, done: !row.done })),
+    [mutateCheckbox]
   );
 
   // Writes back to a task-database note (through the adapter's atomic + backup
@@ -689,11 +751,51 @@ export function TasksView({ onOpenPath }: Props) {
     [onOpenPath]
   );
 
+  /**
+   * Priority (plan Aufgaben-Oberfläche, B3). A database entry stores it in the
+   * priority column — which a database made before priorities existed gets the
+   * first time one is SET, never by merely looking; a checkbox carries the
+   * Tasks-plugin mark on its line.
+   */
+  const [priorityMenu, setPriorityMenu] = useState<{ at: { x: number; y: number }; target: { kind: "db"; path: string } | { kind: "note"; task: TaskRecord } } | null>(null);
+  const applyPriority = async (rank: TaskPriority) => {
+    const target = priorityMenu?.target;
+    setPriorityMenu(null);
+    if (!target || !vaultAdapter) return;
+    if (target.kind === "note") {
+      await mutateCheckbox(
+        target.task,
+        (fresh, ordinal) => setChecklistTaskPriority(fresh, ordinal, rank),
+        (row) => ({ ...row, text: setTasksPriority(row.text, rank), ...(rank ? { priority: rank } : { priority: undefined }) }),
+      );
+      return;
+    }
+    if (!taskDb) return;
+    try {
+      const { columnAdded } = await setDbTaskPriority(
+        { readTextFile: (path) => vaultAdapter.readTextFile(path), writeTextFile: (path, content) => vaultAdapter.writeTextFile(path, content), writeNote: writeDbNote },
+        taskDb,
+        target.path,
+        rank,
+        { key: t("tasks.dbPriorityKey"), options: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")] },
+      );
+      if (columnAdded) {
+        toast.info(t("tasks.priorityColumnAdded", { name: columnAdded }));
+        if (indexer) await applyIndexChanges(indexer, { added: [taskDb] }).catch(() => undefined);
+      }
+      setRefreshTick((x) => x + 1);
+    } catch (e) {
+      console.error("[TasksView] setting a priority failed", target.path, e);
+      toast.error(errorText(e));
+    }
+  };
+
   const dbRowCaps = (r: (typeof filteredDbRows)[number]): TaskRowCaps => ({
     done: r.done,
     toggle: dbCompletion ? () => toggleDbRowDone(r.path, !r.done) : undefined,
     repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
     block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
+    priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "db", path: r.path } }),
   });
   const noteRowCaps = (task: TaskRecord): TaskRowCaps => ({
     done: task.done,
@@ -703,13 +805,51 @@ export function TasksView({ onOpenPath }: Props) {
       calendarOptions.length > 0
         ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
+    priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "note", task } }),
   });
+
+  const taskOfRow = (row: PlannerRow): TaskRecord | undefined => tasks.find((tk) => tk.path === row.path && tk.ordinal === row.ordinal);
+  const dbRowOf = (row: PlannerRow) => (dbRows ?? []).find((r) => r.path === row.path);
+  const onPlannerToggle = (row: PlannerRow) => {
+    if (row.source === "database") {
+      toggleDbRowDone(row.path, isOpenState(row.state));
+      return;
+    }
+    const task = taskOfRow(row);
+    if (task) void toggle(task);
+  };
+  const onPlannerOpen = (row: PlannerRow) => {
+    const task = row.source === "note" ? taskOfRow(row) : undefined;
+    if (task) open(task);
+    else onOpenPath(row.path, false);
+  };
+  const onPlannerMenu = (row: PlannerRow, at: { x: number; y: number }) => {
+    const dbRow = row.source === "database" ? dbRowOf(row) : undefined;
+    const task = row.source === "note" ? taskOfRow(row) : undefined;
+    if (dbRow) setRowMenu({ at, caps: dbRowCaps(dbRow) });
+    else if (task) setRowMenu({ at, caps: noteRowCaps(task) });
+  };
+  const plannerSections = list === "all" ? [] : planner.sections(list);
+  const shownCount = list === "all" ? filtered.length : plannerSections.reduce((n, sec) => n + sec.rows.length, 0);
+  const plannerEmpty =
+    list === "upcoming" ? t("tasks.plannerEmptyUpcoming", { days: 14 }) : list === "inbox" ? t("tasks.plannerEmptyInbox") : list === "done" ? t("tasks.plannerEmptyDone") : t("tasks.plannerEmptyToday");
+  const duplicatesNotice = (
+    <TaskDuplicatesNotice
+      db={duplicatesDb}
+      reloadKey={`${fileTreeVersion}:${refreshTick}`}
+      onOpenPath={onOpenPath}
+      onChanged={() => {
+        triggerFileTreeUpdate();
+        setRefreshTick((x) => x + 1);
+      }}
+    />
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.6rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         <strong style={{ fontSize: "var(--text-lg)" }}>{t("tasks.title", { defaultValue: "Aufgaben" })}</strong>
-        <span style={{ color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{filtered.length}</span>
+        <span style={{ color: "var(--text-muted)", fontSize: "var(--text-md)" }}>{shownCount}</span>
         <div style={{ flex: 1 }} />
         {templateNotePaths.length > 0 && (
           <Button variant="ghost" onClick={() => void hideAllTemplates()}>
@@ -722,6 +862,7 @@ export function TasksView({ onOpenPath }: Props) {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
+        {list === "all" && (
         <Segmented<StatusFilter>
           value={status}
           onChange={setStatus}
@@ -731,6 +872,7 @@ export function TasksView({ onOpenPath }: Props) {
             { value: "all", label: t("tasks.all", { defaultValue: "Alle" }), testId: "tasks-filter-all" },
           ]}
         />
+        )}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -775,16 +917,27 @@ export function TasksView({ onOpenPath }: Props) {
         <Button variant="ghost" size="sm" onClick={resetFilters} data-testid="tasks-reset-filters">{t("tasks.resetFilters")}</Button>
       </div>
 
+      <div className="pv-planner-split">
+      <TaskPlannerNav variant="rail" value={list} onChange={setList} counts={planner.counts} allCount={openCount} tags={railTags} activeTag={tag} onTag={setTag} />
+      <div className="pv-planner-main">
+      {taskDb && <TaskCaptureBar todayKey={todayKey} providerList={providerList} focusTick={captureFocus} onSubmit={createFromCapture} />}
+      {list !== "all" ? (
+        <div className="pv-planner-scroll">
+          {duplicatesNotice}
+          {loading ? null : (
+            <TaskPlannerList
+              sections={plannerSections}
+              emptyLabel={plannerEmpty}
+              databaseLabel={taskDb ? noteDisplayName(taskDb.split("/").pop() ?? taskDb) : t("tasks.plannerFromDatabase")}
+              onToggle={onPlannerToggle}
+              onOpen={onPlannerOpen}
+              onMenu={onPlannerMenu}
+            />
+          )}
+        </div>
+      ) : (
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
-        <TaskDuplicatesNotice
-          db={duplicatesDb}
-          reloadKey={`${fileTreeVersion}:${refreshTick}`}
-          onOpenPath={onOpenPath}
-          onChanged={() => {
-            triggerFileTreeUpdate();
-            setRefreshTick((x) => x + 1);
-          }}
-        />
+        {duplicatesNotice}
         {taskDb && (
           <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0.4rem 0.6rem", background: "var(--bg-secondary)", borderLeft: "3px solid var(--accent-color)" }}>
@@ -796,7 +949,7 @@ export function TasksView({ onOpenPath }: Props) {
                 {filteredDbRows.length}
               </span>
               <div style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0 }}>
-                <Button variant="primary" size="sm" onClick={() => void createDbTask()} data-testid="task-db-new">
+                <Button variant="primary" size="sm" onClick={focusCapture} data-testid="task-db-new">
                   {t("tasks.newDbTask")}
                 </Button>
                 <button
@@ -831,6 +984,7 @@ export function TasksView({ onOpenPath }: Props) {
                       onClick={() => onOpenPath(r.path, false)}
                       style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
+                      <TaskPriorityFlag rank={r.priority} />
                       {noteDisplayName(r.title)}
                       {r.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
@@ -987,6 +1141,7 @@ export function TasksView({ onOpenPath }: Props) {
                       onClick={() => open(task)}
                       style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
+                      <TaskPriorityFlag rank={task.priority} />
                       <span style={{ textDecoration: task.done ? "line-through" : "none" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
                       <TaskMetadataDetails task={task} />
                       {task.due ? (
@@ -1050,6 +1205,9 @@ export function TasksView({ onOpenPath }: Props) {
           ))
         )}
       </div>
+      )}
+      </div>
+      </div>
 
       {rowMenu && (
         <MenuSurface open onClose={() => setRowMenu(null)} at={rowMenu.at} ariaLabel={t("tasks.rowActions", { defaultValue: "Aufgabenaktionen" })}>
@@ -1060,6 +1218,17 @@ export function TasksView({ onOpenPath }: Props) {
               </MenuItem>
             )}
           </RowActionList>
+        </MenuSurface>
+      )}
+
+      {priorityMenu && (
+        <MenuSurface open onClose={() => setPriorityMenu(null)} at={priorityMenu.at} ariaLabel={t("tasks.prioritySet")}>
+          <MenuLabel>{t("tasks.priority")}</MenuLabel>
+          {([1, 2, 3, 0] as const).map((rank) => (
+            <MenuItem key={rank} icon={<Flag size={ICON.ui} />} data-testid={`task-priority-${rank}`} onSelect={() => void applyPriority(rank)}>
+              {t(rank === 1 ? "tasks.priorityHigh" : rank === 2 ? "tasks.priorityMedium" : rank === 3 ? "tasks.priorityLow" : "tasks.priorityNone")}
+            </MenuItem>
+          ))}
         </MenuSurface>
       )}
 
