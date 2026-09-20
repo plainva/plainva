@@ -274,6 +274,7 @@ export * from "./components/NoteCardBody";
 export * from "./components/PlainvaLogo";
 export * from "./components/QrScanner";
 export * from "./hooks/useFocusTrap";
+export * from "./hooks/useTaskDuplicates";
 export * from "./hooks/useHoldDrag";
 
 // Editor layer (M0.4): the CodeMirror session and its portable plugins.
@@ -331,6 +332,11 @@ export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";
 export * from "./services/pimTraceLog";
 export * from "./services/listingReport";
+export * from "./services/pimCycleReport";
+export * from "./lib/keptList";
+export * from "./lib/taskDuplicatesSeen";
+export * from "./pim/taskDuplicates";
+export * from "./components/TaskDuplicatesList";
 export * from "./services/docMeta";
 export * from "./services/dynamicDate";
 export * from "./services/imageFiles";

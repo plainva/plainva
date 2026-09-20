@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-19
+Última revisão: 2026-09-20
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -156,7 +156,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**O que descreve a origem.** Para uma tarefa, o que conta é `uid` e `list` — um `uid` é único em UM provedor, não entre dois. `provider` (`google`, `microsoft`, `caldav`) e `identity` (a identidade verificada da conta, quando o provedor oferece uma) restringem ainda mais, e ambos sobrevivem a uma reconexão. `account` é o id LOCAL da conta: o Plainva ainda o grava para que versões mais antigas consigam ler a âncora, mas não o compara mais — ele é gerado novamente a cada conexão, e é exatamente por isso que uma conta reconectada costumava importar suas tarefas uma segunda vez. Se você mesmo escrever âncoras, defina `uid` e `list`; `provider`/`identity` são recomendados, `account` não é necessário.
+**O que descreve a origem.** Para uma tarefa, o que conta é `uid` e `list` — um `uid` é único em UM provedor, não entre dois. `provider` (`google`, `microsoft`, `caldav`) e `identity` (a identidade verificada da conta, quando o provedor oferece uma) restringem ainda mais, e ambos sobrevivem a uma reconexão. `account` é o id LOCAL da conta: o Plainva ainda o grava para que versões mais antigas consigam ler a âncora, mas não o compara mais — ele é gerado novamente a cada conexão, e é exatamente por isso que uma conta reconectada costumava importar suas tarefas uma segunda vez. Se você mesmo escrever âncoras, defina `uid` e `list`; `provider`/`identity` são recomendados, `account` não é necessário. O Plainva acrescenta `recurring: true` a uma âncora de tarefa assim que vê o provedor trazer a tarefa de volta (concluída e depois reaberta com o mesmo `uid` e uma data posterior). A chave é puramente informativa, nunca é comparada e pode ser removida.
 
 `templateFor` é o contrato de campo da atribuição de modelo (veja [Bancos de Dados (.base)](Databases_Base.md)): em uma nota dentro da pasta de modelos, ele lista os bancos de dados cujo menu **Entrada** mostra o modelo por padrão. Os valores são links wiki completos, incluindo a extensão `.base` — sem qualificação (`"[[Tasks.base]]"` corresponde ao arquivo desse nome em qualquer pasta, portanto continua funcionando mesmo que o arquivo apenas mude de pasta) ou qualificados por caminho (`"[[Projekte/Tasks.base]]"` corresponde exatamente a esse caminho). O Plainva grava links sem qualificação e só os qualifica por caminho quando existem dois arquivos `.base` com o mesmo nome. Um escalar em vez de uma lista é tolerado. Ao criar um item a partir do modelo, `templateFor` — diferente das demais chaves `plainva:` — **não** é copiado para a nova nota.
 

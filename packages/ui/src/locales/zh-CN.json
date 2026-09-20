@@ -2678,7 +2678,21 @@
       "unsupported": "保留规则，此处不自动生成下一次任务。"
     },
     "resetFilters": "重置筛选",
-    "filterUnavailable": "不可用"
+    "filterUnavailable": "不可用",
+    "duplicatesBanner": "重复存在的任务：{{count}} 个",
+    "duplicatesHint": "对于每个任务，Plainva 只与服务商同步一条笔记。其余的是遗留下来的副本——不会再有任何更新，所以会一直显示为未完成。",
+    "duplicatesReview": "查看",
+    "duplicatesTitle": "重复存在的任务",
+    "duplicatesKept": "正在同步 · 保留",
+    "duplicatesRemovable": "没有自己内容的副本 · 将被移除",
+    "duplicatesOwnText": "有自己的文字 · 保留——请查看",
+    "duplicatesDiffers": "与同步的笔记不同 · 保留——请查看",
+    "duplicatesRemove": "移除副本：{{count}} 个",
+    "duplicatesRemoved": "已移除副本：{{count}} 个。Plainva 已先把每个副本保存到版本历史；服务商那边的任务不受影响。",
+    "duplicatesNothing": "没有可以安全移除的内容——每个副本都有自己的东西。",
+    "duplicatesPutAway": "隐藏此提示",
+    "duplicatesPutAwayHint": "一旦有副本新增或消失，此提示会再次出现。",
+    "repeatsAtProvider": "在服务商处重复"
   },
   "findReplace": {
     "title": "在整个 vault 中查找和替换",

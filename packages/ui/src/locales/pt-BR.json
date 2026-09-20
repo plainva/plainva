@@ -2722,7 +2722,21 @@
       "unsupported": "Regra preservada; sem continuação automática aqui."
     },
     "resetFilters": "Redefinir filtros",
-    "filterUnavailable": "Indisponível"
+    "filterUnavailable": "Indisponível",
+    "duplicatesBanner": "Tarefas que existem mais de uma vez: {{count}}",
+    "duplicatesHint": "O Plainva mantém exatamente uma nota por tarefa sincronizada com o provedor. As outras são cópias que ficaram para trás — nada mais as atualiza, então ficam abertas para sempre.",
+    "duplicatesReview": "Revisar",
+    "duplicatesTitle": "Tarefas que existem mais de uma vez",
+    "duplicatesKept": "sincronizada · fica",
+    "duplicatesRemovable": "cópia sem conteúdo próprio · será removida",
+    "duplicatesOwnText": "texto próprio · fica — revise",
+    "duplicatesDiffers": "difere da nota sincronizada · fica — revise",
+    "duplicatesRemove": "Remover cópias: {{count}}",
+    "duplicatesRemoved": "Cópias removidas: {{count}}. O Plainva salvou cada uma antes no histórico de versões; as tarefas no provedor não foram tocadas.",
+    "duplicatesNothing": "Nada pode ser removido com segurança — cada cópia tem algo próprio.",
+    "duplicatesPutAway": "Ocultar este aviso",
+    "duplicatesPutAwayHint": "O aviso volta assim que uma cópia aparecer ou desaparecer.",
+    "repeatsAtProvider": "Repete-se no provedor"
   },
   "findReplace": {
     "title": "Localizar e substituir no vault",

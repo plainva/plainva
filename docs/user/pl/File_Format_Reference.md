@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-19
+Stan na: 2026-09-20
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -156,7 +156,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Co opisuje pochodzenie.** Dla zadania liczą się `uid` i `list` — `uid` jest unikalne u JEDNEGO dostawcy, nie u dwóch naraz. `provider` (`google`, `microsoft`, `caldav`) i `identity` (zweryfikowana tożsamość konta, jeśli dostawca ją udostępnia) zawężają to dalej, i oba przetrwają ponowne połączenie. `account` to LOKALNY identyfikator konta: Plainva nadal go zapisuje, aby starsze wersje mogły odczytać kotwicę, ale już go nie porównuje — jest on nadawany na nowo przy każdym połączeniu, i to właśnie dlatego ponownie połączone konto importowało kiedyś swoje zadania po raz drugi. Jeśli sam zapisujesz kotwice, ustaw `uid` i `list`; `provider`/`identity` są zalecane, `account` nie jest potrzebny.
+**Co opisuje pochodzenie.** Dla zadania liczą się `uid` i `list` — `uid` jest unikalne u JEDNEGO dostawcy, nie u dwóch naraz. `provider` (`google`, `microsoft`, `caldav`) i `identity` (zweryfikowana tożsamość konta, jeśli dostawca ją udostępnia) zawężają to dalej, i oba przetrwają ponowne połączenie. `account` to LOKALNY identyfikator konta: Plainva nadal go zapisuje, aby starsze wersje mogły odczytać kotwicę, ale już go nie porównuje — jest on nadawany na nowo przy każdym połączeniu, i to właśnie dlatego ponownie połączone konto importowało kiedyś swoje zadania po raz drugi. Jeśli sam zapisujesz kotwice, ustaw `uid` i `list`; `provider`/`identity` są zalecane, `account` nie jest potrzebny. `recurring: true` Plainva dopisuje do kotwicy zadania, gdy zobaczy, że dostawca przywraca zadanie (ukończone, a potem ponownie otwarte pod tym samym `uid` z późniejszą datą). Klucz ma charakter czysto informacyjny, nigdy nie jest porównywany i można go usunąć.
 
 `templateFor` to kontrakt pola przypisania szablonu (patrz [Bazy danych (.base)](Databases_Base.md)): na notatce wewnątrz folderu szablonów wymienia bazy danych, w których menu **Wpis** domyślnie pokazuje ten szablon. Wartości to całe linki wiki wraz z rozszerzeniem `.base` — w formie gołej (`"[[Tasks.base]]"` pasuje do pliku o tej nazwie w dowolnym folderze, więc przetrwa samo przeniesienie folderu) albo kwalifikowanej ścieżką (`"[[Projekte/Tasks.base]]"` pasuje dokładnie do tej ścieżki). Plainva zapisuje gołe linki i kwalifikuje je tylko wtedy, gdy istnieją dwa pliki `.base` o tej samej nazwie. Skalar zamiast listy jest tolerowany. Gdy wpis jest tworzony z szablonu, `templateFor` — w odróżnieniu od pozostałych kluczy `plainva:` — **nie** jest kopiowany do nowej notatki.
 

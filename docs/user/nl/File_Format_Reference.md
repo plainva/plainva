@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-20
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -156,7 +156,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig.
+**Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig. `recurring: true` voegt Plainva aan een taakanker toe zodra het heeft gezien dat de aanbieder de taak laat terugkomen (afgerond, daarna onder dezelfde `uid` weer open met een latere datum). De sleutel is puur informatief, wordt nooit vergeleken en mag worden verwijderd.
 
 `templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
 

@@ -2437,6 +2437,20 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--text-muted);
 }
 
+/* ── Tasks that exist more than once (finding 2026-09-20) ────────────────────
+   List body shared by the desktop Modal and the phone sheet. The cards, rows
+   and verdict chips are the container grammar (GroupCard, Row, Chip) — this
+   family only spaces them. Docking: layout only, THEME_EXEMPT in designGuards. */
+.pv-dupes { display: flex; flex-direction: column; gap: var(--space-3); }
+.pv-dupes-banner { margin: 0 var(--space-3) var(--space-3); }
+.pv-dupes-intro {
+  margin: 0 0 var(--space-3);
+  max-width: 62ch;
+  font-size: var(--text-ui);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 /* Personal encrypted-workspace setup and diagnostics (Security & Sharing). */
 .pv-security-wizard { display: flex; flex-direction: column; gap: var(--space-3); }
 .pv-security-steps { display: flex; gap: var(--space-2); flex-wrap: wrap; }

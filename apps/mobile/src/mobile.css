@@ -2122,6 +2122,15 @@ textarea {
   padding: var(--space-1) var(--space-2) var(--space-3);
 }
 
+/* "Tasks that exist more than once" above the task lists (finding 2026-09-20).
+   The page carries the side inset, so the notice only needs its distance to
+   the sections below; the text wraps under the action on a narrow phone. */
+.m-dupes-notice {
+  margin: 0 0 var(--space-3);
+}
+.m-dupes-notice .pv-banner {
+  flex-wrap: wrap;
+}
 
 /* Security centre master/detail tabs; horizontal on phones, full labels remain reachable. */
 .m-security-tabs {

@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-09-19
+Stand: 2026-09-20
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -78,7 +78,7 @@ Zwei Grenzen dieser Regel sind bewusst gesetzt: **Eine bloß fehlende Datei lös
 
 In der Gegenrichtung gilt weiterhin: **eine extern gelöschte Aufgabe löscht nie Deine Notiz** (sie wird einfach eine normale Notiz). Umbenennen oder Verschieben einer Aufgaben-Notiz ist unproblematisch — die Frontmatter-Markierung hält die Verbindung.
 
-**Nach einer Neuanmeldung entstehen keine Doppel.** Meldest Du ein Konto neu an, richtest Plainva auf einem zweiten Rechner ein oder wird der Suchindex neu aufgebaut, erkennt Plainva an derselben Markierung die bereits vorhandenen Notizen und übernimmt sie, statt die Aufgaben ein zweites Mal zu importieren. Solange ein Vault noch synchronisiert wird, legt Plainva gar keine neuen Aufgaben-Notizen an — eine Notiz, die noch unterwegs ist, wäre sonst genau so ein Duplikat.
+**Nach einer Neuanmeldung entstehen keine Doppel.** Meldest Du ein Konto neu an, richtest Plainva auf einem zweiten Rechner ein oder wird der Suchindex neu aufgebaut, erkennt Plainva an derselben Markierung die bereits vorhandenen Notizen und übernimmt sie, statt die Aufgaben ein zweites Mal zu importieren. Solange ein Vault noch synchronisiert wird, legt Plainva gar keine neuen Aufgaben-Notizen an — eine Notiz, die noch unterwegs ist, wäre sonst genau so ein Duplikat. Kopien, die ältere Versionen hinterlassen haben, lassen sich aufräumen: Liegen Aufgaben mehrfach vor, zeigt die Aufgabenansicht **Mehrfach vorhandene Aufgaben** mit **Ansehen**. Plainva behält die Notiz, die es abgleicht, und entfernt nur Kopien, die nichts Eigenes tragen — erledigt oder feldgleich mit der behaltenen Notiz, und ohne eigenen Text; jede andere Kopie bleibt und wird Dir gezeigt, und jede entfernte Kopie wird vorher in den Versionsverlauf gesichert. Die Aufgaben beim Anbieter bleiben dabei unberührt. Bleiben nur Kopien mit eigenem Inhalt übrig, legt **Hinweis ausblenden** den Hinweis beiseite, bis eine Kopie dazukommt oder verschwindet. Eine Aufgabe, die sich **beim Anbieter** wiederholt (etwa eine tägliche Google-Aufgabe), ist dort eine einzige Aufgabe: Abhaken erledigt sie, und der Anbieter macht dieselbe Aufgabe mit dem nächsten Datum wieder auf — Plainva spiegelt genau das, und sobald es die Aufgabe einmal wiederkommen sah, trägt ihre Zeile **Wiederholt sich beim Anbieter**.
 
 Aktuelle Grenzen: als normale Notizen angelegte Aufgaben werden nicht zum Anbieter gepusht (lege sie extern oder über die Aufgabendatenbank an), und alles auf dieser Seite ist vorerst Desktop-first.
 

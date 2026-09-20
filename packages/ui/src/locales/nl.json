@@ -2700,7 +2700,21 @@
       "unsupported": "Regel behouden; hier geen automatische voortzetting."
     },
     "resetFilters": "Filters herstellen",
-    "filterUnavailable": "Niet beschikbaar"
+    "filterUnavailable": "Niet beschikbaar",
+    "duplicatesBanner": "Taken die meer dan eens voorkomen: {{count}}",
+    "duplicatesHint": "Plainva houdt per taak precies één notitie gelijk met de aanbieder. De andere zijn achtergebleven kopieën — niets werkt ze nog bij, dus blijven ze voor altijd open staan.",
+    "duplicatesReview": "Bekijken",
+    "duplicatesTitle": "Taken die meer dan eens voorkomen",
+    "duplicatesKept": "wordt gesynchroniseerd · blijft",
+    "duplicatesRemovable": "kopie zonder eigen inhoud · wordt verwijderd",
+    "duplicatesOwnText": "eigen tekst · blijft — bekijk deze",
+    "duplicatesDiffers": "wijkt af van de gesynchroniseerde notitie · blijft — bekijk deze",
+    "duplicatesRemove": "Kopieën verwijderen: {{count}}",
+    "duplicatesRemoved": "Kopieën verwijderd: {{count}}. Plainva heeft elk exemplaar eerst in de versiegeschiedenis bewaard; de taken bij de aanbieder blijven ongemoeid.",
+    "duplicatesNothing": "Er kan niets veilig worden verwijderd — elke kopie bevat iets eigens.",
+    "duplicatesPutAway": "Deze melding verbergen",
+    "duplicatesPutAwayHint": "De melding komt terug zodra er een kopie bij komt of verdwijnt.",
+    "repeatsAtProvider": "Herhaalt zich bij de aanbieder"
   },
   "findReplace": {
     "title": "Zoeken en vervangen in de vault",

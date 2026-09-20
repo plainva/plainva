@@ -105,6 +105,12 @@ test.beforeEach(async ({ page }) => {
               .filter((r) => r.mode !== 'attachment' && (!prefix || r.path.startsWith(prefix)))
               .map((r) => ({ id: r.path, path: r.path, title: r.title, mtime_local: r.mtime_local, size_bytes: 1 }));
           }
+          // getTaskAnchors(): the `plainva` namespace of every note, one JSON
+          // row per file. Opt-in per test, and only for files that still exist —
+          // so a removed copy drops out of the next query like it does in SQLite.
+          if (q.includes('JOIN files f ON f.id = p.file_id')) {
+            return ((window as any).__namespaceRows ?? []).filter((r: any) => fs['/test-vault/' + r.path] !== undefined);
+          }
           if (q.includes('FROM properties')) {
             const out: any[] = [];
             for (const rel of (args.values ?? []) as string[]) {
@@ -226,6 +232,11 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:fs|watch') return 1;
         if (cmd === 'plugin:fs|unwatch') return null;
+        // The OS trash: the file is gone from the vault.
+        if (cmd === 'move_to_trash') {
+          delete fs[String(args.path)];
+          return null;
+        }
         return null;
       },
     };
@@ -749,4 +760,55 @@ test('task filters survive note navigation and restart; missing selections can b
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem('plainva-task-view-/test-vault')!));
   expect(state).toEqual({ version: 1, status: 'all', text: 'milk', folder: '', tag: '', dueOnly: false, showHidden: false });
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
+});
+
+test('tasks that exist more than once: the notice, the review, and only the empty copies go (finding 2026-09-20)', async ({ page }) => {
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    const note = (uid: string, title: string, status: string, body = '') =>
+      ['---', 'plainva:', '  pim:', '    kind: task', '    provider: google', '    list: L1', `    uid: ${uid}`, `status: ${status}`, '---', `# ${title}`, ...(body ? ['', body] : []), ''].join('\n');
+    // One task, three notes: the original, a frozen copy, and a copy somebody wrote into.
+    fs['/test-vault/Aufgaben/Blumen gießen.md'] = note('u1', 'Blumen gießen', 'Offen');
+    fs['/test-vault/Aufgaben/Blumen gießen 2.md'] = note('u1', 'Blumen gießen', 'Erledigt');
+    fs['/test-vault/Aufgaben/Blumen gießen 3.md'] = note('u1', 'Blumen gießen', 'Offen', 'Der Farn steht jetzt im Flur.');
+    fs['/test-vault/Aufgaben/Einmalig.md'] = note('u2', 'Einmalig', 'Offen');
+    const ns = (uid: string) => JSON.stringify({ pim: { kind: 'task', provider: 'google', list: 'L1', uid } });
+    (window as any).__namespaceRows = [
+      { path: 'Aufgaben/Blumen gießen.md', ctime: 1, value: ns('u1') },
+      { path: 'Aufgaben/Blumen gießen 2.md', ctime: 2, value: ns('u1') },
+      { path: 'Aufgaben/Blumen gießen 3.md', ctime: 3, value: ns('u1') },
+      { path: 'Aufgaben/Einmalig.md', ctime: 4, value: ns('u2') },
+    ];
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+
+  // One task is claimed by more than one note — the single one does not count.
+  await expect(page.getByTestId('task-duplicates-banner')).toContainText('1');
+  await page.getByTestId('task-duplicates-review').click();
+
+  const dialog = page.getByTestId('task-duplicates-dialog');
+  await expect(dialog).toBeVisible();
+  const rows = dialog.locator('[data-verdict]');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toHaveAttribute('data-verdict', 'kept');
+  await expect(dialog.locator('[data-verdict="removable"]')).toHaveCount(1);
+  await expect(dialog.locator('[data-verdict="ownText"]')).toHaveCount(1);
+
+  await page.getByTestId('task-duplicates-remove').click();
+  await expect(dialog).toHaveCount(0);
+
+  const left = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Aufgaben/')).sort());
+  expect(left).toEqual(['/test-vault/Aufgaben/Blumen gießen 3.md', '/test-vault/Aufgaben/Blumen gießen.md', '/test-vault/Aufgaben/Einmalig.md']);
+
+  // What is left carries something of its own: nothing more to remove, and the
+  // notice can be put away.
+  await expect(page.getByTestId('task-duplicates-banner')).toBeVisible();
+  await page.getByTestId('task-duplicates-review').click();
+  await expect(page.getByTestId('task-duplicates-remove')).toHaveCount(0);
+  await page.getByTestId('task-duplicates-putaway').click();
+  await expect(page.getByTestId('task-duplicates-banner')).toHaveCount(0);
 });

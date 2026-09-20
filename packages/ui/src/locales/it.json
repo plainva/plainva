@@ -2722,7 +2722,21 @@
       "unsupported": "Regola conservata; nessuna continuazione automatica qui."
     },
     "resetFilters": "Reimposta filtri",
-    "filterUnavailable": "Non disponibile"
+    "filterUnavailable": "Non disponibile",
+    "duplicatesBanner": "Attività presenti più di una volta: {{count}}",
+    "duplicatesHint": "Plainva sincronizza con il provider esattamente una nota per attività. Le altre sono copie rimaste indietro: nulla le aggiorna più, quindi restano aperte per sempre.",
+    "duplicatesReview": "Esamina",
+    "duplicatesTitle": "Attività presenti più di una volta",
+    "duplicatesKept": "sincronizzata · resta",
+    "duplicatesRemovable": "copia senza contenuto proprio · verrà rimossa",
+    "duplicatesOwnText": "testo proprio · resta: controllala",
+    "duplicatesDiffers": "diversa dalla nota sincronizzata · resta: controllala",
+    "duplicatesRemove": "Rimuovi copie: {{count}}",
+    "duplicatesRemoved": "Copie rimosse: {{count}}. Plainva ha prima salvato ciascuna nella cronologia delle versioni; le attività presso il provider restano intatte.",
+    "duplicatesNothing": "Non si può rimuovere nulla senza rischi: ogni copia contiene qualcosa di suo.",
+    "duplicatesPutAway": "Nascondi questo avviso",
+    "duplicatesPutAwayHint": "L’avviso ritorna non appena una copia compare o scompare.",
+    "repeatsAtProvider": "Si ripete presso il provider"
   },
   "findReplace": {
     "title": "Trova e sostituisci nel vault",

@@ -23,7 +23,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, ServiceConnectionError, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, onDevicePimChanged, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync } from "./taskSyncRuntime";
@@ -117,6 +117,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),
+    // Why each cycle ran and how long it took — the desktop's pimRuntime writes
+    // the same line (finding 2026-09-20: a second pull nobody could explain).
+    onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
     onDataChanged: () => {
       window.dispatchEvent(new CustomEvent("m-pim-changed"));
       // A finished cycle is the only moment the phone learns about new or moved

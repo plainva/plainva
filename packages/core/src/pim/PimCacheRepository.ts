@@ -591,6 +591,18 @@ export class PimCacheRepository {
     }));
   }
 
+  /**
+   * Which note the reconciler maintains for each task, across every account and
+   * list (finding 2026-09-20): the clean-up of duplicate task notes keeps
+   * exactly that note and never has to guess. Tombstones (no note) are left out.
+   */
+  async listBoundTaskNotes(): Promise<Array<{ listId: string; uid: string; notePath: string }>> {
+    const rows = await this.db.query<{ list_id: string; uid: string; note_path: string | null }>(
+      `SELECT list_id, uid, note_path FROM pim_task_state WHERE note_path IS NOT NULL`
+    );
+    return rows.flatMap((r) => (r.note_path ? [{ listId: r.list_id, uid: r.uid, notePath: r.note_path }] : []));
+  }
+
   async upsertTaskState(row: PimTaskStateRow): Promise<void> {
     await this.db.execute(
       `INSERT OR REPLACE INTO pim_task_state (account_id, list_id, uid, note_path, remote_etag, base_fields, last_sync_ts) VALUES (?, ?, ?, ?, ?, ?, ?)`,

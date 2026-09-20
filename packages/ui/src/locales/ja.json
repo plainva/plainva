@@ -2678,7 +2678,21 @@
       "unsupported": "ルールは保持されますが、ここでは自動的に次回を作成しません。"
     },
     "resetFilters": "フィルターをリセット",
-    "filterUnavailable": "利用不可"
+    "filterUnavailable": "利用不可",
+    "duplicatesBanner": "重複しているタスク: {{count}} 件",
+    "duplicatesHint": "Plainva がプロバイダーと同期するノートは、タスク 1 件につき 1 つだけです。残りは取り残されたコピーで、もう更新されないため、いつまでも未完了のまま残ります。",
+    "duplicatesReview": "確認する",
+    "duplicatesTitle": "重複しているタスク",
+    "duplicatesKept": "同期中 · 残します",
+    "duplicatesRemovable": "独自の内容がないコピー · 削除します",
+    "duplicatesOwnText": "独自のテキストあり · 残します — 確認してください",
+    "duplicatesDiffers": "同期中のノートと内容が異なる · 残します — 確認してください",
+    "duplicatesRemove": "コピーを削除: {{count}} 件",
+    "duplicatesRemoved": "コピーを {{count}} 件削除しました。Plainva は削除の前にそれぞれをバージョン履歴に保存しました。プロバイダー側のタスクはそのままです。",
+    "duplicatesNothing": "安全に削除できるものはありません — どのコピーにも独自の内容があります。",
+    "duplicatesPutAway": "この通知を非表示にする",
+    "duplicatesPutAwayHint": "コピーが増減すると、この通知は再び表示されます。",
+    "repeatsAtProvider": "プロバイダー側で繰り返されます"
   },
   "findReplace": {
     "title": "Vault 全体で検索と置換",

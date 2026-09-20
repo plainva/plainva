@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-20
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -78,7 +78,7 @@ Two limits of that rule are there on purpose. **A merely missing file deletes no
 
 In the other direction the old rule stands: **a remotely deleted task never deletes your note** (it simply becomes a normal note). Renaming or moving a task note is fine — the frontmatter marker keeps the link.
 
-**A reconnect no longer produces duplicates.** When you sign in to an account again, set Plainva up on a second machine, or the search index is rebuilt, Plainva recognises the existing notes by that same marker and adopts them instead of importing the tasks a second time. While a vault is still syncing, no task notes are created at all — a note that is still on its way would otherwise become exactly such a duplicate.
+**A reconnect no longer produces duplicates.** When you sign in to an account again, set Plainva up on a second machine, or the search index is rebuilt, Plainva recognises the existing notes by that same marker and adopts them instead of importing the tasks a second time. While a vault is still syncing, no task notes are created at all — a note that is still on its way would otherwise become exactly such a duplicate. Copies that older versions left behind can be cleared away: when tasks exist more than once, the Tasks view shows **Tasks that exist more than once** with **Review**. Plainva keeps the note it syncs and removes only copies that carry nothing of their own — done, or identical to the kept note, and without text of their own; every other copy stays and is shown to you, and each removed copy is saved to the version history first. The tasks at the provider are never touched by this. If only copies with something of their own are left, **Hide this notice** puts the notice away until a copy is added or disappears. A task that repeats **at the provider** (a daily Google task, for example) is a single task there: ticking it off completes it, and the provider reopens the same task with its next date — Plainva mirrors exactly that, and once it has seen the task come round again, its row carries **Repeats at the provider**.
 
 Current limits: tasks created as plain notes are not pushed to the provider (create them remotely or via the task database), and everything on this page is desktop-first for now.
 

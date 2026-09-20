@@ -2722,7 +2722,21 @@
       "unsupported": "Règle conservée ; aucune continuation automatique ici."
     },
     "resetFilters": "Réinitialiser les filtres",
-    "filterUnavailable": "Indisponible"
+    "filterUnavailable": "Indisponible",
+    "duplicatesBanner": "Tâches présentes en plusieurs exemplaires : {{count}}",
+    "duplicatesHint": "Plainva synchronise exactement une note par tâche avec le fournisseur. Les autres sont des copies restées en arrière — plus rien ne les met à jour, elles restent donc ouvertes indéfiniment.",
+    "duplicatesReview": "Examiner",
+    "duplicatesTitle": "Tâches présentes en plusieurs exemplaires",
+    "duplicatesKept": "synchronisée · reste",
+    "duplicatesRemovable": "copie sans contenu propre · sera retirée",
+    "duplicatesOwnText": "texte propre · reste — à examiner",
+    "duplicatesDiffers": "diffère de la note synchronisée · reste — à examiner",
+    "duplicatesRemove": "Retirer les copies : {{count}}",
+    "duplicatesRemoved": "Copies retirées : {{count}}. Plainva a d'abord enregistré chacune dans l'historique des versions ; les tâches chez le fournisseur restent intactes.",
+    "duplicatesNothing": "Rien ne peut être retiré sans risque — chaque copie contient quelque chose qui lui est propre.",
+    "duplicatesPutAway": "Masquer cet avis",
+    "duplicatesPutAwayHint": "L’avis revient dès qu’une copie apparaît ou disparaît.",
+    "repeatsAtProvider": "Se répète chez le fournisseur"
   },
   "findReplace": {
     "title": "Rechercher et remplacer dans le vault",

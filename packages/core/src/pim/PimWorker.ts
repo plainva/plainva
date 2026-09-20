@@ -34,6 +34,12 @@ export interface PimWorkerOptions {
   parkedMessage?: string;
   /** Fired after a cycle wrote fresh data — the UI re-queries the cache. */
   onDataChanged?: () => void;
+  /**
+   * One line per finished cycle, for the diagnostics log (finding 2026-09-20:
+   * two provider pulls 14 s apart, and nothing on record said what had asked
+   * for the second one). Never carries data — only why it ran and how long.
+   */
+  onCycle?: (info: PimCycleInfo) => void;
   intervalMs?: number;
   /** Rolling event window around "now". */
   windowPastDays?: number;
@@ -41,7 +47,30 @@ export interface PimWorkerOptions {
   now?: () => number;
 }
 
+/** Why a cycle ran: the worker starting, its timer, a manual refresh, or a
+ *  manual refresh that arrived mid-cycle and was run afterwards. */
+export type PimCycleCause = "start" | "timer" | "manual" | "queued";
+
+export interface PimCycleInfo {
+  cause: PimCycleCause;
+  ms: number;
+  wroteData: boolean;
+  hadError: boolean;
+  /** Manual triggers the cycle answered without a second run (see TRIGGER_COALESCE_MS). */
+  coalesced: number;
+}
+
 const DEFAULT_INTERVAL_MS = 2 * 60 * 1000;
+/**
+ * A manual trigger this soon after a cycle started is ANSWERED by that cycle:
+ * nothing has been read from a provider yet that could be older than the
+ * request. Queueing it anyway ran every such request twice — `start()` followed
+ * by `triggerImmediate()` is a common pair (a login finishing, an account being
+ * enabled, a view opening right after the vault), and each pair cost two full
+ * pulls of every calendar and task list (finding 2026-09-20). Later triggers
+ * still queue: by then the cycle may have passed the list the person changed.
+ */
+export const TRIGGER_COALESCE_MS = 1500;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Accounts refreshed at once; each of them pulls its calendars in batches too. */
 const ACCOUNT_CONCURRENCY = 3;
@@ -60,14 +89,17 @@ export class PimWorker {
   private pendingTrigger = false;
   /** Next cycle asks parked accounts again — set by a manual refresh (N1/S2). */
   private retryParked = false;
+  /** When the running cycle began, and how many triggers it absorbed. */
+  private cycleStartedAt = 0;
+  private coalesced = 0;
 
   constructor(private opts: PimWorkerOptions) {}
 
   start(): void {
     if (this.timer) return;
     this.stopped = false;
-    this.timer = setInterval(() => void this.runCycle(), this.opts.intervalMs ?? DEFAULT_INTERVAL_MS);
-    void this.runCycle();
+    this.timer = setInterval(() => void this.runCycle("timer"), this.opts.intervalMs ?? DEFAULT_INTERVAL_MS);
+    void this.runCycle("start");
   }
 
   stop(): void {
@@ -86,12 +118,28 @@ export class PimWorker {
    * user asking is exactly the moment to stop assuming the sign-in is still
    * dead — they may have just repaired it elsewhere. */
   async triggerImmediate(): Promise<void> {
-    this.retryParked = true;
     if (this.running) {
+      // The cycle that just began answers this request (TRIGGER_COALESCE_MS) —
+      // provided it also gives parked accounts their go, which is half of what
+      // a manual refresh promises. Before the cycle has decided whom to skip,
+      // the request simply rides along (`retryParked` is read at that point);
+      // afterwards only a cycle that skipped nobody may swallow it.
+      const early = this.clock() - this.cycleStartedAt <= TRIGGER_COALESCE_MS;
+      if (early && this.parkedSkipped !== true) {
+        if (this.parkedSkipped === null) this.retryParked = true;
+        this.coalesced++;
+        return;
+      }
+      this.retryParked = true;
       this.pendingTrigger = true;
       return;
     }
-    await this.runCycle();
+    this.retryParked = true;
+    await this.runCycle("manual");
+  }
+
+  private clock(): number {
+    return this.opts.now ? this.opts.now() : Date.now();
   }
 
   get windowRange(): { startTs: number; endTs: number } {
@@ -101,11 +149,15 @@ export class PimWorker {
     return { startTs, endTs };
   }
 
-  private async runCycle(): Promise<void> {
+  /** Whether the running cycle skipped a parked account: null = not decided yet. */
+  private parkedSkipped: boolean | null = null;
+
+  private async runCycle(cause: PimCycleCause): Promise<void> {
     if (this.running || this.stopped) return;
     this.running = true;
-    const retryParked = this.retryParked;
-    this.retryParked = false;
+    this.cycleStartedAt = this.clock();
+    this.coalesced = 0;
+    this.parkedSkipped = null;
     const gen = ++this.generation;
     const { cache, buildTarget } = this.opts;
     let hadError = false;
@@ -141,6 +193,11 @@ export class PimWorker {
        * from before this column existed reads as unknown and is retried — an
        * upgrade must never park a working account.
        */
+      // Read HERE, not at the top of the cycle: a manual trigger that arrives
+      // while the accounts are still being listed rides along with this cycle
+      // (see triggerImmediate), and its half of the promise is this flag.
+      const retryParked = this.retryParked;
+      this.retryParked = false;
       const parked = retryParked
         ? new Set<string>()
         : new Set(
@@ -155,6 +212,7 @@ export class PimWorker {
             ).filter((id): id is string => id !== null)
           );
       const accounts = enabled.filter((a) => !parked.has(a.id));
+      this.parkedSkipped = parked.size > 0;
       if (parked.size > 0 && accounts.length === 0) {
         // Nothing left to ask. Say the standing state rather than "ok", which
         // would read as though the calendars were fresh. NOT an early return:
@@ -207,12 +265,17 @@ export class PimWorker {
       this.running = false;
     }
     if (gen !== this.generation) return;
+    try {
+      this.opts.onCycle?.({ cause, ms: this.clock() - this.cycleStartedAt, wroteData, hadError, coalesced: this.coalesced });
+    } catch {
+      /* diagnostics are best effort */
+    }
     if (wroteData) this.opts.onDataChanged?.();
     this.opts.onStatusChange?.(hadError ? "error" : "idle", firstError);
     // Drain a manual trigger that arrived mid-cycle (never a silent no-op).
     if (this.pendingTrigger && !this.stopped) {
       this.pendingTrigger = false;
-      void this.runCycle();
+      void this.runCycle("queued");
     }
   }
 

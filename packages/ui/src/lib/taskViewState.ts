@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore, type SetStateAction } from "react";
 import type { TaskStatusFilter } from "./taskList";
+import { taskDuplicatesSeenKey } from "./taskDuplicatesSeen";
 
 export interface TaskViewState {
   status: TaskStatusFilter; text: string; folder: string; tag: string; dueOnly: boolean; showHidden: boolean;
@@ -72,6 +73,9 @@ export function forgetTaskViewState(vault: string, storage: TaskViewStorage | nu
   const store = storage && stores.get(storage)?.get(vault); store?.forget();
   if (storage) stores.get(storage)?.delete(vault);
   try { storage?.removeItem(taskViewStateKey(vault)); } catch { /* unavailable */ }
+  // Everything the tasks view remembers about a vault goes with it — the
+  // put-away duplicates notice included.
+  try { storage?.removeItem(taskDuplicatesSeenKey(vault)); } catch { /* unavailable */ }
 }
 
 export function useTaskViewState(vault: string | null) {

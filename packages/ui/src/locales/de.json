@@ -2700,7 +2700,21 @@
       "unsupported": "Regel bleibt erhalten; hier keine automatische Fortsetzung."
     },
     "resetFilters": "Filter zurücksetzen",
-    "filterUnavailable": "Nicht verfügbar"
+    "filterUnavailable": "Nicht verfügbar",
+    "duplicatesBanner": "Mehrfach vorhandene Aufgaben: {{count}}",
+    "duplicatesHint": "Je Aufgabe gleicht Plainva genau eine Notiz mit dem Anbieter ab. Die übrigen sind stehengebliebene Kopien — niemand ändert sie mehr, deshalb stehen sie für immer offen da.",
+    "duplicatesReview": "Ansehen",
+    "duplicatesTitle": "Mehrfach vorhandene Aufgaben",
+    "duplicatesKept": "wird abgeglichen · bleibt",
+    "duplicatesRemovable": "Kopie ohne eigenen Inhalt · wird entfernt",
+    "duplicatesOwnText": "eigener Text · bleibt — bitte ansehen",
+    "duplicatesDiffers": "weicht von der abgeglichenen Notiz ab · bleibt — bitte ansehen",
+    "duplicatesRemove": "Kopien entfernen: {{count}}",
+    "duplicatesRemoved": "Kopien entfernt: {{count}}. Plainva hat jede vorher in den Versionsverlauf gesichert; die Aufgaben beim Anbieter bleiben unberührt.",
+    "duplicatesNothing": "Nichts lässt sich gefahrlos entfernen — jede Kopie trägt etwas Eigenes.",
+    "duplicatesPutAway": "Hinweis ausblenden",
+    "duplicatesPutAwayHint": "Der Hinweis kommt wieder, sobald eine Kopie dazukommt oder verschwindet.",
+    "repeatsAtProvider": "Wiederholt sich beim Anbieter"
   },
   "findReplace": {
     "title": "Im Vault suchen & ersetzen",

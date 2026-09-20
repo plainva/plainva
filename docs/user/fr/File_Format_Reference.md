@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-09-19
+Dernière mise à jour : 2026-09-20
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -156,7 +156,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Ce qui décrit l'origine.** Pour une tâche, ce qui compte, ce sont `uid` et `list` — un `uid` est unique chez UN fournisseur, pas à travers deux. `provider` (`google`, `microsoft`, `caldav`) et `identity` (l'identité de compte vérifiée, quand le fournisseur en propose une) le précisent davantage, et les deux survivent à une reconnexion. `account` est l'identifiant de compte LOCAL : Plainva continue de l'écrire pour que les anciennes versions puissent lire l'ancre, mais ne le compare plus — il est frappé à neuf à chaque connexion, ce qui explique précisément pourquoi un compte reconnecté importait autrefois ses tâches une seconde fois. Si vous écrivez vous-même des ancres, définissez `uid` et `list` ; `provider`/`identity` sont recommandés, `account` n'est pas nécessaire.
+**Ce qui décrit l'origine.** Pour une tâche, ce qui compte, ce sont `uid` et `list` — un `uid` est unique chez UN fournisseur, pas à travers deux. `provider` (`google`, `microsoft`, `caldav`) et `identity` (l'identité de compte vérifiée, quand le fournisseur en propose une) le précisent davantage, et les deux survivent à une reconnexion. `account` est l'identifiant de compte LOCAL : Plainva continue de l'écrire pour que les anciennes versions puissent lire l'ancre, mais ne le compare plus — il est frappé à neuf à chaque connexion, ce qui explique précisément pourquoi un compte reconnecté importait autrefois ses tâches une seconde fois. Si vous écrivez vous-même des ancres, définissez `uid` et `list` ; `provider`/`identity` sont recommandés, `account` n'est pas nécessaire. Plainva ajoute `recurring: true` à une ancre de tâche dès qu'il a vu le fournisseur faire revenir la tâche (terminée, puis rouverte sous le même `uid` avec une date ultérieure). Cette clé est purement informative, n'est jamais comparée et peut être supprimée.
 
 `templateFor` est le contrat de champ de l'association de modèle (voir [bases de données](Databases_Base.md)) : sur une note à l'intérieur du dossier de modèles, il liste les bases de données dont le menu **Entrée** affiche le modèle par défaut. Les valeurs sont des liens wiki complets, extension `.base` incluse — nus (`"[[Tasks.base]]"` correspond au fichier de ce nom dans n'importe quel dossier, et survit donc à un simple déplacement de dossier) ou qualifiés par un chemin (`"[[Projekte/Tasks.base]]"` correspond exactement à ce chemin). Plainva écrit des liens nus et ne les qualifie que lorsque deux fichiers `.base` de même nom existent. Un scalaire à la place d'une liste est toléré. Quand un élément est créé à partir du modèle, `templateFor` — contrairement aux autres clés `plainva:` — n'est **pas** copié dans la nouvelle note.
 

@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-19
+Stand: 2026-09-20
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -156,7 +156,7 @@ plainva:
     account: 3f9c21ab
 ```
 
-**Wer die Herkunft beschreibt.** Bei einer Aufgabe zählen `uid` und `list` — eine `uid` ist bei **einem** Anbieter eindeutig, nicht über zwei hinweg. `provider` (`google`, `microsoft`, `caldav`) und `identity` (die geprüfte Kontokennung, sofern der Anbieter eine anbietet) grenzen zusätzlich ein und überleben eine Neuanmeldung. `account` ist die **lokale** Konto-Kennung: Plainva schreibt sie weiterhin, damit ältere Fassungen den Anker lesen, vergleicht sie aber nicht mehr — sie wird bei jeder Neuanmeldung neu vergeben und war damit der Grund, warum ein neu verbundenes Konto seine Aufgaben ein zweites Mal importierte. Wer Anker selbst schreibt, setzt `uid` und `list`; `provider`/`identity` sind empfohlen, `account` ist entbehrlich.
+**Wer die Herkunft beschreibt.** Bei einer Aufgabe zählen `uid` und `list` — eine `uid` ist bei **einem** Anbieter eindeutig, nicht über zwei hinweg. `provider` (`google`, `microsoft`, `caldav`) und `identity` (die geprüfte Kontokennung, sofern der Anbieter eine anbietet) grenzen zusätzlich ein und überleben eine Neuanmeldung. `account` ist die **lokale** Konto-Kennung: Plainva schreibt sie weiterhin, damit ältere Fassungen den Anker lesen, vergleicht sie aber nicht mehr — sie wird bei jeder Neuanmeldung neu vergeben und war damit der Grund, warum ein neu verbundenes Konto seine Aufgaben ein zweites Mal importierte. Wer Anker selbst schreibt, setzt `uid` und `list`; `provider`/`identity` sind empfohlen, `account` ist entbehrlich. `recurring: true` ergänzt Plainva an einem Aufgaben-Anker, sobald es gesehen hat, dass der Anbieter die Aufgabe wiederkehren lässt (erledigt, dann unter derselben `uid` mit späterem Datum wieder offen). Der Schlüssel ist rein informativ, wird nie verglichen und darf entfernt werden.
 
 `templateFor` ist der Feldvertrag der Vorlagen-Zuordnung (siehe [Datenbanken](Databases_Base.md)): Auf einer Notiz im Vorlagen-Ordner listet es die Datenbanken, in deren **Eintrag**-Menü die Vorlage standardmäßig erscheint. Die Werte sind ganze Wiki-Links inklusive `.base`-Endung — bare (`"[[Tasks.base]]"` matcht die Datei dieses Namens in jedem Ordner, überlebt also reine Ordner-Verschiebungen) oder pfad-qualifiziert (`"[[Projekte/Tasks.base]]"` matcht exakt diesen Pfad). Plainva schreibt bare Links und qualifiziert nur, wenn zwei gleichnamige `.base`-Dateien existieren. Ein Skalar statt einer Liste wird toleriert. Beim Erstellen eines Eintrags aus der Vorlage wird `templateFor` — anders als die übrigen `plainva:`-Schlüssel — **nicht** in die neue Notiz übernommen.
 

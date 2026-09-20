@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-09-19
+Ultimo aggiornamento: 2026-09-20
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -78,7 +78,7 @@ Due limiti di questa regola sono lì di proposito. **Un file semplicemente manca
 
 Nell'altra direzione vale la vecchia regola: **un'attività eliminata da remoto non elimina mai la tua nota** (diventa semplicemente una nota normale). Rinominare o spostare una nota di attività va bene — la marcatura nel frontmatter mantiene il collegamento.
 
-**Una riconnessione non produce più duplicati.** Quando accedi di nuovo a un account, configuri Plainva su una seconda macchina, oppure l'indice di ricerca viene ricostruito, Plainva riconosce le note esistenti tramite la stessa marcatura e le adotta invece di importare di nuovo le attività una seconda volta. Finché un vault è ancora in fase di sincronizzazione, non viene creata nessuna nota di attività — una nota ancora in arrivo diventerebbe altrimenti esattamente un duplicato del genere.
+**Una riconnessione non produce più duplicati.** Quando accedi di nuovo a un account, configuri Plainva su una seconda macchina, oppure l'indice di ricerca viene ricostruito, Plainva riconosce le note esistenti tramite la stessa marcatura e le adotta invece di importare di nuovo le attività una seconda volta. Finché un vault è ancora in fase di sincronizzazione, non viene creata nessuna nota di attività — una nota ancora in arrivo diventerebbe altrimenti esattamente un duplicato del genere. Le copie lasciate dalle versioni precedenti si possono ripulire: quando ci sono attività ripetute, la vista delle attività mostra **Attività presenti più di una volta** con **Esamina**. Plainva conserva la nota che sincronizza e rimuove solo le copie che non contengono nulla di proprio — completate o identiche alla nota conservata, e senza testo proprio; ogni altra copia resta e ti viene mostrata, e ogni copia rimossa viene prima salvata nella cronologia delle versioni. Le attività presso il provider non vengono mai toccate. Se restano solo copie con contenuto proprio, **Nascondi questo avviso** mette da parte l'avviso finché una copia non compare o scompare. Un'attività che si ripete **presso il provider** (per esempio un'attività giornaliera di Google) lì è un'unica attività: spuntarla la completa, e il provider riapre la stessa attività con la data successiva — Plainva rispecchia esattamente questo e, non appena ha visto l'attività ripresentarsi una volta, la sua riga riporta **Si ripete presso il provider**.
 
 Limiti attuali: le attività create come normali note non vengono inviate al provider (creale da remoto o tramite il database attività), e per ora tutto in questa pagina è desktop-first.
 

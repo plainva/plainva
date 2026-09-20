@@ -2744,7 +2744,21 @@
       "unsupported": "Reguła zachowana; tutaj bez automatycznej kontynuacji."
     },
     "resetFilters": "Resetuj filtry",
-    "filterUnavailable": "Niedostępne"
+    "filterUnavailable": "Niedostępne",
+    "duplicatesBanner": "Zadania występujące więcej niż raz: {{count}}",
+    "duplicatesHint": "Plainva synchronizuje z dostawcą dokładnie jedną notatkę na zadanie. Pozostałe to kopie, które zostały z tyłu — nic ich już nie aktualizuje, więc na zawsze pozostają otwarte.",
+    "duplicatesReview": "Przejrzyj",
+    "duplicatesTitle": "Zadania występujące więcej niż raz",
+    "duplicatesKept": "synchronizowana · zostaje",
+    "duplicatesRemovable": "kopia bez własnej treści · zostanie usunięta",
+    "duplicatesOwnText": "własny tekst · zostaje — przejrzyj ją",
+    "duplicatesDiffers": "różni się od synchronizowanej notatki · zostaje — przejrzyj ją",
+    "duplicatesRemove": "Usuń kopie: {{count}}",
+    "duplicatesRemoved": "Usunięto kopii: {{count}}. Plainva zapisała wcześniej każdą z nich w historii wersji; zadania u dostawcy pozostają nietknięte.",
+    "duplicatesNothing": "Niczego nie da się bezpiecznie usunąć — każda kopia zawiera coś własnego.",
+    "duplicatesPutAway": "Ukryj tę informację",
+    "duplicatesPutAwayHint": "Informacja wróci, gdy tylko pojawi się lub zniknie jakaś kopia.",
+    "repeatsAtProvider": "Powtarza się u dostawcy"
   },
   "findReplace": {
     "title": "Znajdź i zamień w całym vault",

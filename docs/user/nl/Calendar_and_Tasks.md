@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-20
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -78,7 +78,7 @@ Twee grenzen van die regel zijn er met opzet. **Een louter ontbrekend bestand ve
 
 In de andere richting geldt de oude regel: **een extern verwijderde taak verwijdert nooit je notitie** (die wordt gewoon een gewone notitie). Een taaknotitie hernoemen of verplaatsen is geen probleem — de frontmatter-markering houdt de koppeling in stand.
 
-**Een herverbinding levert niet meer dubbele exemplaren op.** Meld je je opnieuw aan bij een account, richt je Plainva op een tweede machine in, of wordt de zoekindex opnieuw opgebouwd, dan herkent Plainva de bestaande notities aan diezelfde markering en neemt ze over in plaats van de taken een tweede keer te importeren. Zolang een kluis nog aan het synchroniseren is, worden er helemaal geen taaknotities aangemaakt — een notitie die nog onderweg is, zou anders precies zo'n duplicaat worden.
+**Een herverbinding levert niet meer dubbele exemplaren op.** Meld je je opnieuw aan bij een account, richt je Plainva op een tweede machine in, of wordt de zoekindex opnieuw opgebouwd, dan herkent Plainva de bestaande notities aan diezelfde markering en neemt ze over in plaats van de taken een tweede keer te importeren. Zolang een kluis nog aan het synchroniseren is, worden er helemaal geen taaknotities aangemaakt — een notitie die nog onderweg is, zou anders precies zo'n duplicaat worden. Kopieën die oudere versies hebben achtergelaten, kun je opruimen: als taken meer dan eens voorkomen, toont de takenweergave **Taken die meer dan eens voorkomen** met **Bekijken**. Plainva behoudt de notitie die het synchroniseert en verwijdert alleen kopieën die niets eigens bevatten — afgerond of gelijk aan de behouden notitie, en zonder eigen tekst; elke andere kopie blijft en wordt je getoond, en elke verwijderde kopie wordt eerst in de versiegeschiedenis bewaard. De taken bij de aanbieder blijven ongemoeid. Blijven er alleen kopieën met eigen inhoud over, dan legt **Deze melding verbergen** de melding weg totdat er een kopie bij komt of verdwijnt. Een taak die zich **bij de aanbieder** herhaalt (bijvoorbeeld een dagelijkse Google-taak) is daar één taak: afvinken rondt haar af, en de aanbieder opent dezelfde taak opnieuw met de volgende datum — Plainva spiegelt precies dat, en zodra het de taak één keer heeft zien terugkomen, staat op haar rij **Herhaalt zich bij de aanbieder**.
 
 Huidige beperkingen: als gewone notities aangemaakte taken worden niet naar de provider gepusht (maak ze extern aan of via de takendatabase), en alles op deze pagina is voorlopig desktop-first.
 

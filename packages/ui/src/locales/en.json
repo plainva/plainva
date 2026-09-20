@@ -2700,7 +2700,21 @@
       "unsupported": "Rule preserved; no automatic continuation here."
     },
     "resetFilters": "Reset filters",
-    "filterUnavailable": "Unavailable"
+    "filterUnavailable": "Unavailable",
+    "duplicatesBanner": "Tasks that exist more than once: {{count}}",
+    "duplicatesHint": "Plainva keeps exactly one note per task in sync with the provider. The others are copies that were left behind — nothing updates them any more, so they stay open forever.",
+    "duplicatesReview": "Review",
+    "duplicatesTitle": "Tasks that exist more than once",
+    "duplicatesKept": "kept in sync · stays",
+    "duplicatesRemovable": "copy with nothing of its own · will be removed",
+    "duplicatesOwnText": "text of its own · stays — please review",
+    "duplicatesDiffers": "differs from the synced note · stays — please review",
+    "duplicatesRemove": "Remove copies: {{count}}",
+    "duplicatesRemoved": "Copies removed: {{count}}. Plainva saved each one to the version history first; the tasks at the provider are untouched.",
+    "duplicatesNothing": "Nothing can be removed safely — every copy carries something of its own.",
+    "duplicatesPutAway": "Hide this notice",
+    "duplicatesPutAwayHint": "The notice returns as soon as a copy appears or disappears.",
+    "repeatsAtProvider": "Repeats at the provider"
   },
   "findReplace": {
     "title": "Find & replace in vault",

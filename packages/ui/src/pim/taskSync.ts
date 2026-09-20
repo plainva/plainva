@@ -410,7 +410,14 @@ async function reconcileList(
 
     // Apply to the note when it differs from the local state.
     if (!fieldsEqual(merged, localFields)) {
-      const updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
+      let updated = upgradeAnchorIfStale(applyFieldsToNote(content, merged, localFields, db), account, listId, rt);
+      // The provider repeats this task (finding 2026-09-20): done at the last
+      // agreement, open again under the SAME id with a later due date — and
+      // nobody reopened it here. The note says so from now on, because "I
+      // ticked this yesterday and it is open again" otherwise reads as a sync
+      // fault. Rides along with the write that reopens the note; never a
+      // write of its own.
+      if (providerReopened(base, remoteFields) && localFields.completed === base.completed) updated = markRecurringAtProvider(updated);
       try {
         if (!await fileStillEquals(adapter, notePath, content)) continue;
         await adapter.writeTextFile(notePath, updated);
@@ -617,18 +624,40 @@ async function adoptAnchoredNote(
  * reconciler is already making, and otherwise waits. Notes that are never
  * touched keep their old anchor, which stays readable.
  */
+/**
+ * A recurring provider task coming round again: completed when both sides last
+ * agreed, open now, and due LATER than before. The later date is what tells a
+ * repetition from somebody simply un-ticking the task at the provider.
+ */
+export function providerReopened(base: PimTaskFields, remote: PimTaskFields): boolean {
+  return base.completed && !remote.completed && !!base.due && !!remote.due && remote.due.slice(0, 10) > base.due.slice(0, 10);
+}
+
+function markRecurringAtProvider(content: string): string {
+  if (readFrontmatterPath(content, ["plainva", "pim", "recurring"]) === true) return content;
+  try {
+    return setFrontmatterPath(content, ["plainva", "pim", "recurring"], true);
+  } catch {
+    return content; // a label must never cost the actual edit
+  }
+}
+
 function upgradeAnchorIfStale(content: string, account: PimAccountRow, listId: string, task: PimTask): string {
   if (!account.provider) return content;
   const current = readFrontmatterPath(content, ["plainva", "pim", "provider"]);
   if (typeof current === "string" && current) return content;
   try {
-    return setFrontmatterPath(content, ["plainva", "pim"], buildTaskAnchor({
-      uid: task.uid,
-      listId,
-      accountId: account.id,
-      provider: account.provider,
-      identity: taskAnchorIdentity(account),
-    }));
+    const recurring = readFrontmatterPath(content, ["plainva", "pim", "recurring"]) === true;
+    return setFrontmatterPath(content, ["plainva", "pim"], {
+      ...buildTaskAnchor({
+        uid: task.uid,
+        listId,
+        accountId: account.id,
+        provider: account.provider,
+        identity: taskAnchorIdentity(account),
+      }),
+      ...(recurring ? { recurring: true } : {}),
+    });
   } catch {
     return content; // never let a cosmetic upgrade cost the actual edit
   }

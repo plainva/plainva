@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-09-19
+Última actualización: 2026-09-20
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -78,7 +78,7 @@ Esa regla tiene deliberadamente dos límites. **Un archivo simplemente ausente n
 
 En la otra dirección se mantiene la regla anterior: **una tarea eliminada de forma remota nunca elimina tu nota** (simplemente se convierte en una nota normal). Renombrar o mover una nota de tarea no es ningún problema — la marca en el frontmatter mantiene el enlace.
 
-**Una reconexión ya no produce duplicados.** Cuando vuelves a iniciar sesión en una cuenta, configuras Plainva en una segunda máquina, o se reconstruye el índice de búsqueda, Plainva reconoce las notas existentes por esa misma marca y las adopta en lugar de volver a importar las tareas por segunda vez. Mientras un vault todavía se está sincronizando, no se crea ninguna nota de tarea — una nota que aún está en camino se convertiría, si no, exactamente en ese duplicado.
+**Una reconexión ya no produce duplicados.** Cuando vuelves a iniciar sesión en una cuenta, configuras Plainva en una segunda máquina, o se reconstruye el índice de búsqueda, Plainva reconoce las notas existentes por esa misma marca y las adopta en lugar de volver a importar las tareas por segunda vez. Mientras un vault todavía se está sincronizando, no se crea ninguna nota de tarea — una nota que aún está en camino se convertiría, si no, exactamente en ese duplicado. Las copias que dejaron versiones anteriores se pueden limpiar: cuando hay tareas repetidas, la vista de tareas muestra **Tareas que existen más de una vez** con **Revisar**. Plainva conserva la nota que sincroniza y solo quita las copias que no tienen nada propio —completadas o idénticas a la nota conservada, y sin texto propio—; cualquier otra copia se queda y se te muestra, y cada copia quitada se guarda antes en el historial de versiones. Las tareas del proveedor no se tocan. Si solo quedan copias con contenido propio, **Ocultar este aviso** aparta el aviso hasta que aparezca o desaparezca una copia. Una tarea que se repite **en el proveedor** (por ejemplo, una tarea diaria de Google) es allí una sola tarea: al marcarla se completa, y el proveedor vuelve a abrir la misma tarea con su siguiente fecha; Plainva refleja exactamente eso y, en cuanto ha visto volver la tarea una vez, su fila lleva **Se repite en el proveedor**.
 
 Límites actuales: las tareas creadas como notas normales no se envían al proveedor (créalas de forma remota o mediante la base de datos de tareas), y todo lo de esta página es por ahora desktop-first.
 

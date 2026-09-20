@@ -419,6 +419,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
   "pv-cascade": "cascade-delete dialog scaffold — rows/badges live inside .pv-setcard on shared status/accent tokens the themes already override",
+  "pv-dupes": "layout only — spaces the GroupCard/Row/Chip primitives of 'tasks that exist more than once' inside .pv-modal (desktop) and the phone sheet; every visible surface is one of those primitives, which both themes already restyle",
   "pv-security": "security page/hero scaffold — layout only (flex + gap), all colour comes from the cards and banners inside, which both themes already override",
   "pv-chain": "account-sync chain — steps live inside .pv-setcard and draw only from shared accent/status/border tokens both themes already override",
   "pv-sidecal": "layout only — the sidebar calendar's flex growth of the DateJumpTrigger and its week-number checkbox row; the trigger, the picker and the checkbox carry the theme",

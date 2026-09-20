@@ -90,6 +90,26 @@ export function isMirroredNamespace(raw: unknown): boolean {
   return typeof pim?.uid === "string" && pim.uid.length > 0;
 }
 
+/**
+ * Whether the reconciler has seen the PROVIDER repeat this task
+ * (`plainva.pim.recurring`, finding 2026-09-20): completed here or there, then
+ * back open under the same id with a later due date. Same input shapes as
+ * `isMirroredNamespace` — the indexed namespace arrives as an object or as JSON.
+ */
+export function isRecurringAtProviderNamespace(raw: unknown): boolean {
+  if (raw == null) return false;
+  let ns: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      ns = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+  }
+  const pim = (ns as Record<string, unknown> | null)?.pim as Record<string, unknown> | undefined;
+  return typeof pim?.uid === "string" && pim.uid.length > 0 && pim.recurring === true;
+}
+
 /** Shared shape check + repair for both readers. */
 function normalizeRule(raw: unknown): RepeatRule | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;

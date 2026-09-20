@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { consumePendingNew } from "@plainva/ui";
+import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
+import { Banner, errorText, useTaskDuplicates } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   resolveTaskOrdinal, tasksDescription,
   setFrontmatterPath,
@@ -13,13 +15,14 @@ import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
+import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
-import { pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
+import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -118,8 +121,16 @@ export function TasksScreen({
   onOpenBase?: (path: string) => void;
 }) {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  // The list stays on screen while it reloads (finding 2026-09-20, the
+  // desktop's twin in TasksView): the rows remember which query service they
+  // came from, only another vault blanks the view, and a failed reload keeps
+  // what is there (lib/keptList). `loading` used to go up on EVERY index
+  // change, and the list drew nothing while it was up.
+  const taskSource = vault.queryService ?? null;
+  const [taskList, setTaskList] = useState(() => emptyKeptList<TaskRecord, NonNullable<typeof taskSource>>());
+  const tasks = useMemo(() => keptListRows(taskList, taskSource), [taskList, taskSource]);
+  const loading = keptListLoading(taskList, taskSource);
+  const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
   const { status, text, folder, tag, dueOnly, showHidden, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, resetFilters } = useTaskViewState(vault.vaultId);
   const [tick, setTick] = useState(0);
   const [taskDb, setTaskDb] = useState("");
@@ -127,10 +138,10 @@ export function TasksScreen({
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** The database's date column — where a generated occurrence writes its
    *  next due date. Resolved from the schema, never from a column name. */
-  const [, setDbDueKey] = useState<string | null>(null);
+  const [dbDueKey, setDbDueKey] = useState<string | null>(null);
   /** Repeat rule + provider origin per row, read from the INDEXED `plainva`
    *  namespace — so a badge costs no file read. */
-  const [dbMeta, setDbMeta] = useState<Record<string, { repeat: RepeatRule | null; mirrored: boolean }>>({});
+  const [dbMeta, setDbMeta] = useState<Record<string, { repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }>>({});
   const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
   /** "Block time": `notePath` is the note that receives the anchor (a database
    *  entry has one, a checkbox does not); `linkPath` is what the event links
@@ -141,6 +152,25 @@ export function TasksScreen({
   // older read is still in flight, and that older result must never roll the
   // box back to its pre-write value.
   const [gate] = useState(() => new TaskMutationGate());
+  // Tasks claimed by more than one note (finding 2026-09-20) — the desktop's
+  // twin is TaskDuplicatesNotice; state and rules are the shared hook's.
+  const duplicatesDb = useMemo(() => (taskDb ? { dueKey: dbDueKey, completion: dbCompletion } : null), [taskDb, dbDueKey, dbCompletion]);
+  const dupes = useTaskDuplicates({
+    vault: vault.vaultId,
+    db: duplicatesDb,
+    reloadKey: `${bump}:${tick}`,
+    queryService: taskSource,
+    listBoundTaskNotes: () => getPimCache()?.listBoundTaskNotes() ?? Promise.resolve([]),
+    readTextFile: (path) => vaultOps.read(vault, path),
+    // The plain note delete: snapshot, index, sync queue. Never the task
+    // deletion that makes the provider's task follow — a copy is not the task.
+    deleteNote: (path) => vaultOps.remove(vault, path, { confirmed: true }),
+    onRemoved: () => {
+      setTick((x) => x + 1);
+      syncSoon();
+    },
+    onError: (e) => toast.error(errorText(e)),
+  });
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 
@@ -162,27 +192,18 @@ export function TasksScreen({
 
   useEffect(() => {
     const service = vault.queryService;
-    if (!service) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
+    if (!service) return;
     let alive = true;
     const versionAtStart = gate.value;
-    setLoading(true);
     service
       .listTasks()
       .then((rows) => {
-        if (alive && gate.canCommit(versionAtStart)) {
-          setTasks(rows);
-          setLoading(false);
-        }
+        if (alive && gate.canCommit(versionAtStart)) setTaskList(keptListLoaded(rows, service));
       })
       .catch(() => {
-        if (alive && gate.canCommit(versionAtStart)) {
-          setTasks([]);
-          setLoading(false);
-        }
+        // A reload that fails keeps the rows on screen; only a FIRST load of
+        // this vault settles empty.
+        if (alive && gate.canCommit(versionAtStart)) setTaskList((prev) => keptListFailed(prev, service));
       });
     return () => {
       alive = false;
@@ -215,7 +236,11 @@ export function TasksScreen({
           Object.fromEntries(
             raw.map((r) => [
               String(r["file.path"] ?? ""),
-              { repeat: repeatFromNamespace(r["plainva"]), mirrored: isMirroredNamespace(r["plainva"]) },
+              {
+                repeat: repeatFromNamespace(r["plainva"]),
+                mirrored: isMirroredNamespace(r["plainva"]),
+                providerRepeats: isRecurringAtProviderNamespace(r["plainva"]),
+              },
             ])
           )
         );
@@ -505,7 +530,7 @@ export function TasksScreen({
         setTick(value => value + 1);
       }
     },
-    [gate, vault]
+    [gate, vault, setTasks]
   );
 
   /** Surgical frontmatter edit of a database note, then a refresh. */
@@ -693,6 +718,22 @@ export function TasksScreen({
         )}
       </div>
 
+      {dupes.visible && (
+        <div className="m-dupes-notice">
+          <Banner
+            kind="info"
+            rounded
+            actions={
+              <Button variant="secondary" size="sm" disabled={dupes.busy} onClick={() => void dupes.review()} data-testid="task-duplicates-review">
+                {t("tasks.duplicatesReview")}
+              </Button>
+            }
+          >
+            <strong data-testid="task-duplicates-banner">{t("tasks.duplicatesBanner", { count: dupes.count })}</strong> {t("tasks.duplicatesHint")}
+          </Banner>
+        </div>
+      )}
+
       {taskDb && (
         <section data-testid="task-db-section">
           <SectionLabel end={dbVisible.length || undefined}>{t("tasks.dbSection")}</SectionLabel>
@@ -755,6 +796,14 @@ export function TasksScreen({
                           </Chip>
                         )}
                         {row.due && <DueText due={row.due} testId="task-db-due" />}
+                        {/* The reconciler has seen the provider bring this task
+                            round again (finding 2026-09-20): a ticked task that
+                            reopens is a series, not a sync fault. */}
+                        {dbMeta[row.path]?.providerRepeats && (
+                          <Chip testId="task-db-provider-repeat" tone="muted" icon={<Repeat size={ICON.meta} />}>
+                            {t("tasks.repeatsAtProvider")}
+                          </Chip>
+                        )}
                         {/* A task mirrored from a provider list keeps ITS
                             recurrence — a local generator on top would push
                             duplicates back, so it is shown, not offered. */}
@@ -1019,6 +1068,12 @@ export function TasksScreen({
           title={taskSheet.title}
         />
       )}
+
+      <TaskDuplicatesSheet
+        dupes={dupes}
+        onOpenNote={onOpenNote}
+        onRemoved={(count) => toast.info(t("tasks.duplicatesRemoved", { count }))}
+      />
 
       {repeatTarget && (
         <RepeatTaskSheet

@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-09-19
+Dernière mise à jour : 2026-09-20
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -78,7 +78,7 @@ Cette règle comporte volontairement deux limites. **Un fichier simplement manqu
 
 Dans l'autre sens, l'ancienne règle demeure : **une tâche supprimée à distance ne supprime jamais votre note** (elle devient simplement une note normale). Renommer ou déplacer une note de tâche ne pose pas de problème — le marqueur du frontmatter conserve le lien.
 
-**Une reconnexion ne produit plus de doublons.** Quand vous vous reconnectez à un compte, configurez Plainva sur une seconde machine, ou que l'index de recherche est reconstruit, Plainva reconnaît les notes existantes grâce à ce même marqueur et les adopte au lieu de réimporter les tâches une seconde fois. Tant qu'un vault est encore en cours de synchronisation, aucune note de tâche n'est créée du tout — une note encore en chemin deviendrait sinon exactement un tel doublon.
+**Une reconnexion ne produit plus de doublons.** Quand vous vous reconnectez à un compte, configurez Plainva sur une seconde machine, ou que l'index de recherche est reconstruit, Plainva reconnaît les notes existantes grâce à ce même marqueur et les adopte au lieu de réimporter les tâches une seconde fois. Tant qu'un vault est encore en cours de synchronisation, aucune note de tâche n'est créée du tout — une note encore en chemin deviendrait sinon exactement un tel doublon. Les copies laissées par d’anciennes versions peuvent être nettoyées : lorsque des tâches existent en plusieurs exemplaires, la vue des tâches affiche **Tâches présentes en plusieurs exemplaires** avec **Examiner**. Plainva conserve la note qu’il synchronise et ne retire que les copies qui ne contiennent rien en propre — terminées ou identiques à la note conservée, et sans texte propre ; toute autre copie reste et vous est montrée, et chaque copie retirée est d’abord enregistrée dans l’historique des versions. Les tâches chez le fournisseur ne sont jamais touchées. S’il ne reste que des copies ayant un contenu propre, **Masquer cet avis** écarte l’avis jusqu’à ce qu’une copie apparaisse ou disparaisse. Une tâche qui se répète **chez le fournisseur** (une tâche Google quotidienne, par exemple) y est une seule tâche : la cocher la termine, et le fournisseur rouvre la même tâche avec sa date suivante — Plainva reflète exactement cela et, dès qu’il a vu la tâche revenir une fois, sa ligne porte **Se répète chez le fournisseur**.
 
 Limites actuelles : les tâches créées comme notes ordinaires ne sont pas poussées vers le fournisseur (créez-les à distance ou via la base de tâches), et tout sur cette page est pour l'instant pensé d'abord pour le bureau.
 

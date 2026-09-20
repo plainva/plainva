@@ -69,6 +69,15 @@ export interface ProviderTaskAnchor {
   provider?: string;
   /** Verified account identity ("issuer:subject"), when the provider offers one. */
   identity?: string;
+  /**
+   * The provider repeats this task (finding 2026-09-20). A recurring task at
+   * Google is ONE task: ticking it completes it, and overnight the SAME id
+   * comes back open with the next due date. Written by the reconciler the
+   * first time it sees that happen; views use it to say "repeats at the
+   * provider" instead of leaving a person to wonder why a done task reopened.
+   * Informational — never compared, never pushed.
+   */
+  recurring?: boolean;
 }
 
 /** The identity an anchor carries, in a form that belongs in a note.

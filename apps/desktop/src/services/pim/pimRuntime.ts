@@ -11,6 +11,7 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
+import { formatPimCycle, logDiagnostic } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
@@ -98,6 +99,9 @@ export function createPimRuntime(opts: {
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),
+    // Why each cycle ran and how long it took (finding 2026-09-20: a second
+    // provider pull 14 s after the first, and nothing on record to explain it).
+    onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
     onDataChanged: () => {
       window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
     },

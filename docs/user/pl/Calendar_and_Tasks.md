@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-19
+Stan na: 2026-09-20
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -78,7 +78,7 @@ Ta reguła ma celowo dwa ograniczenia. **Sam brak pliku niczego nie usuwa.** Je�
 
 W drugą stronę obowiązuje dawna reguła: **zdalnie usunięte zadanie nigdy nie usuwa Twojej notatki** (po prostu staje się zwykłą notatką). Zmiana nazwy lub przeniesienie notatki zadania nie stanowi problemu — znacznik we frontmatter utrzymuje powiązanie.
 
-**Ponowne połączenie nie tworzy już duplikatów.** Gdy zalogujesz się ponownie na konto, skonfigurujesz Plainvę na drugim urządzeniu albo indeks wyszukiwania zostanie odbudowany, Plainva rozpoznaje istniejące notatki po tym samym znaczniku i przejmuje je, zamiast importować zadania po raz drugi. Dopóki vault wciąż się synchronizuje, żadne notatki zadań nie są w ogóle tworzone — notatka, która wciąż jest w drodze, w przeciwnym razie stałaby się dokładnie takim duplikatem.
+**Ponowne połączenie nie tworzy już duplikatów.** Gdy zalogujesz się ponownie na konto, skonfigurujesz Plainvę na drugim urządzeniu albo indeks wyszukiwania zostanie odbudowany, Plainva rozpoznaje istniejące notatki po tym samym znaczniku i przejmuje je, zamiast importować zadania po raz drugi. Dopóki vault wciąż się synchronizuje, żadne notatki zadań nie są w ogóle tworzone — notatka, która wciąż jest w drodze, w przeciwnym razie stałaby się dokładnie takim duplikatem. Kopie pozostawione przez starsze wersje można uporządkować: gdy zadania występują więcej niż raz, widok zadań pokazuje **Zadania występujące więcej niż raz** z przyciskiem **Przejrzyj**. Plainva zachowuje notatkę, którą synchronizuje, i usuwa tylko kopie, które nie zawierają niczego własnego — ukończone albo identyczne z zachowaną notatką i bez własnego tekstu; każda inna kopia zostaje i jest Ci pokazywana, a każda usuwana kopia trafia najpierw do historii wersji. Zadania u dostawcy pozostają nietknięte. Jeśli zostają tylko kopie z własną treścią, **Ukryj tę informację** odkłada informację do chwili, gdy jakaś kopia się pojawi lub zniknie. Zadanie, które powtarza się **u dostawcy** (na przykład codzienne zadanie Google), jest tam jednym zadaniem: odhaczenie je kończy, a dostawca otwiera to samo zadanie ponownie z następną datą — Plainva odwzorowuje dokładnie to, a gdy raz zobaczy, że zadanie wróciło, jego wiersz nosi oznaczenie **Powtarza się u dostawcy**.
 
 Obecne ograniczenia: zadania utworzone jako zwykłe notatki nie są wysyłane do dostawcy (twórz je zdalnie albo przez bazę zadań), a wszystko na tej stronie jest na razie desktop-first.
 
