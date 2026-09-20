@@ -21,7 +21,7 @@ import { FENCE_RE, TASK_LINE_RE } from "./taskToggle";
 export type NoteCardBlock =
   | { kind: "heading"; depth: number; inline: InlineNode[] }
   | { kind: "para"; inline: InlineNode[] }
-  | { kind: "task"; ordinal: number; done: boolean; indent: number; inline: InlineNode[] }
+  | { kind: "task"; ordinal: number; done: boolean; closed: boolean; indent: number; inline: InlineNode[] }
   | { kind: "bullet"; indent: number; ordered: boolean; inline: InlineNode[] }
   | { kind: "quote"; inline: InlineNode[] }
   | { kind: "image"; target: string; alt: string }
@@ -173,6 +173,8 @@ export function parseNoteCard(
           kind: "task",
           ordinal,
           done: taskMatch[2].toLowerCase() === "x",
+          // `[-]` cancelled is closed like a done task; `[/]` in progress is open (E12).
+          closed: taskMatch[2] !== " " && taskMatch[2] !== "/",
           indent,
           inline: parseInlineMarkdown(line.slice(taskMatch[0].length)),
         });

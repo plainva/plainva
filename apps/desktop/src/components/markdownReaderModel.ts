@@ -222,6 +222,44 @@ function hastTagColor(tag: string): { dataTagColor: string } {
   return { dataTagColor: tagColorAttrs(tag)["data-tag-color"] };
 }
 
+/** `[/]` in progress, `[-]` cancelled — at the very start of a list item's text. */
+const TASK_STATE_PREFIX_RE = /^\[([/-])\](?:[ \t]+|$)/;
+
+/**
+ * remark plugin: `[/]` and `[-]` are tasks too (plan Aufgaben-Oberflaeche, E12).
+ *
+ * remark-gfm only knows `[ ]` and `[x]`; the other two arrive as literal text in
+ * an ordinary list item. That is more than cosmetic here: the reader finds the
+ * line to write by COUNTING the rendered checkboxes (`taskCheckboxOrdinal`),
+ * while the scanner that owns the ordinals counts all four boxes. A task
+ * without a rendered box would shift every tick after it onto the wrong line.
+ *
+ * So the item becomes a task item: `checked` makes mdast-to-hast draw the box
+ * (ticked for cancelled — closed like a done task — and empty for in progress),
+ * the marker leaves the text, and `data-task-state` tells the renderer which of
+ * the two it is. Must run AFTER remark-gfm.
+ */
+export function remarkTaskStates() {
+  return (tree: MdastNodeLike) => {
+    const walk = (node: MdastNodeLike) => {
+      for (const child of node.children ?? []) walk(child);
+      if (node.type !== "listItem" || typeof (node as { checked?: unknown }).checked === "boolean") return;
+      const paragraph = node.children?.[0];
+      const text = paragraph?.type === "paragraph" ? paragraph.children?.[0] : undefined;
+      if (!text || text.type !== "text") return;
+      const match = TASK_STATE_PREFIX_RE.exec(String(text.value ?? ""));
+      if (!match) return;
+      // The marker leaves the text; the rest keeps its source address, so a
+      // selection in this line still maps back to the right characters.
+      paragraph!.children![0] = slicedText(text, match[0].length, String(text.value).length);
+      const cancelled = match[1] === "-";
+      (node as { checked?: boolean }).checked = cancelled;
+      node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataTaskState: cancelled ? "cancelled" : "progress" } };
+    };
+    walk(tree);
+  };
+}
+
 const HTML_BR_NODE_RE = /^<br\s*\/?>$/i;
 
 /**

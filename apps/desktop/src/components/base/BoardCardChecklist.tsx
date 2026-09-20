@@ -95,7 +95,8 @@ export function BoardCardChecklist({ path, progress }: { path: string; progress:
           {shown.map((l) => (
             <Checkbox
               key={l.ordinal}
-              checked={l.done}
+              // Done or cancelled: a closed sub-task is a ticked box; un-ticking reopens it (E12).
+              checked={l.done || l.state === "cancelled"}
               data-testid={`board-card-task-${l.ordinal}`}
               onChange={(e) => {
                 // Read the box NOW: the write awaits the file first, and by then
@@ -105,7 +106,7 @@ export function BoardCardChecklist({ path, progress }: { path: string; progress:
                 void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, checked); return r.changed ? r.content : null; });
               }}
             >
-              <span style={{ fontSize: "var(--text-sm)", color: l.done ? "var(--text-faint)" : "var(--text-main)", textDecoration: l.done ? "line-through" : "none", overflowWrap: "anywhere" }}>{l.text}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: l.done || l.state === "cancelled" ? "var(--text-faint)" : "var(--text-main)", textDecoration: l.done || l.state === "cancelled" ? "line-through" : "none", overflowWrap: "anywhere" }}>{l.text}</span>
             </Checkbox>
           ))}
           <div style={{ display: "flex", gap: "var(--space-1)", alignItems: "center" }}>

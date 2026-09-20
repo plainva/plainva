@@ -1,5 +1,5 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
-import { GFM_TASK_LINE, scanTasks, type ScannedTask } from "./taskScan.js";
+import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
 import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 
 export interface ChecklistMutationOptions { today?: string; newId?: () => string }
@@ -18,7 +18,9 @@ export function resolveTaskOrdinal(content: string, reference: Pick<ScannedTask,
 /** Checkbox and successor are one Markdown edit, so a retry cannot write half a recurrence. */
 export function setChecklistTaskDone(content: string, index: number, checked: boolean, options: ChecklistMutationOptions = {}): ChecklistMutationResult {
   const tasks = scanTasks(content), task = tasks[index];
-  if (!task || task.done === checked) return { content, changed: false };
+  // Judged by the BOX, not by `done`: un-ticking a cancelled task (`[-]`, not
+  // done) reopens it, and ticking one in progress (`[/]`) completes it.
+  if (!task || (checked ? task.state === "done" : task.state === "open")) return { content, changed: false };
   const date = new Date(), today = options.today ?? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   if (tasksDayNumber(today) === null) throw new Error("invalid_task_completion_day");
   const lines = content.split("\n"), raw = lines[task.line], cr = raw.endsWith("\r") ? "\r" : "";
@@ -72,4 +74,20 @@ export function rewriteChecklistTaskText(content: string, index: number, rewrite
 /** Sets or clears the priority mark of one checkbox (1 = high … 3 = low, 0 = none). */
 export function setChecklistTaskPriority(content: string, index: number, rank: 0 | 1 | 2 | 3): ChecklistMutationResult {
   return rewriteChecklistTaskText(content, index, (text) => setTasksPriority(text, rank));
+}
+
+/**
+ * Sets what the box of one checkbox holds (plan Aufgaben-Oberflaeche, E12). Open
+ * and done go through `setChecklistTaskDone`, so the completion date and a
+ * repeating task's successor behave exactly as with a click; in progress and
+ * cancelled only change the one character in the box.
+ */
+export function setChecklistTaskState(content: string, index: number, state: TaskBoxState, options: ChecklistMutationOptions = {}): ChecklistMutationResult {
+  if (state === "open" || state === "done") return setChecklistTaskDone(content, index, state === "done", options);
+  const task = scanTasks(content)[index];
+  if (!task || task.state === state) return { content, changed: false };
+  const lines = content.split("\n"), raw = lines[task.line];
+  const match = GFM_TASK_LINE.exec(raw)!;
+  lines[task.line] = match[1] + taskBoxChar(state) + raw.slice(match[1].length + 1);
+  return { content: lines.join("\n"), changed: true };
 }

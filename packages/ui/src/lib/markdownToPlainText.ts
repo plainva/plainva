@@ -63,7 +63,7 @@ const ATX_RE = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
 const BLOCKQUOTE_RE = /^\s{0,3}((?:>[ \t]?)+)(.*)$/;
 const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
-const TASK_RE = /^\[([ xX])\][ \t]+(.*)$/;
+const TASK_RE = /^\[([ xX/-])\][ \t]+(.*)$/;
 
 function isTableSeparatorRow(line: string): boolean {
   const s = line.trim();
@@ -103,7 +103,8 @@ function stripBlockLine(line: string): string | null {
     const [, indent, marker, rest] = li;
     const task = TASK_RE.exec(rest);
     if (task) {
-      const box = task[1].toLowerCase() === "x" ? "☑" : "☐"; // checked / unchecked box
+      // done, in progress, cancelled, open — four shapes, as in the app (E12).
+      const box = task[1].toLowerCase() === "x" ? "☑" : task[1] === "/" ? "◪" : task[1] === "-" ? "☒" : "☐";
       return `${indent}${marker} ${box} ${inlineToPlainText(task[2])}`;
     }
     return `${indent}${marker} ${inlineToPlainText(rest)}`;

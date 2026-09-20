@@ -1,6 +1,6 @@
 import { stripTasksPriority, tasksDescription, type TaskRecord } from "@plainva/core";
 import type { TaskDbRow } from "./taskDatabase";
-import type { PlannerRow, TaskPriority, TaskState } from "./taskPlanner";
+import type { PlannerRow, TaskPriority } from "./taskPlanner";
 
 /**
  * The two task sources in the planner's one row shape (plan Aufgaben-Oberfläche,
@@ -46,10 +46,7 @@ export function plannerRowsFromDb(rows: readonly TaskDbRow[], metaOf: (path: str
   });
 }
 
-/** A checkbox task; `state` and `priority` arrive with the scanner once it reads them. */
-type CheckboxTask = TaskRecord & { state?: TaskState; priority?: TaskPriority };
-
-export function plannerRowsFromTasks(tasks: readonly CheckboxTask[]): PlannerRow[] {
+export function plannerRowsFromTasks(tasks: readonly TaskRecord[]): PlannerRow[] {
   return tasks.map((task) => ({
     id: plannerTaskId(task.path, task.ordinal),
     source: "note",

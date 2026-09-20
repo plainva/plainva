@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { resolveTaskOrdinal, setChecklistTaskPriority, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskRecord } from "@plainva/core";
+import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord } from "@plainva/core";
 import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -29,7 +29,7 @@ import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
 import { localIsoKey } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
+import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
@@ -641,7 +641,12 @@ export function TasksView({ onOpenPath }: Props) {
     [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks]
   );
   const toggle = useCallback(
-    (task: TaskRecord) => mutateCheckbox(task, (fresh, ordinal) => toggleTaskAtIndex(fresh, ordinal, !task.done), (row) => ({ ...row, done: !row.done })),
+    (task: TaskRecord) => {
+      // A click moves between open and done only (E12): open or in progress is
+      // completed, done or cancelled is reopened.
+      const complete = isOpenTaskState(task.state);
+      return mutateCheckbox(task, (fresh, ordinal) => toggleTaskAtIndex(fresh, ordinal, complete), (row) => ({ ...row, done: complete, state: complete ? "done" : "open" }));
+    },
     [mutateCheckbox]
   );
 
@@ -790,6 +795,15 @@ export function TasksView({ onOpenPath }: Props) {
     }
   };
 
+  /** In progress and cancelled (E12) are set on request — a click never writes them. */
+  const [stateMenu, setStateMenu] = useState<{ at: { x: number; y: number }; task: TaskRecord } | null>(null);
+  const applyState = async (state: TaskBoxState) => {
+    const task = stateMenu?.task;
+    setStateMenu(null);
+    if (!task) return;
+    await mutateCheckbox(task, (fresh, ordinal) => setChecklistTaskState(fresh, ordinal, state), (row) => ({ ...row, done: state === "done", state }));
+  };
+
   const dbRowCaps = (r: (typeof filteredDbRows)[number]): TaskRowCaps => ({
     done: r.done,
     toggle: dbCompletion ? () => toggleDbRowDone(r.path, !r.done) : undefined,
@@ -798,7 +812,7 @@ export function TasksView({ onOpenPath }: Props) {
     priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "db", path: r.path } }),
   });
   const noteRowCaps = (task: TaskRecord): TaskRowCaps => ({
-    done: task.done,
+    done: !isOpenTaskState(task.state),
     toggle: () => toggle(task),
     promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, rowMenu?.at ?? { x: 0, y: 0 })),
     block:
@@ -806,6 +820,7 @@ export function TasksView({ onOpenPath }: Props) {
         ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
     priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "note", task } }),
+    state: () => setStateMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, task }),
   });
 
   const taskOfRow = (row: PlannerRow): TaskRecord | undefined => tasks.find((tk) => tk.path === row.path && tk.ordinal === row.ordinal);
@@ -1131,18 +1146,20 @@ export function TasksView({ onOpenPath }: Props) {
                     <button
                       type="button"
                       onClick={() => toggle(task)}
-                      aria-label={task.done ? t("tasks.done", { defaultValue: "Erledigt" }) : t("tasks.open", { defaultValue: "Offen" })}
+                      aria-label={t(task.state === "done" ? "tasks.done" : task.state === "progress" ? "tasks.stateProgress" : task.state === "cancelled" ? "tasks.stateCancelled" : "tasks.open")}
+                      data-testid="task-toggle"
+                      data-state={task.state}
                       style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: task.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0 }}
                     >
-                      {task.done ? <CheckSquare size={ICON.ui} /> : <Square size={ICON.ui} />}
+                      <TaskStateIcon state={task.state} size={ICON.ui} />
                     </button>
                     <button
                       type="button"
                       onClick={() => open(task)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: task.done ? "var(--text-muted)" : "var(--text-main)", fontSize: "var(--text-md)", lineHeight: 1.4 }}
+                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: isOpenTaskState(task.state) ? "var(--text-main)" : "var(--text-muted)", fontSize: "var(--text-md)", lineHeight: 1.4 }}
                     >
                       <TaskPriorityFlag rank={task.priority} />
-                      <span style={{ textDecoration: task.done ? "line-through" : "none" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
+                      <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
                       <TaskMetadataDetails task={task} />
                       {task.due ? (
                         <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
@@ -1218,6 +1235,17 @@ export function TasksView({ onOpenPath }: Props) {
               </MenuItem>
             )}
           </RowActionList>
+        </MenuSurface>
+      )}
+
+      {stateMenu && (
+        <MenuSurface open onClose={() => setStateMenu(null)} at={stateMenu.at} ariaLabel={t("tasks.setState")}>
+          <MenuLabel>{t("tasks.setState")}</MenuLabel>
+          {(["open", "progress", "done", "cancelled"] as const).map((state) => (
+            <MenuItem key={state} icon={<TaskStateIcon state={state} size={ICON.ui} />} data-testid={`task-state-${state}`} onSelect={() => void applyState(state)}>
+              {t(state === "open" ? "tasks.open" : state === "progress" ? "tasks.stateProgress" : state === "done" ? "tasks.done" : "tasks.stateCancelled")}
+            </MenuItem>
+          ))}
         </MenuSurface>
       )}
 

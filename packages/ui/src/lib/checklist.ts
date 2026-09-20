@@ -14,6 +14,7 @@
  * the same list style, or at the end when the note has none. Editing the
  * wording is what the note is for.
  */
+import { taskBoxState, type TaskBoxState } from "@plainva/core";
 import { FENCE_RE, TASK_LINE_RE } from "./taskToggle";
 
 export interface TaskProgress {
@@ -38,6 +39,8 @@ export interface TaskLine {
   /** 0-based line index in the content. */
   line: number;
   done: boolean;
+  /** What the box holds — `[/]` in progress and `[-]` cancelled are tasks too (E12). */
+  state: TaskBoxState;
   /** The text after the marker, trimmed. */
   text: string;
 }
@@ -56,7 +59,7 @@ export function listTaskLines(content: string): TaskLine[] {
     const m = lines[i].match(TASK_LINE_RE);
     if (!m) continue;
     const marker = m[1].length + 1 + m[3].length;
-    out.push({ ordinal, line: i, done: m[2] !== " ", text: lines[i].slice(marker).trim() });
+    out.push({ ordinal, line: i, done: m[2].toLowerCase() === "x", state: taskBoxState(m[2]), text: lines[i].slice(marker).trim() });
     ordinal++;
   }
   return out;

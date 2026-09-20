@@ -79,7 +79,7 @@ const ATX_RE = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
 const BLOCKQUOTE_RE = /^\s{0,3}((?:>[ \t]?)+)(.*)$/;
 const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
-const TASK_RE = /^\[([ xX])\][ \t]+(.*)$/;
+const TASK_RE = /^\[([ xX/-])\][ \t]+(.*)$/;
 
 function isTableSeparatorRow(line: string): boolean {
   const s = line.trim();
@@ -195,7 +195,8 @@ export function markdownToHtml(md: string): string {
         if (!m) break;
         const task = TASK_RE.exec(m[3]);
         if (task) {
-          const box = task[1].toLowerCase() === "x" ? "☑" : "☐"; // ☑ / ☐
+          // done, in progress, cancelled, open — four shapes, as in the app (E12).
+          const box = task[1].toLowerCase() === "x" ? "☑" : task[1] === "/" ? "◪" : task[1] === "-" ? "☒" : "☐";
           items.push(`${box} ${inlineToHtml(task[2])}`);
         } else {
           items.push(inlineToHtml(m[3]));

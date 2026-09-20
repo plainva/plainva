@@ -10,7 +10,7 @@ export function stripMarker(line: string): string {
   return line
     .replace(/^(\s*)#{1,6}[ \t]+/, "$1")
     .replace(/^(\s*)>[ \t]?/, "$1")
-    .replace(/^(\s*)([-*+]|\d+[.)])[ \t]+(\[[ xX]\][ \t]+)?/, "$1");
+    .replace(/^(\s*)([-*+]|\d+[.)])[ \t]+(\[[ xX/-]\][ \t]+)?/, "$1");
 }
 
 export function turnInto(text: string, target: BlockTarget): string {

@@ -23,7 +23,7 @@ type TextChange = { from: number; to?: number; insert: string };
  * turns `- [ ] task` into `- [ ] **task**`, not `**- [ ] task**`.
  */
 function inlineContentOffset(text: string): number {
-  const m = /^(\s*(?:>\s*)*)(?:(?:#{1,6}\s+)|(?:(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s+)?))?/.exec(text);
+  const m = /^(\s*(?:>\s*)*)(?:(?:#{1,6}\s+)|(?:(?:[-+*]|\d+[.)])\s+(?:\[[ xX/-]\]\s+)?))?/.exec(text);
   return m?.[0].length ?? 0;
 }
 
@@ -107,9 +107,9 @@ function notifyBlockConflict(view: EditorView): void {
 }
 
 const isHeadingPrefix = (prefix: string) => /^#{1,6}\s$/.test(prefix);
-const isTaskPrefix = (prefix: string) => /^[-+*]\s\[[ xX]\]\s$/.test(prefix);
+const isTaskPrefix = (prefix: string) => /^[-+*]\s\[[ xX/-]\]\s$/.test(prefix);
 
-const LINE_PREFIX = /^(\s*)((?:[-*+]\s\[[ xX]\]\s)|(?:[-*+]\s)|(?:>\s)|(?:#{1,6}\s))?/;
+const LINE_PREFIX = /^(\s*)((?:[-*+]\s\[[ xX/-]\]\s)|(?:[-*+]\s)|(?:>\s)|(?:#{1,6}\s))?/;
 
 /** Sets/removes a block prefix ("- ", "- [ ] ", "> ") on the selected lines. */
 export function toggleLinePrefix(view: EditorView, prefix: string): void {
@@ -157,7 +157,7 @@ export function toggleLinePrefix(view: EditorView, prefix: string): void {
 export function cycleHeading(view: EditorView): void {
   const { state } = view;
   const line = state.doc.lineAt(state.selection.main.head);
-  if (/^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX]\]\s/.test(line.text)) {
+  if (/^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX/-]\]\s/.test(line.text)) {
     notifyBlockConflict(view);
     view.focus();
     return;
@@ -235,7 +235,7 @@ export function setHeadingLevel(view: EditorView, level: number): void {
   let blocked = false;
   for (const n of selectedLines(view)) {
     const line = state.doc.line(n);
-    if (next && /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX]\]\s/.test(line.text)) {
+    if (next && /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[[ xX/-]\]\s/.test(line.text)) {
       blocked = true;
       continue;
     }
@@ -285,7 +285,9 @@ export function toggleTaskLine(view: EditorView): void {
   let change: { from: number; to: number; insert: string };
   if (/^[-*+] \[ \] /.test(rest)) {
     change = { from: markAt, to: markAt + 3, insert: "[x]" };
-  } else if (/^[-*+] \[[xX]\] /.test(rest)) {
+  } else if (/^[-*+] \[\/\] /.test(rest)) {
+    change = { from: markAt, to: markAt + 3, insert: "[x]" };
+  } else if (/^[-*+] \[[xX-]\] /.test(rest)) {
     change = { from: markAt, to: markAt + 3, insert: "[ ]" };
   } else if (/^[-*+] /.test(rest)) {
     change = { from: markAt, to: markAt, insert: "[ ] " };

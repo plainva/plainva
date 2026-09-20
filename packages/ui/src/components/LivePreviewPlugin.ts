@@ -178,13 +178,21 @@ function bulletDecoFor(depth: number, foldable = false, folded = false): Decorat
 // Interactive task checkbox. Clicking toggles the source character between
 // " " and "x" at the recorded document position.
 class TaskWidget extends WidgetType {
-  constructor(readonly checked: boolean, readonly pos: number) { super(); }
-  eq(other: TaskWidget) { return other.checked === this.checked && other.pos === this.pos; }
+  /**
+   * `state` is for the two boxes the Markdown parser does not know (E12): `[/]`
+   * in progress draws the native "indeterminate" dash, `[-]` cancelled a ticked
+   * box on a muted line. A click still only moves between open and done — it
+   * completes what is in progress and reopens what was cancelled.
+   */
+  constructor(readonly checked: boolean, readonly pos: number, readonly state: "progress" | "cancelled" | null = null) { super(); }
+  eq(other: TaskWidget) { return other.checked === this.checked && other.pos === this.pos && other.state === this.state; }
   toDOM(view: EditorView) {
     const box = document.createElement("input");
     box.type = "checkbox";
     box.checked = this.checked;
-    box.className = "cm-md-task";
+    box.indeterminate = this.state === "progress";
+    box.className = this.state ? `cm-md-task cm-md-task--${this.state}` : "cm-md-task";
+    if (this.state) box.dataset.taskState = this.state;
     box.addEventListener("mousedown", (e) => e.preventDefault());
     box.addEventListener("click", (e) => {
       e.preventDefault();
@@ -737,8 +745,18 @@ export function markdownDecorationPlugin(isLive: boolean) {
                     // For task items (- [ ] ...) hide the bullet AND the single
                     // space after it so the checkbox sits flush like a bullet;
                     // otherwise render a "•" bullet.
-                    const after = state.doc.sliceString(node.to, Math.min(node.to + 4, state.doc.length));
-                    if (/^\s*\[[ xX]\]/.test(after)) {
+                    const after = state.doc.sliceString(node.to, Math.min(node.to + 5, state.doc.length));
+                    // `[/]` and `[-]` (E12) are no TaskMarker to the parser, so
+                    // their box is drawn from here: same place, same widget.
+                    const other = /^( ?)\[([/-])\](?=\s|$)/.exec(after);
+                    if (other) {
+                      const boxFrom = node.to + other[1].length;
+                      const cancelled = other[2] === "-";
+                      const taskLine = state.doc.lineAt(node.from);
+                      decos.push(HIDE.range(node.from, boxFrom));
+                      decos.push(Decoration.replace({ widget: new TaskWidget(cancelled, boxFrom + 1, cancelled ? "cancelled" : "progress") }).range(boxFrom, boxFrom + 3));
+                      if (cancelled && boxFrom + 4 < taskLine.to) decos.push(Decoration.mark({ class: "cm-md-task-done" }).range(boxFrom + 4, taskLine.to));
+                    } else if (/^\s*\[[ xX]\]/.test(after)) {
                       decos.push(HIDE.range(node.from, after.startsWith(" ") ? node.to + 1 : node.to));
                     } else {
                       const foldRange = listFoldRange(state, node.from);

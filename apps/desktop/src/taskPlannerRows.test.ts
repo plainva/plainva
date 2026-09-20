@@ -13,7 +13,7 @@ import type { TaskRecord } from "@plainva/core";
  */
 
 const task = (over: Partial<TaskRecord>): TaskRecord => ({
-  path: "Notes/Woche 38.md", title: "Woche 38", excluded: false, line: 3, ordinal: 0, done: false, text: "Zahnarzt zurückrufen", tags: [], due: null, ...over,
+  path: "Notes/Woche 38.md", title: "Woche 38", excluded: false, line: 3, ordinal: 0, done: false, state: "open", text: "Zahnarzt zurückrufen", tags: [], due: null, ...over,
 });
 
 describe("planner rows", () => {

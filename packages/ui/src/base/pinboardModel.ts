@@ -209,7 +209,7 @@ export function captureFileName(text: string, maxLen = 48): string | null {
   const firstLine = (text ?? "").split("\n").find((l) => l.trim() !== "");
   if (!firstLine) return null;
   let s = firstLine
-    .replace(/^\s*(?:#{1,6}\s+|>\s*|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?)/, "") // block markers
+    .replace(/^\s*(?:#{1,6}\s+|>\s*|(?:[-*+]|\d+[.)])\s+(?:\[[ xX/-]\]\s*)?)/, "") // block markers
     .replace(/[*_~`=[\]#|]/g, "") // inline markers / wiki brackets
     .replace(/[<>:"/\\?]/g, " ") // characters invalid in Windows file names
     .replace(/\s+/g, " ")

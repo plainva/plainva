@@ -287,6 +287,11 @@ export const editorTheme = EditorView.theme({
     verticalAlign: "middle",
     cursor: "pointer",
   },
+  // `[-]` cancelled: ticked like a closed task, but without the accent — it was
+  // not done. `[/]` in progress is the native indeterminate dash.
+  ".cm-md-task--cancelled": {
+    accentColor: "var(--text-muted)",
+  },
   // --- Slash command menu ("/") — themed, Notion-style ---
   // The card. Overrides the generic .cm-tooltip border so it follows the theme.
   ".cm-tooltip.cm-tooltip-autocomplete": {

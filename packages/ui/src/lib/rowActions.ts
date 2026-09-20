@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Ban, Bookmark, BookmarkMinus, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, Star, StarOff,
+  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -134,6 +134,8 @@ export interface TaskRowCaps {
   block?: () => void;
   /** Opens the shell's priority picker (high, medium, low, none). */
   priority?: () => void;
+  /** Checkbox task: opens the shell's state picker (open, in progress, done, cancelled). */
+  state?: () => void;
 }
 
 export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
@@ -152,6 +154,7 @@ export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
     c.repeat ? { id: "repeat", label: t("tasks.repeat", { defaultValue: "Wiederholung" }), icon: Repeat, run: c.repeat } : null,
     c.block ? { id: "block", label: t("pim.blockTime", { defaultValue: "Zeit blocken" }), icon: CalendarPlus, run: c.block, swipe: true } : null,
     c.priority ? { id: "priority", label: t("tasks.prioritySet", { defaultValue: "Priorität setzen" }), icon: Flag, run: c.priority } : null,
+    c.state ? { id: "state", label: t("tasks.setState", { defaultValue: "Zustand setzen" }), icon: SquareSlash, run: c.state } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

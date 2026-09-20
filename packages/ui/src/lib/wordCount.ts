@@ -14,7 +14,7 @@
  */
 
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
-const TASK_BOX = /^\[[xX ]?\]$/;
+const TASK_BOX = /^\[[xX /-]?\]$/;
 const ORDERED_LIST_MARKER = /^\d{1,9}[.)]$/;
 
 export function countWords(text: string): number {

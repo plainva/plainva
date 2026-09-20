@@ -16,11 +16,17 @@ describe("scanTasks / toggleTaskAtIndex alignment", () => {
     "```",
     "> - [x] b in a quote",
     "  1. [ ] c nested ordered",
+    // In progress and cancelled are tasks too (plan Aufgaben-Oberflaeche, E12):
+    // they take an ordinal, so everything after them moves up by one - in BOTH.
+    "- [/] d in progress",
+    "- [-] e cancelled",
+    "- [ ] f after them",
   ].join("\n");
 
   it("every scanned ordinal flips exactly the line scanTasks reported", () => {
     const tasks = scanTasks(content);
-    expect(tasks.length).toBe(3); // the fenced checkbox is not counted
+    expect(tasks.length).toBe(6); // the fenced checkbox is not counted
+    expect(tasks.map((t) => t.state)).toEqual(["open", "done", "open", "progress", "cancelled", "open"]);
 
     const orig = content.split("\n");
     for (const task of tasks) {

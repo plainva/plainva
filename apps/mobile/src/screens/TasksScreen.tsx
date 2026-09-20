@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, errorText, useTaskDuplicates } from "@plainva/ui";
-import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
+import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
 import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
-  resolveTaskOrdinal, setChecklistTaskPriority, setTasksPriority, type ChecklistMutationResult,
+  isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
   setFrontmatterPath,
   type TaskRecord,
   deleteFrontmatterPath,
@@ -481,13 +481,14 @@ export function TasksScreen({
     repeat?: () => void;
     block?: () => void;
     priority?: () => void;
+    state?: () => void;
   }) =>
     // The list itself lives in @plainva/ui since the Design-Runde (E2): the
     // desktop's context menu reads the same one.
     taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
 
   const [taskSheet, setTaskSheet] = useState<
-    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; priority?: () => void }
+    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; priority?: () => void; state?: () => void }
     | null
   >(null);
   const rowPress = useLongPress<() => void>((show) => show());
@@ -540,8 +541,32 @@ export function TasksScreen({
     [gate, vault, setTasks]
   );
   const toggle = useCallback(
-    (task: TaskRecord) => mutateCheckbox(task, (fresh, ordinal) => toggleTaskAtIndex(fresh, ordinal, !task.done), (row) => ({ ...row, done: !task.done })),
+    (task: TaskRecord) => {
+      // A tap moves between open and done only (E12): open or in progress is
+      // completed, done or cancelled is reopened. The desktop agrees.
+      const complete = isOpenTaskState(task.state);
+      return mutateCheckbox(task, (fresh, ordinal) => toggleTaskAtIndex(fresh, ordinal, complete), (row) => ({ ...row, done: complete, state: complete ? "done" : "open" }));
+    },
     [mutateCheckbox]
+  );
+  /** In progress and cancelled (E12) are set on request — a tap never writes them. */
+  const pickState = useCallback(
+    async (task: TaskRecord) => {
+      const picked = await mSelect({
+        title: t("tasks.setState"),
+        value: task.state,
+        options: [
+          { value: "open", label: t("tasks.open") },
+          { value: "progress", label: t("tasks.stateProgress") },
+          { value: "done", label: t("tasks.done") },
+          { value: "cancelled", label: t("tasks.stateCancelled") },
+        ],
+      });
+      if (picked === null) return;
+      const state = picked as TaskBoxState;
+      await mutateCheckbox(task, (fresh, ordinal) => setChecklistTaskState(fresh, ordinal, state), (row) => ({ ...row, done: state === "done", state }));
+    },
+    [mutateCheckbox, t]
   );
 
   /** Surgical frontmatter edit of a database note, then a refresh. */
@@ -776,7 +801,7 @@ export function TasksScreen({
       return {
         title: taskLabel(task.text) || task.text,
         open: () => open(task),
-        done: task.done,
+        done: !isOpenTaskState(task.state),
         toggle: () => void toggle(task),
         promote: taskDb ? () => promote(task) : undefined,
         block:
@@ -784,6 +809,7 @@ export function TasksScreen({
             ? () => setBlockTarget({ title: taskLabel(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
             : undefined,
         priority: () => void pickPriority({ kind: "note", task }),
+        state: () => void pickState(task),
       };
     }
     return null;
@@ -1123,7 +1149,7 @@ export function TasksScreen({
               <RowList>
                 {group.items.map((task) => {
                   const acts = {
-                    done: task.done,
+                    done: !isOpenTaskState(task.state),
                     toggle: () => void toggle(task),
                     promote: taskDb ? () => promote(task) : undefined,
                     block:
@@ -1136,6 +1162,7 @@ export function TasksScreen({
                             })
                         : undefined,
                     priority: () => void pickPriority({ kind: "note", task }),
+                    state: () => void pickState(task),
                   };
                   return (
                   /* S23: the swipe the sammelplan asked to hold back until the
@@ -1147,19 +1174,16 @@ export function TasksScreen({
                     data-testid="task-row"
                     icon={
                       <IconButton
-                        label={t(task.done ? "tasks.open" : "tasks.done")}
+                        label={t(isOpenTaskState(task.state) ? "tasks.done" : "tasks.open")}
                         data-testid="task-toggle"
+                        data-state={task.state}
                         onClick={() => void toggle(task)}
                       >
-                        {task.done ? (
-                          <CheckSquare className="m-accent" size={ICON.head} />
-                        ) : (
-                          <Square size={ICON.head} />
-                        )}
+                        <TaskStateIcon className={task.done ? "m-accent" : undefined} state={task.state} size={ICON.head} />
                       </IconButton>
                     }
                     title={
-                      <span className={task.done ? "m-task-done" : undefined}>
+                      <span className={isOpenTaskState(task.state) ? undefined : "m-task-done"}>
                         <TaskPriorityFlag rank={task.priority} />
                         <TaskText text={task.text} />
                       </span>

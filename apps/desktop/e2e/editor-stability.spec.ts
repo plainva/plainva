@@ -283,6 +283,31 @@ test('selection formatting stays inside a narrow desktop window and preserves it
     .toBe(source.replace('Zielwort', '**Zielwort**'));
 });
 
+test('live preview: [/] and [-] are boxes too - in progress completes on a click, cancelled reopens (E12)', async ({ page }) => {
+  const source = '# States\n\n- [ ] open one\n- [/] being worked on\n- [-] dropped\n\nEnd\n';
+  await page.addInitScript(raw => { (window as any).mockFs['/test-vault/States.md'] = raw; }, source);
+  await page.goto('/');
+  await page.getByText('States', { exact: true }).click();
+  const boxes = page.locator('input.cm-md-task');
+  await expect(boxes).toHaveCount(3);
+  const progress = page.locator('input.cm-md-task[data-task-state="progress"]');
+  const cancelled = page.locator('input.cm-md-task[data-task-state="cancelled"]');
+  // The native dash for "in progress"; a closed, muted line for "cancelled".
+  expect(await progress.evaluate((el: HTMLInputElement) => el.indeterminate)).toBe(true);
+  expect(await cancelled.evaluate((el: HTMLInputElement) => el.checked)).toBe(true);
+  await expect(page.locator('.cm-content .cm-md-task-done')).toHaveText(['dropped']);
+  // The marker itself is not shown while the caret is elsewhere.
+  await expect(page.locator('.cm-content .cm-line', { hasText: 'being worked on' })).not.toContainText('[/]');
+
+  const saved = () => page.evaluate(() => (window as any).mockFs['/test-vault/States.md'] as string);
+  await progress.click();
+  await expect.poll(saved).toContain('- [x] being worked on');
+  await cancelled.click();
+  await expect.poll(saved).toContain('- [ ] dropped');
+  // Nothing else moved: the open task is still the first box and still open.
+  expect(await saved()).toContain('- [ ] open one');
+});
+
 test('live Tasks checkbox supports keyboard completion and one-step undo', async ({ page }) => {
   const source = '# Keyboard\n\n- [ ] Weekly review 🆔 keyboard-1 🔁 every week 📅 2026-09-14\n\nEnd\n';
   await page.addInitScript(raw => { (window as any).mockFs['/test-vault/Keyboard.md'] = raw; }, source);

@@ -7,7 +7,29 @@
  * lock-step with the toggle; an alignment test cross-checks both.
  */
 
-export const GFM_TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s|\]$)/;
+/**
+ * What may stand in a task's box: open, done — and the two states other tools
+ * write and Plainva now reads (plan Aufgaben-Oberflaeche, E12): `/` in progress,
+ * `-` cancelled. They were invisible before: a line with `[/]` was no task at
+ * all, not even a box. Plainva never writes them on its own; a click still only
+ * moves between open and done.
+ */
+export const GFM_TASK_LINE = /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[)([ xX/-])(\]\s|\]$)/;
+
+export type TaskBoxState = "open" | "progress" | "done" | "cancelled";
+
+/** The state a box character stands for. */
+export function taskBoxState(char: string): TaskBoxState {
+  return char === "/" ? "progress" : char === "-" ? "cancelled" : char === " " ? "open" : "done";
+}
+
+/** The character written for a state. */
+export function taskBoxChar(state: TaskBoxState): string {
+  return state === "progress" ? "/" : state === "cancelled" ? "-" : state === "done" ? "x" : " ";
+}
+
+/** In progress still counts as open; cancelled counts as closed. */
+export const isOpenTaskState = (state: TaskBoxState): boolean => state === "open" || state === "progress";
 export const GFM_TASK_FENCE = /^\s*(?:```|~~~)/;
 const TASK_LINE = GFM_TASK_LINE, FENCE = GFM_TASK_FENCE;
 import { readTasksMetadata, readTasksPriority } from "./taskMetadata.js";
@@ -19,7 +41,10 @@ export interface ScannedTask {
   line: number;
   /** 0-based checkbox index in document order — matches toggleTaskAtIndex. */
   ordinal: number;
+  /** Ticked off (`[x]`). A cancelled task is closed but not done — see `state`. */
   done: boolean;
+  /** What the box holds: open, in progress (`[/]`), done, cancelled (`[-]`). */
+  state: TaskBoxState;
   /** Raw task text after the checkbox marker, trimmed. */
   text: string;
   /** Inline `#tags` found in the task text. */
@@ -66,6 +91,7 @@ export function scanTasks(content: string): ScannedTask[] {
       line: i,
       ordinal,
       done: m[2].toLowerCase() === "x",
+      state: taskBoxState(m[2]),
       text,
       tags,
       due: metadata.due,
@@ -92,7 +118,9 @@ export interface TaskProgress {
 }
 
 export function taskProgressOf(content: string): TaskProgress {
-  const scanned = scanTasks(content);
+  // A cancelled sub-task is neither done nor left to do: it leaves the count,
+  // so "2/2" means finished and not "2/3 forever".
+  const scanned = scanTasks(content).filter((t) => t.state !== "cancelled");
   let done = 0;
   for (const t of scanned) if (t.done) done++;
   return { done, total: scanned.length };

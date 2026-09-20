@@ -14,6 +14,8 @@ export interface TaskLike {
   title: string;
   text: string;
   done: boolean;
+  /** What the box holds (E12). Absent = judged by `done` alone. */
+  state?: "open" | "progress" | "done" | "cancelled";
   due?: string | null;
   tags: string[];
   excluded: boolean;
@@ -51,7 +53,8 @@ export function filterTasks<T extends TaskLike>(tasks: readonly T[], f: TaskFilt
   const q = (f.text ?? "").trim().toLowerCase();
   return tasks.filter((tk) => {
     if (!f.includeHidden && tk.excluded) return false;
-    if (!matchesStatus(tk.done, f.status)) return false;
+    // "Open" includes what is in progress; a cancelled task is closed, not open.
+    if (!matchesStatus(tk.done || tk.state === "cancelled", f.status)) return false;
     if (f.folder && tk.path !== f.folder && !tk.path.startsWith(f.folder + "/")) return false;
     if (f.tag && !tk.tags.includes(f.tag)) return false;
     if (f.dueOnly && !tk.due) return false;

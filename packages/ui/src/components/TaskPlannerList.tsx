@@ -1,6 +1,6 @@
 import { Fragment, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CheckSquare, Repeat, Square, SquareMinus, SquareSlash } from "lucide-react";
+import { AlertTriangle, CheckSquare, Repeat } from "lucide-react";
 import { ICON } from "../lib/iconSizes";
 import { formatDueLabel } from "../lib/dueLabel";
 import { noteDisplayName } from "../lib/noteTitle";
@@ -10,6 +10,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { GroupCard, Row, RowList, SectionLabel } from "./ui/GroupedRows";
 import { IconButton } from "./ui/IconButton";
 import { TaskPriorityFlag } from "./TaskPriorityFlag";
+import { TaskStateIcon } from "./TaskStateIcon";
 
 /**
  * One list of the planner (plan Aufgaben-Oberfläche, B1) — Today with Overdue on
@@ -35,8 +36,6 @@ export interface TaskPlannerListProps {
   /** Extra attributes for a row — the phone's hold gesture lives on the row itself. */
   rowProps?: (row: PlannerRow) => Omit<HTMLAttributes<HTMLElement>, "onClick" | "title" | "className">;
 }
-
-const STATE_ICON = { open: Square, progress: SquareSlash, done: CheckSquare, cancelled: SquareMinus } as const;
 
 function dayHeading(dayKey: string, locale: string): string {
   const [y, m, d] = dayKey.split("-").map(Number);
@@ -95,7 +94,6 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
             <GroupCard>
               <RowList>
                 {section.rows.map((row) => {
-                  const StateIcon = STATE_ICON[row.state];
                   const closed = !isOpenState(row.state);
                   const element = (
                     <Row
@@ -112,7 +110,7 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
                           onClick={() => onToggle(row)}
                           data-testid="task-planner-toggle"
                         >
-                          <StateIcon size={ICON.ui} />
+                          <TaskStateIcon state={row.state} size={ICON.ui} />
                         </IconButton>
                       }
                       title={

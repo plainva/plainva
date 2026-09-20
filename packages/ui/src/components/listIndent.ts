@@ -49,7 +49,7 @@ const MARKER_INDENT_EM = 1;
 /** Breathing room between the line box's left edge and a measured prefix. */
 const PREFIX_GUTTER_PX = 4;
 const MARKER_RE = /^\s*([-*+]|\d+[.)])\s/;
-const TASK_BOX_RE = /^\[[ xX]\]\s?/;
+const TASK_BOX_RE = /^\[[ xX/-]\]\s?/;
 
 /** Whether a line begins a list item (bullet or ordered marker). */
 export function isListMarkerLine(text: string): boolean {

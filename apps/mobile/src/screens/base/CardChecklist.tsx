@@ -81,7 +81,8 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
             <Checkbox
               key={l.ordinal}
               className="m-basecard-checkline"
-              checked={l.done}
+              // Done or cancelled: a closed sub-task is a ticked box; un-ticking reopens it (E12).
+              checked={l.done || l.state === "cancelled"}
               data-testid={`board-card-task-${l.ordinal}`}
               onChange={(e) => {
                 // Read the box NOW: the write awaits the file first, and by then
@@ -91,7 +92,7 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
                 void write((fresh) => { const r = toggleTaskAtIndex(fresh, l.ordinal, checked); return r.changed ? r.content : null; });
               }}
             >
-              <span className={l.done ? "is-done" : undefined}>{l.text}</span>
+              <span className={l.done || l.state === "cancelled" ? "is-done" : undefined}>{l.text}</span>
             </Checkbox>
           ))}
           <div className="m-basecard-checkadd">

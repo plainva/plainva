@@ -22,7 +22,7 @@ export interface ListInfo {
 
 /** Parse a single line into list metadata, or null if it is not a list item. */
 export function parseListLine(text: string): ListInfo | null {
-  const um = text.match(/^(\s*)([-*+])\s+(\[([ xX])\]\s+)?(.*)$/);
+  const um = text.match(/^(\s*)([-*+])\s+(\[([ xX/-])\]\s+)?(.*)$/);
   if (um) {
     return { indent: um[1], marker: um[2], ordered: false, task: !!um[3], checked: /[xX]/.test(um[4] || ""), content: um[5] };
   }

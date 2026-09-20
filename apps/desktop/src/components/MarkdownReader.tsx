@@ -19,7 +19,7 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -395,8 +395,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
-          ? [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
-          : [remarkGfm, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills]}
+          ? [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
+          : [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills]}
         rehypePlugins={[sourcePlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
@@ -541,6 +541,23 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 <li className={className} style={{ listStyleType: 'none', marginLeft: '-1.2em' }} {...props}>
                   <div className="pv-reader-task-done">{all.filter((child) => !isNestedList(child))}</div>
                   {nested}
+                </li>
+              );
+            }
+            // `[/]` in progress: the native "indeterminate" dash. It is a property,
+            // not an attribute, so it is set on the box once the item is in the DOM.
+            if (isTask && (props as Record<string, unknown>)['data-task-state'] === 'progress') {
+              return (
+                <li
+                  className={className}
+                  style={{ listStyleType: 'none', marginLeft: '-1.2em' }}
+                  {...props}
+                  ref={(el: HTMLLIElement | null) => {
+                    const box = el?.querySelector<HTMLInputElement>(':scope > input[type="checkbox"], :scope > p > input[type="checkbox"]');
+                    if (box) box.indeterminate = true;
+                  }}
+                >
+                  {children}
                 </li>
               );
             }

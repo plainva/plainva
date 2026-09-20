@@ -31,7 +31,7 @@ export interface OutlineContext {
   lineText: string;
 }
 
-const LIST_ITEM_RE = /^([ \t]*)(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?(.*)/;
+const LIST_ITEM_RE = /^([ \t]*)(?:[-+*]|\d+[.)])[ \t]+(?:\[[ xX/-]\][ \t]+)?(.*)/;
 
 export function outlineContextFor(content: string, line: number): OutlineContext {
   const lines = content.split("\n");

@@ -347,6 +347,7 @@ export * from "./pim/taskDuplicates";
 export * from "./components/TaskDuplicatesList";
 export * from "./components/TaskPlannerList";
 export * from "./components/TaskPriorityFlag";
+export * from "./components/TaskStateIcon";
 export * from "./components/TaskPlannerNav";
 export * from "./components/TaskCaptureField";
 export * from "./services/docMeta";

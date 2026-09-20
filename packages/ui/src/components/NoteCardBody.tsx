@@ -74,7 +74,7 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, labels }: Note
               <div key={key} style={{ ...blockText, display: "flex", alignItems: "flex-start", gap: 6, paddingLeft: b.indent * 14 }}>
                 <input
                   type="checkbox"
-                  checked={b.done}
+                  checked={b.closed}
                   disabled={!onToggleTask}
                   onClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
@@ -82,7 +82,7 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, labels }: Note
                   style={{ marginTop: 3, flexShrink: 0, accentColor: "var(--accent-color)", cursor: onToggleTask ? "pointer" : "default" }}
                   aria-label={undefined}
                 />
-                <span style={b.done ? { textDecoration: "line-through", color: "var(--text-muted)" } : undefined}>
+                <span style={b.closed ? { textDecoration: "line-through", color: "var(--text-muted)" } : undefined}>
                   {renderInlineNodes(b.inline)}
                 </span>
               </div>
