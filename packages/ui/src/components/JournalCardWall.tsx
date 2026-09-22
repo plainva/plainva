@@ -7,6 +7,7 @@ import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalF
 import { parseNoteCard } from "../lib/noteCardModel";
 import { AudioEmbed } from "./AudioEmbed";
 import { NoteCardBody } from "./NoteCardBody";
+import { Rating } from "./ui/Rating";
 import { cx } from "./ui/cx";
 import { IconButton } from "./ui/IconButton";
 import { TaskStateIcon } from "./TaskStateIcon";
@@ -43,6 +44,12 @@ export interface JournalCardWallProps {
   wrapCard?: (day: JournalDay, entry: JournalEntry, element: ReactNode) => ReactNode;
   /** Narrower cards, for a phone. */
   compact?: boolean;
+  /**
+   * Sets the day's rating (plan Journal-Erweiterungen, X6). Absent = the marks
+   * are shown but not pressable; a day carries no rating at all when the vault
+   * names no mood property, and then nothing is drawn.
+   */
+  onSetMood?: (day: JournalDay, value: number) => void;
 }
 
 const CARD_WIDTH = 256;
@@ -134,7 +141,7 @@ function useVaultBlob(path: string, loadMedia: (path: string) => Promise<Blob>):
   return url;
 }
 
-export function JournalCardWall({ days, todayKey, loadMedia, onToggleTask, onOpenEntry, onMenu, wrapCard, compact }: JournalCardWallProps) {
+export function JournalCardWall({ days, todayKey, loadMedia, onToggleTask, onOpenEntry, onMenu, onSetMood, wrapCard, compact }: JournalCardWallProps) {
   const { t, i18n } = useTranslation();
   const hostRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -175,7 +182,17 @@ export function JournalCardWall({ days, todayKey, loadMedia, onToggleTask, onOpe
         const columns = distributeCards(ids, new Map(), columnCount);
         return (
           <section className="pv-journal-wall-day" data-day={day.key} data-testid="journal-day" key={day.path}>
-            <h3 className="pv-journal-wall-head">{heading(day)}</h3>
+            <h3 className="pv-journal-wall-head">
+              {heading(day)}
+              {day.mood !== undefined && (
+                <Rating
+                  className="pv-journal-day-mood"
+                  label={t("journal.mood")}
+                  onChange={onSetMood ? (next) => onSetMood(day, next) : undefined}
+                  value={day.mood ?? 0}
+                />
+              )}
+            </h3>
             <div className="pv-journal-wall-cols" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, ${cardWidth}px))` }}>
               {columns.map((column, index) => (
                 <div className="pv-journal-wall-col" key={index}>

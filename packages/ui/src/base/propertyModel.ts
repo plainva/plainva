@@ -13,6 +13,13 @@
 export type PropertyType =
   | "text"
   | "number"
+  /**
+   * A number drawn as marks (plan Journal-Erweiterungen, E5): 1 to 5 by
+   * default, the count and the glyph configurable per column. The FILE holds
+   * a plain number, so Obsidian and a spreadsheet read it too; sorting and
+   * filtering are a number's, because that is what it is.
+   */
+  | "rating"
   | "checkbox"
   | "date"
   | "datetime"
@@ -87,6 +94,12 @@ export function coerceForType(value: unknown, type: PropertyType): unknown {
       const n = Number(value);
       return Number.isFinite(n) ? n : 0;
     }
+    case "rating": {
+      // The column's own maximum is applied where the column is known; here
+      // the ten-mark ceiling keeps a stray 900 out of the file.
+      const n = Number(value);
+      return Number.isFinite(n) ? Math.min(Math.max(Math.round(n), 0), 10) : 0;
+    }
     case "list":
     case "tags":
     case "multiselect":
@@ -117,7 +130,7 @@ export function coerceForType(value: unknown, type: PropertyType): unknown {
 /** Initial value for a freshly added property of the given type. */
 export function defaultValueForType(type: PropertyType): unknown {
   if (type === "checkbox") return false;
-  if (type === "number") return 0;
+  if (type === "number" || type === "rating") return 0;
   if (isMulti(type)) return [];
   return ""; // text/select/status/url/email/phone/date/datetime — empty, edited in place
 }
@@ -453,6 +466,7 @@ export function baseInputToType(input: string | undefined): PropertyType | undef
   switch (input) {
     case "text": return "text";
     case "number": return "number";
+    case "rating": return "rating";
     case "checkbox": return "checkbox";
     case "date": return "date";
     case "datetime": return "datetime";

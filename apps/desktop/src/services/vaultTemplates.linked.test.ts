@@ -256,14 +256,20 @@ describe("Journal template", () => {
         expect(days, "a calendar with no entries demonstrates nothing").toHaveLength(2);
         const cfg = base();
         const dateKey = cfg.views.find((v) => v.dateField)!.dateField!;
-        const moodKey = Object.keys(cfg.columns).find((k) => optionValues(cfg.columns[k]).length > 0)!;
+        // Since plan Journal-Erweiterungen X6 the day is RATED, not labelled:
+        // the column is a `rating`, and a sample day carries a number within
+        // its scale rather than one of five translated words.
+        const moodKey = Object.keys(cfg.columns).find((k) => (cfg.columns[k] as { input?: string }).input === "rating")!;
+        expect(moodKey, "the journal base has no rating column").toBeTruthy();
         expect(Object.keys(cfg.columns), "the calendar's date field is not a column").toContain(dateKey);
-        const moods = optionValues(cfg.columns[moodKey]);
-        expect(moods.length, "the mood column has no options").toBeGreaterThan(1);
+        const max = ((cfg.columns[moodKey] as { ratingMax?: number }).ratingMax) ?? 5;
         for (const day of days) {
           expect(day.type, `${day.path} is not a daily note`).toBe("Daily Note");
           expect(String(day.properties?.[dateKey] ?? ""), `${day.path} has no date`).toContain("{{today");
-          expect(moods, `${day.path}: mood is not one the column offers`).toContain(day.properties?.[moodKey]);
+          const mood = day.properties?.[moodKey];
+          expect(typeof mood, `${day.path}: the rating is not a number`).toBe("number");
+          expect(Number(mood), `${day.path}: the rating is off the column's scale`).toBeGreaterThan(0);
+          expect(Number(mood), `${day.path}: the rating is off the column's scale`).toBeLessThanOrEqual(max);
         }
       });
 
@@ -278,9 +284,13 @@ describe("Journal template", () => {
         expect(written).toEqual(["2026-07-28", "2026-07-29"]);
       });
 
-      it("the mood column carries colours", () => {
+      it("the mood column is a rating with a scale, and needs no translated options", () => {
         const yaml = serializeBaseConfig(get().bases![0].config);
-        expect(yaml, "options without colours").toContain("color:");
+        // A rating sorts and reads the same in every language; five coloured
+        // words did neither (plan Journal-Erweiterungen, X6).
+        expect(yaml, "the rating column is missing").toContain("input: rating");
+        expect(yaml, "the rating has no scale").toContain("ratingMax:");
+        expect(yaml, "a leftover option set from the old mood column").not.toContain("color:");
       });
 
       it("the daily-note template is wired and stays out of the Tasks view", () => {

@@ -719,3 +719,8 @@
 [data-theme-name="win95"] .pv-journal-wall-head {
   border-bottom: 1px solid #808080;
 }
+
+/* Rating: the 95 palette had one blue for "selected". */
+[data-theme-name="win95"] .pv-rating-mark--on {
+  color: #000080;
+}

@@ -5,13 +5,13 @@ import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, 
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, GroupCard, ICON, JournalCaptureField, JournalCardWall, JournalDayList, MenuItem, MenuSurface, Row, RowList, Segmented,
-  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape,
+  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape, writeNoteProperty,
   type JournalShape,
   useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { journalFailureKey, readJournalHeading, useJournalFiles } from "../../hooks/useJournal";
+import { journalFailureKey, readJournalHeading, readJournalMoodProperty, useJournalFiles } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
 import { JournalCaptureDialog } from "./JournalCaptureDialog";
 
@@ -49,8 +49,8 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
     if (!vaultPath) return;
     let alive = true;
     void (async () => {
-      const [config, name] = await Promise.all([readDailyNoteConfig(vaultPath), readJournalHeading(vaultPath)]);
-      if (alive) setSettings((prev) => (prev && prev.folder === config.folder && prev.format === config.format && prev.heading === name ? prev : { folder: config.folder, format: config.format, heading: name }));
+      const [config, name, mood] = await Promise.all([readDailyNoteConfig(vaultPath), readJournalHeading(vaultPath), readJournalMoodProperty(vaultPath)]);
+      if (alive) setSettings((prev) => (prev && prev.folder === config.folder && prev.format === config.format && prev.heading === name && prev.moodProperty === mood ? prev : { folder: config.folder, format: config.format, heading: name, moodProperty: mood }));
     })().catch(() => undefined);
     return () => { alive = false; };
   }, [vaultPath, fileTreeVersion]);
@@ -90,6 +90,26 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
   });
 
   const loadImage = useMemo(() => (vaultAdapter ? (path: string) => loadImageBlob(vaultAdapter, path) : undefined), [vaultAdapter]);
+
+  /**
+   * Writing the day's rating: a surgical frontmatter change to the daily note
+   * (plan Journal-Erweiterungen, E5). Zero CLEARS the property rather than
+   * writing a zero - a day one has not rated is not a day rated nought.
+   */
+  const setMood = useCallback((day: JournalDay, value: number) => {
+    const key = settings?.moodProperty?.trim();
+    if (!vaultAdapter || !key) return;
+    void (async () => {
+      try {
+        // Zero CLEARS the property: a day one has not rated is not a day rated
+        // nought. `writeNoteProperty` deletes the key for an empty value.
+        await writeNoteProperty(vaultAdapter, day.path, key, value > 0 ? value : "");
+        refreshPath(day.path);
+      } catch (error) {
+        toast.error(errorText(error));
+      }
+    })();
+  }, [vaultAdapter, settings, refreshPath]);
   const links = useMemo(() => ({
     // A wiki link names a note, not a path: the index resolves it as the editor does.
     onOpenNote: (target: string, newTab: boolean) => {
@@ -217,6 +237,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
           <JournalCardWall
             days={days}
             loadMedia={loadImage}
+            onSetMood={setMood}
             onMenu={(day, entry, at) => setMenu({ at, caps: actions.capsOf(day, entry) })}
             onOpenEntry={(day, entry) => showInNote(day, entry)}
             onToggleTask={actions.toggle}
@@ -225,6 +246,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
         ) : (
           <JournalDayList
             days={days}
+            onSetMood={setMood}
             todayKey={todayKey}
             links={links}
             loadImage={loadImage}

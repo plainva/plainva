@@ -300,6 +300,7 @@ export * from "./components/AtMentionPlugin";
 export * from "./components/DocIcon";
 export * from "./components/ImagePreviewPlugin";
 export * from "./components/AudioEmbed";
+export * from "./components/ui/Rating";
 export * from "./components/audioPlayer";
 export * from "./services/voiceMemo";
 export * from "./components/VoiceMemoButton";

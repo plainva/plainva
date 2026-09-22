@@ -9,7 +9,7 @@
  * virtualisation and a year of daily notes read at once would be too much for a
  * phone. When a note changes, only its day is read again.
  */
-import { parseJournal, type JournalEntry } from "@plainva/core";
+import { parseJournal, readFrontmatterPath, type JournalEntry } from "@plainva/core";
 import { localIsoKey, parseDailyNoteDate } from "./dailyNotePath";
 
 export interface JournalFeedSettings {
@@ -18,6 +18,11 @@ export interface JournalFeedSettings {
   format: string;
   /** The journal heading of the vault. */
   heading: string;
+  /**
+   * The frontmatter property a day is rated in (plan Journal-Erweiterungen,
+   * X6). Empty = the vault rates no days, and the head shows no marks.
+   */
+  moodProperty?: string;
 }
 
 export interface JournalDay {
@@ -27,6 +32,13 @@ export interface JournalDay {
   path: string;
   /** In file order — the note reads chronologically; the view shows the newest on top. */
   entries: JournalEntry[];
+  /**
+   * How the day was rated, read from the frontmatter property the vault names
+   * as its mood (plan Journal-Erweiterungen, X6). `null` when the note has no
+   * value; `undefined` when the vault names no property at all — the day head
+   * then shows nothing rather than an empty row of marks.
+   */
+  mood?: number | null;
 }
 
 export interface JournalFilter {
@@ -71,9 +83,16 @@ export function entryMatches(entry: JournalEntry, filter: JournalFilter): boolea
 }
 
 /** One day from the text of its note; `null` when it has no entry (that passes the filter). */
-export function journalDayOf(candidate: JournalCandidate, raw: string, heading: string, filter: JournalFilter = NO_JOURNAL_FILTER): JournalDay | null {
+export function journalDayOf(candidate: JournalCandidate, raw: string, heading: string, filter: JournalFilter = NO_JOURNAL_FILTER, moodKey = ""): JournalDay | null {
   const entries = parseJournal(raw, { heading }).entries.filter((entry) => entryMatches(entry, filter));
-  return entries.length ? { key: candidate.key, date: candidate.date, path: candidate.path, entries } : null;
+  if (!entries.length) return null;
+  const day: JournalDay = { key: candidate.key, date: candidate.date, path: candidate.path, entries };
+  // The note has been read already; the mood is one lookup in what is here.
+  if (moodKey.trim()) {
+    const value = readFrontmatterPath(raw, [moodKey.trim()]);
+    day.mood = typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return day;
 }
 
 export interface JournalWindow {
@@ -101,6 +120,7 @@ export async function loadJournalWindow(
   read: (path: string) => Promise<string>,
   heading: string,
   filter: JournalFilter = NO_JOURNAL_FILTER,
+  moodKey = "",
 ): Promise<JournalWindow> {
   const pool = before === null ? candidates : candidates.filter((c) => c.date.getTime() < before);
   const days: JournalDay[] = [];
@@ -113,7 +133,7 @@ export async function loadJournalWindow(
     } catch {
       continue;
     }
-    const day = journalDayOf(candidate, raw, heading, filter);
+    const day = journalDayOf(candidate, raw, heading, filter, moodKey);
     if (day) days.push(day);
   }
   return { days, through: at > 0 ? pool[at - 1].date.getTime() : before, more: at < pool.length };

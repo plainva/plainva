@@ -61,7 +61,8 @@ Sur le téléphone, **Configurer** ouvre les mêmes zones sous forme de liste ; 
 Cliquer sur un en-tête de colonne ouvre l'éditeur de propriété (**Propriété : X**) :
 
 - **Nom** — le renommage affecte les notes : à l'enregistrement, la propriété est renommée dans le frontmatter de chaque note correspondante (avec confirmation et un indicateur de progression).
-- **Type de champ** — Texte, Nombre, Case à cocher, Date, Date & heure, Liste, Tags, Sélection, Statut, Sélection multiple, URL, E-mail, Téléphone, Relation (le même menu de types groupés que dans le panneau **Propriétés** des notes).
+- **Type de champ** — Texte, Nombre, Évaluation, Case à cocher, Date, Date & heure, Liste, Tags, Sélection, Statut, Sélection multiple, URL, E-mail, Téléphone, Relation (le même menu de types groupés que dans le panneau **Propriétés** des notes).
+  Une **Évaluation** est un nombre dessiné en points (cinq, sauf mention contraire de la colonne). Le fichier garde `humeur: 4` — un simple nombre que lisent aussi Obsidian et n'importe quel tableur ; le tri et le filtre sont ceux d'un nombre. Vous appuyez sur le point qui doit compter ; appuyer sur la valeur actuelle l'efface.
 - **Options** (pour Sélection/Statut/Sélection multiple) — des valeurs fixes avec une **Couleur** et, pour **Statut**, un **Groupe**/une étape (p. ex. à faire → en cours → terminé) ; réordonnez par glisser-déposer. À l'ouverture de l'éditeur de colonne, la liste des options est déjà préremplie avec les valeurs déjà présentes dans la base de données — vous pouvez ainsi donner une couleur à chacune sans avoir à la ressaisir.
 - **Supprimer la propriété** — retire la colonne, le schéma, les filtres et les règles de tri de la base de données. La case à cocher **Aussi la retirer du frontmatter des notes** (activée par défaut) nettoie en plus les notes sources.
 

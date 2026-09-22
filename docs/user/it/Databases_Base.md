@@ -61,7 +61,8 @@ Sul telefono, **Configura** apre le stesse aree come un elenco; toccarne una apr
 Cliccare sull'intestazione di una colonna apre l'editor delle proprietà (**Proprietà: X**):
 
 - **Nome** — rinominare influisce sulle note: al salvataggio, la proprietà viene rinominata nel frontmatter di ogni nota corrispondente (con conferma e un indicatore di avanzamento).
-- **Tipo di campo** — Testo, Numero, Casella di controllo, Data, Data e ora, Elenco, Tag, Selezione, Stato, Selezione multipla, URL, Email, Telefono, Relazione (lo stesso menu di tipi raggruppato del pannello **Proprietà** delle note).
+- **Tipo di campo** — Testo, Numero, Valutazione, Casella di controllo, Data, Data e ora, Elenco, Tag, Selezione, Stato, Selezione multipla, URL, Email, Telefono, Relazione (lo stesso menu di tipi raggruppato del pannello **Proprietà** delle note).
+  Una **Valutazione** è un numero disegnato come punti (cinque, se la colonna non dice altro). Il file conserva `umore: 4`, un semplice numero che leggono anche Obsidian e qualsiasi foglio di calcolo; si ordina e si filtra come un numero. Premi il punto che deve contare; premere il valore attuale lo cancella.
 - **Opzioni** (per Selezione/Stato/Selezione multipla) — valori fissi con un **Colore** e, per **Stato**, un **Gruppo**/fase (ad es. da fare → in corso → completato); riordina trascinando. Quando apri l'editor della colonna, l'elenco delle opzioni è già precompilato con i valori usati nel database, così puoi assegnare un colore a ciascuno senza doverlo ridigitare.
 - **Elimina proprietà** — rimuove colonna, schema, filtri e regole di ordinamento dal database. La casella **Rimuovila anche dal frontmatter delle note** (attiva per impostazione predefinita) pulisce anche le note sorgente.
 

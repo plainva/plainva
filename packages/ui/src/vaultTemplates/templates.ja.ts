@@ -649,7 +649,6 @@ const JOURNAL_STRINGS_JA: JournalStrings = {
   welcomeSections: { databases: "データベース", start: "はじめの一歩" },
   baseFile: "ジャーナル.base",
   keys: { date: "date", mood: "mood", tags: "tags" },
-  moods: ["良い", "普通", "悪い", "生産的", "疲れ気味"],
   views: { table: "テーブル", calendar: "カレンダー" },
   template: {
     file: "デイリーノート.md",
@@ -659,13 +658,13 @@ const JOURNAL_STRINGS_JA: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "生産的",
+      mood: 4,
       tags: ["仕事", "執筆"],
       body: "エントリーはこのような形になります。気分とタグはフロントマターに書かれます——だからこそジャーナル.baseは、それらを二重に管理することなくソートしたり絞り込んだりできます。\n\n## ノート\n\n- 右側のサイドバーのカレンダーから、どの日にも移動できます。\n\n## タスク\n\n- [x] 最初のデイリーノートを書く\n- [ ] 明日また戻ってくる",
     },
     {
       offset: -1,
-      mood: "疲れ気味",
+      mood: 2,
       tags: ["日常"],
       body: "短いエントリーも、やはりエントリーです。時間が経つと面白くなるのは1日単独ではなく、その積み重ねです——そのために日付順のテーブルビューがあります。\n\n## ノート\n\n- あまり進みませんでしたが、早めに切り上げました。",
     },

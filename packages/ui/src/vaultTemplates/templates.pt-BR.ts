@@ -485,7 +485,6 @@ const JOURNAL_STRINGS_PT_BR: JournalStrings = {
   welcomeSections: { databases: "Suas bases de dados", start: "Por onde começar" },
   baseFile: "Journal.base",
   keys: { date: "data", mood: "humor", tags: "palavras-chave" },
-  moods: ["Bom", "Neutro", "Ruim", "Produtivo", "Cansado"],
   views: { table: "Tabela", calendar: "Calendário" },
   template: {
     file: "Nota Diária.md",
@@ -495,13 +494,13 @@ const JOURNAL_STRINGS_PT_BR: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Produtivo",
+      mood: 4,
       tags: ["trabalho", "escrita"],
       body: "É assim que fica uma entrada. Humor e palavras-chave ficam no frontmatter — é por isso que a Journal.base consegue ordenar e filtrar por eles sem que você precise manter nada duas vezes.\n\n## Notas\n\n- O calendário na barra lateral direita leva você a qualquer dia.\n\n## Tarefas\n\n- [x] Escrever a primeira nota diária\n- [ ] Voltar amanhã",
     },
     {
       offset: -1,
-      mood: "Cansado",
+      mood: 2,
       tags: ["cotidiano"],
       body: "Uma entrada curta também é uma entrada. Com o tempo, o interessante não é o dia isolado, mas a sequência deles — é para isso que serve a tabela ordenada por data.\n\n## Notas\n\n- Pouco feito, mas terminei cedo.",
     },

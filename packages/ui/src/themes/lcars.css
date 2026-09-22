@@ -872,3 +872,8 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+/* Rating: the console fills its marks with the panel colour. */
+[data-theme-name="lcars"] .pv-rating-mark--on {
+  color: var(--lcars-1);
+}

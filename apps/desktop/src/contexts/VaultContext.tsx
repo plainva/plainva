@@ -508,6 +508,11 @@ export const journalHeadingKey = (vaultPath: string) => `journalHeading_${btoa(u
  * at 01:30 is still on the day the clock says.
  */
 export const dayEndsAtKey = (vaultPath: string) => `dayEndsAt_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/**
+ * Which frontmatter property rates a day (plan Journal-Erweiterungen, E5);
+ * empty = this vault rates no days, and the journal head shows no marks.
+ */
+export const journalMoodPropertyKey = (vaultPath: string) => `journalMoodProperty_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 /**

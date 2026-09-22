@@ -646,7 +646,6 @@ const JOURNAL_STRINGS_NL: JournalStrings = {
   welcomeSections: { databases: "Jouw databases", start: "Om te beginnen" },
   baseFile: "Journal.base",
   keys: { date: "datum", mood: "stemming", tags: "trefwoorden" },
-  moods: ["Goed", "Neutraal", "Slecht", "Productief", "Moe"],
   views: { table: "Tabel", calendar: "Kalender" },
   template: {
     file: "Dagnotitie.md",
@@ -656,13 +655,13 @@ const JOURNAL_STRINGS_NL: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Productief",
+      mood: 4,
       tags: ["werk", "schrijven"],
       body: "Zo ziet een item eruit. Stemming en trefwoorden staan in de frontmatter — daarom kan Journal.base erop sorteren en filteren zonder dat je iets dubbel bijhoudt.\n\n## Notities\n\n- De kalender in de rechterzijbalk brengt je naar elke dag.\n\n## Taken\n\n- [x] Eerste dagnotitie schrijven\n- [ ] Morgen terugkomen",
     },
     {
       offset: -1,
-      mood: "Moe",
+      mood: 2,
       tags: ["dagelijks"],
       body: "Ook een kort item is een item. Op de lange termijn is niet de losse dag interessant, maar de reeks — daarvoor is de tabelweergave op datum bedoeld.\n\n## Notities\n\n- Weinig gedaan, maar wel vroeg klaar.",
     },

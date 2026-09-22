@@ -61,7 +61,8 @@ No celular, **Configurar** abre as mesmas áreas como uma lista; tocar em uma de
 Clicar no cabeçalho de uma coluna abre o editor de propriedade (**Propriedade: X**):
 
 - **Nome** — renomear afeta as notas: ao salvar, a propriedade é renomeada no frontmatter de todas as notas correspondentes (com confirmação e um indicador de progresso).
-- **Tipo de campo** — Texto, Número, Caixa de seleção, Data, Data e hora, Lista, Tags, Seleção, Status, Seleção múltipla, URL, E-mail, Telefone, Relação (o mesmo menu de tipo agrupado do painel de **Propriedades** das notas).
+- **Tipo de campo** — Texto, Número, Avaliação, Caixa de seleção, Data, Data e hora, Lista, Tags, Seleção, Status, Seleção múltipla, URL, E-mail, Telefone, Relação (o mesmo menu de tipo agrupado do painel de **Propriedades** das notas).
+  Uma **Avaliação** é um número desenhado como pontos (cinco, a menos que a coluna diga outra coisa). O arquivo guarda `humor: 4` — um número simples que o Obsidian e qualquer planilha também leem; a ordenação e o filtro são os de um número. Você pressiona o ponto que deve contar; pressionar o valor atual o apaga.
 - **Opções** (para Seleção/Status/Seleção múltipla) — valores fixos com uma **Cor** e, para **Status**, um **Grupo**/etapa (por exemplo, a fazer → em andamento → concluído); reordene arrastando. Ao abrir o editor de propriedade, a lista de opções já vem preenchida com os valores já usados no banco de dados, para que você possa atribuir uma cor a cada um sem precisar digitá-lo novamente.
 - **Excluir propriedade** — remove a coluna, o esquema, os filtros e as regras de ordenação do banco de dados. A caixa de seleção **Também remover do frontmatter das notas** (ativada por padrão) limpa adicionalmente as notas de origem.
 

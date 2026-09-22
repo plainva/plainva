@@ -61,7 +61,8 @@ Na telefonie **Konfiguruj** otwiera te same obszary jako listę; dotknięcie jed
 Kliknięcie nagłówka kolumny otwiera edytor właściwości (**Właściwość: X**):
 
 - **Nazwa** — zmiana nazwy wpływa na notatki: po zapisaniu właściwość jest zmieniana we frontmatter każdej pasującej notatki (z potwierdzeniem i wskaźnikiem postępu).
-- **Typ pola** — Tekst, Liczba, Pole wyboru, Data, Data i godzina, Lista, Tagi, Wybór, Status, Wielokrotny wybór, URL, E-mail, Telefon, Relacja (to samo pogrupowane menu typów co w panelu **Właściwości** notatek).
+- **Typ pola** — Tekst, Liczba, Ocena, Pole wyboru, Data, Data i godzina, Lista, Tagi, Wybór, Status, Wielokrotny wybór, URL, E-mail, Telefon, Relacja (to samo pogrupowane menu typów co w panelu **Właściwości** notatek).
+  **Ocena** to liczba rysowana jako kropki (pięć, jeśli kolumna nie mówi inaczej). W pliku stoi `nastroj: 4` — zwykła liczba, którą przeczyta też Obsidian i każdy arkusz; sortowanie i filtrowanie działają jak dla liczby. Naciskasz kropkę, która ma się liczyć; naciśnięcie bieżącej wartości ją kasuje.
 - **Opcje** (dla Wybór/Status/Wielokrotny wybór) — stałe wartości z **kolorem** i, dla **Status**, **grupą**/etapem (np. do zrobienia → w toku → gotowe); zmiana kolejności przez przeciąganie. Po otwarciu edytora kolumny lista opcji jest już wypełniona wartościami używanymi w bazie danych, dzięki czemu możesz nadać każdej z nich kolor bez konieczności wpisywania jej od nowa.
 - **Usuń właściwość** — usuwa kolumnę, schemat, filtry i reguły sortowania z bazy danych. Checkbox **Usuń również z frontmatter notatek** (domyślnie włączony) dodatkowo czyści notatki źródłowe.
 

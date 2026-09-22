@@ -646,7 +646,6 @@ const JOURNAL_STRINGS_PL: JournalStrings = {
   welcomeSections: { databases: "Twoje bazy danych", start: "Od czego zacząć" },
   baseFile: "Dziennik.base",
   keys: { date: "data", mood: "nastroj", tags: "slowa" },
-  moods: ["Dobry", "Neutralny", "Zły", "Produktywny", "Zmęczony"],
   views: { table: "Tabela", calendar: "Kalendarz" },
   template: {
     file: "Notatka dzienna.md",
@@ -656,13 +655,13 @@ const JOURNAL_STRINGS_PL: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Produktywny",
+      mood: 4,
       tags: ["praca", "pisanie"],
       body: "Tak wygląda wpis. Nastrój i słowa kluczowe znajdują się w frontmatter — dzięki temu Dziennik.base może po nich sortować i filtrować bez podwójnego utrzymywania danych.\n\n## Notatki\n\n- Kalendarz w prawym pasku bocznym prowadzi do dowolnego dnia.\n\n## Zadania\n\n- [x] Napisać pierwszą notatkę dzienną\n- [ ] Wrócić jutro",
     },
     {
       offset: -1,
-      mood: "Zmęczony",
+      mood: 2,
       tags: ["codzienność"],
       body: "Krótki wpis też jest wpisem. Z czasem interesujący nie jest pojedynczy dzień, lecz ich ciąg — do tego służy tabela posortowana według daty.\n\n## Notatki\n\n- Niewiele zrobione, za to wcześniejszy koniec pracy.",
     },

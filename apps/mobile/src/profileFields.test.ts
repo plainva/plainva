@@ -77,6 +77,10 @@ describe("profile field catalog", () => {
       // Plan Journal, E3: the journal heading is a vault convention. Two devices
       // with different headings would each write their own section.
       "journalHeading",
+      // Plan Journal-Erweiterungen, E5: which property rates a day is a vault
+      // convention too - two devices with different names would write the same
+      // day's rating into two different keys of the same note.
+      "journalMoodProperty",
       "mailFolder",
       "mailRemoteImages",
       "meetingFolder",

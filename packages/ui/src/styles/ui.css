@@ -2682,6 +2682,16 @@ button.pv-acct:hover { background: var(--state-hover); }
   font-weight: 600;
   color: var(--text-muted);
 }
+/* A rating (plan Journal-Erweiterungen, X6): the file holds a number, these
+   are the marks that stand for it. Tabular by construction - every mark is the
+   same width - so a column of ratings lines up. */
+.pv-rating { display: inline-flex; align-items: center; gap: 2px; line-height: 1; }
+.pv-rating-mark { color: var(--text-faint); font-size: var(--text-md); }
+.pv-rating-mark--on { color: var(--accent-color); }
+.pv-rating--live .pv-rating-mark { padding: 0 1px; min-width: 0; min-height: 0; }
+/* The day's rating in a journal head: quiet until it is looked at. */
+.pv-journal-day-mood { margin-inline-start: var(--space-2); }
+
 .pv-journal-wall-day { min-width: 0; }
 .pv-journal-wall-cols { display: grid; gap: 12px; justify-content: start; }
 .pv-journal-wall-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }

@@ -29,7 +29,9 @@ export interface ColumnSpec {
   /** Bare frontmatter key (translated per language, kept ASCII/umlaut-free). */
   key: string;
   /** Plainva input type; omit for a computed reverse-relation column. */
-  input?: "text" | "number" | "checkbox" | "date" | "datetime" | "select" | "status" | "multiselect" | "list" | "tags" | "url" | "email" | "phone" | "relation";
+  input?: "text" | "number" | "rating" | "checkbox" | "date" | "datetime" | "select" | "status" | "multiselect" | "list" | "tags" | "url" | "email" | "phone" | "relation";
+  /** Rating: how many marks (1-10, default 5). */
+  ratingMax?: number;
   /** Curated values for select/status/multiselect columns (translated). */
   options?: OptionSpec[];
   /** Localized header for a column whose KEY must stay stable/portable
@@ -114,6 +116,7 @@ function columnConfig(c: ColumnSpec): Record<string, unknown> {
     return col;
   }
   if (c.input) col.input = c.input;
+  if (c.ratingMax) col.ratingMax = c.ratingMax;
   if (c.options) col.options = c.options.map(optionConfig);
   if (c.relationBase) col.relationBase = c.relationBase;
   if (c.relationLimit === "one") col.relationLimit = "one";

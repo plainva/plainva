@@ -61,7 +61,8 @@ Op de telefoon opent **Configureren** dezelfde gebieden als een lijst; tikken op
 Een klik op een kolomkop opent de eigenschappeneditor (**Eigenschap: X**):
 
 - **Naam** — hernoemen werkt door op de notities: bij het opslaan wordt de eigenschap in de frontmatter van elke overeenkomende notitie hernoemd (met bevestiging en voortgangsindicator).
-- **Veldtype** — Tekst, Getal, Selectievakje, Datum, Datum & tijd, Lijst, Tags, Selectie, Status, Multiselectie, URL, E-mail, Telefoon, Relatie (hetzelfde gegroepeerde typemenu als in het **Eigenschappen**-paneel van de notities).
+- **Veldtype** — Tekst, Getal, Beoordeling, Selectievakje, Datum, Datum & tijd, Lijst, Tags, Selectie, Status, Multiselectie, URL, E-mail, Telefoon, Relatie (hetzelfde gegroepeerde typemenu als in het **Eigenschappen**-paneel van de notities).
+  Een **Beoordeling** is een getal dat als punten wordt getekend (vijf, tenzij de kolom iets anders zegt). Het bestand houdt `stemming: 4` — een gewoon getal dat Obsidian en elk rekenblad ook lezen; sorteren en filteren gaan als bij een getal. Je drukt op het punt dat moet tellen; op de huidige waarde drukken wist die weer.
 - **Opties** (bij Selectie/Status/Multiselectie) — vaste waarden met een **Kleur** en, bij **Status**, een **Groep**/fase (bijv. te doen → bezig → klaar); volgorde per sleep. Wanneer je de kolomeditor opent, is de optielijst al vooraf ingevuld met de waarden die in de database voorkomen — zo kun je elke optie een kleur geven zonder die opnieuw te typen.
 - **Eigenschap verwijderen** — verwijdert kolom, schema, filters en sorteerregels uit de database. De checkbox **Ook verwijderen uit de frontmatter van de notities** (standaard aan) ruimt bovendien de bronnotities op.
 

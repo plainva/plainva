@@ -13,7 +13,12 @@ import { welcomeBody, DEFAULT_DAILY_NOTE_TYPE, type VaultTemplateDefinition, typ
 export interface JournalSample {
   /** Day offset for the file name and the date property: 0 = today. */
   offset: 0 | -1;
-  mood: string;
+  /**
+   * How the day went, 1 to 5 (plan Journal-Erweiterungen, X6). A number, not
+   * one of five words: it sorts, it reads the same in every language, and the
+   * `rating` column draws it as marks.
+   */
+  mood: number;
   tags: string[];
   body: string;
 }
@@ -28,8 +33,6 @@ export interface JournalStrings {
   baseFile: string;
   /** Frontmatter keys — translated but kept ASCII/umlaut-free. */
   keys: { date: string; mood: string; tags: string };
-  /** Five moods, coloured in the board and the table. */
-  moods: [string, string, string, string, string];
   views: { table: string; calendar: string };
   template: { file: string; description: string; body: string };
   /** Today and yesterday, so the calendar is not empty on day one. */
@@ -39,7 +42,6 @@ export interface JournalStrings {
 export function buildJournal(s: JournalStrings): VaultTemplateDefinition {
   const f = s.folders;
   const k = s.keys;
-  const [good, neutral, bad, productive, tired] = s.moods;
 
   const day = (sample: JournalSample): VaultTemplateNote => {
     const token = sample.offset === 0 ? "{{today}}" : `{{today${sample.offset}}}`;
@@ -64,17 +66,9 @@ export function buildJournal(s: JournalStrings): VaultTemplateDefinition {
         sourceFolder: f.journal,
         columns: [
           { key: k.date, input: "date" },
-          {
-            key: k.mood,
-            input: "select",
-            options: [
-              { value: good, color: "green" },
-              { value: neutral, color: "gray" },
-              { value: bad, color: "coral" },
-              { value: productive, color: "teal" },
-              { value: tired, color: "amber" },
-            ],
-          },
+          // Five marks rather than five words (plan Journal-Erweiterungen, X6):
+          // a rating sorts, and it needs no translation.
+          { key: k.mood, input: "rating", ratingMax: 5 },
           { key: k.tags, input: "tags" },
         ],
         views: [
@@ -148,7 +142,6 @@ export const JOURNAL_STRINGS_DE: JournalStrings = {
   welcomeSections: { databases: "Deine Datenbanken", start: "Zum Einstieg" },
   baseFile: "Journal.base",
   keys: { date: "datum", mood: "stimmung", tags: "schlagworte" },
-  moods: ["Gut", "Neutral", "Schlecht", "Produktiv", "Müde"],
   views: { table: "Tabelle", calendar: "Kalender" },
   template: {
     file: "Tagesnotiz.md",
@@ -158,13 +151,13 @@ export const JOURNAL_STRINGS_DE: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Produktiv",
+      mood: 4,
       tags: ["arbeit", "schreiben"],
       body: "So sieht ein Eintrag aus. Stimmung und Schlagworte stehen im Frontmatter — deshalb kann Journal.base danach sortieren und filtern, ohne dass Du etwas doppelt pflegst.\n\n## Notizen\n\n- Der Kalender in der rechten Seitenleiste führt zu jedem Tag.\n\n## Aufgaben\n\n- [x] Erste Tagesnotiz schreiben\n- [ ] Morgen wiederkommen",
     },
     {
       offset: -1,
-      mood: "Müde",
+      mood: 2,
       tags: ["alltag"],
       body: "Auch ein kurzer Eintrag ist ein Eintrag. Über die Zeit ist nicht der einzelne Tag interessant, sondern die Reihe — dafür ist die Tabellenansicht nach Datum da.\n\n## Notizen\n\n- Wenig geschafft, dafür früh Feierabend.",
     },
@@ -191,7 +184,6 @@ export const JOURNAL_STRINGS_EN: JournalStrings = {
   welcomeSections: { databases: "Your databases", start: "Where to start" },
   baseFile: "Journal.base",
   keys: { date: "date", mood: "mood", tags: "tags" },
-  moods: ["Good", "Neutral", "Bad", "Productive", "Tired"],
   views: { table: "Table", calendar: "Calendar" },
   template: {
     file: "Daily Note.md",
@@ -201,13 +193,13 @@ export const JOURNAL_STRINGS_EN: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Productive",
+      mood: 4,
       tags: ["work", "writing"],
       body: "This is what an entry looks like. Mood and tags live in the frontmatter — which is how Journal.base can sort and filter by them without you maintaining anything twice.\n\n## Notes\n\n- The calendar in the right sidebar takes you to any day.\n\n## Tasks\n\n- [x] Write the first daily note\n- [ ] Come back tomorrow",
     },
     {
       offset: -1,
-      mood: "Tired",
+      mood: 2,
       tags: ["everyday"],
       body: "A short entry is an entry too. Over time the interesting thing is not the single day but the run of them — that is what the table sorted by date is for.\n\n## Notes\n\n- Not much done, but an early finish.",
     },

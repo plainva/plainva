@@ -4,7 +4,7 @@ import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { Button, chipClass, inferType, propertyFolder, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { Button, chipClass, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
@@ -452,6 +452,13 @@ export function useBaseCells({
     const labelOf = (v: string) => opts.find((o: any) => o.value === v)?.label ?? v;
     const toArr = (x: any): string[] => (Array.isArray(x) ? x.map(String) : x == null || x === "" ? [] : [String(x)]);
 
+    // A rating is a NUMBER in the file and marks on the screen (plan
+    // Journal-Erweiterungen, E5).
+    if (input === "rating") {
+      const schema = getColumnSchema(col);
+      return <Rating glyph={schema?.ratingGlyph} max={schema?.ratingMax} value={Number(val) || 0} />;
+    }
+
     // Select/status/multiselect are the comma-separated types (P1): a YAML list
     // AND a comma-joined legacy string both render as individual chips.
     if (input === "select" || input === "status" || input === "multiselect") {
@@ -542,6 +549,20 @@ export function useBaseCells({
     const input = cellInput(col, val);
     // Checkboxes toggle on click; they have no separate edit mode.
     const isCheckbox = input === 'checkbox' || typeof val === 'boolean';
+    // Neither does a rating: opening an editor to press one of five dots would
+    // be a detour, so the marks are pressed where they stand.
+    if (input === 'rating' && !isReadOnly) {
+      const schema = getColumnSchema(col);
+      return (
+        <Rating
+          glyph={schema?.ratingGlyph}
+          label={columnLabel(col)}
+          max={schema?.ratingMax}
+          onChange={(next) => void handleCellSave(path, col, next)}
+          value={Number(val) || 0}
+        />
+      );
+    }
 
     const renderEditor = () => {
       if (input === 'date' || input === 'datetime') {

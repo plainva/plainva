@@ -666,7 +666,6 @@ const JOURNAL_STRINGS_FR: JournalStrings = {
   welcomeSections: { databases: "Vos bases de données", start: "Pour commencer" },
   baseFile: "Journal.base",
   keys: { date: "date", mood: "humeur", tags: "motscles" },
-  moods: ["Bonne", "Neutre", "Mauvaise", "Productive", "Fatiguée"],
   views: { table: "Tableau", calendar: "Calendrier" },
   template: {
     file: "Note quotidienne.md",
@@ -676,13 +675,13 @@ const JOURNAL_STRINGS_FR: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Productive",
+      mood: 4,
       tags: ["travail", "écriture"],
       body: "Voici à quoi ressemble une entrée. L'humeur et les mots-clés vivent dans le frontmatter — c'est ainsi que Journal.base peut trier et filtrer sans que vous ayez à tenir quoi que ce soit à jour deux fois.\n\n## Notes\n\n- Le calendrier dans la barre latérale droite vous mène à n'importe quel jour.\n\n## Tâches\n\n- [x] Écrire la première note quotidienne\n- [ ] Revenir demain",
     },
     {
       offset: -1,
-      mood: "Fatiguée",
+      mood: 2,
       tags: ["quotidien"],
       body: "Une entrée courte est une entrée quand même. Avec le temps, ce qui compte n'est pas le jour isolé mais la suite des jours — c'est justement à cela que sert le tableau trié par date.\n\n## Notes\n\n- Pas grand-chose fait, mais une fin de journée tôt.",
     },

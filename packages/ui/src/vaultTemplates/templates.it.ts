@@ -471,7 +471,6 @@ const JOURNAL_STRINGS_IT: JournalStrings = {
   welcomeSections: { databases: "I tuoi database", start: "Da dove iniziare" },
   baseFile: "Diario.base",
   keys: { date: "data", mood: "umore", tags: "parolechiave" },
-  moods: ["Buono", "Neutro", "Cattivo", "Produttivo", "Stanco"],
   views: { table: "Tabella", calendar: "Calendario" },
   template: {
     file: "Nota giornaliera.md",
@@ -481,14 +480,14 @@ const JOURNAL_STRINGS_IT: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "Produttivo",
+      mood: 4,
       tags: ["lavoro", "scrittura"],
       body:
         "Ecco come si presenta una voce. Umore e parole chiave si trovano nel frontmatter — per questo Diario.base può ordinare e filtrare in base a essi, senza che tu debba gestire nulla due volte.\n\n## Note\n\n- Il calendario nella barra laterale destra porta a ogni giorno.\n\n## Attività\n\n- [x] Scrivere la prima nota giornaliera\n- [ ] Tornare domani",
     },
     {
       offset: -1,
-      mood: "Stanco",
+      mood: 2,
       tags: ["quotidiano"],
       body:
         "Anche una voce breve è una voce. Nel tempo, ciò che conta non è il singolo giorno ma la sequenza — è per questo che esiste la vista tabella ordinata per data.\n\n## Note\n\n- Fatto poco, ma finito presto.",

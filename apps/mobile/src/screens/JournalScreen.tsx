@@ -4,7 +4,7 @@ import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, 
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalCardWall, JournalDayList, Row, RowList, SearchField, Segmented,
-  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape,
+  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape, writeNoteProperty,
   type JournalShape,
   useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalRowCaps,
@@ -17,6 +17,7 @@ import { SwipeRow } from "../components/SwipeRow";
 import { useLongPress } from "../lib/useLongPress";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
+import { syncSoon } from "../services/syncService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 
@@ -51,7 +52,7 @@ export function JournalScreen({
   const files = useMemo(() => journalFiles(vault), [vault]);
   const ms = getMobileSettings();
   const heading = journalHeading();
-  const settings = useMemo(() => ({ folder: ms.dailyFolder, format: ms.dailyFormat, heading }), [ms.dailyFolder, ms.dailyFormat, heading]);
+  const settings = useMemo(() => ({ folder: ms.dailyFolder, format: ms.dailyFormat, heading, moodProperty: ms.journalMoodProperty }), [ms.dailyFolder, ms.dailyFormat, heading, ms.journalMoodProperty]);
   const [sheet, setSheet] = useState<{ title: string; caps: JournalRowCaps } | null>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
   // Stream or wall - a DEVICE choice, remembered (E4).
@@ -86,6 +87,34 @@ export function JournalScreen({
   const actions = useJournalActions({ files, heading, failureText: journalFailureText, onChanged: refreshPath, onShowInNote: showInNote });
 
   const loadImage = useCallback((path: string) => loadImageBlob(vault.adapter, path), [vault]);
+
+  /**
+   * Writing the day's rating (plan Journal-Erweiterungen, E5). Zero CLEARS the
+   * property: a day one has not rated is not a day rated nought.
+   */
+  const setMood = useCallback((day: JournalDay, value: number) => {
+    const key = ms.journalMoodProperty?.trim();
+    if (!key) return;
+    void (async () => {
+      try {
+        // The phone's own way of writing - own-write marking and the index -
+        // behind the shared property writer. Zero CLEARS the property.
+        await writeNoteProperty(
+          {
+            readTextFile: (path: string) => vaultOps.read(vault, path),
+            writeTextFile: (path: string, content: string) => vaultOps.save(vault, path, content).then(() => undefined),
+          },
+          day.path,
+          key,
+          value > 0 ? value : "",
+        );
+        refreshPath(day.path);
+        syncSoon();
+      } catch (error) {
+        toast.error(errorText(error));
+      }
+    })();
+  }, [vault, ms.journalMoodProperty, refreshPath]);
   const links = useMemo(() => ({
     onOpenNote: (target: string) => {
       void vaultOps.resolveWikiTarget(vault, target).then((path) => { if (path) onOpenNote(path); }).catch(() => undefined);
@@ -194,6 +223,7 @@ export function JournalScreen({
           compact
           days={days}
           loadMedia={loadImage}
+          onSetMood={setMood}
           onMenu={(day, entry) => setSheet({ title: sheetTitle(entry), caps: actions.capsOf(day, entry) })}
           onOpenEntry={(day, entry) => { if (rowPress.clicked()) showInNote(day, entry); }}
           onToggleTask={actions.toggle}
@@ -204,6 +234,7 @@ export function JournalScreen({
         <JournalDayList
           compact
           days={days}
+          onSetMood={setMood}
           todayKey={todayKey}
           links={links}
           loadImage={loadImage}

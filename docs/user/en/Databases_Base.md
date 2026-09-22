@@ -61,7 +61,8 @@ On the phone, **Configure** opens the same areas as a list; tapping one enters t
 Clicking a column header opens the property editor (**Property: X**):
 
 - **Name** — renaming affects the notes: on save, the property is renamed in the frontmatter of every matching note (with confirmation and a progress indicator).
-- **Field type** — Text, Number, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel).
+- **Field type** — Text, Number, Rating, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel).
+  A **Rating** is a number drawn as dots (five unless the column says otherwise). The file holds `mood: 4` — a plain number that Obsidian and any spreadsheet read too; sorting and filtering work as they do for a number. You press the dot that should count; pressing the current value clears it again.
 - **Options** (for Select/Status/Multi-select) — fixed values with a **Color** and, for **Status**, a **Group**/stage (e.g. to-do → in progress → done); reorder by dragging. When you open the column editor, the option list is pre-filled with the values already used in the database, so you can give each one a colour without retyping it first.
 - **Delete property** — removes column, schema, filters and sort rules from the database. The checkbox **Also remove it from the notes' frontmatter** (on by default) additionally cleans up the source notes.
 

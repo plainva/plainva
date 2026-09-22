@@ -61,7 +61,8 @@ En el teléfono, **Configurar** abre las mismas áreas como una lista; tocar una
 Al hacer clic en el encabezado de una columna se abre el editor de propiedades (**Propiedad: X**):
 
 - **Nombre** — renombrar afecta a las notas: al guardar, la propiedad se renombra en el frontmatter de todas las notas coincidentes (con confirmación e indicador de progreso).
-- **Tipo de campo** — Texto, Número, Casilla de verificación, Fecha, Fecha y hora, Lista, Etiquetas, Selección, Estado, Selección múltiple, URL, Correo electrónico, Teléfono, Relación (el mismo menú de tipos agrupado que en el panel de **Propiedades** de las notas).
+- **Tipo de campo** — Texto, Número, Valoración, Casilla de verificación, Fecha, Fecha y hora, Lista, Etiquetas, Selección, Estado, Selección múltiple, URL, Correo electrónico, Teléfono, Relación (el mismo menú de tipos agrupado que en el panel de **Propiedades** de las notas).
+  Una **Valoración** es un número dibujado como puntos (cinco, salvo que la columna diga otra cosa). El archivo guarda `animo: 4`, un número simple que también leen Obsidian y cualquier hoja de cálculo; se ordena y se filtra como un número. Pulsas el punto que debe contar; pulsar el valor actual lo borra.
 - **Opciones** (para Selección/Estado/Selección múltiple) — valores fijos con un **Color** y, para **Estado**, un **Grupo**/etapa (p. ej. pendiente → en curso → hecho); reordenar arrastrando. Al abrir el editor de la columna, la lista de opciones ya viene rellenada con los valores que se usan en la base de datos, así que puedes asignarle un color a cada uno sin necesidad de volver a escribirlo.
 - **Eliminar propiedad** — quita la columna, el esquema, los filtros y las reglas de orden de la base de datos. La casilla **Quitarla también del frontmatter de las notas** (activada por defecto) limpia además las notas de origen.
 

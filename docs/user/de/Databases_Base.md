@@ -61,7 +61,8 @@ Auf dem Smartphone öffnet **Konfigurieren** dieselben Bereiche als Liste; ein T
 Ein Klick auf einen Spaltenkopf öffnet den Eigenschafts-Editor (**Eigenschaft: X**):
 
 - **Name** — Umbenennen wirkt auf die Notizen: Beim Speichern wird die Eigenschaft in allen passenden Notizen im Frontmatter umbenannt (mit Bestätigung und Fortschrittsanzeige).
-- **Feldtyp** — Text, Zahl, Kontrollkästchen, Datum, Datum & Uhrzeit, Liste, Tags, Auswählen, Status, Mehrfachauswahl, URL, E-Mail, Telefon, Relation (dasselbe gruppierte Typ-Menü wie im **Eigenschaften**-Panel der Notizen).
+- **Feldtyp** — Text, Zahl, Bewertung, Kontrollkästchen, Datum, Datum & Uhrzeit, Liste, Tags, Auswählen, Status, Mehrfachauswahl, URL, E-Mail, Telefon, Relation (dasselbe gruppierte Typ-Menü wie im **Eigenschaften**-Panel der Notizen).
+  Eine **Bewertung** ist eine Zahl, die als Punkte gezeichnet wird (fünf, wenn die Spalte nichts anderes sagt). In der Datei steht `stimmung: 4` — eine schlichte Zahl, die auch Obsidian und jede Tabellenkalkulation lesen; sortiert und gefiltert wird wie bei einer Zahl. Du klickst den Punkt, der zählen soll; ein Klick auf den aktuellen Wert löscht ihn wieder.
 - **Optionen** (bei Auswahl/Status/Mehrfachauswahl) — feste Werte mit **Farbe** und bei **Status** einer **Gruppe**/Stufe (z. B. offen → in Arbeit → erledigt); Reihenfolge per Drag. Beim Öffnen des Spalten-Editors ist die Optionsliste bereits mit den Werten vorbelegt, die in der Datenbank vorkommen — so kannst Du jedem eine Farbe geben, ohne ihn erst neu einzutippen.
 - **Eigenschaft löschen** — entfernt Spalte, Schema, Filter und Sortierungen aus der Datenbank. Die Checkbox **Auch aus dem Frontmatter der Notizen entfernen** (standardmäßig an) bereinigt zusätzlich die Quell-Notizen.
 

@@ -79,6 +79,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   dailyNoteType: "Daily Note",
   journalHeading: "Journal",
   dayEndsAt: 0,
+  journalMoodProperty: "",
   templateFolder: "Templates",
   attachmentFolder: "Attachments",
   inboxFolder: "Inbox",
@@ -207,6 +208,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // same reason: two devices with different boundaries would put the same
   // 01:30 entry into two different notes.
   { logical: "dayEndsAt", scope: "vault", kind: "number", area: "content", desktop: "store", mobile: "dayEndsAt", min: 0 },
+  // Which frontmatter property rates a day (plan Journal-Erweiterungen, E5).
+  // A VAULT field: two devices with different names would write the same
+  // day's rating into two different keys of the same note.
+  { logical: "journalMoodProperty", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "journalMoodProperty" },
   { logical: "templateFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "templateFolder" },
   { logical: "attachmentFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "attachmentFolder" },
   { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "inboxFolder" },

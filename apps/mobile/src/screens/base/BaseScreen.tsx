@@ -1,4 +1,4 @@
-import { pinboardCache } from "@plainva/ui";
+import { clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { usePageSwipe } from "../../lib/usePageSwipe";
@@ -560,6 +560,14 @@ export function BaseScreen({
     if (input === "date" || input === "datetime") {
       const fmt = (view.dateFormat ?? "default") as "default" | "long" | "iso" | "relative";
       return formatDateValue(String(v), input === "datetime", i18nInstance.language, fmt);
+    }
+    // A rating reads as its marks even where the cell is text: the number
+    // alone would say nothing about the scale (plan Journal-Erweiterungen, E5).
+    if (input === "rating") {
+      const max = clampRatingMax(config?.columns?.[col]?.ratingMax);
+      const glyph = String(config?.columns?.[col]?.ratingGlyph ?? DEFAULT_RATING_GLYPH);
+      const on = clampRating(v, max);
+      return `${glyph.repeat(on)}${"·".repeat(Math.max(0, max - on))}`;
     }
     return cellText(v);
   };

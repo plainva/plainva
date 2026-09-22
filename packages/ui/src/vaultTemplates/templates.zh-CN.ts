@@ -645,7 +645,6 @@ const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
   welcomeSections: { databases: "你的数据库", start: "从这里开始" },
   baseFile: "日记.base",
   keys: { date: "riqi", mood: "xinqing", tags: "biaoqian" },
-  moods: ["不错", "一般", "糟糕", "高效", "疲惫"],
   views: { table: "表格", calendar: "日历" },
   template: {
     file: "日记模板.md",
@@ -655,13 +654,13 @@ const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
   samples: [
     {
       offset: 0,
-      mood: "高效",
+      mood: 4,
       tags: ["工作", "写作"],
       body: "这就是一篇日记条目的样子。心情和标签保存在frontmatter里——因此日记.base能据此排序和筛选，而不需要你重复维护。\n\n## 笔记\n\n- 右侧边栏的日历可以带你跳到任意一天。\n\n## 任务\n\n- [x] 写下第一篇日记\n- [ ] 明天再回来",
     },
     {
       offset: -1,
-      mood: "疲惫",
+      mood: 2,
       tags: ["日常"],
       body: "简短的一条也是一篇日记。随着时间推移，真正有意思的不是某一天，而是它们连成的一串——按日期排序的表格视图正是为此而设。\n\n## 笔记\n\n- 没做太多事，但提早收工了。",
     },

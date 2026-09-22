@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { type CuratedOption, dateTimeEditorValue, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { type CuratedOption, dateTimeEditorValue, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -234,6 +234,13 @@ export function CellEditSheet({
 
         {input === "checkbox" && <button className="m-row" onClick={() => onCommit(value !== true)}>
           <span>{col}</span><span className={`m-slotmark${value === true ? " is-on" : ""}`} /></button>}
+        {/* A rating is pressed, not typed (plan Journal-Erweiterungen, E5): the
+            marks are the editor, and the file keeps a plain number. */}
+        {input === "rating" && (
+          <div className="m-sheet-inputrow">
+            <Rating label={col} onChange={(next) => onCommit(next)} value={Number(value) || 0} />
+          </div>
+        )}
         {isDate && (
           <div className="m-sheet-inputrow">
             <TextInput

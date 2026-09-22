@@ -66,11 +66,12 @@ interface Loaded { vaultKey: string; key: string; days: JournalDay[]; more: bool
 export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
   const { vaultKey, settings, version, changedPaths } = deps;
   const { folder, format, heading } = settings;
+  const moodProperty = settings.moodProperty ?? "";
   const [filter, setFilter] = useState<JournalFilter>(NO_JOURNAL_FILTER);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [olderBusy, setOlderBusy] = useState(false);
   /** What the stream is FOR. A loaded result belongs to exactly one of these. */
-  const key = useMemo(() => JSON.stringify([vaultKey, folder, format, heading, filter.text, filter.tag, filter.tasksOnly]), [vaultKey, folder, format, heading, filter]);
+  const key = useMemo(() => JSON.stringify([vaultKey, folder, format, heading, moodProperty, filter.text, filter.tag, filter.tasksOnly]), [vaultKey, folder, format, heading, moodProperty, filter]);
 
   // The newest callbacks, for the effects below. Written in an effect, never
   // during render; it is declared first, so it has run before they do.
@@ -87,7 +88,7 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
     void (async () => {
       try {
         const found = journalCandidates(await depsRef.current.listNotePaths(), { folder, format });
-        const window = await loadJournalWindow(found, null, depsRef.current.readTextFile, heading, filter);
+        const window = await loadJournalWindow(found, null, depsRef.current.readTextFile, heading, filter, moodProperty);
         if (mine !== ticket.current) return;
         candidates.current = found;
         through.current = window.through;
@@ -99,14 +100,14 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
         setLoaded((prev) => (prev && prev.vaultKey === vaultKey ? { ...prev, key } : { vaultKey, key, days: [], more: false }));
       }
     })();
-  }, [vaultKey, folder, format, heading, filter, key, report]);
+  }, [vaultKey, folder, format, heading, moodProperty, filter, key, report]);
 
   const loadOlder = useCallback(() => {
     const mine = ticket.current;
     setOlderBusy(true);
     void (async () => {
       try {
-        const window = await loadJournalWindow(candidates.current, through.current, depsRef.current.readTextFile, heading, filter);
+        const window = await loadJournalWindow(candidates.current, through.current, depsRef.current.readTextFile, heading, filter, moodProperty);
         if (mine !== ticket.current) return;
         through.current = window.through;
         setLoaded((prev) => (prev && prev.key === key
@@ -118,7 +119,7 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
         setOlderBusy(false);
       }
     })();
-  }, [heading, filter, key, report]);
+  }, [heading, moodProperty, filter, key, report]);
 
   /** One note again. A day older than what the stream has reached stays out — "load older" brings it. */
   const refreshOne = useCallback(async (path: string, mine: number) => {
@@ -131,14 +132,14 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
     if (reached !== null && date.getTime() < reached) return;
     let day: JournalDay | null = null;
     try {
-      day = journalDayOf(candidate, await depsRef.current.readTextFile(path), heading, filter);
+      day = journalDayOf(candidate, await depsRef.current.readTextFile(path), heading, filter, moodProperty);
     } catch {
       // Deleted or unreadable: the day leaves the stream.
       candidates.current = candidates.current.filter((c) => c.path !== path);
     }
     if (mine !== ticket.current) return;
     setLoaded((prev) => (prev && prev.key === key ? { ...prev, days: withJournalDay(prev.days, candidate, day) } : prev));
-  }, [folder, format, heading, filter, key]);
+  }, [folder, format, heading, moodProperty, filter, key]);
 
   const refreshPath = useCallback((path: string) => { void refreshOne(path, ticket.current); }, [refreshOne]);
 
@@ -194,7 +195,7 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
         const reached = through.current;
         // Nothing between what is loaded and the wanted day is left unread: done.
         if (!candidates.current.some((c) => (reached === null || c.date.getTime() < reached) && c.date.getTime() >= wanted)) break;
-        const window = await loadJournalWindow(candidates.current, reached, depsRef.current.readTextFile, heading, filter);
+        const window = await loadJournalWindow(candidates.current, reached, depsRef.current.readTextFile, heading, filter, moodProperty);
         if (mine !== ticket.current) return;
         through.current = window.through;
         setLoaded((prev) => (prev && prev.key === key
@@ -207,7 +208,7 @@ export function useJournalFeed(deps: JournalFeedDeps): JournalFeedState {
     } finally {
       setOlderBusy(false);
     }
-  }, [heading, filter, key, report]);
+  }, [heading, moodProperty, filter, key, report]);
 
   const sameVault = loaded !== null && loaded.vaultKey === vaultKey;
   const days = useMemo(() => (sameVault ? loaded.days : []), [sameVault, loaded]);

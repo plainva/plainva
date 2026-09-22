@@ -1,9 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { SidebarStepContext } from "../lib/sidebarStep";
-import { Button, IconButton, ICON, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { Button, IconButton, ICON, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
-  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, MessageSquare,
+  CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
 } from "lucide-react";
 import { CustomDatePicker } from "./DatePicker";
 import {
@@ -23,13 +23,13 @@ type TFn = (key: string, opts?: any) => string;
 export type MenuPropertyType = PropertyType | "relation" | "rollup";
 
 export const TYPE_ICONS: Record<MenuPropertyType, React.ElementType> = {
-  text: Type, number: Hash, checkbox: CheckSquare, date: Calendar, datetime: Clock,
+  text: Type, number: Hash, rating: Star, checkbox: CheckSquare, date: Calendar, datetime: Clock,
   list: List, tags: Tag, select: ChevronsUpDown, status: CircleDot, multiselect: ListChecks,
   url: Globe, email: Mail, phone: Phone, link: Link2, relation: Link2, rollup: Sigma,
 };
 
 const TYPE_GROUPS: { labelKey: string; types: PropertyType[] }[] = [
-  { labelKey: "properties.group_basic", types: ["text", "number", "checkbox", "date", "datetime"] },
+  { labelKey: "properties.group_basic", types: ["text", "number", "rating", "checkbox", "date", "datetime"] },
   { labelKey: "properties.group_choice", types: ["select", "status", "multiselect"] },
   { labelKey: "properties.group_list", types: ["list", "tags", "link"] },
   { labelKey: "properties.group_contact", types: ["url", "email", "phone"] },
@@ -37,7 +37,7 @@ const TYPE_GROUPS: { labelKey: string; types: PropertyType[] }[] = [
 
 /** Same groups for `.base` columns — `relation` takes the generic link's slot. */
 export const BASE_TYPE_GROUPS: { labelKey: string; types: MenuPropertyType[] }[] = [
-  { labelKey: "properties.group_basic", types: ["text", "number", "checkbox", "date", "datetime"] },
+  { labelKey: "properties.group_basic", types: ["text", "number", "rating", "checkbox", "date", "datetime"] },
   { labelKey: "properties.group_choice", types: ["select", "status", "multiselect"] },
   { labelKey: "properties.group_list", types: ["list", "tags", "relation"] },
   { labelKey: "properties.group_contact", types: ["url", "email", "phone"] },
@@ -483,6 +483,9 @@ export function PropertyValue({ type, value, propKey, onChange, tagSuggestions, 
   switch (type) {
     case "checkbox": return <CheckboxToggle value={value} onChange={onChange} label={propKey} />;
     case "number": return <NumberInput value={value} onChange={onChange} t={t} />;
+    // The marks ARE the editor: a rating one can see but not set would need a
+    // second renderer beside this one (plan Journal-Erweiterungen, E5).
+    case "rating": return <Rating label={propKey} onChange={onChange} value={Number(value) || 0} />;
     case "date": return <DateValue value={value} onChange={onChange} includeTime={false} locale={locale} />;
     case "datetime": return <DateValue value={value} onChange={onChange} includeTime locale={locale} />;
     case "list": return <MultiSelectChips value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} neutral t={t} />;

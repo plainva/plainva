@@ -42,6 +42,7 @@ export function baseInputTypeOptions(
   return [
     { value: "text", label: tr("properties.type_text", "Text") },
     { value: "number", label: tr("properties.type_number", "Zahl") },
+    { value: "rating", label: tr("properties.type_rating", "Bewertung") },
     { value: "checkbox", label: tr("properties.type_checkbox", "Kontrollkästchen") },
     { value: "date", label: tr("properties.type_date", "Datum") },
     { value: "datetime", label: tr("properties.type_datetime", "Datum & Uhrzeit") },

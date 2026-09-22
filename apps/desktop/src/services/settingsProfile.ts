@@ -123,6 +123,7 @@ const dailyNoteTemplateKey = (v: string) => `dailyNoteTemplate_${b64(v)}`;
 const dailyNoteTypeKey = (v: string) => `dailyNoteType_${b64(v)}`;
 const journalHeadingKey = (v: string) => `journalHeading_${b64(v)}`;
 const dayEndsAtKey = (v: string) => `dayEndsAt_${b64(v)}`;
+const journalMoodPropertyKey = (v: string) => `journalMoodProperty_${b64(v)}`;
 const templateFolderKey = (v: string) => `templateFolder_${b64(v)}`;
 const folderTemplatesKey = (v: string) => `folderTemplates_${b64(v)}`;
 const typeTemplatesKey = (v: string) => `typeTemplates_${b64(v)}`;
@@ -254,6 +255,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   dailyNoteType: dailyNoteTypeKey,
   journalHeading: journalHeadingKey,
   dayEndsAt: dayEndsAtKey,
+  journalMoodProperty: journalMoodPropertyKey,
   templateFolder: templateFolderKey,
   folderTemplates: folderTemplatesKey,
   typeTemplates: typeTemplatesKey,

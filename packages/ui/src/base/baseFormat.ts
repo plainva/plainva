@@ -244,6 +244,11 @@ function normalizeColumn(src: any): Record<string, any> {
   const col: Record<string, any> = {};
   if (!isPlainObject(src)) return col;
   if (src.input != null) col.input = src.input;
+  // A rating's scale and glyph (plan Journal-Erweiterungen, X6). Out-of-range
+  // values are clamped where the marks are drawn, not here: a `.base` written
+  // by hand must not lose its column over a typo.
+  if (typeof src.ratingMax === "number" && Number.isFinite(src.ratingMax)) col.ratingMax = src.ratingMax;
+  if (typeof src.ratingGlyph === "string" && src.ratingGlyph.trim()) col.ratingGlyph = src.ratingGlyph;
   if (Array.isArray(src.options)) col.options = src.options.map(normalizeOption);
   if (src.relationBase != null) col.relationBase = src.relationBase;
   // Cardinality: "one" is the only persisted value; anything else means
@@ -465,6 +470,8 @@ export function serializeBaseConfig(config: any): string {
     const entry = isPlainObject(props[id]) ? props[id] : {};
     const plainva: Record<string, any> = {};
     if (col.input != null) plainva.input = col.input;
+    if (typeof col.ratingMax === "number" && Number.isFinite(col.ratingMax)) plainva.ratingMax = col.ratingMax;
+    if (typeof col.ratingGlyph === "string" && col.ratingGlyph.trim()) plainva.ratingGlyph = col.ratingGlyph;
     if (Array.isArray(col.options)) plainva.options = col.options.map(normalizeOption);
     if (col.relationBase != null) plainva.relationBase = col.relationBase;
     if (col.relationLimit === "one") plainva.relationLimit = "one";

@@ -106,6 +106,9 @@ export interface ContentPageProps {
   /** When this vault's day ends, minutes after midnight (plan Journal-Erweiterungen, E1). */
   dayEndsAt: number;
   onDayEndsAt: (v: number) => void;
+  /** Frontmatter property a day is rated in (plan Journal-Erweiterungen, E5). */
+  journalMoodProperty: string;
+  onJournalMoodProperty: (v: string) => void;
   /** Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b) — device-local. */
   verifierName: string;
   onVerifierName: (v: string) => void;
@@ -358,6 +361,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         </SettingRow>
         <SettingRow label={t("settings.journalHeading")} desc={t("settings.journalHeadingDesc")}>
           <TextInput autoComplete="off" value={p.journalHeading} onChange={(e) => p.onJournalHeading(e.target.value)} placeholder={DEFAULT_JOURNAL_HEADING} data-testid="journal-heading" />
+        </SettingRow>
+        <SettingRow label={t("settings.journalMood")} desc={t("settings.journalMoodDesc")}>
+          <TextInput autoComplete="off" value={p.journalMoodProperty} onChange={(e) => p.onJournalMoodProperty(e.target.value)} placeholder="stimmung" data-testid="journal-mood-property" />
         </SettingRow>
         <SettingRow label={t("settings.dayEndsAt")} desc={t("settings.dayEndsAtDesc")}>
           <Select

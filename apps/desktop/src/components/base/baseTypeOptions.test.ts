@@ -17,7 +17,9 @@ describe("base property type vocabulary (P7)", () => {
     const flat = new Set(baseInputTypeOptions((k: string) => k).map((o) => o.value));
     // `rollup` is base-only too: a derived column has no counterpart in a note's
     // frontmatter, so the markdown panel never offers it.
-    const expected = ["text", "number", "checkbox", "date", "datetime", "list", "tags", "select", "status", "multiselect", "url", "email", "phone", "relation", "rollup"];
+    // `rating` joined the vocabulary with plan Journal-Erweiterungen, X6: a
+    // number drawn as marks, useful far beyond the journal it was asked for.
+    const expected = ["text", "number", "rating", "checkbox", "date", "datetime", "list", "tags", "select", "status", "multiselect", "url", "email", "phone", "relation", "rollup"];
     for (const ty of expected) {
       expect(flat.has(ty), ty).toBe(true);
     }

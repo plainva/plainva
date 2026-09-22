@@ -10,6 +10,7 @@ import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
 import { AudioEmbed } from "./AudioEmbed";
 import { boundaryLabel } from "../lib/today";
+import { Rating } from "./ui/Rating";
 import { useDayBoundaryMinutes } from "../hooks/useTodayKey";
 import { Button } from "./ui/Button";
 import { cx } from "./ui/cx";
@@ -61,6 +62,12 @@ export interface JournalDayListProps {
    * 13-px box in a 250-px column is a misclick waiting to happen.
    */
   slim?: boolean;
+  /**
+   * Sets the day's rating (plan Journal-Erweiterungen, X6). Absent = the marks
+   * are shown but not pressable; a day carries no rating at all when the vault
+   * names no mood property, and then nothing is drawn.
+   */
+  onSetMood?: (day: JournalDay, value: number) => void;
 }
 
 /** Entries longer than this are folded; "More" opens them. */
@@ -190,7 +197,7 @@ function clockOf(entry: Pick<JournalEntry, "seconds">): string {
   return `${two(Math.floor(entry.seconds / 3600))}:${two(Math.floor(entry.seconds / 60) % 60)}`;
 }
 
-export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask, onOpenNote, onOpenEntry, onMenu, editing, renderEditor, wrapRow, rowProps, headless, compact, slim }: JournalDayListProps) {
+export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask, onOpenNote, onOpenEntry, onMenu, onSetMood, editing, renderEditor, wrapRow, rowProps, headless, compact, slim }: JournalDayListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const yesterdayKey = addDaysToKey(todayKey, -1);
@@ -200,6 +207,17 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
   // about NOW, not about a day three weeks back.
   const boundary = useDayBoundaryMinutes();
   const boundaryNote = boundary > 0 ? t("journal.untilBoundary", { time: boundaryLabel(boundary) }) : null;
+
+  /** The day's rating, where the vault rates days at all. */
+  const moodOf = (day: JournalDay) =>
+    day.mood === undefined ? null : (
+      <Rating
+        className="pv-journal-day-mood"
+        label={t("journal.mood")}
+        onChange={onSetMood ? (next) => onSetMood(day, next) : undefined}
+        value={day.mood ?? 0}
+      />
+    );
 
   const heading = (day: JournalDay): string => {
     const year = day.key.slice(0, 4) !== todayKey.slice(0, 4) ? ({ year: "numeric" } as const) : {};
@@ -214,7 +232,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
         {days.map((day) => (
           <section key={day.path} data-testid="journal-day" data-day={day.key}>
             {!headless && (
-              <SectionLabel>
+              <SectionLabel end={moodOf(day)}>
                 {heading(day)}
                 {boundaryNote && day.key === todayKey && <> <span className="pv-journal-count">· {boundaryNote}</span></>}
               </SectionLabel>
@@ -263,9 +281,12 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
         <section key={day.path} data-testid="journal-day" data-day={day.key}>
           {!headless && <SectionLabel
             end={
-              <Button variant="ghost" size="sm" icon={<FileText size={ICON.meta} />} onClick={() => onOpenNote(day)} data-testid="journal-open-note">
-                {t("journal.openNote")}
-              </Button>
+              <>
+                {moodOf(day)}
+                <Button variant="ghost" size="sm" icon={<FileText size={ICON.meta} />} onClick={() => onOpenNote(day)} data-testid="journal-open-note">
+                  {t("journal.openNote")}
+                </Button>
+              </>
             }
           >
             {heading(day)}{!compact && <> <span className="pv-journal-count">· {t("journal.entries", { count: day.entries.length })}</span></>}

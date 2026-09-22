@@ -13,7 +13,7 @@ import {
   type JournalUndo,
   type JournalWriteFailure,
 } from "@plainva/ui";
-import { journalHeadingKey, useVault } from "../contexts/VaultContext";
+import { journalHeadingKey, journalMoodPropertyKey, useVault } from "../contexts/VaultContext";
 import { dailyNoteFiles, makeDailyPathProvider, readDailyNoteConfig } from "../services/dailyNotes";
 import { applyIndexChanges } from "../services/fileActions";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -31,6 +31,12 @@ import { isOwnerWindow } from "../services/windowContext";
 export async function readJournalHeading(vaultPath: string): Promise<string> {
   const store = await getSettingsStore();
   return normalizeJournalHeading(await store.get<string>(journalHeadingKey(vaultPath)));
+}
+
+/** Which frontmatter property rates a day; empty = this vault rates no days (E5). */
+export async function readJournalMoodProperty(vaultPath: string): Promise<string> {
+  const store = await getSettingsStore();
+  return ((await store.get<string>(journalMoodPropertyKey(vaultPath))) ?? "").trim();
 }
 
 /** What the shared write path needs from this shell; `null` while no vault is open. */

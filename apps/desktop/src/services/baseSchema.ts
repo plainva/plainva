@@ -32,6 +32,9 @@ export interface ColumnSchema {
   reverseOf?: ReverseRelationDef;
   /** Rollup: value aggregated from the notes a link column points at (never stored). */
   rollup?: RollupSpec;
+  /** Rating: how many marks (1-10, default 5) and what a mark looks like (one character, default a dot). */
+  ratingMax?: number;
+  ratingGlyph?: string;
   /**
    * Former bare names of this column, oldest first (plan Stufe E, section 5).
    * Written by `renamePropertyInConfig`, read by `propertyAliasResolver` so a

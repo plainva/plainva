@@ -290,6 +290,15 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.dailyNoteType}
               />
             </SettingField>
+            <SettingField hint={t("settings.journalMoodDesc")} label={t("settings.journalMood")}>
+              <TextInput
+                data-testid="journal-mood-property"
+                onBlur={(e) => update({ journalMoodProperty: e.target.value.trim() })}
+                onChange={(e) => update({ journalMoodProperty: e.target.value })}
+                placeholder="stimmung"
+                value={settings.journalMoodProperty}
+              />
+            </SettingField>
             <SettingField hint={t("settings.journalHeadingDesc")} label={t("settings.journalHeading")}>
               <TextInput
                 data-testid="journal-heading"
