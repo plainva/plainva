@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-19
+Última actualización: 2026-09-22
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -303,4 +303,4 @@ Un valor YAML vacío, `~` o `null` sin comillas aparece como una propiedad vací
 
 ## Buscar en el panel y volver
 
-La búsqueda del panel incluye títulos, texto, etiquetas y propiedades visibles. Se combina con los filtros de vista y las etiquetas seleccionadas. Borrar o Escape elimina la búsqueda. Los paneles incrustados ofrecen el mismo campo. Al abrir una tarjeta y volver se conservan la búsqueda, las etiquetas y la posición durante la sesión. Las vistas previas guardadas aparecen de inmediato y se actualizan los cambios. Las imágenes se cargan cuando son visibles. Se indican las entradas sin indexar y los errores de carga permiten reintentar. Las demás vistas tienen la misma búsqueda: **Buscar en esta base de datos…** en la cabecera de la base de datos (en el teléfono: la lupa de la barra) reduce tabla, lista, galería, tablero, calendario, cronología y grafo a las entradas coincidentes e indica cuántas son; se conserva durante la sesión y nunca se escribe en el archivo `.base`.
+**Buscar en esta base de datos …** es un solo campo para todas las vistas: la lupa entre las acciones del encabezado despliega una fila debajo —el mismo lugar tenga la base dos vistas u ocho— y acota tabla, lista, galería, tablero, calendario, línea de tiempo, grafo y tablón a las entradas que coinciden, con el número al lado. Busca en títulos, texto de las notas, etiquetas y propiedades visibles; los filtros de la vista, las etiquetas elegidas y el texto se aplican juntos. Cerrar la fila se lleva la búsqueda, para que ningún filtro invisible reduzca la lista. La búsqueda dura la sesión y nunca se escribe en el archivo `.base`. Un tablón incrustado conserva su propio campo, porque allí no hay encabezado donde poner una lupa; en el tablón normal, la fila del contenido es el camino a una nota nueva. Al abrir una tarjeta y volver, se conservan búsqueda, etiquetas y posición de lectura. Las vistas previas existentes aparecen enseguida y el contenido cambiado se carga después; las imágenes cargan al entrar en pantalla. Se muestran las entradas de índice que faltan, y **Intentar de nuevo** ayuda tras un error de carga.

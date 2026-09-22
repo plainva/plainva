@@ -81,6 +81,17 @@ describe("parseInlineMarkdown", () => {
     expect(parseInlineMarkdown("<b>kein HTML</b>")).toEqual([text("<b>kein HTML</b>")]);
   });
 
+  it("draws a checkbox written as HTML, and only that one element", () => {
+    // GFM has no spelling for a task box inside a table cell (finding
+    // 2026-09-22). One element, two attributes — anything else stays text.
+    expect(parseInlineMarkdown('<input type="checkbox">')).toEqual([{ kind: "checkbox", checked: false }]);
+    expect(parseInlineMarkdown('<input type="checkbox" checked>')).toEqual([{ kind: "checkbox", checked: true }]);
+    expect(parseInlineMarkdown('<input checked type=checkbox>')).toEqual([{ kind: "checkbox", checked: true }]);
+    for (const tag of ['<input type="text">', '<input type="checkbox" onclick="x()">', '<input type="checkbox" name="a">']) {
+      expect(parseInlineMarkdown(tag)).toEqual([text(tag)]);
+    }
+  });
+
   it("does not emphasize intraword underscores", () => {
     expect(parseInlineMarkdown("snake_case_name")).toEqual([text("snake_case_name")]);
     expect(parseInlineMarkdown("_echt kursiv_")).toEqual([{ kind: "em", children: [text("echt kursiv")] }]);

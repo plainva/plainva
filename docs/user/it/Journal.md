@@ -1,6 +1,6 @@
 # Diario
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-22
 
 Il diario è il modo rapido per annotare qualcosa senza aprire una nota: un pensiero, una telefonata, una riga sulla giornata. Ogni voce è una normale riga di elenco con un orario — `- 14:05 Il router è in cantina` — sotto un'intestazione della **nota giornaliera di oggi**. Non c'è un nuovo formato di file né un database: le voci vivono nelle tue note giornaliere, leggibili in qualsiasi editor e compatibili con i plugin di diario di Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Un campo, un **Invio**. Plainva registra l'orario; tu scrivi solo il testo. Tag,
 
 Se la nota giornaliera di oggi non esiste ancora, viene creata al momento — dal tuo modello di nota giornaliera, senza porre le sue domande. Dopo il salvataggio, un avviso dice **Voce salvata** e offre **Annulla**.
 
-Il campo conosce due tipi, **Attività** e **Diario**. **Attività** passa quello che hai digitato alla [vista delle attività](Tasks.md), dove un'attività viene creata come di consueto. Il chip **Come attività** è un'altra cosa: mantiene la voce nel diario e le dà una casella di controllo (`- [ ] 14:05 Ordina il pezzo di ricambio`), così compare anche nella vista delle attività sotto **Dalle note**.
+Il campo fa una cosa sola: una voce di diario. Sotto, **Crea invece un'attività** passa ciò che hai scritto alla [vista attività](Tasks.md), dove l'attività nasce come sempre, e chiude il campo. Il chip **Come attività** è un'altra cosa: lascia la voce nel diario e le dà una casella (`- [ ] 14:05 ordinare il ricambio`), così compare anche nella vista attività sotto **Dalle note**. La casella del chip resta vuota finché non lo scegli.
 
 ## La vista del diario
 
@@ -28,7 +28,7 @@ Il campo conosce due tipi, **Attività** e **Diario**. **Attività** passa quell
 
 Ogni voce ha un menu (clic destro o **⋯** al desktop; **⋯**, una pressione prolungata o uno scorrimento al telefono): **Modifica** cambia il testo sul posto e mantiene l'orario, **Copia** copia il testo, **Trasforma in attività** aggiunge la casella di controllo e **Ritrasforma in voce** la rimuove, **Mostra nella nota** salta alla riga, **Elimina** rimuove la voce — con **Annulla** nell'avviso che segue.
 
-Le voci di un singolo giorno compaiono anche dove guardi quel giorno: sotto il calendario nella barra laterale destra del desktop (per il giorno della nota giornaliera aperta, altrimenti oggi), e sulla schermata **Oggi** del telefono per il giorno selezionato. Entrambi hanno un piccolo campo che scrive esattamente in quel giorno, e **Tutti i giorni** porta al flusso.
+Le voci di un singolo giorno compaiono anche dove guardi quel giorno: come sezione **Diario** nella barra laterale destra del desktop (per il giorno della nota giornaliera aperta, altrimenti oggi) e sul telefono nella schermata **Oggi** per il giorno scelto. Nella barra laterale è una sezione come le altre: si chiude, se lo ricorda, si può nascondere e parte chiusa. Le sue righe stanno su una riga: lì non si usa nulla, ogni riga inizia dallo stesso bordo e un'attività porta un segno discreto a destra invece di una casella (spuntala nel flusso o nella nota). La matita nell'intestazione apre il consueto campo **Voce di diario** per quel giorno, e **Tutti i giorni** porta al flusso.
 
 ## Come viene salvata una voce
 

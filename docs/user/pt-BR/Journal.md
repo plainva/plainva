@@ -1,6 +1,6 @@
 # Diário
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-22
 
 O diário é o jeito rápido de anotar algo sem abrir uma nota: um pensamento, um telefonema, uma linha sobre o dia. Cada entrada é uma linha de lista comum com uma hora — `- 14:05 O roteador fica no porão` — sob um título da **nota diária de hoje**. Não há um novo formato de arquivo nem um banco de dados: as entradas vivem nas suas notas diárias, legíveis em qualquer editor e compatíveis com os plugins de diário do Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Um campo, um **Enter**. O Plainva carimba a hora; você só digita o texto. Tags
 
 Se a nota diária de hoje ainda não existir, ela é criada no caminho — a partir do seu modelo de nota diária, sem fazer as perguntas dele. Depois de salvar, um aviso diz **Entrada salva** e oferece **Desfazer**.
 
-O campo tem dois tipos, **Tarefa** e **Diário**. **Tarefa** repassa o que você digitou para a [visualização de tarefas](Tasks.md), onde uma tarefa é criada da forma de sempre. O chip **Como tarefa** é outra coisa: ele mantém a entrada no diário e dá a ela uma caixa de seleção (`- [ ] 14:05 Pedir a peça de reposição`), de modo que ela também aparece na visualização de tarefas em **Das notas**.
+O campo faz uma coisa só: uma entrada de diário. Abaixo dele, **Criar uma tarefa em vez disso** entrega o que você digitou à [visão de tarefas](Tasks.md), onde a tarefa nasce como sempre, e fecha o campo. O chip **Como tarefa** é outra coisa: deixa a entrada no diário e lhe dá uma caixa (`- [ ] 14:05 pedir a peça`), de modo que ela também aparece na visão de tarefas em **De notas**. A caixa do chip fica vazia até você escolhê-lo.
 
 ## A visualização do diário
 
@@ -28,7 +28,7 @@ O campo tem dois tipos, **Tarefa** e **Diário**. **Tarefa** repassa o que você
 
 Cada entrada tem um menu (clique com o botão direito ou **⋯** no desktop; **⋯**, um toque longo ou um deslize no telefone): **Editar** muda o texto no lugar e mantém a hora, **Copiar** copia o texto, **Transformar em tarefa** adiciona a caixa de seleção e **Transformar de volta em entrada** a remove, **Mostrar na nota** pula para a linha, **Excluir** remove a entrada — com **Desfazer** no aviso que aparece em seguida.
 
-As entradas de um único dia também aparecem onde você olha para aquele dia: sob o calendário na barra lateral direita do desktop (para o dia da nota diária aberta, senão hoje), e na tela **Hoje** do telefone para o dia selecionado. Ambos têm um pequeno campo que escreve exatamente naquele dia, e **Todos os dias** leva ao fluxo.
+As entradas de um único dia também aparecem onde você olha esse dia: como seção **Diário** na barra lateral direita do desktop (para o dia da nota diária aberta, senão hoje) e no celular na tela **Hoje** para o dia escolhido. Na barra lateral é uma seção como qualquer outra: recolhe, lembra disso, pode ser ocultada e começa fechada. Suas linhas têm uma linha só: ali não se opera nada, toda linha começa na mesma borda e uma tarefa leva uma marca discreta à direita em vez de uma caixa (marque no fluxo ou na nota). O lápis no cabeçalho abre o campo habitual **Entrada de diário** para exatamente esse dia, e **Todos os dias** leva ao fluxo.
 
 ## Como uma entrada é armazenada
 

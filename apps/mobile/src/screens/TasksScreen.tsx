@@ -99,8 +99,13 @@ function TaskText({ text }: { text: string }) {
           return <span key={i}>{n.display}</span>;
         case "link":
           return <span key={i}>{n.label}</span>;
-        default:
+        case "checkbox":
+          // A task's own title, not a cell: the box says its state in words.
+          return <span key={i}>{n.checked ? "☑" : "☐"}</span>;
+        case "url":
           return <span key={i}>{n.href}</span>;
+        default:
+          return null;
       }
     });
   return <>{render(parseInlineMarkdown(taskLabel(text)))}</>;

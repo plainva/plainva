@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-19
+Última revisão: 2026-09-22
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -303,4 +303,4 @@ Um valor YAML vazio, `~` ou `null` sem aspas aparece como propriedade vazia e co
 
 ## Pesquisar no mural e retornar
 
-A pesquisa do mural inclui títulos, texto, tags e propriedades visíveis. Ela se combina com os filtros da visualização e as etiquetas selecionadas. Limpar ou Escape remove a pesquisa. Murais incorporados têm o mesmo campo. Ao abrir um cartão e voltar, pesquisa, etiquetas e posição são preservadas durante a sessão. As prévias salvas aparecem imediatamente e os conteúdos alterados são recarregados. As imagens carregam quando ficam visíveis. Itens não indexados são indicados e erros de carregamento permitem tentar novamente. Todas as outras visualizações têm a mesma busca: **Buscar neste banco de dados…** no cabeçalho do banco de dados (no telefone: a lupa na barra) restringe tabela, lista, galeria, quadro, calendário, linha do tempo e grafo às entradas correspondentes e mostra quantas são; vale para a sessão e nunca é gravada no arquivo `.base`.
+**Pesquisar neste banco de dados …** é um único campo para todas as visões: a lupa entre as ações do cabeçalho abre uma linha abaixo — o mesmo lugar, tenha o banco duas visões ou oito — e restringe tabela, lista, galeria, quadro, calendário, linha do tempo, grafo e mural às entradas correspondentes, com a contagem ao lado. Pesquisa em títulos, texto das notas, tags e propriedades visíveis; filtros da visão, etiquetas escolhidas e texto valem juntos. Fechar a linha leva a pesquisa junto, para que nenhum filtro invisível restrinja a lista. A pesquisa vale para a sessão e nunca é escrita no arquivo `.base`. Um mural incorporado mantém um campo próprio, porque ali não há cabeçalho onde pôr uma lupa; no mural em si, a linha no conteúdo é o caminho para uma nota nova. Ao abrir um cartão e voltar, pesquisa, etiquetas e posição de leitura permanecem. As pré-visualizações existentes aparecem na hora e o conteúdo alterado é carregado depois; imagens carregam ao entrarem na tela. Entradas de índice ausentes são mostradas, e **Tentar novamente** ajuda após um erro de carregamento.

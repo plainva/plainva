@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -15,8 +15,8 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 ## Layout
 
 - **Bottom bar:** **two to four** work surfaces of your choice plus the fixed **Areas** entry at the end — together the three to five destinations a bar should carry. **Notes** always stays visible: it is how you reach your files.
-- **Every area** (Notes, Today, Tasks, Calendar, Email, Graph, Open comments) stays one tap away through the **areas sheet**: **Areas** in the bar or a **long press on the bar**. The sheet marks the current area and leads straight to **Arrange the navigation bar…** at the bottom. Tags, bookmarks and recently opened are no longer areas of their own — they live under **Notes**.
-- **Configuring the bar:** **Settings** → **Navigation bar**. Use **−**/**+** to set how many work surfaces the bar shows (2–4, with a live preview) and the **drag handle** to arrange the list: the top entries form the bar (marked by a frame), dragging one up promotes it. Dragging to the top or bottom edge scrolls the list along, so one movement covers the whole list. Nothing is ever hidden — whatever is not in the bar remains reachable through **Areas**. If the area you are on leaves the bar, the app moves to the first visible one. You can arrange the same bar **on the desktop** as well (Settings → Vault → Bars & areas); with settings sync on, the arrangement travels between your devices.
+- **Every area** is reachable at any time through the **areas sheet**: via **Areas** in the bar or by **pressing and holding the bar**. It shows YOUR arrangement — the areas of the bar first, then the rest, in the order you put them in — marks the current one and leads at the bottom straight to **Arrange navigation bar …**. Tags, bookmarks and recently opened are no longer areas of their own; they live under **Notes**.
+- **Setting the navigation bar:** **Settings** → **Bars and areas**. **−**/**+** decide how many work surfaces the bar shows (2–4, with a live preview). Every row answers: tapping it moves the area into the bar or out of it, the **eye** beside it says which it is, and the **grip** reorders by dragging — the list scrolls along at the top and bottom edge, so one movement covers it all. Nothing is lost by hiding: whatever is not in the bar stays reachable through **Areas**. If the open area leaves the bar, the app jumps to the first visible one. You can arrange the same bar **on the desktop** (Settings → Vault → Bars and areas); with settings sync on, the arrangement travels between your devices.
 - **A folder row counts everything below it**, not just the notes lying directly in it — a folder holding nothing but subfolders no longer reads “0 notes” beside a chevron that leads to hundreds.
 - **＋** floats as a round button above the bar and opens quick create in two groups: note, "From template…", daily note, journal entry, folder, database — and below them event and task, which are created in the calendar and the task list. The desktop's **New** menu offers the same entries in the same order.
 - **Holding a row opens what that row can do** — a note, a folder, a database, a task all answer the same way, and *Select several* is the first entry in that sheet. Swiping a row left performs its two most frequent actions directly; the sheet and the swipe offer the same things in the same order.

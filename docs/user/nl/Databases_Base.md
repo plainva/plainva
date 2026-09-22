@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-22
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -303,4 +303,4 @@ Een lege YAML-waarde, `~` of `null` zonder aanhalingstekens verschijnt als een l
 
 ## Zoeken in een prikbord en terugkeren
 
-De prikbordzoekfunctie doorzoekt titels, tekst, tags en zichtbare eigenschappen. Weergavefilters, geselecteerde labels en zoektekst gelden samen. Wissen of Escape verwijdert de zoekopdracht. Ingesloten prikborden hebben hetzelfde zoekveld. Na het openen van een kaart blijven zoektekst, labels en leespositie bij terugkeer tijdens de sessie behouden. Opgeslagen voorbeelden verschijnen direct; gewijzigde inhoud wordt opnieuw geladen. Afbeeldingen laden wanneer ze zichtbaar zijn. Niet-geïndexeerde items worden aangegeven en na een laadfout kun je opnieuw proberen. Elke andere weergave heeft dezelfde zoekfunctie: **Deze database doorzoeken…** in de kop van de database (op de telefoon: het vergrootglas in de balk) beperkt tabel, lijst, galerij, bord, kalender, tijdlijn en graaf tot de passende items en toont hoeveel het er zijn; de zoekopdracht geldt voor de sessie en wordt nooit in het `.base`-bestand geschreven.
+**Deze database doorzoeken …** is één veld voor elke weergave: het vergrootglas bij de acties in de kop klapt er een regel onder open — dezelfde plek of de database nu twee weergaven heeft of acht — en beperkt tabel, lijst, galerij, bord, kalender, tijdlijn, graaf en prikbord tot de passende items, met het aantal ernaast. Het zoekt in titels, notitietekst, tags en zichtbare eigenschappen; weergavefilters, gekozen labels en zoektekst gelden samen. De regel sluiten neemt de zoekopdracht mee, zodat geen onzichtbaar filter de lijst inperkt. De zoekopdracht geldt voor de sessie en wordt nooit in het `.base`-bestand geschreven. Een ingesloten prikbord houdt een eigen veld, omdat daar geen databasekop is voor een vergrootglas; op het prikbord zelf is de regel in de inhoud de weg naar een nieuwe notitie. Open je een kaart en kom je terug, dan blijven zoekopdracht, labels en leespositie behouden. Bestaande voorbeelden verschijnen meteen, gewijzigde inhoud wordt daarna geladen; afbeeldingen laden zodra ze in beeld komen. Ontbrekende indexitems worden getoond en **Opnieuw proberen** helpt na een laadfout.

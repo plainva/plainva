@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-09-19
+Stand: 2026-09-22
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -303,4 +303,4 @@ Ein leerer YAML-Wert, `~` oder unmarkiertes `null` erscheint als leere Eigenscha
 
 ## Pinnwand durchsuchen und zurückkehren
 
-**In dieser Pinnwand suchen…** durchsucht Titel, Notiztext, Tags und sichtbare Eigenschaften. Ansichtsfilter, gewählte Etiketten und Suchtext gelten gemeinsam. Das Löschsymbol oder Escape entfernt die Suche. Auch eingebettete Pinnwände bieten das Suchfeld. Beim Öffnen einer Karte und Zurückkehren bleiben Suche, Etiketten und Leseposition während der Sitzung erhalten. Vorhandene Vorschauen erscheinen sofort; geänderte Inhalte werden nachgeladen. Bilder laden erst im sichtbaren Bereich. Fehlende Indexeinträge werden angezeigt; bei einem Ladefehler hilft **Erneut versuchen**. Jede andere Ansicht hat dieselbe Suche: **Diese Datenbank durchsuchen …** in der Kopfzeile der Datenbank (am Telefon: die Lupe in der Leiste) grenzt Tabelle, Liste, Galerie, Board, Kalender, Zeitleiste und Graph auf die passenden Einträge ein und zeigt, wie viele es sind; sie gilt für die Sitzung und wird nie in die `.base`-Datei geschrieben.
+**Diese Datenbank durchsuchen …** ist ein Feld für jede Ansicht: Die Lupe bei den Kopf-Aktionen klappt eine Zeile darunter auf — dieselbe Stelle, ob die Datenbank zwei Ansichten hat oder acht — und grenzt Tabelle, Liste, Galerie, Board, Kalender, Zeitleiste, Graph und Pinnwand auf die passenden Einträge ein, mit der Trefferzahl daneben. Gesucht wird in Titeln, Notiztext, Tags und sichtbaren Eigenschaften; Ansichtsfilter, gewählte Etiketten und Suchtext gelten gemeinsam. Das Schließen der Zeile nimmt die Suche mit, damit kein unsichtbarer Filter die Liste einengt. Die Suche gilt für die Sitzung und wird nie in die `.base`-Datei geschrieben. Eine eingebettete Pinnwand behält ein eigenes Feld, weil es dort keinen Datenbank-Kopf für eine Lupe gibt; auf der Pinnwand selbst ist die Zeile im Inhalt der Weg zu einer neuen Notiz. Beim Öffnen einer Karte und Zurückkehren bleiben Suche, Etiketten und Leseposition erhalten. Vorhandene Vorschauen erscheinen sofort, geänderte Inhalte werden nachgeladen; Bilder laden erst im sichtbaren Bereich. Fehlende Indexeinträge werden angezeigt, und bei einem Ladefehler hilft **Erneut versuchen**.

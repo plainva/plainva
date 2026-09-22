@@ -1,6 +1,6 @@
 # Diario
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-22
 
 El diario es la forma rápida de anotar algo sin abrir una nota: un pensamiento, una llamada, una línea sobre el día. Cada entrada es una línea de lista normal con una hora — `- 14:05 El router está en el sótano` — bajo un encabezado de la **nota diaria de hoy**. No hay ningún formato de archivo nuevo ni una base de datos: las entradas viven en tus notas diarias, legibles en cualquier editor y compatibles con los plugins de diario de Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Un campo, un **Enter**. Plainva pone la hora; tú solo escribes el texto. Las et
 
 Si la nota diaria de hoy todavía no existe, se crea sobre la marcha — a partir de tu plantilla de nota diaria, sin hacer sus preguntas. Después de guardar, un aviso dice **Entrada guardada** y ofrece **Deshacer**.
 
-El campo tiene dos tipos, **Tarea** y **Diario**. **Tarea** pasa lo que escribiste a la [vista de tareas](Tasks.md), donde se crea una tarea de la forma habitual. El chip **Como tarea** es otra cosa: mantiene la entrada en el diario y le da una casilla (`- [ ] 14:05 Pedir el recambio`), de modo que también aparece en la vista de tareas bajo **Desde notas**.
+El campo hace una sola cosa: una entrada de diario. Debajo, **Crear una tarea en su lugar** pasa lo que escribiste a la [vista de tareas](Tasks.md), donde la tarea se crea como siempre, y cierra el campo. El chip **Como tarea** es otra cosa: deja la entrada en el diario y le da una casilla (`- [ ] 14:05 pedir el repuesto`), de modo que también aparece en la vista de tareas bajo **Desde notas**. La casilla del chip queda vacía hasta que lo eliges.
 
 ## La vista del diario
 
@@ -28,7 +28,7 @@ El campo tiene dos tipos, **Tarea** y **Diario**. **Tarea** pasa lo que escribis
 
 Cada entrada tiene un menú (clic derecho o **⋯** en el escritorio; **⋯**, una pulsación larga o un deslizamiento en el teléfono): **Editar** cambia el texto en su sitio y conserva la hora, **Copiar** copia el texto, **Convertir en tarea** añade la casilla y **Volver a convertir en entrada** la quita, **Mostrar en la nota** salta a la línea, **Eliminar** quita la entrada — con **Deshacer** en el aviso que sigue.
 
-Las entradas de un solo día también aparecen donde miras ese día: bajo el calendario de la barra lateral derecha del escritorio (para el día de la nota diaria abierta, si no, hoy), y en la pantalla **Hoy** del teléfono para el día seleccionado. Ambas tienen un pequeño campo que escribe exactamente en ese día, y **Todos los días** lleva al flujo.
+Las entradas de un día concreto también aparecen donde miras ese día: como sección **Diario** en la barra lateral derecha del escritorio (para el día de la nota diaria abierta, si no, hoy) y en el móvil en la pantalla **Hoy** para el día elegido. En la barra lateral es una sección como cualquier otra: se pliega, lo recuerda, se puede ocultar y empieza cerrada. Sus filas ocupan una línea: allí no se maneja nada, todas empiezan en el mismo borde y una tarea lleva una marca discreta a la derecha en lugar de una casilla (márcala en el flujo o en la nota). El lápiz del encabezado abre el campo habitual **Entrada de diario** para ese mismo día, y **Todos los días** lleva al flujo.
 
 ## Cómo se guarda una entrada
 

@@ -1,6 +1,6 @@
 # Journal
 
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 The journal is the quick way to write something down without opening a note: a thought, a phone call, a line about the day. Every entry is a plain list line with a time — `- 14:05 Router is in the basement` — under a heading of **today's daily note**. There is no new file format and no database: the entries live in your daily notes, readable in any editor and compatible with the journal plugins of Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ One field, one **Enter**. Plainva stamps the time; you only type the text. Tags,
 
 If today's daily note does not exist yet, it is created on the way — from your daily-note template, without asking its questions. After saving, a notice says **Entry saved** and offers **Undo**.
 
-The field has two kinds, **Task** and **Journal**. **Task** hands what you typed over to the [task view](Tasks.md), where a task is created the usual way. The chip **As a task** is something else: it keeps the entry in the journal and gives it a checkbox (`- [ ] 14:05 Order the spare part`), so it also shows up in the task view under **From notes**.
+The field has one job: a journal entry. Below it, **Create a task instead** hands what you typed to the [tasks view](Tasks.md), where a task is made as usual, and closes the field. The chip **As a task** is something else: it leaves the entry in the journal and gives it a box (`- [ ] 14:05 order the spare part`), so it also shows up in the tasks view under **From notes**. The chip's box stays empty until you choose it.
 
 ## The journal view
 
@@ -28,7 +28,7 @@ The field has two kinds, **Task** and **Journal**. **Task** hands what you typed
 
 Each entry has a menu (right-click or **⋯** on the desktop; **⋯**, a long press or a swipe on the phone): **Edit** changes the text in place and keeps the time, **Copy** copies the text, **Turn into a task** adds the checkbox and **Turn back into an entry** removes it, **Show in the note** jumps to the line, **Delete** removes the entry — with **Undo** in the notice that follows.
 
-The entries of a single day also appear where you look at that day: under the calendar in the desktop's right sidebar (for the open daily note's day, otherwise today), and on the phone's **Today** screen for the selected day. Both have a small field that writes into exactly that day, and **All days** leads to the stream.
+The entries of a single day also appear where you look at that day: as the **Journal** section of the desktop's right sidebar (for the open daily note's day, otherwise today), and on the phone's **Today** screen for the selected day. In the sidebar it is a section like any other — it collapses, remembers that, can be hidden, and starts closed. Its rows are one line each: nothing is operated there, every row begins on the same edge, and a task carries a quiet mark on the right instead of a box (tick it in the stream or in the note). The pen in the heading opens the ordinary **Journal entry** field for exactly that day, and **All days** leads to the stream.
 
 ## How an entry is stored
 

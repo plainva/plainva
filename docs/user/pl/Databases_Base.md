@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-09-19
+Stan na: 2026-09-22
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -303,4 +303,4 @@ Pusta wartość YAML, `~` lub `null` bez cudzysłowu jest wyświetlana jako pust
 
 ## Wyszukiwanie na tablicy i powrót
 
-Wyszukiwanie na tablicy obejmuje tytuły, treść, tagi i widoczne właściwości. Działa łącznie z filtrami widoku i wybranymi etykietami. Wyczyść lub Escape usuwa wyszukiwanie. Osadzone tablice mają to samo pole. Po otwarciu karty i powrocie wyszukiwanie, etykiety i pozycja pozostają zachowane w trakcie sesji. Zapisane podglądy pojawiają się od razu, a zmieniona treść jest ponownie wczytywana. Obrazy są ładowane dopiero, gdy są widoczne. Brak indeksu jest wskazywany, a po błędzie wczytywania można ponowić próbę. Każdy inny widok ma to samo wyszukiwanie: **Szukaj w tej bazie danych…** w nagłówku bazy (na telefonie: lupa na pasku) zawęża tabelę, listę, galerię, tablicę, kalendarz, oś czasu i graf do pasujących wpisów i pokazuje, ile ich jest; obowiązuje w bieżącej sesji i nigdy nie jest zapisywane w pliku `.base`.
+**Przeszukaj tę bazę …** to jedno pole dla każdego widoku: lupa wśród akcji nagłówka rozwija pod nim wiersz — to samo miejsce, czy baza ma dwa widoki, czy osiem — i zawęża tabelę, listę, galerię, tablicę, kalendarz, oś czasu, graf i tablicę korkową do pasujących wpisów, z licznikiem obok. Szuka w tytułach, treści notatek, tagach i widocznych właściwościach; filtry widoku, wybrane etykiety i tekst działają razem. Zamknięcie wiersza zabiera wyszukiwanie ze sobą, żeby żaden niewidoczny filtr nie zawężał listy. Wyszukiwanie obowiązuje w sesji i nigdy nie trafia do pliku `.base`. Osadzona tablica korkowa zachowuje własne pole, bo nie ma tam nagłówka bazy na lupę; na samej tablicy wiersz w treści prowadzi do nowej notatki. Po otwarciu karty i powrocie zostają wyszukiwanie, etykiety i miejsce czytania. Istniejące podglądy pojawiają się od razu, zmienione treści doczytują się później; obrazy ładują się, gdy wejdą w pole widzenia. Brakujące wpisy indeksu są pokazywane, a po błędzie ładowania pomaga **Spróbuj ponownie**.

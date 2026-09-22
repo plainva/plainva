@@ -1,6 +1,6 @@
 # Journal
 
-Stand: 2026-09-20
+Stand: 2026-09-22
 
 Das Journal ist der schnelle Weg, etwas festzuhalten, ohne eine Notiz zu öffnen: ein Gedanke, ein Telefonat, eine Zeile zum Tag. Jeder Eintrag ist eine gewöhnliche Listenzeile mit Uhrzeit — `- 14:05 Router steht im Keller` — unter einer Überschrift der **heutigen Tagesnotiz**. Es gibt kein neues Dateiformat und keine Datenbank: Die Einträge leben in Deinen Tagesnotizen, lesbar in jedem Editor und verträglich mit den Journal-Plugins von Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Ein Feld, ein **Enter**. Die Uhrzeit setzt Plainva; Du tippst nur den Text. Tags
 
 Gibt es die heutige Tagesnotiz noch nicht, wird sie auf dem Weg angelegt — aus Deiner Tagesnotiz-Vorlage, ohne deren Abfragen zu stellen. Nach dem Speichern meldet ein Hinweis **Eintrag gespeichert** und bietet **Rückgängig** an.
 
-Das Feld kennt zwei Arten, **Aufgabe** und **Journal**. **Aufgabe** übergibt das Getippte an die [Aufgabenansicht](Tasks.md), wo eine Aufgabe wie gewohnt entsteht. Der Chip **Als Aufgabe** ist etwas anderes: Er lässt den Eintrag im Journal und gibt ihm ein Kästchen (`- [ ] 14:05 Ersatzteil bestellen`), sodass er auch in der Aufgabenansicht unter **Aus Notizen** steht.
+Das Feld hat eine Aufgabe: einen Journal-Eintrag. Darunter übergibt **Stattdessen eine Aufgabe anlegen** das Getippte an die [Aufgabenansicht](Tasks.md), wo eine Aufgabe wie gewohnt entsteht, und schließt das Feld. Der Chip **Als Aufgabe** ist etwas anderes: Er lässt den Eintrag im Journal und gibt ihm ein Kästchen (`- [ ] 14:05 Ersatzteil bestellen`), sodass er auch in der Aufgabenansicht unter **Aus Notizen** steht. Das Kästchen des Chips bleibt leer, bis Du ihn wählst.
 
 ## Die Journal-Ansicht
 
@@ -28,7 +28,7 @@ Das Feld kennt zwei Arten, **Aufgabe** und **Journal**. **Aufgabe** übergibt da
 
 Jeder Eintrag hat ein Menü (Rechtsklick oder **⋯** am Desktop; **⋯**, langer Druck oder Wischen am Telefon): **Bearbeiten** ändert den Text an Ort und Stelle und behält die Uhrzeit, **Kopieren** kopiert den Text, **In Aufgabe umwandeln** setzt das Kästchen und **Wieder zum Eintrag machen** nimmt es weg, **In der Notiz zeigen** springt zur Zeile, **Löschen** entfernt den Eintrag — mit **Rückgängig** im Hinweis danach.
 
-Die Einträge eines einzelnen Tages stehen auch dort, wo Du diesen Tag ansiehst: unter dem Kalender in der rechten Seitenleiste des Desktops (für den Tag der geöffneten Tagesnotiz, sonst heute) und am Telefon auf dem Bildschirm **Heute** für den gewählten Tag. Beide haben ein kleines Feld, das genau in diesen Tag schreibt, und **Alle Tage** führt zum Strom.
+Die Einträge eines einzelnen Tages stehen auch dort, wo Du diesen Tag ansiehst: als Bereich **Journal** in der rechten Seitenleiste des Desktops (für den Tag der geöffneten Tagesnotiz, sonst heute) und am Telefon auf dem Bildschirm **Heute** für den gewählten Tag. In der Seitenleiste ist er ein Bereich wie jeder andere — er klappt zu, merkt sich das, lässt sich ausblenden und ist anfangs zugeklappt. Seine Zeilen sind einzeilig: Dort wird nichts bedient, jede Zeile beginnt an derselben Kante, und eine Aufgabe trägt statt eines Kästchens ein ruhiges Zeichen rechts (abhaken im Strom oder in der Notiz). Der Stift in der Überschrift öffnet das gewohnte Feld **Journal-Eintrag** für genau diesen Tag, und **Alle Tage** führt zum Strom.
 
 ## Wie ein Eintrag gespeichert wird
 

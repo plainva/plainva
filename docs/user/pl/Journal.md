@@ -1,6 +1,6 @@
 # Dziennik
 
-Stan na: 2026-09-20
+Stan na: 2026-09-22
 
 Dziennik to szybki sposób na zapisanie czegoś bez otwierania notatki: myśl, telefon, zdanie o dniu. Każdy wpis to zwykły wiersz listy z godziną — `- 14:05 Router stoi w piwnicy` — pod nagłówkiem **dzisiejszej notatki dziennej**. Nie ma nowego formatu pliku ani bazy danych: wpisy żyją w Twoich notatkach dziennych, czytelne w dowolnym edytorze i zgodne z wtyczkami Obsidian do prowadzenia dziennika (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Jedno pole, jeden **Enter**. Godzinę stempluje Plainva; Ty wpisujesz tylko teks
 
 Jeśli dzisiejsza notatka dzienna jeszcze nie istnieje, zostaje utworzona po drodze — z Twojego szablonu notatki dziennej, bez zadawania jego pytań. Po zapisaniu komunikat mówi **Wpis zapisany** i oferuje **Cofnij**.
 
-Pole ma dwa rodzaje, **Zadanie** i **Dziennik**. **Zadanie** przekazuje to, co wpisałeś, do [widoku zadań](Tasks.md), gdzie zadanie powstaje w zwykły sposób. Chip **Jako zadanie** to coś innego: zostawia wpis w dzienniku i nadaje mu pole wyboru (`- [ ] 14:05 Zamów część zamienną`), dzięki czemu pojawia się też w widoku zadań pod **Z notatek**.
+Pole robi jedno: wpis dziennika. Pod nim **Utwórz zamiast tego zadanie** przekazuje wpisany tekst do [widoku zadań](Tasks.md), gdzie zadanie powstaje jak zwykle, i zamyka pole. Chip **Jako zadanie** to co innego: zostawia wpis w dzienniku i daje mu pole wyboru (`- [ ] 14:05 zamówić część`), więc widać go też w widoku zadań w sekcji **Z notatek**. Pole wyboru chipa pozostaje puste, dopóki go nie wybierzesz.
 
 ## Widok dziennika
 
@@ -28,7 +28,7 @@ Pole ma dwa rodzaje, **Zadanie** i **Dziennik**. **Zadanie** przekazuje to, co w
 
 Każdy wpis ma menu (kliknięcie prawym przyciskiem lub **⋯** na komputerze; **⋯**, długie przytrzymanie lub przesunięcie na telefonie): **Edytuj** zmienia tekst na miejscu i zachowuje godzinę, **Kopiuj** kopiuje tekst, **Zamień na zadanie** dodaje pole wyboru, a **Zamień z powrotem na wpis** je usuwa, **Pokaż w notatce** przeskakuje do wiersza, **Usuń** usuwa wpis — z **Cofnij** w komunikacie, który następuje potem.
 
-Wpisy pojedynczego dnia pojawiają się też tam, gdzie patrzysz na ten dzień: pod kalendarzem w prawym pasku bocznym na komputerze (dla dnia otwartej notatki dziennej, w przeciwnym razie dla dziś) oraz na ekranie **Dzisiaj** na telefonie dla wybranego dnia. Oba mają małe pole, które zapisuje dokładnie w tym dniu, a **Wszystkie dni** prowadzi do strumienia.
+Wpisy jednego dnia widać też tam, gdzie patrzysz na ten dzień: jako sekcję **Dziennik** w prawym panelu na komputerze (dla dnia otwartej notatki dziennej, inaczej dziś) i w telefonie na ekranie **Dziś** dla wybranego dnia. W panelu to sekcja jak każda inna: zwija się, pamięta to, można ją ukryć i startuje zamknięta. Jej wiersze mają jedną linię: nic się tam nie obsługuje, każdy wiersz zaczyna się przy tej samej krawędzi, a zadanie nosi z prawej spokojny znak zamiast pola wyboru (odhaczysz je w strumieniu albo w notatce). Ołówek w nagłówku otwiera zwykłe pole **Wpis dziennika** dokładnie dla tego dnia, a **Wszystkie dni** prowadzi do strumienia.
 
 ## Jak wpis jest przechowywany
 

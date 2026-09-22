@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-09-19
+Ultimo aggiornamento: 2026-09-22
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -303,4 +303,4 @@ Un valore YAML vuoto, `~` o `null` senza virgolette appare come proprietà vuota
 
 ## Cercare nella bacheca e tornare
 
-La ricerca nella bacheca include titoli, testo, tag e proprietà visibili. Si combina con i filtri della vista e le etichette selezionate. Cancella o Esc rimuove la ricerca. Anche le bacheche incorporate hanno questo campo. Aprendo una scheda e tornando si conservano ricerca, etichette e posizione durante la sessione. Le anteprime memorizzate appaiono subito; i contenuti modificati vengono ricaricati. Le immagini si caricano quando sono visibili. Le voci non indicizzate vengono segnalate e gli errori di caricamento consentono di riprovare. Tutte le altre viste hanno la stessa ricerca: **Cerca in questo database…** nell'intestazione del database (sul telefono: la lente nella barra) restringe tabella, elenco, galleria, bacheca, calendario, cronologia e grafo alle voci corrispondenti e mostra quante sono; vale per la sessione e non viene mai scritta nel file `.base`.
+**Cerca in questo database …** è un solo campo per ogni vista: la lente tra le azioni dell'intestazione apre una riga sotto — lo stesso posto sia che il database abbia due viste o otto — e restringe tabella, elenco, galleria, bacheca kanban, calendario, linea del tempo, grafo e bacheca alle voci che corrispondono, con il conteggio accanto. Cerca nei titoli, nel testo delle note, nei tag e nelle proprietà visibili; i filtri della vista, le etichette scelte e il testo valgono insieme. Chiudere la riga porta via la ricerca, così nessun filtro invisibile restringe l'elenco. La ricerca vale per la sessione e non viene mai scritta nel file `.base`. Una bacheca incorporata mantiene un campo proprio, perché lì non c'è un'intestazione in cui mettere una lente; sulla bacheca vera e propria, la riga nel contenuto è la via verso una nuova nota. Aprendo una scheda e tornando indietro restano ricerca, etichette e posizione di lettura. Le anteprime esistenti compaiono subito, i contenuti cambiati vengono caricati dopo; le immagini caricano quando entrano in vista. Le voci d'indice mancanti vengono mostrate e **Riprova** aiuta dopo un errore di caricamento.

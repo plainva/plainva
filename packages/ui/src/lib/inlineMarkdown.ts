@@ -1,4 +1,4 @@
-import { findInlineTags } from "@plainva/core";
+import { findInlineTags, readHtmlCheckbox } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { splitLinkAnchor } from "./linkAnchor";
 import { tagColorAttrs } from "./tagColor";
@@ -16,6 +16,8 @@ import { tagColorAttrs } from "./tagColor";
 export type InlineNode =
   | { kind: "text"; text: string }
   | { kind: "br" }
+  /** An `<input type="checkbox">` written as HTML — the only way to put a box in a table cell. */
+  | { kind: "checkbox"; checked: boolean }
   | { kind: "code"; text: string }
   | { kind: "strong" | "em" | "strongEm" | "strike" | "highlight"; children: InlineNode[] }
   | { kind: "wikiLink"; target: string; display: string; anchor?: string }
@@ -37,6 +39,11 @@ const TOKEN_SRC = [
   /\\[\\`*_~=[\]()<>|#+.!{}-]/.source, // backslash escape
   /<!--[\s\S]*?-->/.source, // HTML comment (hidden, like the read view)
   /<br\s*\/?>/.source, // <br>, <br/>, <br />
+  // GFM has no spelling for a task box inside a table cell, so people write
+  // the HTML tag there and Obsidian draws it (finding 2026-09-22). Exactly
+  // this one element with exactly these two attributes; `readHtmlCheckbox`
+  // decides, so the renderer and the writer never disagree.
+  /<input\b[^>]*>/.source, // <input type="checkbox">
   /`[^`\n]+`/.source, // inline code
   /!?\[\[[^\]\n]+?\]\]/.source, // wiki link (embed "!" tolerated)
   /!?\[[^\]\n]*?\]\([^)\n]+?\)/.source, // markdown link (image "!" tolerated)
@@ -84,6 +91,10 @@ function parseRange(text: string, depth: number): InlineNode[] {
       // dropped — comments stay invisible, matching the read view
     } else if (/^<br/i.test(tok)) {
       out.push({ kind: "br" });
+    } else if (/^<input/i.test(tok)) {
+      const box = readHtmlCheckbox(tok);
+      if (box) out.push({ kind: "checkbox", checked: box.checked });
+      else out.push({ kind: "text", text: tok });
     } else if (tok.startsWith("`")) {
       out.push({ kind: "code", text: tok.slice(1, -1) });
     } else if (/^!?\[\[/.test(tok)) {
@@ -223,6 +234,18 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
           last = tag.to;
         }
         if (last < n.text.length) parent.appendChild(document.createTextNode(n.text.slice(last)));
+        break;
+      }
+      case "checkbox": {
+        // Drawn, never operated: a card and a table cell are places one READS.
+        // Ticking happens in the note's read view, where the target is a real
+        // control with a writer behind it.
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = n.checked;
+        box.disabled = true;
+        box.className = "pv-inline-box";
+        parent.appendChild(box);
         break;
       }
       case "br":

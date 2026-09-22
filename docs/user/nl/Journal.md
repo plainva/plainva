@@ -1,6 +1,6 @@
 # Journaal
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-22
 
 Het journaal is de snelle manier om iets vast te leggen zonder een notitie te openen: een gedachte, een telefoongesprek, een regel over de dag. Elk item is een gewone lijstregel met een tijdstip — `- 14:05 Router staat in de kelder` — onder een kop van de **dagnotitie van vandaag**. Er is geen nieuw bestandsformaat en geen database: de items leven in je dagnotities, leesbaar in elke editor en verenigbaar met de journaal-plugins van Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Eén veld, één **Enter**. Plainva zet het tijdstip; jij typt alleen de tekst. 
 
 Bestaat de dagnotitie van vandaag nog niet, dan wordt ze onderweg aangemaakt — vanuit je dagnotitie-sjabloon, zonder de vragen ervan te stellen. Na het opslaan meldt een melding **Item opgeslagen** en biedt **Ongedaan maken** aan.
 
-Het veld kent twee soorten, **Taak** en **Journaal**. **Taak** geeft het getypte door aan de [takenweergave](Tasks.md), waar een taak op de gebruikelijke manier ontstaat. De chip **Als taak** is iets anders: hij houdt het item in het journaal en geeft het een selectievakje (`- [ ] 14:05 Onderdeel bestellen`), zodat het ook in de takenweergave verschijnt onder **Uit notities**.
+Het veld doet één ding: een journaalitem. Eronder geeft **In plaats daarvan een taak maken** het getypte door aan de [takenweergave](Tasks.md), waar de taak zoals gewoonlijk ontstaat, en sluit het veld. De chip **Als taak** is iets anders: die laat het item in het journaal staan en geeft het een vakje (`- [ ] 14:05 onderdeel bestellen`), zodat het ook in de takenweergave onder **Uit notities** verschijnt. Het vakje van de chip blijft leeg tot je hem kiest.
 
 ## De journaalweergave
 
@@ -28,7 +28,7 @@ Het veld kent twee soorten, **Taak** en **Journaal**. **Taak** geeft het getypte
 
 Elk item heeft een menu (rechtsklik of **⋯** op de desktop; **⋯**, een lange druk of een veegbeweging op de telefoon): **Bewerken** wijzigt de tekst ter plekke en behoudt de tijd, **Kopiëren** kopieert de tekst, **Omzetten in een taak** voegt het selectievakje toe en **Weer omzetten in een item** verwijdert het weer, **Tonen in de notitie** springt naar de regel, **Verwijderen** verwijdert het item — met **Ongedaan maken** in de melding die daarna volgt.
 
-De items van één dag staan ook waar je die dag bekijkt: onder de kalender in de rechterzijbalk van de desktop (voor de dag van de geopende dagnotitie, anders vandaag), en op het scherm **Vandaag** van de telefoon voor de gekozen dag. Beide hebben een klein veld dat precies in die dag schrijft, en **Alle dagen** leidt naar de stroom.
+De items van één dag staan ook waar je die dag bekijkt: als sectie **Journaal** in de rechter zijbalk van de desktop (voor de dag van de geopende dagnotitie, anders vandaag) en op de telefoon op het scherm **Vandaag** voor de gekozen dag. In de zijbalk is het een sectie als elke andere: hij klapt dicht, onthoudt dat, kan verborgen worden en begint gesloten. De regels zijn één regel hoog: daar bedien je niets, elke regel begint op dezelfde rand, en een taak draagt rechts een rustig teken in plaats van een vakje (afvinken doe je in de stroom of in de notitie). Het potlood in de kop opent het gewone veld **Journaalitem** voor precies die dag, en **Alle dagen** leidt naar de stroom.
 
 ## Hoe een item wordt opgeslagen
 

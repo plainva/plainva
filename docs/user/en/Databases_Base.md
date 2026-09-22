@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-22
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -303,4 +303,4 @@ An empty YAML value, `~` or unquoted `null` appears as an empty property and mat
 
 ## Searching a pinboard and returning
 
-**Search this pinboard…** searches titles, note bodies, tags and visible properties. View filters, selected labels and search text apply together. Clear or Escape removes the search. Embedded pinboards have the same search field. Opening a card and returning preserves search, labels and reading position during the session. Cached previews appear immediately; changed content reloads. Images load when visible. Missing index entries are identified; use **Try again** after a loading error. Every other view has the same search: **Search this database…** in the database's header (on the phone: the magnifier in the bar) narrows table, list, gallery, board, calendar, timeline and graph to the matching entries and shows how many of them match; it is kept for the session and never written into the `.base` file.
+**Search this database …** is one field for every view: the magnifier among the head's actions opens a row under it — the same place whether the database has two views or eight — and narrows table, list, gallery, board, calendar, timeline, graph and pinboard to the matching entries, with a count beside it. It searches titles, note bodies, tags and visible properties; view filters, selected labels and the search text all apply together. Closing the row takes the search with it, so no filter narrows the list unseen. The search lasts for the session and is never written into the `.base` file. An embedded pinboard keeps a field of its own, because it has no database head to put a magnifier in; on the pinboard itself, the row in the content is the way to a new note. When you open a card and come back, search, labels and reading position survive. Existing previews appear at once, changed content is loaded after; images load once they come into view. Missing index entries are shown, and **Try again** helps after a loading error.

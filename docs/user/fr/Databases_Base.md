@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-09-19
+Dernière mise à jour : 2026-09-22
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -303,4 +303,4 @@ Une valeur YAML vide, `~` ou `null` sans guillemets apparaît comme une proprié
 
 ## Rechercher dans le tableau et revenir
 
-La recherche du tableau porte sur les titres, le texte, les tags et les propriétés visibles. Elle se combine avec les filtres de vue et les étiquettes sélectionnées. Effacer ou Échap retire la recherche. Les tableaux intégrés disposent du même champ. Ouvrir une carte puis revenir conserve la recherche, les étiquettes et la position pendant la session. Les aperçus conservés apparaissent immédiatement et les changements sont rechargés. Les images se chargent lorsqu’elles sont visibles. Les entrées non indexées sont signalées ; un échec de chargement permet de réessayer. Toutes les autres vues ont la même recherche : **Rechercher dans cette base de données…** dans l'en-tête de la base (sur le téléphone : la loupe de la barre) réduit tableau, liste, galerie, Kanban, calendrier, chronologie et graphe aux entrées correspondantes et indique combien elles sont ; elle est conservée pendant la session et n'est jamais écrite dans le fichier `.base`.
+**Rechercher dans cette base …** est un seul champ pour toutes les vues : la loupe parmi les actions de l'en-tête ouvre une ligne en dessous — le même endroit que la base ait deux vues ou huit — et restreint tableau, liste, galerie, tableau kanban, calendrier, frise, graphe et tableau d'affichage aux entrées correspondantes, avec le compte à côté. Elle cherche dans les titres, le texte des notes, les tags et les propriétés visibles ; les filtres de la vue, les étiquettes choisies et le texte s'appliquent ensemble. Fermer la ligne emporte la recherche, pour qu'aucun filtre invisible ne restreigne la liste. La recherche vaut pour la session et n'est jamais écrite dans le fichier `.base`. Un tableau d'affichage intégré garde son propre champ, car il n'a pas d'en-tête où mettre une loupe ; sur le tableau lui-même, la ligne dans le contenu mène à une nouvelle note. Quand vous ouvrez une carte et revenez, recherche, étiquettes et position de lecture sont conservées. Les aperçus existants apparaissent tout de suite, le contenu modifié est chargé ensuite ; les images se chargent une fois visibles. Les entrées d'index manquantes sont signalées, et **Réessayer** aide après une erreur de chargement.

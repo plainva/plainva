@@ -3681,6 +3681,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    database has two views or eight. */
 /* While a search runs, the left column belongs to the hits: this row says
    what is below it and takes the search back (finding 2026-09-22, E15). */
+/* A checkbox written as HTML, wherever inline Markdown is rendered — a table
+   cell, a card, a journal row. Drawn, never operated: those are places one
+   reads (finding 2026-09-22). */
+.pv-inline-box { margin: 0 var(--space-1) 0 0; vertical-align: middle; accent-color: var(--accent-color); }
 .pv-resulthead { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--text-md); color: var(--text-muted); }
 .pv-resulthead > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The empty pane: one action, then what was open last, then the keys. */

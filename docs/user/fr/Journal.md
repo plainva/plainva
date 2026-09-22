@@ -1,6 +1,6 @@
 # Journal
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-22
 
 Le journal est le moyen le plus rapide de noter quelque chose sans ouvrir de note : une pensée, un appel téléphonique, une ligne sur la journée. Chaque entrée est une simple ligne de liste avec une heure — `- 14:05 Le routeur est au sous-sol` — sous un titre de la **note quotidienne d'aujourd'hui**. Il n'y a ni nouveau format de fichier ni base de données : les entrées vivent dans vos notes quotidiennes, lisibles dans n'importe quel éditeur et compatibles avec les plugins de journal d'Obsidian (Thino, Knomo).
 
@@ -15,7 +15,7 @@ Un champ, une touche **Entrée**. Plainva horodate l'entrée ; vous ne tapez que
 
 Si la note quotidienne d'aujourd'hui n'existe pas encore, elle est créée au passage — à partir de votre modèle de note quotidienne, sans poser ses questions. Après l'enregistrement, un avis indique **Entrée enregistrée** et propose **Annuler**.
 
-Le champ propose deux types, **Tâche** et **Journal**. **Tâche** transmet ce que vous avez tapé à la [vue Tâches](Tasks.md), où une tâche se crée de la façon habituelle. La puce **Comme tâche** est autre chose : elle garde l'entrée dans le journal et lui donne une case à cocher (`- [ ] 14:05 Commander la pièce de rechange`), si bien qu'elle apparaît aussi dans la vue Tâches sous **Depuis les notes**.
+Le champ ne fait qu'une chose : une entrée de journal. En dessous, **Créer plutôt une tâche** transmet ce que vous avez tapé à la [vue des tâches](Tasks.md), où la tâche se crée comme d'habitude, et ferme le champ. La puce **Comme tâche** est autre chose : elle laisse l'entrée dans le journal et lui donne une case (`- [ ] 14:05 commander la pièce`), si bien qu'elle apparaît aussi dans la vue des tâches sous **Depuis les notes**. La case de la puce reste vide tant que vous ne la choisissez pas.
 
 ## La vue du journal
 
@@ -28,7 +28,7 @@ Le champ propose deux types, **Tâche** et **Journal**. **Tâche** transmet ce q
 
 Chaque entrée a un menu (clic droit ou **⋯** sur le bureau ; **⋯**, un appui long ou un balayage sur le téléphone) : **Modifier** change le texte sur place et garde l'heure, **Copier** copie le texte, **Transformer en tâche** ajoute la case à cocher et **Retransformer en entrée** la retire, **Afficher dans la note** saute à la ligne, **Supprimer** retire l'entrée — avec **Annuler** dans l'avis qui suit.
 
-Les entrées d'un seul jour apparaissent aussi là où vous regardez ce jour : sous le calendrier dans la barre latérale droite du bureau (pour le jour de la note quotidienne ouverte, sinon aujourd'hui), et sur l'écran **Aujourd'hui** du téléphone pour le jour choisi. Les deux ont un petit champ qui écrit exactement dans ce jour, et **Tous les jours** mène au flux.
+Les entrées d'un jour donné apparaissent aussi là où vous regardez ce jour : comme section **Journal** de la barre latérale droite du bureau (pour le jour de la note quotidienne ouverte, sinon aujourd'hui) et, sur le téléphone, sur l'écran **Aujourd'hui** pour le jour choisi. Dans la barre latérale, c'est une section comme les autres : elle se replie, s'en souvient, peut être masquée et démarre fermée. Ses lignes tiennent sur une ligne : on n'y manipule rien, chaque ligne commence au même bord, et une tâche porte une marque discrète à droite plutôt qu'une case (cochez-la dans le flux ou dans la note). Le crayon du titre ouvre le champ habituel **Entrée de journal** pour ce jour précis, et **Tous les jours** mène au flux.
 
 ## Comment une entrée est enregistrée
 
