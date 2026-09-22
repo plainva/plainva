@@ -1,28 +1,34 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { JournalEntry } from "@plainva/core";
-import { ICON, JournalDaySection, journalRowActions, loadImageBlob, setPendingSearchJump, useJournalActions, useJournalDay, useTodayKey, type JournalDay, type JournalRowCaps } from "@plainva/ui";
+import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useTodayKey, type JournalDay, type JournalRowCaps } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
+import { JournalCaptureSheet } from "./JournalCaptureSheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { SwipeRow } from "./SwipeRow";
 import { useLongPress } from "../lib/useLongPress";
-import { captureJournalEntry, journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
+import { journalFailureText, journalFiles, journalHeading, onJournalWrite } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 
 /**
  * "Journal" on the Today screen (plan Journal, J5): the entries of the selected
- * day with a field that writes into exactly that day, and the way to all days.
- * Rows, swipe, hold and sheet are the journal screen's — one list of actions,
- * one hook that runs them.
+ * day, the way to all days, and a pen that opens the ordinary capture sheet
+ * with this day as its target. Rows, swipe, hold and sheet are the journal
+ * screen's — one list of actions, one hook that runs them.
+ *
+ * The pen replaced an inline one-line input, which was a second way to write an
+ * entry, with its own placeholder and no task chip (finding 2026-09-22).
  */
-export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJournal }: {
+export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJournal, onOpenTasks }: {
   vault: MobileVault;
   bump: number;
   /** The selected day, `YYYY-MM-DD`. */
   dayKey: string;
   onOpenNote: (path: string) => void;
   onOpenJournal: () => void;
+  /** The capture sheet's named exit: hands the text to the task capture. */
+  onOpenTasks?: () => void;
 }) {
   const { t } = useTranslation();
   const todayKey = useTodayKey();
@@ -34,6 +40,7 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
   const { path, date, entries, refresh } = useJournalDay({ vaultKey: vault.vaultId, dayKey, settings, readTextFile, version: bump });
   const day: JournalDay = useMemo(() => ({ key: dayKey, date, path, entries }), [dayKey, date, path, entries]);
   const [sheet, setSheet] = useState<{ title: string; caps: JournalRowCaps } | null>(null);
+  const [capture, setCapture] = useState(false);
 
   // An own write — from here, the capture sheet or the journal screen — names its note.
   useEffect(() => onJournalWrite((changed) => { if (changed === path) refresh(); }), [path, refresh]);
@@ -70,7 +77,7 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
         enterSubmits={false}
         links={links}
         loadImage={loadImage}
-        onCapture={async (text) => (await captureJournalEntry(vault, { text, task: false, date })) !== null}
+        onCapture={() => setCapture(true)}
         onOpenAll={onOpenJournal}
         onOpenEntry={(target, entry) => { if (rowPress.clicked()) showInNote(target, entry); }}
         onMenu={(target, entry) => setSheet({ title: sheetTitle(entry), caps: actions.capsOf(target, entry) })}
@@ -82,6 +89,14 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
           onPointerCancel: rowPress.clear,
         })}
       />
+      {capture && (
+        <JournalCaptureSheet
+          date={date}
+          onClose={() => setCapture(false)}
+          onSwitchToTask={(text) => { setCapture(false); requestNew("task", text); onOpenTasks?.(); }}
+          vault={vault}
+        />
+      )}
       {sheet && (
         <RowActionSheet
           title={sheet.title}

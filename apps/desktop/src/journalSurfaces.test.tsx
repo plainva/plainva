@@ -54,14 +54,6 @@ async function mount(node: React.ReactNode): Promise<{ host: HTMLDivElement; roo
 const all = (host: HTMLElement, testId: string) => [...host.querySelectorAll<HTMLElement>(`[data-testid="${testId}"]`)];
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
-/** Types into a controlled field the way React hears it. */
-async function type(field: HTMLInputElement | HTMLTextAreaElement, text: string) {
-  const proto = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(field, text);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
 async function press(field: HTMLElement, key: string, init: KeyboardEventInit = {}) {
   await act(async () => { field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init })); });
 }
@@ -200,6 +192,51 @@ describe("JournalCaptureField", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the task chip unchecked until it is chosen", async () => {
+    const onAsTask = vi.fn();
+    const { host, root } = await mount(<JournalCaptureField {...base} value="x" onAsTask={onAsTask} />);
+    const chip = () => all(host, "journal-capture-task")[0];
+    // An empty box while unchosen, a ticked one once chosen — the chip carried
+    // the tick always and read as already selected (finding 2026-09-22).
+    expect(chip().getAttribute("aria-pressed")).toBe("false");
+    expect(chip().querySelector("svg.lucide-square")).not.toBeNull();
+    await act(async () => { chip().click(); });
+    expect(onAsTask).toHaveBeenCalledWith(true);
+    await act(async () => { root.render(<JournalCaptureField {...base} value="x" asTask onAsTask={onAsTask} />); });
+    expect(chip().getAttribute("aria-pressed")).toBe("true");
+    expect(chip().querySelector("svg.lucide-square-check")).not.toBeNull();
+  });
+
+  it("offers the way to a task as a named exit, not as a switch", async () => {
+    const onHandover = vi.fn();
+    const { host } = await mount(<JournalCaptureField {...base} value="call the workshop" onHandover={onHandover} />);
+    // The kind switch is gone: it drew a navigation as a mode toggle.
+    expect(all(host, "capture-kind-task")).toHaveLength(0);
+    const exit = all(host, "journal-capture-handover")[0];
+    expect(exit.textContent).toContain(en.journal.instead);
+    await act(async () => { exit.click(); });
+    expect(onHandover).toHaveBeenCalledOnce();
+  });
+
+  it("keeps every key and its word together, and names the target on its own line", async () => {
+    const { host } = await mount(
+      <JournalCaptureField {...base} value="x" target="Daily note 2026-09-22" onCancel={vi.fn()} />,
+    );
+    expect(all(host, "journal-capture-target")[0].textContent).toBe("Daily note 2026-09-22");
+    const pairs = [...host.querySelectorAll<HTMLElement>(".pv-shortcut-hint")];
+    expect(pairs.map((p) => p.textContent)).toEqual([
+      `Enter${en.journal.hintSave}`,
+      `ShiftEnter${en.journal.hintNewLine}`,
+      `Esc${en.journal.hintDiscard}`,
+    ]);
+    // Each pair is one unbreakable box — that is what stops "Shift+Enter starts
+    // a new" / "line" from happening in any of the ten languages.
+    for (const pair of pairs) expect(pair.style.whiteSpace || getComputedStyle(pair).whiteSpace).not.toBe("normal");
+    // Without a way to cancel there is nothing to say about Esc.
+    const { host: noEsc } = await mount(<JournalCaptureField {...base} value="x" />);
+    expect([...noEsc.querySelectorAll(".pv-shortcut-hint")]).toHaveLength(2);
+  });
+
   it("leaves Enter to the line break where a button saves (soft keyboard)", async () => {
     const onSubmit = vi.fn();
     const { host } = await mount(<JournalCaptureField {...base} value="a thought" onSubmit={onSubmit} enterSubmits={false} />);
@@ -336,15 +373,13 @@ describe("useJournalActions", () => {
 describe("JournalDaySection", () => {
   const actions: JournalActions = { editing: null, setEditing: vi.fn(), capsOf: vi.fn(), toggle: vi.fn(), saveEdit: vi.fn() };
 
-  it("counts the day's entries, leads to all days, and empties its field only when the entry exists", async () => {
-    const saved: string[] = [];
-    let accept = false;
+  it("counts the day's entries, leads to all days, and opens the capture surface from its pen", async () => {
+    const onCapture = vi.fn();
     const onOpenAll = vi.fn();
     const { host } = await mount(
       <JournalDaySection
         day={dayOf("2026-09-20", NOTE)} todayKey="2026-09-20" actions={actions}
-        onCapture={async (text) => { saved.push(text); return accept; }}
-        onOpenAll={onOpenAll} onOpenEntry={vi.fn()} onMenu={vi.fn()}
+        onCapture={onCapture} onOpenAll={onOpenAll} onOpenEntry={vi.fn()} onMenu={vi.fn()}
       />,
     );
     expect(host.textContent).toContain(`${en.journal.sectionTitle} · 3`);
@@ -352,30 +387,25 @@ describe("JournalDaySection", () => {
     await act(async () => { all(host, "journal-section-all")[0].click(); });
     expect(onOpenAll).toHaveBeenCalledOnce();
 
-    const field = all(host, "journal-section-input")[0] as HTMLInputElement;
-    expect(field.placeholder).toBe(en.journal.fieldToday);
-    await type(field, "nothing was written");
-    await press(field, "Enter");
-    await settle();
-    // Refused: the typed text stays.
-    expect(saved).toEqual(["nothing was written"]);
-    expect(field.value).toBe("nothing was written");
-    accept = true;
-    await press(field, "Enter");
-    await settle();
-    expect(field.value).toBe("");
+    // No field in the section: an entry is written through the shell's one
+    // capture surface, opened by the pen (finding 2026-09-22).
+    expect(all(host, "journal-section-input")).toHaveLength(0);
+    const pen = all(host, "journal-section-new")[0];
+    expect(pen.getAttribute("aria-label")).toBe(en.journal.fieldToday);
+    await act(async () => { pen.click(); });
+    expect(onCapture).toHaveBeenCalledOnce();
   });
 
-  it("names the day its field writes into when that is not today, and shows no list for an empty day", async () => {
+  it("names the day its pen writes into when that is not today, and shows no list for an empty day", async () => {
     const { host } = await mount(
       <JournalDaySection
         day={dayOf("2026-09-14", "# Monday\n")} todayKey="2026-09-20" actions={actions}
-        onCapture={async () => true} onOpenAll={vi.fn()} onOpenEntry={vi.fn()} onMenu={vi.fn()}
+        onCapture={vi.fn()} onOpenAll={vi.fn()} onOpenEntry={vi.fn()} onMenu={vi.fn()}
       />,
     );
     expect(all(host, "journal-days")).toHaveLength(0);
     expect(host.textContent).toContain(en.journal.sectionTitle);
-    expect((all(host, "journal-section-input")[0] as HTMLInputElement).placeholder).toMatch(/Sep 14|14 Sep/);
+    expect(all(host, "journal-section-new")[0].getAttribute("aria-label")).toMatch(/Sep 14|14 Sep/);
   });
 });
 

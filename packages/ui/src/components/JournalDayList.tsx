@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Ellipsis, FileText } from "lucide-react";
+import { Check, Ellipsis, FileText } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import { resolveCoverSource } from "../base/coverImage";
 import { ICON } from "../lib/iconSizes";
@@ -9,6 +9,7 @@ import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMark
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
 import { Button } from "./ui/Button";
+import { cx } from "./ui/cx";
 import { GroupCard, Row, RowList, SectionLabel } from "./ui/GroupedRows";
 import { IconButton } from "./ui/IconButton";
 import { TaskStateIcon } from "./TaskStateIcon";
@@ -46,6 +47,17 @@ export interface JournalDayListProps {
   headless?: boolean;
   /** The phone's day heading: a short date and no count, so it stays one line beside "open note". */
   compact?: boolean;
+  /**
+   * The narrow column of the right sidebar (finding 2026-09-22).
+   *
+   * One line per entry and nothing to operate: no "more" menu, no box to tick.
+   * Every row starts on the SAME text edge — a box in front of some rows and
+   * not others made the column look broken — and a task says so with a quiet
+   * mark on the trailing edge; a closed one is struck through. Ticking happens
+   * in the journal tab or in the note, where the target is finger-sized: a
+   * 13-px box in a 250-px column is a misclick waiting to happen.
+   */
+  slim?: boolean;
 }
 
 /** Entries longer than this are folded; "More" opens them. */
@@ -135,17 +147,61 @@ function clockOf(entry: Pick<JournalEntry, "seconds">): string {
   return `${two(Math.floor(entry.seconds / 3600))}:${two(Math.floor(entry.seconds / 60) % 60)}`;
 }
 
-export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask, onOpenNote, onOpenEntry, onMenu, editing, renderEditor, wrapRow, rowProps, headless, compact }: JournalDayListProps) {
+export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask, onOpenNote, onOpenEntry, onMenu, editing, renderEditor, wrapRow, rowProps, headless, compact, slim }: JournalDayListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const yesterdayKey = addDaysToKey(todayKey, -1);
 
   const heading = (day: JournalDay): string => {
     const year = day.key.slice(0, 4) !== todayKey.slice(0, 4) ? ({ year: "numeric" } as const) : {};
-    const date = new Intl.DateTimeFormat(locale, compact ? { weekday: "short", day: "2-digit", month: "2-digit", ...year } : { weekday: "long", day: "numeric", month: "long", ...year }).format(day.date);
+    const date = new Intl.DateTimeFormat(locale, compact || slim ? { weekday: "short", day: "2-digit", month: "2-digit", ...year } : { weekday: "long", day: "numeric", month: "long", ...year }).format(day.date);
     const name = day.key === todayKey ? t("journal.today") : day.key === yesterdayKey ? t("journal.yesterday") : null;
     return name ? `${name} · ${date}` : date;
   };
+
+  if (slim) {
+    return (
+      <div className="pv-journal-slim" data-testid="journal-days">
+        {days.map((day) => (
+          <section key={day.path} data-testid="journal-day" data-day={day.key}>
+            {!headless && <SectionLabel>{heading(day)}</SectionLabel>}
+            {newestFirst(day.entries).map((entry) => {
+              const closed = entry.task === "done" || entry.task === "cancelled";
+              return (
+                <div
+                  key={`${entry.line}:${entry.source[0]}`}
+                  className={cx("pv-journal-slim-row", closed && "pv-journal-slim-row--closed")}
+                  role="button"
+                  tabIndex={0}
+                  data-testid="journal-entry"
+                  data-task={entry.task ?? undefined}
+                  onClick={() => onOpenEntry(day, entry)}
+                  // Only the row itself answers the keyboard; a link inside it keeps its own.
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenEntry(day, entry); }
+                  }}
+                  onContextMenu={(e) => { e.preventDefault(); onMenu(day, entry, { x: e.clientX, y: e.clientY }); }}
+                >
+                  <time className="pv-journal-time" dateTime={clockOf(entry)}>{formatJournalTime(entry, locale)}</time>
+                  <EntryText text={splitImages(entry.text).prose} links={links} />
+                  {entry.task && (
+                    <span
+                      className={cx("pv-journal-mark", closed && "pv-journal-mark--closed")}
+                      role="img"
+                      aria-label={t(closed ? "journal.markDone" : "journal.markOpen")}
+                    >
+                      {closed && <Check size={ICON.meta} />}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="pv-journal-days" data-testid="journal-days">

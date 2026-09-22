@@ -195,7 +195,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   // The journal capture (plan Journal, J4). `null` = closed; the text is what a kind switch brought along.
-  const [journalCapture, setJournalCapture] = useState<{ text: string } | null>(null);
+  // `date` is the day the entry goes to — the sidebar's pen captures into the
+  // day the sidebar is about, not blindly into today (finding 2026-09-22).
+  const [journalCapture, setJournalCapture] = useState<{ text: string; date?: Date } | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showVaultMenu, setShowVaultMenu] = useState(false);
   // A client window follows the owner's vault (plan E7): it shows WHICH vault it
@@ -1634,6 +1636,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openView(CALENDAR_TAB_PATH);
           }}
           onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
+          onCaptureJournal={(date) => setJournalCapture({ text: "", date: date ?? undefined })}
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}
@@ -1848,6 +1851,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           <Suspense fallback={null}>
             <JournalCaptureDialog
               initialText={journalCapture.text}
+              date={journalCapture.date}
               onClose={() => setJournalCapture(null)}
               onHandoverTask={(text) => { setJournalCapture(null); handoverToTasks(text); }}
             />

@@ -1,29 +1,36 @@
-import { useState, type KeyboardEvent, type ReactElement, type ReactNode, type HTMLAttributes } from "react";
+import { type ReactElement, type ReactNode, type HTMLAttributes } from "react";
 import { useTranslation } from "react-i18next";
+import { ArrowRight, Pen } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import type { InlineLinkHandlers } from "../lib/inlineMarkdown";
 import type { JournalDay } from "../lib/journalFeed";
 import type { JournalActions } from "../hooks/useJournalActions";
+import { ICON } from "../lib/iconSizes";
 import { Button } from "./ui/Button";
-import { TextInput } from "./ui/Field";
+import { IconButton } from "./ui/IconButton";
 import { SectionLabel } from "./ui/GroupedRows";
 import { JournalCaptureField } from "./JournalCaptureField";
 import { JournalDayList } from "./JournalDayList";
 
 /**
  * "Journal" of ONE day (plan Journal, J5) — the section the phone's Today screen
- * and the desktop's calendar sidebar show for the selected day: its entries, the
- * way to all days, and a field that writes into exactly this day.
+ * shows for the selected day: its entries, the way to all days, and a pen that
+ * writes into exactly this day.
  *
  * The rows are the stream's rows (`JournalDayList`, without its day heading), so
  * a box ticks, a menu opens and an edit saves here as they do there.
+ *
+ * The pen opens the shell's ordinary capture surface with this day as its
+ * target. It used to be an inline one-line input, which was a second way to
+ * write a journal entry — with its own placeholder, its own Enter rule and no
+ * task chip (finding 2026-09-22). One capture surface, opened from wherever.
  */
 export interface JournalDaySectionProps {
   day: JournalDay;
   todayKey: string;
   actions: JournalActions;
-  /** Writes one entry into this day; resolves true once it exists (the field empties only then). */
-  onCapture: (text: string) => Promise<boolean>;
+  /** Opens the shell's capture surface for this day. */
+  onCapture: () => void;
   onOpenAll: () => void;
   onOpenEntry: (day: JournalDay, entry: JournalEntry) => void;
   onMenu: (day: JournalDay, entry: JournalEntry, at: { x: number; y: number }) => void;
@@ -37,29 +44,13 @@ export interface JournalDaySectionProps {
 
 export function JournalDaySection({ day, todayKey, actions, onCapture, onOpenAll, onOpenEntry, onMenu, links, loadImage, wrapRow, rowProps, enterSubmits = true }: JournalDaySectionProps) {
   const { t, i18n } = useTranslation();
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = () => {
-    if (busy || !value.trim()) return;
-    setBusy(true);
-    void onCapture(value)
-      .then((saved) => { if (saved) setValue(""); })
-      .finally(() => setBusy(false));
-  };
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      submit();
-    }
-  };
-  const placeholder = day.key === todayKey
+  const newLabel = day.key === todayKey
     ? t("journal.fieldToday")
     : t("journal.fieldDay", { date: new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" }).format(day.date) });
 
   return (
     <section className="pv-journal-section" data-testid="journal-day-section">
-      <SectionLabel end={<Button variant="ghost" size="sm" onClick={onOpenAll} data-testid="journal-section-all">{t("journal.allDays")}</Button>}>
+      <SectionLabel end={<IconButton label={newLabel} onClick={onCapture} data-testid="journal-section-new"><Pen size={ICON.ui} /></IconButton>}>
         {t("journal.sectionTitle")}{day.entries.length > 0 ? ` · ${day.entries.length}` : ""}
       </SectionLabel>
       {day.entries.length > 0 && (
@@ -99,17 +90,10 @@ export function JournalDaySection({ day, todayKey, actions, onCapture, onOpenAll
           )}
         />
       )}
-      <TextInput
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        disabled={busy}
-        enterKeyHint="done"
-        autoComplete="off"
-        data-testid="journal-section-input"
-      />
+      <Button variant="ghost" size="sm" className="pv-journal-all" onClick={onOpenAll} data-testid="journal-section-all">
+        {t("journal.allDays")}
+        <ArrowRight size={ICON.meta} />
+      </Button>
     </section>
   );
 }

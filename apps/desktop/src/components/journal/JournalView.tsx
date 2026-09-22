@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CalendarDays, NotebookPen, NotebookText } from "lucide-react";
+import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import {
-  Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, ICON, JournalCaptureField, JournalDayList, MenuItem, MenuSurface,
-  RowActionList, SearchField, errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, GroupCard, ICON, JournalCaptureField, JournalDayList, MenuItem, MenuSurface, Row, RowList,
+  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
   useJournalActions, useJournalFeed, useTodayKey, useWeekStartDay,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
@@ -156,7 +156,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
           {t("journal.newEntry")}
         </Button>
       </div>
-      <div className="pv-journal-filters" role="group" aria-label={t("journal.filterLabel")}>
+      <div className="pv-filterrow" role="group" aria-label={t("journal.filterLabel")}>
         <Chip selected={!filter.tasksOnly && filter.tag === null} onClick={() => setFilter((f) => ({ ...f, tasksOnly: false, tag: null }))} testId="journal-filter-all">
           {t("journal.filterAll")}
         </Chip>
@@ -170,6 +170,23 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
         ))}
       </div>
       <div className="pv-journal-scroll" ref={scrollRef}>
+        {/* The journal is the home of the day (finding 2026-09-22, E18): the
+            daily note is one row at the top, the way the phone's Today screen
+            has always shown it. With a filter or a query running it would be
+            noise, so it stands only over the unfiltered stream. */}
+        {!loading && !filtered && settings && (
+          <GroupCard className="pv-journal-daily">
+            <RowList>
+              <Row
+                icon={<Sun size={ICON.ui} />}
+                title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(new Date()) })}
+                end={<ChevronRight size={ICON.ui} />}
+                onClick={() => onOpenPath(buildDailyNotePath(new Date(), settings.format, settings.folder).fullPath, false)}
+                data-testid="journal-daily-card"
+              />
+            </RowList>
+          </GroupCard>
+        )}
         {loading ? (
           <p className="pv-capture-hint" role="status">{t("journal.loading")}</p>
         ) : empty ? (

@@ -15,6 +15,7 @@ import {
   ListChecks,
   Mail,
   MessageSquare,
+  NotebookPen,
   NotebookText,
   Search,
   SlidersHorizontal,
@@ -53,7 +54,10 @@ export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections" | "
 export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"] as const;
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
-export const RIGHT_SECTION_IDS = ["calendar", "outline", "graph", "databases", "backlinks", "properties"] as const;
+/** `journal` follows `calendar`: it is the calendar's day written out, and it
+ *  used to hang INSIDE the calendar section with no head of its own, so it
+ *  could neither be collapsed nor hidden (finding 2026-09-22). */
+export const RIGHT_SECTION_IDS = ["calendar", "journal", "outline", "graph", "databases", "backlinks", "properties"] as const;
 /**
  * The phone's navigation bar (redesign E2). It carries WORK surfaces only —
  * tags, bookmarks and databases moved into the navigator in S9, because they
@@ -138,6 +142,7 @@ export const BAR_DEFS: BarDef[] = [
     spec: { known: RIGHT_SECTION_IDS, defaultVisibleCount: RIGHT_SECTION_IDS.length },
     areas: [
       { id: "calendar", labelKey: "rightPanel.calendar", icon: CalendarDays },
+      { id: "journal", labelKey: "rightPanel.journal", icon: NotebookPen },
       { id: "outline", labelKey: "rightPanel.outline", icon: List },
       { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
       { id: "databases", labelKey: "rightPanel.databases", icon: Database },
@@ -339,6 +344,9 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
   touched =
     // Order matters where one new id follows another: "journal" is placed after "comments", which may itself be new.
     (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments" })) ||
+    touched;
+  touched =
+    (await adoptNewAreas(store, vaultPath, "rightSections", { journal: "calendar" })) ||
     touched;
 
   if (touched) {

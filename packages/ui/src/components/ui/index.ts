@@ -11,6 +11,7 @@ export { MentionTextArea, type MentionTextAreaProps } from "./MentionTextArea";
 export { Select, type SelectProps, type SelectOption } from "./Select";
 export { SearchField, type SearchFieldProps } from "./SearchField";
 export { Chip, type ChipProps } from "./Chip";
+export { ShortcutHints, type ShortcutHint } from "./ShortcutHints";
 export { ChipField, type ChipFieldProps } from "./ChipField";
 export { Banner, type BannerProps, type BannerKind } from "./Banner";
 export { Radio, type RadioProps } from "./Radio";

@@ -879,7 +879,7 @@ export function TasksScreen({
           readable at a glance, and an active filter that looks like an inactive
           one is how a list ends up looking broken. Each chip carries its own
           value, so "Ordner: Projekte" says what it is doing. */}
-      <div className="m-turninto" data-testid="tasks-filters">
+      <div className="pv-filterrow" data-testid="tasks-filters">
         <Chip onClick={() => void pickFolder()} selected={folder !== ""}>
           {folder ? `${t("tasks.folderFilter")}: ${folder}${!loading && !folderOptions.includes(folder) ? ` (${t("tasks.filterUnavailable")})` : ""}` : t("tasks.folderFilter")}
         </Chip>

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Camera as CameraIcon } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { Button, Chip, ICON, JournalCaptureField, Segmented, buildDailyNotePath, toast, useTodayKey } from "@plainva/ui";
+import { Button, Chip, ICON, JournalCaptureField, buildDailyNotePath, toast, useTodayKey } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { captureJournalEntry } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -12,11 +12,12 @@ import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
 
 /**
- * Journal capture on the phone (plan Journal, J4): the other kind of the capture
- * sheet. The task kind lives in the tasks screen, which holds the task database
- * and the provider list; choosing "Task" here hands over what was typed and
- * opens that sheet. The FAB, the launcher shortcut, the "Today" section and the
- * journal screen all open this one.
+ * Journal capture on the phone (plan Journal, J4). A task lives in the tasks
+ * screen, which holds the task database and the provider list; the named exit
+ * under the field hands over what was typed and opens that sheet. The FAB, the
+ * launcher shortcut, the "Today" section and the journal screen all open this
+ * one. The exit replaced a `Segmented` that drew the navigation as a mode
+ * switch (finding 2026-09-22).
  *
  * Enter stays a line break — a soft keyboard has no Shift+Enter — and a button
  * saves. The text is only dropped once the entry EXISTS.
@@ -73,16 +74,6 @@ export function JournalCaptureSheet({
       <div className="pv-sheet m-sheet" data-testid="journal-capture-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("journal.newEntry")}</p>
-        <Segmented
-          ariaLabel={t("journal.kindLabel")}
-          size="sm"
-          value="journal"
-          onChange={(kind) => { if (kind === "task") onSwitchToTask(value); }}
-          options={[
-            { value: "task", label: t("journal.kindTask"), testId: "capture-kind-task" },
-            { value: "journal", label: t("journal.kindJournal"), testId: "capture-kind-journal" },
-          ]}
-        />
         <JournalCaptureField
           autoFocus
           enterSubmits={false}
@@ -93,8 +84,9 @@ export function JournalCaptureSheet({
           onAsTask={setAsTask}
           onSubmit={submit}
           onCancel={onClose}
+          onHandover={() => onSwitchToTask(value)}
           disabled={busy}
-          hint={`${t("journal.target", { name: target })} · ${t("journal.captureHintTouch")}`}
+          target={t("journal.target", { name: target })}
           extras={
             <Chip icon={<CameraIcon size={ICON.meta} />} onClick={() => void addPhoto()} testId="journal-capture-photo">
               {t("journal.attachPhoto")}

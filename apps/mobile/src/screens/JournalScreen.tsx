@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, NotebookPen, NotebookText } from "lucide-react";
+import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import {
-  Button, Chip, DateJumpPicker, EmptyState, Fab, ICON, IconButton, JournalCaptureField, JournalDayList, SearchField,
-  errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalDayList, Row, RowList, SearchField,
+  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
   useJournalActions, useJournalFeed, useTodayKey, useWeekStartDay,
   type JournalDay, type JournalRowCaps,
 } from "@plainva/ui";
@@ -42,7 +42,7 @@ export function JournalScreen({
   /** Opens the capture sheet (the app hosts it, so the FAB and the shortcut share it). */
   onNewEntry: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const todayKey = useTodayKey();
   const weekStart = useWeekStartDay();
   const ptrRef = useRef<HTMLDivElement>(null);
@@ -133,7 +133,7 @@ export function JournalScreen({
       />
       {ptrIndicator}
       <SearchField value={query} onValueChange={setQuery} placeholder={t("journal.search")} aria-label={t("journal.search")} clearLabel={t("journal.clearFilter")} data-testid="journal-search" />
-      <div className="pv-journal-filters" role="group" aria-label={t("journal.filterLabel")}>
+      <div className="pv-filterrow" role="group" aria-label={t("journal.filterLabel")}>
         <Chip selected={!filter.tasksOnly && filter.tag === null} onClick={() => setFilter((f) => ({ ...f, tasksOnly: false, tag: null }))} testId="journal-filter-all">
           {t("journal.filterAll")}
         </Chip>
@@ -147,6 +147,21 @@ export function JournalScreen({
         ))}
       </div>
 
+      {/* The journal is the home of the day (finding 2026-09-22, E18) — the same
+          row the desktop tab carries; with a filter running it would be noise. */}
+      {!feed.loading && !filtered && (
+        <GroupCard className="pv-journal-daily">
+          <RowList>
+            <Row
+              icon={<Sun size={ICON.head} />}
+              title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(new Date()) })}
+              end={<ChevronRight size={ICON.head} />}
+              onClick={() => onOpenNote(buildDailyNotePath(new Date(), ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).fullPath)}
+              data-testid="journal-daily-card"
+            />
+          </RowList>
+        </GroupCard>
+      )}
       {feed.loading ? (
         <p className="m-hint" role="status">{t("journal.loading")}</p>
       ) : empty ? (

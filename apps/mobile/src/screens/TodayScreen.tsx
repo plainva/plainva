@@ -247,7 +247,7 @@ export function TodayScreen({
 
       {/* The journal of the selected day, right under its daily note — that is
           where the entries live (plan Journal, J5). */}
-      {onOpenJournal && <TodayJournalSection bump={bump} dayKey={selectedIso} onOpenJournal={onOpenJournal} onOpenNote={onOpenNote} vault={vault} />}
+      {onOpenJournal && <TodayJournalSection bump={bump} dayKey={selectedIso} onOpenJournal={onOpenJournal} onOpenNote={onOpenNote} onOpenTasks={onOpenTasks} vault={vault} />}
 
       {/* Where I have to be, and what I owe — as TWO named sections with
           counters, the way the mockup shows them. They used to be one mixed

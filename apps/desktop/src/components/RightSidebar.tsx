@@ -1,5 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, Database, CalendarDays, Link as LinkIcon, SlidersHorizontal, List, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { ChevronDown, Database, CalendarDays, Link as LinkIcon, NotebookPen, Pen, SlidersHorizontal, List, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -14,6 +14,7 @@ import { useVault } from "../contexts/VaultContext";
 import { windowStateKey } from "../services/windowContext";
 import {
   ICON,
+  IconButton,
   EMPTY_NOTE_DATABASE_CONTEXT,
   hasNoteDatabaseContext,
   MenuSurface,
@@ -52,7 +53,7 @@ function frontmatterKeyCount(content: string): number {
   }
 }
 
-export type SectionId = "calendar" | "outline" | "graph" | "databases" | "backlinks" | "properties";
+export type SectionId = "calendar" | "journal" | "outline" | "graph" | "databases" | "backlinks" | "properties";
 let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
 /**
  * Read on first use, not while this module LOADS (C20): reaching across a
@@ -78,8 +79,10 @@ interface RightSidebarProps {
   onSelectDate: (date: Date) => void;
   /** Opens the calendar tab focused on the given day (widget peek/menu). */
   onOpenCalendarDay?: (dayKey: string) => void;
-  /** Opens the journal tab — "all days" of the journal section under the calendar (plan Journal, J5). */
+  /** Opens the journal tab — "all days" of the journal section (plan Journal, J5). */
   onOpenJournal?: () => void;
+  /** Opens the capture dialog for the sidebar's day (the pen in the journal head). */
+  onCaptureJournal?: (date: Date | null) => void;
   loadMarkedDates: (dates: Date[]) => Promise<Set<string>>;
   /** Date of the open daily note (if any), highlighted with precedence over today. */
   activeDailyDate?: Date | null;
@@ -94,16 +97,18 @@ interface RightSidebarProps {
   sections?: readonly SectionId[];
 }
 
-export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
+export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, onCaptureJournal, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
   // global default until this vault is adapted (plan § 3).
   const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
-    calendar: readOpen("calendar"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
+    calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
   }));
   const [counts, setCounts] = useState<{ backlinks: number; properties: number; outline: number }>({ backlinks: 0, properties: 0, outline: 0 });
+  /** Entries of the journal section's day — for the head's count, reported by the section itself. */
+  const [journalCount, setJournalCount] = useState(0);
   const [menuAt, setMenuAt] = useState<{ id: SectionId; x: number; y: number } | null>(null);
   // Database context of the active note (plan P4). Same cached source as the
   // context line in the document head, so both always agree.
@@ -248,8 +253,26 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     return () => { alive = false; };
   }, [activePath, queryService, fileTreeVersion, setBacklinksCount]);
 
-  const meta: Record<SectionId, { title: string; icon: ReactNode; count?: number; pad: boolean }> = {
+  const meta: Record<SectionId, { title: string; icon: ReactNode; count?: number; pad: boolean; action?: ReactNode }> = {
     calendar: { title: t("rightPanel.calendar", { defaultValue: "Kalender" }), icon: <CalendarDays size={ICON.ui} />, pad: false },
+    journal: {
+      title: t("rightPanel.journal"),
+      icon: <NotebookPen size={ICON.ui} />,
+      count: journalCount,
+      pad: true,
+      // The way to write is a button in the head, not a field in the column: a
+      // 250-px column has no room for one, and the capture dialog is the one
+      // place an entry is written (finding 2026-09-22).
+      action: onCaptureJournal && (
+        <IconButton
+          label={t("journal.newEntry")}
+          onClick={() => onCaptureJournal(activeDailyDate ?? null)}
+          data-testid="right-journal-new"
+        >
+          <Pen size={ICON.ui} />
+        </IconButton>
+      ),
+    },
     outline: { title: t("rightPanel.outline", { defaultValue: "Gliederung" }), icon: <List size={ICON.ui} />, count: counts.outline, pad: true },
     graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={ICON.ui} />, pad: true },
     databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, pad: true },
@@ -259,13 +282,11 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   const renderBody = (id: SectionId) => {
     if (id === "calendar") {
-      return (
-        <>
-          <CalendarWidget weekRow={step === "minimal"} onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />
-          {/* The journal of the day the sidebar is about: the open daily note's day, otherwise today. */}
-          {onOpenJournal && <JournalSidebarSection activeDate={activeDailyDate ?? null} onOpenPath={onOpenPath} onOpenJournal={onOpenJournal} />}
-        </>
-      );
+      return <CalendarWidget weekRow={step === "minimal"} onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />;
+    }
+    if (id === "journal") {
+      // The journal of the day the sidebar is about: the open daily note's day, otherwise today.
+      return onOpenJournal ? <JournalSidebarSection activeDate={activeDailyDate ?? null} onOpenPath={onOpenPath} onOpenJournal={onOpenJournal} onCount={setJournalCount} /> : null;
     }
     if (id === "outline") return <OutlineSection />;
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
@@ -279,6 +300,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
    *  rows on notes that have no properties, backlinks or database membership. */
   const hasContent = (id: SectionId): boolean =>
     id === "calendar"
+    // The journal head stays even on an empty day: it is where an entry is
+    // WRITTEN, and a surface you reach for cannot disappear when it is empty.
+    || (id === "journal" && Boolean(onOpenJournal))
     || (id === "graph" && Boolean(activePath && /\.md$/i.test(activePath)))
     || (id === "databases" && hasNoteDatabaseContext(dbContext))
     || (id === "outline" && counts.outline > 0)
@@ -328,6 +352,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                   </span>
                 )}
               </button>
+              {/* One action beside the head, outside the collapse button — a
+                  button inside a button is invalid and stops working. */}
+              {m.action}
             </div>
             {isOpen && <div style={{ padding: m.pad ? "0 0.75rem 0.85rem" : 0 }}>{renderBody(id)}</div>}
           </section>

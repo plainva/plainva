@@ -1,32 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ArrowRight } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { JournalEntry } from "@plainva/core";
 import {
-  ICON, JournalDaySection, MenuItem, MenuSurface, RowActionList, errorText, journalRowActions, loadImageBlob, localIsoKey, setPendingSearchJump, toast,
+  Button, ICON, JournalDayList, MenuItem, MenuSurface, RowActionList, errorText, journalRowActions, loadImageBlob, localIsoKey, setPendingSearchJump, toast,
   useJournalActions, useJournalDay, useTodayKey,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { journalFailureKey, readJournalHeading, useJournalCapture, useJournalFiles } from "../../hooks/useJournal";
+import { journalFailureKey, readJournalHeading, useJournalFiles } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
 
 /**
- * "Journal" under the sidebar calendar (plan Journal, J5): the entries of the
- * day the sidebar is about — the open daily note's day, otherwise today — with
- * a field that writes into exactly that day. The phone's twin sits on its Today
- * screen; both draw the shared `JournalDaySection`.
+ * The "Journal" section of the right sidebar (plan Journal, J5): the entries of
+ * the day the sidebar is about — the open daily note's day, otherwise today.
+ *
+ * A 250-px column is not the journal tab (finding 2026-09-22). The rows are
+ * therefore the slim ones: one line each, nothing to operate, every row on the
+ * same text edge, a task marked on the trailing edge. Writing happens through
+ * the pen in the section head, which opens the ordinary capture dialog with
+ * this day as its target — the column carries no field of its own, and there is
+ * no second way to write an entry. Everything that needs width — editing,
+ * converting, deleting, images — stays in the tab, one click away.
  */
-export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal }: {
+export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal, onCount }: {
   /** Date of the open daily note; `null` = today. */
   activeDate: Date | null;
   onOpenPath: (path: string, newTab?: boolean) => void;
   onOpenJournal: () => void;
+  /** Reports the day's entry count for the section head's badge. */
+  onCount?: (n: number) => void;
 }) {
   const { t } = useTranslation();
   const { vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
   const files = useJournalFiles();
-  const capture = useJournalCapture();
   const todayKey = useTodayKey();
   const dayKey = activeDate ? localIsoKey(activeDate) : todayKey;
   const [settings, setSettings] = useState<JournalFeedSettings | null>(null);
@@ -52,6 +60,7 @@ export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal }:
     version: fileTreeVersion,
   });
   const day: JournalDay = useMemo(() => ({ key: dayKey, date, path, entries }), [dayKey, date, path, entries]);
+  useEffect(() => { onCount?.(entries.length); }, [entries.length, onCount]);
 
   const showInNote = useCallback((target: Pick<JournalDay, "path">, entry: JournalEntry) => {
     setPendingSearchJump({ path: target.path, term: entry.source[0].slice(0, 80) });
@@ -79,17 +88,26 @@ export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal }:
   if (!settings || !vaultPath) return null;
   return (
     <>
-      <JournalDaySection
-        day={day}
-        todayKey={todayKey}
-        actions={actions}
-        links={links}
-        loadImage={loadImage}
-        onCapture={async (text) => (await capture({ text, task: false, date })) !== null}
-        onOpenAll={onOpenJournal}
-        onOpenEntry={showInNote}
-        onMenu={(target, entry, at) => setMenu({ at, caps: actions.capsOf(target, entry) })}
-      />
+      {entries.length === 0
+        ? <p className="pv-capture-hint" data-testid="journal-side-empty">{t("journal.sideEmpty")}</p>
+        : (
+          <JournalDayList
+            slim
+            headless
+            days={[day]}
+            todayKey={todayKey}
+            links={links}
+            loadImage={loadImage}
+            onToggleTask={actions.toggle}
+            onOpenNote={() => onOpenPath(day.path)}
+            onOpenEntry={showInNote}
+            onMenu={(target, entry, at) => setMenu({ at, caps: actions.capsOf(target, entry) })}
+          />
+        )}
+      <Button variant="ghost" size="sm" className="pv-journal-all" onClick={onOpenJournal} data-testid="journal-section-all">
+        {t("journal.allDays")}
+        <ArrowRight size={ICON.meta} />
+      </Button>
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("common.moreActions")}>
           <RowActionList build={(tt) => journalRowActions(tt, menu.caps)}>

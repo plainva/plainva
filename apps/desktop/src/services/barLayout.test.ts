@@ -28,6 +28,7 @@ import {
   migrateLegacyBarLayouts,
   BAR_DEFS,
   BAR_LAYOUT_CHANGED_EVENT,
+  RIGHT_SECTION_IDS,
   setPlatformServices,
 } from "@plainva/ui";
 import { isAreaVisible, visibleAreas } from "@plainva/ui";
@@ -88,7 +89,9 @@ describe("inheritance", () => {
   it("uses the factory order when nothing is stored", async () => {
     const v = await loadBarLayout("rightSections", VAULT);
     expect(v.order[0]).toBe("calendar");
-    expect(v.visibleCount).toBe(6);
+    // The journal follows the calendar: the calendar's day, written out.
+    expect(v.order[1]).toBe("journal");
+    expect(v.visibleCount).toBe(RIGHT_SECTION_IDS.length);
   });
 
   it("follows the global default while the vault has nothing of its own", async () => {

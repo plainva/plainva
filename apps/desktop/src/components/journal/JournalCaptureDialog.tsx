@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen } from "lucide-react";
-import { Button, ICON, JournalCaptureField, Modal, Segmented, buildDailyNotePath, errorText, importAttachment, toast } from "@plainva/ui";
+import { Button, ICON, JournalCaptureField, Modal, buildDailyNotePath, errorText, importAttachment, toast } from "@plainva/ui";
 import { attachmentFolderKey, useVault } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
@@ -11,10 +11,11 @@ import { getSettingsStore } from "../../services/settingsStore";
  * "Journal entry" on the desktop (plan Journal, J4): one field, one Enter. The
  * daily note neither has to be open nor has to exist.
  *
- * The capture has two kinds, as the phone's sheet has. A task needs the task
- * database and the provider list the tasks view already holds, so choosing
- * "Task" does not build a second task form here: it hands what was typed to
- * that view's capture field and closes.
+ * A task needs the task database and the provider list the tasks view already
+ * holds, so this dialog builds no second task form: the named exit under the
+ * field hands what was typed to that view and closes. It used to be a
+ * `Segmented` labelled "Journal | Task", which drew a navigation as a mode
+ * switch and collided with the "As a task" chip below it (finding 2026-09-22).
  *
  * The text is only dropped once the entry EXISTS — a capture that fails keeps
  * what was typed.
@@ -108,16 +109,6 @@ export function JournalCaptureDialog({
       }
     >
       <div className="pv-journal-dialog" onPaste={onPaste}>
-        {onHandoverTask && <Segmented
-          ariaLabel={t("journal.kindLabel")}
-          size="sm"
-          value="journal"
-          onChange={(kind) => { if (kind === "task") onHandoverTask(value); }}
-          options={[
-            { value: "journal", label: t("journal.kindJournal"), testId: "capture-kind-journal" },
-            { value: "task", label: t("journal.kindTask"), testId: "capture-kind-task" },
-          ]}
-        />}
         <JournalCaptureField
           inputRef={inputRef}
           value={value}
@@ -125,14 +116,10 @@ export function JournalCaptureDialog({
           asTask={asTask}
           onAsTask={setAsTask}
           onSubmit={submit}
+          onHandover={onHandoverTask && (() => onHandoverTask(value))}
           disabled={busy}
           rows={3}
-          hint={
-            <>
-              {target && <span data-testid="journal-capture-target">{t(target.exists ? "journal.target" : "journal.targetNew", { name: target.name })} · </span>}
-              {t("journal.captureHint")}
-            </>
-          }
+          target={target && t(target.exists ? "journal.target" : "journal.targetNew", { name: target.name })}
         />
       </div>
     </Modal>

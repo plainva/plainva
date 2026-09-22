@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ArrowRight } from "lucide-react";
 import {
-  addDaysToKey, Button, Chip, nextPriorityWord, Segmented, setCaptureWord, TaskCaptureField, TextInput,
+  addDaysToKey, Button, Chip, ICON, nextPriorityWord, setCaptureWord, TaskCaptureField, TextInput,
   type CaptureResult, type TaskCaptureApi,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
@@ -74,6 +75,14 @@ export function TaskCaptureSheet({
               {t("tasks.alsoCreateAt", { list: providerList })}
             </Chip>
           )}
+          {/* The way to the other capture is a named exit, not a mode switch —
+              the same shape the journal sheet uses (finding 2026-09-22). */}
+          {onSwitchToJournal && (
+            <Button variant="ghost" size="sm" className="pv-capture-exit" onClick={() => onSwitchToJournal(value)} data-testid="task-capture-handover">
+              {t("tasks.insteadJournal")}
+              <ArrowRight size={ICON.meta} />
+            </Button>
+          )}
         </div>
         {picker === "date" && (
           <TextInput
@@ -110,18 +119,6 @@ export function TaskCaptureSheet({
       <div className="pv-sheet m-sheet" data-testid="task-capture-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("tasks.newTask")}</p>
-        {onSwitchToJournal && (
-          <Segmented
-            ariaLabel={t("journal.kindLabel")}
-            size="sm"
-            value="task"
-            onChange={(kind) => { if (kind === "journal") onSwitchToJournal(value); }}
-            options={[
-              { value: "task", label: t("journal.kindTask"), testId: "capture-kind-task" },
-              { value: "journal", label: t("journal.kindJournal"), testId: "capture-kind-journal" },
-            ]}
-          />
-        )}
         <TaskCaptureField
           autoFocus
           value={value}
