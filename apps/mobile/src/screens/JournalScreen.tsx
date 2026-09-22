@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "lucide-react";
+import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import {
-  Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalDayList, Row, RowList, SearchField,
-  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalCardWall, JournalDayList, Row, RowList, SearchField, Segmented,
+  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape,
+  type JournalShape,
   useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalRowCaps,
 } from "@plainva/ui";
@@ -53,6 +54,8 @@ export function JournalScreen({
   const settings = useMemo(() => ({ folder: ms.dailyFolder, format: ms.dailyFormat, heading }), [ms.dailyFolder, ms.dailyFormat, heading]);
   const [sheet, setSheet] = useState<{ title: string; caps: JournalRowCaps } | null>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
+  // Stream or wall - a DEVICE choice, remembered (E4).
+  const [shape, setShape] = useState<JournalShape>(readJournalShape);
   const [pendingJump, setPendingJump] = useState<string | null>(null);
 
   const feed = useJournalFeed({
@@ -133,6 +136,18 @@ export function JournalScreen({
       />
       {ptrIndicator}
       <SearchField value={query} onValueChange={setQuery} placeholder={t("journal.search")} aria-label={t("journal.search")} clearLabel={t("journal.clearFilter")} data-testid="journal-search" />
+      <div className="pv-journal-shaperow">
+        <Segmented
+          ariaLabel={t("journal.shapeLabel")}
+          onChange={(next) => { setShape(next); writeJournalShape(next); }}
+          options={[
+            { value: "stream", label: t("journal.shapeStream"), icon: <ListIcon size={ICON.ui} />, testId: "journal-shape-stream" },
+            { value: "cards", label: t("journal.shapeCards"), icon: <LayoutGrid size={ICON.ui} />, testId: "journal-shape-cards" },
+          ]}
+          size="sm"
+          value={shape}
+        />
+      </div>
       <div className="pv-filterrow" role="group" aria-label={t("journal.filterLabel")}>
         <Chip selected={!filter.tasksOnly && filter.tag === null} onClick={() => setFilter((f) => ({ ...f, tasksOnly: false, tag: null }))} testId="journal-filter-all">
           {t("journal.filterAll")}
@@ -174,6 +189,17 @@ export function JournalScreen({
         >
           {filtered ? t("journal.emptyFilteredText") : t("journal.emptyText", { heading })}
         </EmptyState>
+      ) : shape === "cards" ? (
+        <JournalCardWall
+          compact
+          days={days}
+          loadMedia={loadImage}
+          onMenu={(day, entry) => setSheet({ title: sheetTitle(entry), caps: actions.capsOf(day, entry) })}
+          onOpenEntry={(day, entry) => { if (rowPress.clicked()) showInNote(day, entry); }}
+          onToggleTask={actions.toggle}
+          todayKey={todayKey}
+          wrapCard={(day, entry, element) => <SwipeRow actions={rowActions(actions.capsOf(day, entry)).filter((a) => a.swipe)}>{element}</SwipeRow>}
+        />
       ) : (
         <JournalDayList
           compact

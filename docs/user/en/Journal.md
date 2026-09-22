@@ -21,6 +21,7 @@ The field has one job: a journal entry. Below it, **Create a task instead** hand
 
 **Open journal** (action rail on the desktop, **Areas** on the phone, or the command palette) shows all days as one stream: the newest day on top, within a day the newest entry first. Links open, tags are pills, an embedded image shows as a preview, and a long entry is folded — **More** opens it.
 
+- **Stream or cards:** the switch in the view's header — **Stream** and **Cards** — shows the same entries in two shapes. The stream reads a day downwards, the card wall lets a week be scanned; every day keeps its own wall with a rule above it. Cards can do what rows can: tapping opens the place in the note, right-click or a long press opens the same actions, task boxes tick. The choice is remembered by **the device** — the stream on your phone and the wall on a wide screen, if that is what you want.
 - **Search and filter:** the search field looks through the loaded days; the chips **All**, **Tasks only** and the most frequent tags narrow the stream. A click on a tag in an entry filters by it.
 - **Older days:** Plainva loads the last 14 days that have entries. **Load older** fetches the next stretch; **Go to a day** opens the date picker, in which days with entries are marked, and loads as far back as the day you pick.
 - **Open note** in a day's heading opens that daily note; a click on an entry opens the note at that line.

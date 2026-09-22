@@ -862,3 +862,13 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
 [data-theme-name="lcars"] .pv-voicememo-time {
   color: #000000;
 }
+
+/* Journal card wall: the console draws blocks, not rounded cards. */
+[data-theme-name="lcars"] .pv-journal-card {
+  border-radius: 0;
+  border-left: 4px solid var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-journal-wall-head {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

@@ -21,6 +21,7 @@ El campo hace una sola cosa: una entrada de diario. Debajo, **Crear una tarea en
 
 **Abrir diario** (barra de acciones en el escritorio, **Áreas** en el teléfono, o la paleta de comandos) muestra todos los días como un único flujo: el día más nuevo arriba, y dentro de un día, la entrada más nueva primero. Los enlaces se abren, las etiquetas son píldoras, una imagen incrustada aparece como vista previa, y una entrada larga queda plegada — **Más** la abre.
 
+- **Flujo o tarjetas:** el conmutador en la cabecera de la vista — **Flujo** y **Tarjetas** — muestra las mismas entradas en dos formas. El flujo lee un día hacia abajo, el tablón de tarjetas permite abarcar una semana; cada día conserva su propio tablón con una línea encima. Las tarjetas hacen lo mismo que las filas: tocar abre el lugar en la nota, el clic derecho o una pulsación larga abre las mismas acciones, y las casillas de tareas se marcan. La elección la recuerda **el dispositivo**.
 - **Buscar y filtrar:** el campo de búsqueda examina los días cargados; los chips **Todas**, **Solo tareas** y las etiquetas más frecuentes reducen el flujo. Un clic en una etiqueta de una entrada filtra por ella.
 - **Días anteriores:** Plainva carga los últimos 14 días que tienen entradas. **Cargar anteriores** trae el siguiente tramo; **Ir a un día** abre el selector de fecha, en el que los días con entradas están marcados, y carga hacia atrás hasta el día que elijas.
 - **Abrir nota** en el encabezado de un día abre esa nota diaria; un clic en una entrada abre la nota en esa línea.

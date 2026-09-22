@@ -2655,6 +2655,10 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-journal-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-3) var(--space-2); }
 .pv-journal-head-title { margin: 0; font-size: var(--text-lg); font-weight: 500; }
 .pv-journal-head-search { flex: 1; min-width: 12rem; max-width: 28rem; }
+/* The stream/cards switch keeps its own size; the search field takes the rest. */
+.pv-journal-head-shape { flex: 0 0 auto; }
+/* The phone has no room in its app bar, so the switch stands over the chips. */
+.pv-journal-shaperow { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-3) 0; }
 /* The chip row under a search field — journal and tasks, both shells, ONE
    rhythm. The journal's chips sat flush against the field while the task
    screen kept a gap, because each screen carried its own rule
@@ -2664,6 +2668,38 @@ button.pv-acct:hover { background: var(--state-hover); }
 /* Today's note at the head of the stream — the journal is the day's home. */
 .pv-journal-daily { margin-bottom: var(--space-3); }
 .pv-journal-days { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* The journal as a wall of cards (plan Journal-Erweiterungen, X5). A day break
+   is a full-width rule ACROSS the columns, so each day gets its own little
+   wall — a divider inside a masonry column would sit at a different height in
+   every column and mean nothing. */
+.pv-journal-wall { display: flex; flex-direction: column; gap: var(--space-4); }
+.pv-journal-wall-head {
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.pv-journal-wall-day { min-width: 0; }
+.pv-journal-wall-cols { display: grid; gap: 12px; justify-content: start; }
+.pv-journal-wall-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pv-journal-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  text-align: start;
+  cursor: pointer;
+}
+.pv-journal-card:hover { background: var(--state-hover); }
+.pv-journal-card--closed { opacity: 0.6; }
+.pv-journal-card-head { display: flex; align-items: center; gap: var(--space-1); }
+.pv-journal-card-image { max-width: 100%; border-radius: var(--radius-xs); }
 .pv-journal-count { color: var(--text-faint); font-weight: 400; }
 .pv-journal-body { display: block; min-width: 0; }
 .pv-journal-text { white-space: pre-line; overflow-wrap: anywhere; }

@@ -21,6 +21,7 @@ Het veld doet één ding: een journaalitem. Eronder geeft **In plaats daarvan ee
 
 **Journaal openen** (actiebalk op de desktop, **Onderdelen** op de telefoon, of de opdrachtenpalet) toont alle dagen als één stroom: de nieuwste dag bovenaan, binnen een dag het nieuwste item eerst. Links openen, tags zijn pillen, een ingesloten afbeelding verschijnt als voorbeeld, en een lang item wordt ingeklapt — **Meer** opent het.
 
+- **Stroom of kaarten:** de schakelaar in de kop van de weergave — **Stroom** en **Kaarten** — toont dezelfde items in twee vormen. De stroom leest een dag naar beneden, de kaartenwand laat een week overzien; elke dag houdt zijn eigen wand met een lijn erboven. Kaarten kunnen wat regels kunnen: tikken opent de plek in de notitie, rechtsklikken of lang drukken opent dezelfde acties, en taakvakjes vink je af. De keuze onthoudt **het apparaat**.
 - **Zoeken en filteren:** het zoekveld doorzoekt de geladen dagen; de chips **Alle**, **Alleen taken** en de meest gebruikte tags beperken de stroom. Een klik op een tag in een item filtert daarop.
 - **Oudere dagen:** Plainva laadt de laatste 14 dagen die items hebben. **Oudere laden** haalt het volgende stuk op; **Naar een dag springen** opent de datumkiezer, waarin dagen met items zijn gemarkeerd, en laadt zo ver terug als de gekozen dag ligt.
 - **Notitie openen** in de kop van een dag opent die dagnotitie; een klik op een item opent de notitie op die regel.

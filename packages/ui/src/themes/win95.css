@@ -709,3 +709,13 @@
   border-radius: 0;
   background: #800000;
 }
+
+/* Journal card wall: raised tiles, the way 95 drew a list item. */
+[data-theme-name="win95"] .pv-journal-card {
+  border-radius: 0;
+  border: 2px outset #DFDFDF;
+  background: #C0C0C0;
+}
+[data-theme-name="win95"] .pv-journal-wall-head {
+  border-bottom: 1px solid #808080;
+}

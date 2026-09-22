@@ -21,6 +21,7 @@ Il campo fa una cosa sola: una voce di diario. Sotto, **Crea invece un'attività
 
 **Apri diario** (barra delle azioni sul desktop, **Aree** al telefono, oppure la palette dei comandi) mostra tutti i giorni come un unico flusso: il giorno più recente in alto, e all'interno di un giorno la voce più recente per prima. I link si aprono, i tag sono pillole, un'immagine incorporata appare come anteprima, e una voce lunga è ripiegata — **Altro** la apre.
 
+- **Flusso o schede:** l'interruttore nell'intestazione della vista — **Flusso** e **Schede** — mostra le stesse voci in due forme. Il flusso legge una giornata verso il basso, la bacheca di schede fa abbracciare una settimana; ogni giorno mantiene la propria bacheca con una riga sopra. Le schede fanno ciò che fanno le righe: toccando si apre il punto nella nota, il clic destro o una pressione lunga apre le stesse azioni, e le caselle delle attività si spuntano. La scelta la ricorda **il dispositivo**.
 - **Cercare e filtrare:** il campo di ricerca cerca nei giorni caricati; i chip **Tutte**, **Solo attività** e i tag più frequenti restringono il flusso. Un clic su un tag in una voce filtra in base a esso.
 - **Giorni più vecchi:** Plainva carica gli ultimi 14 giorni che hanno voci. **Carica precedenti** recupera il tratto successivo; **Vai a un giorno** apre il selettore di data, in cui i giorni con voci sono contrassegnati, e carica all'indietro fino al giorno che scegli.
 - **Apri nota** nell'intestazione di un giorno apre quella nota giornaliera; un clic su una voce apre la nota a quella riga.

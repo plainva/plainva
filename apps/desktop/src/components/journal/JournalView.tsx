@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "lucide-react";
+import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import {
-  Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, GroupCard, ICON, JournalCaptureField, JournalDayList, MenuItem, MenuSurface, Row, RowList,
-  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, GroupCard, ICON, JournalCaptureField, JournalCardWall, JournalDayList, MenuItem, MenuSurface, Row, RowList, Segmented,
+  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape,
+  type JournalShape,
   useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
@@ -34,6 +35,8 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
   const [settings, setSettings] = useState<JournalFeedSettings | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: JournalRowCaps } | null>(null);
   const [capturing, setCapturing] = useState(false);
+  // Stream or wall - a DEVICE choice, remembered (E4).
+  const [shape, setShape] = useState<JournalShape>(readJournalShape);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [pendingJump, setPendingJump] = useState<string | null>(null);
   const jumpRef = useRef<HTMLButtonElement>(null);
@@ -152,6 +155,17 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
             testId="journal-jump-grid"
           />
         </DateJumpPopover>
+        <Segmented
+          ariaLabel={t("journal.shapeLabel")}
+          className="pv-journal-head-shape"
+          onChange={(next) => { setShape(next); writeJournalShape(next); }}
+          options={[
+            { value: "stream", label: t("journal.shapeStream"), icon: <ListIcon size={ICON.ui} />, testId: "journal-shape-stream" },
+            { value: "cards", label: t("journal.shapeCards"), icon: <LayoutGrid size={ICON.ui} />, testId: "journal-shape-cards" },
+          ]}
+          size="sm"
+          value={shape}
+        />
         <Button variant="primary" size="sm" icon={<NotebookPen size={ICON.ui} />} onClick={() => setCapturing(true)} data-testid="journal-new-entry">
           {t("journal.newEntry")}
         </Button>
@@ -199,6 +213,15 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
           >
             {filtered ? t("journal.emptyFilteredText") : t("journal.emptyText", { heading })}
           </EmptyState>
+        ) : shape === "cards" ? (
+          <JournalCardWall
+            days={days}
+            loadMedia={loadImage}
+            onMenu={(day, entry, at) => setMenu({ at, caps: actions.capsOf(day, entry) })}
+            onOpenEntry={(day, entry) => showInNote(day, entry)}
+            onToggleTask={actions.toggle}
+            todayKey={todayKey}
+          />
         ) : (
           <JournalDayList
             days={days}

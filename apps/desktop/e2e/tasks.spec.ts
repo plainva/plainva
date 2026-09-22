@@ -958,6 +958,42 @@ test('the journal: capture lands on top, an entry becomes a task the task view k
   expect(errors).toEqual([]);
 });
 
+test('the journal in two shapes: the same entries as a stream and as cards (plan Journal-Erweiterungen, X5)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    fs[`/test-vault/${key}.md`] = '# Yesterday\n\n## Journal\n\n- 09:12 Called the workshop\n- [ ] 10:30 Order the spare part\n';
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-journal').click();
+  const view = page.getByTestId('journal-view');
+  // The stream is what a device sees until it says otherwise.
+  await expect(view.getByTestId('journal-days')).toBeVisible();
+
+  await view.getByTestId('journal-shape-cards').click();
+  const wall = view.getByTestId('journal-cards');
+  await expect(wall).toBeVisible();
+  await expect(view.getByTestId('journal-days')).toHaveCount(0);
+  // The same two entries, now as cards - and the task still carries its box.
+  await expect(wall.getByTestId('journal-card')).toHaveCount(2);
+  await expect(wall.getByTestId('journal-card').first()).toContainText('Order the spare part');
+  await expect(wall.locator('[data-task="open"]').getByTestId('journal-entry-toggle')).toBeVisible();
+
+  // The choice survives a reload: it belongs to the device.
+  await page.reload();
+  await page.getByTestId('ribbon-journal').click();
+  await expect(view.getByTestId('journal-cards')).toBeVisible();
+
+  await view.getByTestId('journal-shape-stream').click();
+  await expect(view.getByTestId('journal-days')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('the day boundary: an entry at 01:30 joins yesterday and keeps its time (plan Journal-Erweiterungen, X2)', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));

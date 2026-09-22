@@ -21,6 +21,7 @@ Pole robi jedno: wpis dziennika. Pod nim **Utwórz zamiast tego zadanie** przeka
 
 **Otwórz dziennik** (pasek akcji na komputerze, **Obszary** na telefonie lub paleta poleceń) pokazuje wszystkie dni jako jeden strumień: najnowszy dzień na górze, w obrębie dnia najpierw najnowszy wpis. Linki się otwierają, tagi są pigułkami, osadzony obraz pokazuje się jako podgląd, a długi wpis jest zwinięty — **Więcej** go otwiera.
 
+- **Strumień czy karty:** przełącznik w nagłówku widoku — **Strumień** i **Karty** — pokazuje te same wpisy w dwóch formach. Strumień czyta dzień w dół, ściana kart pozwala objąć tydzień; każdy dzień ma własną ścianę z linią nad nią. Karty potrafią to, co wiersze: dotknięcie otwiera miejsce w notatce, prawy przycisk albo długie przytrzymanie otwiera te same akcje, a pola zadań się odhacza. Wybór zapamiętuje **urządzenie**.
 - **Szukaj i filtruj:** pole wyszukiwania przeszukuje wczytane dni; chipy **Wszystkie**, **Tylko zadania** i najczęstsze tagi zawężają strumień. Kliknięcie tagu we wpisie filtruje według niego.
 - **Starsze dni:** Plainva wczytuje ostatnie 14 dni, które mają wpisy. **Wczytaj starsze** pobiera kolejny odcinek; **Przejdź do dnia** otwiera wybór daty, w którym dni z wpisami są oznaczone, i wczytuje tak daleko wstecz, jak sięga wybrany dzień.
 - **Otwórz notatkę** w nagłówku dnia otwiera tę notatkę dzienną; kliknięcie wpisu otwiera notatkę w tej linii.

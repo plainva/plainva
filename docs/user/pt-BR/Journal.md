@@ -21,6 +21,7 @@ O campo faz uma coisa só: uma entrada de diário. Abaixo dele, **Criar uma tare
 
 **Abrir diário** (barra de ações no desktop, **Seções** no telefone, ou a paleta de comandos) mostra todos os dias como um único fluxo: o dia mais novo no topo, e dentro de um dia, a entrada mais nova primeiro. Os links abrem, as tags são pílulas, uma imagem incorporada aparece como prévia, e uma entrada longa fica recolhida — **Mais** a abre.
 
+- **Fluxo ou cartões:** o seletor no cabeçalho da visão — **Fluxo** e **Cartões** — mostra as mesmas entradas em duas formas. O fluxo lê um dia para baixo, o mural de cartões deixa abarcar uma semana; cada dia mantém o seu próprio mural com uma linha acima. Os cartões fazem o que as linhas fazem: tocar abre o ponto na nota, o clique direito ou um toque longo abre as mesmas ações, e as caixas de tarefa marcam. A escolha é lembrada pelo **aparelho**.
 - **Buscar e filtrar:** o campo de busca procura nos dias carregados; os chips **Todas**, **Somente tarefas** e as tags mais frequentes restringem o fluxo. Um clique em uma tag de uma entrada filtra por ela.
 - **Dias mais antigos:** o Plainva carrega os últimos 14 dias que têm entradas. **Carregar anteriores** busca o próximo trecho; **Ir para um dia** abre o seletor de data, no qual os dias com entradas são marcados, e carrega até tão longe quanto o dia escolhido.
 - **Abrir nota** no título de um dia abre aquela nota diária; um clique em uma entrada abre a nota naquela linha.
