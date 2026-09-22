@@ -126,11 +126,17 @@ test("the Today screen shows the day's journal, and its field writes into that d
     }
     const section = page.getByTestId("journal-day-section");
     await expect(section).toContainText("Coffee first");
-    await section.getByTestId("journal-section-input").fill("Watered the fern");
-    await section.getByTestId("journal-section-input").press("Enter");
+    // The pen in the heading opens the app's ONE capture surface with this day
+    // as its target; the section carries no field of its own since 2026-09-22.
+    await expect(section.getByTestId("journal-section-input")).toHaveCount(0);
+    await section.getByTestId("journal-section-new").click();
+    const sheet = page.getByTestId("journal-capture-sheet");
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("journal-capture-input").fill("Watered the fern");
+    await sheet.getByTestId("journal-capture-save").click();
     await expect.poll(() => readNote(page, "vault/2026-09-20.md")).toBe("# Sunday\n\n## Journal\n\n- 07:45 Coffee first\n- 08:30 Watered the fern\n");
+    await expect(sheet).toHaveCount(0);
     await expect(section.getByTestId("journal-entry")).toHaveCount(2);
-    await expect(section.getByTestId("journal-section-input")).toHaveValue("");
     await section.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath("journal-today-section.png") });
     // "All days" leads to the stream.
