@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen } from "lucide-react";
-import { Button, ICON, JournalCaptureField, Modal, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, journalToday, toast, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
+import { Button, ICON, JournalCaptureField, Modal, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, journalToday, toast, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { attachmentFolderKey, useVault } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
@@ -90,6 +90,15 @@ export function JournalCaptureDialog({
     }
   };
 
+
+  /**
+   * The place goes on its own line at the end (plan Journal-Erweiterungen,
+   * X7): plain Markdown the person can edit into a real name or delete.
+   */
+  const onPlace = (line: string) => {
+    setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${line}` : line));
+  };
+
   // A bitmap from the clipboard goes the way every attachment goes: into the
   // attachment folder, embedded by name.
   const onPaste = (e: ClipboardEvent<HTMLDivElement>) => {
@@ -146,7 +155,12 @@ export function JournalCaptureDialog({
           disabled={busy}
           rows={3}
           target={target && t(target.exists ? "journal.target" : "journal.targetNew", { name: target.name })}
-          extras={<VoiceMemoButton disabled={busy} onRecorded={onRecorded} />}
+          extras={
+            <>
+              <VoiceMemoButton disabled={busy} onRecorded={onRecorded} />
+              <PlaceStampButton disabled={busy} onStamped={onPlace} />
+            </>
+          }
         />
       </div>
     </Modal>

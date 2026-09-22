@@ -384,6 +384,8 @@
     "journalHeadingDesc": "Journaalitems staan onder deze kop van de dagnotitie; het niveau (# tot ######) maakt niet uit. Ontbreekt de kop, dan voegt Plainva hem aan het einde van de notitie toe. Wijzigen hernoemt bestaande koppen niet — oudere dagen verschijnen dan niet meer in het journaal totdat je ze daar zelf hernoemt.",
     "journalMood": "Stemming: eigenschap van de dagnotitie",
     "journalMoodDesc": "De naam van de frontmatter-eigenschap waarin een dag wordt beoordeeld (bijvoorbeeld `stemming`). Staat die ingesteld, dan toont de dagkop in het journaal vijf punten die je kunt indrukken; het bestand houdt een gewoon getal. Laat hem leeg en deze kluis beoordeelt geen dagen.",
+    "placeStamp": "Toestaan een plaats aan journaalitems toe te voegen",
+    "placeStampDesc": "Toont in het invoerveld een knop die je coördinaten als regel aan het item toevoegt (`📍 52.5200, 13.4050`) — alleen als je erop drukt. Geen stil spoor, geen geschiedenis, geen kaart en geen onlinedienst die van coördinaten een naam maakt; de naam kun je zelf erbij schrijven. De instelling hoort bij dit apparaat; het systeem vraagt het bij de eerste druk.",
     "dayEndsAt": "De dag eindigt om",
     "dayEndsAtDesc": "Tot dit tijdstip hoort een item nog bij de dag ervoor: wat je om 01:30 schrijft, komt in de dagnotitie van gisteren en houdt de tijd 01:30. Geldt voor de dagnotitie en het journaal, niet voor de agenda en niet voor de vervaldatum van taken. De instelling hoort bij de kluis en geldt op alle apparaten.",
     "dayEndsAtMidnight": "Middernacht",
@@ -1745,6 +1747,12 @@
       "four-lights": "Vier lichten",
       "red-alert": "Rood alarm"
     }
+  },
+  "place": {
+    "add": "Plaats toevoegen",
+    "denied": "Zonder toegang tot je locatie kan Plainva de plaats niet toevoegen. Je kunt die geven in de systeeminstellingen.",
+    "unavailable": "Dit apparaat kan geen positie bepalen.",
+    "failed": "De positie was zojuist niet te bepalen. Probeer het buiten opnieuw."
   },
   "properties": {
     "type": "Type",

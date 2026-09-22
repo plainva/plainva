@@ -870,6 +870,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 }
 .pv-voicememo-time { font-variant-numeric: tabular-nums; font-size: var(--text-sm); color: var(--text-main); }
 .pv-voicememo-problem { color: var(--warning-text); font-size: var(--text-xs); }
+/* A place stamp (plan Journal-Erweiterungen, X7): one button beside the microphone. */
+.pv-placestamp { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pv-placestamp-problem { color: var(--warning-text); font-size: var(--text-xs); }
 @keyframes pv-voicememo-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .pv-voicememo-dot { animation: none; } }
 

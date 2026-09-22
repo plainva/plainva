@@ -384,6 +384,8 @@
     "journalHeadingDesc": "Journal entries stand under this heading of the daily note; its level (# to ######) does not matter. If it is missing, Plainva adds it at the end of the note. Changing it does not rename existing headings — older days then no longer appear in the journal until you rename them there yourself.",
     "journalMood": "Mood: property of the daily note",
     "journalMoodDesc": "The name of the frontmatter property a day is rated in (e.g. `mood`). When it is set, the day heading in the journal shows five dots you can press; the file keeps a plain number. Leave it empty and this vault rates no days.",
+    "placeStamp": "Allow adding a place to journal entries",
+    "placeStampDesc": "Shows a button in the capture field that adds your coordinates to the entry as a line (`📍 52.5200, 13.4050`) — only when you press it. No silent trail, no history, no map and no online service to turn coordinates into a name; you can write the name yourself. The setting belongs to this device; the system asks on the first press.",
     "dayEndsAt": "The day ends at",
     "dayEndsAtDesc": "Until this time an entry still belongs to the day before: what you write at 01:30 goes into yesterday's daily note and keeps the time 01:30. Applies to the daily note and the journal — not to the calendar and not to when a task is due. The setting belongs to the vault and holds on every device.",
     "dayEndsAtMidnight": "Midnight",
@@ -1745,6 +1747,12 @@
       "four-lights": "Four Lights",
       "red-alert": "Red Alert"
     }
+  },
+  "place": {
+    "add": "Add place",
+    "denied": "Without access to your location Plainva cannot add the place. You can grant it in the system settings.",
+    "unavailable": "This device cannot determine a position.",
+    "failed": "The position could not be found just now. Try again outdoors."
   },
   "properties": {
     "type": "Type",

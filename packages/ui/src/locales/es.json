@@ -386,6 +386,8 @@
     "journalHeadingDesc": "Las entradas del diario están bajo este encabezado de la nota diaria; su nivel (# a ######) no importa. Si falta, Plainva lo añade al final de la nota. Cambiarlo no renombra los encabezados existentes: los días anteriores dejan de aparecer en el diario hasta que los renombres tú mismo.",
     "journalMood": "Ánimo: propiedad de la nota diaria",
     "journalMoodDesc": "El nombre de la propiedad del frontmatter en la que se valora un día (por ejemplo `animo`). Si está puesta, el encabezado del día en el diario muestra cinco puntos que puedes pulsar; el archivo guarda un número simple. Déjala vacía y esta bóveda no valora días.",
+    "placeStamp": "Permitir añadir un lugar a las entradas del diario",
+    "placeStampDesc": "Muestra en el campo de captura un botón que añade tus coordenadas a la entrada como una línea (`📍 52.5200, 13.4050`), solo cuando lo pulsas. Sin rastro silencioso, sin historial, sin mapa y sin servicio en línea que convierta coordenadas en un nombre; el nombre puedes escribirlo tú. El ajuste pertenece a este dispositivo; el sistema pregunta al primer toque.",
     "dayEndsAt": "El día termina a las",
     "dayEndsAtDesc": "Hasta esa hora una entrada sigue perteneciendo al día anterior: lo que escribas a la 01:30 va a la nota diaria de ayer y conserva la hora 01:30. Se aplica a la nota diaria y al diario, no al calendario ni al vencimiento de las tareas. El ajuste pertenece a la bóveda y rige en todos los dispositivos.",
     "dayEndsAtMidnight": "Medianoche",
@@ -1751,6 +1753,12 @@
       "four-lights": "Cuatro luces",
       "red-alert": "Alerta roja"
     }
+  },
+  "place": {
+    "add": "Añadir lugar",
+    "denied": "Sin acceso a tu ubicación Plainva no puede añadir el lugar. Puedes concederlo en los ajustes del sistema.",
+    "unavailable": "Este dispositivo no puede determinar una posición.",
+    "failed": "La posición no se ha podido encontrar ahora mismo. Inténtalo al aire libre."
   },
   "properties": {
     "type": "Tipo",

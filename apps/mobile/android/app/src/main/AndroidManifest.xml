@@ -106,6 +106,16 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
+    <!-- A place stamp on a journal entry (plan Journal-Erweiterungen, X7),
+         opt-in per device and off by default. COARSE only: four decimals of
+         a degree say which building, and an entry does not need to say which
+         room. Asked on the first press of the button, never at startup, and
+         never in the background - there is no tracking here, only one
+         position at the moment someone asks for it. Optional feature: a
+         device without a receiver stays installable. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+
     <!-- Appointment reminders (S10). From Android 13 a notification is not
          shown at all without this permission, and the request dialog cannot
          even appear for an app that does not declare it. SCHEDULE_EXACT_ALARM

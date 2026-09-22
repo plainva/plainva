@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, setExtraTextExtensions, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, setExtraTextExtensions, setPlaceStampEnabled, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -120,6 +120,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [density, setDensity] = useState<Density>(DEFAULT_DENSITY);
   useEffect(() => { getStoredDensity().then(setDensity).catch(() => {}); }, []);
   const [tagColors, setTagColors] = useState(DEFAULT_TAG_COLORS);
+  // May the journal capture offer the place button (E6)? Device-local, off by default.
+  const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
   useEffect(() => { getStoredTagColors().then(setTagColors).catch(() => {}); }, []);
   const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
   useEffect(() => { getWeekStartSetting().then(setWeekStart).catch(() => {}); }, []);
@@ -816,6 +818,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       tagColors={tagColors}
                       onTagColors={(v) => { setTagColors(v); void setStoredTagColors(v); }}
+                      placeStamp={placeStamp}
+                      onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
                       fonts={fonts}

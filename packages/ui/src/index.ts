@@ -304,6 +304,8 @@ export * from "./components/AudioEmbed";
 export * from "./components/ui/Rating";
 export * from "./components/audioPlayer";
 export * from "./services/voiceMemo";
+export * from "./services/placeStamp";
+export * from "./components/PlaceStampButton";
 export * from "./components/VoiceMemoButton";
 export * from "./components/LivePreviewPlugin";
 export * from "./components/MarkdownTheme";

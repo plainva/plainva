@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { dailyDayResolver, setDayBoundary } from "@plainva/ui";
+import { dailyDayResolver, setDayBoundary, setPlaceProvider } from "@plainva/ui";
 import { dailyNotesFolderKey, dailyNotesFormatKey, dayEndsAtKey, useVault } from "../contexts/VaultContext";
 import { getSettingsStore } from "../services/settingsStore";
 
@@ -18,6 +18,27 @@ import { getSettingsStore } from "../services/settingsStore";
  */
 export function useDayBoundary(): void {
   const { vaultPath, queryService } = useVault();
+
+  /**
+   * Where this window can find a position (plan Journal-Erweiterungen, X7).
+   * WebView2 and WebKitGTK answer `navigator.geolocation` themselves and ask
+   * the user; a build without it registers nothing, and the button is absent.
+   */
+  useEffect(() => {
+    const geo = typeof navigator === "undefined" ? undefined : navigator.geolocation;
+    if (!geo?.getCurrentPosition) {
+      setPlaceProvider(null);
+      return;
+    }
+    setPlaceProvider(() => new Promise((resolve, reject) => {
+      geo.getCurrentPosition(
+        (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+        reject,
+        { timeout: 15_000, maximumAge: 60_000 },
+      );
+    }));
+    return () => setPlaceProvider(null);
+  }, []);
   useEffect(() => {
     let alive = true;
     const read = () => {

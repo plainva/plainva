@@ -341,6 +341,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "journal-place-stamp",
+    title: "Adding your position to a journal entry",
+    area: "editor",
+    kind: "decision",
+    desktop: "partial",
+    mobile: "yes",
+    desktopReason:
+      "The phone asks its native receiver through @capacitor/geolocation and " +
+      "always has one to ask. The desktop asks the WebView: WebView2 and " +
+      "WebKitGTK answer navigator.geolocation and prompt the user, but a " +
+      "system that refuses the API - a Linux build without a location " +
+      "service, a machine with the permission switched off for the whole OS - " +
+      "gives the WebView nothing. Where that happens the button is ABSENT " +
+      "rather than present and always failing, which is the deliberate part: " +
+      "a control that cannot work should not be offered. The feature is opt-in " +
+      "per device and off by default on both shells, and the line it writes " +
+      "is the same plain Markdown (plan Journal-Erweiterungen, E6).",
+    verified: "2026-09-22",
+  },
+  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",

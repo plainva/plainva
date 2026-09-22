@@ -386,6 +386,8 @@
     "journalHeadingDesc": "Le voci del diario stanno sotto questa intestazione della nota giornaliera; il suo livello (da # a ######) non conta. Se manca, Plainva la aggiunge alla fine della nota. Cambiarla non rinomina le intestazioni esistenti: i giorni precedenti non compaiono più nel diario finché non le rinomini tu.",
     "journalMood": "Umore: proprietà della nota giornaliera",
     "journalMoodDesc": "Il nome della proprietà del frontmatter in cui una giornata viene valutata (per esempio `umore`). Quando è impostata, l'intestazione del giorno nel diario mostra cinque punti che puoi premere; il file conserva un semplice numero. Lasciala vuota e questo vault non valuta le giornate.",
+    "placeStamp": "Consenti di aggiungere un luogo alle voci del diario",
+    "placeStampDesc": "Mostra nel campo di acquisizione un pulsante che aggiunge le tue coordinate alla voce come una riga (`📍 52.5200, 13.4050`), solo quando lo premi. Nessuna traccia silenziosa, nessuna cronologia, nessuna mappa e nessun servizio online che trasformi le coordinate in un nome; il nome puoi scriverlo tu. L'impostazione appartiene a questo dispositivo; il sistema chiede alla prima pressione.",
     "dayEndsAt": "La giornata finisce alle",
     "dayEndsAtDesc": "Fino a quest'ora una voce appartiene ancora al giorno precedente: quello che scrivi all'01:30 va nella nota giornaliera di ieri e mantiene l'ora 01:30. Vale per la nota giornaliera e per il diario, non per il calendario né per la scadenza delle attività. L'impostazione appartiene al vault e vale su tutti i dispositivi.",
     "dayEndsAtMidnight": "Mezzanotte",
@@ -1751,6 +1753,12 @@
       "four-lights": "Quattro luci",
       "red-alert": "Allarme rosso"
     }
+  },
+  "place": {
+    "add": "Aggiungi luogo",
+    "denied": "Senza accesso alla posizione Plainva non può aggiungere il luogo. Puoi concederlo nelle impostazioni di sistema.",
+    "unavailable": "Questo dispositivo non può determinare una posizione.",
+    "failed": "La posizione non è stata trovata ora. Riprova all'aperto."
   },
   "properties": {
     "type": "Tipo",

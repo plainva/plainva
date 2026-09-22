@@ -384,6 +384,8 @@
     "journalHeadingDesc": "Unter dieser Überschrift der Tagesnotiz stehen die Journal-Einträge; ihre Ebene (# bis ######) ist gleichgültig. Fehlt sie, legt Plainva sie am Ende der Notiz an. Eine Änderung benennt bestehende Überschriften nicht um — ältere Tage erscheinen dann nicht mehr im Journal, bis Du sie dort selbst umbenennst.",
     "journalMood": "Stimmung: Eigenschaft der Tagesnotiz",
     "journalMoodDesc": "Der Name der Frontmatter-Eigenschaft, in der ein Tag bewertet wird (z. B. `stimmung`). Ist er gesetzt, zeigt der Tageskopf im Journal fünf Punkte und Du kannst sie dort anklicken; in der Datei steht eine schlichte Zahl. Leer lassen heißt: dieser Vault bewertet keine Tage.",
+    "placeStamp": "Ort an Journal-Einträge anhängen können",
+    "placeStampDesc": "Zeigt im Erfassungsfeld einen Knopf, der Deine Koordinaten als Zeile an den Eintrag hängt (`📍 52.5200, 13.4050`) — nur wenn Du ihn drückst. Kein stilles Mitschreiben, kein Verlauf, keine Karte und kein Online-Dienst, der aus Koordinaten einen Namen macht; den Namen kannst Du selbst dazuschreiben. Die Einstellung gehört zu diesem Gerät; nach der Freigabe fragt das System beim ersten Drücken.",
     "dayEndsAt": "Der Tag endet um",
     "dayEndsAtDesc": "Bis zu dieser Uhrzeit gehört ein Eintrag noch zum Vortag: Was Du um 01:30 Uhr schreibst, landet in der Tagesnotiz von gestern und trägt weiter die Zeit 01:30. Gilt für die Tagesnotiz und das Journal — nicht für den Kalender und nicht für die Fälligkeit von Aufgaben. Die Einstellung gehört zum Vault und gilt auf allen Geräten.",
     "dayEndsAtMidnight": "Mitternacht",
@@ -1745,6 +1747,12 @@
       "four-lights": "Vier Lichter",
       "red-alert": "Roter Alarm"
     }
+  },
+  "place": {
+    "add": "Ort anhängen",
+    "denied": "Ohne Standort-Freigabe kann Plainva den Ort nicht anhängen. Du kannst sie in den Systemeinstellungen erteilen.",
+    "unavailable": "Dieses Gerät kann den Ort nicht bestimmen.",
+    "failed": "Der Ort war gerade nicht zu bestimmen. Versuch es draußen noch einmal."
   },
   "properties": {
     "type": "Typ",

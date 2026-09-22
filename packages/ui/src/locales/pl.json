@@ -388,6 +388,8 @@
     "journalHeadingDesc": "Wpisy dziennika znajdują się pod tym nagłówkiem notatki dziennej; jego poziom (od # do ######) nie ma znaczenia. Jeśli go brakuje, Plainva dodaje go na końcu notatki. Zmiana nie przemianowuje istniejących nagłówków — starsze dni przestają wtedy pojawiać się w dzienniku, dopóki samodzielnie ich tam nie przemianujesz.",
     "journalMood": "Nastrój: właściwość notatki dziennej",
     "journalMoodDesc": "Nazwa właściwości frontmattera, w której oceniany jest dzień (na przykład `nastroj`). Gdy jest ustawiona, nagłówek dnia w dzienniku pokazuje pięć kropek, które możesz nacisnąć; w pliku zostaje zwykła liczba. Zostaw puste, a ten sejf nie ocenia dni.",
+    "placeStamp": "Pozwól dodawać miejsce do wpisów dziennika",
+    "placeStampDesc": "Pokazuje w polu zapisu przycisk, który dodaje Twoje współrzędne do wpisu jako wiersz (`📍 52.5200, 13.4050`) — tylko gdy go naciśniesz. Żadnego cichego śledzenia, żadnej historii, żadnej mapy i żadnej usługi online zamieniającej współrzędne w nazwę; nazwę możesz dopisać sam. Ustawienie należy do tego urządzenia; system zapyta przy pierwszym naciśnięciu.",
     "dayEndsAt": "Dzień kończy się o",
     "dayEndsAtDesc": "Do tej godziny wpis należy jeszcze do poprzedniego dnia: to, co napiszesz o 01:30, trafia do wczorajszej notatki dziennej i zachowuje godzinę 01:30. Dotyczy notatki dziennej i dziennika, nie kalendarza ani terminów zadań. Ustawienie należy do sejfu i obowiązuje na wszystkich urządzeniach.",
     "dayEndsAtMidnight": "Północ",
@@ -1757,6 +1759,12 @@
       "four-lights": "Cztery światła",
       "red-alert": "Czerwony alarm"
     }
+  },
+  "place": {
+    "add": "Dodaj miejsce",
+    "denied": "Bez dostępu do lokalizacji Plainva nie może dodać miejsca. Możesz go przyznać w ustawieniach systemu.",
+    "unavailable": "To urządzenie nie potrafi ustalić położenia.",
+    "failed": "W tej chwili nie udało się ustalić położenia. Spróbuj na zewnątrz."
   },
   "properties": {
     "type": "Typ",

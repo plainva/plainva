@@ -10,6 +10,7 @@ import {
   getVaultTemplates,
   ICON,
   journalTodayKey,
+  setPlaceProvider,
   sanitizeAreaOrder,
   scaffoldVaultTemplate,
   toast,
@@ -144,6 +145,27 @@ export default function App() {
     return () => {
       window.removeEventListener("m-shortcut", onShortcut);
     };
+  }, []);
+
+  /**
+   * Where this phone can find a position (plan Journal-Erweiterungen, X7).
+   *
+   * The native plugin, not `navigator.geolocation`: a WKWebView answers that
+   * with nothing at all. The permission is asked for on the first press of the
+   * button, never at startup - the plugin's own request runs inside the call.
+   */
+  useEffect(() => {
+    setPlaceProvider(async () => {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      const permitted = await Geolocation.checkPermissions().catch(() => null);
+      if (permitted?.location !== "granted") {
+        const asked = await Geolocation.requestPermissions({ permissions: ["location"] });
+        if (asked.location !== "granted") throw new Error("permission denied");
+      }
+      const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15_000, maximumAge: 60_000 });
+      return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+    });
+    return () => setPlaceProvider(null);
   }, []);
 
   // What this start owes the user (H5). Runs once: an existing install that

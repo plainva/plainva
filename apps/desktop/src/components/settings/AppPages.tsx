@@ -100,6 +100,9 @@ export interface AppearancePageProps {
   onDensity: (d: Density) => void;
   /** "Colour tags" (finding 2026-09-19): device-local, off by default. */
   tagColors: boolean;
+  /** May the journal capture offer the place button (plan Journal-Erweiterungen, E6)? Device-local, off by default. */
+  placeStamp: boolean;
+  onPlaceStamp: (v: boolean) => void;
   onTagColors: (on: boolean) => void;
   uiZoom: number;
   onUiZoom: (z: number) => void;
@@ -228,6 +231,9 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
               ]}
             />
           </div>
+        </SettingRow>
+        <SettingRow label={t("settings.placeStamp")} desc={t("settings.placeStampDesc")}>
+          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} data-testid="place-stamp-switch" />
         </SettingRow>
         <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
           <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />

@@ -386,6 +386,8 @@
     "journalHeadingDesc": "Les entrées du journal se trouvent sous ce titre de la note quotidienne ; son niveau (# à ######) n'a pas d'importance. S'il manque, Plainva l'ajoute à la fin de la note. Le modifier ne renomme pas les titres existants — les jours plus anciens n'apparaissent alors plus dans le journal tant que vous ne les renommez pas vous-même.",
     "journalMood": "Humeur : propriété de la note quotidienne",
     "journalMoodDesc": "Le nom de la propriété du frontmatter dans laquelle une journée est évaluée (par exemple `humeur`). Quand elle est définie, le titre du jour dans le journal affiche cinq points sur lesquels vous pouvez appuyer ; le fichier garde un simple nombre. Laissez-la vide et ce coffre n'évalue aucune journée.",
+    "placeStamp": "Autoriser l'ajout d'un lieu aux entrées du journal",
+    "placeStampDesc": "Affiche dans le champ de saisie un bouton qui ajoute vos coordonnées à l'entrée sur une ligne (`📍 52.5200, 13.4050`) — uniquement quand vous appuyez. Aucun suivi silencieux, aucun historique, aucune carte et aucun service en ligne pour transformer des coordonnées en nom ; le nom, vous pouvez l'écrire vous-même. Le réglage appartient à cet appareil ; le système demande au premier appui.",
     "dayEndsAt": "La journée se termine à",
     "dayEndsAtDesc": "Jusqu'à cette heure, une entrée appartient encore au jour précédent : ce que vous écrivez à 01:30 va dans la note quotidienne d'hier et garde l'heure 01:30. S'applique à la note quotidienne et au journal, pas au calendrier ni à l'échéance des tâches. Le réglage appartient au coffre et vaut sur tous les appareils.",
     "dayEndsAtMidnight": "Minuit",
@@ -1751,6 +1753,12 @@
       "four-lights": "Quatre lumières",
       "red-alert": "Alerte rouge"
     }
+  },
+  "place": {
+    "add": "Ajouter le lieu",
+    "denied": "Sans accès à votre position, Plainva ne peut pas ajouter le lieu. Vous pouvez l'accorder dans les réglages du système.",
+    "unavailable": "Cet appareil ne peut pas déterminer de position.",
+    "failed": "La position n'a pas pu être trouvée à l'instant. Réessayez en extérieur."
   },
   "properties": {
     "type": "Type",

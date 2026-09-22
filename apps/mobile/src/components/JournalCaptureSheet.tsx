@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Camera as CameraIcon } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { Button, Chip, ICON, JournalCaptureField, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, toast, useJournalDayKey, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
+import { Button, Chip, ICON, JournalCaptureField, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, toast, useJournalDayKey, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { captureJournalEntry } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -71,6 +71,15 @@ export function JournalCaptureSheet({
     }
   };
 
+
+  /**
+   * The place goes on its own line at the end (plan Journal-Erweiterungen,
+   * X7): plain Markdown the person can edit into a real name or delete.
+   */
+  const onPlace = (line: string) => {
+    setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${line}` : line));
+  };
+
   // A photo goes the way every photo goes: into the attachment folder, embedded by name.
   const addPhoto = async () => {
     try {
@@ -111,6 +120,7 @@ export function JournalCaptureSheet({
                 {t("journal.attachPhoto")}
               </Chip>
               <VoiceMemoButton disabled={busy} onRecorded={onRecorded} />
+              <PlaceStampButton disabled={busy} onStamped={onPlace} />
             </>
           }
         />

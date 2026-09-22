@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
-import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
+import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, placeStampEnabled, PlainvaLogo, Row, RowList, SectionLabel, Segmented, setPlaceStampEnabled, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { FontSlotSheet } from "../components/FontSlotSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
@@ -24,6 +24,8 @@ import { AppBar } from "../components/AppBar";
  */
 export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => void; onEditCustomTheme: () => void }) {
   const { t } = useTranslation();
+  // Device-local, off by default (plan Journal-Erweiterungen, E6).
+  const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
   const [settings, setSettings] = useState(getMobileSettings());
   const [hailing, setHailing] = useState(false);
   const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
@@ -235,6 +237,26 @@ const MOTIONS: Array<[MotionPref, string]> = [
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("settings.tagColorsDesc")}</p>
+
+        {/* May the journal capture offer the place button (plan
+            Journal-Erweiterungen, E6)? Device-local and OFF by default: one's
+            phone and one's desk are different places to be asked about one's
+            position. The microphone-style permission is asked on the first
+            press, never here. */}
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={placeStamp}
+                data-testid="place-stamp-switch"
+                label={t("settings.placeStamp")}
+                onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
+              />}
+              title={t("settings.placeStamp")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("settings.placeStampDesc")}</p>
 
         {/* The third column (finding 2026-08-21). It only APPLIES from 1024 px,
             and the row says so rather than hiding on a phone: a setting that

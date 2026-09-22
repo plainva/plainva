@@ -386,6 +386,8 @@
     "journalHeadingDesc": "As entradas do diário ficam sob este título da nota diária; o nível (# a ######) não importa. Se faltar, o Plainva o adiciona no fim da nota. Alterá-lo não renomeia os títulos existentes — os dias anteriores deixam de aparecer no diário até que você mesmo os renomeie.",
     "journalMood": "Humor: propriedade da nota diária",
     "journalMoodDesc": "O nome da propriedade do frontmatter em que um dia é avaliado (por exemplo `humor`). Quando está definida, o cabeçalho do dia no diário mostra cinco pontos que você pode pressionar; o arquivo guarda um número simples. Deixe vazio e este cofre não avalia dias.",
+    "placeStamp": "Permitir adicionar um lugar às entradas do diário",
+    "placeStampDesc": "Mostra no campo de captura um botão que adiciona suas coordenadas à entrada como uma linha (`📍 52.5200, 13.4050`) — só quando você o pressiona. Sem rastro silencioso, sem histórico, sem mapa e sem serviço on-line que transforme coordenadas em nome; o nome você mesmo pode escrever. A configuração pertence a este aparelho; o sistema pergunta no primeiro toque.",
     "dayEndsAt": "O dia termina às",
     "dayEndsAtDesc": "Até esse horário uma entrada ainda pertence ao dia anterior: o que você escrever à 01:30 vai para a nota diária de ontem e mantém o horário 01:30. Vale para a nota diária e para o diário, não para o calendário nem para o vencimento das tarefas. A configuração pertence ao cofre e vale em todos os dispositivos.",
     "dayEndsAtMidnight": "Meia-noite",
@@ -1751,6 +1753,12 @@
       "four-lights": "Quatro luzes",
       "red-alert": "Alerta vermelho"
     }
+  },
+  "place": {
+    "add": "Adicionar lugar",
+    "denied": "Sem acesso à sua localização o Plainva não consegue adicionar o lugar. Você pode conceder isso nas configurações do sistema.",
+    "unavailable": "Este aparelho não consegue determinar uma posição.",
+    "failed": "A posição não foi encontrada agora. Tente de novo ao ar livre."
   },
   "properties": {
     "type": "Tipo",
