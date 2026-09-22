@@ -64,7 +64,7 @@ import { BlockMenu } from "./BlockMenu";
 import { applyBlockAction, performBlockMove, type BlockAction } from "@plainva/ui";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { consumePendingSearchJump, consumePendingTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
-import { toggleTaskAtIndex } from "@plainva/ui";
+import { setHtmlCheckboxChecked, toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
 import { setWikiResolver } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
@@ -901,6 +901,11 @@ export const Editor: React.FC<{
   // in the source and run it through the normal save pipeline.
   const handleToggleTask = (index: number, checked: boolean) => {
     const result = toggleTaskAtIndex(contentRef.current, index, checked);
+    if (result.changed) applyNonViewEdit(result.content);
+  };
+  /** A box written as HTML — a checklist in a table cell (finding 2026-09-22). */
+  const handleToggleHtmlBox = (index: number, checked: boolean) => {
+    const result = setHtmlCheckboxChecked(contentRef.current, index, checked);
     if (result.changed) applyNonViewEdit(result.content);
   };
 
@@ -3202,6 +3207,7 @@ export const Editor: React.FC<{
                 docIcons={docIcons}
                 showLinkIcons={managedIndex}
                 onToggleTask={managedIndex ? undefined : handleToggleTask}
+                onToggleHtmlBox={managedIndex ? undefined : handleToggleHtmlBox}
                 anchors={anchorHighlights}
                 onActivateAnchor={setActiveCommentId}
               />

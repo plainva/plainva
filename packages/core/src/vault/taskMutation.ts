@@ -1,5 +1,5 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
-import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
+import { GFM_TASK_FENCE, GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
 import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 
 export interface ChecklistMutationOptions { today?: string; newId?: () => string }
@@ -90,4 +90,71 @@ export function setChecklistTaskState(content: string, index: number, state: Tas
   const match = GFM_TASK_LINE.exec(raw)!;
   lines[task.line] = match[1] + taskBoxChar(state) + raw.slice(match[1].length + 1);
   return { content: lines.join("\n"), changed: true };
+}
+
+/**
+ * An `<input type="checkbox">` written as HTML, ticked or cleared in place
+ * (finding 2026-09-22).
+ *
+ * GFM knows task boxes only in LIST items, so a checklist inside a table cell
+ * has no Markdown spelling — Obsidian users write the HTML tag there, and
+ * Obsidian renders it. Plainva renders it now too, and a click has to reach
+ * the file, or the box would lie about what it changed.
+ *
+ * These boxes have an ordinal space of their OWN: they carry no task
+ * metadata, no due date and no recurrence, so mixing them into the GFM
+ * ordinals would make every later task line address the wrong row. Fenced
+ * code is skipped, exactly as the GFM scan skips it.
+ */
+/**
+ * ONE element, TWO attributes. A tag carrying anything else — a handler, a
+ * name, a value, another type — is not one of ours and stays the text it was.
+ * Reader and writer ask this same question, or their ordinals drift apart and
+ * a tick lands on the wrong row.
+ */
+const HTML_CHECKBOX_RE = /<input((?:\s+[a-zA-Z-]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*\/?>/gi;
+const CHECKBOX_ATTR_RE = /\s+([a-zA-Z-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+
+export function readHtmlCheckbox(tag: string): { checked: boolean } | null {
+  const shape = new RegExp(`^${HTML_CHECKBOX_RE.source}$`, "i").exec(tag.trim());
+  if (!shape) return null;
+  let type: string | null = null;
+  let checked = false;
+  CHECKBOX_ATTR_RE.lastIndex = 0;
+  for (let m = CHECKBOX_ATTR_RE.exec(shape[1] ?? ""); m; m = CHECKBOX_ATTR_RE.exec(shape[1] ?? "")) {
+    const name = m[1].toLowerCase();
+    const value = m[2] ?? m[3] ?? m[4] ?? null;
+    if (name === "type") type = (value ?? "").toLowerCase();
+    else if (name === "checked") checked = true;
+    else return null;
+  }
+  return type === "checkbox" ? { checked } : null;
+}
+
+
+export function setHtmlCheckboxChecked(content: string, index: number, checked: boolean): ChecklistMutationResult {
+  const lines = content.split("\n");
+  let ordinal = 0;
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (GFM_TASK_FENCE.test(lines[i])) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    let changedLine: string | null = null;
+    lines[i] = lines[i].replace(HTML_CHECKBOX_RE, (tag) => {
+      const box = readHtmlCheckbox(tag);
+      if (!box) return tag;
+      if (ordinal++ !== index) return tag;
+      if (box.checked === checked) return tag;
+      // The tag keeps everything else byte for byte: a vault file is the
+      // user's, and a rewrite that tidies attributes is a rewrite they did
+      // not ask for.
+      const next = checked
+        ? tag.replace(/\s*\/?>$/, (end) => ` checked${end.trimStart()}`)
+        : tag.replace(/\s+checked(\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*))?/i, "");
+      changedLine = next;
+      return next;
+    });
+    if (changedLine !== null) return { content: lines.join("\n"), changed: true };
+  }
+  return { content, changed: false };
 }

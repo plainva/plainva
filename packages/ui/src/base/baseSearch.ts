@@ -11,8 +11,6 @@
  */
 import { cardRevision } from "./pinboardCache";
 
-export { PinboardSearch as BaseSearchField, usePinboardSearch as useBaseSearch } from "./PinboardSearch";
-
 type Row = Record<string, unknown>;
 
 /**

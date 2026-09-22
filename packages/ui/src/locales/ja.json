@@ -2809,6 +2809,7 @@
     "cardMenu": "カードメニュー",
     "capturePlaceholder": "メモを書く…",
     "captureTitle": "タイトル",
+    "captureRow": "新しいノート …",
     "labels": "ラベル",
     "addLabel": "ラベルを検索…",
     "newLabel": "「{{name}}」を作成",

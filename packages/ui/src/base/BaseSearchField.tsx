@@ -1,15 +1,12 @@
 import type { PinboardCache } from "./pinboardCache";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, X } from "lucide-react";
-import { ICON } from "../lib/iconSizes";
-import { TextInput } from "../components/ui/Field";
-import { IconButton } from "../components/ui/IconButton";
+import { SearchField } from "../components/ui/SearchField";
 import { filterCardPathsByText, pinboardTextMatches } from "./pinboardModel";
 
 interface SearchSource { searchCardContent(paths: string[], query: string, signal?: AbortSignal): Promise<string[]> }
 /** Searches the complete source set; content matches never populate the preview cache. */
-export function usePinboardSearch(source: SearchSource | null | undefined, paths: string[], query: string, metadata: ReadonlyMap<string, readonly string[]>, cache: PinboardCache, viewKey: string, revision: string) {
+export function useBaseSearch(source: SearchSource | null | undefined, paths: string[], query: string, metadata: ReadonlyMap<string, readonly string[]>, cache: PinboardCache, viewKey: string, revision: string) {
   const text = query.trim();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ source: SearchSource; paths: string[]; query: string; matches: string[]; failed: boolean } | null>(null);
@@ -43,16 +40,32 @@ export function usePinboardSearch(source: SearchSource | null | undefined, paths
   };
 }
 
-/** `placeholder` names what is searched; the pinboard's is the default, every other view says "this database" (finding 2026-09-19). */
-export function PinboardSearch({ value, onChange, busy, children, placeholder, autoFocus }: { value: string; onChange: (value: string) => void; busy?: boolean; children?: ReactNode; placeholder?: string; autoFocus?: boolean }) {
+/**
+ * The search field of a database — THE app's search field, not one of its own.
+ *
+ * It was the pinboard's: a hand-built row with its own magnifier, its own
+ * clear button and a 34-px metric in a 28-px toolbar, and it kept that shape
+ * when every view inherited it (finding 2026-09-22). Now it renders
+ * `SearchField`, so the height, the magnifier, the ✕ and the Escape contract
+ * are the ones the sidebar and the palette already use. What stays its own is
+ * the slot beside it, which carries the hit counter.
+ *
+ * `placeholder` names what is searched; the default says "this database".
+ */
+export function BaseSearchField({ value, onChange, busy, children, placeholder, autoFocus }: { value: string; onChange: (value: string) => void; busy?: boolean; children?: ReactNode; placeholder?: string; autoFocus?: boolean }) {
   const { t } = useTranslation();
-  const label = placeholder ?? t("pinboard.searchPlaceholder");
-  return <div className="pv-pinboard-search" role="search">
-    <Search size={ICON.ui} aria-hidden="true" />
-    <TextInput compact type="search" data-pinboard-search="true" value={value} onChange={e => onChange(e.target.value)}
-      onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onChange(""); } }}
-      aria-label={label} placeholder={label} aria-busy={busy} autoFocus={autoFocus} />
-    {!!value && <IconButton onClick={() => onChange("")} label={t("sidebar.clearSearch")}><X size={ICON.ui} /></IconButton>}
+  const label = placeholder ?? t("database.searchPlaceholder");
+  return <div className="pv-basesearch" role="search">
+    <SearchField
+      value={value}
+      onValueChange={onChange}
+      clearLabel={t("sidebar.clearSearch")}
+      aria-label={label}
+      placeholder={label}
+      aria-busy={busy}
+      autoFocus={autoFocus}
+      data-pinboard-search="true"
+    />
     {children}
   </div>;
 }

@@ -2834,6 +2834,7 @@
     "cardMenu": "Karten-Menü",
     "capturePlaceholder": "Notiz schreiben…",
     "captureTitle": "Titel",
+    "captureRow": "Neue Notiz …",
     "labels": "Labels",
     "addLabel": "Label suchen…",
     "newLabel": "„{{name}}“ anlegen",

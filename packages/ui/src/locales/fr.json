@@ -2859,6 +2859,7 @@
     "cardMenu": "Menu de la carte",
     "capturePlaceholder": "Écrire une note…",
     "captureTitle": "Titre",
+    "captureRow": "Nouvelle note …",
     "labels": "Libellés",
     "addLabel": "Rechercher un libellé…",
     "newLabel": "Créer « {{name}} »",

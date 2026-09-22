@@ -167,7 +167,6 @@ export function BaseScreen({
   const [searchOpen, setSearchOpen] = useState(() => cache.session(searchKey).search.trim() !== "");
   useEffect(() => { cache.updateSession(searchKey, { search: searchText }); }, [cache, searchKey, searchText]);
   const searchView = loaded?.config?.views?.[viewIndex];
-  const headerSearchActive = (searchView?.type ?? "table") !== "pinboard";
   const searchColumns = useMemo<string[]>(() => {
     const bare = (c: unknown) => String(c).replace(/^note\./, "");
     const shown = Array.isArray(searchView?.order) ? searchView.order.map(bare) : [];
@@ -180,10 +179,10 @@ export function BaseScreen({
   const searchPaths = useMemo(() => (allRows ?? []).map((r) => String(r["file.path"] ?? "")), [allRows]);
   const searchMetadata = useMemo(() => baseSearchMetadata(allRows ?? [], searchColumns, (row, col) => plainCellText(row[col])), [allRows, searchColumns]);
   const searchRevision = useMemo(() => baseSearchRevision(allRows ?? []), [allRows]);
-  const baseSearch = useBaseSearch(vault.queryService, searchPaths, headerSearchActive ? searchText : "", searchMetadata, cache, searchKey, searchRevision);
+  const baseSearch = useBaseSearch(vault.queryService, searchPaths, searchText, searchMetadata, cache, searchKey, searchRevision);
   const rows = useMemo(
-    () => (allRows === null ? null : filterRowsBySearch(allRows, headerSearchActive ? baseSearch.matches : null)),
-    [allRows, headerSearchActive, baseSearch.matches]
+    () => (allRows === null ? null : filterRowsBySearch(allRows, baseSearch.matches)),
+    [allRows, baseSearch.matches]
   );
   const [queryEpoch] = useState(() => new QueryEpoch());
   useEffect(() => () => { queryEpoch.next(); }, [vault, path, queryEpoch]);
@@ -1948,12 +1947,12 @@ export function BaseScreen({
         onBack={onBack}
         title={title}
         actions={<>
-          {/* One search for every view (finding 2026-09-19). The pinboard keeps its own field inside its surface. */}
-          {headerSearchActive && (
-            <IconButton label={t("database.searchToggle")} active={searchOpen} data-testid="base-search-toggle" onClick={() => setSearchOpen((open) => { if (open) setSearchText(""); return !open; })}>
-              <Search size={ICON.touch} />
-            </IconButton>
-          )}
+          {/* One search for every view, the pinboard included (finding
+              2026-09-22): its own field inside the content made the place of
+              the search depend on which view was open. */}
+          <IconButton label={t("database.searchToggle")} active={searchOpen} data-testid="base-search-toggle" onClick={() => setSearchOpen((open) => { if (open) setSearchText(""); return !open; })}>
+            <Search size={ICON.touch} />
+          </IconButton>
           <IconButton label={t("database.exportTitle")} disabled={!config || rows == null} onClick={() => setShowExport(true)}>
             <Download size={ICON.touch} />
           </IconButton>
@@ -1964,7 +1963,7 @@ export function BaseScreen({
       />
       {ptrIndicator}
 
-      {headerSearchActive && searchOpen && (
+      {searchOpen && (
         <div className="m-basesearch" data-testid="base-search">
           <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus>
             {searchText.trim() !== "" && (
@@ -2053,6 +2052,8 @@ export function BaseScreen({
           propCols={orderedColumns}
           columnLabel={columnLabel}
           displayCell={displayCell}
+          isDateCol={(col) => { const input = columnInput(col); return input === "date" || input === "datetime"; }}
+          onEditProp={openCellEditor}
           onOpenNote={onOpenNote}
           onMutated={() => requery(config, viewIndex)}
           onPatchView={patchActiveView}

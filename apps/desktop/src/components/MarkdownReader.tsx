@@ -19,7 +19,7 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
+import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates, resolveRelativeTarget, type RelativeTarget } from './markdownReaderModel';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -42,6 +42,13 @@ interface MarkdownReaderProps {
    * managed index.md).
    */
   onToggleTask?: (index: number, checked: boolean) => void;
+  /**
+   * Ticks an `<input type="checkbox">` written as HTML — the only way to put
+   * a box in a table cell (finding 2026-09-22). Its own ordinal space: these
+   * boxes carry no task metadata and no recurrence. Absent = read-only, which
+   * is right for a card or a preview.
+   */
+  onToggleHtmlBox?: (index: number, checked: boolean) => void;
   /**
    * Open comment anchors of this note, in source offsets (Sammelplan C28):
    * the read view tints, frames and marks them exactly as the editor does.
@@ -261,14 +268,14 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
   const root = box.closest(".markdown-reader");
   if (!root) return 0;
   let ord = 0;
-  for (const el of root.querySelectorAll('input[type="checkbox"]')) {
+  for (const el of root.querySelectorAll('input[type="checkbox"]:not([data-html-box])')) {
     if (el === box) return ord;
     if (el.closest(".markdown-reader") === root) ord++;
   }
   return ord;
 }
 
-export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, anchors, onActivateAnchor }) => {
+export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor }) => {
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
   const source = useMemo(() => prepareReaderSource(content, {
@@ -395,8 +402,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
-          ? [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
-          : [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkStripHighlightMarks, remarkTagPills]}
+          ? [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
+          : [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
         rehypePlugins={[sourcePlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
@@ -569,14 +576,19 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           },
           input: ({ node: _node, ...props }) => {
             if (props.type === "checkbox") {
-              const toggle = onToggleTask;
+              // A box written as HTML (the only way to put one in a table
+              // cell) has its own ordinal space and its own writer; a GFM box
+              // keeps the task one, with its dates and its recurrence.
+              const htmlBox = (props as { "data-html-box"?: string })["data-html-box"];
+              const toggle = htmlBox === undefined ? onToggleTask : onToggleHtmlBox;
+              const ordinalOf = (el: HTMLInputElement) => (htmlBox === undefined ? taskCheckboxOrdinal(el) : Number(htmlBox));
               return (
                 <input
                   {...props}
                   // remark-gfm renders task checkboxes disabled; with a toggle
                   // handler they become the real thing and write [x] back.
                   disabled={!toggle}
-                  onChange={toggle ? (e) => toggle(taskCheckboxOrdinal(e.currentTarget), e.currentTarget.checked) : undefined}
+                  onChange={toggle ? (e) => toggle(ordinalOf(e.currentTarget), e.currentTarget.checked) : undefined}
                   style={{ marginRight: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)', cursor: toggle ? 'pointer' : undefined }}
                 />
               );

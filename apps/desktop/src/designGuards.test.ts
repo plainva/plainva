@@ -425,6 +425,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-sidecal": "layout only — the sidebar calendar's flex growth of the DateJumpTrigger and its week-number checkbox row; the trigger, the picker and the checkbox carry the theme",
   "pv-evt": "calendar event states: the fill/hatch/outline is derived from --evt-color (the calendar's own colour, i.e. DATA) plus --bg-primary/--text-main/--accent-on, which both themes already override — there is no theme-specific surface to restyle",
   "pv-filterrow": "layout only — a wrapping row of .pv-chip, which the themes restyle",
+  "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed",
+  "pv-capturerow": "dashed placeholder row in --text-muted on the page ground; both themes override those tokens",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

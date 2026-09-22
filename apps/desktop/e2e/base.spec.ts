@@ -1013,7 +1013,15 @@ test('Base: the header search narrows the board by name and by what it groups by
   const total = await cards.count();
   expect(total).toBeGreaterThan(1);
 
+  // The field is a row UNDER the head now, opened by the magnifier beside
+  // "Configure" — so its place never depends on how many views a database has
+  // (finding 2026-09-22).
+  const toggle = page.getByTestId('base-search-toggle');
+  const headBox = await page.getByTestId('base-search-toggle').boundingBox();
+  await toggle.click();
   const field = page.getByTestId('base-search').locator('input');
+  const rowBox = await page.getByTestId('base-search').boundingBox();
+  expect(rowBox!.y).toBeGreaterThan(headBox!.y);
   await field.fill('alpha');
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toContainText('Alpha');
@@ -1029,6 +1037,14 @@ test('Base: the header search narrows the board by name and by what it groups by
   await expect(field).toHaveValue('');
   await expect(cards).toHaveCount(total);
   await expect(page.getByTestId('base-search-count')).toHaveCount(0);
+
+  // Closing takes the filter with it: a query nobody can see is how a list
+  // comes to look broken.
+  await field.fill('alpha');
+  await expect(cards).toHaveCount(1);
+  await toggle.click();
+  await expect(page.getByTestId('base-search')).toHaveCount(0);
+  await expect(cards).toHaveCount(total);
 });
 
 test('Base board: swimlanes — a row per lane value, a drop on a cell writes column and lane (issue #83)', async ({ page }) => {
@@ -2058,7 +2074,12 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
   await expect(cards).toHaveCount(3);
 
   // Quick capture via the Keep-style title popup (2026-07-17): a typed title
-  // becomes the file name AND the H1; the text is the body.
+  // becomes the file name AND the H1; the text is the body. Since 2026-09-22
+  // the row in the content opens the SAME popup that "New" opens — one
+  // surface, two doors, where the pinboard's own search field used to sit.
+  await page.getByTestId('pinboard-capture-row').click();
+  await expect(page.locator('[data-pinboard-capture-title]')).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.getByTestId('base-new-entry').click();
   await page.locator('[data-pinboard-capture-title]').fill('Schnell notiert');
   await page.locator('[data-pinboard-capture-text]').fill('und mehr Text');

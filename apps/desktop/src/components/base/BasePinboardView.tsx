@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
+import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Plus, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -204,7 +204,12 @@ export function BasePinboardView({
     ...(visibleColumns ?? []).map(col => searchableCellText(row[col], cells ? cells.formatValueForDisplay(row[col], col).displayVal : undefined)),
   ]])), [dbData, visibleColumns, cells, labelsByPath]);
   const searchRevision = useMemo(() => JSON.stringify(dbData.map(row => [row["file.path"], cardRevision(row)])), [dbData]);
-  const search = usePinboardSearch(queryService, paths, searchText, searchMetadata, cache, viewKey, searchRevision);
+  // Only an EMBEDDED board searches for itself (finding 2026-09-22): a board
+  // inside a note has no database head to put a magnifier in. The standalone
+  // pinboard gets its rows already narrowed by that head, like every other
+  // view — it used to be the one exception, and that is what made the place of
+  // the search depend on which view was open.
+  const search = useBaseSearch(queryService, paths, embedded ? searchText : "", searchMetadata, cache, viewKey, searchRevision);
   const visibleSections = useMemo(
     () => ({
       pinned: filterCardPathsByText(filterCardPaths(sections.pinned, labelsByPath, selectedLabels), search.matches),
@@ -596,12 +601,23 @@ export function BasePinboardView({
           if (lines.length === 0) return null;
           return (
             <div data-pinboard-props="true" style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--border-color)" }}>
-              {lines.map(({ col, val }) => (
-                <div key={col} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--text-xs)", minWidth: 0 }}>
-                  <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{cells.columnLabel(col)}</span>
-                  <span style={{ color: "var(--text-main)", overflowWrap: "anywhere", minWidth: 0 }}>{cells.formatValueForDisplay(val, col).displayVal}</span>
-                </div>
-              ))}
+              {lines.map(({ col, val }) => {
+                // A date on a card is editable, the way the board view has
+                // always rendered it (finding 2026-09-22): the same
+                // renderEditableCell, the same picker. Everything else stays
+                // display — a card is an overview, not a form.
+                const input = cells.getColumnSchema(col)?.input;
+                const editable = input === "date" || input === "datetime";
+                const shown = cells.formatValueForDisplay(val, col).displayVal;
+                return (
+                  <div key={col} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--text-xs)", minWidth: 0 }}>
+                    <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{cells.columnLabel(col)}</span>
+                    <span style={{ color: "var(--text-main)", overflowWrap: "anywhere", minWidth: 0 }} data-pinboard-prop={col}>
+                      {editable ? cells.renderEditableCell(vm.row, col, val, shown) : shown}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
@@ -668,10 +684,23 @@ export function BasePinboardView({
   return (
     <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} data-tip={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
       {previews.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={previews.retry}>{t("pinboard.retry")}</Button></div>}
-      {/* Search also serves embedded boards. Entry opens the separate capture. */}
-      <PinboardSearch value={searchText} onChange={setSearchText} busy={search.busy} />
+      {embedded && <BaseSearchField value={searchText} onChange={setSearchText} busy={search.busy} placeholder={t("pinboard.searchPlaceholder")} />}
       {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
       {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}
+      {/* The row that used to be a search field is the way to a new note again
+          (finding 2026-09-22). It opens the SAME capture the head's "New"
+          opens — one surface, two doors, not two implementations. */}
+      {!embedded && onQuickCapture && !captureOpen && (
+        <button
+          type="button"
+          className="pv-capturerow"
+          onClick={() => setCaptureOpen(true)}
+          data-testid="pinboard-capture-row"
+        >
+          <Plus size={ICON.ui} aria-hidden />
+          <span>{t("pinboard.captureRow")}</span>
+        </button>
+      )}
       {!embedded && onQuickCapture && captureOpen && (
         <div
           data-pinboard-capture-popup="true"

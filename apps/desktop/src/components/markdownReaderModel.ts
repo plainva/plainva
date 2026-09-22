@@ -5,7 +5,7 @@
  * raw HTML as literal text; Obsidian's reading view hides comments too, and
  * the managed-index marker must stay invisible).
  */
-import { findInlineTags } from "@plainva/core";
+import { findInlineTags, readHtmlCheckbox } from "@plainva/core";
 import { tagColorAttrs, tagSegments } from "@plainva/ui";
 
 /**
@@ -54,7 +54,7 @@ interface MdastNodeLike {
   type?: string;
   value?: unknown;
   children?: MdastNodeLike[];
-  data?: { hName?: string; hProperties?: Record<string, unknown> };
+  data?: { hName?: string; hChildren?: unknown[]; hProperties?: Record<string, unknown> };
   position?: { start: { line: number; column: number; offset: number }; end: { line: number; column: number; offset: number } };
 }
 
@@ -276,6 +276,42 @@ export function remarkBrToBreak() {
         if (child.type === "html" && HTML_BR_NODE_RE.test(String(child.value ?? "").trim())) {
           child.type = "break";
           delete child.value;
+        }
+        walk(child);
+      }
+    };
+    walk(tree);
+  };
+}
+
+/**
+ * remark plugin: an `<input type="checkbox">` written as HTML becomes a real
+ * checkbox (finding 2026-09-22).
+ *
+ * GFM knows task boxes only inside LIST items, so a checklist in a table cell
+ * has no Markdown spelling. Obsidian users write the HTML tag there and
+ * Obsidian draws a box; Plainva showed the tag as text, so the same file read
+ * differently in the two programs. Raw HTML stays out of the reader — there is
+ * no rehype-raw and there should not be — and this plugin adds no general
+ * door: it recognises ONE element with ONE attribute and builds the node
+ * itself, exactly as `remarkBrToBreak` does for `<br>`.
+ *
+ * `data-html-box` marks these apart from GFM boxes: they have an ordinal space
+ * of their own, because they carry no task metadata and no recurrence.
+ */
+export function remarkHtmlCheckbox() {
+  return (tree: MdastNodeLike) => {
+    let ordinal = 0;
+    const walk = (node: MdastNodeLike) => {
+      if (!Array.isArray(node.children)) return;
+      for (const child of node.children) {
+        // Reader and writer ask the SAME question (`readHtmlCheckbox`), or
+        // their ordinals drift apart and a tick lands on the wrong row.
+        const box = child.type === "html" ? readHtmlCheckbox(String(child.value ?? "")) : null;
+        if (box) {
+          child.type = "inlineCode";
+          child.value = "";
+          child.data = { ...child.data, hName: "input", hChildren: [], hProperties: { type: "checkbox", checked: box.checked, dataHtmlBox: String(ordinal++) } };
         }
         walk(child);
       }

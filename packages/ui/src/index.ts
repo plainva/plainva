@@ -388,5 +388,5 @@ export * from "./lib/taskViewState";
 export * from "./lib/useBookmarkTargets";
 export * from "./base/usePinboardCards";
 
-export * from "./base/PinboardSearch";
+export * from "./base/BaseSearchField";
 export * from "./base/baseSearch";

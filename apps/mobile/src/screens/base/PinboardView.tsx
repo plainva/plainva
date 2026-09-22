@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, PinboardSearch, usePinboardSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { Plus } from "lucide-react";
+import { applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -82,6 +83,8 @@ export function PinboardView({
   propCols,
   columnLabel,
   displayCell,
+  isDateCol,
+  onEditProp,
   onOpenNote,
   onMutated,
   onPatchView,
@@ -99,6 +102,10 @@ export function PinboardView({
   columnLabel?: (col: string) => string;
   /** BaseScreen's cell text formatting (per-view date format included). */
   displayCell?: (col: string, v: unknown) => string;
+  /** True for a column whose value is a date — those are editable on the card. */
+  isDateCol?: (col: string) => boolean;
+  /** Opens the phone's cell editor for one property of one row. */
+  onEditProp?: (row: Record<string, any>, col: string) => void;
   onOpenNote: (path: string) => void;
   /** Re-query after a card write (toggle/label/color/capture/delete). */
   onMutated: () => void;
@@ -200,14 +207,15 @@ export function PinboardView({
     const rws = paths.map((p) => ({ path: p, ctime: cards.get(p)?.data.ctime ?? null, mtime: cards.get(p)?.mtime ?? 0 }));
     return orderCards(rws, order, pinnedList);
   }, [hasSort, paths, cards, order, pinnedList]);
-  const [searchText, setSearchText] = useState(() => session.search);
-  useEffect(() => { cache.updateSession(viewKey, { search: searchText }); }, [cache, viewKey, searchText]);
+  const searchText = "";
   const searchMetadata = useMemo(() => new Map(rows.map(row => [String(row["file.path"]), [
     String(row["file.name"] ?? ""), ...(labelsByPath.get(String(row["file.path"])) ?? []), ...(Array.isArray(row["file.tags"]) ? row["file.tags"].map(String) : []),
     ...(propCols ?? []).map(col => displayCell ? displayCell(col, row[col]) : String(row[col] ?? "")),
   ]])), [rows, propCols, displayCell, labelsByPath]);
   const searchRevision = useMemo(() => JSON.stringify(rows.map(row => [row["file.path"], cardRevision(row)])), [rows]);
-  const search = usePinboardSearch(vault.queryService, paths, searchText, searchMetadata, cache, viewKey, searchRevision);
+  // The rows arrive already narrowed by the database head's search
+  // (finding 2026-09-22); what is left here is the label filter.
+  const search = useBaseSearch(vault.queryService, paths, "", searchMetadata, cache, viewKey, searchRevision);
   const visibleSections = useMemo(
     () => ({
       pinned: filterCardPathsByText(filterCardPaths(sections.pinned, labelsByPath, selectedLabels), search.matches),
@@ -657,7 +665,16 @@ export function PinboardView({
               {lines.map(({ col, text }) => (
                 <div className="m-pin-prop" key={col}>
                   <span className="m-pin-prop-key">{columnLabel ? columnLabel(col) : col} </span>
-                  <span className="m-pin-prop-val">{text}</span>
+                  {/* A date is a button that opens the cell editor, the way a
+                      table cell does (finding 2026-09-22). Everything else
+                      stays display — a card is an overview, not a form. */}
+                  {onEditProp && isDateCol?.(col) ? (
+                    <button type="button" className="m-pin-prop-edit" data-testid="pin-prop-edit" onClick={(e) => { e.stopPropagation(); onEditProp(vm.row, col); }}>
+                      {text}
+                    </button>
+                  ) : (
+                    <span className="m-pin-prop-val">{text}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -699,10 +716,16 @@ export function PinboardView({
        own numbers. */
     <div className="m-page m-pinboard" ref={containerRef}>
       {previews.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={previews.retry}>{t("pinboard.retry")}</Button></div>}
-      {/* Search is view state; the header Entry action opens capture. */}
-      <PinboardSearch value={searchText} onChange={setSearchText} busy={search.busy} />
       {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
       {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}
+      {/* The row the search field used to occupy is the way to a new note
+          again (finding 2026-09-22) — the same capture the FAB opens. */}
+      {!captureOpen && (
+        <button type="button" className="pv-capturerow" onClick={() => setCaptureOpen(true)} data-testid="pinboard-capture-row">
+          <Plus size={ICON.head} aria-hidden />
+          <span>{t("pinboard.captureRow")}</span>
+        </button>
+      )}
       {captureOpen && (
         <div
           data-pinboard-capture-popup="true"

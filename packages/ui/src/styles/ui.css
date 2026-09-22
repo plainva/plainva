@@ -1222,8 +1222,6 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-chipfield > input:focus-visible,
 .pv-searchfield > input:focus,
 .pv-searchfield > input:focus-visible,
-.pv-pinboard-search > input:focus,
-.pv-pinboard-search > input:focus-visible,
 .pv-palette-input:focus,
 .pv-palette-input:focus-visible,
 .pv-selectsearch > input:focus,
@@ -3666,22 +3664,35 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   font-size: var(--text-xs);
 }
 
-.pv-pinboard-search {
+/* The database search: the app's own SearchField plus the slot that carries
+   the hit counter. It used to be a hand-built row with its own magnifier and a
+   34-px metric inside a 28-px toolbar (finding 2026-09-22). */
+.pv-basesearch { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pv-basesearch .pv-searchfield { flex: 1; min-width: 0; }
+.pv-basesearch-count { flex: none; color: var(--text-faint); font-size: var(--text-sm); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* The row the magnifier opens under the database head — one place, whether the
+   database has two views or eight. */
+.pv-basesearch-row { display: flex; align-items: center; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-color-light); }
+/* The way to a new note where the pinboard's own search field used to sit.
+   It opens the SAME capture the head's "New" opens — one surface, two doors. */
+.pv-capturerow {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  margin-bottom: var(--space-3);
+  width: 100%;
   max-width: 560px;
   min-height: var(--control-lg);
-  border: 1px solid var(--border-color);
+  margin-bottom: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
+  background: transparent;
   color: var(--text-muted);
-  background: var(--bg-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.pv-pinboard-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-main); font: inherit; }
-.pv-pinboard-search:focus-within { outline: 2px solid var(--accent-color); outline-offset: 2px; }
-.pv-pinboard-search input::-webkit-search-cancel-button { appearance: none; }
+.pv-capturerow:hover { background: var(--state-hover); color: var(--text-main); }
 
 .pv-property-text { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .pv-property-text > input { flex: 1; min-width: 0; }

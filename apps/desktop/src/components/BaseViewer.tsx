@@ -1,5 +1,5 @@
 import { trimEndChars } from "@plainva/core";
-import { BaseSearchField, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
+import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
@@ -8,7 +8,7 @@ import { BaseExportDialog } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
@@ -646,15 +646,16 @@ export function BaseViewer({
   // view shares and narrows the rows BEFORE any view sees them - so table,
   // list, gallery, board, calendar, timeline and graph get it at once, along
   // with the selection and the export, and no view grows a search of its own.
-  // The pinboard keeps its own field (it composes with the label chips and the
-  // pinned section), so the header's is off there. Kept per database for the
-  // session in the pinboard's cache; never written into the .base file.
+  // The pinboard is no longer an exception (finding 2026-09-22): it kept a
+  // field of its own inside the content, which made "where is the search?"
+  // depend on which view was open, and cost the place where a note is made.
+  // Kept per database for the session in the pinboard's cache; never written
+  // into the .base file.
   const fallbackSearchCache = useMemo(() => new PinboardCache(), []);
   const searchCache = cache ?? fallbackSearchCache;
   const baseSearchKey = `${cacheKey}#search`;
   const [baseSearchText, setBaseSearchText] = useState(() => searchCache.session(baseSearchKey).search);
   useEffect(() => { searchCache.updateSession(baseSearchKey, { search: baseSearchText }); }, [searchCache, baseSearchKey, baseSearchText]);
-  const headerSearchActive = currentViewType !== "pinboard";
   const searchPaths = useMemo(() => scopeRows.map((r: any) => String(r["file.path"])), [scopeRows]);
   const bareColumn = (col: string) => (col.startsWith("note.") ? col.slice(5) : col);
   // What a board GROUPS by is on screen as the column head, so a reader types it
@@ -669,8 +670,14 @@ export function BaseViewer({
     [scopeRows, searchColumns, cells]
   );
   const searchRevision = useMemo(() => baseSearchRevision(scopeRows), [scopeRows]);
-  const baseSearch = useBaseSearch(queryService, searchPaths, headerSearchActive ? baseSearchText : "", searchMetadata, searchCache, baseSearchKey, searchRevision);
-  const scopedData = useMemo(() => filterRowsBySearch(scopeRows, headerSearchActive ? baseSearch.matches : null), [scopeRows, headerSearchActive, baseSearch.matches]);
+  const baseSearch = useBaseSearch(queryService, searchPaths, baseSearchText, searchMetadata, searchCache, baseSearchKey, searchRevision);
+  const scopedData = useMemo(() => filterRowsBySearch(scopeRows, baseSearch.matches), [scopeRows, baseSearch.matches]);
+  // The field is a row UNDER the head, opened by the magnifier beside
+  // "Configure" — so its place never depends on how many views a database
+  // has, which is what made it wander (finding 2026-09-22). A query that
+  // survived the session keeps the row open, or nobody would see the filter
+  // that is narrowing the rows.
+  const [searchOpen, setSearchOpen] = useState(() => baseSearchText.trim() !== "");
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
   // file AND the view: switching views is switching what "these rows" means,
@@ -2410,20 +2417,18 @@ export function BaseViewer({
         />
 
         <div style={{ marginLeft: "auto" }} />
-        {/* One search field for every view (finding 2026-09-19) - the pinboard's
-            own component, in the header all eight views share. The pinboard
-            keeps the field inside its surface, so this one steps aside there. */}
-        {headerSearchActive && (
-          <div data-testid="base-search" style={{ flex: "0 1 16rem", minWidth: 0 }}>
-            <BaseSearchField value={baseSearchText} onChange={setBaseSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")}>
-              {baseSearchText.trim() !== "" && (
-                <span data-testid="base-search-count" style={{ color: "var(--text-faint)", fontSize: "var(--text-sm)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-                  {t("database.searchCount", { n: scopedData.length, total: scopeRows.length })}
-                </span>
-              )}
-            </BaseSearchField>
-          </div>
-        )}
+        {/* One search for every view (finding 2026-09-19), at one place
+            (finding 2026-09-22): the magnifier sits with the head's actions and
+            opens a row underneath. Closing it clears the query — a filter
+            nobody can see is how a list comes to look broken. */}
+        <IconButton
+          label={t("database.searchToggle")}
+          active={searchOpen}
+          onClick={() => { setSearchOpen((open) => { if (open) setBaseSearchText(""); return !open; }); }}
+          data-testid="base-search-toggle"
+        >
+          <Search size={ICON.ui} />
+        </IconButton>
 
         {/* Scope moved into the config panel's Filter section as a "Diese Notiz"
             row (maintainer 2026-07-07: unify the embed scope with the filter
@@ -2482,6 +2487,17 @@ export function BaseViewer({
         </>
         )}
       </div>
+      {searchOpen && (
+        <div className="pv-basesearch-row" data-testid="base-search">
+          <BaseSearchField value={baseSearchText} onChange={setBaseSearchText} busy={baseSearch.busy} autoFocus placeholder={t("database.searchPlaceholder")}>
+            {baseSearchText.trim() !== "" && (
+              <span className="pv-basesearch-count" data-testid="base-search-count">
+                {t("database.searchCount", { n: scopedData.length, total: scopeRows.length })}
+              </span>
+            )}
+          </BaseSearchField>
+        </div>
+      )}
 
       {bulkSetOpen && rowSel.selection.size > 0 && (
         <BulkSetPopover

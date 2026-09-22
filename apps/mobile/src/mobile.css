@@ -1203,6 +1203,18 @@ textarea {
 .m-pin-prop-val {
   color: var(--text-main);
 }
+/* A date on a card is a button: tapping opens the cell editor, the way a
+   table cell does (finding 2026-09-22). It stays a line of the card, so it
+   carries an underline rather than a frame. */
+.m-pin-prop-edit {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
 .m-pin-labels {
   display: flex;
   flex-wrap: wrap;
