@@ -949,6 +949,7 @@
     "noFiles": "没有文件。",
     "clearSearch": "清除搜索",
     "hitsFor": "“{{q}}” 的结果",
+    "endSearch": "结束搜索",
     "searchNotes": "搜索笔记…",
     "searchTags": "筛选标签…",
     "searchDatabases": "筛选数据库…",

@@ -949,6 +949,7 @@
     "noFiles": "ファイルがありません。",
     "clearSearch": "検索をクリア",
     "hitsFor": "「{{q}}」の検索結果",
+    "endSearch": "検索を終了",
     "searchNotes": "ノートを検索…",
     "searchTags": "タグを絞り込む…",
     "searchDatabases": "データベースを絞り込む…",

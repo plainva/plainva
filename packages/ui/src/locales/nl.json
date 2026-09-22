@@ -951,6 +951,7 @@
     "noFiles": "Geen bestanden.",
     "clearSearch": "Zoekopdracht wissen",
     "hitsFor": "Resultaten voor „{{q}}”",
+    "endSearch": "Zoeken beëindigen",
     "searchNotes": "Notities doorzoeken…",
     "searchTags": "Tags filteren…",
     "searchDatabases": "Databases filteren…",

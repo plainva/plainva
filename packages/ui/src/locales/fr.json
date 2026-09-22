@@ -953,6 +953,7 @@
     "noFiles": "Aucun fichier.",
     "clearSearch": "Effacer la recherche",
     "hitsFor": "Résultats pour « {{q}} »",
+    "endSearch": "Terminer la recherche",
     "searchNotes": "Rechercher dans les notes…",
     "searchTags": "Filtrer les tags…",
     "searchDatabases": "Filtrer les bases…",

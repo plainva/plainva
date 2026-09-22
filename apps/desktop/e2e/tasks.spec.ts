@@ -973,22 +973,34 @@ test('the journal and an OPEN daily note: unsaved typing stays, the entry arrive
   const editor = page.locator('.cm-content');
   await expect(editor).toContainText('first');
 
-  // The sidebar shows the journal of the open daily note's day, with its field.
-  const section = page.getByTestId('journal-day-section');
-  await expect(section).toContainText('first');
-  const field = section.getByTestId('journal-section-input');
+  // The sidebar shows the journal of the open daily note's day. Since
+  // 2026-09-22 it is a section of its own that starts CLOSED, and the pen in
+  // its heading opens the ordinary capture dialog for that day — the column
+  // carries no field, so there is one way to write an entry.
+  await page.locator('.pv-side-section-header', { hasText: /Journal/ }).first().click();
+  await expect(page.getByTestId('journal-days')).toContainText('first');
 
-  // Type into the note and capture AT ONCE — inside the editor's one-second save
-  // window, so the typing is still unsaved when the entry is written. (The
-  // capture dialog would do too, but its first opening loads a chunk and can
-  // outlast that second; the field is there already.)
+  // The dialog is modal, so it cannot stand open while the note is typed in.
+  // Its first opening loads a chunk, though, and what this run measures is the
+  // gap between typing and capturing — not that load. So it is opened once and
+  // dismissed, which warms the chunk before the window that is being timed.
+  const pen = page.getByTestId('right-journal-new');
+  const field = page.getByTestId('journal-capture-input');
+  await pen.click();
+  await expect(field).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveCount(0);
+
+  // Type into the note and capture AT ONCE — inside the editor's one-second
+  // save window, so the typing is still unsaved when the entry is written.
   await page.locator('.cm-line', { hasText: /^plan$/ }).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' typed and unsaved');
   const typedAt = Date.now();
+  await pen.click();
   await field.fill('second, from the dialog');
   await field.press('Enter');
-  await expect(field).toHaveValue('');
+  await expect(field).toHaveCount(0);
   // The capture really met an UNSAVED note. What this run pins is the OUTCOME;
   // that the pending save is flushed BEFORE the note is read is pinned in
   // journalWrite.test.ts - the mock adapter here has no conflict copies, so a

@@ -951,6 +951,7 @@
     "noFiles": "Keine Dateien.",
     "clearSearch": "Suche löschen",
     "hitsFor": "Treffer für „{{q}}“",
+    "endSearch": "Suche beenden",
     "searchNotes": "Notizen durchsuchen…",
     "searchTags": "Tags filtern…",
     "searchDatabases": "Datenbanken filtern…",

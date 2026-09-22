@@ -955,6 +955,7 @@
     "noFiles": "Brak plików.",
     "clearSearch": "Wyczyść wyszukiwanie",
     "hitsFor": "Wyniki dla „{{q}}”",
+    "endSearch": "Zakończ wyszukiwanie",
     "searchNotes": "Przeszukaj notatki…",
     "searchTags": "Filtruj tagi…",
     "searchDatabases": "Filtruj bazy danych…",

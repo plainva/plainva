@@ -12,7 +12,12 @@ export async function loadPinboardProbe(page: Page) {
   await page.goto("/__pinboard_probe");
   await page.waitForFunction(() => !!(window as PinboardProbeWindow).pinboardProbe);
 }
-for (const shell of ["mobile", "desktop"] as const) {
+// Desktop only since 2026-09-22: the phone's pinboard has no field of its own
+// any more — its screen's head carries the search for every view, and that
+// path is covered in apps/mobile/e2e-prod/board-card-color.spec.ts. What is
+// left here is the EMBEDDED board, which has no head to put a magnifier in
+// and therefore keeps a field; the hook under both is the same.
+for (const shell of ["desktop"] as const) {
   test(`${shell}: search finds unseen body text, composes with chips and survives returning`, async ({ page }) => {
     await page.setViewportSize({ width: shell === "mobile" ? 375 : 900, height: 812 });
     await loadPinboardProbe(page);

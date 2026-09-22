@@ -953,6 +953,7 @@
     "noFiles": "No hay archivos.",
     "clearSearch": "Borrar la búsqueda",
     "hitsFor": "Resultados de «{{q}}»",
+    "endSearch": "Terminar la búsqueda",
     "searchNotes": "Buscar en las notas…",
     "searchTags": "Filtrar etiquetas…",
     "searchDatabases": "Filtrar bases de datos…",

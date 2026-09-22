@@ -2052,6 +2052,7 @@ export function BaseScreen({
           propCols={orderedColumns}
           columnLabel={columnLabel}
           displayCell={displayCell}
+          headSearch={searchText}
           isDateCol={(col) => { const input = columnInput(col); return input === "date" || input === "datetime"; }}
           onEditProp={openCellEditor}
           onOpenNote={onOpenNote}

@@ -951,6 +951,7 @@
     "noFiles": "No files.",
     "clearSearch": "Clear search",
     "hitsFor": "Hits for “{{q}}”",
+    "endSearch": "End search",
     "searchNotes": "Search notes…",
     "searchTags": "Filter tags…",
     "searchDatabases": "Filter databases…",

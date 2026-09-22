@@ -315,7 +315,10 @@ test('Search: the X button clears the query and restores the tree', async ({ pag
   await searchInput(page).fill('projektpl');
   await expect(page.getByText('Occurrences shown: 2', { exact: true })).toBeVisible();
 
-  const clear = page.getByRole('button', { name: 'Clear search' });
+  // The field's own ✕. The result head above the hits carries a DIFFERENT
+  // name ("End search") — two buttons with one accessible name in one panel
+  // is what this test caught on 2026-09-22.
+  const clear = page.getByTestId('left-search').getByRole('button', { name: 'Clear search' });
   await expect(clear).toBeVisible();
   await clear.click();
 

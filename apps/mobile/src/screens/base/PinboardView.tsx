@@ -83,6 +83,7 @@ export function PinboardView({
   propCols,
   columnLabel,
   displayCell,
+  headSearch,
   isDateCol,
   onEditProp,
   onOpenNote,
@@ -102,6 +103,8 @@ export function PinboardView({
   columnLabel?: (col: string) => string;
   /** BaseScreen's cell text formatting (per-view date format included). */
   displayCell?: (col: string, v: unknown) => string;
+  /** The query the database head is filtering by — for the "no matches" line. */
+  headSearch?: string;
   /** True for a column whose value is a date — those are editable on the card. */
   isDateCol?: (col: string) => boolean;
   /** Opens the phone's cell editor for one property of one row. */
@@ -207,7 +210,9 @@ export function PinboardView({
     const rws = paths.map((p) => ({ path: p, ctime: cards.get(p)?.data.ctime ?? null, mtime: cards.get(p)?.mtime ?? 0 }));
     return orderCards(rws, order, pinnedList);
   }, [hasSort, paths, cards, order, pinnedList]);
-  const searchText = "";
+  // Display only: the rows arrive already narrowed by the database head, and
+  // this is what lets the board still say "no matching cards".
+  const searchText = headSearch ?? "";
   const searchMetadata = useMemo(() => new Map(rows.map(row => [String(row["file.path"]), [
     String(row["file.name"] ?? ""), ...(labelsByPath.get(String(row["file.path"])) ?? []), ...(Array.isArray(row["file.tags"]) ? row["file.tags"].map(String) : []),
     ...(propCols ?? []).map(col => displayCell ? displayCell(col, row[col]) : String(row[col] ?? "")),

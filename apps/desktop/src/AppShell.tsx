@@ -1256,7 +1256,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             whole chrome row for something reachable seven other ways, so it is
             an icon beside the search field and always opens its menu. */}
         <div style={{ padding: 'var(--side-head-pad) var(--side-head-pad) var(--space-1)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)', minWidth: 0 }}>
-          <div ref={leftSearchWrapRef} style={{ flex: 1, minWidth: 0 }}>
+          <div ref={leftSearchWrapRef} data-testid="left-search" style={{ flex: 1, minWidth: 0 }}>
           <SearchField
             ref={leftSearchRef}
             form
@@ -1388,7 +1388,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         {searching ? (
           <div className="pv-resulthead" data-testid="left-result-head">
             <span>{t("sidebar.hitsFor", { q: leftQueryDebounced.trim() })}</span>
-            <IconButton label={t("sidebar.clearSearch")} onClick={clearLeftQuery} data-testid="left-result-clear">
+            <IconButton label={t("sidebar.endSearch")} onClick={clearLeftQuery} data-testid="left-result-clear">
               <X size={ICON.ui} />
             </IconButton>
           </div>

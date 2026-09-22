@@ -1254,8 +1254,16 @@ test('Sidebar calendar: a day click opens the calendar tab; right-click offers a
     .poll(() => page.evaluate((key) => (window as any).mockFs['/test-vault/' + key + '.md'] ?? null, todayKey))
     .toBeTruthy();
 
-  // …and the day now carries the tiny sun marker instead of a plain dot.
-  await expect(page.getByTestId(`sidecal-day-${todayKey}`).locator('svg.lucide-sun')).toBeVisible();
+  // …and the day is marked as HAVING a note: bold with a quiet ring on the
+  // number itself. Not a sun and not a dot — dots are appointments, in both
+  // calendars, and the sun said the same thing in a second language
+  // (finding 2026-09-22).
+  const marked = page.getByTestId(`sidecal-day-${todayKey}`);
+  await expect(marked.locator('svg.lucide-sun')).toHaveCount(0);
+  await expect
+    .poll(async () => marked.evaluate((el) => getComputedStyle(el).fontWeight))
+    .toBe('700');
+  expect(await marked.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none');
 
   // Finally, a plain CLICK opens the calendar tab at that day.
   await page.getByTestId(`sidecal-day-${todayKey}`).click();
