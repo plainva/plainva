@@ -108,6 +108,6 @@ describe("the New catalog", () => {
   });
 
   it("the flat order is the grouped order", () => {
-    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template", "event", "task"]);
+    expect([...NEW_ITEM_ORDER]).toEqual(["note", "journal", "daily", "noteFromTemplate", "folder", "base", "template", "task", "event"]);
   });
 });

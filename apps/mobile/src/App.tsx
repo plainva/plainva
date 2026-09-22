@@ -711,6 +711,7 @@ export default function App() {
       {areasOpen && (
         <AreasSheet
           active={nav.activeTab}
+          order={barLayout}
           onArrange={() => {
             setAreasOpen(false);
             // Straight to the setting that arranges the bar — noticing "this

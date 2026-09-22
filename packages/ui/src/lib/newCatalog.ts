@@ -30,8 +30,11 @@ export interface NewItemMeta {
 }
 
 export const NEW_GROUPS: ReadonlyArray<{ id: NewGroupId; items: readonly NewItemId[] }> = [
-  { id: "content", items: ["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template"] },
-  { id: "pim", items: ["event", "task"] },
+  // Order since 2026-09-22 (E12): what is reached for most stands first.
+  // Writing a line beats opening the day's note, a task beats an appointment,
+  // and "from template" is the rare one.
+  { id: "content", items: ["note", "journal", "daily", "noteFromTemplate", "folder", "base", "template"] },
+  { id: "pim", items: ["task", "event"] },
 ];
 
 export const NEW_ITEMS: Record<NewItemId, NewItemMeta> = {

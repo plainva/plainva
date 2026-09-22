@@ -47,7 +47,6 @@ export const TAB_POOL: TabDef[] = [
   { id: "today", icon: Sun, labelKey: "mobile.tabToday" },
   { id: "tasks", icon: ListChecks, labelKey: "tasks.title" },
   { id: "calendar", icon: CalendarDays, labelKey: "mobile.tabCalendar" },
-  { id: "mail", icon: Mail, labelKey: "mail.title" },
   { id: "graph", icon: Waypoints, labelKey: "rightPanel.graph" },
   // The comment overview (D9). Unlike the desktop ribbon, a new area here needs
   // no migration: the bar holds four at a time, and the areas sheet lists the
@@ -57,6 +56,7 @@ export const TAB_POOL: TabDef[] = [
   // The journal stream (plan Journal, J5). Like comments it hangs on the vault,
   // not on an account, and is reachable from the areas sheet the moment it exists.
   { id: "journal", icon: NotebookText, labelKey: "journal.title" },
+  { id: "mail", icon: Mail, labelKey: "mail.title" },
 ];
 
 /**

@@ -223,6 +223,7 @@ export function SearchScreen({
           options={SEARCH_SORT_KEYS.map((key) => ({ key, label: t(listSortLabelKey(key)) }))}
           active={sort.key}
           direction={sort.key === "relevance" ? undefined : t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}
+          ascending={sort.dir === "asc"}
           onChoose={chooseSort}
           onClose={() => setSortSheet(false)}
         />

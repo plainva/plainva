@@ -17,7 +17,7 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react";
-import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
+import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
@@ -86,6 +86,10 @@ export function BrowseScreen({
   const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
   const [movePick, setMovePick] = useState<{ path: string; title: string; isFolder?: boolean } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  /** Why the folder could not be read; `null` while it can be, or is being, read. */
+  const [failure, setFailure] = useState<string | null>(null);
+  /** True until the first listing has arrived — "not read yet" is not "empty". */
+  const [loading, setLoading] = useState(true);
   // Sorting and searching in the folder (feedback round 2026-09-01, P11/T5):
   // a real vault put 640 notes in one folder, hard-sorted by title with no
   // search box. The sort is the desktop tree's and is remembered per device
@@ -152,8 +156,11 @@ export function BrowseScreen({
         if (!stale) setDocIcons(m);
       })
       .catch(() => {});
+    setFailure(null);
+    setLoading(true);
     void vaultOps.listFolder(vault, folder).then((l) => {
       if (stale) return;
+      setLoading(false);
       // Note rows carry a relative-time meta line (mockup .lrow); computed
       // here — render stays pure for the React compiler.
       const now = Date.now();
@@ -161,6 +168,13 @@ export function BrowseScreen({
         ...l,
         notes: l.notes.map((n) => ({ path: n.path, title: n.title, rel: relTimeAt(now, n.mtime) ?? undefined })),
       });
+    }).catch((error: unknown) => {
+      // Reading a folder can fail — a permission, a provider that has not put
+      // the files on the device yet, a path the platform will not open. It
+      // used to fail silently and leave the INITIAL empty listing standing, so
+      // the screen said "this folder is empty", which is the one thing it did
+      // not know (issue 104).
+      if (!stale) { setFailure(errorText(error)); setLoading(false); }
     });
     // React reuses the instance when the navigator pushes a folder — the
     // root-only banner must clear or it sticks on pushed screens.
@@ -419,10 +433,14 @@ export function BrowseScreen({
   // What this folder holds, in the header line — the mockup's picture, and the
   // data is already on screen. Databases only appear when there are any: a
   // "0 databases" is noise in the one line a header can spare.
-  const folderSummary = [
-    t("mobile.folderCount", { count: listing.notes.length }),
-    ...(listing.bases.length > 0 ? [t("mobile.baseCount", { count: listing.bases.length })] : []),
-  ].join(" · ");
+  // No count until there IS one: the head said "0 notes" while the folder was
+  // still being read, and again when reading had failed (issue 104).
+  const folderSummary = loading || failure !== null
+    ? undefined
+    : [
+      t("mobile.folderCount", { count: listing.notes.length }),
+      ...(listing.bases.length > 0 ? [t("mobile.baseCount", { count: listing.bases.length })] : []),
+    ].join(" · ");
 
   const body = (
     <>
@@ -548,7 +566,23 @@ export function BrowseScreen({
       {/* Rule 6: every empty state explains itself and offers exactly one
           action. An empty folder used to be a blank screen with a plus button
           somewhere else — nothing said what belonged here. */}
+      {/* Three named states, not one (issue 104). "Still reading" and "could
+          not be read" used to render as "this folder is empty", because the
+          listing starts empty and was only ever replaced on success. */}
+      {loading && <p className="m-hint" role="status" data-testid="browse-loading">{t("mobile.folderLoading")}</p>}
+      {!loading && failure !== null && (
+        <EmptyState
+          title={t("mobile.folderUnreadableTitle")}
+          action={<Button onClick={() => setRefreshTick((n) => n + 1)} variant="primary" data-testid="browse-retry">{t("sync.retryNow")}</Button>}
+          icon={<AlertTriangle size={ICON.empty} />}
+        >
+          {t("mobile.folderUnreadableBody")}
+          <span className="m-hint" data-testid="browse-failure-reason">{failure}</span>
+        </EmptyState>
+      )}
       {onCreateNote &&
+        !loading &&
+        failure === null &&
         listing.folders.length === 0 &&
         listing.bases.length === 0 &&
         listing.attachments.length === 0 &&
@@ -658,6 +692,7 @@ export function BrowseScreen({
           }))}
           active={sort.key}
           direction={t(sort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}
+          ascending={sort.dir === "asc"}
           onChoose={chooseSort}
           onClose={() => setSortSheet(false)}
         />

@@ -3688,17 +3688,23 @@ textarea {
   cursor: grab;
   color: var(--text-muted);
 }
+/* Both lists of "Bars & areas" are cards now; the group only keeps its margin. */
 .m-more-bargroup {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--surface-container);
-  overflow: hidden;
   margin: 0 0 var(--space-1);
 }
-.m-row.is-dragging {
+/* The row of that screen: an area that is OUTSIDE the bar reads as set aside,
+   the way the desktop's hidden list does. */
+.m-navrow[data-tab-visible] { color: var(--text-main); }
+.m-navrow:not([data-tab-visible]) .pv-grouprow-title { color: var(--text-muted); }
+.m-navrow:not([data-tab-visible]) .m-accent { opacity: 0.55; }
+/* The direction a sort runs in, beside the chosen key. */
+.m-sortdir { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); }
+.m-row.is-dragging,
+.m-navrow.is-dragging {
   opacity: 0.55;
 }
-.m-row.is-drop-before {
+.m-row.is-drop-before,
+.m-navrow.is-drop-before {
   box-shadow: inset 0 2px 0 var(--accent-color);
 }
 

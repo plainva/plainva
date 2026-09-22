@@ -1,11 +1,15 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GripVertical, LayoutGrid } from "lucide-react";
+import { Eye, EyeOff, GripVertical, LayoutGrid } from "lucide-react";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 import {
   barDef,
   createDragAutoScroll,
+  GroupCard,
   moveArea,
+  Row,
+  RowList,
+  setAreaVisible,
   setVisibleCount,
   visibleAreas,
   type AreaOrder,
@@ -104,29 +108,49 @@ export function NavBarScreen({
     const def = TAB_POOL.find((p) => p.id === id);
     if (!def) return null;
     const Icon = def.icon;
+    const visible = index < count;
+    const pinned = (spec.alwaysVisible ?? []).includes(id);
     const dropBefore =
       dragId !== null && dropIndex !== null && index === dropIndex && order.indexOf(dragId) !== index;
+    const toggle = () => { if (!pinned) onChange(setAreaVisible(value, id, !visible, spec)); };
     return (
-      <div
-        className={`m-row m-row--split${dragId === id ? " is-dragging" : ""}${dropBefore ? " is-drop-before" : ""}`}
+      <Row
+        controls
+        className={`${dragId === id ? "is-dragging " : ""}${dropBefore ? "is-drop-before " : ""}m-navrow`}
         data-tab-row
+        data-tab-visible={visible ? "" : undefined}
         key={id}
-      >
-        <span className="m-row-main">
-          <Icon className="m-accent" size={ICON.head} />
-          <span>{t(def.labelKey)}</span>
-        </span>
-        <IconButton
-          label={t("block.move")}
-          className="m-grip"
-          onPointerDown={startDrag(id)}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          <GripVertical size={ICON.head} />
-        </IconButton>
-      </div>
+        icon={<Icon className="m-accent" size={ICON.head} />}
+        title={t(def.labelKey)}
+        onClick={pinned ? undefined : toggle}
+        end={
+          <>
+            {/* The eye the desktop has had all along (finding 2026-09-22). The
+                row itself answers a tap too — it used to answer nothing at all:
+                every handler sat on the 24-px grip, so on a phone the card
+                reacted to neither tapping nor dragging. */}
+            {!pinned && (
+              <IconButton
+                label={visible ? t("bars.hide") : t("bars.show")}
+                onClick={toggle}
+                data-testid={`navbar-eye-${id}`}
+              >
+                {visible ? <Eye size={ICON.head} /> : <EyeOff size={ICON.head} />}
+              </IconButton>
+            )}
+            <IconButton
+              label={t("block.move")}
+              className="m-grip"
+              onPointerDown={startDrag(id)}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+            >
+              <GripVertical size={ICON.head} />
+            </IconButton>
+          </>
+        }
+      />
     );
   };
 
@@ -188,12 +212,14 @@ export function NavBarScreen({
 
       <div ref={listRef}>
         <p className="m-sectionlabel">{t("mobile.moreInBar")}</p>
-        <div className="m-more-bargroup" data-testid="more-bar-group">
-          {order.slice(0, count).map((id, i) => renderRow(id, i))}
-        </div>
+        <GroupCard className="m-more-bargroup" data-testid="more-bar-group">
+          <RowList>{order.slice(0, count).map((id, i) => renderRow(id, i))}</RowList>
+        </GroupCard>
 
         <p className="m-sectionlabel">{t("mobile.navBarOutside")}</p>
-        {order.slice(count).map((id, i) => renderRow(id, count + i))}
+        <GroupCard>
+          <RowList>{order.slice(count).map((id, i) => renderRow(id, count + i))}</RowList>
+        </GroupCard>
       </div>
     </div>
   );

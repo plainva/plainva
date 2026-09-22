@@ -122,8 +122,11 @@ describe('one "New …" catalog (E4)', () => {
   });
 
   it("the catalog's order is the one both shells show", () => {
-    // `journal` stands next to `daily`: it is a line in that note, not a file of its own (plan Journal, J4).
-    expect([...NEW_ITEM_ORDER]).toEqual(["note", "noteFromTemplate", "daily", "journal", "folder", "base", "template", "event", "task"]);
+    // `journal` stands next to `daily` — it is a line in that note, not a file
+    // of its own (plan Journal, J4) — and since 2026-09-22 in front of it:
+    // writing a line is reached for more often than opening the day's note,
+    // and a task more often than an appointment (E12).
+    expect([...NEW_ITEM_ORDER]).toEqual(["note", "journal", "daily", "noteFromTemplate", "folder", "base", "template", "task", "event"]);
   });
 });
 

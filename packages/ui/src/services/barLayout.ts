@@ -70,7 +70,12 @@ export const RIGHT_SECTION_IDS = ["calendar", "journal", "outline", "graph", "da
  * configurable part is 2–4 — four by default, which is the picture the mockup
  * shows (Notes · Today · Tasks · Calendar · Areas).
  */
-export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "mail", "graph", "comments", "journal"] as const;
+/* Order since 2026-09-22: the four the bar shows by default stay first —
+ * changing someone's bar is the more intrusive half of E12 — and the rest
+ * follows how often it is reached for. The journal takes the first place
+ * outside the bar, so it heads the second group of the areas sheet; mail
+ * goes last, because it hangs on an account many vaults never connect. */
+export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "journal", "graph", "comments", "mail"] as const;
 
 export interface BarAreaDef {
   id: string;
@@ -162,10 +167,10 @@ export const BAR_DEFS: BarDef[] = [
       { id: "today", labelKey: "mobile.tabToday", icon: Sun },
       { id: "tasks", labelKey: "tasks.title", icon: ListChecks },
       { id: "calendar", labelKey: "mobile.tabCalendar", icon: CalendarDays },
-      { id: "mail", labelKey: "mail.title", icon: Mail },
+      { id: "journal", labelKey: "journal.title", icon: NotebookText },
       { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
       { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
-      { id: "journal", labelKey: "journal.title", icon: NotebookText },
+      { id: "mail", labelKey: "mail.title", icon: Mail },
     ],
   },
 ];
