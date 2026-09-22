@@ -1,7 +1,7 @@
 import {
   applyTaskCompletion,
   canRepeat,
-  localIsoKey,
+  calendarDay,
   nextDueDate,
   parseBaseConfig,
   readRepeatRule,
@@ -80,7 +80,7 @@ async function setTaskDoneLocked(vault: MobileVault, path: string, done: boolean
   const rule = readRepeatRule(raw);
   if (!rule || !canRepeat(raw)) return { changed };
   const currentDue = model.dueKey ? String(readFrontmatterPath(raw, [model.dueKey]) ?? "").slice(0, 10) : null;
-  const completedOn = readRepeatCompletionDay(raw) ?? localIsoKey(new Date());
+  const completedOn = readRepeatCompletionDay(raw) ?? calendarDay();
   const spawnedDue = nextDueDate(rule, currentDue || null, completedOn);
   if (!spawnedDue) return { changed };
 

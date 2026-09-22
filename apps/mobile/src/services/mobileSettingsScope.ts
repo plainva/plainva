@@ -70,6 +70,8 @@ export interface VaultScopedSettings {
   dailyNoteType: string;
   /** Heading the journal entries of a daily note stand under (plan Journal, E3). */
   journalHeading: string;
+  /** When this vault's day ends, minutes after midnight (0-360; plan Journal-Erweiterungen, E1). */
+  dayEndsAt: number;
   /**
    * The `.base` this vault designated as its task database (vault-relative
    * path; empty = none). The phone's tasks area shows its entries and promotes
@@ -206,6 +208,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "defaultNoteType",
   "dailyNoteType",
   "journalHeading",
+  "dayEndsAt",
   "taskDatabase",
   "backupIntervalSeconds",
   "backupMaxPerFile",
@@ -265,6 +268,7 @@ export function vaultDefaults(): VaultScopedSettings {
     defaultNoteType: profileDefault<string>("defaultNoteType")!,
     dailyNoteType: profileDefault<string>("dailyNoteType")!,
     journalHeading: profileDefault<string>("journalHeading")!,
+    dayEndsAt: profileDefault<number>("dayEndsAt")!,
     taskDatabase: profileDefault<string>("taskDatabase")!,
     backupIntervalSeconds: profileDefault<number>("backupSnapshotIntervalSeconds")!,
     backupMaxPerFile: profileDefault<number>("backupMaxCountPerFile")!,
@@ -320,6 +324,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     defaultNoteType: src.defaultNoteType ?? d.defaultNoteType,
     dailyNoteType: src.dailyNoteType ?? d.dailyNoteType,
     journalHeading: src.journalHeading ?? d.journalHeading,
+    dayEndsAt: src.dayEndsAt ?? d.dayEndsAt,
     taskDatabase: src.taskDatabase ?? d.taskDatabase,
     backupIntervalSeconds: src.backupIntervalSeconds ?? d.backupIntervalSeconds,
     backupMaxPerFile: src.backupMaxPerFile ?? d.backupMaxPerFile,

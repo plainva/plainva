@@ -13,6 +13,7 @@
  */
 
 import { startOfWeek, type WeekStartDay } from "../lib/calendarGrid";
+import { calendarDay } from "../lib/today";
 
 export type CalendarRangeKind = "month" | "week" | "day";
 
@@ -24,9 +25,13 @@ export interface CalendarCursor {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+/**
+ * The calendar's day key. One implementation lives in `lib/today.ts`; this name
+ * stays for its callers (plan Journal-Erweiterungen, X1). A calendar day never
+ * shifts with the vault's diary boundary — an appointment at 01:30 is on the
+ * day the clock says.
+ */
+export const dayKey = calendarDay;
 
 export function parseDay(key: string): Date {
   const [y, m, d] = key.split("-").map(Number);

@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, TextInput, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
+import { Button, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, TextInput, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -103,6 +103,9 @@ export interface ContentPageProps {
   /** Heading the journal entries of a daily note stand under (plan Journal, E3). */
   journalHeading: string;
   onJournalHeading: (v: string) => void;
+  /** When this vault's day ends, minutes after midnight (plan Journal-Erweiterungen, E1). */
+  dayEndsAt: number;
+  onDayEndsAt: (v: number) => void;
   /** Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b) — device-local. */
   verifierName: string;
   onVerifierName: (v: string) => void;
@@ -355,6 +358,18 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
         </SettingRow>
         <SettingRow label={t("settings.journalHeading")} desc={t("settings.journalHeadingDesc")}>
           <TextInput autoComplete="off" value={p.journalHeading} onChange={(e) => p.onJournalHeading(e.target.value)} placeholder={DEFAULT_JOURNAL_HEADING} data-testid="journal-heading" />
+        </SettingRow>
+        <SettingRow label={t("settings.dayEndsAt")} desc={t("settings.dayEndsAtDesc")}>
+          <Select
+            ariaLabel={t("settings.dayEndsAt")}
+            value={String(clampBoundary(p.dayEndsAt))}
+            options={DAY_END_CHOICES.map((minutes) => ({
+              value: String(minutes),
+              label: minutes === 0 ? t("settings.dayEndsAtMidnight") : boundaryLabel(minutes),
+            }))}
+            onChange={(next) => p.onDayEndsAt(clampBoundary(Number(next)))}
+            data-testid="day-ends-at"
+          />
         </SettingRow>
       </SettingCard>
 

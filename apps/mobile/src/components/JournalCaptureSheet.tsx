@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Camera as CameraIcon } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { Button, Chip, ICON, JournalCaptureField, buildDailyNotePath, toast, useTodayKey } from "@plainva/ui";
+import { Button, Chip, ICON, JournalCaptureField, buildDailyNotePath, toast, useJournalDayKey } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { captureJournalEntry } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -42,7 +42,7 @@ export function JournalCaptureSheet({
   const [busy, setBusy] = useState(false);
   const ms = getMobileSettings();
   // "Today" as state, never a clock read during render: the sheet may stay open over midnight.
-  const [year, month, dayOfMonth] = useTodayKey().split("-").map(Number);
+  const [year, month, dayOfMonth] = useJournalDayKey().split("-").map(Number);
   const target = buildDailyNotePath(date ?? new Date(year, month - 1, dayOfMonth), ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).dateStr;
 
   const submit = () => {

@@ -1295,12 +1295,15 @@ describe("today answers the whole day", () => {
     expect(screen).not.toMatch(/\.sort\(/);
   });
 
-  it("runs the strip in both directions", () => {
+  it("runs the strip in both directions, around the DIARY's today", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/buildDayStrip\(new Date\(\), \d+, \d+\)/);
+    // `journalToday()`, not `new Date()` (plan Journal-Erweiterungen, X1): this
+    // screen carries the daily note and the journal section, and with a day
+    // boundary set they are still yesterday's at 01:30.
+    expect(screen).toMatch(/buildDayStrip\(journalToday\(\), \d+, \d+\)/);
     // A day view whose future is one day long cannot answer "what does next
     // week look like" — the old strip ran -27..+1.
-    const m = /buildDayStrip\(new Date\(\), \d+, (\d+)\)/.exec(screen);
+    const m = /buildDayStrip\(journalToday\(\), \d+, (\d+)\)/.exec(screen);
     expect(Number(m?.[1] ?? 0)).toBeGreaterThan(1);
   });
 });

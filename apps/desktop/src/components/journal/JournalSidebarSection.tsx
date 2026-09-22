@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, ICON, JournalDayList, MenuItem, MenuSurface, RowActionList, errorText, journalRowActions, loadImageBlob, localIsoKey, setPendingSearchJump, toast,
-  useJournalActions, useJournalDay, useTodayKey,
+  useJournalActions, useJournalDay, useJournalDayKey,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -35,7 +35,7 @@ export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal, o
   const { t } = useTranslation();
   const { vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
   const files = useJournalFiles();
-  const todayKey = useTodayKey();
+  const todayKey = useJournalDayKey();
   const dayKey = activeDate ? localIsoKey(activeDate) : todayKey;
   const [settings, setSettings] = useState<JournalFeedSettings | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: JournalRowCaps } | null>(null);

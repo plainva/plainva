@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { Button, createTaskDatabase, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -137,6 +137,19 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
     "dailyFolder" | "inboxFolder" | "attachmentFolder" | "templateFolder" | null
   >(null);
 
+  /** When this vault's day ends (plan Journal-Erweiterungen, E1) — the desktop's select, as a sheet. */
+  const dayEndLabel = (minutes: number) =>
+    clampBoundary(minutes) === 0 ? t("settings.dayEndsAtMidnight") : boundaryLabel(minutes);
+  const pickDayEndsAt = () => {
+    void mSelect({
+      title: t("settings.dayEndsAt"),
+      options: DAY_END_CHOICES.map((minutes) => ({ value: String(minutes), label: dayEndLabel(minutes) })),
+      value: String(clampBoundary(settings.dayEndsAt)),
+    }).then((picked) => {
+      if (picked !== null) void update({ dayEndsAt: clampBoundary(Number(picked)) });
+    });
+  };
+
   // Daily template (package I, desktop dailyNotesTemplate parity): fresh
   // dailies seed from a template file in the template folder; "—" = none.
   const pickDailyTemplate = () => {
@@ -248,6 +261,11 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
               label={t("settings.taskDatabase")}
               onClick={pickTaskDatabase}
               value={settings.taskDatabase || "—"}
+            />
+            <MobileSettingRow
+              label={t("settings.dayEndsAt")}
+              onClick={pickDayEndsAt}
+              value={dayEndLabel(settings.dayEndsAt)}
             />
           </RowList>
         </GroupCard>

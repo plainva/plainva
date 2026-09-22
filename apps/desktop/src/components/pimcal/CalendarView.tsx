@@ -18,7 +18,7 @@ import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { consumePendingNew, localIsoKey } from "@plainva/ui";
+import { calendarDay, consumePendingNew } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -94,10 +94,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return listExistingDailyNotes(dates, { vaultPath, adapter: vaultAdapter });
   }, [vaultPath, vaultAdapter]);
 
-  const todayKey = localIsoKey(new Date());
+  const todayKey = calendarDay(new Date());
   const tomorrowKey = ((): string => {
     const [ty, tm, td] = todayKey.split("-").map(Number);
-    return localIsoKey(new Date(ty ?? 1970, (tm ?? 1) - 1, (td ?? 1) + 1));
+    return calendarDay(new Date(ty ?? 1970, (tm ?? 1) - 1, (td ?? 1) + 1));
   })();
   // Per-minute "now" so past events dim live (Google-Calendar style) without a
   // re-query; the value drives only presentation.
@@ -516,7 +516,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     if (viewMode !== "month") return [];
     return chunkWeeks(cells).map((week) =>
       layoutSpanningEvents(
-        week.map(localIsoKey),
+        week.map(calendarDay),
         linkedEvents,
         { keysOf: eventDayKeys },
       ),
@@ -592,7 +592,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
       const step = viewMode === "3day" ? 3 : viewMode === "week" ? 7 : 1;
       const next = new Date(selectedDate.getTime() + dir * step * DAY_MS_LOCAL);
-      setSelectedDay(localIsoKey(next));
+      setSelectedDay(calendarDay(next));
       setViewDate(startOfMonth(next));
     },
     [viewMode, selectedDate]
@@ -626,7 +626,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         const now = new Date();
         const startMin = Math.min(23 * 60, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
         setQuickCreate({
-          dayKey: localIsoKey(now),
+          dayKey: calendarDay(now),
           startMin,
           endMin: Math.min(24 * 60, startMin + 60),
           anchor: { x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 3) },
@@ -1521,11 +1521,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             onOpenDailyNote={(key) => { setJumpOpen(false); void openDailyNote(new Date(`${key}T00:00:00`)); }}
             band={
               (viewMode === "week" || viewMode === "3day") && gridDays.length > 0
-                ? { from: localIsoKey(gridDays[0]), to: localIsoKey(gridDays[gridDays.length - 1]) }
+                ? { from: calendarDay(gridDays[0]), to: calendarDay(gridDays[gridDays.length - 1]) }
                 : null
             }
             onPick={(key) => { applyDay(key); setJumpOpen(false); titleRef.current?.focus(); }}
-            onToday={() => { applyDay(localIsoKey(new Date())); setJumpOpen(false); titleRef.current?.focus(); }}
+            onToday={() => { applyDay(calendarDay(new Date())); setJumpOpen(false); titleRef.current?.focus(); }}
             onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
             autoFocus
             testId="calendar-jump"
@@ -1540,7 +1540,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           variant="ghost"
           onClick={() => {
             setViewDate(startOfMonth(new Date()));
-            setSelectedDay(localIsoKey(new Date()));
+            setSelectedDay(calendarDay(new Date()));
           }}
         >
           {t("calendar.today", { defaultValue: "Heute" })}
@@ -1641,7 +1641,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(72px, 1fr)", gap: 2, flex: 1, minHeight: 0 }}
           >
             {cells.map((cell, cellIndex) => {
-              const key = localIsoKey(cell);
+              const key = calendarDay(cell);
               // A spanning event is drawn ONCE as a bar across the row, so the
               // cells it passes through must not repeat it (S5).
               const list = (byDay.get(key) ?? []).filter((e) => !spannedEvents.has(e));

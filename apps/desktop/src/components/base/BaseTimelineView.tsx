@@ -9,8 +9,8 @@ import {
   chipPaletteIndex,
   rowDueTone,
   type TaskCompletionModel,
+  calendarDay,
   compareRows,
-  dayKey,
   dayPartOf,
   edgeDrag,
   moveBar,
@@ -301,7 +301,7 @@ export function BaseTimelineView({
     return out;
   }, [depNodes, rowIndexByPath, rows, dateProp, endProp, days, dayWidth, conflicts, rowCentres]);
 
-  const todayKey = dayKey(new Date());
+  const todayKey = calendarDay();
   const todayCol = days.indexOf(todayKey);
   const rangeLabel =
     days.length === 0

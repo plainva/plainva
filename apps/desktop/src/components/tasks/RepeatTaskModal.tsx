@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
 import { Button, ICON, Modal, Segmented } from "@plainva/ui";
 import { nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
-import { localIsoKey } from "@plainva/ui";
+import { calendarDay } from "@plainva/ui";
 
 /**
  * Repetition of a task (issue #34, wave 3). Small on purpose: a task repeats in
@@ -44,7 +44,7 @@ export function RepeatTaskModal({ taskTitle, initial, currentDue, onCancel, onSu
    * shows the overdue case without explaining it — the date it names is the
    * next one in the FUTURE, not the arithmetically next one in the past.
    */
-  const today = localIsoKey(new Date());
+  const today = calendarDay();
   const preview = nextDueDate({ freq, interval: n, from }, currentDue ?? null, today);
   const previewLabel = preview
     ? new Date(`${preview}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })

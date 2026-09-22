@@ -5,8 +5,8 @@ import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "luci
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, Chip, DateJumpPicker, DateJumpPopover, DateJumpTrigger, EmptyState, GroupCard, ICON, JournalCaptureField, JournalDayList, MenuItem, MenuSurface, Row, RowList,
-  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
-  useJournalActions, useJournalFeed, useTodayKey, useWeekStartDay,
+  RowActionList, SearchField, buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalFeedSettings, type JournalRowCaps, type JournalWriteFailure,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -29,7 +29,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
   const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter, queryService, fileTreeVersion, fileTreeVersionPaths } = useVault();
   const files = useJournalFiles();
-  const todayKey = useTodayKey();
+  const todayKey = useJournalDayKey();
   const weekStart = useWeekStartDay();
   const [settings, setSettings] = useState<JournalFeedSettings | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: JournalRowCaps } | null>(null);
@@ -179,9 +179,9 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
             <RowList>
               <Row
                 icon={<Sun size={ICON.ui} />}
-                title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(new Date()) })}
+                title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(journalToday()) })}
                 end={<ChevronRight size={ICON.ui} />}
-                onClick={() => onOpenPath(buildDailyNotePath(new Date(), settings.format, settings.folder).fullPath, false)}
+                onClick={() => onOpenPath(buildDailyNotePath(journalToday(), settings.format, settings.folder).fullPath, false)}
                 data-testid="journal-daily-card"
               />
             </RowList>

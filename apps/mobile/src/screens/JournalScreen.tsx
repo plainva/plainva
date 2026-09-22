@@ -4,8 +4,8 @@ import { CalendarDays, ChevronRight, NotebookPen, NotebookText, Sun } from "luci
 import type { JournalEntry } from "@plainva/core";
 import {
   Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalDayList, Row, RowList, SearchField,
-  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
-  useJournalActions, useJournalFeed, useTodayKey, useWeekStartDay,
+  buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, setPendingSearchJump, toast,
+  useJournalActions, useJournalDayKey, useJournalFeed, useWeekStartDay,
   type JournalDay, type JournalRowCaps,
 } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
@@ -43,7 +43,7 @@ export function JournalScreen({
   onNewEntry: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const todayKey = useTodayKey();
+  const todayKey = useJournalDayKey();
   const weekStart = useWeekStartDay();
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -154,9 +154,9 @@ export function JournalScreen({
           <RowList>
             <Row
               icon={<Sun size={ICON.head} />}
-              title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(new Date()) })}
+              title={t("journal.dailyCard", { date: new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long" }).format(journalToday()) })}
               end={<ChevronRight size={ICON.head} />}
-              onClick={() => onOpenNote(buildDailyNotePath(new Date(), ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).fullPath)}
+              onClick={() => onOpenNote(buildDailyNotePath(journalToday(), ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).fullPath)}
               data-testid="journal-daily-card"
             />
           </RowList>

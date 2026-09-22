@@ -43,6 +43,7 @@ The entries of a single day also appear where you look at that day: as the **Jou
 
 - Entries are appended at the end of the section, so the file reads chronologically; the view shows the newest on top.
 - The heading is **Journal** by default and can be changed per vault under **Settings → Vault → Content & structure** (**Journal heading**; on the phone under **Settings → Content & structure**). Its level does not matter. If the heading is missing, Plainva adds `## Journal` at the end of the note. Changing the setting does not rename existing headings.
+- **The day ends at** (same place in the settings) moves the edge of the day later: set to **04:00**, everything you write between midnight and four still belongs to the day before — the entry goes into yesterday's daily note and keeps its real time (`- 01:30 …`). The day heading in the journal then says **until 04:00**. The boundary applies to the daily note and the journal, **not** to the calendar and not to when a task is due: an appointment at 01:30 on Wednesday stays on Wednesday. The default is **Midnight**; the setting belongs to the vault and holds on every device.
 - Plainva also reads `- 14:05:30 Text` (with seconds) and entries with a checkbox, and it continues the list the way your note writes it (`-`, `*` or `+`, with or without blank lines between entries). Existing lines are never reformatted.
 - A change that cannot be placed safely — for example because a code block in the section was never closed — is refused with a message, and the field keeps your text.
 

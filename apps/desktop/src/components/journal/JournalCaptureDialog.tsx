@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen } from "lucide-react";
-import { Button, ICON, JournalCaptureField, Modal, buildDailyNotePath, errorText, importAttachment, toast } from "@plainva/ui";
+import { Button, ICON, JournalCaptureField, Modal, buildDailyNotePath, errorText, importAttachment, journalToday, toast } from "@plainva/ui";
 import { attachmentFolderKey, useVault } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
@@ -49,7 +49,7 @@ export function JournalCaptureDialog({
     let alive = true;
     void (async () => {
       const config = await readDailyNoteConfig(vaultPath);
-      const { fullPath, dateStr } = buildDailyNotePath(day ?? new Date(), config.format || "YYYY-MM-DD", config.folder);
+      const { fullPath, dateStr } = buildDailyNotePath(day ?? journalToday(), config.format || "YYYY-MM-DD", config.folder);
       const exists = await vaultAdapter.exists(fullPath);
       if (alive) setTarget({ name: dateStr, exists, folder: config.folder });
     })().catch(() => undefined);

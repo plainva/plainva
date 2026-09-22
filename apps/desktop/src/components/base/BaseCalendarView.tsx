@@ -2,6 +2,7 @@ import {
   ICON,
   IconButton,
   Segmented,
+  calendarDay,
   compareByTime,
   entryDayKeys,
   rowDueTone,
@@ -110,10 +111,12 @@ export function BaseCalendarView({
   });
   const draggedRow = draggingPath ? dbData.find((r) => r["file.path"] === draggingPath) : null;
 
-  const today = new Date();
   const locale = i18n.language || "de";
   const weekdays = weekdayShortNames(locale, weekStartDay);
-  const isToday = (key: string) => key === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  // The CALENDAR's today, from the one function — this used to rebuild the key
+  // inline, a fourth copy of it (plan Journal-Erweiterungen, X1).
+  const todayKey = calendarDay();
+  const isToday = (key: string) => key === todayKey;
 
   const periodLabel =
     cursor.range === "month"
@@ -221,14 +224,14 @@ export function BaseCalendarView({
                 weekStart={weekStartDay}
                 band={cursor.range === "week" && rows[0]?.[0] && rows[0]?.[6] ? { from: rows[0][0], to: rows[0][6] } : null}
                 onPick={(key) => { setCursor((c) => ({ ...c, day: key })); setJumpOpen(false); titleRef.current?.focus(); }}
-                onToday={() => { setCursor((c) => ({ ...c, day: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}` })); setJumpOpen(false); titleRef.current?.focus(); }}
+                onToday={() => { setCursor((c) => ({ ...c, day: todayKey })); setJumpOpen(false); titleRef.current?.focus(); }}
                 onClose={() => { setJumpOpen(false); titleRef.current?.focus(); }}
                 autoFocus
                 testId="base-cal-jump"
               />
             </DateJumpPopover>
             <button onClick={() => setCursor((c) => stepCursor(c, 1))} className="base-nav-btn" aria-label={t("database.nextPeriod", "Weiter")} data-tip={t("database.nextPeriod", "Weiter")}><ChevronRight size={ICON.ui} /></button>
-            <button onClick={() => setCursor((c) => ({ ...c, day: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}` }))} className="base-today-btn">{t("database.today", "Heute")}</button>
+            <button onClick={() => setCursor((c) => ({ ...c, day: todayKey }))} className="base-today-btn">{t("database.today", "Heute")}</button>
             <Segmented
               value={cursor.range}
               onChange={(v) => setCursor((c) => ({ ...c, range: v as CalendarCursor["range"] }))}

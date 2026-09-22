@@ -6,7 +6,7 @@ import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
-import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, localIsoKey, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
+import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
   setFrontmatterPath,
@@ -828,7 +828,7 @@ export function TasksScreen({
      only the first would ever pluralise. */
   const barSummary = (() => {
     const shown = count + dbVisible.length;
-    const today = localIsoKey(new Date());
+    const today = calendarDay();
     const due =
       groups.reduce((n, g) => n + g.items.filter((x) => x.due && x.due <= today).length, 0) +
       dbVisible.filter((r) => r.due && r.due <= today).length;
@@ -1325,7 +1325,7 @@ export function TasksScreen({
           calendarOptions={calendarOptions}
           initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, "")}
           // A due task blocks on its due day by default, everything else today.
-          initialDayKey={blockTarget.due ?? localIsoKey(new Date())}
+          initialDayKey={blockTarget.due ?? calendarDay()}
           initialStartTime={minutesToTime(nextHalfHourMinutes(new Date()))}
           onClose={() => setBlockTarget(null)}
           onSubmit={submitBlock}

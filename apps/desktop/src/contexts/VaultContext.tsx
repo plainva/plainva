@@ -501,6 +501,13 @@ export const defaultNoteTypeKey = (vaultPath: string) => `defaultNoteType_${btoa
 export const dailyNoteTypeKey = (vaultPath: string) => `dailyNoteType_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Heading the journal entries of a daily note stand under (plan Journal, E3); empty = "Journal". */
 export const journalHeadingKey = (vaultPath: string) => `journalHeading_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/**
+ * When this vault's day ends, minutes after midnight (plan Journal-Erweiterungen,
+ * E1). 0 - the default - means midnight, and everything behaves as it always
+ * did. It moves the DIARY only: the daily note and the journal. An appointment
+ * at 01:30 is still on the day the clock says.
+ */
+export const dayEndsAtKey = (vaultPath: string) => `dayEndsAt_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const DEFAULT_NOTE_TYPE = "Note";
 export const DEFAULT_DAILY_NOTE_TYPE = "Daily Note";
 /**

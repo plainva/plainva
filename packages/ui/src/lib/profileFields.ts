@@ -78,6 +78,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   dailyNoteTemplate: "",
   dailyNoteType: "Daily Note",
   journalHeading: "Journal",
+  dayEndsAt: 0,
   templateFolder: "Templates",
   attachmentFolder: "Attachments",
   inboxFolder: "Inbox",
@@ -201,6 +202,11 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // E3). A VAULT field that travels: two devices with different headings would
   // each write their own section into the same note - a silent error.
   { logical: "journalHeading", scope: "vault", kind: "text", area: "content", desktop: "store", mobile: "journalHeading" },
+  // When the vault's day ends (minutes after midnight, 0-360; plan
+  // Journal-Erweiterungen, E1). A VAULT field like the heading, and for the
+  // same reason: two devices with different boundaries would put the same
+  // 01:30 entry into two different notes.
+  { logical: "dayEndsAt", scope: "vault", kind: "number", area: "content", desktop: "store", mobile: "dayEndsAt", min: 0 },
   { logical: "templateFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "templateFolder" },
   { logical: "attachmentFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "attachmentFolder" },
   { logical: "inboxFolder", scope: "vault", kind: "vaultPath", area: "content", desktop: "store", mobile: "inboxFolder" },

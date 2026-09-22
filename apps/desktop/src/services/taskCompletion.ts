@@ -2,7 +2,7 @@ import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "
 import {
   applyTaskCompletion,
   canRepeat,
-  localIsoKey,
+  calendarDay,
   nextDueDate,
   readRepeatRule,
   readRepeatCompletionDay,
@@ -134,7 +134,7 @@ export async function spawnNextOccurrence(
   const rule = readRepeatRule(raw);
   if (!rule || !canRepeat(raw)) return { spawnedDue: null, spawnFailed: false };
   const currentDue = deps.dueKey ? String(readFrontmatterPath(raw, [deps.dueKey]) ?? "").slice(0, 10) : null;
-  const completedOn = readRepeatCompletionDay(raw) ?? localIsoKey(new Date());
+  const completedOn = readRepeatCompletionDay(raw) ?? calendarDay();
   const next = nextDueDate(rule, currentDue || null, completedOn);
   if (!next) return { spawnedDue: null, spawnFailed: false };
 

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
-import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows } from "@plainva/ui";
+import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, journalToday, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows, useJournalDayKey } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -56,8 +56,12 @@ export function TodayScreen({
   // Both directions (redesign § 3.6). It used to end at TOMORROW, which made
   // the surface a review tool: you could see what you had done and not what is
   // coming. Two weeks each way fits a month of context without an endless rail.
-  const days = buildDayStrip(new Date(), 14, 14);
-  const todayIso = isoOf(new Date());
+  const days = buildDayStrip(journalToday(), 14, 14);
+  // The DIARY day, not the calendar one (plan Journal-Erweiterungen, X1/X2):
+  // this screen is where the daily note and the journal section live, and at
+  // 01:30 with a 04:00 boundary they are still yesterday's. The calendar tab
+  // and every due date keep asking the calendar.
+  const todayIso = useJournalDayKey();
   const [selectedIso, setSelectedIso] = useState(todayIso);
   const [dailyExists, setDailyExists] = useState(false);
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());

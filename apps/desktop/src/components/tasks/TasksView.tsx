@@ -26,7 +26,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { localIsoKey } from "@plainva/ui";
+import { calendarDay } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
@@ -1288,7 +1288,7 @@ export function TasksView({ onOpenPath }: Props) {
         <TimeBlockModal
           taskTitle={blockTarget.title}
           // A due task blocks on its due day by default, everything else today.
-          initialDayKey={blockTarget.due ?? localIsoKey(new Date())}
+          initialDayKey={blockTarget.due ?? calendarDay()}
           initialStartTime={minutesToTime(nextHalfHourMinutes(new Date()))}
           calendarOptions={calendarOptions}
           initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, prefCalendarKey)}

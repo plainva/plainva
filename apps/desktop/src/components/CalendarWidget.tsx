@@ -3,7 +3,7 @@ import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Sun } from "lu
 import { useTranslation } from "react-i18next";
 import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useWeekStartDay, weekdayShortNames } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
-import { localIsoKey } from "@plainva/ui";
+import { calendarDay } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
 import { loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
@@ -190,7 +190,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   };
 
   const renderDay = (d: Date, key: number) => {
-    const dayKey = localIsoKey(d);
+    const dayKey = calendarDay(d);
     const inMonth = d.getMonth() === viewDate.getMonth();
     const isToday = sameDay(d, today);
     const isActive = activeDate ? sameDay(d, activeDate) : false;
@@ -284,7 +284,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
             grid right underneath, so a second day grid would repeat it. */}
         <DateJumpPopover open={pickerOpen} anchorRef={navRef} onClose={closePicker} ariaLabel={t("calendar.selectMonthYear")} testId="calendar-month-picker">
           <DateJumpPicker
-            value={localIsoKey(viewDate)}
+            value={calendarDay(viewDate)}
             weekStart={weekStartDay}
             showDays={false}
             onPick={() => {}}
@@ -382,7 +382,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
             >
               {/* The overdue rule of the task list: an open task whose day has
                   come is said in the warning tone (issues #83/#84). */}
-              <span style={!task.done && task.due <= localIsoKey(today) ? { color: "var(--warning-text)", fontWeight: 600 } : undefined}>{task.title}</span>
+              <span style={!task.done && task.due <= calendarDay(today) ? { color: "var(--warning-text)", fontWeight: 600 } : undefined}>{task.title}</span>
             </MenuItem>
           ))}
         </MenuSurface>

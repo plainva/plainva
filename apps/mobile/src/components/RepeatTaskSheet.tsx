@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { Banner, Button, ICON, localIsoKey, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
+import { Banner, Button, ICON, calendarDay, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -43,7 +43,7 @@ export function RepeatTaskSheet({
   const [error, setError] = useState<string | null>(null);
 
   const n = Math.max(1, Math.floor(Number(interval) || 0));
-  const preview = nextDueDate({ freq, interval: n, from }, currentDue ?? null, localIsoKey(new Date()));
+  const preview = nextDueDate({ freq, interval: n, from }, currentDue ?? null, calendarDay());
   const previewLabel = preview
     ? new Date(`${preview}T00:00:00`).toLocaleDateString(undefined, {
         weekday: "short",

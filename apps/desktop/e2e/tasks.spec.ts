@@ -59,6 +59,9 @@ test.beforeEach(async ({ page }) => {
           // fs.__taskDb in its own init script (not a vault path — ignored by
           // noteRows()).
           if (String(args.key || '').startsWith('taskDatabase_')) return fs.__taskDb ? [fs.__taskDb, true] : [null, false];
+          // The vault's day boundary (plan Journal-Erweiterungen, X2), minutes
+          // after midnight. A test opts in with fs.__dayEndsAt.
+          if (String(args.key || '').startsWith('dayEndsAt_')) return [fs.__dayEndsAt ?? 0, true];
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
@@ -952,6 +955,42 @@ test('the journal: capture lands on top, an entry becomes a task the task view k
   await openTasks(page);
   await expect(page.getByRole('button', { name: /Router is in the basement/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Order the spare part/ })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('the day boundary: an entry at 01:30 joins yesterday and keeps its time (plan Journal-Erweiterungen, X2)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  // Half past one in the morning, with the vault's day ending at 04:00.
+  await page.clock.setFixedTime(new Date('2026-09-22T01:30:00'));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs.__dayEndsAt = 4 * 60;
+    fs['/test-vault/2026-09-21.md'] = '# Monday\n\n## Journal\n\n- 22:10 Last train home\n';
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-journal').click();
+  const view = page.getByTestId('journal-view');
+
+  // The head of the day that is still collecting says where a line goes now.
+  await expect(view.getByTestId('journal-day').first()).toContainText(/until 04:00|bis 04:00/);
+
+  await page.keyboard.press('Control+Shift+J');
+  const dialog = page.getByTestId('journal-capture-dialog');
+  // The target is YESTERDAY's note, and it exists - so no "will be created".
+  await expect(dialog.getByTestId('journal-capture-target')).toContainText('2026-09-21');
+  await dialog.getByTestId('journal-capture-input').fill('Could not sleep');
+  await dialog.getByTestId('journal-capture-input').press('Enter');
+  await expect(dialog).toBeHidden();
+
+  // Yesterday's note took it, stamped with the real clock - not shifted back.
+  await expect
+    .poll(async () => page.evaluate(() => String((window as any).mockFs['/test-vault/2026-09-21.md'] ?? '')))
+    .toBe('# Monday\n\n## Journal\n\n- 22:10 Last train home\n- 01:30 Could not sleep\n');
+  // And no note was made for the calendar day the clock shows.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/2026-09-22.md'] ?? null)).toBeNull();
+  // One day in the stream, not two.
+  await expect(view.getByTestId('journal-day')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 

@@ -18,7 +18,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { EmptyState, ICON, IconButton, isImagePath, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, isImagePath, journalToday, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -82,6 +82,7 @@ import {
 import { currentWindowParams, isOwnerWindow, windowStateKey } from "./services/windowContext";
 import { detectMac } from "./components/WindowControls";
 import { useQuickCaptureSink } from "./hooks/useJournal";
+import { useDayBoundary } from "./hooks/useDayBoundary";
 import "./App.css";
 
 /**
@@ -1103,8 +1104,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // the template if it doesn't exist yet.
   const handleOpenDailyNote = useDailyNoteAction(openInFocusedPane);
 
-  /** "+ → Tageseintrag" and the palette: today's note, same path as the calendar. */
-  const openTodayDailyNote = () => handleOpenDailyNote(new Date());
+  /**
+   * "+ → Tageseintrag" and the palette: today's note, same path as the calendar.
+   *
+   * `journalToday()` — not `new Date()`: with a day boundary set, the note that
+   * is "today" at 01:30 is yesterday's (plan Journal-Erweiterungen, X1/X2).
+   */
+  const openTodayDailyNote = () => handleOpenDailyNote(journalToday());
 
   /**
    * What "New …" can make from this shell, in the catalog's vocabulary — read
@@ -1155,6 +1161,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // was switched on in an earlier session is registered again. Off is the
   // default — then nothing is registered and the plugin is not even loaded.
   useQuickCaptureSink();
+  // This vault's day boundary, published once for every way into the journal (X2).
+  useDayBoundary();
   useEffect(() => {
     if (!isOwnerWindow()) return;
     void import("./services/quickCapture").then(({ initQuickCapture }) => initQuickCapture()).catch(() => undefined);
@@ -1229,7 +1237,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onNewFolder={() => requestNewItem("folder")}
         onNewBase={() => requestNewItem("base")}
         onQuickSwitcher={() => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
-        onDailyNote={() => { void handleOpenDailyNote(new Date()); }}
+        onDailyNote={() => { void handleOpenDailyNote(journalToday()); }}
         onOpenGraph={() => openView(GRAPH_TAB_PATH)}
         onOpenTasks={() => openView(TASKS_TAB_PATH)}
         onOpenCalendar={cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined}
@@ -1725,7 +1733,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           onClose={() => setShowCommandPalette(false)}
           commands={buildAppCommands({
             newItem: (kind, opts) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } })),
-            openDailyNote: () => { void handleOpenDailyNote(new Date()); },
+            openDailyNote: () => { void handleOpenDailyNote(journalToday()); },
             newEvent: newHandlers.event,
             newTask: newHandlers.task,
             newJournalEntry: newHandlers.journal,

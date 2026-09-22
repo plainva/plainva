@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
-import { DateJumpPicker, dateTimeEditorValue, dateValueHasTime, formatDateValue, localIsoKey, parseLocalDate, useWeekStartDay } from "@plainva/ui";
+import { DateJumpPicker, calendarDay, dateTimeEditorValue, dateValueHasTime, formatDateValue, parseLocalDate, useWeekStartDay } from "@plainva/ui";
 
 interface Props {
   value: string;
@@ -31,7 +31,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
   const parsed = value ? parseLocalDate(value) : null;
   const initialDate = parsed ?? new Date();
 
-  const [selectedDay, setSelectedDay] = useState(localIsoKey(initialDate));
+  const [selectedDay, setSelectedDay] = useState(calendarDay(initialDate));
   const [timeStr, setTimeStr] = useState(parsed && !dateValueHasTime(value) ? "00:00" : format(initialDate, "HH:mm"));
 
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -130,7 +130,7 @@ export function CustomDatePicker({ value, onChange, includeTime, autoOpen, onClo
             value={selectedDay}
             weekStart={weekStart}
             onPick={handleDayPick}
-            onToday={() => handleDayPick(localIsoKey(new Date()))}
+            onToday={() => handleDayPick(calendarDay())}
             onClose={() => { setIsOpen(false); onClose?.(); }}
             autoFocus
             testId="date-field"

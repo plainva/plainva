@@ -1,6 +1,7 @@
 import { trimEndChars } from "@plainva/core";
 import { isValid } from "date-fns";
 import { formatMoment, parseMoment } from "./momentFormat";
+import { calendarDay } from "./today";
 
 /**
  * Pure path builder for daily notes — no I/O, no Tauri/context imports, so it
@@ -20,11 +21,15 @@ export function buildDailyNotePath(date: Date, rawFormat: string, folder: string
   return { fullPath, dateStr };
 }
 
-/** Stable local-date key (YYYY-MM-DD) used to mark calendar days. */
-export function localIsoKey(date: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
-}
+/**
+ * Stable local-date key (YYYY-MM-DD) used to mark calendar days.
+ *
+ * The name stays for its callers; the answer comes from `today.ts`, which is
+ * now the one place that turns a moment into a day (plan Journal-Erweiterungen,
+ * X1). A daily note asks `journalDay` instead when the vault has a day
+ * boundary — this one never shifts.
+ */
+export const localIsoKey = calendarDay;
 
 /**
  * Inverse of {@link buildDailyNotePath}: given a vault-relative note path, the

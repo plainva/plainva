@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { JournalEntry } from "@plainva/core";
-import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useTodayKey, type JournalDay, type JournalRowCaps } from "@plainva/ui";
+import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useJournalDayKey, type JournalDay, type JournalRowCaps } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { JournalCaptureSheet } from "./JournalCaptureSheet";
 import { RowActionSheet } from "./RowActionSheet";
@@ -31,7 +31,7 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
   onOpenTasks?: () => void;
 }) {
   const { t } = useTranslation();
-  const todayKey = useTodayKey();
+  const todayKey = useJournalDayKey();
   const ms = getMobileSettings();
   const heading = journalHeading();
   const settings = useMemo(() => ({ folder: ms.dailyFolder, format: ms.dailyFormat, heading }), [ms.dailyFolder, ms.dailyFormat, heading]);

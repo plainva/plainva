@@ -9,6 +9,7 @@ import {
   barDef,
   getVaultTemplates,
   ICON,
+  journalTodayKey,
   sanitizeAreaOrder,
   scaffoldVaultTemplate,
   toast,
@@ -79,7 +80,6 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
-import { isoOf } from "./lib/dates";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -446,7 +446,7 @@ export default function App() {
       onJournal={() => setJournalCapture({ text: "" })}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
-      onOpenToday={() => openDaily(isoOf(new Date()))}
+      onOpenToday={() => openDaily(journalTodayKey())}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
     />
@@ -611,7 +611,7 @@ export default function App() {
   const newHandlers: NewHandlers = {
     note: capture,
     noteFromTemplate: () => setFromTemplate(true),
-    daily: () => openDaily(isoOf(new Date())),
+    daily: () => openDaily(journalTodayKey()),
     journal: () => setJournalCapture({ text: "" }),
     folder: quickNewFolder,
     base: quickNewDatabase,
@@ -623,7 +623,7 @@ export default function App() {
     newFromTemplate: () => setFromTemplate(true),
     newFolder: quickNewFolder,
     newDatabase: quickNewDatabase,
-    openDaily: () => openDaily(isoOf(new Date())),
+    openDaily: () => openDaily(journalTodayKey()),
     newEvent: newHandlers.event,
     newTask: newHandlers.task,
     newJournalEntry: newHandlers.journal,

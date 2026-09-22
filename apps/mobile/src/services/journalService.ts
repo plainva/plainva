@@ -4,6 +4,7 @@ import {
   appendPlannedJournalEntry as appendPlannedEntry,
   buildDailyNotePath,
   errorText,
+  journalToday,
   localIsoKey,
   toast,
   undoJournalChange,
@@ -75,11 +76,14 @@ async function undo(vault: MobileVault, token: JournalUndo, heading: string): Pr
 /** Day, time, heading and daily note a share that goes "into the journal" is planned with. */
 export function planSharedJournalEntry(now: Date = new Date()): { date: string; time: string; heading: string; notePath: string } {
   const ms = getMobileSettings();
+  // The DAY follows the vault's boundary, the TIME is the real clock: a share
+  // at 01:30 lands in yesterday's note as `- 01:30 …` (plan X1).
+  const day = journalToday(now);
   return {
-    date: localIsoKey(now),
+    date: localIsoKey(day),
     time: journalTimeOf(now),
     heading: journalHeading(),
-    notePath: buildDailyNotePath(now, ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).fullPath,
+    notePath: buildDailyNotePath(day, ms.dailyFormat || "YYYY-MM-DD", ms.dailyFolder).fullPath,
   };
 }
 
@@ -103,7 +107,10 @@ export async function appendPlannedJournalEntry(vault: MobileVault, planned: Pla
 export async function captureJournalEntry(vault: MobileVault, input: { text: string; task: boolean; date?: Date }): Promise<{ path: string; entry: JournalEntry } | null> {
   try {
     const heading = journalHeading();
-    const result = await appendJournalEntry(journalFiles(vault), { date: input.date ?? new Date(), text: input.text, heading, task: input.task });
+    // `journalToday()`, not `new Date()`: with a day boundary set, an entry at
+    // 01:30 joins yesterday's note — and is still stamped 01:30, because the
+    // moment of writing travels separately (plan Journal-Erweiterungen, X1).
+    const result = await appendJournalEntry(journalFiles(vault), { date: input.date ?? journalToday(), text: input.text, heading, task: input.task });
     if (!result.ok) {
       // An empty text is not an error worth a sentence; the field simply stays.
       if (result.reason !== "empty") toast.error(journalFailureText(result.reason));

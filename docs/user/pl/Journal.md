@@ -43,6 +43,7 @@ Wpisy jednego dnia widać też tam, gdzie patrzysz na ten dzień: jako sekcję *
 
 - Wpisy są dopisywane na końcu sekcji, więc plik czyta się chronologicznie; widok pokazuje najnowszy na górze.
 - Nagłówek to domyślnie **Journal** i można go zmienić dla każdego vaulta w **Ustawienia → Vault → Treść i struktura** (**Nagłówek dziennika**; na telefonie w **Ustawienia → Treść i struktura**). Jego poziom nie ma znaczenia. Jeśli nagłówek nie istnieje, Plainva dodaje `## Journal` na końcu notatki. Zmiana ustawienia nie zmienia nazwy istniejących nagłówków.
+- **Dzień kończy się o** (to samo miejsce w ustawieniach) przesuwa granicę dnia później: przy **04:00** wszystko, co napiszesz między północą a czwartą, należy jeszcze do poprzedniego dnia — wpis trafia do wczorajszej notatki dziennej i zachowuje swój prawdziwy czas (`- 01:30 …`). Nagłówek dnia w dzienniku mówi wtedy **do 04:00**. Granica dotyczy notatki dziennej i dziennika, **nie** kalendarza ani terminów zadań: spotkanie o 01:30 w środę pozostaje w środę. Domyślnie jest to **Północ**; ustawienie należy do sejfu i obowiązuje na wszystkich urządzeniach.
 - Plainva odczytuje też `- 14:05:30 Tekst` (z sekundami) oraz wpisy z polem wyboru, i kontynuuje listę tak, jak zapisuje ją Twoja notatka (`-`, `*` lub `+`, z pustymi liniami między wpisami lub bez nich). Istniejące wiersze nigdy nie są przeformatowywane.
 - Zmiana, której nie da się bezpiecznie umieścić — na przykład dlatego, że blok kodu w sekcji nigdy nie został zamknięty — jest odrzucana z komunikatem, a pole zachowuje Twój tekst.
 

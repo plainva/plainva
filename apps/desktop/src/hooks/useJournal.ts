@@ -5,6 +5,7 @@ import {
   appendJournalEntry,
   ensureDailyNote,
   errorText,
+  journalToday,
   toast,
   undoJournalChange,
   useStableHandler,
@@ -115,7 +116,10 @@ function useCaptureWithOutcome(): (input: JournalCaptureInput) => Promise<Captur
     if (!files || !vaultPath) return { ok: false, message: t("quickCapture.noVault") };
     try {
       const heading = await readJournalHeading(vaultPath);
-      const result = await appendJournalEntry(files, { date: date ?? new Date(), text, heading, task });
+      // `journalToday()`, not `new Date()`: with a day boundary set, an entry at
+      // 01:30 joins yesterday's note — and is still stamped 01:30, because the
+      // moment of writing travels separately (plan Journal-Erweiterungen, X1).
+      const result = await appendJournalEntry(files, { date: date ?? journalToday(), text, heading, task });
       if (!result.ok) {
         // An empty text is not an error worth a sentence; the field simply stays.
         return { ok: false, message: result.reason === "empty" ? null : t(journalFailureKey(result.reason)) };

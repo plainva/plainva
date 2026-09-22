@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEve
 import { ChevronDown, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON } from "../../lib/iconSizes";
-import { localIsoKey } from "../../lib/dailyNotePath";
+import { calendarDay } from "../../lib/today";
 import { buildMonthCells, isoWeeksForCells, monthShortNames, weekdayShortNames, type WeekStartDay } from "../../lib/calendarGrid";
 import { IconButton } from "./IconButton";
 import { Button } from "./Button";
@@ -64,7 +64,7 @@ export interface DateJumpPickerProps {
   testId?: string;
 }
 
-const isoOf = (y: number, m: number, d: number) => localIsoKey(new Date(y, m, d));
+const isoOf = (y: number, m: number, d: number) => calendarDay(new Date(y, m, d));
 function parseIso(key: string): { y: number; m: number; d: number } {
   const [y, m, d] = key.split("-").map(Number);
   return { y: y || new Date().getFullYear(), m: (m || 1) - 1, d: d || 1 };
@@ -101,7 +101,7 @@ export function DateJumpPicker({
 }: DateJumpPickerProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language || "en";
-  const todayKey = localIsoKey(new Date());
+  const todayKey = calendarDay();
   const start = parseIso(value);
   const [cursor, setCursor] = useState({ y: start.y, m: start.m });
   const [focusKey, setFocusKey] = useState(value);
@@ -325,7 +325,7 @@ function RowCells({
     <>
       {week !== null && <span className="pv-datejump-wk">{week}</span>}
       {cells.map((d) => {
-        const iso = localIsoKey(d);
+        const iso = calendarDay(d);
         return (
           <button
             key={iso}

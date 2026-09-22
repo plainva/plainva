@@ -16,6 +16,7 @@ import {
   customThemeSpecForMode,
   setCustomTheme,
   recoverPersonalDesign,
+  setDayBoundary,
   type CustomThemeSpec,
   type CustomThemeDesign,
 } from "@plainva/ui";
@@ -282,6 +283,17 @@ function applyTheme(): void {
   syncNativeStatusBar(root.getAttribute("data-theme") === "dark" ? "dark" : "light");
 }
 
+/**
+ * What the rest of the app reads out of the settings cache without asking it:
+ * the theme, and this vault's day boundary (plan Journal-Erweiterungen, X2).
+ * Called wherever the cache changes, so `journalToday()` is right in every way
+ * into the journal — the FAB, the tray, a shortcut, the share sheet.
+ */
+function applySettings(): void {
+  applyTheme();
+  setDayBoundary(live().dayEndsAt);
+}
+
 export async function initMobileSettings(): Promise<void> {
   media = window.matchMedia("(prefers-color-scheme: dark)");
   media.addEventListener("change", () => {
@@ -314,7 +326,7 @@ export async function initMobileSettings(): Promise<void> {
     /* fresh install / plain web — defaults apply */
     activeVaultId = LOCAL_VAULT_ID;
   }
-  applyTheme();
+  applySettings();
   if (live().language) await changeAppLanguage(live().language).catch(() => {});
   await getPlatformServices().loadSettings().then(store => recoverPersonalDesign(store, async () => live().customTheme,
     async design => { await updateMobileSettings({ customTheme: design }); })).catch(() => {
@@ -336,7 +348,7 @@ export async function reloadMobileSettingsForActiveVault(): Promise<void> {
   } catch {
     /* keep the current cache */
   }
-  applyTheme();
+  applySettings();
   window.dispatchEvent(new CustomEvent("m-settings-changed"));
 }
 
@@ -393,7 +405,7 @@ export function updateMobileSettings(patch: Partial<Omit<MobileSettings, "custom
       throw error;
     }
     cache = { ...next, ...((targetVault === activeVaultId && touchedVault) ? pickVault(next) : pickVault(live())) };
-    applyTheme();
+    applySettings();
     if (patch.language !== undefined) await changeAppLanguage(patch.language || navigator.language).catch(() => {});
     window.dispatchEvent(new CustomEvent("m-settings-changed"));
   });
@@ -424,7 +436,7 @@ export function applyVaultSettings(vaultId: string, patch: Partial<VaultScopedSe
   await store.save();
   if (vaultId === activeVaultId) {
     cache = { ...live(), ...next };
-    applyTheme();
+    applySettings();
     window.dispatchEvent(new CustomEvent("m-settings-changed"));
   }
   });

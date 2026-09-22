@@ -144,3 +144,44 @@ test("the Today screen shows the day's journal, and its field writes into that d
     await expect(page.getByTestId("journal-screen")).toContainText("Watered the fern");
   } finally { sql.close(); }
 });
+
+test("the day boundary: an entry at 01:30 joins yesterday and keeps its time (plan Journal-Erweiterungen, X2)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  const sql = await installSqlBridge(context);
+  // Half past one in the morning, with this vault's day ending at 04:00.
+  await page.clock.setFixedTime(new Date("2026-09-22T01:30:00"));
+  await context.addInitScript(() => {
+    localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
+    // The boundary is a VAULT field, so it lives in the vault's own record.
+    localStorage.setItem("CapacitorStorage.mobile-vault-local", JSON.stringify({ dayEndsAt: 240 }));
+  });
+  try {
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await page.evaluate(async (data) => {
+      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path: "vault/2026-09-21.md", data, directory: "DATA", encoding: "utf8", recursive: true });
+    }, "# Monday\n\n## Journal\n\n- 22:10 Last train home\n");
+    await page.reload();
+    await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
+
+    await openArea(page, "journal", /^Journal$/);
+    const screen = page.getByTestId("journal-screen");
+    // The head of the day that is still collecting says where a line goes now.
+    await expect(screen.getByTestId("journal-day").first()).toContainText("until 04:00");
+
+    await page.getByTestId("journal-new-entry").click();
+    const sheet = page.getByTestId("journal-capture-sheet");
+    await expect(sheet).toBeVisible();
+    // The target is YESTERDAY's note, and it exists - so no "will be created".
+    await expect(sheet.getByTestId("journal-capture-target")).toContainText("2026-09-21");
+    await sheet.getByTestId("journal-capture-input").fill("Could not sleep");
+    await sheet.getByTestId("journal-capture-save").click();
+
+    // Yesterday's note took it, stamped with the real clock - not shifted back.
+    await expect.poll(() => readNote(page, "vault/2026-09-21.md")).toBe("# Monday\n\n## Journal\n\n- 22:10 Last train home\n- 01:30 Could not sleep\n");
+    // And no note was made for the calendar day the clock shows.
+    expect(await readNote(page, "vault/2026-09-22.md")).toBeNull();
+    await expect(screen.getByTestId("journal-day")).toHaveCount(1);
+  } finally { sql.close(); }
+});

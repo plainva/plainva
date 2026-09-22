@@ -8,6 +8,8 @@ import { findImageEmbeds } from "../lib/imageTarget";
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
+import { boundaryLabel } from "../lib/today";
+import { useDayBoundaryMinutes } from "../hooks/useTodayKey";
 import { Button } from "./ui/Button";
 import { cx } from "./ui/cx";
 import { GroupCard, Row, RowList, SectionLabel } from "./ui/GroupedRows";
@@ -152,6 +154,12 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
   const locale = i18n.language;
   const yesterdayKey = addDaysToKey(todayKey, -1);
 
+  // "until 04:00" on the day that is still collecting entries (plan X2). Only
+  // there: it says where a line written after midnight goes, which is a fact
+  // about NOW, not about a day three weeks back.
+  const boundary = useDayBoundaryMinutes();
+  const boundaryNote = boundary > 0 ? t("journal.untilBoundary", { time: boundaryLabel(boundary) }) : null;
+
   const heading = (day: JournalDay): string => {
     const year = day.key.slice(0, 4) !== todayKey.slice(0, 4) ? ({ year: "numeric" } as const) : {};
     const date = new Intl.DateTimeFormat(locale, compact || slim ? { weekday: "short", day: "2-digit", month: "2-digit", ...year } : { weekday: "long", day: "numeric", month: "long", ...year }).format(day.date);
@@ -164,7 +172,12 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
       <div className="pv-journal-slim" data-testid="journal-days">
         {days.map((day) => (
           <section key={day.path} data-testid="journal-day" data-day={day.key}>
-            {!headless && <SectionLabel>{heading(day)}</SectionLabel>}
+            {!headless && (
+              <SectionLabel>
+                {heading(day)}
+                {boundaryNote && day.key === todayKey && <> <span className="pv-journal-count">· {boundaryNote}</span></>}
+              </SectionLabel>
+            )}
             {newestFirst(day.entries).map((entry) => {
               const closed = entry.task === "done" || entry.task === "cancelled";
               return (
@@ -215,6 +228,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
             }
           >
             {heading(day)}{!compact && <> <span className="pv-journal-count">· {t("journal.entries", { count: day.entries.length })}</span></>}
+            {boundaryNote && day.key === todayKey && <> <span className="pv-journal-count">· {boundaryNote}</span></>}
           </SectionLabel>}
           <GroupCard>
             <RowList>

@@ -17,6 +17,7 @@ export * from "./lib/recoveryChallenge";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";
 export * from "./lib/dailyNotePath";
+export * from "./lib/today";
 export * from "./lib/dateLocale";
 export * from "./lib/dueLabel";
 export * from "./lib/rowDueTone";

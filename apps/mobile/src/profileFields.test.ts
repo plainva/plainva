@@ -67,6 +67,10 @@ describe("profile field catalog", () => {
       "dailyNoteType",
       "dailyNotesFolder",
       "dailyNotesFormat",
+      // Plan Journal-Erweiterungen, E1: when the day ends is a vault convention
+      // too. Two devices with different boundaries would put the same 01:30
+      // entry into two different notes.
+      "dayEndsAt",
       "defaultCalendar",
       "defaultNoteType",
       "inboxFolder",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { setExtraTextExtensions, toast } from "@plainva/ui";
+import { clampBoundary, setExtraTextExtensions, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -26,7 +26,7 @@ import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, commentAnchorsKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, journalHeadingKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
+import { useVault, defaultSyncIntervalSeconds, MIN_SYNC_INTERVAL_SECONDS, syncIntervalKey, dailyNotesFolderKey, dailyNotesFormatKey, templateFolderKey, folderTemplatesKey, typeTemplatesKey, inboxFolderKey, attachmentFolderKey, dailyNoteTemplateKey, extendedDatabasesKey, commentAnchorsKey, taskDatabaseKey, textFileExtensionsKey, SHOW_COMPATIBILITY_WARNING_KEY, defaultNoteTypeKey, dailyNoteTypeKey, journalHeadingKey, dayEndsAtKey, DEFAULT_NOTE_TYPE, DEFAULT_DAILY_NOTE_TYPE, verifierNameKey } from "../contexts/VaultContext";
 import { appPrompt } from "../services/appDialogs";
 import { createTaskDatabase } from "../services/taskDatabase";
 import { scanVaultOkf } from "../services/okfConversion";
@@ -208,6 +208,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [defaultNoteType, setDefaultNoteType] = useState(DEFAULT_NOTE_TYPE);
   const [dailyNoteType, setDailyNoteType] = useState(DEFAULT_DAILY_NOTE_TYPE);
   const [journalHeading, setJournalHeading] = useState(DEFAULT_JOURNAL_HEADING);
+  // When this vault's day ends, minutes after midnight (plan Journal-Erweiterungen, E1).
+  const [dayEndsAt, setDayEndsAt] = useState(0);
   // Reviewer name for "Mark as reviewed" (OKF 0.2 plan P3b, D1): per vault,
   // device-local — asked for once by the trust section, editable here.
   const [verifierName, setVerifierName] = useState("");
@@ -423,6 +425,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         setDefaultNoteType((await store.get<string>(defaultNoteTypeKey(section))) || DEFAULT_NOTE_TYPE);
         setDailyNoteType((await store.get<string>(dailyNoteTypeKey(section))) || DEFAULT_DAILY_NOTE_TYPE);
         setJournalHeading((await store.get<string>(journalHeadingKey(section))) || DEFAULT_JOURNAL_HEADING);
+        setDayEndsAt(clampBoundary(await store.get<number>(dayEndsAtKey(section))));
         setVerifierName((await store.get<string>(verifierNameKey(section))) ?? "");
 
         const zipSettings = await loadZipBackupSettings(store, section);
@@ -964,6 +967,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
                       journalHeading={journalHeading}
                       onJournalHeading={(v) => { setJournalHeading(v); void persistFeature(section, journalHeadingKey(section), normalizeJournalHeading(v)); }}
+                      dayEndsAt={dayEndsAt}
+                      onDayEndsAt={(v) => { setDayEndsAt(v); void persistFeature(section, dayEndsAtKey(section), v); }}
                       verifierName={verifierName}
                       onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
                       okfViolations={okfViolations}
