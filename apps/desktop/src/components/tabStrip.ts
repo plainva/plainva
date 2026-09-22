@@ -1,4 +1,4 @@
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import type React from "react";
 import { noteDisplayName } from "@plainva/ui";
 
@@ -184,4 +184,61 @@ export function dropIndicatorShadow(over: TabDropTarget | null, paneIndex: numbe
   return over.side === "before"
     ? "inset 2px 0 0 0 var(--accent-color)"
     : "inset -2px 0 0 0 var(--accent-color)";
+}
+
+/* ------------------------------------------------------------ overflow */
+
+/**
+ * A tab never narrower than this. Below it the label is gone and what is left
+ * — an icon and a ✕ — is not a tab any more, it is a guess.
+ */
+export const TAB_MIN_WIDTH = 104;
+/** Room the overflow button needs at the end of the strip. */
+const OVERFLOW_WIDTH = 44;
+
+/**
+ * Which tabs the strip shows, and which go behind the overflow button (E13).
+ *
+ * The strips used to scroll horizontally: at eight tabs a scrollbar appeared
+ * under them, which is a control nobody looks for in a tab strip and which put
+ * a tab one drag away instead of one click (finding 2026-09-22). Tabs shrink
+ * instead, down to `TAB_MIN_WIDTH`; what does not fit then is reachable in one
+ * click from a menu, and the active tab is always in the window.
+ *
+ * There is no upper limit and nothing closes itself: a tab Plainva shuts on
+ * its own is a lost train of thought.
+ */
+export function useElementWidth(ref: RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    // Not every environment has one — jsdom does not, and a strip that throws
+    // there would take the whole window's test down with it. The window's own
+    // resize is a coarser but sufficient fallback.
+    if (typeof ResizeObserver === "undefined") {
+      const onResize = () => setWidth(el.clientWidth);
+      window.addEventListener("resize", onResize);
+      return () => window.removeEventListener("resize", onResize);
+    }
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return width;
+}
+
+/** Pure: the same width and the same tabs always give the same window. */
+export function tabWindowOf(total: number, activeIndex: number, width: number): { start: number; count: number; hidden: number[] } {
+  // Before the first measurement everything is shown: a strip that starts by
+  // hiding tabs and then reveals them flickers on every window open.
+  const fitsAll = width === 0 || total * TAB_MIN_WIDTH <= width;
+  const count = fitsAll ? total : Math.max(1, Math.floor((width - OVERFLOW_WIDTH) / TAB_MIN_WIDTH));
+  // The window stays at the front while the active tab is in it, and otherwise
+  // moves the least it can — derived, so no state can disagree with the props.
+  const start = activeIndex < count ? 0 : Math.min(activeIndex - count + 1, Math.max(0, total - count));
+  const hidden: number[] = [];
+  for (let i = 0; i < total; i++) if (i < start || i >= start + count) hidden.push(i);
+  return { start, count, hidden };
 }

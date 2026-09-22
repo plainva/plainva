@@ -1,7 +1,6 @@
 import {
   Bookmark,
   CalendarDays,
-  CalendarRange,
   Clock,
   Command,
   Database,
@@ -51,7 +50,14 @@ export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections" | "
 /** Every action the rail's TOP group can carry. The bottom group (help,
  *  settings) is fixed and deliberately outside this model — that is what makes
  *  E3 structural instead of a runtime check. */
-export const RIBBON_AREA_IDS = ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"] as const;
+/* Order since 2026-09-22 (E20): make and find first, then the daily
+ * places, then the two overviews. Three of the twelve start BEHIND the
+ * line — two more "New …" buttons beside the one that already opens a
+ * menu, and the daily note, which the journal now carries at its head.
+ * Nine visible instead of twelve, and every one of the three stays in the
+ * ＋ menu, the palette and on its shortcut. New installations only: an
+ * arrangement somebody made is never overwritten. */
+export const RIBBON_AREA_IDS = ["new", "open", "palette", "journal", "tasks", "calendar", "mail", "graph", "comments", "newFolder", "newBase", "daily"] as const;
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 /** `journal` follows `calendar`: it is the calendar's day written out, and it
@@ -103,20 +109,23 @@ export const BAR_DEFS: BarDef[] = [
     id: "ribbon",
     titleKey: "bars.ribbon",
     descriptionKey: "bars.ribbonDesc",
-    spec: { known: RIBBON_AREA_IDS, defaultVisibleCount: RIBBON_AREA_IDS.length },
+    spec: { known: RIBBON_AREA_IDS, defaultVisibleCount: 9 },
     areas: [
       { id: "new", labelKey: "common.newNote", icon: FilePlus },
+      { id: "open", labelKey: "editor.openFile", icon: Search },
+      { id: "palette", labelKey: "palette.title", icon: Command },
+      { id: "journal", labelKey: "journal.open", icon: NotebookText },
+      { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
+      // ONE source for this glyph: the rail used to render CalendarDays here
+      // while this table claimed CalendarRange, so the settings page showed a
+      // different button than the rail did (finding 2026-09-22).
+      { id: "calendar", labelKey: "pim.openCalendar", icon: CalendarDays },
+      { id: "mail", labelKey: "mail.openMail", icon: Mail },
+      { id: "graph", labelKey: "graph.open", icon: Waypoints },
+      { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
       { id: "newFolder", labelKey: "sidebar.newFolder", icon: FolderPlus },
       { id: "newBase", labelKey: "sidebar.newBase", icon: Database },
-      { id: "open", labelKey: "editor.openFile", icon: Search },
       { id: "daily", labelKey: "sidebar.newDaily", icon: Sun },
-      { id: "graph", labelKey: "graph.open", icon: Waypoints },
-      { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
-      { id: "calendar", labelKey: "pim.openCalendar", icon: CalendarRange },
-      { id: "mail", labelKey: "mail.openMail", icon: Mail },
-      { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
-      { id: "journal", labelKey: "journal.open", icon: NotebookText },
-      { id: "palette", labelKey: "palette.title", icon: Command },
     ],
   },
   {

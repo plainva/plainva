@@ -42,6 +42,10 @@ test.beforeEach(async ({ page }) => {
         // --- STORE PLUGIN ---
         if (cmd === 'plugin:store|load') return 1;
         if (cmd === 'plugin:store|get') {
+          // A test may seed single settings values; everything unseeded falls
+          // through to the answers below.
+          const seeded = (window as any).__E2E_STORE;
+          if (seeded && Object.prototype.hasOwnProperty.call(seeded, args.key)) return [seeded[args.key], true];
           if (args.key === 'lastVaultPath') return ["/test-vault", true];
           if (args.key === 'recentVaults') return [["/test-vault"], true];
           // The splash is the default entry since 2026-07-04 — the suite keeps
@@ -628,9 +632,23 @@ test('File tree: selected folder receives the + Neu note, which starts with an H
 
 // The rail carries the whole creation family now, not just notes — and it
 // obeys the same target rule as the "+" menu: whatever the tree has selected.
+//
+// Since 2026-09-22 (E20) both start BEHIND the rail's divider — two more "New …"
+// buttons beside the one that already opens a menu — so the test arranges them
+// into the rail first, which is exactly what a user who wants them does.
 test('Action rail: New Folder and New Base create inside the selected folder', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Ordner'] = { isDir: true };
+  });
+  await page.addInitScript(() => {
+    // The two are hideable areas of the rail; showing them is a stored
+    // arrangement, which is what a person does once and keeps.
+    (window as any).__E2E_STORE = {
+      barLayoutDefault_ribbon: {
+        order: ['new', 'newFolder', 'newBase', 'open', 'palette', 'journal', 'tasks', 'calendar', 'mail', 'graph', 'comments', 'daily'],
+        visibleCount: 11,
+      },
+    };
   });
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');

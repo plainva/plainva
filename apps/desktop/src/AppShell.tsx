@@ -18,7 +18,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ICON, isImagePath, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, useStableHandler } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, isImagePath, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -67,7 +67,7 @@ import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
 import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
 import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
-import { Plus, ChevronsDownUp, ChevronsUpDown, FolderTree, RefreshCw, ArrowUpDown } from "lucide-react";
+import { Plus, ChevronsDownUp, ChevronsUpDown, FileText, FolderTree, RefreshCw, ArrowUpDown, X } from "lucide-react";
 import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey,
   SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
@@ -80,6 +80,7 @@ import {
   openFullWindow,
 } from "./services/windowManager";
 import { currentWindowParams, isOwnerWindow, windowStateKey } from "./services/windowContext";
+import { detectMac } from "./components/WindowControls";
 import { useQuickCaptureSink } from "./hooks/useJournal";
 import "./App.css";
 
@@ -248,6 +249,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [searchSort, setSearchSort] = useState<SearchSort>(() => readStoredSearchSort());
   /** The files view with a query in the field: the list below the button is search hits, not the tree. */
   const searching = leftSidebarTab === "files" && leftQueryDebounced.trim() !== "";
+  /** The modifier the shortcut hints print — what is on this keyboard. */
+  const modKey = detectMac() ? "⌘" : "Ctrl";
   const chooseSearchSort = (key: SearchSortKey) => {
     setSearchSort((current) => {
       const next = nextSearchSort(current, key);
@@ -1354,7 +1357,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             lists a person navigates by — and moved the switch itself down the
             sidebar, away from the tree it switches (device report 2026-08-15,
             point 9). */}
-        {vaultPath && (
+        {/* While a search runs the column belongs to the hits (finding
+            2026-09-22): these two lists may take 38 vh EACH, so the first hit
+            could sit three quarters of a sidebar below the field one typed
+            into. They come back unchanged when the field is emptied — the
+            user's own open/closed state is never touched. */}
+        {vaultPath && !searching && (
           <LeftPinnedSections
             vaultPath={vaultPath}
             recentPaths={recentPaths}
@@ -1377,7 +1385,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             the pinned sections above. The tree collapse/expand-all toggle lives
             in the file-tree heading below. Which tabs show and in which order
             is the shared bar model. */}
-        <LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} />
+        {searching ? (
+          <div className="pv-resulthead" data-testid="left-result-head">
+            <span>{t("sidebar.hitsFor", { q: leftQueryDebounced.trim() })}</span>
+            <IconButton label={t("sidebar.clearSearch")} onClick={clearLeftQuery} data-testid="left-result-clear">
+              <X size={ICON.ui} />
+            </IconButton>
+          </div>
+        ) : (
+          <LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} />
+        )}
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
             <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -1594,24 +1611,46 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       </Suspense>
                     )
                   ) : (
-                    // Empty pane (plan Designsprache P6/L7): quick actions
-                    // instead of a dead end — open, create, daily note.
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)', color: 'var(--text-muted)', padding: 'var(--space-8)', textAlign: 'center' }}>
-                      <p style={{ margin: 0, fontSize: 'var(--text-md)' }}>{t("editor.emptyPane", { defaultValue: "Kein Dokument geöffnet" })}</p>
-                      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <Button
-                          variant="primary"
-                          onClick={() => { focusPane(i); setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
-                        >
-                          {t("editor.openFile", { defaultValue: "Datei öffnen" })}
-                        </Button>
-                        <Button onClick={() => { focusPane(i); window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })); }}>
-                          {t("common.newNote", { defaultValue: "Neue Notiz" })}
-                        </Button>
-                        <Button onClick={() => { focusPane(i); void handleOpenDailyNote(new Date()); }}>
-                          {t("sidebar.newDaily", { defaultValue: "Tageseintrag" })}
-                        </Button>
-                      </div>
+                    // Empty pane (plan Designsprache P6/L7, finding
+                    // 2026-09-22): the app's own empty state, with ONE action —
+                    // three buttons of equal weight made the reader choose
+                    // before they had read the sentence. What they had open
+                    // last is a list, not a button, because it names things.
+                    <div className="pv-emptypane" style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <EmptyState
+                        icon={<FileText size={ICON.empty} />}
+                        title={t("editor.emptyPaneTitle")}
+                        action={
+                          <Button
+                            variant="primary"
+                            onClick={() => { focusPane(i); setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); }}
+                          >
+                            {t("editor.openFile", { defaultValue: "Datei öffnen" })}
+                          </Button>
+                        }
+                      >
+                        {t("editor.emptyPaneBody")}
+                        {recentPaths.length > 0 && (
+                          <span className="pv-emptypane-recent">
+                            <b>{t("sidebar.recent")}</b>
+                            {recentPaths.slice(0, 5).map((p) => (
+                              <button key={p} type="button" className="pv-rowhover" onClick={() => { focusPane(i); openInFocusedPane(p); }} data-testid="emptypane-recent">
+                                <FileText size={ICON.meta} aria-hidden />
+                                {noteDisplayName(p)}
+                              </button>
+                            ))}
+                          </span>
+                        )}
+                        <span className="pv-emptypane-keys">
+                          <ShortcutHints
+                            hints={[
+                              { keys: [modKey, "O"], label: t("editor.openFile", { defaultValue: "Datei öffnen" }) },
+                              { keys: [modKey, "N"], label: t("common.newNote", { defaultValue: "Neue Notiz" }) },
+                              { keys: [modKey, "Shift", "D"], label: t("sidebar.newDaily", { defaultValue: "Tageseintrag" }) },
+                            ]}
+                          />
+                        </span>
+                      </EmptyState>
                     </div>
                   )}
                 </div>

@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { ICON, toast, errorText, useSearchPages, Button } from "@plainva/ui";
+import { EmptyState, ICON, toast, errorText, useSearchPages, Button } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isInternalPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
-  FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database,
+  FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
 } from "lucide-react";
 import { FileContextMenu } from "./FileContextMenu";
 import { TemplatePickerModal } from "./TemplatePickerModal";
@@ -1164,12 +1164,21 @@ export const FileTree: React.FC<{
   let content;
 
   if (files.length === 0) {
+    // The app's own empty state, with ONE action (finding 2026-09-22): this was
+    // hand-built, and the guard that forbids exactly that did not know the file.
     content = (
-      <div style={{ padding: "1rem", color: "var(--text-faint)", textAlign: "center", fontSize: "var(--text-md)" }}>
+      <EmptyState
+        icon={isSearching ? <SearchX size={ICON.empty} /> : <FileText size={ICON.empty} />}
+        action={
+          isSearching && searchPage.failed
+            ? <Button variant="primary" onClick={searchPage.retry}>{t("sync.retryNow")}</Button>
+            : isSearching && searchPage.hasMore
+              ? <Button variant="primary" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>
+              : undefined
+        }
+      >
         {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
-        {isSearching && searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("sync.retryNow")}</Button>}
-        {isSearching && searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
-      </div>
+      </EmptyState>
     );
   } else if (isSearching) {
     // Flat, grouped list for search results (plan Suche P4/O2): every hit

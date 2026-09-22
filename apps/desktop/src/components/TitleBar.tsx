@@ -5,8 +5,9 @@ import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/t
 import { ICON, PlainvaLogo } from "@plainva/ui";
 import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
-import { tabLabel, useTabDnd, dropIndicatorShadow } from "./tabStrip";
+import { tabLabel, useTabDnd, useElementWidth, tabWindowOf, dropIndicatorShadow, TAB_MIN_WIDTH } from "./tabStrip";
 import { virtualTabMeta } from "./graph/virtualPaths";
+import { TabOverflowButton } from "./TabOverflowButton";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { DocIcon, isRenderableDocIcon } from "@plainva/ui";
 import { useDirtyPaths } from "../services/dirtyStore";
@@ -39,6 +40,12 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
   const { t } = useTranslation();
   const isMac = detectMac();
   const dnd = useTabDnd(paneIndex, onMoveTab ?? (() => {}), onSplitWithTab);
+  // Which tabs fit, and what goes behind the overflow button (E13).
+  const stripRef = useRef<HTMLDivElement>(null);
+  const tabWindow = tabWindowOf(tabs.length, activeIndex, useElementWidth(stripRef));
+  const shownTabs = tabs
+    .map((path, i) => ({ path, i }))
+    .slice(tabWindow.start, tabWindow.start + tabWindow.count);
   const docIcons = useDocumentIcons();
   const dirtyPaths = useDirtyPaths();
   const [themeName, setThemeName] = useState(() => document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME);
@@ -125,8 +132,8 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
 
       {/* Tabs (flat, underline-active, subtle divider — Screenshot 1 style) */}
       {tabs.length > 0 && (
-      <div data-pv-tabstrip={paneIndex} role="tablist" aria-label={t("titlebar.openTabs", { defaultValue: "Geöffnete Dateien" })} style={{ display: "flex", alignItems: "stretch", minWidth: 0, overflowX: "auto", height: "100%" }} className="tabstrip tabstrip--titlebar">
-        {tabs.map((path, i) => {
+      <div ref={stripRef} data-pv-tabstrip={paneIndex} role="tablist" aria-label={t("titlebar.openTabs", { defaultValue: "Geöffnete Dateien" })} style={{ display: "flex", alignItems: "stretch", minWidth: 0, overflow: "hidden", height: "100%" }} className="tabstrip tabstrip--titlebar">
+        {shownTabs.map(({ path, i }) => {
           const active = i === activeIndex;
           // Virtual views (vault map, tasks) carry a localized name and a
           // dedicated icon instead of the raw pseudo path.
@@ -147,6 +154,10 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
               data-tip={virtual ? undefined : path}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7, padding: "0 9px 0 12px", height: "100%",
+                // Shrink before anything overflows: flex-basis 0 with a floor,
+                // so ten tabs share the strip instead of pushing a scrollbar
+                // under it (finding 2026-09-22).
+                flex: "1 1 0", minWidth: TAB_MIN_WIDTH,
                 maxWidth: 220, whiteSpace: "nowrap", cursor: "pointer", fontSize: "var(--text-ui)",
                 borderRight: "1px solid var(--border-color-light)",
                 // Only the transient drag indicator is inline; the active-tab
@@ -183,6 +194,7 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
             </div>
           );
         })}
+        <TabOverflowButton hidden={tabWindow.hidden} tabs={tabs} onSelect={onSelectTab} />
       </div>
       )}
       {onNewTab && (

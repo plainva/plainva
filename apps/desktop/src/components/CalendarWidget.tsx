@@ -219,12 +219,17 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
           fontSize: "var(--text-ui)", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
           background: isActive ? "var(--accent-color)" : undefined,
           color: isActive ? "var(--accent-on)" : outlined ? "var(--accent-color)" : inMonth ? "var(--text-main)" : "var(--text-faint)",
-          fontWeight: isActive ? 700 : outlined ? 600 : 400,
-          boxShadow: outlined ? "inset 0 0 0 1.5px var(--accent-color)" : undefined,
+          // A day that HAS a daily note is set in bold with a quiet ring. Dots
+          // belong to appointments, in both calendars — the sun said the same
+          // thing in a second language (finding 2026-09-22, E19).
+          fontWeight: isActive || hasDaily ? 700 : outlined ? 600 : 400,
+          boxShadow: hasDaily
+            ? `inset 0 0 0 1.5px ${isActive ? "var(--accent-on)" : "color-mix(in srgb, var(--accent-color) 55%, transparent)"}`
+            : outlined ? "inset 0 0 0 1.5px var(--accent-color)" : undefined,
         }}
       >
         {d.getDate()}
-        {(hasDaily || dotColors.length > 0) && (
+        {dotColors.length > 0 && (
           <span
             aria-hidden="true"
             className="pv-cal-dots"
@@ -233,7 +238,6 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
               display: "flex", alignItems: "center", gap: "2px", lineHeight: 0,
             }}
           >
-            {hasDaily && <Sun size={ICON.meta} style={{ color: isActive ? "var(--accent-on)" : "var(--accent-color)" }} />}
             {dotColors.map((c, i) => (
               <span key={i} style={{ width: "4px", height: "4px", borderRadius: "var(--radius-pill)", background: isActive ? "var(--accent-on)" : c }} />
             ))}

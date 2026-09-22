@@ -150,6 +150,10 @@ describe("every desktop list that can be empty says so (E3)", () => {
     "components/settings/SyncPage.tsx",
     "components/mail/MailAccountsSection.tsx",
     "components/VaultFindReplaceModal.tsx",
+    // Added 2026-09-22: both were hand-built empty states the guard could
+    // not see, which is exactly the gap that let them stay hand-built.
+    "AppShell.tsx",
+    "components/FileTree.tsx",
   ];
 
   it.each(listSurfaces)("%s renders EmptyState", (rel) => {

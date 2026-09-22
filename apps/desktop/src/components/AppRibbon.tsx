@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarRange, Command, HelpCircle, ListChecks, Mail, MessageSquare, NotebookText, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
+import { CalendarDays, Command, HelpCircle, SlidersHorizontal, ListChecks, Mail, MessageSquare, NotebookText, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -146,7 +146,7 @@ export function AppRibbon(props: AppRibbonProps) {
     graph: { key: "graph", label: t("graph.open", { defaultValue: "Graph öffnen" }), icon: <Waypoints size={ICON.head} />, run: props.onOpenGraph, testId: "ribbon-graph", windowPath: GRAPH_TAB_PATH },
     tasks: { key: "tasks", label: t("tasks.openTasks", { defaultValue: "Aufgaben öffnen" }), icon: <ListChecks size={ICON.head} />, run: props.onOpenTasks, testId: "ribbon-tasks", windowPath: TASKS_TAB_PATH },
     ...(props.onOpenCalendar
-      ? { calendar: { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarRange size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar", windowPath: CALENDAR_TAB_PATH } }
+      ? { calendar: { key: "calendar", label: t("pim.openCalendar", { defaultValue: "Kalender öffnen" }), icon: <CalendarDays size={ICON.head} />, run: props.onOpenCalendar, testId: "ribbon-calendar", windowPath: CALENDAR_TAB_PATH } }
       : {}),
     ...(props.onOpenMail
       ? { mail: { key: "mail", label: t("mail.openMail", { defaultValue: "E-Mail öffnen" }), icon: <Mail size={ICON.head} />, run: props.onOpenMail, testId: "ribbon-mail", windowPath: MAIL_TAB_PATH } }
@@ -259,6 +259,13 @@ export function AppRibbon(props: AppRibbonProps) {
       }}
     >
       {shown.map((id) => renderAction(catalog[id] as RibbonAction, true))}
+      {/* Last of the top group, quiet: the way to arrange the rail itself
+          (finding 2026-09-22). It was reachable only by right-clicking one of
+          the buttons, which is a gesture one has to know about first. */}
+      {renderAction(
+        { key: "arrange", label: t("bars.arrange", { defaultValue: "Leisten anpassen …" }), icon: <SlidersHorizontal size={ICON.head} />, run: openBarSettings, testId: "ribbon-arrange" },
+        false,
+      )}
       <span style={{ flex: 1 }} />
       {bottom.map((a) => renderAction(a, false))}
 

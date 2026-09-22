@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, CalendarPlus, Database, FilePlus, FileText, FolderPlus, ListPlus, NotebookPen } from "lucide-react";
+import { CalendarPlus, Database, FilePlus, FileText, FolderPlus, ListPlus, NotebookPen, Sun } from "lucide-react";
 
 /**
  * Everything "New …" can make, once (Design-Runde Bedienung 2026-09-04, E4).
@@ -40,7 +40,11 @@ export const NEW_GROUPS: ReadonlyArray<{ id: NewGroupId; items: readonly NewItem
 export const NEW_ITEMS: Record<NewItemId, NewItemMeta> = {
   note: { commandId: "new-note", icon: FilePlus, titleKey: "common.newNote", titleDefault: "Neue Notiz", hint: "Mod+N" },
   noteFromTemplate: { commandId: "new-note-from-template", icon: FileText, titleKey: "fileTree.newFromTemplate", titleDefault: "Neue Notiz aus Vorlage …" },
-  daily: { commandId: "daily-note", icon: CalendarDays, titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D" },
+  // The day, not a second calendar grid: the rail showed CalendarDays here
+  // and CalendarRange for the calendar, two glyphs of one family side by
+  // side. The sun is free since the calendar mark stopped using it
+  // (finding 2026-09-22, E17/E19).
+  daily: { commandId: "daily-note", icon: Sun, titleKey: "sidebar.newDaily", titleDefault: "Tageseintrag", hint: "Mod+Shift+D" },
   // A line in today's daily note, not a file of its own (plan Journal, J4) - it
   // stands next to the daily note because that is where it lands.
   journal: { commandId: "journal-entry", icon: NotebookPen, titleKey: "journal.newEntry", titleDefault: "Journal-Eintrag", hint: "Mod+Shift+J" },
