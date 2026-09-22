@@ -73,7 +73,10 @@ export function buildJournal(s: JournalStrings): VaultTemplateDefinition {
         ],
         views: [
           { name: s.views.table, type: "table", sort: [{ property: k.date, direction: "DESC" }] },
-          { name: s.views.calendar, type: "calendar", dateField: k.date },
+          // The calendar places a day by its FILE NAME (plan
+          // Journal-Erweiterungen, X8): the `datum` column says the same thing
+          // a second time, and a second copy is the one that goes stale.
+          { name: s.views.calendar, type: "calendar", dateField: "file.day" },
         ],
       }),
     ],

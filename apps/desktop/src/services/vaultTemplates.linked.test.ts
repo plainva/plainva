@@ -41,8 +41,6 @@ const stem = (p: string) => p.slice(p.lastIndexOf("/") + 1).replace(/\.md$/, "")
 const folderOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
 /** Every `[[target]]` of a note body, anchors and aliases removed. */
 const linksIn = (body: string) => [...body.matchAll(/\[\[([^\]|#]+)/g)].map((m) => m[1].trim());
-const optionValues = (col: unknown): string[] =>
-  ((col as { options?: unknown[] }).options ?? []).map((o) => (typeof o === "string" ? o : String((o as { value: unknown }).value)));
 
 async function scaffold(def: VaultTemplateDefinition) {
   const files = new Map<string, string>();
@@ -261,11 +259,20 @@ describe("Journal template", () => {
         // its scale rather than one of five translated words.
         const moodKey = Object.keys(cfg.columns).find((k) => (cfg.columns[k] as { input?: string }).input === "rating")!;
         expect(moodKey, "the journal base has no rating column").toBeTruthy();
-        expect(Object.keys(cfg.columns), "the calendar's date field is not a column").toContain(dateKey);
+        // `file.day` is a VIRTUAL field (plan Journal-Erweiterungen, X8): the
+        // day a daily note's file name stands for, computed and never stored.
+        // Every other date field has to be a declared column.
+        if (dateKey !== "file.day") {
+          expect(Object.keys(cfg.columns), "the calendar's date field is not a column").toContain(dateKey);
+        }
         const max = ((cfg.columns[moodKey] as { ratingMax?: number }).ratingMax) ?? 5;
         for (const day of days) {
           expect(day.type, `${day.path} is not a daily note`).toBe("Daily Note");
-          expect(String(day.properties?.[dateKey] ?? ""), `${day.path} has no date`).toContain("{{today");
+          // A day placed by its file NAME carries the date in the name; the
+          // template still writes the `date` property, which the table shows.
+          const dateKeyForNote = dateKey === "file.day" ? Object.keys(cfg.columns).find((k) => (cfg.columns[k] as { input?: string }).input === "date")! : dateKey;
+          expect(String(day.properties?.[dateKeyForNote] ?? ""), `${day.path} has no date`).toContain("{{today");
+          expect(day.path, `${day.path} does not carry its day in the name`).toContain("{{today");
           const mood = day.properties?.[moodKey];
           expect(typeof mood, `${day.path}: the rating is not a number`).toBe("number");
           expect(Number(mood), `${day.path}: the rating is off the column's scale`).toBeGreaterThan(0);

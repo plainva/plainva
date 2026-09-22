@@ -52,6 +52,7 @@ import { MissingRequirementDialog } from "./MissingRequirementDialog";
 import { ColorPopover } from "./ColorPopover";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
+import { FILE_DAY } from "@plainva/ui";
 import { BasePeekModal } from "./BasePeekModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems, getCollapsedLanes, setCollapsedLanes } from "../services/baseViewState";
@@ -179,7 +180,11 @@ export function BaseViewer({
     // The `plainva` frontmatter namespace (doc icon, header color, pim anchor…)
     // is an object managed via its own editor UI — never a base property; hide
     // it from the config list, mirroring PropertiesSection's markdown panel.
+    // `file.day` is the one `file.` key a view may CHOOSE (plan
+     // Journal-Erweiterungen, X8): a calendar places rows by it. The rest are
+     // shown by the table and never configured.
     dbData.forEach((row) => Object.keys(row).forEach((k) => { if (!k.startsWith("file.") && k !== PLAINVA_NAMESPACE_KEY) keys.add(k); }));
+    if (dbData.some((row) => row[FILE_DAY] !== undefined)) keys.add(FILE_DAY);
     if (dbConfig?.columns && !Array.isArray(dbConfig.columns)) {
       Object.keys(dbConfig.columns).forEach((k) => { if (!k.startsWith("file.") && k !== PLAINVA_NAMESPACE_KEY) keys.add(k); });
     }

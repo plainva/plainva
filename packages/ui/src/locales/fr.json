@@ -1191,6 +1191,7 @@
     "colModified": "Modifié",
     "colSize": "Taille",
     "colChecklist": "Liste de tâches",
+    "colDay": "Jour d'après le nom du fichier",
     "checklistProgress": "{{done}} sur {{total}} terminées",
     "checklistAdd": "Ajouter une sous-tâche",
     "checklistAddPlaceholder": "Nouvelle sous-tâche…",

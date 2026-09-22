@@ -71,6 +71,8 @@ export function columnLabel(col: string, t: TFunction, dbConfig?: any): string {
   if (col === "file.size") return t("database.colSize", "Größe");
   if (col === "file.path") return t("database.colPath", "Pfad");
   if (col === "file.tasks") return t("database.colChecklist", "Checkliste");
+  // The day a daily note's FILE NAME stands for (plan Journal-Erweiterungen, X8).
+  if (col === "file.day") return t("database.colDay");
   if (col.startsWith("file.")) return col.slice(5);
   const bare = col.replace(/^note\./, "");
   const displayName = dbConfig?._obsidian?.properties?.[`note.${bare}`]?.displayName

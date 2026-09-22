@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { setDayBoundary } from "@plainva/ui";
-import { dayEndsAtKey, useVault } from "../contexts/VaultContext";
+import { dailyDayResolver, setDayBoundary } from "@plainva/ui";
+import { dailyNotesFolderKey, dailyNotesFormatKey, dayEndsAtKey, useVault } from "../contexts/VaultContext";
 import { getSettingsStore } from "../services/settingsStore";
 
 /**
@@ -17,12 +17,13 @@ import { getSettingsStore } from "../services/settingsStore";
  * what the app did before the boundary existed.
  */
 export function useDayBoundary(): void {
-  const { vaultPath } = useVault();
+  const { vaultPath, queryService } = useVault();
   useEffect(() => {
     let alive = true;
     const read = () => {
       if (!vaultPath) {
         setDayBoundary(0);
+        queryService?.setDayOfPath(null);
         return;
       }
       void (async () => {
@@ -30,6 +31,11 @@ export function useDayBoundary(): void {
           const store = await getSettingsStore();
           const minutes = await store.get<number>(dayEndsAtKey(vaultPath));
           if (alive) setDayBoundary(minutes ?? 0);
+          // `file.day` (plan Journal-Erweiterungen, X8): the same two settings
+          // that name a daily note tell a query which day its name stands for.
+          const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
+          const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
+          if (alive) queryService?.setDayOfPath(dailyDayResolver({ folder, format }));
         } catch {
           if (alive) setDayBoundary(0);
         }
@@ -41,5 +47,5 @@ export function useDayBoundary(): void {
       alive = false;
       window.removeEventListener("plainva-features-saved", read);
     };
-  }, [vaultPath]);
+  }, [vaultPath, queryService]);
 }

@@ -1188,6 +1188,7 @@
     "colModified": "Geändert",
     "colSize": "Größe",
     "colChecklist": "Checkliste",
+    "colDay": "Tag aus dem Dateinamen",
     "checklistProgress": "{{done}} von {{total}} erledigt",
     "checklistAdd": "Unteraufgabe hinzufügen",
     "checklistAddPlaceholder": "Neue Unteraufgabe…",

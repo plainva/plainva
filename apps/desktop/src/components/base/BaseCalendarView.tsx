@@ -4,6 +4,7 @@ import {
   Segmented,
   calendarDay,
   compareByTime,
+  isReadOnlyDateColumn,
   entryDayKeys,
   rowDueTone,
   type TaskCompletionModel,
@@ -106,7 +107,11 @@ export function BaseCalendarView({
   const { cardHandlers, registerTarget, draggingPath, overTarget, ghostProps } = useCardPointerDrag<string>({
     onDrop: (path, dateStr) => {
       if (dateStr === OPEN_SPLIT_TARGET) { onDropToSplit?.(path); return; }
-      if (dateProp) void handleCellSave(path, dateProp, dateStr);
+      // `file.day` is the day the FILE NAME stands for (plan
+      // Journal-Erweiterungen, X8): moving a card would have to rename the
+      // note, which is not what dragging a card means. The card still opens
+      // and still splits; only the date stays where the name puts it.
+      if (dateProp && !isReadOnlyDateColumn(dateProp)) void handleCellSave(path, dateProp, dateStr);
     },
   });
   const draggedRow = draggingPath ? dbData.find((r) => r["file.path"] === draggingPath) : null;

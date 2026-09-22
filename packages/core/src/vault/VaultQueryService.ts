@@ -1107,9 +1107,34 @@ export class VaultQueryService {
   }
 
   /**
+   * How a note's PATH becomes the day its file name stands for (plan
+   * Journal-Erweiterungen, X8). Set once per vault by the shell, because the
+   * naming is a vault setting and every query wants the same answer; a single
+   * query may still override it through its options.
+   */
+  private dayOfPath: ((path: string) => string | null) | null = null;
+
+  setDayOfPath(resolver: ((path: string) => string | null) | null): void {
+    this.dayOfPath = resolver;
+  }
+
+  /**
    * Executes a dynamic query based on a Database Folder (.base) configuration.
    */
-  async queryDatabaseFiles(config: any, options: { includeFilterMetadata?: boolean } = {}): Promise<any[]> {
+  async queryDatabaseFiles(
+    config: any,
+    options: {
+      includeFilterMetadata?: boolean;
+      /**
+       * Turns a note's PATH into the day its file name stands for, or null
+       * (plan Journal-Erweiterungen, X8). Injected by the shell: the naming is
+       * a Moment-style format whose translation needs date-fns, and this
+       * package's dependency list is curated on purpose. Absent = no row
+       * carries `file.day`, and no picker offers it.
+       */
+      dayOfPath?: (path: string) => string | null;
+    } = {},
+  ): Promise<any[]> {
     let sql = `
       SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes, f.sha256, f.ctime
       FROM files f
@@ -1256,6 +1281,10 @@ export class VaultQueryService {
         "file.revision": row.sha256 ?? `${row.mtime_local}:${row.size_bytes}`,
         "file.ctime": row.ctime ?? null
       };
+      // The day a daily note's NAME stands for - computed, never stored, and
+      // absent entirely when the shell hands in no naming (X8).
+      const dayOf = options.dayOfPath ?? this.dayOfPath;
+      if (dayOf) fileData["file.day"] = dayOf(String(row.path ?? "")) ?? null;
       // Case-insensitive fallback onto the schema's column keys: frontmatter
       // keys keep the exact casing of the note ("Frist"), but every view reads
       // the COLUMN key ("frist"). Without this, a note whose key casing differs

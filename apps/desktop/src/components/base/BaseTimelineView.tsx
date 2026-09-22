@@ -11,6 +11,7 @@ import {
   type TaskCompletionModel,
   calendarDay,
   compareRows,
+  isReadOnlyDateColumn,
   dayPartOf,
   edgeDrag,
   moveBar,
@@ -123,7 +124,9 @@ export function BaseTimelineView({
     if (!d || !dateProp) return;
     const row = dbData.find((r) => r["file.path"] === d.path);
     const toDay = days[d.col];
-    if (!row || !toDay) return;
+    // A bar placed by `file.day` cannot be dragged: its date is the file's
+    // NAME (plan Journal-Erweiterungen, X8).
+    if (!row || !toDay || isReadOnlyDateColumn(dateProp)) return;
     const opts = { currentStart: row[dateProp], currentEnd: endProp ? row[endProp] : undefined, hasEnd: !!endProp };
     const res =
       d.mode === "move"

@@ -1185,6 +1185,7 @@
     "colModified": "更新日時",
     "colSize": "サイズ",
     "colChecklist": "To-doリスト",
+    "colDay": "ファイル名からの日付",
     "checklistProgress": "{{total}}件中{{done}}件完了",
     "checklistAdd": "サブタスクを追加",
     "checklistAddPlaceholder": "新しいサブタスク…",

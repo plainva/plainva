@@ -1188,6 +1188,7 @@
     "colModified": "Gewijzigd",
     "colSize": "Grootte",
     "colChecklist": "Takenlijst",
+    "colDay": "Dag uit de bestandsnaam",
     "checklistProgress": "{{done}} van {{total}} klaar",
     "checklistAdd": "Subtaak toevoegen",
     "checklistAddPlaceholder": "Nieuwe subtaak…",

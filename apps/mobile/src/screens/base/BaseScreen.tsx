@@ -1,4 +1,4 @@
-import { clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, pinboardCache } from "@plainva/ui";
+import { baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { usePageSwipe } from "../../lib/usePageSwipe";
@@ -420,12 +420,16 @@ export function BaseScreen({
     for (const r of rows ?? []) {
       for (const k of Object.keys(r)) if (!k.startsWith("file.") && k !== "plainva") set.add(k);
     }
+    // `file.day` is the one `file.` key a view may CHOOSE: a calendar places
+    // rows by it (plan Journal-Erweiterungen, X8).
+    if ((rows ?? []).some((r) => r[FILE_DAY] !== undefined)) set.add(FILE_DAY);
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [config, rows]);
 
   const columnLabel = useCallback(
     (col: string): string => {
       if (col === "file.tasks") return t("database.colChecklist");
+      if (col === FILE_DAY) return t("database.colDay");
       const display = config?._obsidian?.properties?.[toPropId(col)]?.displayName;
       return typeof display === "string" && display.trim() ? display : capitalizeFirst(col);
     },
@@ -832,13 +836,15 @@ export function BaseScreen({
     [config, loaded, viewIndex, vault, path],
   );
 
-  /** Desktop getDateProperty: views[i].dateField, else first date column. */
+  /**
+   * Which column a calendar places its rows by. ONE rule for both shells since
+   * plan Journal-Erweiterungen X8 - this used to be the phone's own copy, which
+   * is why `file.day` would have had to be taught to two places and would have
+   * reached one.
+   */
   const dateProp = useMemo(() => {
-    if (view.dateField) return String(view.dateField);
-    return (
-      columnsPool.find((c) => columnInput(c) === "date" || columnInput(c) === "datetime") ?? null
-    );
-  }, [view, columnsPool]); // eslint-disable-line react-hooks/exhaustive-deps
+    return baseDateProperty(view, config?.columns as Record<string, { input?: string }> | undefined);
+  }, [view, config]);
   const endProp = view.endField ? String(view.endField) : null;
   /** Colour by property (S21b) — the same field the desktop timeline reads. */
   const colorProp = view.colorBy ? String(view.colorBy) : null;
@@ -1706,7 +1712,9 @@ export function BaseScreen({
     async (commit: boolean) => {
       const d = tlDragRef.current;
       setTlDrag(null);
-      if (!d || !commit || !dateProp) return;
+      // A bar placed by `file.day` cannot be dragged: its date is the file's
+      // NAME (plan Journal-Erweiterungen, X8).
+      if (!d || !commit || !dateProp || isReadOnlyDateColumn(dateProp)) return;
       const row = rows?.find((r) => rowPath(r) === d.path);
       if (!row) return;
       const days = windowDays(tlWindow);

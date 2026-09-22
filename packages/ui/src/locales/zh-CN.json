@@ -1185,6 +1185,7 @@
     "colModified": "修改时间",
     "colSize": "大小",
     "colChecklist": "待办清单",
+    "colDay": "来自文件名的日期",
     "checklistProgress": "{{done}} / {{total}} 已完成",
     "checklistAdd": "添加子任务",
     "checklistAddPlaceholder": "新建子任务…",

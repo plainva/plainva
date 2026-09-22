@@ -11,6 +11,8 @@
  * the two never diverge, and unit-tested here.
  */
 
+import { FILE_DAY } from "./fileDay";
+
 export type BaseSelectorKind = "dateField" | "boardGroup" | "galleryCover";
 
 interface SelectorSpec {
@@ -42,8 +44,13 @@ export function baseSelectorAcceptsInput(
   kind: BaseSelectorKind,
   input: string | undefined,
   isReverse = false,
+  column?: string,
 ): boolean {
   if (kind === "boardGroup" && isReverse) return true;
+  // `file.day` is a date a calendar can place a row by, computed from the file
+  // name (plan Journal-Erweiterungen, X8). It carries no `input` - it is not a
+  // property of the note - so the type table would refuse it.
+  if (kind === "dateField" && column === FILE_DAY) return true;
   const spec = SELECTOR_INPUTS[kind];
   if (input === undefined || input === "") return spec.allowUntyped;
   return spec.types.includes(input);
@@ -61,7 +68,7 @@ export function columnsForBaseSelector(
   getInput: (c: string) => string | undefined,
   opts?: { current?: string | null; isReverse?: (c: string) => boolean },
 ): string[] {
-  const kept = columns.filter((c) => baseSelectorAcceptsInput(kind, getInput(c), opts?.isReverse?.(c)));
+  const kept = columns.filter((c) => baseSelectorAcceptsInput(kind, getInput(c), opts?.isReverse?.(c), c));
   const cur = opts?.current;
   if (cur && !kept.includes(cur) && columns.includes(cur)) return [cur, ...kept];
   return kept;

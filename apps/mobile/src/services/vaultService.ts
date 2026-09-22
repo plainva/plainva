@@ -1,4 +1,4 @@
-import { clearPinboardCache } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -602,6 +602,11 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       },
     });
     queryService = new VaultQueryService(db);
+    // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
+    // daily note tell every query which day a file name stands for. Set on the
+    // service rather than per call - there are five call sites and they all
+    // want the same answer.
+    queryService.setDayOfPath(dailyDayResolver({ folder: getMobileSettings().dailyFolder, format: getMobileSettings().dailyFormat }));
     // Warm index (P5): a vault that was indexed before boots straight from
     // the database — the full pass runs in the background and refreshes the
     // UI when done. A cold/empty index still blocks so the tree is never

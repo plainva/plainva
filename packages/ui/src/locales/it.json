@@ -1191,6 +1191,7 @@
     "colModified": "Modificato",
     "colSize": "Dimensione",
     "colChecklist": "Elenco cose da fare",
+    "colDay": "Giorno dal nome del file",
     "checklistProgress": "{{done}} di {{total}} completate",
     "checklistAdd": "Aggiungi sottoattività",
     "checklistAddPlaceholder": "Nuova sottoattività…",

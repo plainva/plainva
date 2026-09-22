@@ -11,7 +11,7 @@ import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
 import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
-import { parseBaseConfig } from "@plainva/ui";
+import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
 import { buildNewNoteContent, getConfiguredNoteType } from "../../services/newNote";
@@ -118,6 +118,9 @@ export function useBaseCells({
   // The configured input type of a property column ("date" | "datetime" | "select" |
   // "number" | "checkbox" | ...), or undefined for file.* / untyped columns.
   const getColumnInput = (col: string): string | undefined => {
+    // `file.day` carries a date although it is no property of the note: it is
+    // the day its file NAME stands for (plan Journal-Erweiterungen, X8).
+    if (col === FILE_DAY) return "date";
     if (col.startsWith('file.')) return undefined;
     const cols = dbConfig?.columns;
     if (cols && !Array.isArray(cols)) return cols[col]?.input;
