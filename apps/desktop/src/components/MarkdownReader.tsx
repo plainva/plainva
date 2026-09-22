@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
-import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, resolveNoteEmbed, Button, imageBasename, isImageTarget, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { prepareReaderSource, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
@@ -83,23 +83,17 @@ const AnchorRegions: React.FC<{ regions: string | undefined; onActivate?: (comme
   );
 };
 
-const VaultImage: React.FC<{
-  path: string;
-  /** Further vault-relative paths to try when `path` does not load (P3). */
-  fallbacks?: string[];
-  /** The bare file name for the index lookup — Obsidian's way of naming attachments. */
-  basename?: string | null;
-  /** Obsidian's `|300`: a display width in CSS pixels. */
-  width?: number | null;
-  alt: string;
-  frameClass?: string;
-  regions?: string;
-  commentId?: string;
-  onActivate?: (commentId: string) => void;
-  onOpenPath?: (path: string, newTab: boolean) => void;
-}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate, onOpenPath }) => {
+/**
+ * A vault file as a blob URL, through the one embed rule (P3): the literal
+ * path, beside the note, the attachment folder, and - last, because it costs a
+ * query - the index by basename.
+ *
+ * Shared by the picture and the sound (plan Journal-Erweiterungen, X3). Never
+ * the asset protocol: that needed a filesystem-wide scope and is disabled, and
+ * a blob URL cannot show a stale cache after a save.
+ */
+function useVaultMedia(path: string, fallbacks: string[] | undefined, basename: string | null | undefined) {
   const { vaultAdapter, queryService } = useVault();
-  const { t } = useTranslation();
   const [url, setUrl] = React.useState<string | null>(null);
   const [loadedPath, setLoadedPath] = React.useState(path);
   const [failed, setFailed] = React.useState(false);
@@ -137,6 +131,36 @@ const VaultImage: React.FC<{
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [vaultAdapter, queryService, path, fallbackKey, basename]);
+
+  return { url, loadedPath, failed };
+}
+
+/** A sound embed in the reading mode: the one file rule, the shared player. */
+const VaultAudio: React.FC<{ path: string; notePath?: string; label: string }> = ({ path, notePath, label }) => {
+  const candidates = imageCandidates(path, { notePath: notePath ?? '' });
+  const { url, failed } = useVaultMedia(candidates[0] ?? path, candidates.slice(1), imageBasename(path));
+  if (candidates.length === 0) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{label}</span>;
+  return <AudioEmbed url={failed ? null : url ?? undefined} label={label} />;
+};
+
+const VaultImage: React.FC<{
+  path: string;
+  /** Further vault-relative paths to try when `path` does not load (P3). */
+  fallbacks?: string[];
+  /** The bare file name for the index lookup — Obsidian's way of naming attachments. */
+  basename?: string | null;
+  /** Obsidian's `|300`: a display width in CSS pixels. */
+  width?: number | null;
+  alt: string;
+  frameClass?: string;
+  regions?: string;
+  commentId?: string;
+  onActivate?: (commentId: string) => void;
+  onOpenPath?: (path: string, newTab: boolean) => void;
+}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate, onOpenPath }) => {
+  const { vaultAdapter } = useVault();
+  const { t } = useTranslation();
+  const { url, loadedPath, failed } = useVaultMedia(path, fallbacks, basename);
 
   if (failed) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || path}</span>;
   if (!url) return <span aria-hidden="true" />;
@@ -280,7 +304,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   const { t, i18n } = useTranslation();
   const source = useMemo(() => prepareReaderSource(content, {
     formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
-    isImage: (target) => isImageTarget(parseWikiImageTarget(target).target),
+    embedKind: (target) => embedKindOf(parseWikiImageTarget(target).target) ?? "note",
   }), [content, i18n.language]);
   const anchorPlugin = useMemo(() => {
     if (!anchors?.length) return null;
@@ -493,6 +517,14 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             if (src?.startsWith('wiki-embed://')) {
               const target = decodeURIComponent(src.replace('wiki-embed://', ''));
               return <EmbeddedNote target={target} depth={embedDepth} onOpenPath={onOpenPath} hostPath={sourcePath} />;
+            }
+            if (src?.startsWith('wiki-audio://')) {
+              // Sound was read as TEXT until X3 and appeared as character
+              // salad: every embed that was not a picture went down the note
+              // path. Same file rule as the picture - literal, beside the
+              // note, the attachment folder, the index by basename.
+              const embed = parseWikiImageTarget(decodeURIComponent(src.replace('wiki-audio://', '')));
+              return <VaultAudio path={embed.target} notePath={sourcePath} label={embed.alt || alt || embed.target} />;
             }
             if (src?.startsWith('wiki-image://')) {
               const inner = decodeURIComponent(src.replace('wiki-image://', ''));

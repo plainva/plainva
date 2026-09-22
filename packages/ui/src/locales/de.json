@@ -4632,6 +4632,22 @@
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
     "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export."
   },
+  "audio": {
+    "play": "{{name}} abspielen",
+    "pause": "Pause",
+    "position": "Abspielposition",
+    "missing": "{{name}} nicht gefunden"
+  },
+  "voiceMemo": {
+    "start": "Sprachnotiz aufnehmen",
+    "attach": "Anhängen",
+    "discard": "Verwerfen",
+    "denied": "Ohne Mikrofon-Freigabe kann Plainva nichts aufnehmen. Du kannst sie in den Systemeinstellungen erteilen.",
+    "unavailable": "Dieses Gerät kann nicht aufnehmen — es hat kein Mikrofon, oder die App darf es nicht benutzen.",
+    "failed": "Die Aufnahme ist abgebrochen. Nichts wurde gespeichert.",
+    "reason": "Plainva nimmt Sprachnotizen nur auf, wenn Du es ausdrücklich startest. Die Aufnahme bleibt als Datei in Deinem Vault; sie wird nirgendwohin gesendet.",
+    "fileName": "Sprachnotiz"
+  },
   "journal": {
     "title": "Journal",
     "open": "Journal öffnen",

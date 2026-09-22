@@ -82,7 +82,7 @@ describe("boundaryLabel", () => {
 
   it("offers midnight and every half hour to six", () => {
     expect(DAY_END_CHOICES[0]).toBe(0);
-    expect(DAY_END_CHOICES.at(-1)).toBe(360);
+    expect(DAY_END_CHOICES[DAY_END_CHOICES.length - 1]).toBe(360);
     expect(DAY_END_CHOICES).toHaveLength(13);
     expect(DAY_END_CHOICES.every((m) => m === clampBoundary(m))).toBe(true);
   });

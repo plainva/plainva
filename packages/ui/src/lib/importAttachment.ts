@@ -1,4 +1,5 @@
 import { isImagePath } from "../services/imageFiles";
+import { isAudioTarget } from "./imageTarget";
 import { resolveAttachmentPath } from "./attachmentPath";
 
 /**
@@ -45,6 +46,11 @@ function looksLikeImage(file: AttachmentImportFile): boolean {
   return file.mime.startsWith("image/") || isImagePath(file.name);
 }
 
+/** Is this sound? Same two signals (plan Journal-Erweiterungen, X3). */
+function looksLikeAudio(file: AttachmentImportFile): boolean {
+  return file.mime.startsWith("audio/") || isAudioTarget(file.name);
+}
+
 export async function importAttachment(
   file: AttachmentImportFile,
   opts: { configuredFolder: string; noteFolder: string },
@@ -57,5 +63,9 @@ export async function importAttachment(
   const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   if (folder) await io.createDir(folder);
   await io.writeBinaryFile(path, file.bytes);
-  return { path, insert: looksLikeImage(file) ? `![[${path}]]` : `[[${path}]]` };
+  // Sound joins the picture as an EMBED (X3): a link would open the file in
+  // another application, and the point of a voice memo is that it plays where
+  // it was written.
+  const embeds = looksLikeImage(file) || looksLikeAudio(file);
+  return { path, insert: embeds ? `![[${path}]]` : `[[${path}]]` };
 }

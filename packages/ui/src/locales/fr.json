@@ -4686,6 +4686,22 @@
     "driveFolder": "Le fournisseur a renvoyé un identifiant de dossier non valide. L’opération a été arrêtée.",
     "htmlDepth": "Ce HTML contient trop de niveaux d’imbrication. Simplifiez-le ou importez une exportation Markdown."
   },
+  "audio": {
+    "play": "Lire {{name}}",
+    "pause": "Pause",
+    "position": "Position de lecture",
+    "missing": "{{name}} introuvable"
+  },
+  "voiceMemo": {
+    "start": "Enregistrer une note vocale",
+    "attach": "Joindre",
+    "discard": "Supprimer",
+    "denied": "Sans accès au microphone, Plainva ne peut pas enregistrer. Vous pouvez l'accorder dans les réglages du système.",
+    "unavailable": "Cet appareil ne peut pas enregistrer : il n'a pas de microphone, ou l'application n'a pas le droit de l'utiliser.",
+    "failed": "L'enregistrement s'est arrêté. Rien n'a été enregistré.",
+    "reason": "Plainva n'enregistre une note vocale que lorsque vous la lancez. L'enregistrement reste un fichier dans votre coffre ; il n'est envoyé nulle part.",
+    "fileName": "Note vocale"
+  },
   "journal": {
     "title": "Journal",
     "open": "Ouvrir le journal",

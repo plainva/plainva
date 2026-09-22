@@ -839,3 +839,26 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   background: var(--lcars-1);
   color: #000000;
 }
+
+/* Sound embed: the console has no rounded pills, and its readouts are caps. */
+[data-theme-name="lcars"] .pv-audio {
+  border-radius: 0;
+  border-color: var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-audio-seek {
+  accent-color: var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-audio-name {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Voice memo: the console has no pills, and a live take is an alert block. */
+[data-theme-name="lcars"] .pv-voicememo--live {
+  border-radius: 0;
+  background: var(--lcars-1);
+  color: #000000;
+}
+[data-theme-name="lcars"] .pv-voicememo-time {
+  color: #000000;
+}

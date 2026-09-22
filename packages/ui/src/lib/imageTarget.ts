@@ -19,6 +19,19 @@ import { resolveVaultRelative } from "../adapters/pathGuard";
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|svg|webp|bmp|ico)$/i;
 
+/**
+ * Sound an embed can play (plan Journal-Erweiterungen, X3).
+ *
+ * `![[memo.m4a]]` is the same syntax with a different kind of target, so it is
+ * found by the same scanner rather than by a second one that would drift from
+ * this one. `.webm` is here and not among the pictures: a recording made in
+ * the WebView lands in a WebM container, and the recorder writes no video.
+ */
+const AUDIO_EXT_RE = /\.(m4a|mp3|wav|ogg|oga|opus|webm|flac|aac)$/i;
+
+/** What an embed points at, or `null` when Plainva shows it as a link. */
+export type EmbedKind = "image" | "audio";
+
 export interface WikiImageEmbed {
   /** The file the embed names (no `|…` suffix, no `#…` anchor). */
   target: string;
@@ -42,6 +55,17 @@ export function parseWikiImageTarget(inner: string): WikiImageEmbed {
 /** True when the target names a picture the preview can show. */
 export function isImageTarget(target: string): boolean {
   return IMAGE_EXT_RE.test(target.trim());
+}
+
+/** True when the target names sound the preview can play. */
+export function isAudioTarget(target: string): boolean {
+  return AUDIO_EXT_RE.test(target.trim());
+}
+
+/** Which of the two an embed target is, or `null` for everything else. */
+export function embedKindOf(target: string): EmbedKind | null {
+  const t = target.trim();
+  return IMAGE_EXT_RE.test(t) ? "image" : AUDIO_EXT_RE.test(t) ? "audio" : null;
 }
 
 export interface ImageLookup {
@@ -94,25 +118,42 @@ export interface ImageEmbedMatch {
   alt: string | null;
   /** `wiki` for `![[…]]`, `markdown` for `![alt](url "title")`. */
   syntax: "wiki" | "markdown";
+  /** Picture or sound. A markdown embed of an unknown kind counts as a picture — that is what it meant before X3. */
+  kind: EmbedKind;
 }
 
 /**
- * Every image embed in `text`, wiki and markdown form, without one match
+ * Every MEDIA embed in `text`, wiki and markdown form, without one match
  * swallowing its neighbour: the old pattern's `.*?` crossed `]`, so an embed
  * followed by a link on the same line became one match whose target was the
  * link. Neither form may contain a `]` (markdown alt) or `]]` (wiki) inside.
+ *
+ * One scanner for pictures and sound (plan Journal-Erweiterungen, X3): the
+ * syntax is the same and only the target differs, so a second scanner would be
+ * a second rule about where an embed may point — and this module exists
+ * because that rule used to live in five places.
  */
-export function findImageEmbeds(text: string): ImageEmbedMatch[] {
+export function findMediaEmbeds(text: string): ImageEmbedMatch[] {
   const out: ImageEmbedMatch[] = [];
   for (const part of delimitedText(text, "![[", "]]")) {
     if (part.inner.includes("]")) continue;
     const parsed = parseWikiImageTarget(part.inner);
-    if (isImageTarget(parsed.target)) out.push({ start: part.index, end: part.end, syntax: "wiki", ...parsed });
+    const kind = embedKindOf(parsed.target);
+    if (kind) out.push({ start: part.index, end: part.end, syntax: "wiki", kind, ...parsed });
   }
   for (const part of markdownLinks(text)) {
     if (part.index === 0 || text[part.index - 1] !== "!") continue;
     const destination = /^([^\s]+)(?:\s+"[^"]*")?$/.exec(part.destination);
-    if (destination) out.push({ start: part.index - 1, end: part.end, syntax: "markdown", target: destination[1], width: null, alt: null });
+    if (!destination) continue;
+    out.push({
+      start: part.index - 1, end: part.end, syntax: "markdown", target: destination[1],
+      width: null, alt: null, kind: isAudioTarget(destination[1]) ? "audio" : "image",
+    });
   }
   return out.sort((a, b) => a.start - b.start);
+}
+
+/** Only the pictures — for callers that draw an `<img>` and nothing else. */
+export function findImageEmbeds(text: string): ImageEmbedMatch[] {
+  return findMediaEmbeds(text).filter((embed) => embed.kind === "image");
 }

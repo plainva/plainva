@@ -42,6 +42,8 @@ export interface NoteCardBodyProps {
   onToggleTask?: (ordinal: number, checked: boolean) => void;
   /** Shell-specific image rendering (blob loading differs per shell). */
   renderImage?: (target: string, alt: string) => React.ReactNode;
+  /** Shell-specific sound rendering - the same split, for the same reason (X3). */
+  renderAudio?: (target: string, alt: string) => React.ReactNode;
   /** Localized placeholder labels (i18n lives in the shells). */
   labels: { table: string; math: string; embed: string };
 }
@@ -57,7 +59,7 @@ const placeholderStyle: React.CSSProperties = {
   padding: "1px 8px",
 };
 
-export function NoteCardBody({ blocks, onToggleTask, renderImage, labels }: NoteCardBodyProps) {
+export function NoteCardBody({ blocks, onToggleTask, renderImage, renderAudio, labels }: NoteCardBodyProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {blocks.map((b, i) => {
@@ -105,6 +107,14 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, labels }: Note
               <div key={key}>
                 {renderImage
                   ? renderImage(b.target, b.alt)
+                  : <span style={{ ...placeholderStyle }}>{b.alt || b.target}</span>}
+              </div>
+            );
+          case "audio":
+            return (
+              <div key={key}>
+                {renderAudio
+                  ? renderAudio(b.target, b.alt)
                   : <span style={{ ...placeholderStyle }}>{b.alt || b.target}</span>}
               </div>
             );

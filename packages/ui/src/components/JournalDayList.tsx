@@ -4,10 +4,11 @@ import { Check, Ellipsis, FileText } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import { resolveCoverSource } from "../base/coverImage";
 import { ICON } from "../lib/iconSizes";
-import { findImageEmbeds } from "../lib/imageTarget";
+import { findMediaEmbeds, imageCandidates } from "../lib/imageTarget";
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
+import { AudioEmbed } from "./AudioEmbed";
 import { boundaryLabel } from "../lib/today";
 import { useDayBoundaryMinutes } from "../hooks/useTodayKey";
 import { Button } from "./ui/Button";
@@ -66,10 +67,10 @@ export interface JournalDayListProps {
 const FOLD_CHARS = 420;
 const FOLD_LINES = 6;
 
-/** The text without its image embeds, and the embeds. */
-function splitImages(text: string): { prose: string; images: string[] } {
-  const embeds = findImageEmbeds(text);
-  if (embeds.length === 0) return { prose: text, images: [] };
+/** The text without its media embeds, and the embeds - pictures and sound apart (X3). */
+function splitMedia(text: string): { prose: string; images: string[]; sounds: string[] } {
+  const embeds = findMediaEmbeds(text);
+  if (embeds.length === 0) return { prose: text, images: [], sounds: [] };
   let prose = "";
   let at = 0;
   for (const embed of embeds) {
@@ -77,7 +78,12 @@ function splitImages(text: string): { prose: string; images: string[] } {
     at = embed.end;
   }
   prose += text.slice(at);
-  return { prose: prose.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(), images: embeds.map((e) => (e.syntax === "wiki" ? `![[${e.target}]]` : e.target)) };
+  const spell = (e: (typeof embeds)[number]) => (e.syntax === "wiki" ? `![[${e.target}]]` : e.target);
+  return {
+    prose: prose.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(),
+    images: embeds.filter((e) => e.kind === "image").map(spell),
+    sounds: embeds.filter((e) => e.kind === "audio").map((e) => e.target),
+  };
 }
 
 function EntryText({ text, links }: { text: string; links?: InlineLinkHandlers }) {
@@ -119,10 +125,40 @@ function EntryImage({ raw, notePath, loadImage }: { raw: string; notePath: strin
   return src ? <img className="pv-journal-image" src={src} alt="" loading="lazy" /> : null;
 }
 
+function EntrySound({ target, notePath, loadImage }: { target: string; notePath: string; loadImage: (path: string) => Promise<Blob> }) {
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  const candidateKey = imageCandidates(target, { notePath }).join("|");
+  useEffect(() => {
+    if (!candidateKey) { setUrl(null); return; }
+    let alive = true;
+    let objectUrl: string | null = null;
+    setUrl(undefined);
+    void (async () => {
+      for (const path of candidateKey.split("|")) {
+        try {
+          const blob = await loadImage(path);
+          if (!alive) return;
+          objectUrl = URL.createObjectURL(blob);
+          setUrl(objectUrl);
+          return;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      if (alive) setUrl(null);
+    })();
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [candidateKey, loadImage]);
+  return <AudioEmbed url={url} label={target.split("/").pop() ?? target} compact />;
+}
+
 function EntryBody({ entry, notePath, links, loadImage }: { entry: JournalEntry; notePath: string; links?: InlineLinkHandlers; loadImage?: (path: string) => Promise<Blob> }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { prose, images } = splitImages(entry.text);
+  const { prose, images, sounds } = splitMedia(entry.text);
   const long = prose.length > FOLD_CHARS || prose.split("\n").length > FOLD_LINES;
   return (
     <span className="pv-journal-body">
@@ -137,6 +173,11 @@ function EntryBody({ entry, notePath, links, loadImage }: { entry: JournalEntry;
       {loadImage && images.length > 0 && (
         <span className="pv-journal-images">
           {images.map((raw, i) => <EntryImage key={`${raw}@${i}`} raw={raw} notePath={notePath} loadImage={loadImage} />)}
+        </span>
+      )}
+      {loadImage && sounds.length > 0 && (
+        <span className="pv-journal-sounds">
+          {sounds.map((target, i) => <EntrySound key={`${target}@${i}`} target={target} notePath={notePath} loadImage={loadImage} />)}
         </span>
       )}
     </span>
@@ -197,7 +238,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
                   onContextMenu={(e) => { e.preventDefault(); onMenu(day, entry, { x: e.clientX, y: e.clientY }); }}
                 >
                   <time className="pv-journal-time" dateTime={clockOf(entry)}>{formatJournalTime(entry, locale)}</time>
-                  <EntryText text={splitImages(entry.text).prose} links={links} />
+                  <EntryText text={splitMedia(entry.text).prose} links={links} />
                   {entry.task && (
                     <span
                       className={cx("pv-journal-mark", closed && "pv-journal-mark--closed")}

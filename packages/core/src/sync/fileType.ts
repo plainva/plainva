@@ -34,7 +34,12 @@ const MIME_TYPES: Record<string, string> = {
   webp: "image/webp", svg: "image/svg+xml", bmp: "image/bmp", ico: "image/x-icon",
   avif: "image/avif", heic: "image/heic", tiff: "image/tiff", tif: "image/tiff",
   pdf: "application/pdf", zip: "application/zip",
+  // A voice memo is one of these (plan Journal-Erweiterungen, X3/X4): iOS
+  // records into an MP4 container, Chromium into WebM. `oga` and `opus` are
+  // sound in an Ogg container — without them a recording from a Firefox-based
+  // browser would upload as application/octet-stream and refuse to play back.
   mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4", flac: "audio/flac",
+  oga: "audio/ogg", opus: "audio/ogg", aac: "audio/aac",
   mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", mkv: "video/x-matroska",
   ttf: "font/ttf", otf: "font/otf", woff: "font/woff", woff2: "font/woff2",
 };

@@ -2,7 +2,8 @@ import { trimEndChars } from "@plainva/core";
 import { RangeSetBuilder } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { imageMimeType } from "../services/imageFiles";
-import { findImageEmbeds, imageBasename, imageCandidates, type ImageLookup } from "../lib/imageTarget";
+import { findMediaEmbeds, imageBasename, imageCandidates, type ImageLookup } from "../lib/imageTarget";
+import { mountAudioPlayer } from "./audioPlayer";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import { pickImageRegion } from "./anchorRegion";
 import i18n from "../i18n";
@@ -187,6 +188,44 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/**
+ * A sound embed in the editor (plan Journal-Erweiterungen, X3). The same file
+ * machinery as the picture - candidates, vault guard, blob URL, view cache -
+ * and the shared player for the controls.
+ *
+ * No anchor regions: a comment can be anchored to a rectangle on a picture,
+ * and a sound has no rectangle. A comment on the LINE still works, because
+ * that one anchors to the text, not to this widget.
+ */
+class AudioWidget extends WidgetType {
+  constructor(
+    readonly source: ImageSource,
+    readonly key: string,
+    readonly readBinary: ReadBinaryFn,
+    readonly cache: ImageCache,
+    readonly label: string,
+  ) { super(); }
+
+  eq(other: AudioWidget) {
+    return this.key === other.key && this.label === other.label;
+  }
+
+  toDOM() {
+    const container = document.createElement("span");
+    container.className = "pv-image-embed";
+    const player = mountAudioPlayer(container, { label: this.label });
+    if (this.source.kind === "direct") {
+      player.setUrl(this.source.url);
+    } else {
+      void loadVaultImage(this.source, this.readBinary, this.cache).then((loaded) => {
+        if (!container.isConnected) return;
+        player.setUrl(loaded ? loaded.url : null);
+      });
+    }
+    return container;
+  }
+}
+
 function resolveImageSource(src: string, vaultRoot: string, lookup: ImageLookupFn | undefined): ImageSource | null {
   if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
     return { kind: "direct", url: src };
@@ -265,7 +304,7 @@ export function imagePreviewPlugin(
       for (const { from, to } of view.visibleRanges) {
         const text = view.state.sliceDoc(from, to);
 
-        for (const embed of findImageEmbeds(text)) {
+        for (const embed of findMediaEmbeds(text)) {
           const source = resolveImageSource(embed.target, vaultRoot, lookup);
           if (!source) continue; // absolute/escaping targets never load
 
@@ -279,6 +318,16 @@ export function imagePreviewPlugin(
               isFocused = true;
               break;
             }
+          }
+
+          if (embed.kind === "audio") {
+            const sound = new AudioWidget(source, source.kind === "direct" ? source.url : source.key, readBinary, this.imageCache, embed.alt || embed.target.split("/").pop() || embed.target);
+            builder.add(
+              hideSyntax && !isFocused ? matchStart : matchEnd,
+              matchEnd,
+              hideSyntax && !isFocused ? Decoration.replace({ widget: sound }) : Decoration.widget({ widget: sound, side: 1 }),
+            );
+            continue;
           }
 
           const widget = new ImageWidget(

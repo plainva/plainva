@@ -175,7 +175,13 @@ const encodeTarget = (text: string) => encodeURIComponent(text).replace(/[()!'*]
  * Only prose text nodes are transformed; code, HTML and link destinations stay
  * literal. The original bytes are never rewritten in the vault.
  */
-export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; isImage?: (target: string) => boolean } = {}): ReaderSource {
+/**
+ * What an `![[...]]` embed points at. `note` is the fallback: everything that
+ * is neither a picture nor a sound is another note, which the reader expands.
+ */
+export type ReaderEmbedKind = "image" | "audio" | "note";
+
+export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind } = {}): ReaderSource {
   const clean = stripAnchorMarkers(raw);
   const edits: ReaderEdit[] = [];
   const walk = (node: SourceNode, inLink = false) => {
@@ -190,8 +196,15 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
         if (m[2]) {
           if (options.formatDate) edits.push({ from, to, text: options.formatDate(m[2]) });
         } else if (m[0].startsWith("!")) {
-          const image = options.isImage?.(m[1]) ?? /\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(m[1]);
-          edits.push({ from, to, text: `![${image ? "img" : "embed"}](wiki-${image ? "image" : "embed"}://${encodeTarget(m[1])})`, embed: image ? undefined : m[1] });
+          // Three kinds, one scheme each, so the renderer branches on the URL
+          // rather than sniffing the extension a second time (plan
+          // Journal-Erweiterungen, X3). The fallback pattern stands for a host
+          // that passes no port - it used to be the only answer.
+          const kind = options.embedKind?.(m[1])
+            ?? (/\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(m[1]) ? "image" : "note");
+          const scheme = kind === "note" ? "embed" : kind;
+          const alt = kind === "image" ? "img" : kind === "audio" ? "audio" : "embed";
+          edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(m[1])})`, embed: kind === "note" ? m[1] : undefined });
         } else {
           const pipe = m[1].indexOf("|");
           const target = pipe < 0 ? m[1] : m[1].slice(0, pipe);

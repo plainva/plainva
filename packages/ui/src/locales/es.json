@@ -4686,6 +4686,22 @@
     "driveFolder": "El proveedor devolvió un identificador de carpeta no válido. La operación se ha detenido.",
     "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown."
   },
+  "audio": {
+    "play": "Reproducir {{name}}",
+    "pause": "Pausa",
+    "position": "Posición de reproducción",
+    "missing": "{{name}} no encontrado"
+  },
+  "voiceMemo": {
+    "start": "Grabar una nota de voz",
+    "attach": "Adjuntar",
+    "discard": "Descartar",
+    "denied": "Sin acceso al micrófono Plainva no puede grabar. Puedes concederlo en los ajustes del sistema.",
+    "unavailable": "Este dispositivo no puede grabar: no tiene micrófono o la aplicación no puede usarlo.",
+    "failed": "La grabación se detuvo. No se guardó nada.",
+    "reason": "Plainva graba una nota de voz solo cuando tú la inicias. La grabación queda como archivo en tu bóveda; no se envía a ninguna parte.",
+    "fileName": "Nota de voz"
+  },
   "journal": {
     "title": "Diario",
     "open": "Abrir diario",

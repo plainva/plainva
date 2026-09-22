@@ -4686,6 +4686,22 @@
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
     "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown."
   },
+  "audio": {
+    "play": "Riproduci {{name}}",
+    "pause": "Pausa",
+    "position": "Posizione di riproduzione",
+    "missing": "{{name}} non trovato"
+  },
+  "voiceMemo": {
+    "start": "Registra una nota vocale",
+    "attach": "Allega",
+    "discard": "Scarta",
+    "denied": "Senza accesso al microfono Plainva non può registrare. Puoi concederlo nelle impostazioni di sistema.",
+    "unavailable": "Questo dispositivo non può registrare: non ha un microfono, oppure l'app non può usarlo.",
+    "failed": "La registrazione si è interrotta. Non è stato salvato nulla.",
+    "reason": "Plainva registra una nota vocale solo quando la avvii tu. La registrazione resta come file nel tuo vault; non viene inviata da nessuna parte.",
+    "fileName": "Nota vocale"
+  },
   "journal": {
     "title": "Diario",
     "open": "Apri diario",

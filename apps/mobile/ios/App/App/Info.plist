@@ -43,6 +43,8 @@
 	<string>Plainva connects to the mail server you configure. If that server runs on your local network, iOS asks for this permission.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Plainva uses the camera so you can take a photo and add it to a note.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Plainva records a voice memo only when you start one. The recording stays as a file in your vault; it is not sent anywhere.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Plainva accesses your photo library so you can add a picture to a note.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

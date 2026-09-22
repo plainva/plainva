@@ -1,4 +1,4 @@
-import { isImagePath } from "../services/imageFiles";
+import { embedKindOf } from "./imageTarget";
 /**
  * Pure note-card parser for the pinboard view (plan Pinboard P3, decision E6).
  *
@@ -25,6 +25,8 @@ export type NoteCardBlock =
   | { kind: "bullet"; indent: number; ordered: boolean; inline: InlineNode[] }
   | { kind: "quote"; inline: InlineNode[] }
   | { kind: "image"; target: string; alt: string }
+  /** A sound embed (plan Journal-Erweiterungen, X3) - a voice memo on a card. */
+  | { kind: "audio"; target: string; alt: string }
   | { kind: "hr" }
   | { kind: "code"; lines: string[]; truncated: boolean }
   | { kind: "placeholder"; label: "table" | "math" | "embed" };
@@ -221,15 +223,18 @@ export function parseNoteCard(
     if (imgWiki) {
       flushPara();
       const target = imgWiki[1].trim();
-      if (isImagePath(target)) push({ kind: "image", target, alt: target.split("/").pop() ?? target });
+      const kind = embedKindOf(target);
+      if (kind) push({ kind, target, alt: target.split("/").pop() ?? target });
       else push({ kind: "placeholder", label: "embed" });
       sawContent = true;
       continue;
     }
     const imgMd = line.match(IMAGE_MD_RE);
-    if (imgMd && isImagePath(imgMd[2].split("#")[0].trim())) {
+    const mdTarget = imgMd ? imgMd[2].split("#")[0].trim() : "";
+    const mdKind = mdTarget ? embedKindOf(mdTarget) : null;
+    if (imgMd && mdKind) {
       flushPara();
-      push({ kind: "image", target: imgMd[2].split("#")[0].trim(), alt: imgMd[1] });
+      push({ kind: mdKind, target: mdTarget, alt: imgMd[1] });
       sawContent = true;
       continue;
     }

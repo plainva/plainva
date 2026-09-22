@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen } from "lucide-react";
-import { Button, ICON, JournalCaptureField, Modal, buildDailyNotePath, errorText, importAttachment, journalToday, toast } from "@plainva/ui";
+import { Button, ICON, JournalCaptureField, Modal, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, journalToday, toast, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { attachmentFolderKey, useVault } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
@@ -64,6 +64,32 @@ export function JournalCaptureDialog({
       .finally(() => setBusy(false));
   };
 
+
+  /**
+   * A voice memo goes the way every attachment goes: into the attachment
+   * folder, embedded by name (plan Journal-Erweiterungen, X4). The name
+   * carries the date and the minute, so a day of memos reads as a list of
+   * moments rather than of hashes.
+   */
+  const onRecorded = async (memo: VoiceMemoResult) => {
+    if (!vaultAdapter || !vaultPath) return;
+    try {
+      const configured = (await getSettingsStore().then((st) => st.get<string>(attachmentFolderKey(vaultPath)))) ?? "Attachments";
+      const { insert } = await importAttachment(
+        { name: voiceMemoFileName(new Date(), t("voiceMemo.fileName"), memo.extension), mime: memo.mime, bytes: memo.bytes },
+        { configuredFolder: configured, noteFolder: target?.folder ?? "" },
+        {
+          exists: (candidate) => vaultAdapter.exists(candidate),
+          createDir: (dir) => vaultAdapter.createDir(dir),
+          writeBinaryFile: (p, bytes) => vaultAdapter.writeBinaryFile(p, bytes),
+        },
+      );
+      setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${insert}` : insert));
+    } catch (error) {
+      toast.error(errorText(error));
+    }
+  };
+
   // A bitmap from the clipboard goes the way every attachment goes: into the
   // attachment folder, embedded by name.
   const onPaste = (e: ClipboardEvent<HTMLDivElement>) => {
@@ -120,6 +146,7 @@ export function JournalCaptureDialog({
           disabled={busy}
           rows={3}
           target={target && t(target.exists ? "journal.target" : "journal.targetNew", { name: target.name })}
+          extras={<VoiceMemoButton disabled={busy} onRecorded={onRecorded} />}
         />
       </div>
     </Modal>

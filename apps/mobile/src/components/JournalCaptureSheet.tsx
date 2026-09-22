@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Camera as CameraIcon } from "lucide-react";
 import { Camera } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
-import { Button, Chip, ICON, JournalCaptureField, buildDailyNotePath, toast, useJournalDayKey } from "@plainva/ui";
+import { Button, Chip, ICON, JournalCaptureField, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, toast, useJournalDayKey, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { captureJournalEntry } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -53,6 +53,24 @@ export function JournalCaptureSheet({
       .finally(() => setBusy(false));
   };
 
+  /** A voice memo, written the way the photo is (plan Journal-Erweiterungen, X4). */
+  const onRecorded = async (memo: VoiceMemoResult) => {
+    try {
+      const { insert } = await importAttachment(
+        { name: voiceMemoFileName(new Date(), t("voiceMemo.fileName"), memo.extension), mime: memo.mime, bytes: memo.bytes },
+        { configuredFolder: ms.attachmentFolder || "Attachments", noteFolder: ms.dailyFolder || "" },
+        {
+          exists: (candidate) => vault.adapter.exists(candidate),
+          createDir: (dir) => vault.adapter.createDir(dir),
+          writeBinaryFile: (p, bytes) => vault.adapter.writeBinaryFile(p, bytes),
+        },
+      );
+      setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${insert}` : insert));
+    } catch (error) {
+      toast.error(errorText(error));
+    }
+  };
+
   // A photo goes the way every photo goes: into the attachment folder, embedded by name.
   const addPhoto = async () => {
     try {
@@ -88,9 +106,12 @@ export function JournalCaptureSheet({
           disabled={busy}
           target={t("journal.target", { name: target })}
           extras={
-            <Chip icon={<CameraIcon size={ICON.meta} />} onClick={() => void addPhoto()} testId="journal-capture-photo">
-              {t("journal.attachPhoto")}
-            </Chip>
+            <>
+              <Chip icon={<CameraIcon size={ICON.meta} />} onClick={() => void addPhoto()} testId="journal-capture-photo">
+                {t("journal.attachPhoto")}
+              </Chip>
+              <VoiceMemoButton disabled={busy} onRecorded={onRecorded} />
+            </>
           }
         />
         <div className="m-btnrow">

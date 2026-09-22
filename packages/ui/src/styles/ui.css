@@ -829,6 +829,50 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    regions can measure against; the picture itself keeps its own limits. */
 .pv-image-embed { display: inline-flex; flex-direction: column; align-items: flex-start; vertical-align: top; max-width: 100%; margin: 0.5rem 0; }
 
+/* A sound embed (plan Journal-Erweiterungen, X3): Plainva's own controls, so a
+   voice memo looks the same in the editor, the reading mode, a card and a
+   journal line - and the same in both shells, which the platform's own
+   <audio controls> never is. */
+.pv-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  vertical-align: middle;
+}
+.pv-audio-host { display: contents; }
+.pv-audio--compact { padding: 0 var(--space-1); border: none; background: transparent; }
+.pv-audio--missing { color: var(--text-faint); font-style: italic; }
+.pv-audio-seek { flex: 1 1 8rem; min-width: 4rem; max-width: 16rem; accent-color: var(--accent-color); }
+.pv-audio-time { color: var(--text-faint); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pv-audio-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--text-xs); }
+/* Sounds of a journal entry: one per line, under its text and its pictures. */
+.pv-journal-sounds { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-top: var(--space-1); }
+
+/* Recording a voice memo (plan Journal-Erweiterungen, X4): one button until it
+   is pressed, then a row with the running time and the two named verbs. */
+.pv-voicememo { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pv-voicememo--live {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-secondary);
+}
+.pv-voicememo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--error-text);
+  animation: pv-voicememo-pulse 1.4s ease-in-out infinite;
+}
+.pv-voicememo-time { font-variant-numeric: tabular-nums; font-size: var(--text-sm); color: var(--text-main); }
+.pv-voicememo-problem { color: var(--warning-text); font-size: var(--text-xs); }
+@keyframes pv-voicememo-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .pv-voicememo-dot { animation: none; } }
+
 /* ------------------------------------------------- UI 2.0 (M3 Expressive) */
 /* Emphasis title in empty states (headline type role). */
 .pv-empty-title {

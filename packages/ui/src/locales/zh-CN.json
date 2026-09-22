@@ -4578,6 +4578,22 @@
     "driveFolder": "提供商返回了无效的文件夹标识符。操作已停止。",
     "htmlDepth": "此HTML的嵌套层级过深。请简化结构，或导入Markdown格式的导出文件。"
   },
+  "audio": {
+    "play": "播放 {{name}}",
+    "pause": "暂停",
+    "position": "播放位置",
+    "missing": "找不到 {{name}}"
+  },
+  "voiceMemo": {
+    "start": "录制语音备忘",
+    "attach": "附加",
+    "discard": "丢弃",
+    "denied": "没有麦克风权限，Plainva 无法录音。你可以在系统设置中授权。",
+    "unavailable": "这台设备无法录音 —— 它没有麦克风，或者应用无权使用。",
+    "failed": "录音已中断，没有保存任何内容。",
+    "reason": "Plainva 只在你主动开始时才录制语音备忘。录音以文件形式留在你的保险库中，不会发送到任何地方。",
+    "fileName": "语音备忘"
+  },
   "journal": {
     "title": "日志",
     "open": "打开日志",

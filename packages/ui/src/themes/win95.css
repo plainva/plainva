@@ -688,3 +688,24 @@
 [data-theme-name="win95"] .pv-datejump-day.is-today {
   box-shadow: inset 0 0 0 1px #000080;
 }
+
+/* Sound embed: a sunken control group, the way the 95 media player drew one. */
+[data-theme-name="win95"] .pv-audio {
+  border-radius: 0;
+  border: 2px inset #DFDFDF;
+  background: #C0C0C0;
+}
+[data-theme-name="win95"] .pv-audio-seek {
+  accent-color: #000080;
+}
+
+/* Voice memo: a raised control group with the 95 recorder's square corners. */
+[data-theme-name="win95"] .pv-voicememo--live {
+  border-radius: 0;
+  border: 2px outset #DFDFDF;
+  background: #C0C0C0;
+}
+[data-theme-name="win95"] .pv-voicememo-dot {
+  border-radius: 0;
+  background: #800000;
+}

@@ -4632,6 +4632,22 @@
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
     "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export."
   },
+  "audio": {
+    "play": "Play {{name}}",
+    "pause": "Pause",
+    "position": "Playback position",
+    "missing": "{{name}} not found"
+  },
+  "voiceMemo": {
+    "start": "Record a voice memo",
+    "attach": "Attach",
+    "discard": "Discard",
+    "denied": "Without access to the microphone Plainva cannot record. You can grant it in the system settings.",
+    "unavailable": "This device cannot record — it has no microphone, or the app is not allowed to use it.",
+    "failed": "The recording stopped. Nothing was saved.",
+    "reason": "Plainva records a voice memo only when you start one. The recording stays as a file in your vault; it is not sent anywhere.",
+    "fileName": "Voice memo"
+  },
   "journal": {
     "title": "Journal",
     "open": "Open journal",

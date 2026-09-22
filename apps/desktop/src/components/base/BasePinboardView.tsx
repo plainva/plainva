@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Plus, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -36,6 +36,43 @@ interface CardVM {
   data: NoteCardData;
   /** The query row (label property values live here in property mode). */
   row: any;
+}
+
+/**
+ * A voice memo on a card (plan Journal-Erweiterungen, X3).
+ *
+ * Deliberately NOT behind the visibility gate `CardImage` uses: `preload
+ * "metadata"` fetches a few kilobytes of header and nothing else, so an
+ * off-screen card costs a header rather than a picture.
+ */
+function CardAudio({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
+  const { vaultAdapter } = useVault();
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!vaultAdapter) return;
+    let alive = true;
+    let objectUrl: string | null = null;
+    setUrl(undefined);
+    void (async () => {
+      for (const rel of imageCandidates(target, { notePath })) {
+        try {
+          const blob = await loadImageBlob(vaultAdapter, rel);
+          if (!alive) return;
+          objectUrl = URL.createObjectURL(blob);
+          setUrl(objectUrl);
+          return;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      if (alive) setUrl(null);
+    })();
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [vaultAdapter, target, notePath]);
+  return <AudioEmbed url={url} label={alt || target} compact />;
 }
 
 function CardImage({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
@@ -580,6 +617,7 @@ export function BasePinboardView({
             labels={cardLabels}
             onToggleTask={(ordinal, checked) => void handleToggleTask(path, ordinal, checked)}
             renderImage={(target, alt) => <CardImage target={target} alt={alt} notePath={path} />}
+            renderAudio={(target, alt) => <CardAudio target={target} alt={alt} notePath={path} />}
           />
           {vm.parsed.truncated && (
             <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 28, background: "linear-gradient(transparent, var(--bg-secondary))" }} />

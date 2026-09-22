@@ -4686,6 +4686,22 @@
     "driveFolder": "O provedor retornou um identificador de pasta inválido. A operação foi interrompida.",
     "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown."
   },
+  "audio": {
+    "play": "Reproduzir {{name}}",
+    "pause": "Pausar",
+    "position": "Posição de reprodução",
+    "missing": "{{name}} não encontrado"
+  },
+  "voiceMemo": {
+    "start": "Gravar uma nota de voz",
+    "attach": "Anexar",
+    "discard": "Descartar",
+    "denied": "Sem acesso ao microfone o Plainva não consegue gravar. Você pode conceder isso nas configurações do sistema.",
+    "unavailable": "Este aparelho não consegue gravar — não tem microfone, ou o app não pode usá-lo.",
+    "failed": "A gravação parou. Nada foi salvo.",
+    "reason": "O Plainva grava uma nota de voz apenas quando você inicia uma. A gravação fica como arquivo no seu cofre; não é enviada para lugar nenhum.",
+    "fileName": "Nota de voz"
+  },
   "journal": {
     "title": "Diário",
     "open": "Abrir diário",

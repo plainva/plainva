@@ -4740,6 +4740,22 @@
     "driveFolder": "Dostawca zwrócił nieprawidłowy identyfikator folderu. Operacja została zatrzymana.",
     "htmlDepth": "Ten HTML ma zbyt wiele poziomów zagnieżdżenia. Uprość go lub zaimportuj eksport w formacie Markdown."
   },
+  "audio": {
+    "play": "Odtwórz {{name}}",
+    "pause": "Pauza",
+    "position": "Pozycja odtwarzania",
+    "missing": "Nie znaleziono {{name}}"
+  },
+  "voiceMemo": {
+    "start": "Nagraj notatkę głosową",
+    "attach": "Dołącz",
+    "discard": "Odrzuć",
+    "denied": "Bez dostępu do mikrofonu Plainva nie może nagrywać. Możesz go przyznać w ustawieniach systemu.",
+    "unavailable": "To urządzenie nie może nagrywać — nie ma mikrofonu albo aplikacja nie może go użyć.",
+    "failed": "Nagrywanie zostało przerwane. Nic nie zapisano.",
+    "reason": "Plainva nagrywa notatkę głosową tylko wtedy, gdy sam ją rozpoczniesz. Nagranie zostaje plikiem w Twoim sejfie; nigdzie nie jest wysyłane.",
+    "fileName": "Notatka głosowa"
+  },
   "journal": {
     "title": "Dziennik",
     "open": "Otwórz dziennik",

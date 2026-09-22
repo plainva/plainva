@@ -97,6 +97,15 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Voice memos (plan Journal-Erweiterungen, X4) go through MediaRecorder
+         in the WebView, so the same rule as the QR scanner applies: Capacitor's
+         WebChromeClient asks for RECORD_AUDIO when the page requests an audio
+         stream, and Android denies a permission the app never declares. Asked
+         on the first tap of the microphone, never at startup. Optional
+         feature: a device without a microphone stays installable. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <!-- Appointment reminders (S10). From Android 13 a notification is not
          shown at all without this permission, and the request dialog cannot
          even appear for an app that does not declare it. SCHEDULE_EXACT_ALARM

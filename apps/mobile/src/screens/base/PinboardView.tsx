@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
+import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
 import { Plus } from "lucide-react";
-import { applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { captureBaseItem } from "../../services/baseOps";
@@ -30,6 +30,42 @@ interface CardVM {
   title: string | null;
   data: NoteCardData;
   row: any;
+}
+
+/** A voice memo on a card (plan Journal-Erweiterungen, X3) - the phone's twin of the desktop loader. */
+function CardAudio({ vault, target, alt, notePath }: { vault: MobileVault; target: string; alt: string; notePath: string }) {
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    let objectUrl: string | null = null;
+    setUrl(undefined);
+    void (async () => {
+      const candidates = imageCandidates(target, { notePath });
+      const byName = imageBasename(target);
+      if (byName) {
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
+      }
+      if (!alive) return;
+      for (const rel of candidates) {
+        try {
+          const bin = await vault.adapter.readBinaryFile(rel);
+          if (!alive) return;
+          objectUrl = URL.createObjectURL(new Blob([bin as BlobPart], { type: mimeTypeForPath(rel) }));
+          setUrl(objectUrl);
+          return;
+        } catch {
+          /* try the next candidate */
+        }
+      }
+      if (alive) setUrl(null);
+    })();
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [vault, target, notePath]);
+  return <AudioEmbed url={url} label={alt || target} compact />;
 }
 
 function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; target: string; alt: string; notePath: string }) {
@@ -649,6 +685,7 @@ export function PinboardView({
             labels={cardLabels}
             onToggleTask={(ordinal, checked) => void handleToggleTask(path, ordinal, checked)}
             renderImage={(target, alt) => <CardImage vault={vault} target={target} alt={alt} notePath={path} />}
+            renderAudio={(target, alt) => <CardAudio vault={vault} target={target} alt={alt} notePath={path} />}
           />
           {vm.parsed.truncated && (
             <div aria-hidden="true" className="m-pin-fade" />

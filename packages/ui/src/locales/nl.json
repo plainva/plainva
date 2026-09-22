@@ -4632,6 +4632,22 @@
     "driveFolder": "De provider heeft een ongeldige mapidentificatie teruggestuurd. De bewerking is gestopt.",
     "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export."
   },
+  "audio": {
+    "play": "{{name}} afspelen",
+    "pause": "Pauze",
+    "position": "Afspeelpositie",
+    "missing": "{{name}} niet gevonden"
+  },
+  "voiceMemo": {
+    "start": "Spraaknotitie opnemen",
+    "attach": "Toevoegen",
+    "discard": "Weggooien",
+    "denied": "Zonder toegang tot de microfoon kan Plainva niets opnemen. Je kunt die geven in de systeeminstellingen.",
+    "unavailable": "Dit apparaat kan niet opnemen — het heeft geen microfoon, of de app mag die niet gebruiken.",
+    "failed": "De opname is gestopt. Er is niets bewaard.",
+    "reason": "Plainva neemt een spraaknotitie alleen op als jij die start. De opname blijft als bestand in je kluis; ze wordt nergens naartoe gestuurd.",
+    "fileName": "Spraaknotitie"
+  },
   "journal": {
     "title": "Journaal",
     "open": "Journaal openen",

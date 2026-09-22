@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS-only additions Tauri merges into the bundle's Info.plist.
+
+  Voice memos (plan Journal-Erweiterungen, X4) record through MediaRecorder in
+  the WebView. WebView2 on Windows and WebKitGTK on Linux ask the user
+  themselves; macOS refuses the microphone outright - without a crash, without
+  a dialog - when the bundle carries no reason for wanting it, so the reason
+  lives here. The permission is still asked for on the first tap, never at
+  startup.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Plainva records a voice memo only when you start one. The recording stays as a file in your vault; it is not sent anywhere.</string>
+</dict>
+</plist>
