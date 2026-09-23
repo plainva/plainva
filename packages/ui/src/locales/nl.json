@@ -4745,5 +4745,14 @@
     "windowTitle": "Plainva – Journaalitem",
     "noVault": "In Plainva is geen vault geopend, dus er is geen plek om het item te schrijven.",
     "failed": "Het item kon niet worden opgeslagen. Is Plainva nog actief?"
+  },
+  "widget": {
+    "today": "Vandaag",
+    "overdue": "Te laat",
+    "empty": "Niets gepland",
+    "locked": "Vergrendeld — open in Plainva",
+    "pending": "wordt toegepast bij het openen van Plainva",
+    "newTask": "Taak",
+    "newJournal": "Journaal"
   }
 }

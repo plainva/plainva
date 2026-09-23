@@ -41,6 +41,10 @@ export function onAppForeground(): void {
   window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
   window.dispatchEvent(new CustomEvent("m-backup-due"));
   window.dispatchEvent(new CustomEvent("m-poll-share"));
+  // The home screen went on showing whatever was true when we left
+  // (plan Widgets, E7). Debounced, because the cycles above are about
+  // to fire their own events and one write per return is enough.
+  void import("./widgetService").then((m) => m.scheduleWidgetRefresh()).catch(() => {});
 }
 
 /**
@@ -65,4 +69,8 @@ export function onAppBackground(): void {
   void import("@plainva/ui/mail")
     .then(({ releaseMailSessions }) => releaseMailSessions())
     .catch(() => {});
+  // Not debounced, unlike the return: Android may kill the process
+  // without any further callback, and a widget then carries whatever
+  // was last written for as long as the app stays closed.
+  void import("./widgetService").then((m) => m.refreshWidgets()).catch(() => {});
 }

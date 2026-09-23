@@ -4800,5 +4800,14 @@
     "windowTitle": "Plainva – Voce di diario",
     "noVault": "In Plainva non è aperto alcun vault, quindi non c'è dove scrivere la voce.",
     "failed": "Non è stato possibile salvare la voce. Plainva è ancora in esecuzione?"
+  },
+  "widget": {
+    "today": "Oggi",
+    "overdue": "In ritardo",
+    "empty": "Niente in scadenza",
+    "locked": "Bloccato — apri in Plainva",
+    "pending": "verrà applicato all'apertura di Plainva",
+    "newTask": "Attività",
+    "newJournal": "Diario"
   }
 }

@@ -23,7 +23,9 @@ import { describe, expect, it } from "vitest";
  *   2. …and declares a jsName and at least one pluginMethod
  *   3. every @objc method of that class appears in pluginMethods (a method the
  *      bridge cannot see is a silent "not implemented" on exactly one platform)
- *   4. every jsName the TypeScript side registers exists on the Swift side
+ *   4. every jsName the TypeScript side registers exists on the Swift side --
+ *      from `adapters/` AND `platform/`, because half the native plugins live
+ *      in the second folder and the rule used to look only in the first
  *
  * Textual analysis on purpose: it runs in the normal test suite on any OS,
  * needs no Xcode, and catches the mistake at commit time rather than after a
@@ -33,6 +35,16 @@ import { describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 const iosAppDir = join(here, "..", "ios", "App", "App");
 const adaptersDir = join(here, "adapters");
+const platformDir = join(here, "platform");
+
+/**
+ * jsNames that exist on Android alone, deliberately. iOS keeps no comparable
+ * record of why a process was last killed, so there is nothing to bridge: the
+ * TypeScript side guards the call by platform and
+ * `androidPlatformGuards.test.ts` pins the name on the Android side. An entry
+ * here is a decision, not a to-do.
+ */
+const ANDROID_ONLY = new Set(["ProcessExit"]);
 
 /**
  * Comments are stripped before anything is analysed. The first version of this
@@ -62,13 +74,15 @@ function registeredPlugins(source: string): string[] {
 /** `jsName` values the TypeScript side expects to find natively. */
 function jsRegisteredNames(): string[] {
   const names = new Set<string>();
-  for (const file of readdirSync(adaptersDir)) {
-    if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
-    const source = readFileSync(join(adaptersDir, file), "utf8");
-    for (const match of source.matchAll(/registerPlugin<[^>]*>\(\s*"([^"]+)"/g)) names.add(match[1]);
-    for (const match of source.matchAll(/registerPlugin\(\s*"([^"]+)"/g)) names.add(match[1]);
+  for (const dir of [adaptersDir, platformDir]) {
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
+      const source = readFileSync(join(dir, file), "utf8");
+      for (const match of source.matchAll(/registerPlugin<[^>]*>\(\s*"([^"]+)"/g)) names.add(match[1]);
+      for (const match of source.matchAll(/registerPlugin\(\s*"([^"]+)"/g)) names.add(match[1]);
+    }
   }
-  return [...names];
+  return [...names].filter((name) => !ANDROID_ONLY.has(name));
 }
 
 describe("iOS plugin bridge contract", () => {

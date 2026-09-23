@@ -4745,5 +4745,14 @@
     "windowTitle": "Plainva – Journal entry",
     "noVault": "No vault is open in Plainva, so there is nowhere to write the entry.",
     "failed": "The entry could not be saved. Is Plainva still running?"
+  },
+  "widget": {
+    "today": "Today",
+    "overdue": "Overdue",
+    "empty": "Nothing due",
+    "locked": "Locked — open in Plainva",
+    "pending": "applied when you open Plainva",
+    "newTask": "Task",
+    "newJournal": "Journal"
   }
 }

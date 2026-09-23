@@ -4745,5 +4745,14 @@
     "windowTitle": "Plainva – Journal-Eintrag",
     "noVault": "In Plainva ist kein Vault geöffnet, deshalb gibt es keinen Ort für den Eintrag.",
     "failed": "Der Eintrag konnte nicht gespeichert werden. Läuft Plainva noch?"
+  },
+  "widget": {
+    "today": "Heute",
+    "overdue": "Überfällig",
+    "empty": "Nichts fällig",
+    "locked": "Gesperrt — in Plainva öffnen",
+    "pending": "wird beim Öffnen übernommen",
+    "newTask": "Aufgabe",
+    "newJournal": "Journal"
   }
 }

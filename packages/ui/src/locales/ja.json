@@ -4690,5 +4690,14 @@
     "windowTitle": "Plainva – ジャーナルエントリ",
     "noVault": "Plainva で保管庫が開かれていないため、エントリを書き込む場所がありません。",
     "failed": "エントリを保存できませんでした。Plainva はまだ動いていますか？"
+  },
+  "widget": {
+    "today": "今日",
+    "overdue": "期限切れ",
+    "empty": "期限のタスクはなし",
+    "locked": "ロック中 — Plainva で開く",
+    "pending": "Plainva を開いたときに反映されます",
+    "newTask": "タスク",
+    "newJournal": "ジャーナル"
   }
 }

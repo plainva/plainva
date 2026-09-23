@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(VaultFolderPlugin.class);
         registerPlugin(DevicePimPlugin.class);
         registerPlugin(ProcessExitPlugin.class);
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
         shareIntentId = savedInstanceState == null ? null : savedInstanceState.getString("plainva.shareIntentId");
         stashShare(getIntent());

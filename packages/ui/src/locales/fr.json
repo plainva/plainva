@@ -4800,5 +4800,14 @@
     "windowTitle": "Plainva – Entrée de journal",
     "noVault": "Aucun vault n'est ouvert dans Plainva ; il n'y a donc nulle part où écrire l'entrée.",
     "failed": "L'entrée n'a pas pu être enregistrée. Plainva est-il toujours en cours d'exécution ?"
+  },
+  "widget": {
+    "today": "Aujourd'hui",
+    "overdue": "En retard",
+    "empty": "Rien à faire",
+    "locked": "Verrouillé — ouvrir dans Plainva",
+    "pending": "appliqué à l'ouverture de Plainva",
+    "newTask": "Tâche",
+    "newJournal": "Journal"
   }
 }

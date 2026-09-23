@@ -133,6 +133,18 @@ export interface MobileSettings extends VaultScopedSettings {
    * there is no second column to fold.
    */
   navSidebarCollapsed: boolean;
+  /**
+   * What the home-screen widgets may show (plan Widgets, E4).
+   *
+   * Device-local, like every other switch in this group and for the
+   * same reason: a home screen is a place other people look at, and
+   * which people those are is a fact about THIS phone. Titles on by
+   * default, because a widget that only counts is not a widget; off
+   * leaves the rows in place so the counter still works.
+   */
+  widgetShowTitles: boolean;
+  /** Whether appointments join the tasks on the widget. */
+  widgetShowEvents: boolean;
 }
 
 /** Re-export so consumers (mobileSettingsSync) keep importing the type from here. */
@@ -193,6 +205,8 @@ function defaults(): MobileSettings {
     contextPanelDocked: false,
     tagColors: false,
     navSidebarCollapsed: false,
+    widgetShowTitles: true,
+    widgetShowEvents: true,
     ...vaultDefaults(),
   });
 }

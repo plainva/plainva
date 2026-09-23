@@ -4800,5 +4800,14 @@
     "windowTitle": "Plainva – Entrada de diário",
     "noVault": "Nenhum vault está aberto no Plainva, então não há onde escrever a entrada.",
     "failed": "Não foi possível salvar a entrada. O Plainva ainda está em execução?"
+  },
+  "widget": {
+    "today": "Hoje",
+    "overdue": "Atrasadas",
+    "empty": "Nada pendente",
+    "locked": "Bloqueado — abrir no Plainva",
+    "pending": "será aplicado ao abrir o Plainva",
+    "newTask": "Tarefa",
+    "newJournal": "Diário"
   }
 }

@@ -513,6 +513,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "home-screen-widgets",
+    title: "Home-screen widgets for today's list and quick capture",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "A Windows widget needs the app shipped as an MSIX package with its own " +
+      "widget provider service, a macOS widget a native app extension signed " +
+      "beside the app — neither is something the Tauri shell carries, and either " +
+      "would change how Plainva is packaged on that platform for one surface. " +
+      "The desktop answers the same need from the tray (next appointment, new " +
+      "task, journal entry), which is there whenever the window is not.",
+    mobile: "yes",
+    verified: "2026-09-23",
+  },
+  {
     id: "launcher-shortcuts",
     title: "Long-press launcher shortcuts (new note, new task, today, journal)",
     area: "platform",

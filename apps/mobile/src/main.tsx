@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { TransferReviewHost } from "./components/TransferReviewHost";
 import { i18nReady } from "@plainva/ui/i18n";
 import { initReminderScheduler } from "./services/reminderScheduler";
+import { initWidgetService } from "./services/widgetService";
 import { initMobileCommentNotifier } from "./services/commentNotifier";
 import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
@@ -143,6 +144,11 @@ async function boot(): Promise<void> {
   // an action type registered before the language file has loaded keeps the raw
   // key on its button for the life of the process (finding 2026-08-22).
   initMobileCommentNotifier();
+  // Also after i18nReady: the handful of words a widget shows are
+  // written INTO the snapshot, so a snapshot built before the language
+  // file loaded would leave raw keys on the home screen until the next
+  // write -- which, on a phone left alone, can be days.
+  initWidgetService();
   // Before the first paint: a stylesheet keyed on the window class must not
   // see a phone layout for one frame on a tablet.
   initWindowClass();

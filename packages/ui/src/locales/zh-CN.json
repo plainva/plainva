@@ -4690,5 +4690,14 @@
     "windowTitle": "Plainva – 日志条目",
     "noVault": "Plainva 中没有打开任何仓库，因此无处写入该条目。",
     "failed": "无法保存该条目。Plainva 还在运行吗？"
+  },
+  "widget": {
+    "today": "今天",
+    "overdue": "已逾期",
+    "empty": "今天没有到期项",
+    "locked": "已锁定 — 在 Plainva 中打开",
+    "pending": "打开 Plainva 后生效",
+    "newTask": "任务",
+    "newJournal": "日志"
   }
 }

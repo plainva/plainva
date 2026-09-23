@@ -4855,5 +4855,14 @@
     "windowTitle": "Plainva – Wpis dziennika",
     "noVault": "W Plainvie nie jest otwarty żaden vault, więc nie ma gdzie zapisać wpisu.",
     "failed": "Nie udało się zapisać wpisu. Czy Plainva nadal działa?"
+  },
+  "widget": {
+    "today": "Dziś",
+    "overdue": "Zaległe",
+    "empty": "Nic na dziś",
+    "locked": "Zablokowany — otwórz w Plainvie",
+    "pending": "zostanie zastosowane po otwarciu Plainvy",
+    "newTask": "Zadanie",
+    "newJournal": "Dziennik"
   }
 }
