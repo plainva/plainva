@@ -2417,6 +2417,7 @@
     "recent": "Recent",
     "folders": "Folders",
     "newNote": "New note",
+    "newNoteName": "Note {{n}}",
     "sectionSettings": "Settings",
     "syncUrl": "Server URL",
     "syncUser": "Username",

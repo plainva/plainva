@@ -2439,6 +2439,7 @@
     "recent": "Ostatnie",
     "folders": "Foldery",
     "newNote": "Nowa notatka",
+    "newNoteName": "Notatka {{n}}",
     "sectionSettings": "Ustawienia",
     "syncUrl": "Adres serwera",
     "syncUser": "Nazwa użytkownika",

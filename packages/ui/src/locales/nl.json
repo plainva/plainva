@@ -2417,6 +2417,7 @@
     "recent": "Recent",
     "folders": "Mappen",
     "newNote": "Nieuwe notitie",
+    "newNoteName": "Notitie {{n}}",
     "sectionSettings": "Instellingen",
     "syncUrl": "Server-URL",
     "syncUser": "Gebruikersnaam",

@@ -3242,3 +3242,32 @@ describe("the note screen keeps its hints inside the chrome", () => {
     expect(css).toMatch(/\.m-note-chrome \{[^}]*background: var\(--surface\);/);
   });
 });
+
+describe("a name the phone invents follows the app's language (issue 105)", () => {
+  // The desktop ASKS for a name; the phone invents one, and for a year it
+  // invented "Notiz 1" in every language. A German file name in an English
+  // vault is not a cosmetic slip: it is the file, forever, on disk.
+  const services = readdirSync(join(SRC, "services"))
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    .map((f) => [f, stripComments(readFileSync(join(SRC, "services", f), "utf8"))] as const);
+
+  it("the new note takes its name from the catalog", () => {
+    const vault = services.find(([f]) => f === "vaultService.ts")![1];
+    expect(vault).toContain('i18n.t("mobile.newNoteName"');
+  });
+
+  it("no service builds a user-visible name out of a German word", () => {
+    // Only names that BECOME something — a file, a title, a folder. A German
+    // `defaultValue:` is a fallback for a missing key and stays legitimate.
+    const offenders: string[] = [];
+    for (const [file, source] of services) {
+      for (const [line] of source.matchAll(/`(?:Notiz|Ordner|Neue[rs]?|Unbenannt|Aufgabe|Datenbank|Vorlage)[ _]\$\{[^}]*\}`/g)) {
+        offenders.push(`${file}: ${line}`);
+      }
+    }
+    expect(
+      offenders,
+      `these invent a German name in every language — use a catalog key: ${offenders.join(", ")}`,
+    ).toEqual([]);
+  });
+});

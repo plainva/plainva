@@ -2406,6 +2406,7 @@
     "recent": "最近",
     "folders": "文件夹",
     "newNote": "新笔记",
+    "newNoteName": "笔记 {{n}}",
     "sectionSettings": "设置",
     "syncUrl": "服务器 URL",
     "syncUser": "用户名",

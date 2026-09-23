@@ -1047,7 +1047,12 @@ export const vaultOps = {
    */
   async createNote(v: MobileVault, folder: string, type: string): Promise<string | null> {
     for (let n = 1; ; n++) {
-      const title = `Notiz ${n}`;
+      // The name follows the APP's language (issue 105): the phone invents
+      // where the desktop asks for it, and an invented name that is always
+      // German is wrong for nine of the ten languages. The number is placed
+      // by the catalog, not appended here, because not every language puts it
+      // at the end.
+      const title = i18n.t("mobile.newNoteName", { n });
       const path = `${folder}/${title}.md`;
       if (await v.files.exists(path)) continue;
       const built = await buildNewNoteFromTemplate({

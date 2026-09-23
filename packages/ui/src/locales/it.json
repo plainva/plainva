@@ -2428,6 +2428,7 @@
     "recent": "Recenti",
     "folders": "Cartelle",
     "newNote": "Nuova nota",
+    "newNoteName": "Nota {{n}}",
     "sectionSettings": "Impostazioni",
     "syncUrl": "URL del server",
     "syncUser": "Nome utente",

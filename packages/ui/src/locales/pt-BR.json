@@ -2428,6 +2428,7 @@
     "recent": "Recentes",
     "folders": "Pastas",
     "newNote": "Nova nota",
+    "newNoteName": "Nota {{n}}",
     "sectionSettings": "Configurações",
     "syncUrl": "URL do servidor",
     "syncUser": "Usuário",

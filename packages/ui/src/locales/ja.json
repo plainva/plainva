@@ -2406,6 +2406,7 @@
     "recent": "最近",
     "folders": "フォルダ",
     "newNote": "新規ノート",
+    "newNoteName": "ノート {{n}}",
     "sectionSettings": "設定",
     "syncUrl": "サーバー URL",
     "syncUser": "ユーザー名",
