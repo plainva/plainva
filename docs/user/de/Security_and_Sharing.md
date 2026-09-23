@@ -84,3 +84,12 @@ Hast Du die Cloud-Kopie schon gelöscht und der Sync bricht jetzt mit „Workspa
 Beide Aktionen sind ausdrücklich und werden bestätigt. Plainva stuft eine verschlüsselte Verbindung nie still auf Klartext herab, und keine der Aktionen löscht lokale Dateien. Trägt die Cloud noch verschlüsselte Inhalte, die Du wirklich willst, brich stattdessen ab — ein Reset würde den Klartext-Sync wieder aufnehmen.
 
 Ein Vault, den Du über **App-Daten vergessen** entfernst (Splash → Vault entfernen → auch App-Daten vergessen), räumt diese Verschlüsselungs-Merker ebenfalls ab; so bleibt von einem so entfernten Vault nichts zurück, das eine spätere Neu-Verbindung blockieren könnte.
+
+## Was Plainva vom Gerät erfragt
+
+Zwei Funktionen brauchen eine Berechtigung des Betriebssystems. Beide werden **beim ersten Drücken** erfragt, nie beim Start, und beide schreiben ausschließlich in Deinen Vault.
+
+- **Mikrofon** — für **Sprachnotizen** (Journal-Erfassung, Mikrofon-Symbol). Plainva nimmt nur auf, solange Du eine Aufnahme laufen lässt; **Verwerfen** wirft sie weg, **Anhängen** legt sie als Datei im Anhänge-Ordner ab. Es gibt keine Transkription, keinen Upload und keinen Dienst, der mithört. Verweigerst Du die Freigabe, sagt der Knopf das und die übrige Erfassung funktioniert weiter.
+- **Standort** — für den **Ortsstempel**, und der ist zusätzlich ein Geräteschalter, der **standardmäßig aus** ist (Einstellungen → Darstellung). Erst wenn Du ihn einschaltest, erscheint der Knopf; erst wenn Du ihn drückst, fragt das System. Geschrieben wird **eine Zeile** — `📍 52.5200, 13.4050` — mit vier Nachkommastellen, also etwa elf Metern. Kein Verlauf, keine Karte, keine Hintergrund-Ortung und kein Online-Dienst, der aus Koordinaten einen Namen macht.
+
+Kamera und Fotomediathek fragt Plainva wie bisher nur beim Einfügen eines Fotos und beim Scannen eines Kopplungs-QR-Codes. Keine dieser Freigaben verlässt das Gerät: was sie liefern, wird eine Datei oder eine Zeile in Deinem Vault — und der gehört Dir.

@@ -219,6 +219,8 @@ De zwevende knop **Plus** blijft beschikbaar in geneste mappen, en elke snelle-a
 
 De fotoknop van de editor biedt **Foto maken** of **Uit fotobibliotheek kiezen**, behoudt de invoegpositie en toont toestemmings- of bestandsfouten duidelijk zichtbaar. Foto's komen terecht in de bijlagenmap van de kluis — dezelfde die je computer gebruikt.
 
+Dezelfde invoer voegt nog twee dingen aan een **journaalitem** toe: de **microfoon** neemt een spraaknotitie op — tijdens de opname zie je de verstreken tijd, **Weggooien** gooit haar weg, **Toevoegen** schrijft haar naar de bijlagenmap en sluit haar in het item in, waar ze meteen afspeelt. De **plaatsstempel** staat standaard uit; aangezet onder **Instellingen → Weergave** voegt één druk je coördinaten op een eigen regel toe (`📍 52.5200, 13.4050`). Het systeem vraagt beide toestemmingen bij de **eerste** druk, nooit bij het starten; meer in [Beveiliging en delen](Security_and_Sharing.md).
+
 Afspraken en dagnotities zijn bewust gescheiden: **Kalender** toont de gekoppelde kalenders (zie [Kalender en afspraken](#kalender-en-afspraken)), **Vandaag** toont de dagnotitie van een gekozen dag. In het maandraster van **Kalender** markeert een punt de dagen die al een dagnotitie hebben; tik op het punt om die te openen, tik op de dag om zoals voorheen de dagweergave te openen. De strip in **Vandaag** toont dezelfde punten.
 
 ## Bijlagen en afbeeldingen

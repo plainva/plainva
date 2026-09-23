@@ -219,6 +219,8 @@ El botón flotante **Más** sigue disponible dentro de carpetas anidadas, y toda
 
 El botón de foto del editor ofrece **Hacer una foto** o **Elegir de la fototeca**, conserva la posición de inserción y muestra los errores de permisos o de archivo de forma visible. Las fotos van a la carpeta de adjuntos de la bóveda — la misma que usa tu ordenador.
 
+La misma captura añade dos cosas más a una **entrada del diario**: el **micrófono** graba una nota de voz — mientras corre ves el tiempo transcurrido, **Descartar** la tira, **Adjuntar** la escribe en la carpeta de adjuntos y la incrusta en la entrada, donde se reproduce directamente. El **sello de lugar** está desactivado por defecto; activado en **Ajustes → Apariencia**, una pulsación añade tus coordenadas en su propia línea (`📍 52.5200, 13.4050`). El sistema pide ambos permisos en la **primera** pulsación, nunca al iniciar; más en [Seguridad y compartir](Security_and_Sharing.md).
+
 Los eventos y las notas diarias están deliberadamente separados: **Calendario** muestra los calendarios conectados (ver [Calendario y eventos](#calendario-y-eventos)), **Hoy** muestra la nota diaria de un día elegido. En la cuadrícula mensual de **Calendario**, un punto marca los días que ya tienen una nota diaria; tocar el punto la abre y tocar el día sigue abriendo la vista del día. La franja en **Hoy** muestra los mismos puntos.
 
 ## Adjuntos e imágenes

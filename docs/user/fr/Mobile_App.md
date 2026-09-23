@@ -219,6 +219,8 @@ Le bouton flottant **Plus** reste disponible dans les dossiers imbriqués, et ch
 
 Le bouton photo de l'éditeur propose **Prendre une photo** ou **Choisir dans la photothèque**, conserve la position d'insertion et signale visiblement les erreurs d'autorisation ou de fichier. Les photos atterrissent dans le dossier des pièces jointes du coffre — celui-là même qu'utilise votre ordinateur.
 
+La même saisie ajoute deux choses de plus à une **entrée de journal** : le **microphone** enregistre une note vocale — pendant l'enregistrement vous voyez le temps écoulé, **Supprimer** la jette, **Joindre** l'écrit dans le dossier des pièces jointes et l'intègre à l'entrée, où elle se lit directement. Le **cachet de lieu** est désactivé par défaut ; activé sous **Réglages → Apparence**, un appui ajoute vos coordonnées sur leur propre ligne (`📍 52.5200, 13.4050`). Le système demande les deux autorisations au **premier** appui, jamais au démarrage ; plus de détails dans [Sécurité et partage](Security_and_Sharing.md).
+
 Les événements et les notes quotidiennes sont délibérément séparés : **Calendrier** affiche les calendriers connectés (voir [Calendrier et événements](#calendrier-et-événements)), **Aujourd'hui** affiche la note quotidienne d'un jour choisi. Dans la grille mensuelle de **Calendrier**, un point marque les jours qui ont déjà une note quotidienne ; toucher le point l'ouvre, toucher le jour ouvre toujours la vue du jour. Le bandeau dans **Aujourd'hui** affiche les mêmes points.
 
 ## Pièces jointes et images

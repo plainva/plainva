@@ -219,6 +219,8 @@ Der schwebende **Plus**-Knopf bleibt auch in verschachtelten Ordnern verfügbar;
 
 Der Foto-Knopf im Editor fragt **Foto aufnehmen** oder **Aus Mediathek wählen**, behält die Einfügeposition und meldet Berechtigungs- oder Dateifehler sichtbar. Fotos landen im Anhänge-Ordner des Vaults — demselben, den auch Dein Rechner benutzt.
 
+Dieselbe Erfassung hängt zwei weitere Dinge an einen **Journal-Eintrag**: Das **Mikrofon** nimmt eine Sprachnotiz auf — während der Aufnahme siehst Du die laufende Zeit, **Verwerfen** wirft sie weg, **Anhängen** legt sie im Anhänge-Ordner ab und bettet sie in den Eintrag ein, wo sie sich direkt abspielen lässt. Der **Ortsstempel** ist standardmäßig aus; ist er unter **Einstellungen → Erscheinungsbild** eingeschaltet, hängt ein Druck Deine Koordinaten als eigene Zeile an (`📍 52.5200, 13.4050`). Beide Berechtigungen fragt das System beim **ersten** Drücken ab, nie beim Start; mehr dazu in [Sicherheit & Freigaben](Security_and_Sharing.md).
+
 Termine und Tagesnotizen sind bewusst getrennt: **Kalender** zeigt die verbundenen Kalender (siehe [Kalender und Termine](#kalender-und-termine)), **Heute** die Tagesnotiz eines gewählten Tages. Im Monatsraster von **Kalender** markiert ein Punkt die Tage, die schon eine Tagesnotiz haben; ein Tipp auf den Punkt öffnet sie, ein Tipp auf den Tag weiterhin die Tagesansicht. Der Streifen in **Heute** zeigt dieselben Punkte.
 
 ## Anhänge und Bilder

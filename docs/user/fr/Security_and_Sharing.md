@@ -84,3 +84,12 @@ Si vous avez déjà supprimé la copie cloud et que la synchronisation échoue d
 Les deux actions sont explicites et confirmées. Plainva ne rétrograde jamais silencieusement une connexion chiffrée en texte clair, et aucune des deux actions ne supprime de fichiers locaux. Si le cloud contient encore du contenu chiffré que vous voulez réellement, annulez plutôt — réinitialiser reprendrait la synchronisation en clair.
 
 Supprimer un vault avec **Oublier les données d’application** (Splash → retirer un vault → oublier aussi les données d’application) efface aussi ces marqueurs de chiffrement, de sorte qu’un vault retiré ainsi ne laisse rien qui pourrait bloquer une reconnexion ultérieure.
+
+## Ce que Plainva demande à l'appareil
+
+Deux fonctions ont besoin d'une autorisation du système. Les deux sont demandées **au premier appui**, jamais au démarrage, et les deux écrivent uniquement dans votre coffre.
+
+- **Microphone** — pour les **notes vocales** (saisie du journal, l'icône du micro). Plainva n'enregistre que pendant une prise en cours ; **Supprimer** la jette, **Joindre** l'écrit comme fichier dans le dossier des pièces jointes. Pas de transcription, pas d'envoi, aucun service qui écoute. Si vous refusez, le bouton le dit et le reste de la saisie continue de fonctionner.
+- **Position** — pour le **cachet de lieu**, qui a en plus un interrupteur par appareil **désactivé par défaut** (Réglages → Apparence). Le bouton n'apparaît qu'une fois l'interrupteur activé ; le système ne demande qu'au moment où vous appuyez. Ce qui est écrit est **une ligne** — `📍 52.5200, 13.4050` — à quatre décimales, environ onze mètres. Pas d'historique, pas de carte, pas de suivi en arrière-plan et aucun service en ligne pour transformer des coordonnées en nom.
+
+L'appareil photo et la photothèque sont demandés comme avant : à l'insertion d'une photo et au scan d'un QR code d'appairage. Aucune de ces autorisations ne quitte l'appareil : ce qu'elles produisent devient un fichier ou une ligne de votre coffre — et celui-ci est à vous.

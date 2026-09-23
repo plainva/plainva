@@ -274,13 +274,26 @@ Outre le bloc `plainva`, une vue peut porter un objet natif **`views[i].filters`
 `plainva.input` est un des suivants :
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 Une colonne **inverse** calculée n'a **pas** d'`input` — elle est identifiée uniquement par `reverseOf`.
+Une colonne **`rating`** garde dans le fichier un simple **nombre** — `humeur: 4` — et s'affiche en points. Deux sous-clés optionnelles le pilotent :
+
+```yaml
+    note.humeur:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 à 10, par défaut 5
+        ratingGlyph: "★"      # un caractère, par défaut un point
+```
+
+Le tri et le filtre sont ceux de `number`. Obsidian ne connaît pas `rating` et affiche la colonne comme un nombre — ce qu'elle est.
+
+**`file.day`** est un champ virtuel : le jour que représente le **nom de fichier** d'une note quotidienne, selon le dossier et le format du coffre. Il ne figure dans **aucune** note, il est calculé à l'interrogation et il est en lecture seule ; le seul endroit où il sert est le `dateField` d'une vue calendrier ou frise. Obsidian ne le connaît pas — une vue qui l'utilise y reste vide.
 
 ### Agrégation
 

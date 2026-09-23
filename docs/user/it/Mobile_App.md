@@ -219,6 +219,8 @@ Il pulsante mobile **Più** resta disponibile nelle cartelle annidate, e ogni az
 
 Il pulsante foto dell'editor propone **Scatta una foto** o **Scegli dalla libreria**, conserva la posizione di inserimento e segnala in modo visibile gli errori di autorizzazione o di file. Le foto finiscono nella cartella degli allegati del vault — la stessa che usa il tuo computer.
 
+La stessa acquisizione aggiunge altre due cose a una **voce del diario**: il **microfono** registra una nota vocale — mentre va vedi il tempo trascorso, **Scarta** la butta via, **Allega** la scrive nella cartella degli allegati e la incorpora nella voce, dove si riproduce subito. Il **timbro del luogo** è disattivato per impostazione predefinita; attivato in **Impostazioni → Aspetto**, una pressione aggiunge le tue coordinate su una riga propria (`📍 52.5200, 13.4050`). Il sistema chiede entrambi i permessi alla **prima** pressione, mai all'avvio; altro in [Sicurezza e condivisione](Security_and_Sharing.md).
+
 Eventi e note giornaliere sono deliberatamente separati: **Calendario** mostra i calendari collegati (vedi [Calendario ed eventi](#calendario-ed-eventi)), **Oggi** mostra la nota giornaliera di un giorno scelto. Nella griglia mensile di **Calendario** un punto segna i giorni che hanno già una nota giornaliera; un tocco sul punto la apre, un tocco sul giorno apre ancora la vista del giorno. La striscia in **Oggi** mostra gli stessi punti.
 
 ## Allegati e immagini

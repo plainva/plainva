@@ -274,13 +274,26 @@ Además del bloque `plainva`, una vista puede llevar un objeto nativo **`views[i
 `plainva.input` es uno de:
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 Una columna calculada de **relación inversa** **no** tiene `input` — se identifica únicamente por `reverseOf`.
+Una columna **`rating`** guarda en el archivo un **número** simple — `animo: 4` — y se dibuja como puntos. Dos subclaves opcionales lo gobiernan:
+
+```yaml
+    note.animo:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 a 10, predeterminado 5
+        ratingGlyph: "★"      # un carácter, predeterminado un punto
+```
+
+Se ordena y se filtra como `number`. Obsidian no conoce `rating` y muestra la columna como un número, que es lo que es.
+
+**`file.day`** es un campo virtual: el día que representa el **nombre de archivo** de una nota diaria, según la carpeta y el formato de la bóveda. No está en **ninguna** nota, se calcula al consultar y es de solo lectura; solo puede usarse como `dateField` de una vista de calendario o línea de tiempo. Obsidian no lo conoce: una vista que lo use queda vacía allí.
 
 ### Agregación
 

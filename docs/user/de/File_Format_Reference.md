@@ -274,13 +274,26 @@ Neben dem `plainva`-Block kann eine View ein natives **`views[i].filters`**-Obje
 `plainva.input` ist einer von:
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 Eine berechnete **Rück**-Spalte hat **kein** `input` — sie wird allein durch `reverseOf` gekennzeichnet.
+Eine **`rating`**-Spalte hält in der Datei eine schlichte **Zahl** — `stimmung: 4` — und wird als Marken gezeichnet. Zwei optionale Unterschlüssel steuern das:
+
+```yaml
+    note.stimmung:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 bis 10, Vorgabe 5
+        ratingGlyph: "★"      # ein Zeichen, Vorgabe ein Punkt
+```
+
+Sortiert und gefiltert wird wie bei `number`. Obsidian kennt `rating` nicht und zeigt die Spalte als Zahl — was sie ist.
+
+**`file.day`** ist ein virtuelles Feld: der Tag, für den der **Dateiname** einer Tagesnotiz steht, nach Ordner und Format des Vaults. Es steht in **keiner** Notiz, wird beim Abfragen berechnet und ist nur lesbar; benutzbar ist es allein als `dateField` einer Kalender- oder Zeitleisten-Ansicht. Obsidian kennt es nicht — eine Ansicht, die es benutzt, bleibt dort leer.
 
 ### Auswertungen (Rollups)
 

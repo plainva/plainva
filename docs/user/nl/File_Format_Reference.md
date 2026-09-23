@@ -274,13 +274,26 @@ Naast het `plainva`-blok kan een weergave een native **`views[i].filters`**-obje
 `plainva.input` is een van:
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 Een berekende **omgekeerde** kolom heeft **geen** `input` — ze wordt uitsluitend gekenmerkt door `reverseOf`.
+Een **`rating`**-kolom houdt in het bestand een gewoon **getal** — `stemming: 4` — en wordt als punten getekend. Twee optionele subsleutels sturen dat:
+
+```yaml
+    note.stemming:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 tot 10, standaard 5
+        ratingGlyph: "★"      # één teken, standaard een punt
+```
+
+Sorteren en filteren gaan als bij `number`. Obsidian kent `rating` niet en toont de kolom als een getal — wat ze is.
+
+**`file.day`** is een virtueel veld: de dag waar de **bestandsnaam** van een dagnotitie voor staat, volgens map en formaat van de kluis. Het staat in **geen enkele** notitie, wordt bij het bevragen berekend en is alleen-lezen; de enige plek waar het dienst doet is het `dateField` van een agenda- of tijdlijnweergave. Obsidian kent het niet — een weergave die het gebruikt blijft daar leeg.
 
 ### Aggregatie
 

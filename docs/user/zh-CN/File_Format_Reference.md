@@ -274,13 +274,26 @@ Plainva本身会在下次保存时自动修复违反后两条规则的旧文件�
 `plainva.input`是以下之一：
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 一个计算得出的**反向**列**没有**`input`——它仅通过`reverseOf`来标识。
+**`rating`** 列在文件里保存一个普通的**数字** —— `mood: 4` —— 显示为小点。两个可选子键控制它：
+
+```yaml
+    note.mood:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 到 10，默认 5
+        ratingGlyph: "★"      # 一个字符，默认为小点
+```
+
+排序和筛选与 `number` 相同。Obsidian 不认识 `rating`，会把该列当作数字显示 —— 它本来就是数字。
+
+**`file.day`** 是一个虚拟字段：按保险库的文件夹和格式，日记的**文件名**所代表的那一天。它**不在任何笔记中**，在查询时计算得出，并且只读；唯一可用之处是日历或时间轴视图的 `dateField`。Obsidian 不认识它 —— 使用它的视图在那里会是空的。
 
 ### 汇总
 

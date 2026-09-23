@@ -84,3 +84,12 @@ Als je de cloudkopie al hebt verwijderd en de synchronisatie nu faalt met een fo
 Beide acties zijn expliciet en worden bevestigd. Plainva zet een versleutelde verbinding nooit stilzwijgend terug naar platte tekst, en geen van beide acties verwijdert lokale bestanden. Als de cloud nog versleutelde inhoud bevat die je echt wilt, annuleer dan juist — resetten zou de synchronisatie in platte tekst hervatten.
 
 Een vault verwijderen met **App-gegevens vergeten** (Splash → een vault verwijderen → ook app-gegevens vergeten) wist ook deze versleutelingsmarkeringen, zodat een zo verwijderde vault niets achterlaat dat een latere herverbinding kan blokkeren.
+
+## Wat Plainva aan het apparaat vraagt
+
+Twee functies hebben een toestemming van het besturingssysteem nodig. Beide worden **bij de eerste druk** gevraagd, nooit bij het starten, en beide schrijven uitsluitend in je kluis.
+
+- **Microfoon** — voor **spraaknotities** (journaalinvoer, het microfoonpictogram). Plainva neemt alleen op zolang je een opname laat lopen; **Weggooien** gooit haar weg, **Toevoegen** schrijft haar als bestand naar de bijlagenmap. Er is geen transcriptie, geen upload en geen dienst die meeluistert. Weiger je, dan zegt de knop dat en de rest van de invoer blijft werken.
+- **Locatie** — voor de **plaatsstempel**, die bovendien een schakelaar per apparaat heeft die **standaard uit** staat (Instellingen → Weergave). De knop verschijnt pas als je hem aanzet; het systeem vraagt pas als je hem indrukt. Er wordt **één regel** geschreven — `📍 52.5200, 13.4050` — met vier decimalen, ongeveer elf meter. Geen geschiedenis, geen kaart, geen achtergrondtracking en geen onlinedienst die van coördinaten een naam maakt.
+
+Camera en fotobibliotheek worden gevraagd zoals altijd: bij het invoegen van een foto en bij het scannen van een koppel-QR-code. Geen van deze toestemmingen verlaat het apparaat: wat ze opleveren wordt een bestand of een regel in je kluis — en die is van jou.

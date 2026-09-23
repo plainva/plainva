@@ -219,6 +219,8 @@ Pływający przycisk **Plus** pozostaje dostępny w zagnieżdżonych folderach, 
 
 Przycisk zdjęcia w edytorze oferuje **Zrób zdjęcie** lub **Wybierz z biblioteki**, zachowuje pozycję wstawiania i wyraźnie pokazuje błędy uprawnień lub pliku. Zdjęcia trafiają do folderu załączników sejfu — tego samego, którego używa Twój komputer.
 
+Ten sam zapis dodaje do **wpisu dziennika** jeszcze dwie rzeczy: **mikrofon** nagrywa notatkę głosową — w trakcie widzisz upływający czas, **Odrzuć** ją wyrzuca, **Dołącz** zapisuje ją w folderze załączników i osadza we wpisie, gdzie od razu się odtwarza. **Stempel miejsca** jest domyślnie wyłączony; po włączeniu w **Ustawienia → Wygląd** jedno naciśnięcie dodaje Twoje współrzędne we własnym wierszu (`📍 52.5200, 13.4050`). O obie zgody system pyta przy **pierwszym** naciśnięciu, nigdy przy starcie; więcej w [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md).
+
 Wydarzenia i notatki dzienne są celowo rozdzielone: **Kalendarz** pokazuje połączone kalendarze (zobacz [Kalendarz i wydarzenia](#kalendarz-i-wydarzenia)), **Dzisiaj** pokazuje notatkę dzienną wybranego dnia. W siatce miesięcznej **Kalendarza** kropka oznacza dni, które mają już notatkę dzienną; dotknięcie kropki ją otwiera, dotknięcie dnia nadal otwiera widok dnia. Pasek w **Dzisiaj** pokazuje te same kropki.
 
 ## Załączniki i obrazy

@@ -84,3 +84,12 @@ If you already deleted the cloud copy and sync now fails with a "workspace is mi
 Both actions are explicit and confirmed. Plainva never silently downgrades an encrypted connection to plain text, and neither action deletes any local files. If the cloud still holds encrypted content you actually want, cancel instead — resetting would resume plain-text sync.
 
 Removing a vault with **Forget app data** (Splash → remove a vault → also forget app data) clears these encryption markers too, so a vault removed that way leaves nothing behind that could block a later re-connection.
+
+## What Plainva asks the device for
+
+Two features need a permission from the operating system. Both are asked for **on the first press**, never at startup, and both write into your vault and nowhere else.
+
+- **Microphone** — for **voice memos** (journal capture, the microphone icon). Plainva records only while you have a take running; **Discard** throws it away, **Attach** writes it into the attachments folder as a file. There is no transcription, no upload and no service listening in. If you refuse, the button says so and the rest of the capture keeps working.
+- **Location** — for the **place stamp**, which additionally has a device switch that is **off by default** (Settings → Appearance). The button appears only once you switch it on; the system asks only once you press it. What is written is **one line** — `📍 52.5200, 13.4050` — at four decimals, about eleven metres. No history, no map, no background tracking and no online service to turn coordinates into a name.
+
+Camera and photo library are asked for as before: when you insert a photo and when you scan a pairing QR code. None of these permissions leaves the device: what they produce becomes a file or a line in your vault — and that is yours.

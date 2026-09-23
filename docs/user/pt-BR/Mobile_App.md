@@ -219,6 +219,8 @@ O botão flutuante **Mais** continua disponível em pastas aninhadas, e cada aç
 
 O botão de foto do editor oferece **Tirar foto** ou **Escolher da galeria**, preserva a posição de inserção e mostra de forma visível os erros de permissão ou de arquivo. As fotos vão para a pasta de anexos do cofre — a mesma que o seu computador usa.
 
+A mesma captura adiciona mais duas coisas a uma **entrada do diário**: o **microfone** grava uma nota de voz — enquanto corre você vê o tempo decorrido, **Descartar** a joga fora, **Anexar** a escreve na pasta de anexos e a incorpora à entrada, onde toca na hora. O **carimbo de lugar** vem desativado; ligado em **Configurações → Aparência**, um toque adiciona suas coordenadas em uma linha própria (`📍 52.5200, 13.4050`). O sistema pede as duas permissões no **primeiro** toque, nunca ao iniciar; mais em [Segurança e compartilhamento](Security_and_Sharing.md).
+
 Eventos e notas diárias são propositalmente separados: **Calendário** mostra os calendários conectados (veja [Calendário e eventos](#calendário-e-eventos)), **Hoje** mostra a nota diária de um dia escolhido. Na grade mensal de **Calendário**, um ponto marca os dias que já têm uma nota diária; tocar no ponto a abre, tocar no dia continua abrindo a visualização do dia. A faixa em **Hoje** mostra os mesmos pontos.
 
 ## Anexos e imagens

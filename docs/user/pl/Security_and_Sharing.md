@@ -84,3 +84,12 @@ Jeśli kopię w chmurze już usunięto i synchronizacja kończy się teraz błę
 Obie akcje są jawne i potwierdzane. Plainva nigdy po cichu nie obniża zaszyfrowanego połączenia do tekstu jawnego i żadna z akcji nie usuwa plików lokalnych. Jeśli w chmurze wciąż znajduje się zaszyfrowana treść, której naprawdę chcesz, zamiast tego anuluj — reset wznowiłby synchronizację w tekście jawnym.
 
 Usunięcie vaulta za pomocą **Zapomnij dane aplikacji** (Splash → usuń vault → zapomnij także dane aplikacji) czyści również te znaczniki szyfrowania, więc vault usunięty w ten sposób nie pozostawia niczego, co mogłoby zablokować późniejsze ponowne połączenie.
+
+## O co Plainva prosi urządzenie
+
+Dwie funkcje potrzebują zgody systemu. Obie są proszone **przy pierwszym naciśnięciu**, nigdy przy starcie, i obie zapisują wyłącznie w Twoim sejfie.
+
+- **Mikrofon** — do **notatek głosowych** (zapis dziennika, ikona mikrofonu). Plainva nagrywa tylko wtedy, gdy nagranie trwa; **Odrzuć** je wyrzuca, **Dołącz** zapisuje je jako plik w folderze załączników. Nie ma transkrypcji, nie ma wysyłki i nie ma usługi, która słucha. Gdy odmówisz, przycisk to mówi, a reszta zapisu działa dalej.
+- **Lokalizacja** — do **stempla miejsca**, który ma dodatkowo przełącznik na urządzenie, **domyślnie wyłączony** (Ustawienia → Wygląd). Przycisk pojawia się dopiero po jego włączeniu; system pyta dopiero, gdy go naciśniesz. Zapisywany jest **jeden wiersz** — `📍 52.5200, 13.4050` — z czterema miejscami po przecinku, czyli około jedenastu metrów. Żadnej historii, żadnej mapy, żadnego śledzenia w tle i żadnej usługi online zamieniającej współrzędne w nazwę.
+
+O aparat i bibliotekę zdjęć Plainva prosi jak dotąd: przy wstawianiu zdjęcia i przy skanowaniu kodu QR parowania. Żadna z tych zgód nie opuszcza urządzenia: to, co powstaje, staje się plikiem albo wierszem w Twoim sejfie — a ten należy do Ciebie.

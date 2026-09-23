@@ -274,13 +274,26 @@ Plainva固有のものはすべてネームスペース化されています。3
 `plainva.input`は次のいずれかです。
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 計算された**逆**列には`input`が**ありません**——`reverseOf`によってのみ識別されます。
+**`rating`** 列はファイルに単純な**数字**を保ちます（`mood: 4`）。表示はマークです。任意のサブキーが二つあります：
+
+```yaml
+    note.mood:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1～10、既定は 5
+        ratingGlyph: "★"      # 1 文字、既定は点
+```
+
+並べ替えも絞り込みも `number` と同じです。Obsidian は `rating` を知らず、列を数字として表示します —— 実際そのとおりです。
+
+**`file.day`** は仮想フィールドです。Vault のフォルダーと形式に従って、デイリーノートの**ファイル名**が表す日付です。**どのノートにも**書かれず、問い合わせ時に計算され、読み取り専用です。使えるのはカレンダーまたはタイムラインビューの `dateField` だけです。Obsidian はこのフィールドを知らないので、これを使うビューは向こうでは空になります。
 
 ### ロールアップ
 

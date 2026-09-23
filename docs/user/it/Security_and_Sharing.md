@@ -84,3 +84,12 @@ Se hai già eliminato la copia cloud e la sincronizzazione ora fallisce con un e
 Entrambe le azioni sono esplicite e confermate. Plainva non declassa mai in silenzio una connessione cifrata a testo in chiaro, e nessuna delle due azioni elimina file locali. Se il cloud contiene ancora contenuti cifrati che vuoi davvero, annulla invece — reimpostare riprenderebbe la sincronizzazione in chiaro.
 
 Rimuovere un vault con **Dimentica i dati dell’app** (Splash → rimuovere un vault → dimentica anche i dati dell’app) cancella anche questi marcatori di cifratura, così un vault rimosso in questo modo non lascia nulla che possa bloccare una riconnessione successiva.
+
+## Che cosa Plainva chiede al dispositivo
+
+Due funzioni hanno bisogno di un permesso del sistema operativo. Entrambi vengono chiesti **alla prima pressione**, mai all'avvio, ed entrambi scrivono soltanto nel tuo vault.
+
+- **Microfono** — per le **note vocali** (acquisizione del diario, l'icona del microfono). Plainva registra solo mentre hai una ripresa in corso; **Scarta** la butta via, **Allega** la scrive come file nella cartella degli allegati. Non c'è trascrizione, non c'è caricamento e nessun servizio in ascolto. Se lo neghi, il pulsante lo dice e il resto dell'acquisizione continua a funzionare.
+- **Posizione** — per il **timbro del luogo**, che in più ha un interruttore per dispositivo **disattivato per impostazione predefinita** (Impostazioni → Aspetto). Il pulsante compare solo quando lo attivi; il sistema chiede solo quando lo premi. Viene scritta **una riga** — `📍 52.5200, 13.4050` — con quattro decimali, circa undici metri. Nessuna cronologia, nessuna mappa, nessun tracciamento in background e nessun servizio online che trasformi le coordinate in un nome.
+
+Fotocamera e libreria foto vengono chieste come sempre: quando inserisci una foto e quando scansioni un codice QR di accoppiamento. Nessuno di questi permessi lascia il dispositivo: ciò che producono diventa un file o una riga nel tuo vault — ed è tuo.

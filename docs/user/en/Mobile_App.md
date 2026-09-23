@@ -219,6 +219,8 @@ The floating **Plus** button remains available inside nested folders, and every 
 
 The editor photo button offers **Take photo** or **Choose from library**, preserves the insertion point, and reports permission or file errors visibly. Photos land in the vault's attachments folder — the same one your computer uses.
 
+The same capture adds two more things to a **journal entry**: the **microphone** records a voice memo — while it runs you see the elapsed time, **Discard** throws it away, **Attach** writes it into the attachments folder and embeds it in the entry, where it plays straight away. The **place stamp** is off by default; switched on under **Settings → Appearance**, one press adds your coordinates as their own line (`📍 52.5200, 13.4050`). The system asks for both permissions on the **first** press, never at startup; more in [Security & sharing](Security_and_Sharing.md).
+
 Events and daily notes are deliberately separate: **Calendar** shows the connected calendars (see [Calendar and events](#calendar-and-events)), **Today** shows the daily note of a chosen day. In the month grid of **Calendar** a dot marks the days that already have a daily note; tapping the dot opens it, tapping the day still opens the day view. The strip in **Today** shows the same dots.
 
 ## Attachments and images

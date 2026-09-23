@@ -84,3 +84,12 @@ Se você já excluiu a cópia na nuvem e a sincronização agora falha com um er
 Ambas as ações são explícitas e confirmadas. O Plainva nunca rebaixa silenciosamente uma conexão cifrada para texto simples, e nenhuma das ações exclui arquivos locais. Se a nuvem ainda contiver conteúdo cifrado que você realmente quer, cancele em vez disso — redefinir retomaria a sincronização em texto simples.
 
 Remover um vault com **Esquecer os dados do aplicativo** (Splash → remover um vault → esquecer também os dados do aplicativo) também limpa esses marcadores de criptografia, de modo que um vault removido assim não deixa nada que possa bloquear uma reconexão posterior.
+
+## O que o Plainva pede ao aparelho
+
+Duas funcionalidades precisam de uma permissão do sistema. Ambas são pedidas **no primeiro toque**, nunca ao iniciar, e ambas escrevem apenas no seu cofre.
+
+- **Microfone** — para as **notas de voz** (captura do diário, o ícone do microfone). O Plainva grava somente enquanto você mantém uma gravação em andamento; **Descartar** a joga fora, **Anexar** a escreve como arquivo na pasta de anexos. Não há transcrição, nem envio, nem serviço escutando. Se você recusar, o botão diz isso e o resto da captura continua funcionando.
+- **Localização** — para o **carimbo de lugar**, que ainda tem um interruptor por aparelho **desativado por padrão** (Configurações → Aparência). O botão só aparece depois de você liga-lo; o sistema só pergunta quando você o pressiona. É escrita **uma linha** — `📍 52.5200, 13.4050` — com quatro casas decimais, cerca de onze metros. Sem histórico, sem mapa, sem rastreamento em segundo plano e sem serviço on-line que transforme coordenadas em nome.
+
+Câmera e fototeca são pedidas como sempre: ao inserir uma foto e ao escanear um QR code de pareamento. Nenhuma dessas permissões sai do aparelho: o que elas produzem vira um arquivo ou uma linha no seu cofre — e ele é seu.

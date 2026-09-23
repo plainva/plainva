@@ -274,13 +274,26 @@ Besides the `plainva` block, a view may carry a native **`views[i].filters`** ob
 `plainva.input` is one of:
 
 ```
-text  number  checkbox  date  datetime
+text  number  rating  checkbox  date  datetime
 select  status  multiselect
 list  tags  url  email  phone
 relation
 ```
 
 A computed **reverse** column has **no** `input` — it is identified solely by `reverseOf`.
+A **`rating`** column holds a plain **number** in the file — `mood: 4` — and is drawn as marks. Two optional subkeys steer that:
+
+```yaml
+    note.mood:
+      plainva:
+        input: rating
+        ratingMax: 5        # 1 to 10, default 5
+        ratingGlyph: "★"      # one character, default a dot
+```
+
+Sorting and filtering work as they do for `number`. Obsidian does not know `rating` and shows the column as a number — which is what it is.
+
+**`file.day`** is a virtual field: the day a daily note's **file name** stands for, per the vault's folder and format. It stands in **no** note, is computed when a query runs, and is read-only; the only place it can be used is as the `dateField` of a calendar or timeline view. Obsidian does not know it — a view that uses it stays empty there.
 
 ### Rollups
 
