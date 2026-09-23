@@ -47,6 +47,8 @@
 	<string>Plainva records a voice memo only when you start one. The recording stays as a file in your vault; it is not sent anywhere.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Plainva asks for your position only when you press the place button while writing a journal entry. The coordinates are written into that entry and nowhere else; nothing is tracked and nothing is sent anywhere.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Plainva never asks for your position in the background and never tracks you. It asks only while you are using the app, when you press the place button in a journal entry, and the coordinates go into that entry and nowhere else.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Plainva accesses your photo library so you can add a picture to a note.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
