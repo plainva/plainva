@@ -28,14 +28,14 @@
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/preferences": "^8.0.1",
-    "@capacitor/share": "^8.0.1",
+    "@capacitor/share": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "@plainva/core": "workspace:*",
     "@plainva/ui": "workspace:*",
     "date-fns": "^4.4.0",
     "fflate": "^0.8.3",
     "i18next": "^26.4.2",
-    "lucide-react": "^1.46.0",
+    "lucide-react": "^1.47.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^17.0.14",
@@ -44,13 +44,13 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
     "@playwright/test": "^1.63.0",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "~6.0.3",
     "vite": "^8.3.0",
-    "vitest": "^5.0.0",
+    "vitest": "^5.0.1",
     "webdav-server": "^2.6.3"
   }
 }
