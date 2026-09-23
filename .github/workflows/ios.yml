@@ -122,6 +122,14 @@ jobs:
             echo "::error::Signing secrets are not configured (see the header of this workflow)."
             exit 1
           fi
+          # Since the widget target exists (plan Widgets, W4) the archive
+          # contains a third bundle, and a bundle cannot be signed without its
+          # profile. Said here, in ten seconds and in a sentence, rather than
+          # fifteen minutes later as an xcodebuild signing error.
+          if [ -z "$WIDGETS_PROFILE_B64" ]; then
+            echo "::error::IOS_WIDGETS_PROVISIONING_PROFILE_BASE64 is not configured, and the PlainvaWidgets target cannot be signed without it. Create the app id com.plainva.app.widgets with the App Group group.com.plainva.app and an App Store profile, then store it as that secret - the three steps are written up in the maintainer's notes (iOS_Widgets_Signierung_2026-09-23)."
+            exit 1
+          fi
           KEYCHAIN=$RUNNER_TEMP/build.keychain-db
           KEYCHAIN_PASSWORD=$(uuidgen)
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"

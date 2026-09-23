@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -52,6 +52,21 @@ describe("iOS signing chain", () => {
   it("insists that no two bundles share one profile", () => {
     expect(installer).toContain("Two bundles share one profile");
     expect(verifier).toContain("Every bundle needs its own matching profile");
+  });
+
+  it("compiles every Swift file of the widget target", () => {
+    // The trap this closes: a file that is on disk but not in project.pbxproj
+    // simply is not built. Nothing warns, the archive is smaller, and the
+    // widget behaves as if the code had never been written.
+    const project = read("apps/mobile/ios/App/App.xcodeproj/project.pbxproj");
+    const sources = readdirSync(resolve(repositoryRoot, "apps/mobile/ios/App/PlainvaWidgets")).filter((f) => f.endsWith(".swift"));
+    expect(sources.length, "the widget target has sources").toBeGreaterThan(0);
+    const missing = sources.filter((file) => !project.includes(`${file} in Sources */`));
+    expect(missing, `these files are in PlainvaWidgets/ but not compiled: ${missing.join(", ")}`).toEqual([]);
+    // The shared store is compiled into BOTH targets — one file, two build files.
+    expect(project.match(/WidgetStore\.swift in Sources \*\/,/g) ?? []).toHaveLength(2);
+    // ...and the extension is embedded, or it ships as a target nobody runs.
+    expect(project).toContain("PlainvaWidgets.appex in Embed App Extensions");
   });
 
   it("keeps the widgets profile optional until its target exists", () => {

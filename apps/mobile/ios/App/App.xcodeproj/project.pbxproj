@@ -31,9 +31,25 @@
 		7E0002000000000000000001 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
 		7E0002000000000000000002 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
 		7E0002000000000000000003 /* ShareCopy.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000002 /* ShareCopy.xcstrings */; };
+		8A0002000000000000000001 /* PlainvaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000001 /* PlainvaWidgets.swift */; };
+		8A0002000000000000000002 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000002 /* WidgetModel.swift */; };
+		8A0002000000000000000003 /* WidgetTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000003 /* WidgetTimeline.swift */; };
+		8A0002000000000000000004 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000004 /* TodayWidget.swift */; };
+		8A0002000000000000000005 /* CaptureWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000005 /* CaptureWidget.swift */; };
+		8A0002000000000000000006 /* LockScreenWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000006 /* LockScreenWidgets.swift */; };
+		8A0002000000000000000007 /* TickTaskIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000007 /* TickTaskIntent.swift */; };
+		8A0002000000000000000090 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
+		8A0002000000000000000091 /* PlainvaWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 8A0009040000000000000001 /* PlainvaWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		8A1005010000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A1003000000000000000001;
+			remoteInfo = PlainvaWidgets;
+		};
 		7B1005010000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
@@ -51,6 +67,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */,
+				8A0002000000000000000091 /* PlainvaWidgets.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,6 +103,16 @@
 		7B1009040000000000000001 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E0001000000000000000001 /* ShareQueueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ShareQueueStore.swift; sourceTree = SOURCE_ROOT; };
 		7E0001000000000000000002 /* ShareCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ShareCopy.xcstrings; sourceTree = "<group>"; };
+		8A0001000000000000000001 /* PlainvaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaWidgets.swift; sourceTree = "<group>"; };
+		8A0001000000000000000002 /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
+		8A0001000000000000000003 /* WidgetTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimeline.swift; sourceTree = "<group>"; };
+		8A0001000000000000000004 /* TodayWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
+		8A0001000000000000000005 /* CaptureWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureWidget.swift; sourceTree = "<group>"; };
+		8A0001000000000000000006 /* LockScreenWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenWidgets.swift; sourceTree = "<group>"; };
+		8A0001000000000000000007 /* TickTaskIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickTaskIntent.swift; sourceTree = "<group>"; };
+		8A0001000000000000000080 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8A0001000000000000000081 /* PlainvaWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlainvaWidgets.entitlements; sourceTree = "<group>"; };
+		8A0009040000000000000001 /* PlainvaWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlainvaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +121,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A1004010000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -113,6 +147,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				7B1007000000000000000001 /* ShareExtension */,
+				8A1007000000000000000001 /* PlainvaWidgets */,
 				7E0001000000000000000001 /* ShareQueueStore.swift */,
 				7F0001000000000000000002 /* WidgetStore.swift */,
 				504EC3051FED79650016851F /* Products */,
@@ -124,6 +159,7 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				7B1009040000000000000001 /* ShareExtension.appex */,
+				8A0009040000000000000001 /* PlainvaWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -154,6 +190,22 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		8A1007000000000000000001 /* PlainvaWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				8A0001000000000000000001 /* PlainvaWidgets.swift */,
+				8A0001000000000000000002 /* WidgetModel.swift */,
+				8A0001000000000000000003 /* WidgetTimeline.swift */,
+				8A0001000000000000000004 /* TodayWidget.swift */,
+				8A0001000000000000000005 /* CaptureWidget.swift */,
+				8A0001000000000000000006 /* LockScreenWidgets.swift */,
+				8A0001000000000000000007 /* TickTaskIntent.swift */,
+				8A0001000000000000000080 /* Info.plist */,
+				8A0001000000000000000081 /* PlainvaWidgets.entitlements */,
+			);
+			path = PlainvaWidgets;
+			sourceTree = "<group>";
+		};
 		7B1007000000000000000001 /* ShareExtension */ = {
 			isa = PBXGroup;
 			children = (
@@ -181,6 +233,7 @@
 			);
 			dependencies = (
 				7B1005000000000000000001 /* PBXTargetDependency */,
+				8A1005000000000000000001 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -189,6 +242,23 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		8A1003000000000000000001 /* PlainvaWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A1006000000000000000001 /* Build configuration list for PBXNativeTarget "PlainvaWidgets" */;
+			buildPhases = (
+				8A1004000000000000000001 /* Sources */,
+				8A1004010000000000000001 /* Frameworks */,
+				8A1004020000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PlainvaWidgets;
+			productName = PlainvaWidgets;
+			productReference = 8A0009040000000000000001 /* PlainvaWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		7B1003000000000000000001 /* ShareExtension */ = {
 			isa = PBXNativeTarget;
@@ -225,6 +295,10 @@
 						CreatedOnToolsVersion = 15.0;
 						ProvisioningStyle = Automatic;
 					};
+					8A1003000000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */;
@@ -245,6 +319,7 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				7B1003000000000000000001 /* ShareExtension */,
+				8A1003000000000000000001 /* PlainvaWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -261,6 +336,13 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A1004020000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -294,6 +376,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A1004000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A0002000000000000000001 /* PlainvaWidgets.swift in Sources */,
+				8A0002000000000000000002 /* WidgetModel.swift in Sources */,
+				8A0002000000000000000003 /* WidgetTimeline.swift in Sources */,
+				8A0002000000000000000004 /* TodayWidget.swift in Sources */,
+				8A0002000000000000000005 /* CaptureWidget.swift in Sources */,
+				8A0002000000000000000006 /* LockScreenWidgets.swift in Sources */,
+				8A0002000000000000000007 /* TickTaskIntent.swift in Sources */,
+				8A0002000000000000000090 /* WidgetStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7B1004000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -306,6 +403,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		8A1005000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A1003000000000000000001 /* PlainvaWidgets */;
+			targetProxy = 8A1005010000000000000001 /* PBXContainerItemProxy */;
+		};
 		7B1005000000000000000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 7B1003000000000000000001 /* ShareExtension */;
@@ -492,6 +594,50 @@
 			};
 			name = Release;
 		};
+		8A1006010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = PlainvaWidgets/PlainvaWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PlainvaWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plainva.app.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8A1006020000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = PlainvaWidgets/PlainvaWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				PLAINVA_WIDGETS_PROFILE = "Plainva Widgets App Store";
+				PROVISIONING_PROFILE_SPECIFIER = "$(PLAINVA_WIDGETS_PROFILE)";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M3FGXPBLFZ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PlainvaWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plainva.app.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		7B1006010000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -553,6 +699,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A1006000000000000000001 /* Build configuration list for PBXNativeTarget "PlainvaWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A1006010000000000000001 /* Debug */,
+				8A1006020000000000000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
