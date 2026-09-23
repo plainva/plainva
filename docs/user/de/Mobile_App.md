@@ -291,3 +291,16 @@ Unter **Editor & Notizen** kannst Du **Beim Lesen Leisten automatisch ausblenden
 ## Aufgaben: Planer und Schnellerfassung
 
 Der Aufgaben-Bildschirm öffnet sich auf **Heute**; das Segment über der Liste wechselt zwischen **Heute**, **Demnächst**, **Eingang**, **Alle** und **Erledigt**. **+ Neue Aufgabe** und der **＋**-Knopf öffnen das Erfassungsblatt: eine Zeile wie `Angebot abschicken morgen 14 Uhr !!!`, jeder erkannte Teil steht vor dem Speichern als abwählbarer Baustein darunter, und Schnellknöpfe helfen allen, die nicht tippen wollen. Unter Android bietet das gedrückt gehaltene App-Symbol zusätzlich **Neue Aufgabe**. Teilst Du einen Text, einen Link oder eine Datei an Plainva, legt **Als Aufgabe anlegen** den Inhalt in der Aufgaben-Datenbank statt im Eingangsordner ab. Einzelheiten: [Aufgaben](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgets auf dem Startbildschirm
+
+Android bietet zwei Widgets, **Heute** und **Schnellerfassung**; auf dem iPhone kommen zwei für den Sperrbildschirm dazu, ein Zähler und die nächste Aufgabe. Halte eine freie Stelle des Startbildschirms gedrückt und wähle Plainva.
+
+**Heute** zeigt Überfälliges als Zahl, darunter die Termine und Aufgaben des Tages in derselben Reihenfolge wie in der App. Ein Tipp auf eine Zeile öffnet die Notiz, einer auf den Kopf den Heute-Bildschirm, das **+** das Erfassungsblatt. **Schnellerfassung** zeigt gar keinen Inhalt: ein Knopf für **Aufgabe**, einer für **Journal**.
+
+Ein Widget rechnet nichts selbst. Bei geschlossener App läuft nichts von Plainva, also zeigt es, was die App bei ihrem letzten Lauf hingelegt hat — deshalb kennt es eine ganze Woche im Voraus und blättert um Mitternacht weiter, ohne dass Du etwas öffnest. Ist der Stand von einem früheren Tag, sagt der Kopf, wann er geschrieben wurde.
+
+Eine Aufgabe im Widget abzuhaken ist ein Auftrag, keine Änderung. Der Haken erscheint sofort, die Zeile **wird beim Öffnen übernommen** sagt, was noch fehlt; die Notiz selbst ändert sich beim nächsten Öffnen der App, mitsamt Wiederholung und Abgleich. Eine Aufgabe, die Du inzwischen anderswo erledigt hast, bleibt still unberührt. Am iPhone braucht das iOS 17; darunter öffnet ein Tipp auf die Zeile die Aufgabe.
+
+Unter **Einstellungen → Start & Verhalten → Widgets** entscheiden zwei Schalter, was die App verlassen darf: **Titel im Widget zeigen** und **Termine im Widget zeigen**. Sie gelten nur für dieses Gerät. Ein gesperrter verschlüsselter Workspace zeigt ohnehin nichts — Plainva leert das Widget beim Sperren.

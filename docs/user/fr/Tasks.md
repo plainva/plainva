@@ -159,3 +159,8 @@ Au-dessus des listes se trouve le champ de saisie ; sur le téléphone, **+ Nouv
 `- [/]` (**En cours**) et `- [-]` (**Annulée**) sont aussi des tâches. Elles reçoivent leur propre case dans l'éditeur, en mode lecture et dans chaque liste ; en cours compte comme ouverte, annulée comme fermée. Un clic continue de basculer seulement entre ouverte et terminée — il termine une tâche en cours et rouvre une tâche annulée. **Définir l'état** dans le menu de la ligne fixe les deux états ; Plainva ne les écrit jamais de lui-même.
 
 D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de notification sur le bureau (quand Plainva continue de tourner en arrière-plan), sur Android le raccourci du lanceur **Nouvelle tâche** (appui long sur l'icône de l'application), et sur le téléphone **Créer comme tâche** quand vous partagez quelque chose vers Plainva — le texte et les pièces jointes finissent dans la note de la tâche. La façon dont une tâche avec une heure vous le rappelle est décrite dans [Calendrier et tâches externes](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Cocher depuis un widget
+
+La case du widget **Aujourd’hui** enregistre une demande : la coche apparaît aussitôt, la note change à la prochaine ouverture de Plainva, et c’est alors que la récurrence et la synchronisation ont lieu. Jusque-là, la ligne indique **appliqué à l’ouverture de Plainva**. Une tâche terminée, supprimée ou déplacée entre-temps est laissée telle quelle. Sur iPhone, cela demande iOS 17 ; en dessous, un appui sur la ligne ouvre la tâche. Détails : [L’application mobile](Mobile_App.md).

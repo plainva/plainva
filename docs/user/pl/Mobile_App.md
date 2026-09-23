@@ -291,3 +291,16 @@ W **Edytor i notatki** możesz wyłączyć **Automatycznie ukrywaj elementy ster
 ## Zadania: planer i szybkie dodawanie
 
 Ekran zadań otwiera się na **Dziś**; segment nad listą przełącza między **Dziś**, **Nadchodzące**, **Skrzynka**, **Wszystkie** i **Ukończone**. **+ Nowe zadanie** i przycisk **＋** otwierają arkusz szybkiego dodawania: jedna linijka, na przykład `Wysłać ofertę jutro 14:00 !!!`, z każdą rozpoznaną częścią pokazaną jako usuwalny klocek przed zapisaniem, oraz szybkimi przyciskami dla tych, którzy wolą nie pisać. Na Androidzie przytrzymanie ikony aplikacji oferuje też **Nowe zadanie**. Gdy udostępnisz tekst, link lub plik Plainvie, **Utwórz jako zadanie** umieszcza go w bazie zadań zamiast w folderze skrzynki. Szczegóły: [Zadania](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgety na ekranie głównym
+
+Android ma dwa widgety, **Dziś** i **Szybki zapis**; na iPhonie dochodzą dwa na ekran blokady, licznik i następne zadanie. Przytrzymaj wolne miejsce na ekranie głównym i wybierz Plainvę.
+
+**Dziś** pokazuje zaległości jako liczbę, a pod nimi wydarzenia i zadania dnia w tej samej kolejności co aplikacja. Dotknięcie wiersza otwiera notatkę, dotknięcie nagłówka ekran Dziś, a **+** arkusz zapisu. **Szybki zapis** nie pokazuje żadnej treści: jeden przycisk **Zadanie**, drugi **Dziennik**.
+
+Widget niczego sam nie wylicza. Przy zamkniętej aplikacji nic z Plainvy nie działa, więc pokazuje to, co aplikacja zapisała przy ostatnim uruchomieniu — dlatego zna cały tydzień naprzód i o północy przechodzi na kolejny dzień bez otwierania czegokolwiek. Gdy to, co pokazuje, pochodzi z wcześniejszego dnia, nagłówek mówi, kiedy zostało zapisane.
+
+Odhaczenie zadania w widgecie to prośba, nie zmiana. Ptaszek pojawia się od razu, a wiersz **zostanie zastosowane po otwarciu Plainvy** mówi, czego brakuje; sama notatka zmienia się przy następnym otwarciu aplikacji, razem z powtarzaniem i synchronizacją. Zadanie ukończone w międzyczasie gdzie indziej zostaje nietknięte. Na iPhonie wymaga to iOS 17; poniżej dotknięcie wiersza otwiera zadanie.
+
+W **Ustawienia → Start i zachowanie → Widgety** dwa przełączniki decydują, co może opuścić aplikację: **Pokaż tytuły w widgecie** i **Pokaż wydarzenia w widgecie**. Działają tylko na tym urządzeniu. Zablokowana zaszyfrowana przestrzeń i tak nie pokazuje niczego — Plainva opróżnia widget przy blokowaniu.

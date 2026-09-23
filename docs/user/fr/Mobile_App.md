@@ -291,3 +291,16 @@ Dans **Éditeur et notes**, vous pouvez désactiver **Masquer automatiquement le
 ## Tâches : planificateur et saisie rapide
 
 L'écran des tâches s'ouvre sur **Aujourd'hui** ; le segment au-dessus de la liste bascule entre **Aujourd'hui**, **À venir**, **Boîte de réception**, **Toutes** et **Terminées**. **+ Nouvelle tâche** et le bouton **＋** ouvrent la feuille de saisie : une ligne comme `Envoyer offre demain 14h !!!`, chaque partie reconnue s'affichant comme un bloc amovible avant l'enregistrement, avec des boutons rapides pour qui préfère ne pas taper. Sur Android, un appui long sur l'icône de l'application propose aussi **Nouvelle tâche**. Quand vous partagez un texte, un lien ou un fichier vers Plainva, **Créer comme tâche** le place dans la base de tâches au lieu du dossier de réception. Détails : [Tâches](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgets sur l’écran d’accueil
+
+Android propose deux widgets, **Aujourd’hui** et **Saisie rapide** ; sur l’iPhone s’y ajoutent deux widgets d’écran verrouillé, un compteur et la prochaine tâche. Appuyez longuement sur un espace libre de l’écran d’accueil et choisissez Plainva.
+
+**Aujourd’hui** affiche le retard sous forme de nombre, puis les rendez-vous et les tâches du jour dans l’ordre de l’application. Un appui sur une ligne ouvre la note, un appui sur l’en-tête ouvre l’écran Aujourd’hui, et le **+** ouvre la feuille de saisie. **Saisie rapide** n’affiche aucun contenu : un bouton **Tâche**, un bouton **Journal**.
+
+Un widget ne calcule rien lui-même. Rien de Plainva ne tourne quand l’application est fermée : le widget montre ce que l’application a écrit lors de son dernier passage — d’où la semaine d’avance, et le changement de jour à minuit sans que vous ouvriez quoi que ce soit. Dès que l’affichage date d’un jour antérieur, l’en-tête indique quand il a été écrit.
+
+Cocher une tâche dans le widget est une demande, pas une modification. La coche apparaît aussitôt et la ligne **appliqué à l’ouverture de Plainva** dit ce qui manque encore ; la note change à la prochaine ouverture, avec sa récurrence et sa synchronisation. Une tâche terminée entre-temps ailleurs est laissée telle quelle. Sur iPhone, cela demande iOS 17 ; en dessous, un appui sur la ligne ouvre la tâche.
+
+Dans **Réglages → Démarrage et comportement → Widgets**, deux interrupteurs décident de ce qui peut quitter l’application : **Afficher les titres dans le widget** et **Afficher les rendez-vous dans le widget**. Ils ne valent que pour cet appareil. Un espace chiffré verrouillé n’affiche rien de toute façon : Plainva vide le widget au verrouillage.

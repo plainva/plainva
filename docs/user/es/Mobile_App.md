@@ -291,3 +291,16 @@ En **Editor y notas** puedes desactivar **Ocultar controles automáticamente al 
 ## Tareas: planificador y captura rápida
 
 La pantalla de tareas se abre en **Hoy**; el segmento encima de la lista alterna entre **Hoy**, **Próximamente**, **Bandeja de entrada**, **Todas** y **Hechas**. **+ Nueva tarea** y el botón **＋** abren la hoja de captura: una línea como `Enviar oferta mañana 14:00 !!!`, con cada parte reconocida mostrada como un bloque eliminable antes de guardarse, y botones rápidos para quien prefiera no escribir. En Android, mantener pulsado el icono de la app también ofrece **Nueva tarea**. Cuando compartes un texto, un enlace o un archivo con Plainva, **Crear como tarea** lo coloca en la base de datos de tareas en lugar de la carpeta de entrada. Detalles: [Tareas](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgets en la pantalla de inicio
+
+Android ofrece dos widgets, **Hoy** y **Captura rápida**; en el iPhone hay dos más para la pantalla de bloqueo, un contador y la próxima tarea. Mantén pulsado un hueco libre de la pantalla de inicio y elige Plainva.
+
+**Hoy** muestra lo atrasado como un número y debajo las citas y tareas del día en el mismo orden que la app. Un toque en una fila abre la nota, uno en la cabecera abre la pantalla Hoy y el **+** abre la hoja de captura. **Captura rápida** no muestra contenido alguno: un botón para **Tarea** y otro para **Diario**.
+
+Un widget no calcula nada por sí mismo. Con la app cerrada no se ejecuta nada de Plainva, así que muestra lo que la app dejó escrito la última vez — por eso conoce una semana entera por adelantado y pasa de día a medianoche sin que abras nada. Cuando lo que muestra es de un día anterior, la cabecera dice cuándo se escribió.
+
+Marcar una tarea en el widget es un encargo, no un cambio. La marca aparece enseguida y la línea **se aplicará al abrir Plainva** dice lo que falta; la nota cambia la próxima vez que abras la app, con su repetición y su sincronización. Una tarea que ya hayas terminado en otro sitio se deja en paz. En el iPhone esto requiere iOS 17; por debajo, un toque en la fila abre la tarea.
+
+En **Ajustes → Inicio y comportamiento → Widgets** dos interruptores deciden qué puede salir de la app: **Mostrar títulos en el widget** y **Mostrar citas en el widget**. Solo valen para este dispositivo. Un espacio cifrado bloqueado no muestra nada en ningún caso: Plainva vacía el widget al bloquearse.

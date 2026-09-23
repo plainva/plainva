@@ -159,3 +159,8 @@ Sopra gli elenchi si trova il campo di cattura; sul telefono, **+ Nuova attivit�
 `- [/]` (**In corso**) e `- [-]` (**Annullata**) sono anch'esse attività. Ricevono una propria casella nell'editor, in modalità lettura e in ogni elenco; in corso conta come aperta, annullata come chiusa. Un clic continua a spostarsi solo tra aperta e completata — completa un'attività in corso e riapre una annullata. **Imposta stato** nel menu della riga imposta i due stati; Plainva non li scrive mai da sola.
 
 Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Spuntare da un widget
+
+La casella del widget **Oggi** registra una richiesta: la spunta compare subito, la nota cambia alla prossima apertura di Plainva, ed è allora che avvengono anche la ricorrenza e la sincronizzazione. Fino a quel momento la riga dice **verrà applicato all’apertura di Plainva**. Un’attività completata, eliminata o spostata nel frattempo resta intatta. Su iPhone serve iOS 17; al di sotto, un tocco sulla riga apre l’attività. Dettagli: [L’app per dispositivi mobili](Mobile_App.md).

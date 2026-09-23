@@ -291,3 +291,16 @@ In **Editor & notes**, turn off **Automatically hide controls while reading** if
 ## Tasks: planner and quick capture
 
 The tasks screen opens on **Today**; the segment above the list switches between **Today**, **Upcoming**, **Inbox**, **All** and **Done**. **+ New task** and the **＋** button open the capture sheet: one line such as `Send offer tomorrow 2pm !!!`, with every recognised part shown as a removable brick before it is saved, and quick buttons for everyone who would rather not type. On Android, pressing and holding the app icon offers **New task** as well. When you share a text, a link or a file to Plainva, **Create as a task** puts it into the task database instead of the inbox folder. Details: [Tasks](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgets on the home screen
+
+Android offers two widgets, **Today** and **Quick capture**; on the iPhone there are two more for the lock screen, a counter and the next task. Press and hold an empty spot on the home screen and pick Plainva.
+
+**Today** shows what is overdue as a number, then the appointments and tasks of the day in the order the app would list them. A tap on a row opens the note, a tap on the head opens the Today screen, and the **+** opens the capture sheet. **Quick capture** shows no content at all: one button for **Task**, one for **Journal**.
+
+A widget works nothing out for itself. Nothing of Plainva runs while the app is closed, so the widget draws what the app wrote down the last time it ran — that is also why it knows a whole week in advance and turns the page at midnight without you opening anything. Once what it shows is from an earlier day, the head says when it was written.
+
+Ticking a task off in the widget is a request, not a change. The tick appears at once and the line **applied when you open Plainva** says what is still missing; the note itself changes the next time you open the app, with the recurrence and the sync that belong to it. A task you have finished elsewhere in the meantime is quietly left alone. On an iPhone this needs iOS 17; below that a tap on the row opens the task.
+
+Under **Settings → Start & behaviour → Widgets** two switches decide what may leave the app: **Show titles in the widget** and **Show appointments in the widget**. They apply to this device only. A locked encrypted workspace shows nothing either way — Plainva empties the widget when it locks.

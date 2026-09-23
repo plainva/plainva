@@ -93,3 +93,10 @@ Duas funcionalidades precisam de uma permissão do sistema. Ambas são pedidas *
 - **Localização** — para o **carimbo de lugar**, que ainda tem um interruptor por aparelho **desativado por padrão** (Configurações → Aparência). O botão só aparece depois de você liga-lo; o sistema só pergunta quando você o pressiona. É escrita **uma linha** — `📍 52.5200, 13.4050` — com quatro casas decimais, cerca de onze metros. Sem histórico, sem mapa, sem rastreamento em segundo plano e sem serviço on-line que transforme coordenadas em nome.
 
 Câmera e fototeca são pedidas como sempre: ao inserir uma foto e ao escanear um QR code de pareamento. Nenhuma dessas permissões sai do aparelho: o que elas produzem vira um arquivo ou uma linha no seu cofre — e ele é seu.
+
+<!-- widgets-2026-09-23 -->
+## O que um widget pode mostrar
+
+Um widget da tela inicial é lido por outro programa e visto por quem olhar para a tela, então o que o Plainva escreve para ele é deliberadamente enxuto: um título, um dia, um horário, uma prioridade e uma posição. Nunca o texto de uma nota e nunca um caminho — a linha tocada só volta a ser a sua nota dentro do aplicativo.
+
+Um espaço criptografado bloqueado escreve um widget **vazio** em vez de um cujo conteúdo o Plainva peça para esconder: um arquivo que nunca conteve os títulos não pode revelá-los. Dois botões em **Configurações → Início e comportamento → Widgets** restringem ainda mais, por aparelho: com **Mostrar títulos no widget** desligado restam apenas os números, e com **Mostrar compromissos no widget** desligado apenas as tarefas.

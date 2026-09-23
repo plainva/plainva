@@ -291,3 +291,16 @@ Bij **Editor en notities** kun je **Bediening tijdens het lezen automatisch verb
 ## Taken: planner en snel vastleggen
 
 Het takenscherm opent op **Vandaag**; het segment boven de lijst wisselt tussen **Vandaag**, **Binnenkort**, **Inbox**, **Alle** en **Klaar**. **+ Nieuwe taak** en de **＋**-knop openen het invoerblad: één regel zoals `Offerte versturen morgen 14:00 !!!`, waarbij elk herkend onderdeel als verwijderbaar blokje wordt getoond voordat het wordt opgeslagen, met snelknoppen voor wie liever niet typt. Op Android biedt het ingedrukt houden van het app-icoon ook **Nieuwe taak**. Deel je een tekst, een link of een bestand met Plainva, dan zet **Als taak aanmaken** dit in de takendatabase in plaats van de inbox-map. Details: [Taken](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widgets op het startscherm
+
+Android biedt twee widgets, **Vandaag** en **Snel vastleggen**; op de iPhone komen er twee voor het toegangsscherm bij, een teller en de volgende taak. Houd een lege plek op het startscherm ingedrukt en kies Plainva.
+
+**Vandaag** toont achterstand als getal en daaronder de afspraken en taken van de dag in dezelfde volgorde als de app. Een tik op een regel opent de notitie, een tik op de kop het Vandaag-scherm en de **+** het invoerblad. **Snel vastleggen** toont helemaal geen inhoud: een knop **Taak** en een knop **Journaal**.
+
+Een widget rekent zelf niets uit. Met de app dicht draait er niets van Plainva, dus toont hij wat de app bij de laatste keer heeft opgeschreven — daarom kent hij een hele week vooruit en slaat hij om middernacht de bladzijde om zonder dat je iets opent. Zodra wat hij toont van een eerdere dag is, zegt de kop wanneer het geschreven is.
+
+Een taak afvinken in de widget is een verzoek, geen wijziging. Het vinkje verschijnt meteen en de regel **wordt toegepast bij het openen van Plainva** zegt wat nog ontbreekt; de notitie verandert bij het volgende openen, met de herhaling en de synchronisatie die erbij horen. Een taak die je intussen elders hebt afgerond blijft ongemoeid. Op de iPhone vereist dit iOS 17; daaronder opent een tik op de regel de taak.
+
+Onder **Instellingen → Start en gedrag → Widgets** bepalen twee schakelaars wat de app mag verlaten: **Titels in de widget tonen** en **Afspraken in de widget tonen**. Ze gelden alleen voor dit apparaat. Een vergrendelde versleutelde werkruimte toont sowieso niets — Plainva leegt de widget bij het vergrendelen.

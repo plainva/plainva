@@ -93,3 +93,10 @@ Twee functies hebben een toestemming van het besturingssysteem nodig. Beide word
 - **Locatie** — voor de **plaatsstempel**, die bovendien een schakelaar per apparaat heeft die **standaard uit** staat (Instellingen → Weergave). De knop verschijnt pas als je hem aanzet; het systeem vraagt pas als je hem indrukt. Er wordt **één regel** geschreven — `📍 52.5200, 13.4050` — met vier decimalen, ongeveer elf meter. Geen geschiedenis, geen kaart, geen achtergrondtracking en geen onlinedienst die van coördinaten een naam maakt.
 
 Camera en fotobibliotheek worden gevraagd zoals altijd: bij het invoegen van een foto en bij het scannen van een koppel-QR-code. Geen van deze toestemmingen verlaat het apparaat: wat ze opleveren wordt een bestand of een regel in je kluis — en die is van jou.
+
+<!-- widgets-2026-09-23 -->
+## Wat een widget mag tonen
+
+Een widget op het startscherm wordt door een ander programma gelezen en gezien door iedereen die naar het scherm kijkt. Wat Plainva ervoor opschrijft is daarom bewust mager: een titel, een dag, een tijd, een prioriteit en een positie. Nooit de tekst van een notitie en nooit een pad — een aangetikte regel wordt pas in de app weer tot zijn notitie herleid.
+
+Een vergrendelde versleutelde werkruimte schrijft een **lege** widget in plaats van een waarvan Plainva vraagt de inhoud te verbergen: een bestand dat de titels nooit bevatte kan ze niet prijsgeven. Twee schakelaars onder **Instellingen → Start en gedrag → Widgets** beperken het verder, per apparaat: **Titels in de widget tonen** uit laat alleen de aantallen over, en **Afspraken in de widget tonen** uit alleen de taken.

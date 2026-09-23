@@ -93,3 +93,10 @@ Deux fonctions ont besoin d'une autorisation du système. Les deux sont demandé
 - **Position** — pour le **cachet de lieu**, qui a en plus un interrupteur par appareil **désactivé par défaut** (Réglages → Apparence). Le bouton n'apparaît qu'une fois l'interrupteur activé ; le système ne demande qu'au moment où vous appuyez. Ce qui est écrit est **une ligne** — `📍 52.5200, 13.4050` — à quatre décimales, environ onze mètres. Pas d'historique, pas de carte, pas de suivi en arrière-plan et aucun service en ligne pour transformer des coordonnées en nom.
 
 L'appareil photo et la photothèque sont demandés comme avant : à l'insertion d'une photo et au scan d'un QR code d'appairage. Aucune de ces autorisations ne quitte l'appareil : ce qu'elles produisent devient un fichier ou une ligne de votre coffre — et celui-ci est à vous.
+
+<!-- widgets-2026-09-23 -->
+## Ce qu’un widget peut afficher
+
+Un widget de l’écran d’accueil est lu par un autre programme et vu par quiconque regarde l’écran ; ce que Plainva écrit pour lui est donc volontairement maigre : un titre, un jour, une heure, une priorité et une position. Jamais le texte d’une note, jamais un chemin — une ligne touchée ne redevient sa note qu’à l’intérieur de l’application.
+
+Un espace chiffré verrouillé écrit un widget **vide** plutôt qu’un widget dont Plainva demanderait de masquer le contenu : un fichier qui n’a jamais contenu les titres ne peut pas les révéler. Deux interrupteurs dans **Réglages → Démarrage et comportement → Widgets** restreignent encore, par appareil : **Afficher les titres dans le widget** désactivé ne laisse que les nombres, et **Afficher les rendez-vous dans le widget** désactivé ne laisse que les tâches.

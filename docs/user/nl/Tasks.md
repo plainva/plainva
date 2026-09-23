@@ -159,3 +159,8 @@ Boven de lijsten staat het invoerveld; op de telefoon openen **+ Nieuwe taak** e
 `- [/]` (**Bezig**) en `- [-]` (**Geannuleerd**) zijn ook taken. Ze krijgen een eigen vakje in de editor, in de leesmodus en in elke lijst; bezig telt als open, geannuleerd als afgerond. Een klik wisselt nog steeds alleen tussen open en klaar — hij rondt een taak die bezig is af en heropent een geannuleerde. **Status instellen** in het rijmenu zet de twee statussen; Plainva schrijft ze nooit uit zichzelf.
 
 Meer manieren om een taak toe te voegen: **Nieuwe taak** in het systeemvakmenu op de desktop (wanneer Plainva op de achtergrond actief blijft), op Android de launcher-snelkoppeling **Nieuwe taak** (app-icoon ingedrukt houden), en op de telefoon **Als taak aanmaken** wanneer je iets met Plainva deelt — de tekst en de bijlagen komen terecht in de notitie van de taak. Hoe een taak met een tijdstip je eraan herinnert, staat beschreven onder [Agenda & externe taken](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Afvinken vanuit een widget
+
+Het vakje in de widget **Vandaag** neemt een verzoek op: het vinkje verschijnt meteen, de notitie verandert bij het volgende openen van Plainva, en dan gebeuren ook de herhaling en de synchronisatie. Tot dan zegt de regel **wordt toegepast bij het openen van Plainva**. Een taak die je intussen hebt afgerond, verwijderd of verplaatst blijft ongemoeid. Op de iPhone vereist dit iOS 17; daaronder opent een tik op de regel de taak. Details: [De mobiele app](Mobile_App.md).

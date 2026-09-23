@@ -291,3 +291,16 @@ In **Editor e note** puoi disattivare **Nascondi automaticamente i controlli dur
 ## Attività: pianificatore e cattura rapida
 
 La schermata delle attività si apre su **Oggi**; il segmento sopra l'elenco passa tra **Oggi**, **Prossimamente**, **In entrata**, **Tutte** e **Completate**. **+ Nuova attività** e il pulsante **＋** aprono il foglio di cattura: una riga come `Inviare offerta domani alle 14:00 !!!`, con ogni parte riconosciuta mostrata come un blocco rimovibile prima del salvataggio, e pulsanti rapidi per chi preferisce non digitare. Su Android, tenere premuta l'icona dell'app offre anche **Nuova attività**. Quando condividi un testo, un link o un file con Plainva, **Crea come attività** lo mette nel database delle attività invece che nella cartella in entrata. Dettagli: [Attività](Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Widget nella schermata home
+
+Android offre due widget, **Oggi** e **Acquisizione rapida**; sull’iPhone se ne aggiungono due per la schermata di blocco, un contatore e la prossima attività. Tieni premuto uno spazio libero della schermata home e scegli Plainva.
+
+**Oggi** mostra gli arretrati come numero e sotto gli appuntamenti e le attività del giorno nello stesso ordine dell’app. Un tocco su una riga apre la nota, uno sull’intestazione apre la schermata Oggi e il **+** apre il foglio di acquisizione. **Acquisizione rapida** non mostra alcun contenuto: un pulsante **Attività** e uno **Diario**.
+
+Un widget non calcola nulla da sé. Ad app chiusa non gira nulla di Plainva, quindi mostra ciò che l’app ha scritto durante l’ultima esecuzione — per questo conosce un’intera settimana in anticipo e cambia giorno a mezzanotte senza che tu apra nulla. Quando ciò che mostra è di un giorno precedente, l’intestazione dice quando è stato scritto.
+
+Spuntare un’attività nel widget è una richiesta, non una modifica. La spunta compare subito e la riga **verrà applicato all’apertura di Plainva** dice cosa manca ancora; la nota cambia alla prossima apertura, con la sua ricorrenza e la sua sincronizzazione. Un’attività completata nel frattempo altrove resta intatta. Su iPhone serve iOS 17; al di sotto, un tocco sulla riga apre l’attività.
+
+In **Impostazioni → Avvio e comportamento → Widget** due interruttori decidono cosa può lasciare l’app: **Mostra i titoli nel widget** e **Mostra gli appuntamenti nel widget**. Valgono solo per questo dispositivo. Uno spazio cifrato bloccato non mostra nulla in ogni caso: Plainva svuota il widget quando si blocca.

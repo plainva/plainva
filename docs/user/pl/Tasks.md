@@ -159,3 +159,8 @@ Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadani
 `- [/]` (**W toku**) i `- [-]` (**Anulowane**) to również zadania. W edytorze, w trybie czytania i na każdej liście dostają własne pole; w toku liczy się jako otwarte, anulowane jako zamknięte. Kliknięcie nadal przełącza tylko między otwartym a ukończonym — kończy zadanie w toku i otwiera ponownie anulowane. **Ustaw stan** w menu wiersza ustawia te dwa stany; Plainva nigdy nie zapisuje ich samodzielnie.
 
 Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Odhaczanie z widgetu
+
+Pole w widgecie **Dziś** przyjmuje prośbę: ptaszek pojawia się od razu, notatka zmienia się przy następnym otwarciu Plainvy i wtedy też następuje powtarzanie i synchronizacja. Do tego czasu wiersz mówi **zostanie zastosowane po otwarciu Plainvy**. Zadanie ukończone, usunięte lub przeniesione w międzyczasie zostaje nietknięte. Na iPhonie wymaga to iOS 17; poniżej dotknięcie wiersza otwiera zadanie. Szczegóły: [Aplikacja mobilna](Mobile_App.md).

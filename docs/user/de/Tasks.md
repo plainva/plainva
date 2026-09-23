@@ -159,3 +159,8 @@ Die Aufgabenansicht öffnet sich auf **Heute**. Die Listen — am Desktop eine L
 `- [/]` (**In Arbeit**) und `- [-]` (**Abgebrochen**) sind ebenfalls Aufgaben. Sie bekommen im Editor, im Lesemodus und in jeder Liste ein eigenes Kästchen; „in Arbeit“ zählt als offen, „abgebrochen“ als geschlossen. Ein Klick schaltet weiterhin nur zwischen offen und erledigt — er erledigt eine Aufgabe in Arbeit und öffnet eine abgebrochene wieder. **Zustand setzen** im Zeilenmenü setzt die beiden Zustände; von sich aus schreibt Plainva sie nie.
 
 Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im Hintergrund weiterläuft), unter Android der Startmenü-Eintrag **Neue Aufgabe** (App-Symbol gedrückt halten) und am Telefon **Als Aufgabe anlegen**, wenn Du etwas an Plainva teilst — Text und Anhänge landen in der Notiz der Aufgabe. Wie eine Aufgabe mit Uhrzeit erinnert, steht unter [Kalender & externe Aufgaben](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Abhaken im Widget
+
+Das Kästchen im Widget **Heute** nimmt einen Auftrag auf: der Haken erscheint sofort, die Notiz ändert sich beim nächsten Öffnen von Plainva, und dann passieren auch Wiederholung und Abgleich. Bis dahin sagt die Zeile **wird beim Öffnen übernommen**. Eine Aufgabe, die Du inzwischen erledigt, gelöscht oder verschoben hast, bleibt still unberührt. Am iPhone braucht das iOS 17; darunter öffnet ein Tipp auf die Zeile die Aufgabe. Einzelheiten: [Die mobile App](Mobile_App.md).

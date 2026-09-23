@@ -93,3 +93,10 @@ Two features need a permission from the operating system. Both are asked for **o
 - **Location** — for the **place stamp**, which additionally has a device switch that is **off by default** (Settings → Appearance). The button appears only once you switch it on; the system asks only once you press it. What is written is **one line** — `📍 52.5200, 13.4050` — at four decimals, about eleven metres. No history, no map, no background tracking and no online service to turn coordinates into a name.
 
 Camera and photo library are asked for as before: when you insert a photo and when you scan a pairing QR code. None of these permissions leaves the device: what they produce becomes a file or a line in your vault — and that is yours.
+
+<!-- widgets-2026-09-23 -->
+## What a widget may show
+
+A home-screen widget is read by another program and seen by whoever is looking at the screen, so what Plainva writes for it is deliberately thin: a title, a day, a time, a priority and a position. Never the text of a note and never a path — a tapped row is resolved back to its note inside the app.
+
+A locked encrypted workspace writes an **empty** widget rather than one Plainva asks to hide the content of: a file that never held the titles cannot reveal them. Two switches under **Settings → Start & behaviour → Widgets** narrow it further, per device: turning **Show titles in the widget** off leaves only the counts, and **Show appointments in the widget** off leaves only the tasks.

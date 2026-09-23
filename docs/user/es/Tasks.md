@@ -159,3 +159,8 @@ Encima de las listas está el campo de captura; en el teléfono, **+ Nueva tarea
 `- [/]` (**En curso**) y `- [-]` (**Cancelada**) también son tareas. Reciben su propia casilla en el editor, en el modo de lectura y en cada lista; en curso cuenta como abierta, cancelada como cerrada. Un clic solo sigue alternando entre abierta y hecha — completa una tarea en curso y reabre una cancelada. **Establecer estado** en el menú de la fila fija los dos estados; Plainva no los escribe nunca por su cuenta.
 
 Más formas de entrada: **Nueva tarea** en el menú de la bandeja del sistema en el escritorio (cuando Plainva sigue ejecutándose en segundo plano), en Android el acceso directo del launcher **Nueva tarea** (mantén pulsado el icono de la app), y en el teléfono **Crear como tarea** cuando compartes algo con Plainva — el texto y los archivos adjuntos terminan en la nota de la tarea. Cómo te avisa una tarea con hora se describe en [Calendario y tareas externas](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Marcar desde un widget
+
+La casilla del widget **Hoy** recoge un encargo: la marca aparece enseguida, la nota cambia la próxima vez que abras Plainva y entonces ocurren también la repetición y la sincronización. Hasta entonces la fila dice **se aplicará al abrir Plainva**. Una tarea que hayas terminado, borrado o movido mientras tanto se deja en paz. En el iPhone esto requiere iOS 17; por debajo, un toque en la fila abre la tarea. Detalles: [La app móvil](Mobile_App.md).

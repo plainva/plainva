@@ -93,3 +93,10 @@ Due funzioni hanno bisogno di un permesso del sistema operativo. Entrambi vengon
 - **Posizione** — per il **timbro del luogo**, che in più ha un interruttore per dispositivo **disattivato per impostazione predefinita** (Impostazioni → Aspetto). Il pulsante compare solo quando lo attivi; il sistema chiede solo quando lo premi. Viene scritta **una riga** — `📍 52.5200, 13.4050` — con quattro decimali, circa undici metri. Nessuna cronologia, nessuna mappa, nessun tracciamento in background e nessun servizio online che trasformi le coordinate in un nome.
 
 Fotocamera e libreria foto vengono chieste come sempre: quando inserisci una foto e quando scansioni un codice QR di accoppiamento. Nessuno di questi permessi lascia il dispositivo: ciò che producono diventa un file o una riga nel tuo vault — ed è tuo.
+
+<!-- widgets-2026-09-23 -->
+## Che cosa può mostrare un widget
+
+Un widget della schermata home viene letto da un altro programma e visto da chiunque guardi lo schermo, quindi ciò che Plainva vi scrive è volutamente scarno: un titolo, un giorno, un orario, una priorità e una posizione. Mai il testo di una nota e mai un percorso: la riga toccata torna a essere la sua nota solo dentro l’app.
+
+Uno spazio cifrato bloccato scrive un widget **vuoto** invece di uno il cui contenuto Plainva chieda di nascondere: un file che non ha mai contenuto i titoli non può rivelarli. Due interruttori in **Impostazioni → Avvio e comportamento → Widget** restringono ancora, per dispositivo: **Mostra i titoli nel widget** disattivato lascia solo i numeri, e **Mostra gli appuntamenti nel widget** disattivato solo le attività.

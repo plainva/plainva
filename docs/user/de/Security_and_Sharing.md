@@ -93,3 +93,10 @@ Zwei Funktionen brauchen eine Berechtigung des Betriebssystems. Beide werden **b
 - **Standort** — für den **Ortsstempel**, und der ist zusätzlich ein Geräteschalter, der **standardmäßig aus** ist (Einstellungen → Darstellung). Erst wenn Du ihn einschaltest, erscheint der Knopf; erst wenn Du ihn drückst, fragt das System. Geschrieben wird **eine Zeile** — `📍 52.5200, 13.4050` — mit vier Nachkommastellen, also etwa elf Metern. Kein Verlauf, keine Karte, keine Hintergrund-Ortung und kein Online-Dienst, der aus Koordinaten einen Namen macht.
 
 Kamera und Fotomediathek fragt Plainva wie bisher nur beim Einfügen eines Fotos und beim Scannen eines Kopplungs-QR-Codes. Keine dieser Freigaben verlässt das Gerät: was sie liefern, wird eine Datei oder eine Zeile in Deinem Vault — und der gehört Dir.
+
+<!-- widgets-2026-09-23 -->
+## Was ein Widget zeigen darf
+
+Ein Widget auf dem Startbildschirm wird von einem anderen Programm gelesen und von jedem gesehen, der auf den Bildschirm schaut. Was Plainva dafür schreibt, ist deshalb bewusst dünn: Titel, Tag, Uhrzeit, Priorität und eine Position. Nie der Text einer Notiz und nie ein Pfad — eine angetippte Zeile wird erst in der App wieder zu ihrer Notiz aufgelöst.
+
+Ein gesperrter verschlüsselter Workspace schreibt ein **leeres** Widget statt eines, dessen Inhalt Plainva zu verbergen bittet: eine Datei, die die Titel nie enthielt, kann sie nicht verraten. Zwei Schalter unter **Einstellungen → Start & Verhalten → Widgets** engen es je Gerät weiter ein: **Titel im Widget zeigen** aus lässt nur die Zahlen übrig, **Termine im Widget zeigen** aus nur die Aufgaben.

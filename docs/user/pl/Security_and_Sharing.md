@@ -93,3 +93,10 @@ Dwie funkcje potrzebują zgody systemu. Obie są proszone **przy pierwszym naci�
 - **Lokalizacja** — do **stempla miejsca**, który ma dodatkowo przełącznik na urządzenie, **domyślnie wyłączony** (Ustawienia → Wygląd). Przycisk pojawia się dopiero po jego włączeniu; system pyta dopiero, gdy go naciśniesz. Zapisywany jest **jeden wiersz** — `📍 52.5200, 13.4050` — z czterema miejscami po przecinku, czyli około jedenastu metrów. Żadnej historii, żadnej mapy, żadnego śledzenia w tle i żadnej usługi online zamieniającej współrzędne w nazwę.
 
 O aparat i bibliotekę zdjęć Plainva prosi jak dotąd: przy wstawianiu zdjęcia i przy skanowaniu kodu QR parowania. Żadna z tych zgód nie opuszcza urządzenia: to, co powstaje, staje się plikiem albo wierszem w Twoim sejfie — a ten należy do Ciebie.
+
+<!-- widgets-2026-09-23 -->
+## Co widget może pokazywać
+
+Widget na ekranie głównym czyta inny program, a widzi go każdy, kto spojrzy na ekran, więc to, co Plainva dla niego zapisuje, jest celowo ubogie: tytuł, dzień, godzina, priorytet i pozycja. Nigdy treść notatki i nigdy ścieżka — dotknięty wiersz zamienia się z powrotem w swoją notatkę dopiero w aplikacji.
+
+Zablokowana zaszyfrowana przestrzeń zapisuje **pusty** widget zamiast takiego, którego treść Plainva prosiłaby ukryć: plik, który nigdy nie zawierał tytułów, nie może ich zdradzić. Dwa przełączniki w **Ustawienia → Start i zachowanie → Widgety** zawężają to dalej, na każdym urządzeniu osobno: wyłączone **Pokaż tytuły w widgecie** zostawia tylko liczby, a wyłączone **Pokaż wydarzenia w widgecie** tylko zadania.

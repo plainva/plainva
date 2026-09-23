@@ -93,3 +93,10 @@ Dos funciones necesitan un permiso del sistema operativo. Ambos se piden **al pr
 - **Ubicación** — para el **sello de lugar**, que además tiene un interruptor por dispositivo **desactivado por defecto** (Ajustes → Apariencia). El botón aparece solo cuando lo activas; el sistema pregunta solo cuando lo pulsas. Se escribe **una línea** — `📍 52.5200, 13.4050` — con cuatro decimales, unos once metros. Sin historial, sin mapa, sin seguimiento en segundo plano y sin servicio en línea que convierta coordenadas en un nombre.
 
 La cámara y la fototeca se piden como siempre: al insertar una foto y al escanear un código QR de emparejamiento. Ninguno de estos permisos sale del dispositivo: lo que producen se convierte en un archivo o una línea de tu bóveda, y esa es tuya.
+
+<!-- widgets-2026-09-23 -->
+## Qué puede mostrar un widget
+
+Un widget de la pantalla de inicio lo lee otro programa y lo ve cualquiera que mire la pantalla, así que lo que Plainva escribe para él es deliberadamente escaso: un título, un día, una hora, una prioridad y una posición. Nunca el texto de una nota y nunca una ruta: la fila tocada vuelve a convertirse en su nota dentro de la app.
+
+Un espacio cifrado bloqueado escribe un widget **vacío** en lugar de uno cuyo contenido Plainva pida ocultar: un archivo que nunca contuvo los títulos no puede revelarlos. Dos interruptores en **Ajustes → Inicio y comportamiento → Widgets** lo acotan más, por dispositivo: con **Mostrar títulos en el widget** desactivado quedan solo los números, y con **Mostrar citas en el widget** desactivado solo las tareas.

@@ -159,3 +159,8 @@ Acima das listas fica o campo de captura; no telefone, **+ Nova tarefa** e o bot
 `- [/]` (**Em andamento**) e `- [-]` (**Cancelada**) também são tarefas. Elas ganham uma caixa própria no editor, no modo de leitura e em cada lista; em andamento conta como aberta, cancelada como fechada. Um clique continua alternando só entre aberta e concluída — ele conclui uma tarefa em andamento e reabre uma cancelada. **Definir estado** no menu da linha define os dois estados; o Plainva nunca os escreve por conta própria.
 
 Mais formas de entrada: **Nova tarefa** no menu da bandeja no computador (quando o Plainva continua rodando em segundo plano), no Android o atalho do launcher **Nova tarefa** (toque e segure o ícone do aplicativo), e no telefone **Criar como tarefa** quando você compartilha algo com o Plainva — o texto e os anexos terminam na nota da tarefa. Como uma tarefa com horário te avisa está descrito em [Calendário e tarefas externas](Calendar_and_Tasks.md).
+
+<!-- widgets-2026-09-23 -->
+## Marcar a partir de um widget
+
+A caixa do widget **Hoje** registra um pedido: a marca aparece na hora, a nota muda na próxima vez que você abrir o Plainva e é então que acontecem também a recorrência e a sincronização. Até lá a linha diz **será aplicado ao abrir o Plainva**. Uma tarefa concluída, excluída ou movida nesse meio-tempo fica intocada. No iPhone isso exige iOS 17; abaixo disso, um toque na linha abre a tarefa. Detalhes: [O aplicativo móvel](Mobile_App.md).
