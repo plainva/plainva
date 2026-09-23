@@ -62,7 +62,7 @@ base64 = "0.23"
 # spawn_blocking; TLS goes through rustls over a plain TcpStream so the app
 # stays OpenSSL-free cross-platform (same decision as reqwest above).
 imap = { version = "2.4", default-features = false }
-imap-proto = "0.10"
+imap-proto = "0.16"
 # 0.23.45 fixes TLS 1.3 handshake encryption-level validation (RUSTSEC-2026-0285).
 rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
 webpki-roots = "1.0"
