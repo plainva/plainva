@@ -122,6 +122,11 @@ jobs:
           # (cap sync regenerates the android project; the checkout carries no
           # +x on Windows-authored files).
           chmod +x ./gradlew
+          # The app's own Java has unit tests now (the widget's snapshot
+          # reader, plan Widgets W3). They run BEFORE the build, because a
+          # widget that misreads the file is not something a signed bundle
+          # makes better - and nothing else in the pipeline runs Java tests.
+          ./gradlew testReleaseUnitTest
           if [ -f release.keystore ]; then
             ./gradlew bundleRelease assembleRelease \
               -Pandroid.injected.version.code="$VERSION_CODE" \

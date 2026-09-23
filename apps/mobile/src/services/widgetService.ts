@@ -3,10 +3,13 @@ import {
   buildWidgetSnapshot,
   calendarDay,
   parseBaseConfig,
+  parseWidgetSnapshot,
   plannerRowsFromDb,
   resolveTaskCompletionModel,
   serializeWidgetSnapshot,
   taskDbRows,
+  toast,
+  usableWidgetActions,
   WIDGET_SNAPSHOT_DAYS,
   type PlannerRow,
   type WidgetEventInput,
@@ -14,7 +17,7 @@ import {
   type WidgetRowRef,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { clearWidgetSnapshot, widgetsAvailable, writeWidgetSnapshot } from "../platform/widgetBridge";
+import { clearWidgetActions, clearWidgetSnapshot, readWidgetActions, readWidgetSnapshot, widgetsAvailable, writeWidgetSnapshot } from "../platform/widgetBridge";
 import { getMobileSettings } from "./mobileSettings";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { listPimEvents } from "./pim/pimService";
@@ -215,6 +218,118 @@ async function writeOnce(): Promise<void> {
   }
 }
 
+/**
+ * Redeems the ticks made on a widget (plan Widgets, W5).
+ *
+ * A tick on the home screen only ever RECORDED an intention; this is where it
+ * becomes a change, through the very building block the checkbox in the app
+ * uses — completion model, recurrence, provider sync. Doing it any other way
+ * would be a second answer to "what does ticking this box do".
+ *
+ * **This has to run before the next snapshot is written**, and that is not a
+ * preference. An order names the snapshot it was made against; write a fresh
+ * one first and every waiting tick becomes unresolvable at once. Hence
+ * `catchUpWidgets` below, which is what the lifecycle calls.
+ *
+ * A task that has since been finished, deleted or moved falls out silently:
+ * the alternative is a dialogue about a tap someone made yesterday on a home
+ * screen, which nobody can act on and everybody has forgotten.
+ */
+export async function redeemWidgetActions(): Promise<number> {
+  if (!widgetsAvailable()) return 0;
+  const actions = await readWidgetActions();
+  if (actions.length === 0) return 0;
+
+  const raw = await readWidgetSnapshot();
+  const usable = usableWidgetActions(actions, raw ? parseWidgetSnapshot(raw) : null);
+  const table = await readWidgetRefs();
+
+  let done = 0;
+  for (const action of usable) {
+    const ref = table && table.writtenAt === action.snapshotAt ? table.refs[action.index] : null;
+    if (!ref?.path) continue;
+    try {
+      const { setTaskDone } = await import("./taskCompletionAction");
+      if ((await setTaskDone(ref.path, true)).changed) done += 1;
+    } catch {
+      // Gone, moved, or a database that cannot express "done": out it goes.
+    }
+  }
+
+  // EVERY order that was read is cleared, applied or not. One that could not
+  // be resolved now never will be — its snapshot is already history — and
+  // leaving it would make the queue grow for the life of the install.
+  await clearWidgetActions(actions.map((action) => action.id));
+
+  if (done > 0) toast.info(i18n.t("widget.redeemed", { count: done }));
+  return done;
+}
+
+/**
+ * What the app does about its widgets when it comes back: redeem, then write.
+ * The order is the whole point — see above.
+ */
+export async function catchUpWidgets(): Promise<void> {
+  try {
+    await redeemWidgetActions();
+  } catch {
+    /* a tick that cannot be redeemed must not cost the refresh */
+  }
+  await refreshWidgets();
+}
+
+/** A row of the widget, resolved back to the note behind it. */
+export interface WidgetOpenTarget {
+  path: string;
+  /** Checkbox ordinal inside the note; absent for a database row. */
+  ordinal?: number;
+}
+
+let parkedOpen: WidgetOpenTarget | null = null;
+
+/** Takes the parked target, if the shell has not drained it yet. */
+export function consumeWidgetOpen(): WidgetOpenTarget | null {
+  const target = parkedOpen;
+  parkedOpen = null;
+  return target;
+}
+
+/**
+ * A tap on a widget row: `com.plainva.app://widget/open/<index>?at=<writtenAt>`.
+ *
+ * The URL carries a POSITION, never a title and never a path — an intent is
+ * readable by the launcher, and a home screen is a place other people look at.
+ * Resolving it is this side's job, against the table the app wrote beside the
+ * snapshot.
+ *
+ * `at` is what makes that safe. An index only means a row within ONE snapshot;
+ * if the app has written a newer one since the widget was drawn, the same
+ * index now names a different row. Then nothing is opened by guess — the
+ * Today screen is, which is where someone tapping a widget was heading anyway.
+ */
+export async function routeWidgetOpen(url: string): Promise<void> {
+  const parsed = /widget\/open\/(\d+)(?:\?at=(\d+))?/.exec(url);
+  const target = parsed ? await resolveWidgetRow(Number(parsed[1]), parsed[2] ? Number(parsed[2]) : null) : null;
+  if (!target) {
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-shortcut", { detail: { which: "today" } }));
+    return;
+  }
+  parkedOpen = target;
+  // Parked and signalled rather than opened: a tap on a widget can be what
+  // STARTED the app, and then no vault is open to put a note into yet.
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-widget-open"));
+}
+
+/** The note behind a row, or null when the index can no longer be trusted. */
+export async function resolveWidgetRow(index: number, snapshotAt: number | null): Promise<WidgetOpenTarget | null> {
+  if (!Number.isInteger(index) || index < 0) return null;
+  const table = await readWidgetRefs();
+  if (!table || table.writtenAt === 0) return null;
+  if (snapshotAt !== null && snapshotAt !== table.writtenAt) return null;
+  const ref = table.refs[index];
+  return ref && ref.path ? ref : null;
+}
+
 /** Coalesces a burst of triggers into one write. */
 export function scheduleWidgetRefresh(): void {
   if (!widgetsAvailable()) return;
@@ -255,7 +370,9 @@ export function initWidgetService(): void {
   }
   // A different vault is a different snapshot, header and all — the old one
   // must not stay on the home screen while the new one is being worked out.
-  for (const event of ["m-vault-switched", "m-vault-changed"]) {
+  // `m-vaults-changed` covers REMOVING one (W6): the home screen must not go
+  // on showing a vault this phone no longer has.
+  for (const event of ["m-vault-switched", "m-vault-changed", "m-vaults-changed"]) {
     window.addEventListener(event, () => {
       void clearWidgets().then(() => refreshWidgets());
     });
@@ -263,5 +380,7 @@ export function initWidgetService(): void {
   window.addEventListener("m-encryption-locked", () => {
     void clearWidgets();
   });
-  void refreshWidgets();
+  // Redeem, THEN write: a tick made while the app was closed names the
+  // snapshot on disk, and a fresh one would strand it.
+  void catchUpWidgets();
 }

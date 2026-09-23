@@ -582,6 +582,10 @@
     "tagsSection": "标签",
     "tagColors": "为标签着色",
     "tagColorsDesc": "每个标签根据其名称获得一种颜色；嵌套标签与其顶层标签颜色相同。适用于笔记、属性、数据库和标签列表。仅限此设备；不会保存任何内容。",
+    "widgetsSection": "小组件",
+    "widgetShowTitles": "在小组件中显示标题",
+    "widgetShowEvents": "在小组件中显示日程",
+    "widgetsDesc": "仅限本设备。不显示标题时，小组件只显示数量。已锁定的加密工作区无论如何都不显示内容。",
     "weekStart": "每周开始于",
     "weekStartDesc": "所有日历视图中一周的第一天。",
     "weekStartMonday": "周一",
@@ -4698,6 +4702,7 @@
     "locked": "已锁定 — 在 Plainva 中打开",
     "pending": "打开 Plainva 后生效",
     "newTask": "任务",
-    "newJournal": "日志"
+    "newJournal": "日志",
+    "redeemed_other": "已从小组件完成 {{count}} 项"
   }
 }

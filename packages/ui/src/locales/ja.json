@@ -582,6 +582,10 @@
     "tagsSection": "タグ",
     "tagColors": "タグに色を付ける",
     "tagColorsDesc": "タグごとに名前から色が決まります。入れ子のタグは最上位のタグと同じ色になります。ノート、プロパティ、データベース、タグ一覧に適用されます。このデバイスのみの設定で、何も保存されません。",
+    "widgetsSection": "ウィジェット",
+    "widgetShowTitles": "ウィジェットにタイトルを表示",
+    "widgetShowEvents": "ウィジェットに予定を表示",
+    "widgetsDesc": "この端末のみ。タイトルを出さない場合、ウィジェットは件数だけを示します。ロック中の暗号化ワークスペースはいずれにしても何も示しません。",
     "weekStart": "週の開始日",
     "weekStartDesc": "すべてのカレンダー表示での週の最初の曜日。",
     "weekStartMonday": "月曜日",
@@ -4698,6 +4702,7 @@
     "locked": "ロック中 — Plainva で開く",
     "pending": "Plainva を開いたときに反映されます",
     "newTask": "タスク",
-    "newJournal": "ジャーナル"
+    "newJournal": "ジャーナル",
+    "redeemed_other": "ウィジェットから {{count}} 件を完了にしました"
   }
 }

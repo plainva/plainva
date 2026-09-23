@@ -58,8 +58,11 @@ describe("launcher shortcuts and quick actions", () => {
   it("the web layer runs every one of them", () => {
     const runner = read(MOBILE, "src/PendingIntentRunner.tsx");
     for (const id of androidIds) expect(runner, id).toContain(`pendingShortcut === "${id}"`);
+    // The URL list moved out of the shell when the widgets added a fourth
+    // kind and App.tsx hit its structure budget (plan Widgets, W3).
+    const routes = read(MOBILE, "src/services/appUrlRoutes.ts");
+    expect(routes).toContain('url.startsWith("com.plainva.app://shortcut/")');
     const app = read(MOBILE, "src/App.tsx");
-    expect(app).toContain('url.startsWith("com.plainva.app://shortcut/")');
     for (const prop of ["onCapture=", "onNewTask=", "onJournal=", "onOpenToday="]) expect(app, prop).toContain(prop);
   });
 });

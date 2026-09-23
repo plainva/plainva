@@ -74,6 +74,10 @@ dependencies {
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
     implementation "com.google.android.gms:play-services-auth:22.0.0"
     testImplementation "junit:junit:$junitVersion"
+    // android.jar stubs org.json on the unit-test classpath: every call
+    // returns a default and a parser test would pass on nothing. The real
+    // implementation makes WidgetSnapshotTest meaningful (plan Widgets, W3).
+    testImplementation "org.json:json:20240303"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     androidTestImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"

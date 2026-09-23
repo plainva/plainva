@@ -47,6 +47,23 @@ export function PendingIntentRunner({
     return () => window.removeEventListener("m-reminder-intent", run);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // A tapped widget row, the same way round (plan Widgets, W3): the service
+  // resolves the position to a note and parks it, because the tap can be what
+  // started the app and no vault is open yet at that moment.
+  useEffect(() => {
+    const run = () => {
+      void import("./services/widgetService")
+        .then(({ consumeWidgetOpen }) => {
+          const target = consumeWidgetOpen();
+          if (target) onOpenNote(target.path);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("m-widget-open", run);
+    run();
+    return () => window.removeEventListener("m-widget-open", run);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!pendingShortcut) return;
     setPendingShortcut(null);

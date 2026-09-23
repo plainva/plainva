@@ -15,14 +15,30 @@ import { parseWidgetSnapshot, type WidgetSnapshot } from "@plainva/ui";
 const written: string[] = [];
 let cleared = 0;
 let native = true;
+let queue: { id: number; index: number; snapshotAt: number; at: number }[] = [];
+const clearedIds: number[] = [];
 
 vi.mock("../platform/widgetBridge", () => ({
   widgetsAvailable: () => native,
   writeWidgetSnapshot: vi.fn(async (json: string) => void written.push(json)),
   clearWidgetSnapshot: vi.fn(async () => void (cleared += 1)),
   readWidgetSnapshot: vi.fn(async () => written[written.length - 1] ?? null),
+  readWidgetActions: vi.fn(async () => queue),
+  clearWidgetActions: vi.fn(async (ids: number[]) => void clearedIds.push(...ids)),
   reloadWidgets: vi.fn(async () => {}),
 }));
+
+const ticked: { path: string; done: boolean }[] = [];
+let tickResult: { changed: boolean } | Error = { changed: true };
+vi.mock("./taskCompletionAction", () => ({
+  setTaskDone: vi.fn(async (path: string, done: boolean) => {
+    ticked.push({ path, done });
+    if (tickResult instanceof Error) throw tickResult;
+    return tickResult;
+  }),
+}));
+
+const toasts: string[] = [];
 
 const prefs = new Map<string, string>();
 vi.mock("@capacitor/preferences", () => ({
@@ -60,9 +76,10 @@ vi.mock("@plainva/ui", async (original) => ({
   resolveTaskCompletionModel: vi.fn(() => ({})),
   taskDbRows: vi.fn(() => []),
   plannerRowsFromDb: vi.fn(() => tasks),
+  toast: { info: (message: string) => void toasts.push(message) },
 }));
 
-import { clearWidgets, readWidgetRefs, refreshWidgets, scheduleWidgetRefresh } from "./widgetService";
+import { catchUpWidgets, clearWidgets, consumeWidgetOpen, readWidgetRefs, redeemWidgetActions, refreshWidgets, routeWidgetOpen, scheduleWidgetRefresh } from "./widgetService";
 
 const NOW = new Date(2026, 8, 23, 10, 0); // 2026-09-23, local
 
@@ -83,6 +100,11 @@ beforeEach(() => {
   runtime = {};
   tasks = [];
   events = [];
+  queue = [];
+  clearedIds.length = 0;
+  ticked.length = 0;
+  toasts.length = 0;
+  tickResult = { changed: true };
   settings = { taskDatabase: "Tasks.base", widgetShowTitles: true, widgetShowEvents: true };
 });
 
@@ -173,6 +195,60 @@ describe("where a tapped row leads", () => {
   });
 });
 
+describe("a tapped row finds its note", () => {
+  const shortcuts: string[] = [];
+  const onShortcut = (event: Event) => void shortcuts.push((event as CustomEvent<{ which: string }>).detail.which);
+
+  beforeEach(() => {
+    shortcuts.length = 0;
+    window.addEventListener("m-shortcut", onShortcut);
+  });
+  afterEach(() => window.removeEventListener("m-shortcut", onShortcut));
+
+  async function place() {
+    tasks = [task({ title: "Miete", due: "2026-09-23", path: "Aufgaben/Miete.md" })];
+    await refreshWidgets();
+    return (await readWidgetRefs())!.writtenAt;
+  }
+
+  it("parks the note the position points at", async () => {
+    const at = await place();
+    await routeWidgetOpen(`com.plainva.app://widget/open/0?at=${at}`);
+    expect(consumeWidgetOpen()).toEqual({ path: "Aufgaben/Miete.md" });
+    // Taken once: a second drain must not reopen it on the next start.
+    expect(consumeWidgetOpen()).toBeNull();
+  });
+
+  it("opens the day instead of guessing when the snapshot has moved on", async () => {
+    const at = await place();
+    await routeWidgetOpen(`com.plainva.app://widget/open/0?at=${at - 1}`);
+    expect(consumeWidgetOpen()).toBeNull();
+    expect(shortcuts).toEqual(["today"]);
+  });
+
+  it("opens the day for a position that names no row", async () => {
+    const at = await place();
+    await routeWidgetOpen(`com.plainva.app://widget/open/99?at=${at}`);
+    expect(consumeWidgetOpen()).toBeNull();
+    expect(shortcuts).toEqual(["today"]);
+  });
+
+  it("opens the day when the row was an appointment", async () => {
+    tasks = [];
+    events = [{ title: "Zahnarzt", allDay: false, start: { ts: new Date(2026, 8, 23, 9, 30).getTime() } }];
+    await refreshWidgets();
+    const at = (await readWidgetRefs())!.writtenAt;
+    await routeWidgetOpen(`com.plainva.app://widget/open/0?at=${at}`);
+    expect(consumeWidgetOpen()).toBeNull();
+    expect(shortcuts).toEqual(["today"]);
+  });
+
+  it("opens the day when there is no table at all", async () => {
+    await routeWidgetOpen("com.plainva.app://widget/open/0?at=1");
+    expect(shortcuts).toEqual(["today"]);
+  });
+});
+
 describe("the two device switches", () => {
   it("drops every title when titles are off, and keeps the rows for the counter", async () => {
     tasks = [task({ title: "Arzttermin vorbereiten", due: "2026-09-23" })];
@@ -197,6 +273,107 @@ describe("the two device switches", () => {
     phase = "locked";
     await refreshWidgets();
     expect(vault.getMobileVault).not.toHaveBeenCalled();
+  });
+});
+
+describe("a tick made on the home screen", () => {
+  async function place(...rows: Record<string, unknown>[]) {
+    tasks = rows.map(task);
+    await refreshWidgets();
+    return last().writtenAt;
+  }
+
+  it("goes through the same building block the checkbox in the app uses", async () => {
+    const at = await place({ title: "Miete", due: "2026-09-23", path: "Aufgaben/Miete.md" });
+    queue = [{ id: 7, index: 0, snapshotAt: at, at }];
+
+    expect(await redeemWidgetActions()).toBe(1);
+
+    expect(ticked).toEqual([{ path: "Aufgaben/Miete.md", done: true }]);
+    expect(toasts).toEqual(["widget.redeemed"]);
+  });
+
+  it("clears every order it looked at, applied or not", async () => {
+    const at = await place({ title: "Miete", due: "2026-09-23", path: "Aufgaben/Miete.md" });
+    queue = [
+      { id: 1, index: 0, snapshotAt: at, at },
+      // Made against a snapshot that is already history: it can never resolve,
+      // so leaving it would grow the queue for the life of the install.
+      { id: 2, index: 0, snapshotAt: at - 1, at },
+    ];
+
+    await redeemWidgetActions();
+
+    expect(ticked).toHaveLength(1);
+    expect(clearedIds.sort()).toEqual([1, 2]);
+  });
+
+  it("lets a task that has gone fall out silently", async () => {
+    const at = await place({ title: "Weg", due: "2026-09-23", path: "Aufgaben/Weg.md" });
+    queue = [{ id: 1, index: 0, snapshotAt: at, at }];
+    tickResult = new Error("ENOENT");
+
+    expect(await redeemWidgetActions()).toBe(0);
+
+    expect(toasts).toEqual([]);
+    expect(clearedIds).toEqual([1]);
+  });
+
+  it("says nothing when the task was already done", async () => {
+    const at = await place({ title: "Schon", due: "2026-09-23", path: "Aufgaben/Schon.md" });
+    queue = [{ id: 1, index: 0, snapshotAt: at, at }];
+    tickResult = { changed: false };
+
+    expect(await redeemWidgetActions()).toBe(0);
+    expect(toasts).toEqual([]);
+  });
+
+  it("counts a row tapped twice as one tick", async () => {
+    const at = await place({ title: "Miete", due: "2026-09-23", path: "Aufgaben/Miete.md" });
+    queue = [
+      { id: 1, index: 0, snapshotAt: at, at },
+      { id: 2, index: 0, snapshotAt: at, at: at + 5 },
+    ];
+
+    await redeemWidgetActions();
+
+    expect(ticked).toHaveLength(1);
+    expect(clearedIds.sort()).toEqual([1, 2]);
+  });
+
+  it("never ticks off an appointment", async () => {
+    tasks = [];
+    events = [{ title: "Zahnarzt", allDay: false, start: { ts: new Date(2026, 8, 23, 9, 30).getTime() } }];
+    await refreshWidgets();
+    const at = last().writtenAt;
+    queue = [{ id: 1, index: 0, snapshotAt: at, at }];
+
+    await redeemWidgetActions();
+
+    expect(ticked).toEqual([]);
+  });
+
+  it("REDEEMS BEFORE IT WRITES, or every waiting tick would be stranded", async () => {
+    // The order is the whole of W5. A fresh snapshot carries a new writtenAt,
+    // and an order names the snapshot it was made against - write first and
+    // the tap made while the app was closed is dropped as stale.
+    const at = await place({ title: "Miete", due: "2026-09-23", path: "Aufgaben/Miete.md" });
+    queue = [{ id: 1, index: 0, snapshotAt: at, at }];
+    vi.setSystemTime(new Date(2026, 8, 23, 11, 0));
+
+    await catchUpWidgets();
+
+    expect(ticked).toEqual([{ path: "Aufgaben/Miete.md", done: true }]);
+    // ...and the widget is left showing the new state, not the old one.
+    expect(written).toHaveLength(2);
+    expect(last().writtenAt).toBeGreaterThan(at);
+  });
+
+  it("asks the queue nothing where there is no home screen", async () => {
+    const bridge = await import("../platform/widgetBridge");
+    native = false;
+    expect(await redeemWidgetActions()).toBe(0);
+    expect(bridge.readWidgetActions).not.toHaveBeenCalled();
   });
 });
 

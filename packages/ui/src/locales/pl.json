@@ -588,6 +588,10 @@
     "tagsSection": "Tagi",
     "tagColors": "Koloruj tagi",
     "tagColorsDesc": "Każdy tag dostaje kolor wynikający z jego nazwy; tagi zagnieżdżone dzielą kolor tagu najwyższego poziomu. Działa w notatkach, właściwościach, bazach danych i na liście tagów. Tylko na tym urządzeniu; nic nie jest zapisywane.",
+    "widgetsSection": "Widgety",
+    "widgetShowTitles": "Pokaż tytuły w widgecie",
+    "widgetShowEvents": "Pokaż wydarzenia w widgecie",
+    "widgetsDesc": "Tylko to urządzenie. Bez tytułów widget pokazuje jedynie, ile jest do zrobienia. Zablokowana zaszyfrowana przestrzeń i tak nie pokazuje niczego.",
     "weekStart": "Początek tygodnia",
     "weekStartDesc": "Pierwszy dzień tygodnia we wszystkich widokach kalendarza.",
     "weekStartMonday": "Poniedziałek",
@@ -4863,6 +4867,10 @@
     "locked": "Zablokowany — otwórz w Plainvie",
     "pending": "zostanie zastosowane po otwarciu Plainvy",
     "newTask": "Zadanie",
-    "newJournal": "Dziennik"
+    "newJournal": "Dziennik",
+    "redeemed_few": "Odhaczono {{count}} zadania z widgetu",
+    "redeemed_many": "Odhaczono {{count}} zadań z widgetu",
+    "redeemed_one": "Odhaczono {{count}} zadanie z widgetu",
+    "redeemed_other": "Odhaczono {{count}} zadania z widgetu"
   }
 }

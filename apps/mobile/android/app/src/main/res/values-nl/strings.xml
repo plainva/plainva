@@ -4,4 +4,11 @@
     <string name="shortcut_new_task">Nieuwe taak</string>
     <string name="shortcut_journal">Journaalitem</string>
     <string name="shortcut_today">Vandaag</string>
+    <string name="widget_today_label">Vandaag</string>
+    <string name="widget_today_description">Wat vandaag gepland staat, en één tik om iets toe te voegen.</string>
+    <string name="widget_capture_label">Snel vastleggen</string>
+    <string name="widget_capture_description">Nieuwe taak of journaalregel, direct vanaf het startscherm.</string>
+    <string name="widget_open_app">Plainva openen</string>
+    <string name="widget_as_of">stand %1$s</string>
+    <string name="widget_tick">Afvinken</string>
 </resources>

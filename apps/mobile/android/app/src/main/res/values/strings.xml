@@ -8,4 +8,11 @@
     <string name="shortcut_new_task">New task</string>
     <string name="shortcut_journal">Journal entry</string>
     <string name="shortcut_today">Today</string>
+    <string name="widget_today_label">Today</string>
+    <string name="widget_today_description">What is due today, and one tap to add something.</string>
+    <string name="widget_capture_label">Quick capture</string>
+    <string name="widget_capture_description">New task or journal entry, straight from the home screen.</string>
+    <string name="widget_open_app">Open Plainva</string>
+    <string name="widget_as_of">as of %1$s</string>
+    <string name="widget_tick">Tick off</string>
 </resources>

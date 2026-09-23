@@ -586,6 +586,10 @@
     "tagsSection": "Tags",
     "tagColors": "Colorer les tags",
     "tagColorsDesc": "Chaque tag reçoit une couleur d'après son nom ; les tags imbriqués partagent la couleur de leur tag de premier niveau. S'applique aux notes, aux propriétés, aux bases de données et à la liste des tags. Uniquement sur cet appareil ; rien n'est enregistré.",
+    "widgetsSection": "Widgets",
+    "widgetShowTitles": "Afficher les titres dans le widget",
+    "widgetShowEvents": "Afficher les rendez-vous dans le widget",
+    "widgetsDesc": "Cet appareil uniquement. Sans les titres, le widget indique seulement la quantité à faire. Un espace chiffré verrouillé n’affiche rien de toute façon.",
     "weekStart": "Début de la semaine",
     "weekStartDesc": "Premier jour de la semaine dans toutes les vues de calendrier.",
     "weekStartMonday": "Lundi",
@@ -4808,6 +4812,9 @@
     "locked": "Verrouillé — ouvrir dans Plainva",
     "pending": "appliqué à l'ouverture de Plainva",
     "newTask": "Tâche",
-    "newJournal": "Journal"
+    "newJournal": "Journal",
+    "redeemed_many": "{{count}} de tâches cochées depuis le widget",
+    "redeemed_one": "{{count}} tâche cochée depuis le widget",
+    "redeemed_other": "{{count}} tâches cochées depuis le widget"
   }
 }

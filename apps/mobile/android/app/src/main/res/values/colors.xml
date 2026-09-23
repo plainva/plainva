@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget colours (plan Widgets, W3/E6).
+
+     Plainva's own petrol, not the system's "Material You" palette: a widget
+     that took its colours from the wallpaper would look like every other
+     widget, and the point of this one is that you recognise it at a glance.
+     The values are the app's light tokens from packages/ui/src/styles/
+     base-colors.css, written out because a RemoteViews layout cannot read a
+     stylesheet. values-night/colors.xml carries the dark set; the system
+     picks between them.
+
+     Shape and inner padding DO follow the platform (Android 12+ system
+     corner radius) - that part is the launcher's business, not ours. -->
+<resources>
+    <color name="widget_bg">#FFFFFFFF</color>
+    <color name="widget_bg_muted">#FFEFF5F4</color>
+    <color name="widget_text">#FF1B2B29</color>
+    <color name="widget_text_faint">#FF5F6E6B</color>
+    <color name="widget_border">#FFD7E5E3</color>
+    <color name="widget_accent">#FF0F766E</color>
+    <color name="widget_on_accent">#FFFFFFFF</color>
+    <!-- Overdue reads as a warning, not as the accent: it is the one thing on
+         the widget that asks for attention rather than offering an action. -->
+    <color name="widget_warn">#FFB4472F</color>
+    <color name="widget_warn_bg">#FFFBEDE9</color>
+</resources>

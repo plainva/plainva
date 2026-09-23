@@ -4,4 +4,11 @@
     <string name="shortcut_new_task">Nouvelle tâche</string>
     <string name="shortcut_journal">Entrée de journal</string>
     <string name="shortcut_today">Aujourd\'hui</string>
+    <string name="widget_today_label">Aujourd\'hui</string>
+    <string name="widget_today_description">Ce qui est prévu aujourd’hui, et un appui pour ajouter.</string>
+    <string name="widget_capture_label">Saisie rapide</string>
+    <string name="widget_capture_description">Nouvelle tâche ou entrée de journal, depuis l’écran d’accueil.</string>
+    <string name="widget_open_app">Ouvrir Plainva</string>
+    <string name="widget_as_of">au %1$s</string>
+    <string name="widget_tick">Cocher</string>
 </resources>

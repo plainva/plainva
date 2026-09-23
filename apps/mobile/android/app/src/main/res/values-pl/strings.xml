@@ -4,4 +4,11 @@
     <string name="shortcut_new_task">Nowe zadanie</string>
     <string name="shortcut_journal">Wpis do dziennika</string>
     <string name="shortcut_today">Dzisiaj</string>
+    <string name="widget_today_label">Dzisiaj</string>
+    <string name="widget_today_description">Co wypada dziś, i jedno dotknięcie, by coś dodać.</string>
+    <string name="widget_capture_label">Szybki zapis</string>
+    <string name="widget_capture_description">Nowe zadanie lub wpis dziennika, prosto z ekranu głównego.</string>
+    <string name="widget_open_app">Otwórz Plainvę</string>
+    <string name="widget_as_of">stan z %1$s</string>
+    <string name="widget_tick">Odhacz</string>
 </resources>

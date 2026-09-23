@@ -584,6 +584,10 @@
     "tagsSection": "Tags",
     "tagColors": "Colour tags",
     "tagColorsDesc": "Every tag gets a colour from its name – nested tags share the colour of their top-level tag. Applies in notes, properties, databases and the tag list. This device only; nothing is stored for it.",
+    "widgetsSection": "Widgets",
+    "widgetShowTitles": "Show titles in the widget",
+    "widgetShowEvents": "Show appointments in the widget",
+    "widgetsDesc": "This device only. Without titles the widget just shows how much is due. A locked encrypted workspace shows nothing either way.",
     "weekStart": "Week starts on",
     "weekStartDesc": "First day of the week in all calendar views.",
     "weekStartMonday": "Monday",
@@ -4753,6 +4757,8 @@
     "locked": "Locked — open in Plainva",
     "pending": "applied when you open Plainva",
     "newTask": "Task",
-    "newJournal": "Journal"
+    "newJournal": "Journal",
+    "redeemed_one": "{{count}} task ticked off from the widget",
+    "redeemed_other": "{{count}} tasks ticked off from the widget"
   }
 }

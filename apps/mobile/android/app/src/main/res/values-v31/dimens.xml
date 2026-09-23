@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ publishes the launcher's own corner radii. Following them is
+     what makes the widget sit in the grid like the system's own rather than
+     like a card someone pasted on. -->
+<resources>
+    <dimen name="widget_radius">@android:dimen/system_app_widget_background_radius</dimen>
+    <dimen name="widget_inner_radius">@android:dimen/system_app_widget_inner_radius</dimen>
+    <dimen name="widget_padding">12dp</dimen>
+</resources>

@@ -586,6 +586,10 @@
     "tagsSection": "Etiquetas",
     "tagColors": "Colorear etiquetas",
     "tagColorsDesc": "Cada etiqueta recibe un color a partir de su nombre; las etiquetas anidadas comparten el color de su etiqueta superior. Se aplica en notas, propiedades, bases de datos y la lista de etiquetas. Solo en este dispositivo; no se guarda nada.",
+    "widgetsSection": "Widgets",
+    "widgetShowTitles": "Mostrar títulos en el widget",
+    "widgetShowEvents": "Mostrar citas en el widget",
+    "widgetsDesc": "Solo en este dispositivo. Sin títulos, el widget solo muestra cuánto hay pendiente. Un espacio cifrado bloqueado no muestra nada en ningún caso.",
     "weekStart": "Inicio de semana",
     "weekStartDesc": "Primer día de la semana en todas las vistas de calendario.",
     "weekStartMonday": "Lunes",
@@ -4808,6 +4812,9 @@
     "locked": "Bloqueado — abrir en Plainva",
     "pending": "se aplicará al abrir Plainva",
     "newTask": "Tarea",
-    "newJournal": "Diario"
+    "newJournal": "Diario",
+    "redeemed_many": "{{count}} de tareas marcadas desde el widget",
+    "redeemed_one": "{{count}} tarea marcada desde el widget",
+    "redeemed_other": "{{count}} tareas marcadas desde el widget"
   }
 }

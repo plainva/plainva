@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark set of the widget colours (plan Widgets, W3/E6).
+
+     A -night qualified resource REPLACES its default, so every colour is
+     repeated here rather than inherited. The values are the app's dark tokens;
+     the accent lightens to #2DD4BF, which is what keeps it legible on a dark
+     ground instead of sinking into it. -->
+<resources>
+    <color name="widget_bg">#FF0F1C1B</color>
+    <color name="widget_bg_muted">#FF152625</color>
+    <color name="widget_text">#FFD7E4E2</color>
+    <color name="widget_text_faint">#FF809390</color>
+    <color name="widget_border">#FF2A3C3A</color>
+    <color name="widget_accent">#FF2DD4BF</color>
+    <color name="widget_on_accent">#FF06302B</color>
+    <color name="widget_warn">#FFF3A39B</color>
+    <color name="widget_warn_bg">#FF3A1715</color>
+</resources>

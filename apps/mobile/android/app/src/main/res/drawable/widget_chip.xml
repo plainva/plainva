@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The overdue counter: a tinted pill, the one warning surface on the widget. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_warn_bg" />
+    <corners android:radius="999dp" />
+</shape>

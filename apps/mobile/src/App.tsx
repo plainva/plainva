@@ -32,8 +32,8 @@ import { useConnectionRun } from "./hooks/useConnectionRun";
 import { resumePimOAuthResult } from "./services/pim/pimOAuth";
 import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
 import { useSoftKeyboard } from "./hooks/useSoftKeyboard";
-import { cancelConnect, finishConnect, handleOAuthRedirect, listPendingConnectFolders as oauthListFolders, createPendingConnectFolder as oauthCreateFolder, restorePendingConnect } from "./services/oauthService";
-import { handlePimOAuthRedirect } from "./services/pim/pimOAuth";
+import { cancelConnect, finishConnect, listPendingConnectFolders as oauthListFolders, createPendingConnectFolder as oauthCreateFolder, restorePendingConnect } from "./services/oauthService";
+import { routeAppUrl } from "./services/appUrlRoutes";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mPrompt, mSelect } from "./services/mobileDialogs";
@@ -322,18 +322,6 @@ export default function App() {
   useEffect(() => {
     let removed = false;
     let handle: { remove: () => Promise<void> } | undefined;
-    const routeAppUrl = async (url: string) => {
-      // Launcher shortcuts (package J) ride the app scheme.
-      if (url.startsWith("com.plainva.app://shortcut/")) {
-        const which = url.split("/").pop();
-        window.dispatchEvent(new CustomEvent("m-shortcut", { detail: { which } }));
-        return;
-      }
-      // PIM (calendar) OAuth first — it only consumes a redirect matching its
-      // own pending state, otherwise the sync handler takes it.
-      if (await handlePimOAuthRedirect(url)) return;
-      void handleOAuthRedirect(url);
-    };
     void CapApp.addListener("appUrlOpen", ({ url }) => {
       void routeAppUrl(url);
     }).then((h) => {

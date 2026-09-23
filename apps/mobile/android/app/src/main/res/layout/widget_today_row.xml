@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One row of the "Today" list (plan Widgets, W3).
+
+     Two tap targets in one row, and they must not overlap: the box records an
+     order, everything to the right of it opens the note. The box is given a
+     full 40dp even though the drawing is 20dp, because a tick made by mistake
+     on a home screen is exactly the kind of thing that erodes trust in a
+     widget. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:minHeight="40dp">
+
+    <ImageView
+        android:id="@+id/row_check"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="10dp"
+        android:src="@drawable/widget_check_open"
+        android:contentDescription="@string/widget_tick" />
+
+    <!-- An appointment carries a dot in the same place: it is not something
+         you tick off, and a disabled-looking box would say the wrong thing. -->
+    <ImageView
+        android:id="@+id/row_dot"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="14dp"
+        android:src="@drawable/widget_dot"
+        android:visibility="gone"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:id="@+id/row_body"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingEnd="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- A chosen time is an order; the absence of one is not, so the
+                 column simply disappears rather than standing empty. -->
+            <TextView
+                android:id="@+id/row_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:textColor="@color/widget_text_faint"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/row_flag"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/widget_flag"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/row_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/widget_text"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- The one line that explains a tick the app has not applied yet.
+             Without it the widget would simply lie: the note is unchanged, and
+             the app's own reminder for that task still arrives. -->
+        <TextView
+            android:id="@+id/row_pending"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_text_faint"
+            android:textSize="10sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

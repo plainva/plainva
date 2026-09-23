@@ -4,4 +4,11 @@
     <string name="shortcut_new_task">新建任务</string>
     <string name="shortcut_journal">写日志</string>
     <string name="shortcut_today">今天</string>
+    <string name="widget_today_label">今天</string>
+    <string name="widget_today_description">今天到期的事，以及一下添加。</string>
+    <string name="widget_capture_label">快速记录</string>
+    <string name="widget_capture_description">从主屏幕直接新建任务或日志。</string>
+    <string name="widget_open_app">打开 Plainva</string>
+    <string name="widget_as_of">截至 %1$s</string>
+    <string name="widget_tick">标记完成</string>
 </resources>

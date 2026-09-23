@@ -81,6 +81,51 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+        <!-- Home-screen widgets (plan Widgets, W3). The app has had neither a
+             receiver nor a service before this; both are new here.
+
+             A widget provider MUST be exported - the system is what sends it
+             APPWIDGET_UPDATE - so neither of these two does anything a foreign
+             intent could abuse: they read a file and redraw. Everything that
+             CHANGES something (ticking a task off) goes through
+             WidgetTapReceiver below, which is not exported. -->
+        <receiver
+            android:name=".TodayWidgetProvider"
+            android:label="@string/widget_today_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_info" />
+        </receiver>
+
+        <receiver
+            android:name=".CaptureWidgetProvider"
+            android:label="@string/widget_capture_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_capture_info" />
+        </receiver>
+
+        <!-- Where a tap on a row lands. NOT exported: the app's own
+             PendingIntents reach it, and nothing else does. -->
+        <receiver
+            android:name=".WidgetTapReceiver"
+            android:exported="false" />
+
+        <!-- The list of the "Today" widget. BIND_REMOTEVIEWS is what lets the
+             launcher bind to it, and declaring the permission here means only
+             the system can. -->
+        <service
+            android:name=".TodayWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
     </application>
 
     <!-- Permissions -->

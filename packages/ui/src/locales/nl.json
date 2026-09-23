@@ -584,6 +584,10 @@
     "tagsSection": "Tags",
     "tagColors": "Tags kleuren",
     "tagColorsDesc": "Elke tag krijgt een kleur op basis van zijn naam; geneste tags delen de kleur van hun bovenste tag. Geldt in notities, eigenschappen, databases en de taglijst. Alleen op dit apparaat; er wordt niets voor opgeslagen.",
+    "widgetsSection": "Widgets",
+    "widgetShowTitles": "Titels in de widget tonen",
+    "widgetShowEvents": "Afspraken in de widget tonen",
+    "widgetsDesc": "Alleen dit apparaat. Zonder titels laat de widget alleen zien hoeveel er staat. Een vergrendelde versleutelde werkruimte toont sowieso niets.",
     "weekStart": "Week begint op",
     "weekStartDesc": "Eerste dag van de week in alle agendaweergaven.",
     "weekStartMonday": "Maandag",
@@ -4753,6 +4757,8 @@
     "locked": "Vergrendeld — open in Plainva",
     "pending": "wordt toegepast bij het openen van Plainva",
     "newTask": "Taak",
-    "newJournal": "Journaal"
+    "newJournal": "Journaal",
+    "redeemed_one": "{{count}} taak afgevinkt vanaf de widget",
+    "redeemed_other": "{{count}} taken afgevinkt vanaf de widget"
   }
 }

@@ -264,9 +264,11 @@ public final class WidgetStore {
     /**
      * Asks every widget of this package to redraw.
      *
-     * Deliberately not addressed to a named provider class: the broadcast is
-     * scoped to this package, so it reaches the providers that exist without
-     * this file having to know them. W3 adds the list-view invalidation on top.
+     * Two steps, because an update broadcast redraws a widget's own views but
+     * does NOT tell a list adapter that its data changed — the rows would keep
+     * showing the previous snapshot until the launcher happened to rebind.
+     * The package-scoped broadcast reaches whatever providers exist; the
+     * explicit call reaches the one that has a list.
      */
     public static void reload(Context context) {
         try {
@@ -275,6 +277,11 @@ public final class WidgetStore {
             context.sendBroadcast(intent);
         } catch (Exception e) {
             /* a redraw that does not happen costs a stale widget, never a crash */
+        }
+        try {
+            TodayWidgetProvider.refresh(context);
+        } catch (Exception e) {
+            /* same */
         }
     }
 }

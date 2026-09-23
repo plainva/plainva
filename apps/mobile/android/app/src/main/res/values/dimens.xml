@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget shape (plan Widgets, E6): Plainva's colours, the platform's
+     geometry. Before Android 12 the system published no radius, so these are
+     the values the platform used then. values-v31 takes the real ones. -->
+<resources>
+    <dimen name="widget_radius">16dp</dimen>
+    <dimen name="widget_inner_radius">10dp</dimen>
+    <dimen name="widget_padding">12dp</dimen>
+</resources>

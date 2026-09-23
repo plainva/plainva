@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Today" (plan Widgets, W3/E7).
+
+     updatePeriodMillis is 30 minutes, which is also the platform's floor: the
+     widget does not need the app to turn the page at midnight, it only needs
+     to be asked again reasonably soon after. Everything else it draws comes
+     from the snapshot, so a refresh costs a file read.
+
+     Resizable from 3x2 to the full grid. The minimum is two rows because a
+     single-row "Today" would show the head and nothing else. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:maxResizeWidth="320dp"
+    android:maxResizeHeight="440dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_today"
+    android:previewLayout="@layout/widget_today"
+    android:description="@string/widget_today_description"
+    android:widgetCategory="home_screen" />

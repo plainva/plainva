@@ -41,10 +41,11 @@ export function onAppForeground(): void {
   window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
   window.dispatchEvent(new CustomEvent("m-backup-due"));
   window.dispatchEvent(new CustomEvent("m-poll-share"));
-  // The home screen went on showing whatever was true when we left
-  // (plan Widgets, E7). Debounced, because the cycles above are about
-  // to fire their own events and one write per return is enough.
-  void import("./widgetService").then((m) => m.scheduleWidgetRefresh()).catch(() => {});
+  // The home screen went on showing whatever was true when we left, and a
+  // tick made on it is still waiting (plan Widgets, E7/W5). Redeem FIRST,
+  // then write: an order names the snapshot it was made against, so a fresh
+  // one would strand every tap made while the app was away.
+  void import("./widgetService").then((m) => m.catchUpWidgets()).catch(() => {});
 }
 
 /**

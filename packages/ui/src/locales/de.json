@@ -584,6 +584,10 @@
     "tagsSection": "Tags",
     "tagColors": "Tags einfärben",
     "tagColorsDesc": "Jeder Tag bekommt eine Farbe aus seinem Namen – verschachtelte Tags teilen die Farbe ihres obersten Tags. Gilt in Notizen, Eigenschaften, Datenbanken und der Tag-Liste. Nur auf diesem Gerät; gespeichert wird dabei nichts.",
+    "widgetsSection": "Widgets",
+    "widgetShowTitles": "Titel im Widget zeigen",
+    "widgetShowEvents": "Termine im Widget zeigen",
+    "widgetsDesc": "Gilt nur für dieses Gerät. Ohne Titel zeigt das Widget nur, wie viel ansteht. Ein gesperrter verschlüsselter Workspace zeigt ohnehin nichts.",
     "weekStart": "Wochenbeginn",
     "weekStartDesc": "Erster Wochentag in allen Kalender-Ansichten.",
     "weekStartMonday": "Montag",
@@ -4753,6 +4757,8 @@
     "locked": "Gesperrt — in Plainva öffnen",
     "pending": "wird beim Öffnen übernommen",
     "newTask": "Aufgabe",
-    "newJournal": "Journal"
+    "newJournal": "Journal",
+    "redeemed_one": "{{count}} Aufgabe aus dem Widget abgehakt",
+    "redeemed_other": "{{count}} Aufgaben aus dem Widget abgehakt"
   }
 }

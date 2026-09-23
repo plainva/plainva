@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Quick capture" (plan Widgets, W3/E1): two buttons, nothing to refresh.
+
+     No updatePeriodMillis at all - there is no content that can go stale. It
+     redraws when the app writes a snapshot, which is only so the two labels
+     follow the app's language. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="40dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_capture"
+    android:previewLayout="@layout/widget_capture"
+    android:description="@string/widget_capture_description"
+    android:widgetCategory="home_screen" />

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Quick capture" widget (plan Widgets, W3): two targets, no content.
+
+     It shows nothing on purpose. A capture surface that also displayed the
+     day would compete with "Today" for the same glance, and the two widgets
+     are meant to be placed side by side. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@drawable/widget_bg"
+    android:padding="8dp"
+    android:baselineAligned="false">
+
+    <LinearLayout
+        android:id="@+id/capture_task"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="4dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_button"
+        android:padding="6dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/widget_task"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/capture_task_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:gravity="center"
+            android:textColor="@color/widget_text"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/capture_journal"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/widget_button"
+        android:padding="6dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/widget_pen"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/capture_journal_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:gravity="center"
+            android:textColor="@color/widget_text"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "Today" widget (plan Widgets, W3).
+
+     RemoteViews admits only a handful of view types and no custom fonts, so
+     this is deliberately plain: a head, a counter, a list. What makes it
+     Plainva is the colour and the ordering, not the typography — Android
+     simply does not allow the latter in a widget.
+
+     The head is a tap target in its own right and stays visible in every
+     state, including the empty and the locked one: those are exactly the
+     moments when someone taps the widget to find out more. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="@dimen/widget_padding">
+
+    <LinearLayout
+        android:id="@+id/today_head"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/today_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/widget_text"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <!-- Day, vault, and - once the snapshot is from an earlier day -
+                 when it was written. -->
+            <TextView
+                android:id="@+id/today_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/widget_text_faint"
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/today_overdue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_chip"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:layout_marginEnd="6dp"
+            android:textColor="@color/widget_warn"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/today_add"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="5dp"
+            android:src="@drawable/widget_plus"
+            android:contentDescription="@string/shortcut_new_task" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/today_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@null"
+        android:dividerHeight="0dp" />
+
+    <!-- One place for all three "nothing to list" answers: nothing due, the
+         vault is sealed, or there is no snapshot yet. Which sentence it shows
+         is the provider's decision, because only it knows which case holds. -->
+    <TextView
+        android:id="@+id/today_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:textColor="@color/widget_text_faint"
+        android:textSize="13sp"
+        android:visibility="gone" />
+</LinearLayout>
