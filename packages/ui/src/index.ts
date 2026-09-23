@@ -151,6 +151,7 @@ export * from "./lib/dailyNoteCreate";
 export * from "./lib/journalWrite";
 export * from "./lib/journalFeed";
 export * from "./lib/journalShape";
+export * from "./lib/widgetSnapshot";
 export * from "./lib/readSelectionVerbs";
 export * from "./lib/baseViewState";
 export * from "./lib/backlinks";
