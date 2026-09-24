@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { connectionFailureCode, CONNECTION_FAILURE_CODES } from "../src/sync/connectionFailure.js";
-import { classifySyncError } from "../src/sync/errorKind.js";
+import { classifySyncError, isRequestSendFailure } from "../src/sync/errorKind.js";
 
 describe("connection failures across native bridges", () => {
   it.each(CONNECTION_FAILURE_CODES)("preserves %s after bridge serialization and worker wrapping", code => {
@@ -23,5 +23,27 @@ describe("connection failures across native bridges", () => {
     expect(classifySyncError("HTTP_TIMEOUT")).toBe("transient");
     expect(classifySyncError("HTTP_ORIGIN_BLOCKED")).toBe("fatal");
     expect(classifySyncError("HTTP_REQUEST_FAILED")).toBe("fatal");
+  });
+
+  /**
+   * reqwest's wording for a request that never got an answer. It parked a
+   * Google account for days as "fatal" (finding 2026-09-24); a number in the
+   * URL is not an HTTP status, and a certificate problem in the same wrapper
+   * stays an answer.
+   */
+  it.each([
+    "error sending request for url (https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250)",
+    "error sending request for url (https://graph.microsoft.com/v1.0/me/calendars/404/events)",
+    "Calendar pull failed: error sending request for url (https://example.invalid/dav/): client error (Connect)",
+    "client error (SendRequest): connection closed before message completed",
+  ])("waits out a request that was sent and never answered: %s", (message) => {
+    expect(isRequestSendFailure(new Error(message))).toBe(true);
+    expect(classifySyncError(new Error(message))).toBe("transient");
+    expect(classifySyncError(message)).toBe("transient");
+  });
+
+  it("keeps a certificate problem behind the same wrapper fatal", () => {
+    const tls = "error sending request for url (https://dav.example.invalid/): invalid peer certificate: UnknownIssuer";
+    expect(classifySyncError(new Error(tls))).toBe("fatal");
   });
 });

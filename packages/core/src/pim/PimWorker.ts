@@ -1,5 +1,5 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
-import { classifySyncError } from "../sync/errorKind.js";
+import { classifySyncError, isRequestSendFailure } from "../sync/errorKind.js";
 import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
@@ -206,6 +206,11 @@ export class PimWorker {
                 enabled.map(async (a) => {
                   const st = await cache.getScopeState(a.id, "account").catch(() => null);
                   const revision = revisions.get(a.id);
+                  // A verdict written by an older build that read a request
+                  // which never got an answer as final (finding 2026-09-24) is
+                  // not an answer: such an account is asked again from the
+                  // next cycle on, the first one after an update included.
+                  if (st?.lastErrorKind === "fatal" && isRequestSendFailure(st.lastError ?? "")) return null;
                   return st?.lastErrorKind === "fatal" && (!revision || revision === st.authRevision) ? a.id : null;
                 })
               )

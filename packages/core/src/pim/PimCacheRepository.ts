@@ -110,9 +110,21 @@ export class PimCacheRepository {
     });
   }
 
+  /**
+   * Writes the account row IN PLACE (finding 2026-09-24).
+   *
+   * Never `INSERT OR REPLACE`: SQLite resolves that conflict by deleting the old
+   * row, and with foreign keys on the delete cascades to `pim_calendars` and
+   * `pim_tasklists`. Every re-save — the connect wizard enabling the account,
+   * every settings sync, every profile import — emptied both; the next pull
+   * brought them back with every calendar and task list selected again, so
+   * lists the person had switched off were imported into the vault once more.
+   */
   async upsertAccount(row: PimAccountRow): Promise<void> {
     await this.db.execute(
-      `INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET provider = excluded.provider, label = excluded.label,
+         config = excluded.config, enabled = excluded.enabled`,
       [row.id, row.provider, row.label, JSON.stringify(row.config ?? {}), row.enabled ? 1 : 0]
     );
   }

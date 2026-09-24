@@ -58,6 +58,23 @@ export function syncHttpError(message: string, response: Response): SyncProvider
 }
 
 /**
+ * A request that never got an answer (finding 2026-09-24).
+ *
+ * "error sending request for url (…)" is how reqwest/hyper — the desktop's HTTP
+ * stack — reports a request that failed before any response: DNS, a dropped
+ * or refused connection, a network switch mid-flight. None of the network
+ * words below appear in it, so it counted as FATAL, and the PIM worker parked
+ * a Google account on it for days until someone signed in again. There is no
+ * HTTP status behind it either: a number in the URL (`maxResults=500`) must not
+ * pass for one. A certificate problem arrives in the same wrapper and is caught
+ * earlier by `connectionFailureCode`, so it stays fatal.
+ */
+export function isRequestSendFailure(error: unknown): boolean {
+  const text = syncErrorMessage(error).toLowerCase();
+  return /error sending request|client error \((?:connect|sendrequest)\)/.test(text);
+}
+
+/**
  * Is this failure worth waiting out, or is it an answer?
  *
  * Until round 3 of the mobile rework the worker had no such question: EVERY
@@ -94,6 +111,9 @@ export function classifySyncError(error: unknown): SyncErrorKind {
   const provider = error instanceof SyncProviderError ? error
     : error instanceof Error && error.cause instanceof SyncProviderError ? error.cause : undefined;
   if (provider?.transient) return "transient";
+
+  // Sent, never answered: waiting is exactly what fixes it.
+  if (isRequestSendFailure(error)) return "transient";
 
   // An explicit status wins over any wording. `status` is what a thrown
   // Response-like error carries; the providers also put the code in the text.

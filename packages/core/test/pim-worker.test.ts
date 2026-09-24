@@ -412,6 +412,38 @@ describe("PimWorker", () => {
       expect(flaky.listCalendars).toHaveBeenCalledTimes(2);
     });
 
+    /**
+     * "error sending request" parked an account for days (finding 2026-09-24):
+     * a request that got no answer is not an answer. A new failure of that kind
+     * is retried with the normal backoff…
+     */
+    it("keeps asking after a request that was sent and never answered", async () => {
+      const unreachable = {
+        ...fakeTarget([]),
+        listCalendars: vi.fn(async () => {
+          throw new Error("error sending request for url (https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250)");
+        }),
+      };
+      const worker = workerFor(unreachable as IPimTarget);
+      await worker.triggerImmediate();
+      expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("transient");
+      await autoCycle(worker);
+      expect(unreachable.listCalendars).toHaveBeenCalledTimes(2);
+    });
+
+    /** …and an account an older build already parked on it resumes on start. */
+    it("resumes an account parked on a send failure by an older build", async () => {
+      await cache.setScopeState("a1", "account", {
+        lastError: "error sending request for url (https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250)",
+        lastErrorKind: "fatal",
+        authRevision: "same-login",
+      });
+      const target = fakeTarget([]);
+      await autoCycle(workerFor(target, { accountAuthRevision: async () => "same-login" }));
+      expect(target.listCalendars).toHaveBeenCalledTimes(1);
+      expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBeNull();
+    });
+
     /** A row written before the column existed reads as unknown, never as parked. */
     it("retries a state that carries no verdict", async () => {
       await cache.setScopeState("a1", "account", { lastError: "something from an older build" });
