@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-09-19
+Dernière mise à jour : 2026-09-24
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -17,6 +17,8 @@ Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de 
 Connecter le compte valide l'identification avant que quoi que ce soit ne soit enregistré ; les identifiants vont dans le trousseau de votre système d'exploitation. Les boîtes connectées et les réglages de capture se trouvent ensuite dans la zone **E-mail** : le réglage **Dossier e-mail** choisit où les e-mails capturés sont stockés (par défaut `Mail`).
 
 **Se connecter sur un deuxième appareil.** Lorsqu'une boîte aux lettres arrive par la synchronisation des réglages, son mot de passe ne suit pas automatiquement — les connexions ne sont transférées que si vous activez vous-même la synchronisation des identifiants. Une telle boîte affiche le bouton **Se connecter sur cet appareil** dans la zone **E-mail** : saisissez le mot de passe, Plainva le vérifie auprès du fournisseur avant de l'enregistrer dans le trousseau. Pour une boîte Microsoft, le même bouton mène à **Comptes cloud**, car la connexion s'y fait dans le navigateur. Si cela laisse la liste des messages vide, le même avis et le même bouton y apparaissent aussi — vous n'êtes pas obligé d'aller chercher les paramètres vous-même.
+
+**Comptes e-mail incomplets.** Une configuration qui échouait à l’enregistrement pouvait laisser une entrée sans mot de passe (Plainva 0.8.3 sur ordinateur). La zone **E-mail** signale ces entrées une fois, par un avis sur les **comptes e-mail incomplets**. Seule compte une entrée qui n’a pas de mot de passe sur cet appareil et n’a jamais récupéré d’e-mails. **Voir** affiche la liste, **Retirer** supprime exactement cette entrée après confirmation — jamais d’e-mails, jamais de fichiers — et **Plus tard** masque l’avis. Plainva ne retire jamais rien de lui-même.
 
 ## Lire les e-mails
 

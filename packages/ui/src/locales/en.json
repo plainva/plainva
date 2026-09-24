@@ -3353,7 +3353,20 @@
       "cancelled": "Not performed: cancelled."
     },
     "noAttachmentMatches": "No confirmed attachments in the loaded messages.",
-    "cacheUpdateFailed": "Server change confirmed. The local mail cache could not be updated; reload the folder."
+    "cacheUpdateFailed": "Server change confirmed. The local mail cache could not be updated; reload the folder.",
+    "orphans": {
+      "title_one": "{{count}} incomplete email account",
+      "title_other": "{{count}} incomplete email accounts",
+      "body": "No password, and no mail ever fetched — most likely left over from a setup that did not finish. Remove deletes only the entry, never any mail.",
+      "review": "View",
+      "later": "Later",
+      "rowMeta": "without password · {{server}}",
+      "remove": "Remove",
+      "confirmTitle": "Remove incomplete email account?",
+      "confirmMessage": "{{label}} has no password and has never fetched mail. Only this entry is removed — no mail, no files.",
+      "removed": "Entry removed.",
+      "keptSignedIn": "This account has been signed in meanwhile, so it was kept."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Files",
@@ -4553,11 +4566,13 @@
     "grantGoogle": "Authorize with Google",
     "ownRegistration": "Your own app registration",
     "loginFailed": "The connection could not be completed. Your entries are kept. Try again.",
+    "providerResponse": "Provider response: {{detail}}",
     "accountChanged": "The target account or vault changed. Open the intended account again.",
     "wrongAccount": "You signed in to a different account. Choose the displayed account when signing in again.",
     "needsConsent": "This service needs a new authorization. Sign in again and allow the requested access.",
     "identityUnavailable": "The account identity could not be verified. Sign in to the provider again.",
     "storageFailed": "Storage could not be confirmed. Try again; setup will resume the same connection.",
+    "signedInNotSaved": "The sign-in worked, but the account data could not be saved on this device. Nothing was left half-created.",
     "transferTitle": "Copy files and accounts",
     "transferSummary": "{{source}} → {{target}}. {{local}} local files, {{remote}} cloud files, {{conflicts}} collisions. The source vault is kept. Calendars and email will be set up in the destination.",
     "transferCopy": "Local file as a separate copy",

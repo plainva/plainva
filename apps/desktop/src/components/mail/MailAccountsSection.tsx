@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
-import { Button, ChipField, EmptyState, GmailSignInButton, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount } from "@plainva/ui";
+import { Banner, Button, ChipField, EmptyState, GmailSignInButton, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount, serviceConnectionMessage, toast } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, refreshCloudAccounts } from "../../services/cloudAccounts";
+import { appConfirm } from "../../services/appDialogs";
 import { desktopGmailClient, signInGmail } from "../../services/mail/gmailAuth";
-import { checkMailLogin, listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, setMailPassword, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
+import { checkMailLogin, listMailAccounts, mailAccountKind, normalizeSenderAddress, senderOptions, setMailPassword, updateMailAccount, orphanedMailServer, useOrphanedMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
@@ -70,11 +71,13 @@ function MailAccountRow({
       setOpen(false);
       onSignedIn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      // The same translation as the phone's form: the server's answer word for
+      // word, framed as such (finding 2026-09-24).
+      setError(serviceConnectionMessage(e, t));
     } finally {
       setBusy(false);
     }
-  }, [account, pass, vaultPath, onSignedIn]);
+  }, [account, pass, vaultPath, onSignedIn, t]);
 
   return (
     <>
@@ -142,6 +145,75 @@ function MailAccountRow({
 }
 
 /**
+ * The one-time notice about incomplete mail accounts (finding 2026-09-24, E4):
+ * entries a failed setup left behind — no password, never a fetch. The rule and
+ * the removal live in the shared hook; this renders it with the desktop's
+ * account rows and asks the desktop's confirmation. Never removes by itself.
+ */
+export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved }: { vaultPath: string; reloadToken: number; onRemoved: () => void }) {
+  const { t } = useTranslation();
+  const { dbAdapter, pimRuntime } = useVault();
+  const notice = useOrphanedMailAccounts(vaultPath, dbAdapter, reloadToken);
+  const [open, setOpen] = useState(false);
+  if (!notice.visible) return null;
+
+  const remove = async (account: MailAccountConfig) => {
+    const label = account.label || account.user;
+    const ok = await appConfirm({
+      title: t("mail.orphans.confirmTitle"),
+      message: t("mail.orphans.confirmMessage", { label }),
+      confirmLabel: t("mail.orphans.remove"),
+      kind: "danger",
+    });
+    if (!ok) return;
+    try {
+      const result = await notice.remove(account);
+      toast.success(t(result === "removed" ? "mail.orphans.removed" : "mail.orphans.keptSignedIn"));
+      // The card that referenced it loses the reference, exactly as after any
+      // other removal of a mailbox.
+      await refreshCloudAccounts(vaultPath, pimRuntime ?? null).catch(() => undefined);
+      onRemoved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <>
+      <Banner
+        kind="warning"
+        rounded
+        actions={
+          <>
+            <Button size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mail-orphans-review">
+              {t("mail.orphans.review")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void notice.later()} data-testid="mail-orphans-later">
+              {t("mail.orphans.later")}
+            </Button>
+          </>
+        }
+      >
+        <strong>{t("mail.orphans.title", { count: notice.orphans.length })}</strong> {t("mail.orphans.body")}
+      </Banner>
+      {open &&
+        notice.orphans.map((account) => (
+          <div className="pv-acct" data-testid="mail-orphan" key={account.id}>
+            <AccountMark family={familyOfMailAccount({ kind: mailAccountKind(account), user: account.user, host: account.host })} small />
+            <div className="pv-acct-who">
+              <div className="pv-acct-name">{account.label || account.user}</div>
+              <div className="pv-acct-id">{t("mail.orphans.rowMeta", { server: orphanedMailServer(account) })}</div>
+            </div>
+            <Button variant="danger-soft" onClick={() => void remove(account)} data-testid="mail-orphan-remove">
+              {t("mail.orphans.remove")}
+            </Button>
+          </div>
+        ))}
+    </>
+  );
+}
+
+/**
  * The "E-Mail" service page content (cloud-accounts split): mailbox REFERENCES
  * plus the capture/privacy behavior. Connecting and removing mailboxes lives
  * in the Cloud-Konten area (connect wizard / account detail).
@@ -177,10 +249,14 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
     [vaultPath]
   );
 
+  // Bumped on every reload, so the orphan notice re-checks after a sign-in or
+  // a removal instead of offering an entry that just changed.
+  const [reloads, setReloads] = useState(0);
   const reload = useCallback(async () => {
     if (!vaultPath) return;
     const list = await listMailAccounts(vaultPath);
     setAccounts(list);
+    setReloads((n) => n + 1);
     await loadSignIn(list);
   }, [vaultPath, loadSignIn]);
 
@@ -302,6 +378,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   return (
     <div data-testid="mail-accounts">
       <SettingCard label={t("cloudAccounts.mailboxesGroup")}>
+        <OrphanedMailNotice vaultPath={vaultPath} reloadToken={reloads} onRemoved={() => void reload()} />
         {desktopGmailClient() && <GmailSignInButton onSignIn={async () => { await signInGmail(vaultPath); await reload(); }} />}
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
@@ -318,7 +395,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
             vaultPath={vaultPath}
             account={account}
             signedIn={signIn.get(account.id) ?? "active"}
-            onSignedIn={() => void loadSignIn(accounts)}
+            onSignedIn={() => void reload()}
             onOpenCloudAccounts={onOpenCloudAccounts}
           />
         ))}

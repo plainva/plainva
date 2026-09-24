@@ -3382,7 +3382,21 @@
       "cancelled": "Sin ejecutar: cancelado."
     },
     "noAttachmentMatches": "No hay adjuntos confirmados en los mensajes cargados.",
-    "cacheUpdateFailed": "Cambio confirmado en el servidor. No se pudo actualizar la caché local; vuelve a cargar la carpeta."
+    "cacheUpdateFailed": "Cambio confirmado en el servidor. No se pudo actualizar la caché local; vuelve a cargar la carpeta.",
+    "orphans": {
+      "title_one": "{{count}} cuenta de correo incompleta",
+      "title_many": "{{count}} cuentas de correo incompletas",
+      "title_other": "{{count}} cuentas de correo incompletas",
+      "body": "Sin contraseña y sin haber recibido nunca correo: probablemente restos de una configuración que no terminó. Quitar elimina solo la entrada, nunca correos.",
+      "review": "Ver",
+      "later": "Más tarde",
+      "rowMeta": "sin contraseña · {{server}}",
+      "remove": "Quitar",
+      "confirmTitle": "¿Quitar la cuenta de correo incompleta?",
+      "confirmMessage": "{{label}} no tiene contraseña y nunca ha recibido correo. Solo se quita esta entrada: ningún correo, ningún archivo.",
+      "removed": "Entrada quitada.",
+      "keptSignedIn": "Mientras tanto se inició sesión en esta cuenta, así que se conserva."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Archivos",
@@ -4607,11 +4621,13 @@
     "grantGoogle": "Autorizar con Google",
     "ownRegistration": "Tu propio registro de aplicación",
     "loginFailed": "No se pudo completar la conexión. Se conservan tus datos. Inténtalo de nuevo.",
+    "providerResponse": "Respuesta del proveedor: {{detail}}",
     "accountChanged": "La cuenta o el vault de destino cambió. Vuelve a abrir la cuenta deseada.",
     "wrongAccount": "Has accedido con otra cuenta. Al volver a iniciar sesión, elige la cuenta indicada.",
     "needsConsent": "Este servicio necesita una nueva autorización. Vuelve a iniciar sesión y permite el acceso solicitado.",
     "identityUnavailable": "No se pudo verificar la identidad de la cuenta. Vuelve a iniciar sesión con el proveedor.",
     "storageFailed": "No se pudo confirmar el guardado. Inténtalo de nuevo; el asistente reanudará la misma conexión.",
+    "signedInNotSaved": "El inicio de sesión funcionó, pero los datos de la cuenta no se pudieron guardar en este dispositivo. No quedó nada a medio crear.",
     "transferTitle": "Copiar archivos y cuentas",
     "transferSummary": "{{source}} → {{target}}. {{local}} archivos locales, {{remote}} en la nube y {{conflicts}} colisiones. Se conserva el vault de origen. Los calendarios y el correo se configurarán en el destino.",
     "transferCopy": "Archivo local como copia independiente",

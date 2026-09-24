@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import i18n from "@plainva/ui/i18n";
+import { serviceConnectionMessage } from "@plainva/ui";
 
 /**
  * The loopback that catches the OAuth redirect, and what to say when it does
@@ -25,21 +26,16 @@ export async function cancelOAuthLoopback(): Promise<void> {
 }
 
 /**
- * Turns a loopback failure into a sentence about what the person did.
+ * The desktop's name for the ONE shared translation of a failed connection
+ * (`serviceConnectionMessage`, finding 2026-09-24).
  *
- * Matched on the marker strings the Rust side returns, deliberately narrow:
- * anything else keeps its own text, because a provider's real error message
- * ("access_denied: the app is not verified") says far more than a generic
- * replacement would.
+ * This used to be its own, narrower rule: the loopback markers became
+ * sentences and everything else went through unchanged — which is how the
+ * wizard printed "storageFailed" where a sentence belonged, while the phone
+ * said something readable about the same failure. The loopback markers now
+ * live in the shared rule; a provider's own answer still reaches the screen
+ * word for word, framed as the provider's answer.
  */
 export function oauthErrorText(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err ?? "");
-  if (raw.includes("oauth loopback cancelled")) return i18n.t("settings.oauthCancelled");
-  if (raw.includes("oauth loopback timed out")) return i18n.t("settings.oauthTimedOut");
-  if (raw.includes("oauth error in redirect")) {
-    // The provider said why; keep its words and only frame them.
-    const detail = raw.split("oauth error in redirect:").pop()?.trim();
-    return detail ? i18n.t("settings.oauthProviderError", { detail }) : i18n.t("settings.oauthCancelled");
-  }
-  return raw;
+  return serviceConnectionMessage(err, (key, options) => i18n.t(key, options ?? {}));
 }

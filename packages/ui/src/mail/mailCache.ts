@@ -314,6 +314,22 @@ export async function cachedMessage(
   }
 }
 
+/**
+ * Whether this device ever showed a message list of the account: cached
+ * envelopes exist only after a fetch that worked. `null` when there is no
+ * writable cache to ask (no database, a read-only window) — which proves
+ * nothing either way, so callers must not read it as "never".
+ */
+export async function hasCachedMail(db: IDatabaseAdapter | null | undefined, account: string): Promise<boolean | null> {
+  if (!db || !(await ensure(db))) return null;
+  try {
+    const row = await db.queryOne<{ one: number }>(`SELECT 1 AS one FROM mail_envelopes WHERE account = ? LIMIT 1`, [account]);
+    return row !== null;
+  } catch {
+    return null;
+  }
+}
+
 /** Drops everything cached for an account (used when it is removed). */
 export async function forgetCachedMail(db: IDatabaseAdapter | null | undefined, account: string): Promise<void> {
   if (!db || !(await ensure(db))) return;

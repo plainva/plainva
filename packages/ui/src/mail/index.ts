@@ -14,6 +14,8 @@ export * from "./transport";
 export * from "./credentialsError";
 export * from "./mailErrorText";
 export * from "./mailAccounts";
+export * from "./orphanedMailAccounts";
+export * from "./useOrphanedMailAccounts";
 export * from "./gmailAccount";
 export * from "./mailClient";
 export * from "./graphMail";

@@ -1,5 +1,5 @@
 import type { MailAccountConfig } from "./mailAccounts";
-import { mailAccountKind } from "./mailAccounts";
+import { mailAccountKind, markMailAccountFetched } from "./mailAccounts";
 import { mailTransport } from "./transport";
 import { mailCredentials as creds, withMailCredentials } from "./mailCredentials";
 import type {
@@ -69,14 +69,18 @@ export async function listEnvelopes(
   limit: number,
   beforeId?: string
 ): Promise<MailEnvelopePage> {
-  if (mailAccountKind(account) === "microsoft") return graphListEnvelopes(vaultPath, account, mailbox, offset, limit);
-  const page = await withMailCredentials(vaultPath, account, credential => mailTransport().listEnvelopes(credential, {
-    mailbox,
-    offset,
-    limit,
-    beforeUid: beforeId ? Number(beforeId) : undefined,
-  }));
-  return { total: page.total, unseen: page.unseen, messages: page.messages.map(toEnvelope) };
+  const page: MailEnvelopePage = mailAccountKind(account) === "microsoft"
+    ? await graphListEnvelopes(vaultPath, account, mailbox, offset, limit)
+    : await withMailCredentials(vaultPath, account, credential => mailTransport().listEnvelopes(credential, {
+      mailbox,
+      offset,
+      limit,
+      beforeUid: beforeId ? Number(beforeId) : undefined,
+    })).then(raw => ({ total: raw.total, unseen: raw.unseen, messages: raw.messages.map(toEnvelope) }));
+  // The mailbox answered: from now on it is a working account on every device,
+  // never an entry a failed setup left behind (finding 2026-09-24).
+  void markMailAccountFetched(vaultPath, account);
+  return page;
 }
 
 /**

@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-09-19
+Stand: 2026-09-24
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -17,6 +17,8 @@ Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen
 Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; die Zugangsdaten landen im Schlüsselbund Deines Betriebssystems. Die verbundenen Postfächer und die Ablage-Einstellungen findest Du danach im Bereich **E-Mail**: die Einstellung **E-Mail-Ordner** bestimmt, wo abgelegte E-Mails gespeichert werden (Standard `Mail`).
 
 **Auf einem zweiten Gerät anmelden.** Reist ein Postfach über die Einstellungs-Synchronisation mit, kommt sein Passwort nicht automatisch mit — Anmeldungen werden nur übertragen, wenn Du den Zugangsdaten-Sync ausdrücklich einschaltest. Ein solches Postfach zeigt im Bereich **E-Mail** den Knopf **Auf diesem Gerät anmelden**: Passwort eingeben, Plainva prüft es beim Anbieter und legt es erst danach im Schlüsselbund ab. Bei einem Microsoft-Postfach führt derselbe Knopf zu **Cloud-Konten**, weil dort die Anmeldung im Browser läuft. Bleibt die Nachrichtenliste deswegen leer, steht derselbe Hinweis mit demselben Knopf auch dort — Du musst die Einstellungen dafür nicht selbst suchen.
+
+**Unvollständige E-Mail-Konten.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** zeigt solche Einträge einmal als Hinweis **unvollständige E-Mail-Konten** an. Gezählt wird nur ein Eintrag, der auf diesem Gerät kein Passwort hat und noch nie Mails abgerufen hat. **Ansehen** zeigt die Liste, **Entfernen** löscht nach einer Rückfrage genau diesen Eintrag — nie Mails, nie Dateien —, und **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
 
 ## Mails lesen
 

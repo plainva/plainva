@@ -12,7 +12,7 @@ import {
   generatePkcePair,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, getVaultTemplates, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
@@ -154,7 +154,7 @@ export async function persistPendingConnect(provider: MobileSyncProvider): Promi
     if (!previous) return;
     const next = { ...previous, provider };
     await credentials.writeSecret(FOLDER_KEY, next);
-    if (!sameStoredValue(await credentials.readSecret(FOLDER_KEY), next)) throw new Error("storageFailed");
+    if (!sameStoredValue(await credentials.readSecret(FOLDER_KEY), next)) throw new ServiceConnectionError("storageFailed");
   });
 }
 
@@ -169,7 +169,7 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   pendingCreateTemplateId = null; pendingServiceContext = context;
   const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
-  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), saved)) throw new Error("storageFailed");
+  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), saved)) throw new ServiceConnectionError("storageFailed");
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
   return true;
 }
@@ -477,7 +477,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
 async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtras): Promise<void> {
   const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
-  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), folderState)) throw new Error("storageFailed");
+  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), folderState)) throw new ServiceConnectionError("storageFailed");
   pendingConnect = provider;
   pendingCreateTemplateId = folderState.createTemplateId;
   pendingServiceContext = folderState.context;

@@ -149,7 +149,7 @@ export function AddVaultScreen({
         serviceContext: connectionRun?.context,
         });
       })()
-        .catch((e) => setError(serviceConnectionMessage(e, key => t(key))))
+        .catch((e) => setError(serviceConnectionMessage(e, t)))
         .finally(() => setBusy(false));
       return;
     }
@@ -201,7 +201,7 @@ export function AddVaultScreen({
           subfoldersHeading: t("indexMd.subfoldersHeading"),
         })
       : connectProvider(vault, withRoot);
-    void run.catch((e) => setError(serviceConnectionMessage(e, key => t(key)))).finally(() => setBusy(false));
+    void run.catch((e) => setError(serviceConnectionMessage(e, t))).finally(() => setBusy(false));
   };
 
   const canConnect =

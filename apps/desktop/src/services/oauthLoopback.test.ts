@@ -5,6 +5,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) })
 import { invoke } from "@tauri-apps/api/core";
 import { cancelOAuthLoopback, oauthErrorText } from "./oauthLoopback";
 import i18n from "@plainva/ui/i18n";
+import { ServiceConnectionError } from "@plainva/ui";
 
 /**
  * What the app says when a consent tab is closed (N1/S1).
@@ -35,14 +36,30 @@ describe("turning a loopback failure into something a person can read", () => {
   });
 
   /**
-   * Deliberately narrow: anything that is not one of our markers keeps its own
-   * text. A generic replacement would hide the one message that helps.
+   * Anything that is not one of our codes keeps its own words — a generic
+   * replacement would hide the one message that helps — but is framed as the
+   * provider's answer, so it never reads like a sentence of Plainva's
+   * (finding 2026-09-24).
    */
-  it("leaves every other failure alone", () => {
+  it("keeps every other failure verbatim, framed as the provider's answer", async () => {
+    await i18n.changeLanguage("en");
     expect(oauthErrorText(new Error("Address already in use (os error 98)"))).toBe(
-      "Address already in use (os error 98)",
+      "Provider response: Address already in use (os error 98)",
     );
-    expect(oauthErrorText("plain string")).toBe("plain string");
+    expect(oauthErrorText("plain string")).toBe("Provider response: plain string");
+  });
+
+  /** Plainva's own codes never reach the screen raw — "storageFailed" did. */
+  it("turns Plainva's own codes into sentences", async () => {
+    await i18n.changeLanguage("en");
+    expect(oauthErrorText(new ServiceConnectionError("storageFailed"))).toBe(
+      "The sign-in worked, but the account data could not be saved on this device. Nothing was left half-created.",
+    );
+    expect(oauthErrorText(new ServiceConnectionError("needsConsent"))).toBe(i18n.t("connection.needsConsent"));
+    for (const reason of ["accountChanged", "wrongAccount", "needsConsent", "identityUnavailable", "storageFailed"] as const) {
+      expect(oauthErrorText(new ServiceConnectionError(reason))).not.toContain(reason);
+    }
+    expect(oauthErrorText(new Error(""))).toBe(i18n.t("connection.loginFailed"));
   });
 });
 

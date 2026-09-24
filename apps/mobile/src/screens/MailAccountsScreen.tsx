@@ -4,9 +4,9 @@ import { GmailSignInButton } from "@plainva/ui";
 import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, vacationSupport } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, normalizeSenderAddress, saveMailAccount, senderOptions, setVacation, updateMailAccount, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { getConnectSecrets } from "../services/connectSecrets";
 import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -100,12 +100,32 @@ export function MailAccountsScreen({
   const [editing, setEditing] = useState<MailAccountConfig | null>(null);
   const [accountEmail, setAccountEmail] = useState("");
   const imapAvailable = hasNativeMailSocket();
+  // Bumped on every reload, so the orphan notice re-checks after a sign-in or
+  // a removal instead of offering an entry that just changed.
+  const [reloads, setReloads] = useState(0);
+  // Entries a failed setup left behind (finding 2026-09-24, E4): the rule and
+  // the removal are shared with the desktop; the phone renders them as rows and
+  // asks its own confirmation. Never removed without a tap.
+  const orphanNotice = useOrphanedMailAccounts(vault.vaultId, vault.db, reloads);
+  const [orphansOpen, setOrphansOpen] = useState(false);
+  const removeOrphan = async (a: MailAccountConfig) => {
+    const label = a.label || a.user;
+    if (!(await mConfirm({ title: t("mail.orphans.confirmTitle"), message: t("mail.orphans.confirmMessage", { label }), confirmLabel: t("mail.orphans.remove"), danger: true }))) return;
+    try {
+      const result = await orphanNotice.remove(a);
+      toast.success(t(result === "removed" ? "mail.orphans.removed" : "mail.orphans.keptSignedIn"));
+      notifyMailChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const reload = useCallback(() => {
     void listMobileMailAccounts()
       .then(async (rows) => {
         setAccounts(rows);
         setLoaded(true);
+        setReloads((n) => n + 1);
         const vault = mailVaultId();
         setSignIn(vault ? await deviceSignInStates("mail", vault, rows.map((r) => r.id)) : new Map());
       })
@@ -304,7 +324,7 @@ export function MailAccountsScreen({
       await connectMicrosoftMail(msClientId);
       setFormOpen(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(serviceConnectionMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -322,10 +342,10 @@ export function MailAccountsScreen({
       // An untouched password field means "keep the stored one" — changing a
       // server address must not cost the user their app password.
       const password = v.pass || (editing ? ((await getMailPassword(vault, editing.id)) ?? "") : "");
-      if (!password) throw new Error(t("mail.passwordMissing"));
+      if (!password) { toast.error(t("mail.passwordMissing")); return; }
       const record = context?.cloudAccountId ? (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId) : undefined;
-      if (context?.cloudAccountId && !record) throw new Error(t("connection.accountChanged"));
-      if (record?.label.includes("@") && record.label.trim().toLowerCase() !== v.user.trim().toLowerCase()) throw new Error(t("connection.wrongAccount"));
+      if (context?.cloudAccountId && !record) throw new ServiceConnectionError("accountChanged");
+      if (record?.label.includes("@") && record.label.trim().toLowerCase() !== v.user.trim().toLowerCase()) throw new ServiceConnectionError("wrongAccount");
       const existing = editing ?? accounts.find(a => a.id === record?.services.mail?.mailAccountId) ?? accounts.find(a => mailAccountKind(a) === "imap" && a.host === v.host && a.port === v.port && a.user.toLowerCase() === v.user.toLowerCase());
       const account: MailAccountConfig = {
         ...existing,
@@ -343,7 +363,7 @@ export function MailAccountsScreen({
       // edit must not break a mailbox that worked a moment ago.
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
-      if (mailVaultId() !== vault) throw new Error(t("connection.accountChanged"));
+      if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
       await saveMailAccount(vault, account, password);
       try { await bindMailToConnection(context, account.id); }
       catch (error) {
@@ -363,7 +383,9 @@ export function MailAccountsScreen({
       toast.success(t(editing ? "mail.accountSaved" : "mail.accountAdded"));
       notifyMailChanged();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      // One translation for both shells (finding 2026-09-24): a known code as
+      // its sentence, the server's own answer word for word — never a raw code.
+      toast.error(serviceConnectionMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -386,6 +408,34 @@ export function MailAccountsScreen({
       <div className="m-settings">
         {/* Same truth as the calendar screen: settings sync, sign-ins do not. */}
         <p className="m-hint">{t("pim.perDeviceHint")}</p>
+        {!mailRun && orphanNotice.visible && (
+          <Banner
+            kind="warning"
+            rounded
+            actions={<>
+              <Button size="sm" onClick={() => setOrphansOpen((v) => !v)} aria-expanded={orphansOpen} data-testid="mail-orphans-review">{t("mail.orphans.review")}</Button>
+              <Button size="sm" variant="ghost" onClick={() => void orphanNotice.later()} data-testid="mail-orphans-later">{t("mail.orphans.later")}</Button>
+            </>}
+          >
+            <strong>{t("mail.orphans.title", { count: orphanNotice.orphans.length })}</strong> {t("mail.orphans.body")}
+          </Banner>
+        )}
+        {!mailRun && orphanNotice.visible && orphansOpen && (
+          <GroupCard>
+            <RowList>
+              {orphanNotice.orphans.map((a) => (
+                <Row
+                  controls
+                  data-testid={`mail-orphan-${a.id}`}
+                  end={<Button size="sm" variant="danger-soft" onClick={() => void removeOrphan(a)}>{t("mail.orphans.remove")}</Button>}
+                  key={a.id}
+                  subtitle={t("mail.orphans.rowMeta", { server: orphanedMailServer(a) })}
+                  title={a.label || a.user}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
+        )}
         {mobileGmailClient() && (!mailRun || family === "google") && <GmailSignInButton onSignIn={async () => {
           const records = await loadCloudAccounts(vault.vaultId);
           const expected = records.find(row => (!!mailRun?.context.cloudAccountId && row.id === mailRun.context.cloudAccountId) || (!!accountId && row.services.mail?.mailAccountId === accountId));

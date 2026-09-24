@@ -3324,7 +3324,19 @@
       "cancelled": "未执行：已取消。"
     },
     "noAttachmentMatches": "已加载的邮件中没有已确认的附件。",
-    "cacheUpdateFailed": "服务器已确认更改，但无法更新本地邮件缓存。请重新加载文件夹。"
+    "cacheUpdateFailed": "服务器已确认更改，但无法更新本地邮件缓存。请重新加载文件夹。",
+    "orphans": {
+      "title_other": "{{count}} 个不完整的邮件账户",
+      "body": "没有密码，也从未收取过邮件，很可能是未完成的设置留下的。“移除”只删除该条目，不会删除任何邮件。",
+      "review": "查看",
+      "later": "稍后",
+      "rowMeta": "无密码 · {{server}}",
+      "remove": "移除",
+      "confirmTitle": "移除不完整的邮件账户？",
+      "confirmMessage": "{{label}} 没有密码，也从未收取过邮件。只会移除此条目，不会删除邮件或文件。",
+      "removed": "已移除条目。",
+      "keptSignedIn": "此账户在此期间已登录，因此予以保留。"
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "文件",
@@ -4499,11 +4511,13 @@
     "grantGoogle": "通过 Google 授权",
     "ownRegistration": "自己的应用注册",
     "loginFailed": "无法完成连接。已保留输入内容，请重试。",
+    "providerResponse": "服务商的响应：{{detail}}",
     "accountChanged": "目标账号或仓库已更改，请重新打开所需账号。",
     "wrongAccount": "登录了其他账号。请重新登录并选择显示的账号。",
     "needsConsent": "此服务需要重新授权。请重新登录并允许所需的访问权限。",
     "identityUnavailable": "无法验证账号身份，请重新登录服务提供商。",
     "storageFailed": "无法确认保存结果。请重试，向导将继续设置同一连接。",
+    "signedInNotSaved": "登录成功，但账户数据无法保存到此设备。没有留下任何未完成的内容。",
     "transferTitle": "复制文件和账号",
     "transferSummary": "{{source}} → {{target}}。本地文件 {{local}} 个，云端文件 {{remote}} 个，冲突 {{conflicts}} 处。保留源仓库，并在目标仓库配置日历和邮箱。",
     "transferCopy": "将本地文件另存为副本",

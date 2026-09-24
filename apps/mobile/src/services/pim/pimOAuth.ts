@@ -11,7 +11,7 @@ import {
   GOOGLE_CALENDAR_SCOPES,
   GRAPH_CALENDAR_SCOPES,
 } from "@plainva/core";
-import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
@@ -378,7 +378,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     }
     const received: ReceivedPimFlow = { flow, refreshToken, accessToken, grantedScope };
     await getPlatformServices().credentials.writeSecret(RESULT_KEY, received);
-    if (!sameStoredValue(await getPlatformServices().credentials.readSecret(RESULT_KEY), received)) throw new Error("storageFailed");
+    if (!sameStoredValue(await getPlatformServices().credentials.readSecret(RESULT_KEY), received)) throw new ServiceConnectionError("storageFailed");
     await resumePimOAuthResult();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

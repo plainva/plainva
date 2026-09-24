@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-09-19
+Última revisão: 2026-09-24
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -17,6 +17,8 @@ O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e lev
 Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para o chaveiro do seu sistema operacional. As caixas de correio conectadas e as configurações de captura ficam depois na área **E-mail**: a configuração **Pasta de e-mail** escolhe onde os e-mails capturados são armazenados (padrão `Mail`).
 
 **Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar neste dispositivo** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador. Se isso deixar a lista de mensagens vazia, o mesmo aviso com o botão **Entrar neste dispositivo** aparece ali também — você não precisa procurar as configurações sozinho.
+
+**Contas de e-mail incompletas.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** mostra essas entradas uma vez, em um aviso sobre **contas de e-mail incompletas**. Só conta uma entrada que não tem senha neste dispositivo e nunca baixou e-mails. **Ver** mostra a lista, **Remover** apaga exatamente essa entrada depois de perguntar — nunca e-mails, nunca arquivos — e **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
 
 ## Lendo e-mails
 

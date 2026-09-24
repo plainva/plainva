@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Clock } from "lucide-react";
-import { cancelOAuthLoopback } from "../../services/oauthLoopback";
+import { cancelOAuthLoopback, oauthErrorText } from "../../services/oauthLoopback";
 import {
   Button,
   TextInput,
@@ -277,7 +277,8 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             );
           }
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : String(err));
+          // The shared sentence, never the raw code (finding 2026-09-24).
+          toast.error(oauthErrorText(err));
         }
       }
       setRunning(false);

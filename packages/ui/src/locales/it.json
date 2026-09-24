@@ -3382,7 +3382,21 @@
       "cancelled": "Non eseguito: annullato."
     },
     "noAttachmentMatches": "Nessun allegato confermato nei messaggi caricati.",
-    "cacheUpdateFailed": "Modifica confermata dal server. Impossibile aggiornare la cache locale; ricarica la cartella."
+    "cacheUpdateFailed": "Modifica confermata dal server. Impossibile aggiornare la cache locale; ricarica la cartella.",
+    "orphans": {
+      "title_one": "{{count}} account e-mail incompleto",
+      "title_many": "{{count}} account e-mail incompleti",
+      "title_other": "{{count}} account e-mail incompleti",
+      "body": "Senza password e senza aver mai scaricato e-mail: probabilmente resti di una configurazione non completata. Rimuovi elimina solo la voce, mai le e-mail.",
+      "review": "Vedi",
+      "later": "Più tardi",
+      "rowMeta": "senza password · {{server}}",
+      "remove": "Rimuovi",
+      "confirmTitle": "Rimuovere l’account e-mail incompleto?",
+      "confirmMessage": "{{label}} non ha una password e non ha mai scaricato e-mail. Viene rimossa solo questa voce: nessuna e-mail, nessun file.",
+      "removed": "Voce rimossa.",
+      "keptSignedIn": "Nel frattempo è stato effettuato l’accesso a questo account, quindi viene mantenuto."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "File",
@@ -4607,11 +4621,13 @@
     "grantGoogle": "Autorizza con Google",
     "ownRegistration": "La tua registrazione dell’app",
     "loginFailed": "Impossibile completare il collegamento. I dati inseriti sono conservati. Riprova.",
+    "providerResponse": "Risposta del provider: {{detail}}",
     "accountChanged": "L’account o il vault di destinazione è cambiato. Riapri l’account desiderato.",
     "wrongAccount": "Hai effettuato l’accesso con un altro account. Al prossimo accesso scegli l’account indicato.",
     "needsConsent": "Questo servizio richiede una nuova autorizzazione. Accedi di nuovo e consenti l’accesso richiesto.",
     "identityUnavailable": "Impossibile verificare l’identità dell’account. Accedi nuovamente al provider.",
     "storageFailed": "Impossibile confermare il salvataggio. Riprova: la procedura riprenderà lo stesso collegamento.",
+    "signedInNotSaved": "L’accesso è riuscito, ma i dati dell’account non si sono potuti salvare su questo dispositivo. Non è rimasto nulla di creato a metà.",
     "transferTitle": "Copia file e account",
     "transferSummary": "{{source}} → {{target}}. {{local}} file locali, {{remote}} nel cloud, {{conflicts}} collisioni. Il vault di origine viene conservato. Calendari ed email saranno configurati nella destinazione.",
     "transferCopy": "File locale come copia separata",

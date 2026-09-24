@@ -3411,7 +3411,22 @@
       "cancelled": "Nie wykonano: anulowano."
     },
     "noAttachmentMatches": "Brak potwierdzonych załączników we wczytanych wiadomościach.",
-    "cacheUpdateFailed": "Serwer potwierdził zmianę. Nie udało się zaktualizować lokalnej pamięci podręcznej; odśwież folder."
+    "cacheUpdateFailed": "Serwer potwierdził zmianę. Nie udało się zaktualizować lokalnej pamięci podręcznej; odśwież folder.",
+    "orphans": {
+      "title_one": "{{count}} niekompletne konto e-mail",
+      "title_few": "{{count}} niekompletne konta e-mail",
+      "title_many": "{{count}} niekompletnych kont e-mail",
+      "title_other": "{{count}} niekompletnego konta e-mail",
+      "body": "Bez hasła i bez kiedykolwiek pobranych wiadomości — prawdopodobnie pozostałości po nieukończonej konfiguracji. Usuń kasuje tylko wpis, nigdy wiadomości.",
+      "review": "Pokaż",
+      "later": "Później",
+      "rowMeta": "bez hasła · {{server}}",
+      "remove": "Usuń",
+      "confirmTitle": "Usunąć niekompletne konto e-mail?",
+      "confirmMessage": "{{label}} nie ma hasła i nigdy nie pobrało wiadomości. Usunięty zostanie tylko ten wpis — żadne wiadomości ani pliki.",
+      "removed": "Wpis usunięty.",
+      "keptSignedIn": "W międzyczasie zalogowano się na to konto, więc zostało zachowane."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Pliki",
@@ -4661,11 +4676,13 @@
     "grantGoogle": "Autoryzuj przez Google",
     "ownRegistration": "Własna rejestracja aplikacji",
     "loginFailed": "Nie udało się ukończyć połączenia. Wprowadzone dane zachowano. Spróbuj ponownie.",
+    "providerResponse": "Odpowiedź dostawcy: {{detail}}",
     "accountChanged": "Konto lub vault docelowy zmienił się. Otwórz ponownie właściwe konto.",
     "wrongAccount": "Zalogowano się na inne konto. Przy ponownym logowaniu wybierz wyświetlane konto.",
     "needsConsent": "Ta usługa wymaga nowej zgody. Zaloguj się ponownie i udziel żądanego dostępu.",
     "identityUnavailable": "Nie udało się potwierdzić tożsamości konta. Zaloguj się ponownie u dostawcy.",
     "storageFailed": "Nie udało się potwierdzić zapisu. Spróbuj ponownie; kreator wznowi to samo połączenie.",
+    "signedInNotSaved": "Logowanie się powiodło, ale nie udało się zapisać danych konta na tym urządzeniu. Nic nie zostało utworzone połowicznie.",
     "transferTitle": "Skopiuj pliki i konta",
     "transferSummary": "{{source}} → {{target}}. {{local}} plików lokalnych, {{remote}} w chmurze, {{conflicts}} kolizji. Vault źródłowy zostaje zachowany. Kalendarze i poczta zostaną skonfigurowane w docelowym vaulcie.",
     "transferCopy": "Plik lokalny jako osobna kopia",

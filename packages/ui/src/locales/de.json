@@ -3353,7 +3353,20 @@
       "cancelled": "Noch nicht ausgeführt: abgebrochen."
     },
     "noAttachmentMatches": "Keine bestätigten Anhänge in den geladenen Nachrichten.",
-    "cacheUpdateFailed": "Änderung auf dem Server bestätigt. Der lokale Mail-Cache konnte nicht aktualisiert werden; lade den Ordner erneut."
+    "cacheUpdateFailed": "Änderung auf dem Server bestätigt. Der lokale Mail-Cache konnte nicht aktualisiert werden; lade den Ordner erneut.",
+    "orphans": {
+      "title_one": "{{count}} unvollständiges E-Mail-Konto",
+      "title_other": "{{count}} unvollständige E-Mail-Konten",
+      "body": "Ohne Passwort und ohne je abgerufene Mails – vermutlich Reste einer abgebrochenen Einrichtung. Entfernen löscht nur den Eintrag, keine Mails.",
+      "review": "Ansehen",
+      "later": "Später",
+      "rowMeta": "ohne Passwort · {{server}}",
+      "remove": "Entfernen",
+      "confirmTitle": "Unvollständiges E-Mail-Konto entfernen?",
+      "confirmMessage": "{{label}} hat kein Passwort und hat noch nie Mails abgerufen. Entfernt wird nur dieser Eintrag – keine Mails, keine Dateien.",
+      "removed": "Eintrag entfernt.",
+      "keptSignedIn": "Das Konto ist inzwischen angemeldet und bleibt erhalten."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Dateien",
@@ -4553,11 +4566,13 @@
     "grantGoogle": "Mit Google freigeben",
     "ownRegistration": "Eigene App-Registrierung",
     "loginFailed": "Die Verbindung konnte nicht abgeschlossen werden. Deine Eingaben bleiben erhalten. Versuche es erneut.",
+    "providerResponse": "Antwort des Anbieters: {{detail}}",
     "accountChanged": "Das Zielkonto oder der Vault hat sich geändert. Öffne das gewünschte Konto erneut.",
     "wrongAccount": "Du hast Dich bei einem anderen Konto angemeldet. Wähle bei der erneuten Anmeldung das angezeigte Konto.",
     "needsConsent": "Für diesen Dienst ist eine neue Freigabe nötig. Melde Dich erneut an und erlaube den gewünschten Zugriff.",
     "identityUnavailable": "Die Identität des Kontos konnte nicht bestätigt werden. Melde Dich erneut beim Anbieter an.",
     "storageFailed": "Die Speicherung konnte nicht bestätigt werden. Versuche es erneut; der Assistent setzt dieselbe Verbindung fort.",
+    "signedInNotSaved": "Die Anmeldung hat geklappt, aber die Kontodaten ließen sich auf diesem Gerät nicht speichern. Es wurde nichts halb angelegt.",
     "transferTitle": "Dateien und Konten übernehmen",
     "transferSummary": "{{source}} → {{target}}. {{local}} lokale Dateien, {{remote}} Dateien im Cloud-Ordner, {{conflicts}} Kollisionen. Der Quell-Vault bleibt erhalten. Kalender und E-Mail werden im Ziel eingerichtet.",
     "transferCopy": "Lokale Datei als eigene Kopie",

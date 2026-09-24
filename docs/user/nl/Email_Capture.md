@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-09-19
+Laatst bijgewerkt: 2026-09-24
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -17,6 +17,8 @@ Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en —
 Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslagen; de toegangsgegevens komen terecht in de sleutelhanger van je besturingssysteem. De verbonden mailboxen en de vastleginstellingen vind je daarna in het gebied **E-mail**: de instelling **E-mailmap** bepaalt waar vastgelegde e-mails worden opgeslagen (standaard `Mail`).
 
 **Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Op dit apparaat aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser. Blijft de berichtenlijst daardoor leeg, dan staat dezelfde melding met dezelfde knop ook daar — je hoeft daarvoor niet zelf naar de instellingen te zoeken.
+
+**Onvolledige e-mailaccounts.** Een instelling die bij het opslaan mislukte, kon een vermelding zonder wachtwoord achterlaten (Plainva 0.8.3 op de desktop). Het gedeelte **E-mail** toont zulke vermeldingen één keer, als melding over **onvolledige e-mailaccounts**. Alleen een vermelding zonder wachtwoord op dit apparaat die nog nooit mail heeft opgehaald, telt mee. **Bekijken** toont de lijst, **Verwijderen** wist na een vraag precies die vermelding — nooit mail, nooit bestanden — en **Later** verbergt de melding. Plainva verwijdert nooit zelf iets.
 
 ## E-mails lezen
 

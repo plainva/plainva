@@ -3382,7 +3382,21 @@
       "cancelled": "Non exécuté : annulé."
     },
     "noAttachmentMatches": "Aucune pièce jointe confirmée dans les messages chargés.",
-    "cacheUpdateFailed": "Modification confirmée sur le serveur. Le cache local n’a pas pu être actualisé ; rechargez le dossier."
+    "cacheUpdateFailed": "Modification confirmée sur le serveur. Le cache local n’a pas pu être actualisé ; rechargez le dossier.",
+    "orphans": {
+      "title_one": "{{count}} compte e-mail incomplet",
+      "title_many": "{{count}} comptes e-mail incomplets",
+      "title_other": "{{count}} comptes e-mail incomplets",
+      "body": "Sans mot de passe et sans aucun e-mail récupéré — probablement les restes d’une configuration interrompue. Retirer supprime uniquement l’entrée, jamais d’e-mails.",
+      "review": "Voir",
+      "later": "Plus tard",
+      "rowMeta": "sans mot de passe · {{server}}",
+      "remove": "Retirer",
+      "confirmTitle": "Retirer le compte e-mail incomplet ?",
+      "confirmMessage": "{{label}} n’a pas de mot de passe et n’a jamais récupéré d’e-mails. Seule cette entrée est retirée — aucun e-mail, aucun fichier.",
+      "removed": "Entrée retirée.",
+      "keptSignedIn": "Ce compte a été connecté entre-temps ; il est conservé."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Fichiers",
@@ -4607,11 +4621,13 @@
     "grantGoogle": "Autoriser avec Google",
     "ownRegistration": "Votre propre inscription d’application",
     "loginFailed": "La connexion n’a pas pu aboutir. Vos saisies sont conservées. Réessayez.",
+    "providerResponse": "Réponse du fournisseur : {{detail}}",
     "accountChanged": "Le compte ou le vault de destination a changé. Rouvrez le compte souhaité.",
     "wrongAccount": "Vous avez utilisé un autre compte. À la prochaine connexion, choisissez le compte affiché.",
     "needsConsent": "Ce service nécessite une nouvelle autorisation. Reconnectez-vous et accordez l’accès demandé.",
     "identityUnavailable": "L’identité du compte n’a pas pu être vérifiée. Reconnectez-vous auprès du fournisseur.",
     "storageFailed": "L’enregistrement n’a pas pu être confirmé. Réessayez ; l’assistant reprendra la même connexion.",
+    "signedInNotSaved": "La connexion a réussi, mais les données du compte n’ont pas pu être enregistrées sur cet appareil. Rien n’a été laissé à moitié créé.",
     "transferTitle": "Copier les fichiers et les comptes",
     "transferSummary": "{{source}} → {{target}}. {{local}} fichiers locaux, {{remote}} dans le cloud, {{conflicts}} collisions. Le vault source est conservé. Calendriers et messagerie seront configurés dans la destination.",
     "transferCopy": "Fichier local en copie séparée",

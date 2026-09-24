@@ -62,6 +62,13 @@ export interface MailAccountConfig {
    * surfaces that error rather than silently sending as someone else.
    */
   senders?: string[];
+  /**
+   * When this account first fetched mail successfully (ISO time), on any device
+   * — written once by `markMailAccountFetched` and carried by the settings
+   * sync. It is what tells a mailbox that works elsewhere apart from an entry a
+   * failed setup left behind (finding 2026-09-24, see orphanedMailAccounts).
+   */
+  firstFetchAt?: string;
 }
 
 /** Every address this account may send from: its own first, then the configured
@@ -259,6 +266,37 @@ async function commitMailAccount(vaultPath: string, account: MailAccountConfig, 
       throw error;
     }
   });
+}
+
+/** Accounts stamped in this run — a stale account object must not re-stamp. */
+const fetchStamped = new Set<string>();
+
+/**
+ * Records the first successful fetch of an account, once (finding 2026-09-24).
+ *
+ * Called by `listEnvelopes` after a page arrived, in both shells. Best effort
+ * and silent: a store that refuses the write must never cost the message list.
+ * The entry is re-read under the account lock, so a newer copy — or a stamp
+ * another window wrote meanwhile — is never overwritten.
+ */
+export async function markMailAccountFetched(vaultPath: string, account: MailAccountConfig): Promise<void> {
+  if (account.firstFetchAt) return;
+  const key = `${account.id}@${vaultPath}`;
+  if (fetchStamped.has(key)) return;
+  fetchStamped.add(key);
+  try {
+    await withAccountCredentialLock(mailAccountsKey(vaultPath), async () => {
+      const list = await listMailAccounts(vaultPath);
+      const current = list.find((a) => a.id === account.id);
+      if (!current || current.firstFetchAt) return;
+      const store = await getPlatformServices().loadSettings();
+      const stamp = new Date().toISOString();
+      await store.set(mailAccountsKey(vaultPath), list.map((a) => (a.id === account.id ? { ...a, firstFetchAt: stamp } : a)));
+      await store.save();
+    });
+  } catch {
+    fetchStamped.delete(key);
+  }
 }
 
 /**

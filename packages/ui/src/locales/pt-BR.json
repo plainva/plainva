@@ -3382,7 +3382,21 @@
       "cancelled": "Não executado: cancelado."
     },
     "noAttachmentMatches": "Nenhum anexo confirmado nas mensagens carregadas.",
-    "cacheUpdateFailed": "Alteração confirmada no servidor. Não foi possível atualizar o cache local; recarregue a pasta."
+    "cacheUpdateFailed": "Alteração confirmada no servidor. Não foi possível atualizar o cache local; recarregue a pasta.",
+    "orphans": {
+      "title_one": "{{count}} conta de e-mail incompleta",
+      "title_many": "{{count}} contas de e-mail incompletas",
+      "title_other": "{{count}} contas de e-mail incompletas",
+      "body": "Sem senha e sem nenhum e-mail já baixado — provavelmente restos de uma configuração que não terminou. Remover apaga só a entrada, nunca e-mails.",
+      "review": "Ver",
+      "later": "Depois",
+      "rowMeta": "sem senha · {{server}}",
+      "remove": "Remover",
+      "confirmTitle": "Remover a conta de e-mail incompleta?",
+      "confirmMessage": "{{label}} não tem senha e nunca baixou e-mails. Só esta entrada é removida — nenhum e-mail, nenhum arquivo.",
+      "removed": "Entrada removida.",
+      "keptSignedIn": "Esta conta foi conectada nesse meio-tempo e foi mantida."
+    }
   },
   "cloudAccounts": {
     "serviceFiles": "Arquivos",
@@ -4607,11 +4621,13 @@
     "grantGoogle": "Autorizar com o Google",
     "ownRegistration": "Seu próprio registro de aplicativo",
     "loginFailed": "Não foi possível concluir a conexão. Seus dados foram mantidos. Tente novamente.",
+    "providerResponse": "Resposta do provedor: {{detail}}",
     "accountChanged": "A conta ou o vault de destino mudou. Abra novamente a conta desejada.",
     "wrongAccount": "Você entrou em outra conta. Ao entrar novamente, escolha a conta exibida.",
     "needsConsent": "Este serviço precisa de uma nova autorização. Entre novamente e permita o acesso solicitado.",
     "identityUnavailable": "Não foi possível verificar a identidade da conta. Entre novamente no provedor.",
     "storageFailed": "Não foi possível confirmar o salvamento. Tente novamente; o assistente retomará a mesma conexão.",
+    "signedInNotSaved": "O login funcionou, mas os dados da conta não puderam ser salvos neste dispositivo. Nada ficou criado pela metade.",
     "transferTitle": "Copiar arquivos e contas",
     "transferSummary": "{{source}} → {{target}}. {{local}} arquivos locais, {{remote}} na nuvem, {{conflicts}} colisões. O vault de origem será mantido. Calendários e email serão configurados no destino.",
     "transferCopy": "Arquivo local como cópia separada",

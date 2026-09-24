@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-09-19
+Last reviewed: 2026-09-24
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -17,6 +17,8 @@ Plainva can read your mailbox to get knowledge out of email and into your vault,
 Connecting validates the login before anything is saved; the credentials go into your operating system's keychain. The connected mailboxes and the capture settings then live in the **Email** area: the **Mail folder** setting chooses where captured emails are stored (default `Mail`).
 
 **Signing in on a second device.** When a mailbox travels with the settings sync, its password does not come along automatically — sign-ins are only transferred if you switch the credentials sync on yourself. Such a mailbox shows a **Sign in on this device** button in the **Email** area: type the password, and Plainva checks it with the provider before storing it in the keychain. For a Microsoft mailbox the same button leads to **Cloud accounts**, because that is where the browser sign-in happens. When this leaves the message list empty, the same notice and the same button appear there as well — you do not have to go looking for the settings yourself.
+
+**Incomplete email accounts.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area lists such entries once, as a notice about **incomplete email accounts**. An entry only counts when it has no password on this device and has never fetched mail. **View** shows the list, **Remove** deletes exactly that entry after asking — never mail, never files — and **Later** hides the notice. Plainva never removes anything on its own.
 
 ## Reading mail
 
