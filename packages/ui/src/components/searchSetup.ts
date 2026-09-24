@@ -1,7 +1,19 @@
 import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { keymap } from "@codemirror/view";
+import { keymap, type KeyBinding } from "@codemirror/view";
 import { Prec, EditorState } from "@codemirror/state";
 import i18n from "../i18n";
+
+/**
+ * CodeMirror's search keys minus one: its "find previous" also sits on
+ * Mod+Shift+G, which is Plainva's "open graph" (the desktop's global shortcut).
+ * The editor does not stop a key it handles, so both ran — the graph opened and
+ * the note behind it grew a search panel or jumped to the previous match. Find
+ * previous keeps Shift+F3, and Shift+Enter in the search field. This is the
+ * editor's ONLY copy of the search keys: basicSetup's is switched off.
+ */
+const editorSearchKeymap: readonly KeyBinding[] = searchKeymap.map((binding) =>
+  binding.key === "Mod-g" ? { ...binding, shift: undefined } : binding,
+);
 
 // In-editor find & replace (#10). CodeMirror ships the panel + commands; we add
 // it explicitly (panel at the top), wire the keymap (Ctrl/Cmd-F opens it; the
@@ -26,5 +38,5 @@ function searchPhrases() {
 }
 
 export function searchSetup() {
-  return [search({ top: true }), highlightSelectionMatches(), searchPhrases(), Prec.high(keymap.of(searchKeymap))];
+  return [search({ top: true }), highlightSelectionMatches(), searchPhrases(), Prec.high(keymap.of(editorSearchKeymap))];
 }

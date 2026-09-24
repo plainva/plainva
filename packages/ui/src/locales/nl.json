@@ -1570,7 +1570,7 @@
     "deleteLine": "Regel verwijderen",
     "selectOccurrence": "Volgende overeenkomst aan de selectie toevoegen",
     "findInNote": "Zoeken en vervangen in de notitie",
-    "findNext": "Volgende zoeken (Shift voor vorige)",
+    "findNext": "Volgende zoeken (Shift+F3 voor vorige)",
     "gotoLine": "Naar regel gaan",
     "fold": "Invouwen / uitvouwen",
     "autocomplete": "Automatisch aanvullen activeren",

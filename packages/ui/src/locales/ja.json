@@ -1564,7 +1564,7 @@
     "deleteLine": "行を削除",
     "selectOccurrence": "次に一致する箇所を選択に追加",
     "findInNote": "ノート内で検索と置換",
-    "findNext": "次を検索（Shiftで前へ）",
+    "findNext": "次を検索（Shift+F3で前へ）",
     "gotoLine": "行に移動",
     "fold": "折りたたむ / 展開",
     "autocomplete": "オートコンプリートを表示",

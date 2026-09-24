@@ -1576,7 +1576,7 @@
     "deleteLine": "Elimina la riga",
     "selectOccurrence": "Aggiungi la prossima occorrenza alla selezione",
     "findInNote": "Trova e sostituisci nella nota",
-    "findNext": "Trova il successivo (Shift per il precedente)",
+    "findNext": "Trova il successivo (Shift+F3 per il precedente)",
     "gotoLine": "Vai alla riga",
     "fold": "Comprimi / espandi",
     "autocomplete": "Attiva il completamento automatico",

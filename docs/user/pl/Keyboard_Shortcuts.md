@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-09-20
+Stan na: 2026-09-24
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -78,7 +78,7 @@ Zaznaczenie tekstu wywołuje też pływający pasek narzędzi (pogrubienie, kurs
 | `Ctrl+Shift+K` | Usuń wiersz |
 | `Ctrl+D` | Dodaj kolejne wystąpienie do zaznaczenia |
 | `Ctrl+F` | Znajdź i zamień w notatce |
-| `Ctrl+G` / `F3` | Znajdź następny (Shift = poprzedni) |
+| `Ctrl+G` / `F3` | Znajdź następny (`Shift+F3` = poprzedni) |
 | `Ctrl+Alt+G` | Przejdź do wiersza |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Zwiń / rozwiń (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Space` | Wywołaj autouzupełnianie |

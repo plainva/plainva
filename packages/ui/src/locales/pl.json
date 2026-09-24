@@ -1582,7 +1582,7 @@
     "deleteLine": "Usuń wiersz",
     "selectOccurrence": "Dodaj kolejne wystąpienie do zaznaczenia",
     "findInNote": "Znajdź i zamień w notatce",
-    "findNext": "Znajdź następny (Shift = poprzedni)",
+    "findNext": "Znajdź następny (Shift+F3 = poprzedni)",
     "gotoLine": "Przejdź do wiersza",
     "fold": "Zwiń / rozwiń",
     "autocomplete": "Wywołaj autouzupełnianie",

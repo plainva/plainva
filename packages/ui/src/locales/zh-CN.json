@@ -1564,7 +1564,7 @@
     "deleteLine": "删除当前行",
     "selectOccurrence": "将下一个相同内容加入选区",
     "findInNote": "在笔记中查找和替换",
-    "findNext": "查找下一个（Shift查找上一个）",
+    "findNext": "查找下一个（Shift+F3查找上一个）",
     "gotoLine": "跳转到指定行",
     "fold": "折叠 / 展开",
     "autocomplete": "触发自动补全",

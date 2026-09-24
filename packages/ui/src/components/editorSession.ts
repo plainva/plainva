@@ -453,7 +453,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
 
   const extensions: Extension = plainFile ? [
     EditorView.contentAttributes.of({ "aria-label": "Text Editor" }),
-    basicSetup({ foldGutter: false, highlightActiveLineGutter: false }),
+    // The search keys come from searchSetup() alone (see there: Mod+Shift+G).
+    basicSetup({ foldGutter: false, highlightActiveLineGutter: false, searchKeymap: false }),
     keymap.of([indentWithTab]),
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
     updateListener,
@@ -485,11 +486,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       : [],
     // Same base setup (and package) the @uiw host used; the three gutter
     // switches moved into the mode compartment below. The touch profile drops
-    // drawSelection so the platform draws (and can extend) the selection.
+    // drawSelection so the platform draws (and can extend) the selection. The
+    // search keys come from searchSetup() alone (see there: Mod+Shift+G).
     basicSetup({
       lineNumbers: false,
       foldGutter: false,
       highlightActiveLineGutter: false,
+      searchKeymap: false,
       ...(cfg.touchInput ? { drawSelection: false } : {}),
     }),
     keymap.of([indentWithTab]),

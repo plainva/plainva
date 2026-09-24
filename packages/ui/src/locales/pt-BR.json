@@ -1576,7 +1576,7 @@
     "deleteLine": "Excluir linha",
     "selectOccurrence": "Adicionar a próxima ocorrência à seleção",
     "findInNote": "Localizar e substituir na nota",
-    "findNext": "Localizar o próximo (Shift para o anterior)",
+    "findNext": "Localizar o próximo (Shift+F3 para o anterior)",
     "gotoLine": "Ir para a linha",
     "fold": "Recolher / expandir",
     "autocomplete": "Acionar o preenchimento automático",

@@ -1570,7 +1570,7 @@
     "deleteLine": "Zeile löschen",
     "selectOccurrence": "Nächstes gleiches Vorkommen zur Auswahl hinzufügen",
     "findInNote": "In der Notiz suchen & ersetzen",
-    "findNext": "Weitersuchen (Shift = rückwärts)",
+    "findNext": "Weitersuchen (Shift+F3 = rückwärts)",
     "gotoLine": "Zu Zeile springen",
     "fold": "Falten / entfalten",
     "autocomplete": "Autovervollständigung auslösen",

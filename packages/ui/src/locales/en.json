@@ -1570,7 +1570,7 @@
     "deleteLine": "Delete line",
     "selectOccurrence": "Add next occurrence to the selection",
     "findInNote": "Find & replace in the note",
-    "findNext": "Find next (Shift for previous)",
+    "findNext": "Find next (Shift+F3 for previous)",
     "gotoLine": "Go to line",
     "fold": "Fold / unfold",
     "autocomplete": "Trigger autocomplete",

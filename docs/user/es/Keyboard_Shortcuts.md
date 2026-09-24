@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-24
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -78,7 +78,7 @@ También puedes seleccionar texto para usar la barra flotante (negrita, cursiva,
 | `Ctrl+Shift+K` | Eliminar línea |
 | `Ctrl+D` | Añadir la siguiente aparición a la selección |
 | `Ctrl+F` | Buscar y reemplazar en la nota |
-| `Ctrl+G` / `F3` | Buscar siguiente (Shift para el anterior) |
+| `Ctrl+G` / `F3` | Buscar siguiente (`Shift+F3` para el anterior) |
 | `Ctrl+Alt+G` | Ir a la línea |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Plegar / desplegar (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Space` | Activar el autocompletado |

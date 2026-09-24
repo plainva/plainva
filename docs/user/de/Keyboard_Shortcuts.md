@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-09-20
+Stand: 2026-09-24
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -78,7 +78,7 @@ Du kannst außerdem Text markieren, um die schwebende Werkzeugleiste zu nutzen (
 | `Strg+Umschalt+K` | Zeile löschen |
 | `Strg+D` | Nächstes gleiches Vorkommen zur Auswahl hinzufügen |
 | `Strg+F` | In der Notiz suchen & ersetzen |
-| `Strg+G` / `F3` | Weitersuchen (Umschalt = rückwärts) |
+| `Strg+G` / `F3` | Weitersuchen (`Umschalt+F3` = rückwärts) |
 | `Strg+Alt+G` | Zu Zeile springen |
 | `Strg+Umschalt+[` / `Strg+Umschalt+]` | Falten / entfalten (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Strg+Leertaste` | Autovervollständigung auslösen |

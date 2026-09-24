@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-24
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -78,7 +78,7 @@ Puoi anche selezionare del testo per usare la barra fluttuante (grassetto, corsi
 | `Ctrl+Shift+K` | Elimina la riga |
 | `Ctrl+D` | Aggiungi la prossima occorrenza alla selezione |
 | `Ctrl+F` | Trova e sostituisci nella nota |
-| `Ctrl+G` / `F3` | Trova il successivo (Shift per il precedente) |
+| `Ctrl+G` / `F3` | Trova il successivo (`Shift+F3` per il precedente) |
 | `Ctrl+Alt+G` | Vai alla riga |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Comprimi / espandi (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Spazio` | Attiva il completamento automatico |

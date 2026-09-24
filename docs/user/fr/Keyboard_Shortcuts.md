@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-24
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -78,7 +78,7 @@ Vous pouvez aussi sélectionner du texte pour afficher la barre d'outils flottan
 | `Ctrl+Shift+K` | Supprimer la ligne |
 | `Ctrl+D` | Ajouter la prochaine occurrence à la sélection |
 | `Ctrl+F` | Rechercher et remplacer dans la note |
-| `Ctrl+G` / `F3` | Rechercher le suivant (Shift pour le précédent) |
+| `Ctrl+G` / `F3` | Rechercher le suivant (`Shift+F3` pour le précédent) |
 | `Ctrl+Alt+G` | Aller à la ligne |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Replier / déplier (macOS : `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Espace` | Déclencher l'autocomplétion |

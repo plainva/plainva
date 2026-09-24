@@ -10,6 +10,7 @@ vi.mock("../services/CredentialManager", () => ({ credentialManager: {} }));
 import { syntaxTree } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { undoDepth } from "@codemirror/commands";
+import { searchPanelOpen } from "@codemirror/search";
 import type { i18n as I18nInstance } from "i18next";
 import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { tableLinkHandlers } from "@plainva/ui";
@@ -519,5 +520,39 @@ describe("wiki link taps (read mode)", () => {
         expect(badge(session), `frontmatter line: ${JSON.stringify(fm)}`).toBeNull();
       }
     });
+  });
+});
+
+// Mod+Shift+G is the app's "open graph" (the desktop's global shortcut). The
+// editor never stops a key it handles, so every editor binding on that chord
+// ran as well: CodeMirror's search keymap — shipped by searchSetup AND a second
+// time by basicSetup — has "find previous" there, and one press in a note
+// opened the graph and a search panel behind it.
+describe("editor search keys", () => {
+  // CodeMirror matches a shifted letter by its keyCode, so the press sets it.
+  const press = (s: EditorSession, key: string, keyCode: number, mods: KeyboardEventInit) => {
+    const ev = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...mods });
+    Object.defineProperty(ev, "keyCode", { value: keyCode });
+    s.view.contentDOM.dispatchEvent(ev);
+    return ev;
+  };
+
+  it.each([
+    ["a note", () => makeSession("live", "eins zwei eins\n")],
+    ["a text file", () => makeSession("live", "eins zwei eins\n", undefined, undefined, "notes.txt")],
+  ])("leave Mod+Shift+G to the app in %s", (_where, make) => {
+    const { session } = make();
+    const ev = press(session, "G", 71, { ctrlKey: true, shiftKey: true });
+    expect(ev.defaultPrevented).toBe(false);
+    expect(searchPanelOpen(session.view.state)).toBe(false);
+  });
+
+  it("keep find previous on Shift+F3 and find next on Mod+G", () => {
+    const back = makeSession("live", "eins zwei eins\n").session;
+    expect(press(back, "F3", 114, { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(searchPanelOpen(back.view.state)).toBe(true);
+    const next = makeSession("live", "eins zwei eins\n").session;
+    expect(press(next, "g", 71, { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(searchPanelOpen(next.view.state)).toBe(true);
   });
 });

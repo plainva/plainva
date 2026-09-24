@@ -1,6 +1,6 @@
 # Atalhos de Teclado
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-24
 
 Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para abrir a janela de atalhos a qualquer momento. Ela agrupa todos os atalhos e gestos do mouse em áreas que você alterna pelos chips na parte superior, tem um campo de busca que abrange todas as áreas e detecta automaticamente a sua plataforma: mostra `Ctrl`/`Alt` no Windows e no Linux, e `⌘`/`⌥` no macOS. Nas tabelas abaixo, portanto, `Ctrl` significa `⌘` no macOS, e `Alt` significa `⌥`.
 
@@ -78,7 +78,7 @@ Você também pode selecionar texto para abrir a barra flutuante (negrito, itál
 | `Ctrl+Shift+K` | Excluir linha |
 | `Ctrl+D` | Adicionar a próxima ocorrência à seleção |
 | `Ctrl+F` | Localizar e substituir na nota |
-| `Ctrl+G` / `F3` | Localizar o próximo (Shift para o anterior) |
+| `Ctrl+G` / `F3` | Localizar o próximo (`Shift+F3` para o anterior) |
 | `Ctrl+Alt+G` | Ir para a linha |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Recolher / expandir (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Space` | Acionar o preenchimento automático |

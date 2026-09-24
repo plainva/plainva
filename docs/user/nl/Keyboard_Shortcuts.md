@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-24
 
 Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het venster met sneltoetsen te openen. Het groepeert elke sneltoets en muisgebaar in gebieden waartussen je bovenaan met de chips wisselt, heeft een zoekveld dat over alle gebieden werkt, en herkent je platform automatisch: het toont `Ctrl`/`Alt` onder Windows en Linux en `⌘`/`⌥` onder macOS. In de tabellen hieronder betekent `Ctrl` daarom `⌘` op macOS en `Alt` betekent `⌥`.
 
@@ -78,7 +78,7 @@ Je kunt ook tekst selecteren voor de zwevende werkbalk (vet, cursief, doorhalen,
 | `Ctrl+Shift+K` | Regel verwijderen |
 | `Ctrl+D` | Volgende overeenkomst aan de selectie toevoegen |
 | `Ctrl+F` | Zoeken en vervangen in de notitie |
-| `Ctrl+G` / `F3` | Volgende zoeken (Shift voor vorige) |
+| `Ctrl+G` / `F3` | Volgende zoeken (`Shift+F3` voor vorige) |
 | `Ctrl+Alt+G` | Naar regel gaan |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Invouwen / uitvouwen (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Space` | Automatisch aanvullen activeren |

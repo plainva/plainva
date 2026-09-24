@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-24
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -78,7 +78,7 @@ You can also select text for the floating toolbar (bold, italic, strikethrough, 
 | `Ctrl+Shift+K` | Delete line |
 | `Ctrl+D` | Add the next occurrence to the selection |
 | `Ctrl+F` | Find & replace in the note |
-| `Ctrl+G` / `F3` | Find next (Shift for previous) |
+| `Ctrl+G` / `F3` | Find next (`Shift+F3` for previous) |
 | `Ctrl+Alt+G` | Go to line |
 | `Ctrl+Shift+[` / `Ctrl+Shift+]` | Fold / unfold (macOS: `⌘⌥[` / `⌘⌥]`) |
 | `Ctrl+Space` | Trigger autocomplete |
