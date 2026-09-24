@@ -9,10 +9,12 @@ import i18n from "@plainva/ui/i18n";
 import { listMailAccounts, mailAccountsKey, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 
 /**
- * The phone's side of the incomplete-mail-accounts notice (finding
- * 2026-09-24, E4). The entries were created on the desktop and arrive here with
- * the settings sync, so the phone has to offer the same clean-up: the same
- * rule, the same sentences, one confirmed tap per entry.
+ * The phone's side of the notice about mail accounts without a password
+ * (finding 2026-09-24, E4). The entries were created on the desktop and arrive
+ * here with the settings sync, so the phone offers the same clean-up: the same
+ * rule, the same sentences, one confirmed tap per entry — and the account's own
+ * sign-in first, because a mailbox that works on another device looks exactly
+ * like a leftover from here, and removing it would reach that device too.
  */
 
 class NodeSqliteAdapter implements IDatabaseAdapter {
@@ -115,7 +117,7 @@ const click = async (el: Element | null) => {
   for (let i = 0; i < 3; i++) await act(async () => {});
 };
 
-describe("the incomplete-mail-accounts notice on the phone", () => {
+describe("the notice about mail accounts without a password, on the phone", () => {
   it("does not appear while every account works", async () => {
     values.set(mailAccountsKey(VAULT), [account("working")]);
     secrets.set(mailSecretKey(VAULT, "working"), { pass: "pw" });
@@ -127,16 +129,35 @@ describe("the incomplete-mail-accounts notice on the phone", () => {
     values.set(mailAccountsKey(VAULT), [account("working"), account("orphan")]);
     secrets.set(mailSecretKey(VAULT, "working"), { pass: "pw" });
     await render();
-    expect(container.textContent).toContain("1 incomplete email account");
+    expect(container.textContent).toContain("1 email account without a password on this device");
+    expect(container.textContent).toContain("Remove deletes the entry on all devices");
 
     await click(container.querySelector('[data-testid="mail-orphans-review"]'));
     const row = container.querySelector('[data-testid="mail-orphan-orphan"]');
     expect(row?.textContent).toContain("without password · imap.gmail.com");
 
-    await click(row!.querySelector("button"));
+    await click(container.querySelector('[data-testid="mail-orphan-remove-orphan"]'));
     expect(confirm).toHaveBeenCalledTimes(1);
+    const [{ title, message }] = confirm.mock.calls[0] as unknown as [{ title: string; message: string }];
+    expect(title).toBe("Remove this email account on all devices?");
+    expect(message).toContain("every device that syncs this vault's settings");
+    expect(message).toContain("sign in here instead");
     expect((await listMailAccounts(VAULT)).map((a) => a.id)).toEqual(["working"]);
     expect(container.querySelector('[data-testid="mail-orphans-review"]')).toBeNull();
+  });
+
+  it("offers the mailbox's own sign-in: the password form of that account, nothing removed", async () => {
+    values.set(mailAccountsKey(VAULT), [account("elsewhere")]);
+    await render();
+    await click(container.querySelector('[data-testid="mail-orphans-review"]'));
+    const signIn = container.querySelector('[data-testid="mail-orphan-signin-elsewhere"]');
+    expect(signIn?.textContent).toBe("Sign in on this device");
+    await click(signIn);
+    // The same IMAP form the edit button opens, pointed at that account.
+    expect(container.querySelector(".m-sheet")).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="name@example.com"]')?.value).toBe("elsewhere@gmail.com");
+    expect(confirm).not.toHaveBeenCalled();
+    expect((await listMailAccounts(VAULT)).map((a) => a.id)).toEqual(["elsewhere"]);
   });
 
   it("hides on Later without removing anything", async () => {

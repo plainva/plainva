@@ -3384,16 +3384,16 @@
     "noAttachmentMatches": "Aucune pièce jointe confirmée dans les messages chargés.",
     "cacheUpdateFailed": "Modification confirmée sur le serveur. Le cache local n’a pas pu être actualisé ; rechargez le dossier.",
     "orphans": {
-      "title_one": "{{count}} compte e-mail incomplet",
-      "title_many": "{{count}} comptes e-mail incomplets",
-      "title_other": "{{count}} comptes e-mail incomplets",
-      "body": "Sans mot de passe et sans aucun e-mail récupéré — probablement les restes d’une configuration interrompue. Retirer supprime uniquement l’entrée, jamais d’e-mails.",
+      "title_one": "{{count}} compte e-mail sans mot de passe sur cet appareil",
+      "title_many": "{{count}} comptes e-mail sans mot de passe sur cet appareil",
+      "title_other": "{{count}} comptes e-mail sans mot de passe sur cet appareil",
+      "body": "Aucun e-mail n’a jamais été récupéré avec eux ici — probablement les restes d’une configuration interrompue. Si vous en utilisez un sur un autre appareil, connectez-vous plutôt ici. Retirer supprime l’entrée sur tous les appareils, jamais d’e-mails ni de fichiers.",
       "review": "Voir",
       "later": "Plus tard",
       "rowMeta": "sans mot de passe · {{server}}",
       "remove": "Retirer",
-      "confirmTitle": "Retirer le compte e-mail incomplet ?",
-      "confirmMessage": "{{label}} n’a pas de mot de passe et n’a jamais récupéré d’e-mails. Seule cette entrée est retirée — aucun e-mail, aucun fichier.",
+      "confirmTitle": "Retirer ce compte e-mail sur tous les appareils ?",
+      "confirmMessage": "{{label}} n’a pas de mot de passe sur cet appareil et n’y a jamais récupéré d’e-mails. Le retrait s’applique à tous les appareils qui synchronisent les réglages de ce vault — les e-mails et les fichiers restent intacts. Si le compte fonctionne sur un autre appareil, connectez-vous plutôt ici.",
       "removed": "Entrée retirée.",
       "keptSignedIn": "Ce compte a été connecté entre-temps ; il est conservé."
     }

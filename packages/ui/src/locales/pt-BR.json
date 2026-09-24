@@ -3384,16 +3384,16 @@
     "noAttachmentMatches": "Nenhum anexo confirmado nas mensagens carregadas.",
     "cacheUpdateFailed": "Alteração confirmada no servidor. Não foi possível atualizar o cache local; recarregue a pasta.",
     "orphans": {
-      "title_one": "{{count}} conta de e-mail incompleta",
-      "title_many": "{{count}} contas de e-mail incompletas",
-      "title_other": "{{count}} contas de e-mail incompletas",
-      "body": "Sem senha e sem nenhum e-mail já baixado — provavelmente restos de uma configuração que não terminou. Remover apaga só a entrada, nunca e-mails.",
+      "title_one": "{{count}} conta de e-mail sem senha neste dispositivo",
+      "title_many": "{{count}} contas de e-mail sem senha neste dispositivo",
+      "title_other": "{{count}} contas de e-mail sem senha neste dispositivo",
+      "body": "Aqui nunca foram baixados e-mails com elas — provavelmente restos de uma configuração que não terminou. Se você usa alguma em outro dispositivo, entre aqui. Remover apaga a entrada em todos os dispositivos, nunca e-mails ou arquivos.",
       "review": "Ver",
       "later": "Depois",
       "rowMeta": "sem senha · {{server}}",
       "remove": "Remover",
-      "confirmTitle": "Remover a conta de e-mail incompleta?",
-      "confirmMessage": "{{label}} não tem senha e nunca baixou e-mails. Só esta entrada é removida — nenhum e-mail, nenhum arquivo.",
+      "confirmTitle": "Remover esta conta de e-mail em todos os dispositivos?",
+      "confirmMessage": "{{label}} não tem senha neste dispositivo e nunca baixou e-mails aqui. A remoção vale para todos os dispositivos que sincronizam as configurações deste vault — e-mails e arquivos ficam intactos. Se a conta funciona em outro dispositivo, entre aqui.",
       "removed": "Entrada removida.",
       "keptSignedIn": "Esta conta foi conectada nesse meio-tempo e foi mantida."
     }

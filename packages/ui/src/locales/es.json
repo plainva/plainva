@@ -3384,16 +3384,16 @@
     "noAttachmentMatches": "No hay adjuntos confirmados en los mensajes cargados.",
     "cacheUpdateFailed": "Cambio confirmado en el servidor. No se pudo actualizar la caché local; vuelve a cargar la carpeta.",
     "orphans": {
-      "title_one": "{{count}} cuenta de correo incompleta",
-      "title_many": "{{count}} cuentas de correo incompletas",
-      "title_other": "{{count}} cuentas de correo incompletas",
-      "body": "Sin contraseña y sin haber recibido nunca correo: probablemente restos de una configuración que no terminó. Quitar elimina solo la entrada, nunca correos.",
+      "title_one": "{{count}} cuenta de correo sin contraseña en este dispositivo",
+      "title_many": "{{count}} cuentas de correo sin contraseña en este dispositivo",
+      "title_other": "{{count}} cuentas de correo sin contraseña en este dispositivo",
+      "body": "Aquí nunca se ha recibido correo con ellas: probablemente restos de una configuración que no terminó. Si usas alguna en otro dispositivo, inicia sesión aquí. Quitar elimina la entrada en todos los dispositivos, nunca correos ni archivos.",
       "review": "Ver",
       "later": "Más tarde",
       "rowMeta": "sin contraseña · {{server}}",
       "remove": "Quitar",
-      "confirmTitle": "¿Quitar la cuenta de correo incompleta?",
-      "confirmMessage": "{{label}} no tiene contraseña y nunca ha recibido correo. Solo se quita esta entrada: ningún correo, ningún archivo.",
+      "confirmTitle": "¿Quitar esta cuenta de correo en todos los dispositivos?",
+      "confirmMessage": "{{label}} no tiene contraseña en este dispositivo y aquí nunca ha recibido correo. Quitarla afecta a todos los dispositivos que sincronizan los ajustes de este vault; los correos y archivos no se tocan. Si la cuenta funciona en otro dispositivo, inicia sesión aquí.",
       "removed": "Entrada quitada.",
       "keptSignedIn": "Mientras tanto se inició sesión en esta cuenta, así que se conserva."
     }

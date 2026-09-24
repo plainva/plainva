@@ -3355,15 +3355,15 @@
     "noAttachmentMatches": "Keine bestätigten Anhänge in den geladenen Nachrichten.",
     "cacheUpdateFailed": "Änderung auf dem Server bestätigt. Der lokale Mail-Cache konnte nicht aktualisiert werden; lade den Ordner erneut.",
     "orphans": {
-      "title_one": "{{count}} unvollständiges E-Mail-Konto",
-      "title_other": "{{count}} unvollständige E-Mail-Konten",
-      "body": "Ohne Passwort und ohne je abgerufene Mails – vermutlich Reste einer abgebrochenen Einrichtung. Entfernen löscht nur den Eintrag, keine Mails.",
+      "title_one": "{{count}} E-Mail-Konto ohne Passwort auf diesem Gerät",
+      "title_other": "{{count}} E-Mail-Konten ohne Passwort auf diesem Gerät",
+      "body": "Hier wurden damit noch nie Mails abgerufen – vermutlich Reste einer abgebrochenen Einrichtung. Nutzt Du ein Konto auf einem anderen Gerät, melde Dich hier an. Entfernen löscht den Eintrag auf allen Geräten, nie Mails oder Dateien.",
       "review": "Ansehen",
       "later": "Später",
       "rowMeta": "ohne Passwort · {{server}}",
       "remove": "Entfernen",
-      "confirmTitle": "Unvollständiges E-Mail-Konto entfernen?",
-      "confirmMessage": "{{label}} hat kein Passwort und hat noch nie Mails abgerufen. Entfernt wird nur dieser Eintrag – keine Mails, keine Dateien.",
+      "confirmTitle": "E-Mail-Konto auf allen Geräten entfernen?",
+      "confirmMessage": "{{label}} hat auf diesem Gerät kein Passwort und hat hier noch nie Mails abgerufen. Entfernen gilt für alle Geräte, die die Einstellungen dieses Vaults abgleichen – Mails und Dateien bleiben unberührt. Funktioniert das Konto auf einem anderen Gerät, melde Dich stattdessen hier an.",
       "removed": "Eintrag entfernt.",
       "keptSignedIn": "Das Konto ist inzwischen angemeldet und bleibt erhalten."
     }

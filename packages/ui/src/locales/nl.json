@@ -3355,15 +3355,15 @@
     "noAttachmentMatches": "Geen bevestigde bijlagen in de geladen berichten.",
     "cacheUpdateFailed": "Wijziging op de server bevestigd. De lokale mailcache kon niet worden bijgewerkt; laad de map opnieuw.",
     "orphans": {
-      "title_one": "{{count}} onvolledig e-mailaccount",
-      "title_other": "{{count}} onvolledige e-mailaccounts",
-      "body": "Zonder wachtwoord en zonder ooit opgehaalde mail – waarschijnlijk resten van een instelling die niet is afgerond. Verwijderen wist alleen de vermelding, nooit mail.",
+      "title_one": "{{count}} e-mailaccount zonder wachtwoord op dit apparaat",
+      "title_other": "{{count}} e-mailaccounts zonder wachtwoord op dit apparaat",
+      "body": "Hier is er nog nooit mail mee opgehaald – waarschijnlijk resten van een instelling die niet is afgerond. Gebruik je er een op een ander apparaat, meld je dan hier aan. Verwijderen wist de vermelding op alle apparaten, nooit mail of bestanden.",
       "review": "Bekijken",
       "later": "Later",
       "rowMeta": "zonder wachtwoord · {{server}}",
       "remove": "Verwijderen",
-      "confirmTitle": "Onvolledig e-mailaccount verwijderen?",
-      "confirmMessage": "{{label}} heeft geen wachtwoord en heeft nog nooit mail opgehaald. Alleen deze vermelding wordt verwijderd – geen mail, geen bestanden.",
+      "confirmTitle": "Dit e-mailaccount op alle apparaten verwijderen?",
+      "confirmMessage": "{{label}} heeft op dit apparaat geen wachtwoord en heeft hier nog nooit mail opgehaald. Verwijderen geldt voor alle apparaten die de instellingen van deze vault synchroniseren – mail en bestanden blijven onaangeroerd. Werkt het account op een ander apparaat, meld je dan liever hier aan.",
       "removed": "Vermelding verwijderd.",
       "keptSignedIn": "Dit account is intussen aangemeld en blijft behouden."
     }

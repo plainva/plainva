@@ -119,6 +119,23 @@ export function MailAccountsScreen({
       toast.error(e instanceof Error ? e.message : String(e));
     }
   };
+  /**
+   * "Sign in on this device" from the notice — the right choice when the
+   * mailbox works elsewhere. It opens the flow each kind already uses here: the
+   * IMAP form for the password, the Microsoft form, the Gmail sign-in.
+   */
+  const signInOrphan = async (a: MailAccountConfig) => {
+    const kind = mailAccountKind(a);
+    if (kind === "imap") { setKind("imap"); setEditing(a); setFormOpen(true); return; }
+    if (kind === "microsoft") { setEditing(null); setKind("microsoft"); setFormOpen(true); return; }
+    try {
+      const record = (await loadCloudAccounts(vault.vaultId)).find((row) => row.services.mail?.mailAccountId === a.id);
+      await signInGmail(vault.vaultId, record);
+      reload();
+    } catch (e) {
+      toast.error(serviceConnectionMessage(e, t));
+    }
+  };
 
   const reload = useCallback(() => {
     void listMobileMailAccounts()
@@ -427,7 +444,12 @@ export function MailAccountsScreen({
                 <Row
                   controls
                   data-testid={`mail-orphan-${a.id}`}
-                  end={<Button size="sm" variant="danger-soft" onClick={() => void removeOrphan(a)}>{t("mail.orphans.remove")}</Button>}
+                  end={<>
+                    {(a.kind !== "gmail" || mobileGmailClient()) && (
+                      <Button size="sm" variant="primary" onClick={() => void signInOrphan(a)} data-testid={`mail-orphan-signin-${a.id}`}>{t("deviceSignIn.action")}</Button>
+                    )}
+                    <Button size="sm" variant="danger-soft" onClick={() => void removeOrphan(a)} data-testid={`mail-orphan-remove-${a.id}`}>{t("mail.orphans.remove")}</Button>
+                  </>}
                   key={a.id}
                   subtitle={t("mail.orphans.rowMeta", { server: orphanedMailServer(a) })}
                   title={a.label || a.user}

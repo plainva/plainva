@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ComposeEditor } from "./ComposeEditor";
 import { Users } from "lucide-react";
@@ -39,20 +39,32 @@ function MailAccountRow({
   signedIn,
   onSignedIn,
   onOpenCloudAccounts,
+  signInRequest,
 }: {
   vaultPath: string;
   account: MailAccountConfig;
   signedIn: DeviceSignInState;
   onSignedIn: () => void;
   onOpenCloudAccounts?: (accountRef?: string) => void;
+  /** Bumped by the incomplete-accounts notice: open this row's sign-in and show it. */
+  signInRequest?: number;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const oauth = mailAccountKind(account) !== "imap";
   const needsSignIn = signedIn !== "active";
+
+  // The notice's "Sign in on this device" lands HERE, in the same flow every
+  // unsigned mailbox already offers — not in a second copy of it.
+  useEffect(() => {
+    if (!signInRequest) return;
+    if (!oauth) setOpen(true);
+    rowRef.current?.scrollIntoView?.({ block: "center" });
+  }, [signInRequest, oauth]);
 
   const signIn = useCallback(async () => {
     if (!pass) return;
@@ -81,7 +93,7 @@ function MailAccountRow({
 
   return (
     <>
-      <div className="pv-acct" data-testid="mail-account">
+      <div className="pv-acct" data-testid="mail-account" ref={rowRef}>
         <AccountMark family={familyOfMailAccount({ kind: mailAccountKind(account), user: account.user, host: account.host })} small />
         <div className="pv-acct-who">
           <div className="pv-acct-name">{account.label}</div>
@@ -150,7 +162,13 @@ function MailAccountRow({
  * the removal live in the shared hook; this renders it with the desktop's
  * account rows and asks the desktop's confirmation. Never removes by itself.
  */
-export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved }: { vaultPath: string; reloadToken: number; onRemoved: () => void }) {
+export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved, onSignIn }: {
+  vaultPath: string;
+  reloadToken: number;
+  onRemoved: () => void;
+  /** The mailbox's own sign-in — the right choice when it works on another device. */
+  onSignIn: (account: MailAccountConfig) => void;
+}) {
   const { t } = useTranslation();
   const { dbAdapter, pimRuntime } = useVault();
   const notice = useOrphanedMailAccounts(vaultPath, dbAdapter, reloadToken);
@@ -204,6 +222,9 @@ export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved }: { vaul
               <div className="pv-acct-name">{account.label || account.user}</div>
               <div className="pv-acct-id">{t("mail.orphans.rowMeta", { server: orphanedMailServer(account) })}</div>
             </div>
+            <Button variant="primary" onClick={() => onSignIn(account)} data-testid="mail-orphan-signin">
+              {t("deviceSignIn.action")}
+            </Button>
             <Button variant="danger-soft" onClick={() => void remove(account)} data-testid="mail-orphan-remove">
               {t("mail.orphans.remove")}
             </Button>
@@ -219,7 +240,7 @@ export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved }: { vaul
  * in the Cloud-Konten area (connect wizard / account detail).
  */
 
-export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: () => void }) {
+export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccounts?: (accountRef?: string) => void }) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -247,6 +268,20 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
       setSignIn(await deviceSignInStates("mail", vaultPath, list.map((a) => a.id)));
     },
     [vaultPath]
+  );
+
+  // "Sign in on this device" from the incomplete-accounts notice: a Microsoft
+  // mailbox signs in through Cloud accounts, every other one opens its own row.
+  const [signInRequest, setSignInRequest] = useState<{ id: string; n: number } | null>(null);
+  const signInHere = useCallback(
+    (account: MailAccountConfig) => {
+      if (mailAccountKind(account) === "microsoft") {
+        onOpenCloudAccounts?.(account.id);
+        return;
+      }
+      setSignInRequest((prev) => ({ id: account.id, n: (prev?.n ?? 0) + 1 }));
+    },
+    [onOpenCloudAccounts]
   );
 
   // Bumped on every reload, so the orphan notice re-checks after a sign-in or
@@ -378,7 +413,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   return (
     <div data-testid="mail-accounts">
       <SettingCard label={t("cloudAccounts.mailboxesGroup")}>
-        <OrphanedMailNotice vaultPath={vaultPath} reloadToken={reloads} onRemoved={() => void reload()} />
+        <OrphanedMailNotice vaultPath={vaultPath} reloadToken={reloads} onRemoved={() => void reload()} onSignIn={signInHere} />
         {desktopGmailClient() && <GmailSignInButton onSignIn={async () => { await signInGmail(vaultPath); await reload(); }} />}
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
@@ -397,6 +432,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
             signedIn={signIn.get(account.id) ?? "active"}
             onSignedIn={() => void reload()}
             onOpenCloudAccounts={onOpenCloudAccounts}
+            signInRequest={signInRequest?.id === account.id ? signInRequest.n : undefined}
           />
         ))}
       </SettingCard>

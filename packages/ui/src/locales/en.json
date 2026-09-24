@@ -3355,15 +3355,15 @@
     "noAttachmentMatches": "No confirmed attachments in the loaded messages.",
     "cacheUpdateFailed": "Server change confirmed. The local mail cache could not be updated; reload the folder.",
     "orphans": {
-      "title_one": "{{count}} incomplete email account",
-      "title_other": "{{count}} incomplete email accounts",
-      "body": "No password, and no mail ever fetched — most likely left over from a setup that did not finish. Remove deletes only the entry, never any mail.",
+      "title_one": "{{count}} email account without a password on this device",
+      "title_other": "{{count}} email accounts without a password on this device",
+      "body": "No mail was ever fetched with them here — probably left over from a setup that did not finish. If you use one on another device, sign in here instead. Remove deletes the entry on all devices, never mail or files.",
       "review": "View",
       "later": "Later",
       "rowMeta": "without password · {{server}}",
       "remove": "Remove",
-      "confirmTitle": "Remove incomplete email account?",
-      "confirmMessage": "{{label}} has no password and has never fetched mail. Only this entry is removed — no mail, no files.",
+      "confirmTitle": "Remove this email account on all devices?",
+      "confirmMessage": "{{label}} has no password on this device and has never fetched mail here. Removing it applies to every device that syncs this vault's settings — mail and files stay untouched. If the account works on another device, sign in here instead.",
       "removed": "Entry removed.",
       "keptSignedIn": "This account has been signed in meanwhile, so it was kept."
     }

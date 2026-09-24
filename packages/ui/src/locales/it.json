@@ -3384,16 +3384,16 @@
     "noAttachmentMatches": "Nessun allegato confermato nei messaggi caricati.",
     "cacheUpdateFailed": "Modifica confermata dal server. Impossibile aggiornare la cache locale; ricarica la cartella.",
     "orphans": {
-      "title_one": "{{count}} account e-mail incompleto",
-      "title_many": "{{count}} account e-mail incompleti",
-      "title_other": "{{count}} account e-mail incompleti",
-      "body": "Senza password e senza aver mai scaricato e-mail: probabilmente resti di una configurazione non completata. Rimuovi elimina solo la voce, mai le e-mail.",
+      "title_one": "{{count}} account e-mail senza password su questo dispositivo",
+      "title_many": "{{count}} account e-mail senza password su questo dispositivo",
+      "title_other": "{{count}} account e-mail senza password su questo dispositivo",
+      "body": "Qui non hanno mai scaricato e-mail: probabilmente resti di una configurazione non completata. Se ne usi uno su un altro dispositivo, accedi qui. Rimuovi elimina la voce su tutti i dispositivi, mai e-mail o file.",
       "review": "Vedi",
       "later": "Più tardi",
       "rowMeta": "senza password · {{server}}",
       "remove": "Rimuovi",
-      "confirmTitle": "Rimuovere l’account e-mail incompleto?",
-      "confirmMessage": "{{label}} non ha una password e non ha mai scaricato e-mail. Viene rimossa solo questa voce: nessuna e-mail, nessun file.",
+      "confirmTitle": "Rimuovere questo account e-mail su tutti i dispositivi?",
+      "confirmMessage": "{{label}} non ha una password su questo dispositivo e qui non ha mai scaricato e-mail. La rimozione vale per tutti i dispositivi che sincronizzano le impostazioni di questo vault: e-mail e file restano intatti. Se l’account funziona su un altro dispositivo, accedi qui.",
       "removed": "Voce rimossa.",
       "keptSignedIn": "Nel frattempo è stato effettuato l’accesso a questo account, quindi viene mantenuto."
     }
