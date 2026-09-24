@@ -152,6 +152,8 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     id: "graph",
     labelKey: "shortcuts.catGraph",
     keyboard: [
+      // The same row as under View, on purpose: the Graph chip is complete on
+      // its own. One action listed twice, not a second key.
       { descKey: "graph.open", keys: [["Mod", "Shift", "G"]] },
       { descKey: "shortcuts.graphFocusMove", keys: [["↑", "↓", "←", "→"]] },
       { descKey: "shortcuts.graphOpenNode", keys: [["Enter"]] },
@@ -206,7 +208,9 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     id: "windows",
     labelKey: "shortcuts.catWindows",
     keyboard: [
-      { descKey: "window.openComms", keys: [["Mod", "P"]], noteKey: "shortcuts.noteViaPalette" },
+      // No key of its own, like the focus mode: the row once borrowed Mod+P,
+      // which read as if Mod+P opened this window. It opens the palette.
+      { descKey: "window.openComms", keys: [], noteKey: "shortcuts.noteViaPalette" },
     ],
     mouse: [
       { descKey: "shortcuts.mTabPopOut", gestureKey: "shortcuts.gRightClickTab" },
