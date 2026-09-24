@@ -56,6 +56,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // time from this table instead of InfoPlist.strings - they are the Android labels,
     // and `launcherShortcuts.test.ts` fails when the two platforms drift apart.
     private static let quickActionOrder = ["new-note", "new-task", "journal", "today"]
+    /// The app's URL scheme is its bundle id, which the Labs build changes (Info.plist
+    /// `PlainvaURLScheme`, docs/engineering/Labs_Channel.md).
+    private static let urlScheme = Bundle.main.object(forInfoDictionaryKey: "PlainvaURLScheme") as? String ?? "com.plainva.app"
     private static let quickActionSymbols = ["new-note": "square.and.pencil", "new-task": "checkmark.circle", "journal": "book", "today": "sun.max"]
     private static let quickActionTitles: [String: [String: String]] = [
         "en": ["new-note": "New note", "new-task": "New task", "journal": "Journal entry", "today": "Today"],
@@ -82,7 +85,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {
         let prefix = "com.plainva.app.shortcut."
-        guard shortcutItem.type.hasPrefix(prefix), let url = URL(string: "com.plainva.app://shortcut/" + shortcutItem.type.dropFirst(prefix.count)) else {
+        guard shortcutItem.type.hasPrefix(prefix), let url = URL(string: AppDelegate.urlScheme + "://shortcut/" + shortcutItem.type.dropFirst(prefix.count)) else {
             completionHandler(false)
             return
         }

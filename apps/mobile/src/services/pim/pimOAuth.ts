@@ -21,6 +21,7 @@ import type { ServiceConnectionContext } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "../connectQueue";
 import { getMobileVault, switchVault } from "../vaultService";
+import { APP_ID, APP_URL } from "../appScheme";
 
 /** Stored beside the PKCE verifier, never inferred from the current screen. */
 export interface AccountOAuthContext {
@@ -46,8 +47,8 @@ export interface AccountOAuthContext {
 
 // Browser redirects: Google uses this URI only on iOS. Android Google consent
 // returns through the native activity result, without a custom-scheme redirect.
-const MS_REDIRECT_URI = "com.plainva.app://oauth";
-const GOOGLE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
+const MS_REDIRECT_URI = `${APP_URL}oauth`;
+const GOOGLE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
 
 export type PimOAuthProvider = "google" | "microsoft";
 

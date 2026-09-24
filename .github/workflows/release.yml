@@ -33,6 +33,10 @@ concurrency:
   group: desktop-release-${{ inputs.rebuild_windows_tag && format('refs/tags/{0}', inputs.rebuild_windows_tag) || github.ref }}
   cancel-in-progress: false
 
+# Shown under About & diagnostics (scripts/build-info.mjs).
+env:
+  PLAINVA_BUILD_CHANNEL: release
+
 jobs:
   prepare:
     if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag

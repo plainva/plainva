@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- The labs build type (docs/engineering/Labs_Channel.md) overrides only what
+     names the app; every other string comes from src/main/res. -->
+<resources>
+    <string name="app_name">Plainva Labs</string>
+    <string name="title_activity_main">Plainva Labs</string>
+    <string name="package_name">com.plainva.app.labs</string>
+    <string name="custom_url_scheme">com.plainva.app.labs</string>
+</resources>

@@ -230,12 +230,23 @@ describe("locale parity", () => {
     expect(prefixes.length).toBeGreaterThan(10); // sanity: the scan sees the runtime families
     expect(suffixes.length).toBeGreaterThan(0);
 
+    // Searching every key in the whole source text cost one full pass per key —
+    // 4,400 passes over 12 MB, 25–37 s once another suite ran beside it. But a
+    // key only consists of key characters, so every occurrence lies inside one
+    // maximal run of them: the distinct runs, joined by a character no key
+    // contains, answer exactly the same question on a tenth of the bytes, and
+    // a key written as its own literal is found by one set lookup.
+    const keyChars = [...new Set([...referenceBases].join(""))].map((c) => c.replace(/[\\\]^-]/g, "\\$&")).join("");
+    const runs = new Set(text.match(new RegExp(`[${keyChars}]+`, "g")) ?? []);
+    const haystack = [...runs].join("\n");
+    const named = (literal: string) => runs.has(literal) || haystack.includes(literal);
+
     const unreachable = [...referenceBases]
-      .filter((k) => !text.includes(k))
+      .filter((k) => !named(k))
       .filter((k) => !prefixes.some((p) => k.startsWith(p)))
       // A literal suffix only counts when the parent path is itself named in the
       // source — otherwise ".label" would excuse every orphan ending in .label.
-      .filter((k) => !suffixes.some((sfx) => k.endsWith(sfx) && text.includes(k.slice(0, -sfx.length))))
+      .filter((k) => !suffixes.some((sfx) => k.endsWith(sfx) && named(k.slice(0, -sfx.length))))
       .sort();
     expect(unreachable).toEqual([]);
   });

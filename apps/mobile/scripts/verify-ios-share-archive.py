@@ -6,6 +6,9 @@ is simply absent is not an error while W4 is unbuilt - but when the
 workflow says to expect it (PLAINVA_EXPECT_WIDGETS, set whenever the
 widgets profile secret is configured), a missing one IS, because a target
 that quietly failed to build would otherwise ship as a green upload.
+
+The identity comes from the environment, as in install-ios-profiles.py: the
+store app by default, Plainva Labs under labs-mobile.yml.
 """
 import datetime
 import os
@@ -19,12 +22,14 @@ destination = pathlib.Path(sys.argv[2])
 app = archive / "Products/Applications/App.app"
 extension = app / "PlugIns/ShareExtension.appex"
 widgets = app / "PlugIns/PlainvaWidgets.appex"
+base = os.environ.get("PLAINVA_BUNDLE_BASE") or "com.plainva.app"
+group = os.environ.get("PLAINVA_APP_GROUP") or "group.com.plainva.app"
 profiles = {}
 versions = []
-products = [(app, "com.plainva.app", "APPL"), (extension, "com.plainva.app.share", "XPC!")]
+products = [(app, base, "APPL"), (extension, base + ".share", "XPC!")]
 expect_widgets = os.environ.get("PLAINVA_EXPECT_WIDGETS") == "1"
 if widgets.is_dir():
-    products.append((widgets, "com.plainva.app.widgets", "XPC!"))
+    products.append((widgets, base + ".widgets", "XPC!"))
 elif expect_widgets:
     raise AssertionError("PlainvaWidgets.appex is missing from the archive although the widgets profile is configured")
 for product, bundle_id, package_type in products:
@@ -40,10 +45,10 @@ for product, bundle_id, package_type in products:
     profile = plistlib.loads(raw)
     entitlements = profile["Entitlements"]
     assert entitlements["application-identifier"] == "M3FGXPBLFZ." + bundle_id, "Profile does not match bundle"
-    assert "group.com.plainva.app" in entitlements.get("com.apple.security.application-groups", []), "Profile lacks the shared App Group"
+    assert group in entitlements.get("com.apple.security.application-groups", []), "Profile lacks the shared App Group"
     assert profile["ExpirationDate"] > datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None), "Expired profile"
     signed = plistlib.loads(subprocess.check_output(["codesign", "-d", "--entitlements", ":-", str(product)], stderr=subprocess.DEVNULL))
-    assert "group.com.plainva.app" in signed.get("com.apple.security.application-groups", []), "Signed binary lacks the App Group"
+    assert group in signed.get("com.apple.security.application-groups", []), "Signed binary lacks the App Group"
     profiles[bundle_id] = profile["UUID"]
 # One version for the whole bundle: App Store Connect rejects an
 # extension whose version differs from the app that carries it.

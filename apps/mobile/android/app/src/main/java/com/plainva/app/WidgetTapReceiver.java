@@ -49,7 +49,8 @@ public class WidgetTapReceiver extends BroadcastReceiver {
         // would now name a different row, and opening the wrong note is worse
         // than opening the day.
         long at = WidgetStore.snapshotWrittenAt(context);
-        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse("com.plainva.app://widget/open/" + index + "?at=" + at));
+        // The scheme is the application id - see CaptureWidgetProvider.deepLink.
+        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(context.getPackageName() + "://widget/open/" + index + "?at=" + at));
         open.setClass(context, MainActivity.class);
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(open);

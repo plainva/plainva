@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-	<key>CFBundleDisplayName</key><string>Plainva</string>
+	<key>CFBundleDisplayName</key><string>$(PLAINVA_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
@@ -12,4 +12,6 @@
 	<key>NSExtension</key><dict>
 		<key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>PlainvaAppGroup</key><string>$(PLAINVA_APP_GROUP)</string>
+	<key>PlainvaURLScheme</key><string>$(PLAINVA_BUNDLE_BASE)</string>
 </dict></plist>

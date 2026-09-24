@@ -4,6 +4,7 @@
  * an export is safe to attach to a bug report. Vault-relative file paths may
  * appear in messages; the export header says so.
  */
+import { formatBuildLine } from "../lib/buildInfo";
 import { formatPimTraceExport } from "./pimTraceLog";
 
 export interface DiagEntry {
@@ -65,6 +66,7 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
     "# Plainva Diagnose-Export",
     "",
     `- App: ${info.appVersion}`,
+    `- Build: ${formatBuildLine() || "-"}`,
     `- Tauri: ${info.tauriVersion}`,
     `- WebView: ${info.webView ?? "-"}`,
     `- OS: ${info.os}`,

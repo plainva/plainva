@@ -1,11 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { buildInfoDefine } from "../../scripts/build-info.mjs";
 
 // Port 1430 on purpose: the desktop dev server owns 1420 and both run in
 // parallel during development.
 export default defineConfig({
   plugins: [react()],
+  // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
+  define: buildInfoDefine(),
   // Same canonical source module as desktop; no package build/HMR split.
   resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
   server: {

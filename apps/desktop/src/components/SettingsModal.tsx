@@ -50,7 +50,7 @@ import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, 
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
-import { formatDiagnosticsExport } from "@plainva/ui";
+import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
@@ -334,7 +334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   const handleReportIssue = async () => {
     const body = encodeURIComponent(
-      `Plainva ${aboutInfo?.appVersion ?? "dev"} · Tauri ${aboutInfo?.tauriVersion ?? "-"} · WebView ${webViewVersion} · ${aboutInfo?.os ?? "?"} · ${i18n.language}\n\n`
+      `Plainva ${aboutInfo?.appVersion ?? "dev"} (${formatBuildLine()}) · Tauri ${aboutInfo?.tauriVersion ?? "-"} · WebView ${webViewVersion} · ${aboutInfo?.os ?? "?"} · ${i18n.language}\n\n`
     );
     try {
       const { openUrl } = await import("@tauri-apps/plugin-opener");
@@ -875,7 +875,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "about"}>
                     <AboutPage
-                      aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
+                      aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} (${formatBuildLine()}) · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
                       keychainStatus={keychainStatus}
                       perfStats={perfStats}
                       onRefreshPerfStats={() => { void refreshPerfStats(); }}

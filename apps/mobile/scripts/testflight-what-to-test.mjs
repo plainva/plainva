@@ -25,7 +25,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const API = "https://api.appstoreconnect.apple.com/v1";
-const BUNDLE_ID = "com.plainva.app";
+// The store app, or Plainva Labs when labs-mobile.yml sets PLAINVA_BUNDLE_BASE
+// (docs/engineering/Labs_Channel.md) - its own App Store Connect app.
+const BUNDLE_ID = process.env.PLAINVA_BUNDLE_BASE || "com.plainva.app";
 
 /** Play locale (file suffix from store-whatsnew.mjs) -> App Store Connect locale. */
 const ASC_LOCALES = {
@@ -88,8 +90,10 @@ async function main() {
   if (Object.keys(notes).length === 0) throw new Error(`${dir}: no whatsnew-* files`);
 
   let jwt = token(auth);
+  // The filter matches by prefix: com.plainva.app also returns
+  // com.plainva.app.labs, and first. Only the exact bundle id is this app.
   const apps = await call(jwt, "GET", `/apps?filter[bundleId]=${BUNDLE_ID}`);
-  const appId = apps?.data?.[0]?.id;
+  const appId = apps?.data?.find((app) => app.attributes?.bundleId === BUNDLE_ID)?.id;
   if (!appId) throw new Error(`no app with bundle id ${BUNDLE_ID}`);
 
   // Processing usually takes 5–15 minutes; give it 40 and re-mint the token

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Plainva</string>
+        <string>$(PLAINVA_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,10 +24,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.plainva.app</string>
+			<string>$(PLAINVA_BUNDLE_BASE)</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.plainva.app</string>
+				<string>$(PLAINVA_BUNDLE_BASE)</string>
 			</array>
 		</dict>
 	</array>
@@ -61,6 +61,10 @@
 	<string>Plainva shows the calendars of this device next to your notes and creates the events you add from a note.</string>
 	<key>NSRemindersUsageDescription</key>
 	<string>Plainva shows your reminder lists as task lists next to your notes and checks off or creates reminders from there.</string>
+	<key>PlainvaAppGroup</key>
+	<string>$(PLAINVA_APP_GROUP)</string>
+	<key>PlainvaURLScheme</key>
+	<string>$(PLAINVA_BUNDLE_BASE)</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

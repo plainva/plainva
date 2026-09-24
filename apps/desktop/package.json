@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "dev:isolated": "vite --port 1440 --strictPort",
+    "dev:labs": "vite --port 1450 --strictPort",
     "tauri:isolated": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "tauri:labs": "tauri dev --config src-tauri/tauri.labs.conf.json",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -38,10 +38,24 @@ describe("launcher shortcuts and quick actions", () => {
     expect(labelNames).toHaveLength(androidIds.length);
   });
 
+  it("the Labs build carries the same shortcuts on its own id", () => {
+    // Resource XML takes no placeholders, so src/labs keeps a copy with
+    // com.plainva.app.labs written in (docs/engineering/Labs_Channel.md). A
+    // shortcut added on main without it would open the store app from Labs.
+    const labs = read(MOBILE, "android/app/src/labs/res/xml/shortcuts.xml");
+    const body = (xml: string) => xml.slice(xml.indexOf("<shortcuts"));
+    const expected = body(shortcutsXml)
+      .split('android:data="com.plainva.app://')
+      .join('android:data="com.plainva.app.labs://')
+      .split('android:targetPackage="com.plainva.app"')
+      .join('android:targetPackage="com.plainva.app.labs"');
+    expect(body(labs)).toBe(expected);
+  });
+
   it("iOS offers the same entries in the same order", () => {
     const order = /quickActionOrder = \[([^\]]+)\]/.exec(swift);
     expect(order?.[1].split(",").map((part) => part.trim().replace(/"/g, ""))).toEqual(androidIds);
-    expect(swift).toContain('"com.plainva.app://shortcut/"');
+    expect(swift).toContain('urlScheme + "://shortcut/"');
     expect(swift).toContain("performActionFor shortcutItem");
   });
 
@@ -61,7 +75,7 @@ describe("launcher shortcuts and quick actions", () => {
     // The URL list moved out of the shell when the widgets added a fourth
     // kind and App.tsx hit its structure budget (plan Widgets, W3).
     const routes = read(MOBILE, "src/services/appUrlRoutes.ts");
-    expect(routes).toContain('url.startsWith("com.plainva.app://shortcut/")');
+    expect(routes).toContain("url.startsWith(`${APP_URL}shortcut/`)");
     const app = read(MOBILE, "src/App.tsx");
     for (const prop of ["onCapture=", "onNewTask=", "onJournal=", "onOpenToday="]) expect(app, prop).toContain(prop);
   });

@@ -33,7 +33,7 @@ struct CaptureWidgetView: View {
     }
 
     private func target(symbol: String, text: String, url: URL?) -> some View {
-        Link(destination: url ?? URL(string: "com.plainva.app://")!) {
+        Link(destination: url ?? widgetAppURL()) {
             HStack(spacing: 7) {
                 Image(systemName: symbol)
                     .font(.system(size: 15, weight: .medium))

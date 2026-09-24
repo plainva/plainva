@@ -1,0 +1,257 @@
+name: Labs Mobile
+
+# Plainva Labs (docs/engineering/Labs_Channel.md): a feature branch built as a
+# third app next to the store app, with its own data. Android goes out as a
+# signed APK attached to the draft release "labs-android"; iOS goes to the
+# separate TestFlight app "Plainva Labs". Dispatch it on the branch:
+#
+#   gh workflow run labs-mobile.yml --ref feature/ai-harness
+#
+# The identity is fixed in this file (env below), so nothing built here can
+# reach com.plainva.app; release-mobile.yml and ios.yml in turn refuse commits
+# that are not on main. The Google test clients are left out on purpose: they
+# are registered for the store app's ids, and a Labs build shows "not
+# configured" rather than a provider error.
+#
+# Secrets: the Android upload key (ANDROID_KEYSTORE_BASE64, _PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD), the Apple distribution certificate
+# (IOS_CERTIFICATE_P12_BASE64, IOS_CERTIFICATE_PASSWORD), the App Store Connect
+# key (APP_STORE_CONNECT_KEY_ID, _ISSUER_ID, _KEY_BASE64) and the three Labs
+# profiles with the App Group group.com.plainva.app.labs:
+# IOS_LABS_PROVISIONING_PROFILE_BASE64, IOS_LABS_SHARE_PROVISIONING_PROFILE_BASE64,
+# IOS_LABS_WIDGETS_PROVISIONING_PROFILE_BASE64.
+
+on:
+  workflow_dispatch:
+    inputs:
+      android:
+        description: "Build the Android APK into the labs-android draft release"
+        type: boolean
+        default: true
+      ios:
+        description: "Upload to the TestFlight app Plainva Labs"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: labs-mobile
+  cancel-in-progress: false
+
+env:
+  # Shown under About & diagnostics (scripts/build-info.mjs).
+  PLAINVA_BUILD_CHANNEL: labs
+  # The web layer's scheme (apps/mobile/src/services/appScheme.ts).
+  VITE_PLAINVA_APP_ID: com.plainva.app.labs
+  # The iOS identity: the Xcode project, both Python checks and the TestFlight
+  # script read these instead of the store app's defaults.
+  PLAINVA_BUNDLE_BASE: com.plainva.app.labs
+  PLAINVA_APP_GROUP: group.com.plainva.app.labs
+  PLAINVA_DISPLAY_NAME: Plainva Labs
+
+jobs:
+  android:
+    if: ${{ inputs.android }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web assets
+        run: pnpm --filter mobile build
+
+      - name: Capacitor sync
+        working-directory: apps/mobile
+        run: npx cap sync android
+
+      # The build type `labs` (build.gradle): application id
+      # com.plainva.app.labs, its own name, scheme and launcher shortcuts
+      # (src/labs/res). Signed with the upload key; the versionCode is this
+      # workflow's run number, a counter of its own, as the app is.
+      - name: Build the signed Labs APK
+        working-directory: apps/mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not configured; an unsigned APK cannot be installed."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          chmod +x ./gradlew
+          ./gradlew testLabsUnitTest assembleLabs \
+            -Pandroid.injected.version.code="$VERSION_CODE" \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+          rm -f "$RUNNER_TEMP/release.keystore"
+
+      # One draft release with one fixed asset name, so the download link on the
+      # phone stays the same from build to build. A draft is visible only to
+      # the repository's maintainers and never becomes "Latest".
+      - name: Attach the APK to the labs-android draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          apk="$(find apps/mobile/android/app/build/outputs/apk/labs -name '*.apk' | head -1)"
+          [ -n "$apk" ] || { echo "::error::No Labs APK was built."; exit 1; }
+          cp "$apk" "$RUNNER_TEMP/plainva-labs.apk"
+          notes="Plainva Labs · ${GITHUB_REF_NAME} · ${GITHUB_SHA::8} · run #${GITHUB_RUN_NUMBER}"
+          if gh release view labs-android >/dev/null 2>&1; then
+            gh release upload labs-android "$RUNNER_TEMP/plainva-labs.apk" --clobber
+            gh release edit labs-android --notes "$notes"
+          else
+            gh release create labs-android "$RUNNER_TEMP/plainva-labs.apk" \
+              --draft --prerelease --title "Plainva Labs (Android)" --notes "$notes"
+          fi
+          echo "$notes"
+
+  ios:
+    if: ${{ inputs.ios }}
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web assets
+        run: pnpm --filter mobile build
+
+      - name: Sync Capacitor iOS
+        working-directory: apps/mobile
+        run: npx cap sync ios
+
+      - name: Test the share queue and the widget store
+        working-directory: apps/mobile/ios/App
+        run: |
+          swiftc Shared/ShareQueueStore.swift tests/ShareQueueTests.swift -o "$RUNNER_TEMP/share-queue-tests"
+          "$RUNNER_TEMP/share-queue-tests"
+          swiftc Shared/WidgetStore.swift PlainvaWidgets/WidgetModel.swift tests/WidgetStoreTests.swift -o "$RUNNER_TEMP/widget-store-tests"
+          "$RUNNER_TEMP/widget-store-tests"
+
+      - name: Import signing certificate and the Labs profiles
+        env:
+          CERT_B64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_LABS_PROVISIONING_PROFILE_BASE64 }}
+          SHARE_PROFILE_B64: ${{ secrets.IOS_LABS_SHARE_PROVISIONING_PROFILE_BASE64 }}
+          WIDGETS_PROFILE_B64: ${{ secrets.IOS_LABS_WIDGETS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          if [ -z "$CERT_B64" ] || [ -z "$PROFILE_B64" ] || [ -z "$SHARE_PROFILE_B64" ] || [ -z "$WIDGETS_PROFILE_B64" ]; then
+            echo "::error::The certificate or one of the three IOS_LABS_* profiles is not configured (see the header of this workflow)."
+            exit 1
+          fi
+          KEYCHAIN=$RUNNER_TEMP/build.keychain-db
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 1800 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          PROFILES=~/Library/MobileDevice/Provisioning\ Profiles
+          mkdir -p "$PROFILES"
+          echo "$PROFILE_B64" | base64 --decode > "$PROFILES/plainva-labs.mobileprovision"
+          echo "$SHARE_PROFILE_B64" | base64 --decode > "$PROFILES/plainva-labs-share.mobileprovision"
+          echo "$WIDGETS_PROFILE_B64" | base64 --decode > "$PROFILES/plainva-labs-widgets.mobileprovision"
+          echo "PLAINVA_EXPECT_WIDGETS=1" >> "$GITHUB_ENV"
+          python3 apps/mobile/scripts/install-ios-profiles.py \
+            "$PROFILES/plainva-labs.mobileprovision" \
+            "$PROFILES/plainva-labs-share.mobileprovision" \
+            "$PROFILES/plainva-labs-widgets.mobileprovision"
+
+      - name: Prepare App Store Connect API key
+        env:
+          ASC_KEY_B64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_B64" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+
+      # The same project as the store build; only the identity settings
+      # differ. The build number is this workflow's run number — the Labs app
+      # in App Store Connect counts on its own.
+      - name: Archive
+        working-directory: apps/mobile/ios/App
+        run: |
+          xcodebuild archive \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            PLAINVA_BUNDLE_BASE="$PLAINVA_BUNDLE_BASE" \
+            PLAINVA_APP_GROUP="$PLAINVA_APP_GROUP" \
+            PLAINVA_DISPLAY_NAME="$PLAINVA_DISPLAY_NAME" \
+            PLAINVA_APP_PROFILE="$PLAINVA_APP_PROFILE" \
+            PLAINVA_SHARE_PROFILE="$PLAINVA_SHARE_PROFILE" \
+            PLAINVA_WIDGETS_PROFILE="$PLAINVA_WIDGETS_PROFILE"
+
+      - name: Export and upload to TestFlight (Plainva Labs)
+        working-directory: apps/mobile/ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          python3 ../../scripts/verify-ios-share-archive.py "$RUNNER_TEMP/App.xcarchive" "$RUNNER_TEMP/export.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+
+      # "What to Test" names the build, not a release: a Labs build is a
+      # branch state, and the What's New catalog describes main.
+      - name: What to Test on TestFlight
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/labs-notes"
+          {
+            echo "Plainva Labs · ${GITHUB_REF_NAME} · ${GITHUB_SHA::8} · run #${GITHUB_RUN_NUMBER}"
+            git log -1 --format=%s
+          } > "$RUNNER_TEMP/labs-notes/whatsnew-en-US"
+          export ASC_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8
+          node apps/mobile/scripts/testflight-what-to-test.mjs "$RUNNER_TEMP/labs-notes"

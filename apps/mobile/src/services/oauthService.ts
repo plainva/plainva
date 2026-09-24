@@ -23,6 +23,7 @@ import { getMobileVault, switchVault } from "./vaultService";
 import type { ServiceConnectionContext } from "@plainva/ui";
 import { connectionContextFor, loadConnectQueue, outcomeBelongsToRun, recordConnectOutcome } from "./connectQueue";
 import { getActiveVaultEntry } from "./vaultRegistry";
+import { APP_ID, APP_URL } from "./appScheme";
 
 /**
  * Mobile OAuth: Android Google uses native AuthorizationClient consent. The
@@ -36,14 +37,16 @@ import { getActiveVaultEntry } from "./vaultRegistry";
  *  - Google Drive: register the Android package and installed signing SHA-1,
  *    or the iOS bundle and redirect scheme. Native clients have no secret.
  *    See docs/engineering/Google_Mail.md for the public test-client setup.
+ *  - The Labs build (com.plainva.app.labs) is a separate app to every provider:
+ *    each of the above again with that id, see docs/engineering/Labs_Channel.md.
  */
 
-export const OAUTH_REDIRECT_URI = "com.plainva.app://oauth";
+export const OAUTH_REDIRECT_URI = `${APP_URL}oauth`;
 /**
  * iOS Google installed-app redirect. Android Google returns through the SDK's
  * activity result and does not use this URI.
  */
-export const DRIVE_REDIRECT_URI = "com.plainva.app:/oauth2redirect";
+export const DRIVE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
 
 export type OAuthProviderId = "drive" | "onedrive" | "dropbox";
 

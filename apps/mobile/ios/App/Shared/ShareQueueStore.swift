@@ -12,11 +12,13 @@ enum ShareQueueFailure: String, Error {
 final class ShareQueueStore {
     static let fileLimit = 25 * 1024 * 1024, entryLimit = 50 * 1024 * 1024
     static let textLimit = 512 * 1024, chunkLimit = 256 * 1024
+    /// From Info.plist, like WidgetStore.appGroup: the Labs build has its own group.
+    static let appGroup = Bundle.main.object(forInfoDictionaryKey: "PlainvaAppGroup") as? String ?? "group.com.plainva.app"
     let root: URL
     private let fm = FileManager.default
 
     init(root: URL? = nil) throws {
-        guard let location = root ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.plainva.app")?.appendingPathComponent("share-inbox-v1", isDirectory: true) else { throw ShareQueueFailure.storage }
+        guard let location = root ?? FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: ShareQueueStore.appGroup)?.appendingPathComponent("share-inbox-v1", isDirectory: true) else { throw ShareQueueFailure.storage }
         self.root = location
         try fm.createDirectory(at: location, withIntermediateDirectories: true)
         #if os(iOS)

@@ -27,11 +27,31 @@ on:
 permissions:
   contents: write
 
+# Shown under About & diagnostics (scripts/build-info.mjs).
+env:
+  PLAINVA_BUILD_CHANNEL: release
+
 jobs:
   android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # Only commits on main may reach the store app com.plainva.app — a build
+      # from a feature branch goes through labs-mobile.yml into "Plainva Labs"
+      # (harness plan §21a.4 no. 5). Before this, any ref uploaded here. The
+      # compare API answers without fetching history: "identical" or "behind"
+      # means the commit is part of main.
+      - name: Refuse commits that are not on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}" --jq .status)"
+          echo "compare main...${GITHUB_SHA}: $status"
+          if [ "$status" != "identical" ] && [ "$status" != "behind" ]; then
+            echo "::error::${GITHUB_SHA} is not on main. Store uploads come only from main; build branch states with labs-mobile.yml."
+            exit 1
+          fi
 
       - uses: pnpm/action-setup@v6
 

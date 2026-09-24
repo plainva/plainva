@@ -45,6 +45,17 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        // Plainva Labs (docs/engineering/Labs_Channel.md): a feature branch
+        // built as a third app next to the store app, with its own data, URL
+        // scheme and launcher shortcuts (src/labs/res). labs-mobile.yml signs
+        // it with the upload key and attaches the APK to a draft release; it
+        // never goes to Play.
+        labs {
+            initWith release
+            applicationIdSuffix '.labs'
+            versionNameSuffix '-labs'
+            matchingFallbacks = ['release']
+        }
         // Isolated native TLS fixture: production network config and a
         // non-debuggable app, signed locally only. Never distributed.
         tlsTest {

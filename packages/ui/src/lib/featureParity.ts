@@ -47,8 +47,13 @@ export type ParityShellState = "yes" | "partial" | null;
  */
 export type ParityKind = "gap" | "decision";
 
-/** Grouping for reading the catalog by subsystem. */
+/**
+ * Grouping for reading the catalog by subsystem. `ai` belongs to the AI
+ * harness (harness plan §21a.4): sorted first, its entries sit at the top of
+ * the catalog, away from the lines other sessions append to.
+ */
 export type ParityArea =
+  | "ai"
   | "editor"
   | "database"
   | "graph"

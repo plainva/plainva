@@ -2,7 +2,9 @@ name: CodeQL
 
 on:
   push:
-    branches: [main]
+    # feature/** too: long-lived branches (the AI harness, harness plan §21a)
+    # get the same checks on every push, without a standing pull request.
+    branches: [main, "feature/**"]
   pull_request:
     branches: [main]
   # Weekly scheduled scan is omitted while the repo is private (code scanning

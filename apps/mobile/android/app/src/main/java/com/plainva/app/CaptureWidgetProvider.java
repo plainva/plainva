@@ -40,7 +40,9 @@ public class CaptureWidgetProvider extends AppWidgetProvider {
     }
 
     private static PendingIntent deepLink(Context context, String path, int request) {
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("com.plainva.app://" + path));
+        // The scheme is the application id, so a Labs build (com.plainva.app.labs)
+        // opens itself, not the store app next to it.
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(context.getPackageName() + "://" + path));
         intent.setClass(context, MainActivity.class);
         return PendingIntent.getActivity(context, request, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }

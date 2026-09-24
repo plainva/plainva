@@ -1,11 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
 import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -475,6 +475,15 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   const [, setTick] = useState(0);
   const [hailing, setHailing] = useState(false);
   const [okfInfo, setOkfInfo] = useState(false);
+  // Version and build under the logo (Labs channel, harness plan §21a.4): the
+  // release, the dev build and a Labs build can sit on one phone.
+  const [appVersion, setAppVersion] = useState("");
+  useEffect(() => {
+    void import("@capacitor/app")
+      .then(({ App }) => App.getInfo())
+      .then((info) => setAppVersion(info.version))
+      .catch(() => {});
+  }, []);
   const [pimTrace, setPimTrace] = useState(isPimTraceEnabled);
   // "Check deletion log" (finding 2026-09-20): the desktop's row, the same
   // worker call. Present only while a plain file sync runs.
@@ -544,7 +553,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
       <div className="m-settings">
         <GroupCard>
           <RowList>
-            <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} title="Plainva" />
+            <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} subtitle={[appVersion, formatBuildLine()].filter(Boolean).join(" · ")} title="Plainva" />
             <Row
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               onClick={exportDiagnostics}

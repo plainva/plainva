@@ -22,30 +22,89 @@ const repositoryRoot = resolve(here, "..", "..", "..");
 const read = (rel: string) => readFileSync(resolve(repositoryRoot, rel), "utf8");
 
 const BUNDLES = [
-  { id: "com.plainva.app", variable: "PLAINVA_APP_PROFILE" },
-  { id: "com.plainva.app.share", variable: "PLAINVA_SHARE_PROFILE" },
-  { id: "com.plainva.app.widgets", variable: "PLAINVA_WIDGETS_PROFILE" },
+  { suffix: "", variable: "PLAINVA_APP_PROFILE", installer: "(1, BASE, ", verifier: "(app, base, " },
+  { suffix: ".share", variable: "PLAINVA_SHARE_PROFILE", installer: '(2, BASE + ".share", ', verifier: '(extension, base + ".share", ' },
+  { suffix: ".widgets", variable: "PLAINVA_WIDGETS_PROFILE", installer: '(3, BASE + ".widgets", ', verifier: '(widgets, base + ".widgets", ' },
 ] as const;
 
 describe("iOS signing chain", () => {
   const installer = read("apps/mobile/scripts/install-ios-profiles.py");
   const verifier = read("apps/mobile/scripts/verify-ios-share-archive.py");
   const workflow = read(".github/workflows/ios.yml");
+  const labs = read(".github/workflows/labs-mobile.yml");
+  const project = read("apps/mobile/ios/App/App.xcodeproj/project.pbxproj");
 
+  // Since the Labs channel (docs/engineering/Labs_Channel.md) every bundle id
+  // is the base PLAINVA_BUNDLE_BASE plus a fixed suffix — in the project, in
+  // both Python checks, and nowhere as a literal that could drift.
   for (const bundle of BUNDLES) {
-    it(`${bundle.id} is known to the installer, the verifier and the workflow`, () => {
-      expect(installer, "the installer validates this bundle's profile").toContain(`"${bundle.id}"`);
-      expect(installer, "…and exports the variable the project signs with").toContain(`"${bundle.variable}"`);
-      expect(verifier, "the archive check knows this bundle").toContain(`"${bundle.id}"`);
-      expect(workflow, "xcodebuild is handed the variable").toContain(`${bundle.variable}="$${bundle.variable}"`);
+    it(`BASE${bundle.suffix} is known to the project, the installer, the verifier and both workflows`, () => {
+      const id = `PRODUCT_BUNDLE_IDENTIFIER = "$(PLAINVA_BUNDLE_BASE)${bundle.suffix}";`;
+      expect(project.split(id).length - 1, "Debug and Release derive the id from the base").toBe(2);
+      expect(installer, "the installer validates this bundle's profile").toContain(`${bundle.installer}"${bundle.variable}")`);
+      expect(verifier, "the archive check knows this bundle").toContain(bundle.verifier);
+      for (const source of [workflow, labs]) {
+        expect(source, "xcodebuild is handed the variable").toContain(`${bundle.variable}="$${bundle.variable}"`);
+      }
     });
   }
+
+  it("the store app is the default identity everywhere", () => {
+    expect(project.split("PLAINVA_BUNDLE_BASE = com.plainva.app;").length - 1).toBe(2);
+    expect(project.split("PLAINVA_APP_GROUP = group.com.plainva.app;").length - 1).toBe(2);
+    for (const source of [installer, verifier]) {
+      expect(source).toContain('or "com.plainva.app"');
+      expect(source).toContain('or "group.com.plainva.app"');
+    }
+    // The release workflow never names another identity — a Labs id there
+    // would upload a branch into the wrong app, or the store build into Labs.
+    expect(workflow).not.toContain("com.plainva.app.labs");
+    expect(workflow).not.toContain("IOS_LABS_");
+  });
+
+  it("the Labs workflow builds, checks and uploads one identity: Plainva Labs", () => {
+    expect(labs).toContain("PLAINVA_BUNDLE_BASE: com.plainva.app.labs");
+    expect(labs).toContain("PLAINVA_APP_GROUP: group.com.plainva.app.labs");
+    for (const setting of ["PLAINVA_BUNDLE_BASE", "PLAINVA_APP_GROUP", "PLAINVA_DISPLAY_NAME"]) {
+      expect(labs, `xcodebuild archive gets ${setting}`).toContain(`${setting}="$${setting}"`);
+    }
+    for (const secret of ["IOS_LABS_PROVISIONING_PROFILE_BASE64", "IOS_LABS_SHARE_PROVISIONING_PROFILE_BASE64", "IOS_LABS_WIDGETS_PROVISIONING_PROFILE_BASE64"]) {
+      expect(labs).toContain(`secrets.${secret}`);
+    }
+    // Never the store app's profiles: they would sign com.plainva.app.
+    expect(labs).not.toMatch(/secrets\.IOS_(?:SHARE_|WIDGETS_)?PROVISIONING_PROFILE_BASE64/);
+  });
+
+  it("finds its App Store Connect app by the exact bundle id", () => {
+    // filter[bundleId] matches by prefix: since Plainva Labs exists, a query
+    // for com.plainva.app returns com.plainva.app.labs first. Taking the first
+    // hit would write the store build's notes into Labs (found 2026-09-24).
+    for (const script of ["testflight-what-to-test.mjs", "testflight-feedback.mjs"]) {
+      const source = read(`apps/mobile/scripts/${script}`);
+      expect(source, script).toContain("app.attributes?.bundleId === BUNDLE_ID");
+      expect(source, script).not.toContain("apps?.data?.[0]");
+    }
+  });
+
+  it("entitlements and Info.plists take the identity from the build", () => {
+    for (const file of ["App/App.entitlements", "PlainvaWidgets/PlainvaWidgets.entitlements", "ShareExtension/ShareExtension.entitlements"]) {
+      const text = read(`apps/mobile/ios/App/${file}`);
+      expect(text, file).toContain("<string>$(PLAINVA_APP_GROUP)</string>");
+      expect(text, file).not.toContain("group.com.plainva.app");
+    }
+    for (const file of ["App/Info.plist", "PlainvaWidgets/Info.plist", "ShareExtension/Info.plist"]) {
+      expect(read(`apps/mobile/ios/App/${file}`), file).toMatch(/<key>PlainvaAppGroup<\/key>\s*<string>\$\(PLAINVA_APP_GROUP\)<\/string>/);
+    }
+    for (const file of ["App/Info.plist", "PlainvaWidgets/Info.plist"]) {
+      expect(read(`apps/mobile/ios/App/${file}`), file).toMatch(/<key>PlainvaURLScheme<\/key>\s*<string>\$\(PLAINVA_BUNDLE_BASE\)<\/string>/);
+    }
+  });
 
   it("every bundle carries the shared App Group, before and after the build", () => {
     // The group is the only way an extension reaches the snapshot. A profile
     // without it builds, signs, uploads — and the widget stays empty forever.
     for (const source of [installer, verifier]) {
-      expect(source).toContain('"group.com.plainva.app"');
+      expect(source).toContain("in entitlements.get(\"com.apple.security.application-groups\", [])");
     }
   });
 
@@ -58,7 +117,6 @@ describe("iOS signing chain", () => {
     // The trap this closes: a file that is on disk but not in project.pbxproj
     // simply is not built. Nothing warns, the archive is smaller, and the
     // widget behaves as if the code had never been written.
-    const project = read("apps/mobile/ios/App/App.xcodeproj/project.pbxproj");
     const sources = readdirSync(resolve(repositoryRoot, "apps/mobile/ios/App/PlainvaWidgets")).filter((f) => f.endsWith(".swift"));
     expect(sources.length, "the widget target has sources").toBeGreaterThan(0);
     const missing = sources.filter((file) => !project.includes(`${file} in Sources */`));

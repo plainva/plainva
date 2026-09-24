@@ -100,14 +100,26 @@ func widgetClock(_ minutes: Int) -> String {
     return formatter.string(from: date)
 }
 
+/**
+ * The app's URL scheme: its bundle id, which the Labs build changes (Info.plist
+ * `PlainvaURLScheme`, docs/engineering/Labs_Channel.md). A widget of Plainva Labs
+ * must open Plainva Labs, not the store app next to it.
+ */
+let widgetURLScheme = Bundle.main.object(forInfoDictionaryKey: "PlainvaURLScheme") as? String ?? "com.plainva.app"
+
+/** The app itself, where a widget has nothing more specific to open. */
+func widgetAppURL() -> URL {
+    URL(string: "\(widgetURLScheme)://")!
+}
+
 /** A tap travels as a POSITION on the app's scheme, never as a path. */
 func widgetOpenURL(_ row: WidgetSnapshot.Row, writtenAt: Date?) -> URL? {
     let at = Int((writtenAt?.timeIntervalSince1970 ?? 0) * 1000)
-    return URL(string: "com.plainva.app://widget/open/\(row.index)?at=\(at)")
+    return URL(string: "\(widgetURLScheme)://widget/open/\(row.index)?at=\(at)")
 }
 
 func widgetShortcutURL(_ which: String) -> URL? {
-    URL(string: "com.plainva.app://shortcut/\(which)")
+    URL(string: "\(widgetURLScheme)://shortcut/\(which)")
 }
 
 /**

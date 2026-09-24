@@ -142,8 +142,10 @@ async function main() {
   }
 
   const jwt = token(auth);
+  // The filter matches by prefix: com.plainva.app also returns
+  // com.plainva.app.labs, and first. Only the exact bundle id is this app.
   const apps = await get(jwt, `/apps?filter[bundleId]=${BUNDLE_ID}`);
-  const appId = apps?.data?.[0]?.id;
+  const appId = apps?.data?.find((app) => app.attributes?.bundleId === BUNDLE_ID)?.id;
   if (!appId) throw new Error(`no app with bundle id ${BUNDLE_ID}`);
 
   if (opts.build) {

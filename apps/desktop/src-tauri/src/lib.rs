@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
+mod app_identity;
 mod atomic_write;
 mod checked_fs;
 mod backup;
@@ -367,14 +368,14 @@ pub fn run() {
         .manage(atomic_write::WriteRoots::default())
         .manage(tray::TrayState::default())
         .setup(|app| {
-            // The isolated dev build (tauri.dev.conf.json overrides the
-            // identifier to com.plainva.desktop.dev) keeps its own state
-            // directory beside the release install; label its window so the two
-            // are never confused. Inert in release builds, whose identifier
-            // never ends in ".dev".
-            if app.config().identifier.ends_with(".dev") {
+            // The isolated dev build (tauri.dev.conf.json, identifier
+            // com.plainva.desktop.dev) and the Labs build of a feature branch
+            // (tauri.labs.conf.json, com.plainva.desktop.labs) keep their own
+            // state directories beside the release install; label their windows
+            // so the three are never confused. Inert in release builds.
+            if let Some(title) = app_identity::window_title_for(&app.config().identifier) {
                 if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.set_title("Plainva (Dev)");
+                    let _ = win.set_title(title);
                 }
             }
             Ok(())

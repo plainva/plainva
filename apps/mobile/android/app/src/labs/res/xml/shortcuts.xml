@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copy for the labs build type: src/main/res/xml/shortcuts.xml with
+     the Labs application id written in (resource XML takes no placeholders).
+     launcherShortcuts.test.ts fails when the two drift apart.
+
+     Static launcher shortcuts (M3E package J): all fire VIEW intents on the
+     app's own scheme; the JS appUrlOpen handler routes them (App.tsx). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new-note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_note">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app.labs://shortcut/new-note"
+            android:targetPackage="com.plainva.app.labs"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+    <!-- Opens the tasks tab with the quick-capture sheet (plan Aufgaben-Oberflaeche, B6). -->
+    <shortcut
+        android:shortcutId="new-task"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_task">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app.labs://shortcut/new-task"
+            android:targetPackage="com.plainva.app.labs"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+    <!-- One line into today's daily note (plan Journal, J4): opens the capture sheet on its journal kind. -->
+    <shortcut
+        android:shortcutId="journal"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_journal">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app.labs://shortcut/journal"
+            android:targetPackage="com.plainva.app.labs"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="today"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_today">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.plainva.app.labs://shortcut/today"
+            android:targetPackage="com.plainva.app.labs"
+            android:targetClass="com.plainva.app.MainActivity" />
+    </shortcut>
+</shortcuts>

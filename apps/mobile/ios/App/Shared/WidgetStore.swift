@@ -40,7 +40,10 @@ public final class WidgetStore {
     static let maxActions = 200
     static let maxSnapshotBytes = 256 * 1024
 
-    public static let appGroup = "group.com.plainva.app"
+    /// The App Group both targets share, from Info.plist (`PlainvaAppGroup`, set from
+    /// the build setting PLAINVA_APP_GROUP): the Labs build has its own
+    /// (docs/engineering/Labs_Channel.md). The literal is the store app's.
+    public static let appGroup = Bundle.main.object(forInfoDictionaryKey: "PlainvaAppGroup") as? String ?? "group.com.plainva.app"
 
     let root: URL
     private let fm = FileManager.default

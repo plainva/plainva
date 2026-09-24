@@ -17,7 +17,25 @@ export type UpdateCheckResult =
   | { status: "no-release" }
   | { status: "error"; error: string };
 
+/**
+ * The identifier of the published app (`tauri.conf.json`). The isolated dev
+ * build (`.dev`) and a Labs build of a feature branch (`.labs`) are built from
+ * source and must never offer — or install — the public release over
+ * themselves; their overlays also clear the updater endpoints.
+ */
+const RELEASE_IDENTIFIER = "com.plainva.desktop";
+
+async function isReleaseInstall(): Promise<boolean> {
+  try {
+    const { getIdentifier } = await import("@tauri-apps/api/app");
+    return (await getIdentifier()) === RELEASE_IDENTIFIER;
+  } catch {
+    return false;
+  }
+}
+
 export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
+  if (!(await isReleaseInstall())) return { status: "no-release" };
   try {
     const update = await check();
     return update ? { status: "available", update } : { status: "none" };

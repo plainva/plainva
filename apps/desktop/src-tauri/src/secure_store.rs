@@ -3,7 +3,6 @@ use std::sync::Mutex;
 // All windows share this lane, including ordinary credential writers. A
 // conditional journal update must not race a different webview's reconnect.
 static STORE_LOCK: Mutex<()> = Mutex::new(());
-const SERVICE: &str = "plainva";
 
 fn locked<T>(run: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
     let _guard = STORE_LOCK
@@ -12,8 +11,12 @@ fn locked<T>(run: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
     run()
 }
 
-fn entry(key: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new(SERVICE, key).map_err(|e| e.to_string())
+/// The keychain entry for `key` in THIS installation's namespace: the release
+/// app, the dev build and a Labs build never share credentials (see
+/// `app_identity::keychain_service_for`).
+fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {
+    let service = crate::app_identity::keychain_service_for(&app.config().identifier);
+    keyring::Entry::new(&service, key).map_err(|e| e.to_string())
 }
 
 fn read(entry: &keyring::Entry) -> Result<Option<String>, String> {
@@ -47,28 +50,29 @@ fn conditional_update(
 }
 
 #[tauri::command]
-pub fn keychain_get(key: String) -> Result<Option<String>, String> {
-    locked(|| read(&entry(&key)?))
+pub fn keychain_get(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
+    locked(|| read(&entry(&app, &key)?))
 }
 
 #[tauri::command]
-pub fn keychain_set(key: String, value: String) -> Result<(), String> {
-    locked(|| write(&entry(&key)?, Some(&value)))
+pub fn keychain_set(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
+    locked(|| write(&entry(&app, &key)?, Some(&value)))
 }
 
 #[tauri::command]
-pub fn keychain_delete(key: String) -> Result<(), String> {
-    locked(|| write(&entry(&key)?, None))
+pub fn keychain_delete(app: tauri::AppHandle, key: String) -> Result<(), String> {
+    locked(|| write(&entry(&app, &key)?, None))
 }
 
 #[tauri::command]
 pub fn keychain_compare_and_set(
+    app: tauri::AppHandle,
     key: String,
     expected: Option<String>,
     value: Option<String>,
 ) -> Result<bool, String> {
     locked(|| {
-        let entry = entry(&key)?;
+        let entry = entry(&app, &key)?;
         conditional_update(
             expected.as_deref(),
             || read(&entry),

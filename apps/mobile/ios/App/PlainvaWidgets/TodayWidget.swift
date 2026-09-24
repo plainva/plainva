@@ -61,7 +61,7 @@ struct TodayWidgetView: View {
                         .padding(.vertical, 2)
                         .background(WidgetPalette.warn.opacity(0.14), in: Capsule())
                 }
-                Link(destination: widgetShortcutURL("new-task") ?? URL(string: "com.plainva.app://")!) {
+                Link(destination: widgetShortcutURL("new-task") ?? widgetAppURL()) {
                     Image(systemName: "plus")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(WidgetPalette.accent)
@@ -108,7 +108,7 @@ struct TodayWidgetView: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Link(destination: widgetShortcutURL("today") ?? URL(string: "com.plainva.app://")!) {
+        Link(destination: widgetShortcutURL("today") ?? widgetAppURL()) {
             HStack {
                 Spacer()
                 Text(text).font(.caption).foregroundStyle(WidgetPalette.faint)

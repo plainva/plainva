@@ -31,7 +31,7 @@ struct DueCountView: View {
         // A count and nothing else: the one thing that is safe on a lock screen
         // whatever the vault holds.
         let count = entry.snapshot.map { $0.locked ? 0 : $0.rows(on: entry.day, pending: []).count } ?? 0
-        Link(destination: widgetShortcutURL("today") ?? URL(string: "com.plainva.app://")!) {
+        Link(destination: widgetShortcutURL("today") ?? widgetAppURL()) {
             VStack(spacing: 0) {
                 Image(systemName: "checklist").font(.system(size: 11))
                 Text("\(count)").font(.system(size: 17, weight: .semibold, design: .rounded))
@@ -85,6 +85,6 @@ struct NextTaskView: View {
            let url = widgetOpenURL(next, writtenAt: snapshot.writtenAt) {
             return url
         }
-        return widgetShortcutURL("today") ?? URL(string: "com.plainva.app://")!
+        return widgetShortcutURL("today") ?? widgetAppURL()
     }
 }

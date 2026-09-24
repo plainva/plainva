@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { buildInfoDefine } from "../../scripts/build-info.mjs";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -8,6 +9,8 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
+  define: buildInfoDefine(),
   // The installed SDK has a deliberately smaller API. Both shells and every
   // shared UI import use ONE source module in dev, tests and production builds.
   resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },

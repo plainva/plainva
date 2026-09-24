@@ -1,8 +1,10 @@
+import { APP_URL } from "./appScheme";
 import { handleOAuthRedirect } from "./oauthService";
 import { handlePimOAuthRedirect } from "./pim/pimOAuth";
 
 /**
- * Where a URL on the app's own scheme goes (`com.plainva.app://…`).
+ * Where a URL on the app's own scheme goes (`com.plainva.app://…`, see
+ * `appScheme.ts` for the Labs build).
  *
  * Its own module because this is a LIST, and lists in `App.tsx` are what the
  * structure ratchet exists to stop — the shell's job is to hand the URL over,
@@ -16,14 +18,14 @@ import { handlePimOAuthRedirect } from "./pim/pimOAuth";
  */
 export async function routeAppUrl(url: string): Promise<void> {
   // Launcher shortcuts (package J) ride the app scheme.
-  if (url.startsWith("com.plainva.app://shortcut/")) {
+  if (url.startsWith(`${APP_URL}shortcut/`)) {
     const which = url.split("/").pop();
     window.dispatchEvent(new CustomEvent("m-shortcut", { detail: { which } }));
     return;
   }
   // A tapped widget row (plan Widgets, W3). The URL carries a position, never
   // a path — resolving it belongs to the service that wrote the table.
-  if (url.startsWith("com.plainva.app://widget/open/")) {
+  if (url.startsWith(`${APP_URL}widget/open/`)) {
     await import("./widgetService")
       .then((m) => m.routeWidgetOpen(url))
       .catch(() => {});

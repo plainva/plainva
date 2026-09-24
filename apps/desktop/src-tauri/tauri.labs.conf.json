@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Plainva Labs",
+  "identifier": "com.plainva.desktop.labs",
+  "build": {
+    "beforeDevCommand": "pnpm dev:labs",
+    "devUrl": "http://localhost:1450"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": []
+    }
+  }
+}
