@@ -1033,6 +1033,43 @@ test('the day boundary: an entry at 01:30 joins yesterday and keeps its time (pl
 test('the journal and an OPEN daily note: unsaved typing stays, the entry arrives in the editor, nothing becomes a conflict (plan Journal J2)', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
+  // The editor saves one second after the last keystroke. This run needs the
+  // capture to meet typing that is still UNSAVED, and it used to prove that
+  // with a wall clock (typing to capture under 900 ms) — which a busy machine
+  // broke in every attempt (finding 2026-09-24). Instead, one-second timers are
+  // HELD while the capture runs: the pending save cannot fire on its own, the
+  // capture's flush is the only way it reaches the disk, and afterwards the
+  // held timers are released and time runs as usual.
+  await page.addInitScript(() => {
+    const realSet = window.setTimeout.bind(window);
+    const realClear = window.clearTimeout.bind(window);
+    const held = new Map<number, () => void>();
+    let nextId = 1_000_000_000;
+    const hold = { on: false };
+    (window as any).__saveWindow = {
+      hold: () => { hold.on = true; },
+      pending: () => held.size,
+      release: () => {
+        hold.on = false;
+        for (const [id, run] of [...held]) {
+          held.delete(id);
+          realSet(run, 1000);
+        }
+      },
+    };
+    window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
+      if (hold.on && ms === 1000 && typeof fn === 'function') {
+        const id = nextId++;
+        held.set(id, () => (fn as (...a: unknown[]) => void)(...args));
+        return id;
+      }
+      return realSet(fn, ms, ...args);
+    }) as typeof window.setTimeout;
+    window.clearTimeout = ((id?: number) => {
+      if (id !== undefined && held.delete(id)) return;
+      realClear(id);
+    }) as typeof window.clearTimeout;
+  });
   await page.addInitScript(() => {
     const fs = (window as any).mockFs;
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -1066,21 +1103,24 @@ test('the journal and an OPEN daily note: unsaved typing stays, the entry arrive
   await page.keyboard.press('Escape');
   await expect(field).toHaveCount(0);
 
-  // Type into the note and capture AT ONCE — inside the editor's one-second
-  // save window, so the typing is still unsaved when the entry is written.
+  // Type into the note and capture while the save is held — so the typing is
+  // still unsaved when the entry is written, however long the machine takes.
+  await page.evaluate(() => (window as any).__saveWindow.hold());
   await page.locator('.cm-line', { hasText: /^plan$/ }).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' typed and unsaved');
-  const typedAt = Date.now();
+  // The capture really meets an UNSAVED note: the save is pending, and the
+  // file on disk does not hold the typing yet.
+  expect(await page.evaluate(() => (window as any).__saveWindow.pending() as number)).toBeGreaterThan(0);
+  expect(await page.evaluate((p) => String((window as any).mockFs[p]), path)).not.toContain('typed and unsaved');
   await pen.click();
   await field.fill('second, from the dialog');
   await field.press('Enter');
   await expect(field).toHaveCount(0);
-  // The capture really met an UNSAVED note. What this run pins is the OUTCOME;
-  // that the pending save is flushed BEFORE the note is read is pinned in
-  // journalWrite.test.ts - the mock adapter here has no conflict copies, so a
-  // missing flush would not show in this run the way it does in the app.
-  expect(Date.now() - typedAt).toBeLessThan(900);
+  // What this run pins is the OUTCOME; that the pending save is flushed BEFORE
+  // the note is read is pinned in journalWrite.test.ts - the mock adapter here
+  // has no conflict copies, so a missing flush would not show in this run the
+  // way it does in the app.
 
   // Both are on disk: what was typed, and the entry under it.
   await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), path)).toMatch(/^# Today\n\nplan typed and unsaved\n\n## Journal\n\n- 08:00 first\n- \d{2}:\d{2} second, from the dialog\n$/);
@@ -1091,6 +1131,9 @@ test('the journal and an OPEN daily note: unsaved typing stays, the entry arrive
   const conflicts = await page.evaluate(() => Object.keys((window as any).mockFs).filter((key) => /conflict/i.test(key)));
   expect(conflicts).toEqual([]);
   await expect(page.locator('[data-testid="conflict-banner"]')).toHaveCount(0);
+
+  // From here on time runs as usual again.
+  await page.evaluate(() => (window as any).__saveWindow.release());
 
   // Typing on afterwards saves on top of the entry instead of over it.
   await page.locator('.cm-line', { hasText: /^plan typed and unsaved$/ }).click();
