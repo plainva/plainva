@@ -3,6 +3,7 @@ import {
   finalizeTemplate,
   resolveTemplate,
   resolveTemplateForNewNote,
+  templateFilePath,
   type TemplateContext,
 } from "@plainva/ui";
 import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
@@ -95,14 +96,8 @@ export function templateForNewNote(folder: string, type: string): string {
 
 /** Vault-relative path of a template named by a rule or picked by hand. */
 export function templatePathOf(name: string): string {
-  const trimmed = name.trim().replace(/^[/\\]+/, "");
-  if (!trimmed) return "";
-  // A rule may name the file alone ("Projekt.md") or a full vault path; a
-  // missing extension is completed — Plainva templates are markdown files.
-  const named = /\.[a-z0-9]+$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
-  if (named.includes("/")) return named;
-  const folder = (getMobileSettings().templateFolder || "Templates").replace(/[/\\]+$/, "");
-  return folder ? `${folder}/${named}` : named;
+  // The naming rule is shared with the desktop and the meeting-note template.
+  return templateFilePath(name, getMobileSettings().templateFolder || "Templates");
 }
 
 export interface NewNoteContent {

@@ -1,6 +1,6 @@
 # Calendario e attività esterne
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-24
 
 Plainva può collegare i tuoi account calendario e attività esistenti — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tasks) e **Microsoft** (Calendario Outlook + To Do) — e lavorare con essi in entrambe le direzioni. Le tue note restano il centro: gli eventi possono diventare note delle riunioni, e le liste di attività esterne si specchiano nel tuo [database attività predefinito](Tasks.md) come note ordinarie.
 
@@ -57,6 +57,8 @@ La palette dei comandi offre **Apri finestra comunicazioni**: una finestra con l
 ## Evento → nota della riunione
 
 L'icona a forma di nota su qualsiasi evento crea (o riapre) la sua **nota della riunione** — una nota normale nella tua cartella riunioni chiamata `AAAA-MM-GG Titolo.md`, precompilata con data, luogo e partecipanti, più una piccola marcatura `plainva.pim` nel frontmatter che la collega all'evento. Un nuovo clic sullo stesso evento apre sempre la stessa nota; una tua nota che per caso condivide lo stesso nome non viene mai toccata.
+
+**Modello per le note della riunione**: accanto alla **Cartella riunioni** scegli un modello dalla tua cartella dei modelli — sul telefono nelle **Impostazioni calendario** degli account calendario. Senza modello la nota resta com'era finora. Se non ne scegli nessuno, valgono **Modelli per cartella** (per la cartella riunioni) e **Modelli per tipo di nota** (per il tipo `Meeting`); l'impostazione ha la precedenza su entrambi. Oltre ai [segnaposto abituali](Notes_and_Markdown.md), il modello può usare `{{title}}` (il titolo dell'evento), `{{start}}` e `{{end}}` (inizio e fine — per un evento di tutto il giorno il primo e l'ultimo giorno; con un formato tuo come `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (separati da virgole, `{{attendees:list}}` come elenco puntato), `{{organizer}}`, `{{link}}` (il link della riunione online) e `{{description}}` (la descrizione dell'evento). `{{date}}` è il giorno dell'evento. Data, luogo, partecipanti e la marcatura `plainva.pim` li scrive Plainva stesso nelle proprietà, **dopo** il modello — nessun modello può spezzare il collegamento con l'evento. Se il modello chiede qualcosa (`{{prompt:…}}`), le domande arrivano alla prima creazione; se annulli, non viene creata nessuna nota.
 
 ## Elenchi attività esterni nel database attività
 

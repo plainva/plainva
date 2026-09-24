@@ -19,6 +19,7 @@ import {
   taskDatabaseKey,
   extendedDatabasesKey,
   meetingFolderKey,
+  meetingNoteTemplateKey,
   mailRemoteImagesKey,
   syncIntervalKey,
 } from "../contexts/VaultContext";
@@ -122,6 +123,22 @@ describe("settingsProfile port", () => {
     expect(dst.map.has(meetingFolderKey(V2))).toBe(false);
   });
 
+  it("carries the meeting-note template like its folder (plan Befunde 24.09., E24)", async () => {
+    const src = fakeStore();
+    await src.set(meetingNoteTemplateKey(V), "Meeting.md");
+    const doc = await exportProfileValues(src, V);
+    expect(doc.meetingNoteTemplate).toBe("Meeting.md");
+    const V2 = "/home/y/vault";
+    const dst = fakeStore();
+    await applyProfileValues(dst, V2, doc);
+    expect(dst.map.get(meetingNoteTemplateKey(V2))).toBe("Meeting.md");
+    // An absolute path from another machine never lands.
+    const skipped: string[][] = [];
+    await applyProfileValues(dst, V2, { meetingNoteTemplate: "C:/elsewhere/Meeting.md" }, { onSkipped: (r) => skipped.push(r) });
+    expect(dst.map.get(meetingNoteTemplateKey(V2))).toBe("Meeting.md");
+    expect(skipped.flat().join(" ")).toContain("meetingNoteTemplate");
+  });
+
   it("repairs exact duplicate cloud cards as part of an ordinary profile apply", async () => {
     const store = fakeStore();
     const identity = { issuer: "google", subject: "provider-user-1" };
@@ -216,7 +233,7 @@ describe("profile field scope (bars plan P6)", () => {
   it("keeps vault conventions shared", () => {
     // Where the daily notes live is a property of the ARCHIVE: everyone working
     // in it should see the same folders, so these stay in the shared file.
-    for (const logical of ["dailyNotesFolder", "templateFolder", "taskDatabase", "defaultNoteType", "meetingFolder"]) {
+    for (const logical of ["dailyNotesFolder", "templateFolder", "taskDatabase", "defaultNoteType", "meetingFolder", "meetingNoteTemplate"]) {
       expect(isMemberProfileField(logical)).toBe(false);
     }
   });

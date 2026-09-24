@@ -135,6 +135,7 @@ const taskDatabaseKey = (v: string) => `taskDatabase_${b64(v)}`;
 const extendedDatabasesKey = (v: string) => `extendedDatabases_${b64(v)}`;
 const commentAnchorsKey = (v: string) => `commentAnchors_${b64(v)}`;
 const meetingFolderKey = (v: string) => `meetingFolder_${b64(v)}`;
+const meetingNoteTemplateKey = (v: string) => `meetingNoteTemplate_${b64(v)}`;
 export const calendarOverlaysKey = (v: string) => `calendarOverlays_${b64(v)}`;
 const mailFolderKey = (v: string) => `mailFolder_${b64(v)}`;
 const mailRemoteImagesKey = (v: string) => `mailRemoteImages_${b64(v)}`;
@@ -267,6 +268,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   extendedDatabases: extendedDatabasesKey,
   commentAnchors: commentAnchorsKey,
   meetingFolder: meetingFolderKey,
+  meetingNoteTemplate: meetingNoteTemplateKey,
   calendarOverlays: calendarOverlaysKey,
   mailFolder: mailFolderKey,
   mailRemoteImages: mailRemoteImagesKey,
@@ -665,7 +667,7 @@ export async function recoverProfileImportIfNeeded(store: ISettingsStore, vaultP
   return true;
 }
 
-const PATH_FIELDS = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "taskDatabase", "meetingFolder", "mailFolder"]);
+const PATH_FIELDS = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateFolder", "taskDatabase", "meetingFolder", "meetingNoteTemplate", "mailFolder"]);
 const BOOLEAN_FIELDS = new Set(["extendedDatabases", "mailRemoteImages", "backupZipEnabled", "commentAnchors"]);
 const NUMBER_FIELDS = new Set(["syncIntervalSeconds", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "backupZipKeep"]);
 

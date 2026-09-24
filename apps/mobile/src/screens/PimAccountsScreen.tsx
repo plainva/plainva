@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { serviceConnectionMessage } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -92,6 +92,7 @@ export function PimAccountsScreen({
   const [taskLists, setTaskLists] = useState<Array<{ id: string; name: string; accountId: string; selected: boolean }>>([]);
   const [meetingFolder, setMeetingFolder] = useState(() => getMobileSettings().meetingFolder);
   const [pickMeetingFolder, setPickMeetingFolder] = useState(false);
+  const [meetingTemplate, setMeetingTemplate] = useState(() => getMobileSettings().meetingTemplate);
   const [formOpen, setFormOpen] = useState(false);
   const openedRun = useRef<string | null>(null);
 
@@ -448,6 +449,28 @@ export function PimAccountsScreen({
     await updateMobileSettings({ defaultCalendar: picked });
   };
 
+  /**
+   * Meeting-note template (plan Befunde 24.09., E24) — the daily note's picker,
+   * for meetings. A value typed on the desktop that is not in the templates
+   * folder stays listed instead of turning into "—".
+   */
+  const pickMeetingTemplate = async () => {
+    const items = await listTemplates(vault.adapter, getMobileSettings().templateFolder || "Templates").catch(() => []);
+    const files = items.map((it) => ({ value: it.path.split("/").pop() ?? it.path, label: it.title }));
+    const picked = await mSelect({
+      title: t("pim.meetingTemplate"),
+      options: [
+        { value: "", label: "—" },
+        ...(meetingTemplate && !files.some((f) => f.value === meetingTemplate) ? [{ value: meetingTemplate, label: meetingTemplate }] : []),
+        ...files,
+      ],
+      value: meetingTemplate,
+    });
+    if (picked === null) return;
+    setMeetingTemplate(picked);
+    await updateMobileSettings({ meetingTemplate: picked });
+  };
+
   /** The account this form repairs, if it is of the provider being filled in. */
   const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
 
@@ -658,12 +681,26 @@ export function PimAccountsScreen({
               value={meetingFolder}
             />
             <Row
+              end={<><span className="m-prop-val">{meetingTemplate ? meetingTemplate.replace(/.md$/i, "") : "—"}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickMeetingTemplate()}
+              title={t("pim.meetingTemplate")}
+              data-testid="pim-meeting-template"
+            />
+            <Row
               end={<><span className="m-prop-val">{calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={() => void pickDefaultCalendar()}
               title={t("pim.defaultCalendar")}
             />
           </RowList>
         </GroupCard>
+        <p className="m-hint" data-testid="pim-meeting-template-tokens">
+          {t("pim.meetingTemplateHint")}
+          <br />
+          {t("pim.meetingTemplatePlaceholders")}{" "}
+          {MEETING_TEMPLATE_TOKENS.map((token) => (
+            <code key={token}>{`{{${token}}}`} </code>
+          ))}
+        </p>
 
         {/* Reminders (S10) as their own section, the shape the target picture
             gives it. The remaining rows — lead time, all-day rule, tasks, which

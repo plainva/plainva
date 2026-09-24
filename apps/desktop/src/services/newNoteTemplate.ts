@@ -4,6 +4,7 @@ import {
   parseFolderTemplateRules,
   parseTypeTemplateRules,
   resolveTemplateForNewNote,
+  templateFilePath,
   withOkfDefaults,
   type FolderTemplateRule,
   type TypeTemplateRule,
@@ -47,18 +48,11 @@ export async function saveTemplateRules(vaultPath: string, rules: TemplateRules)
 
 /** Vault-relative path of a template file named in a rule or picked by hand. */
 export async function resolveTemplatePath(vaultPath: string, name: string): Promise<string> {
-  const trimmed = name.trim().replace(/^[/\\]+/, "");
-  if (!trimmed) return "";
-  // A rule may name the file alone ("Projekt.md") or its full vault path; the
-  // settings surface offers the templates folder, so the bare name is the
-  // normal case and the full path is what a hand-edited profile might carry.
-  // A missing extension is completed — Plainva templates are markdown files,
-  // so "Projekt" can only mean one thing.
-  const named = /\.[a-z0-9]+$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
-  if (named.includes("/")) return named;
+  if (!name.trim()) return "";
+  // The naming rule (bare name → templates folder, missing extension → .md) is
+  // shared with the phone and the meeting-note template.
   const store = await getSettingsStore();
-  const folder = ((await store.get<string>(templateFolderKey(vaultPath))) || "Templates").replace(/[/\\]+$/, "");
-  return folder ? `${folder}/${named}` : named;
+  return templateFilePath(name, (await store.get<string>(templateFolderKey(vaultPath))) || "Templates");
 }
 
 export interface NewNoteContent {

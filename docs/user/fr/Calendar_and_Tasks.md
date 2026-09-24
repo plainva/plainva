@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-24
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -57,6 +57,8 @@ La palette de commandes propose **Ouvrir la fenêtre de communication** : une fe
 ## Événement → note de réunion
 
 L'icône de note sur n'importe quel événement crée (ou rouvre) sa **note de réunion** — une note normale dans votre dossier des réunions nommée `AAAA-MM-JJ Titre.md`, pré-remplie avec la date, le lieu et les participants, plus un petit marqueur `plainva.pim` dans le frontmatter qui la lie à l'événement. Cliquer à nouveau sur le même événement ouvre toujours la même note ; une de vos notes qui porte par hasard le même nom n'est jamais touchée.
+
+**Modèle pour les notes de réunion** : à côté du **Dossier des réunions**, vous choisissez un modèle dans votre dossier de modèles — sur le téléphone, dans les **Paramètres du calendrier** des comptes de calendrier. Sans modèle, la note reste telle qu'elle était jusqu'ici. Si aucun n'est choisi, les **Modèles par dossier** (pour le dossier des réunions) et les **Modèles par type de note** (pour le type `Meeting`) s'appliquent ; le paramètre l'emporte sur les deux. En plus des [espaces réservés habituels](Notes_and_Markdown.md), le modèle peut utiliser `{{title}}` (le titre de l'événement), `{{start}}` et `{{end}}` (début et fin — pour un événement sur toute la journée, son premier et son dernier jour ; avec votre propre format, par exemple `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (séparés par des virgules, `{{attendees:list}}` sous forme de liste), `{{organizer}}`, `{{link}}` (le lien de la réunion en ligne) et `{{description}}` (la description de l'événement). `{{date}}` est le jour de l'événement. Plainva inscrit lui-même la date, le lieu, les participants et le marqueur `plainva.pim` dans les propriétés, **après** le modèle — aucun modèle ne peut rompre le lien avec l'événement. Si le modèle pose des questions (`{{prompt:…}}`), elles apparaissent à la première création de la note ; si vous annulez, aucune note n'est créée.
 
 ## Listes de tâches externes dans votre base de tâches
 

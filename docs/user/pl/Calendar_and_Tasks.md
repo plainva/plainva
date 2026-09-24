@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-20
+Stan na: 2026-09-24
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -57,6 +57,8 @@ Paleta poleceń oferuje **Otwórz okno komunikacji**: jedno okno z pocztą i kal
 ## Wydarzenie → notatka ze spotkania
 
 Ikona notatki przy dowolnym wydarzeniu tworzy (lub otwiera ponownie) jego **notatkę ze spotkania** — zwykłą notatkę w folderze spotkań o nazwie `RRRR-MM-DD Tytuł.md`, wstępnie wypełnioną datą, miejscem i uczestnikami, plus małym znacznikiem `plainva.pim` we frontmatter, który wiąże ją z wydarzeniem. Ponowne kliknięcie tego samego wydarzenia zawsze otwiera tę samą notatkę; Twoja notatka, która przypadkiem nosi tę samą nazwę, nigdy nie jest naruszana.
+
+**Szablon notatek ze spotkań**: obok ustawienia **Folder spotkań** wybierasz szablon z folderu szablonów — na telefonie w sekcji **Ustawienia kalendarza** kont kalendarza. Bez szablonu notatka wygląda tak jak dotąd. Jeśli nie wybierzesz żadnego, obowiązują **Szablony dla folderów** (dla folderu spotkań) i **Szablony dla typów notatek** (dla typu `Meeting`); ustawienie ma pierwszeństwo przed nimi. Oprócz [zwykłych symboli zastępczych](Notes_and_Markdown.md) szablon może używać `{{title}}` (tytuł wydarzenia), `{{start}}` i `{{end}}` (początek i koniec — przy wydarzeniu całodniowym pierwszy i ostatni dzień; z własnym formatem, np. `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (rozdzielone przecinkami, `{{attendees:list}}` jako lista), `{{organizer}}`, `{{link}}` (link do spotkania online) i `{{description}}` (opis wydarzenia). `{{date}}` to dzień wydarzenia. Datę, miejsce, uczestników i znacznik `plainva.pim` Plainva wpisuje do właściwości sam, **po** szablonie — żaden szablon nie może zerwać powiązania z wydarzeniem. Jeśli szablon o coś pyta (`{{prompt:…}}`), pytania pojawiają się przy pierwszym tworzeniu notatki; po anulowaniu notatka nie powstaje.
 
 ## Zewnętrzne listy zadań w Twojej bazie zadań
 

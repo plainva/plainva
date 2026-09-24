@@ -464,6 +464,9 @@ export const taskDatabaseKey = (vaultPath: string) => `taskDatabase_${btoa(unesc
 /** Meetings folder (PIM stage 2c): vault-relative folder for notes created via
  * "Termin → Meeting-Notiz" in the calendar tab. Default "Meetings". */
 export const meetingFolderKey = (vaultPath: string) => `meetingFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+/** Meeting-note template (plan Befunde 24.09., E24): a template name in the
+ * templates folder, or a vault path; "" = the built-in note. */
+export const meetingNoteTemplateKey = (vaultPath: string) => `meetingNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Default calendar for new events ("<accountId> <calId>"): new events preselect
  * it. Empty/invalid falls back to the first writable calendar. */
 export const defaultCalendarKey = (vaultPath: string) => `defaultCalendar_${btoa(unescape(encodeURIComponent(vaultPath)))}`;

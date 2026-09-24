@@ -1,6 +1,6 @@
 # Kalender & externe Aufgaben
 
-Stand: 2026-09-20
+Stand: 2026-09-24
 
 Plainva kann Deine bestehenden Kalender- und Aufgaben-Konten verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalender + Tasks) und **Microsoft** (Outlook-Kalender + To Do) — und in beide Richtungen damit arbeiten. Deine Notizen bleiben das Zentrum: Termine werden zu Meeting-Notizen, und externe Aufgabenlisten spiegeln sich als normale Notizen in Deine [Standard-Aufgabendatenbank](Tasks.md).
 
@@ -57,6 +57,8 @@ Ein Rechtsklick auf **Kalender** in der Aktionsleiste öffnet ihn in einem eigen
 ## Termin → Meeting-Notiz
 
 Das Notiz-Symbol an einem Termin erstellt (oder öffnet erneut) seine **Meeting-Notiz** — eine normale Notiz im Meeting-Ordner mit dem Namen `JJJJ-MM-TT Titel.md`, vorbefüllt mit Datum, Ort und Teilnehmern, plus einer kleinen `plainva.pim`-Markierung im Frontmatter, die sie mit dem Termin verknüpft. Ein zweiter Klick auf denselben Termin öffnet immer dieselbe Notiz; eine zufällig gleichnamige eigene Notiz wird nie angetastet.
+
+**Vorlage für Meeting-Notizen**: Neben dem **Meeting-Ordner** wählst Du eine Vorlage aus Deinem Vorlagenordner — am Telefon in den **Kalender-Einstellungen** der Kalenderkonten. Ohne Vorlage sieht die Notiz aus wie bisher. Ist keine gewählt, greifen **Vorlagen je Ordner** (für den Meeting-Ordner) und **Vorlagen je Notiztyp** (für den Typ `Meeting`); die Einstellung geht beiden vor. In der Vorlage stehen zusätzlich zu den [üblichen Platzhaltern](Notes_and_Markdown.md) bereit: `{{title}}` (Titel des Termins), `{{start}}` und `{{end}}` (Beginn und Ende, bei ganztägigen Terminen der erste und der letzte Tag; mit eigenem Format wie `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (durch Kommas getrennt, `{{attendees:list}}` als Aufzählung), `{{organizer}}`, `{{link}}` (der Link zur Online-Besprechung) und `{{description}}` (die Beschreibung des Termins). `{{date}}` ist der Tag des Termins. Datum, Ort, Teilnehmende und die `plainva.pim`-Markierung trägt Plainva **nach** der Vorlage selbst in die Eigenschaften ein — keine Vorlage kann die Verknüpfung zum Termin brechen. Fragt die Vorlage etwas (`{{prompt:…}}`), kommen die Fragen beim ersten Anlegen; brichst Du ab, entsteht keine Notiz.
 
 ## Externe Aufgabenlisten in Deiner Aufgabendatenbank
 

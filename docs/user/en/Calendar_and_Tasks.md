@@ -1,6 +1,6 @@
 # Calendar & external tasks
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-24
 
 Plainva can connect your existing calendar and task accounts — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendar + Tasks) and **Microsoft** (Outlook calendar + To Do) — and work with them in both directions. Your notes stay the center: events can become meeting notes, and external task lists mirror into your [standard task database](Tasks.md) as ordinary notes.
 
@@ -57,6 +57,8 @@ The command palette offers **Open communications window**: one window with mail 
 ## Event → meeting note
 
 The note icon on any event creates (or re-opens) its **meeting note** — a normal note in your meetings folder named `YYYY-MM-DD Title.md`, pre-filled with the date, location and attendees, plus a small `plainva.pim` marker in the frontmatter that ties it to the event. Clicking the same event again always opens the same note; a note of yours that happens to share the name is never touched.
+
+**Meeting note template**: next to the **Meetings folder** you pick a template from your templates folder — on the phone in the **Calendar settings** of the calendar accounts. Without a template, the note looks the way it always has. When none is picked, **Templates per folder** (for the meetings folder) and **Templates per note type** (for the type `Meeting`) apply; the setting takes precedence over both. Besides the [usual placeholders](Notes_and_Markdown.md), the template can use `{{title}}` (the event's title), `{{start}}` and `{{end}}` (start and end — for an all-day event its first and last day; with a format of your own such as `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (comma-separated, `{{attendees:list}}` as a bulleted list), `{{organizer}}`, `{{link}}` (the online meeting link) and `{{description}}` (the event's description). `{{date}}` is the day of the event. Plainva writes the date, location, attendees and the `plainva.pim` marker into the properties itself, **after** the template — no template can break the link to the event. If the template asks something (`{{prompt:…}}`), the questions come when the note is first created; cancel them and no note is created.
 
 ## External task lists in your task database
 

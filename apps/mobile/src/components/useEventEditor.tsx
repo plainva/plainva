@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
+import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
 import { parseRRule, type PimEventRow } from "@plainva/core";
-import { isoOf } from "../lib/dates";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
@@ -137,7 +136,11 @@ export function useEventEditor({
   const meetingNoteFromPeek = async (e: PimEventRow) => {
     setPeek(null);
     try {
-      const res = await openMeetingNoteFor(e, isoOf(new Date(e.start.ts)));
+      // The event's first day as the desktop names it: an all-day event's
+      // civil date, not the local day its UTC midnight falls on — otherwise
+      // the phone and the desktop wrote two notes for one meeting west of UTC.
+      const res = await openMeetingNoteFor(e, eventStartDayKey(e));
+      if (!res) return; // the template's questions were cancelled
       if (res.created) toast.success(t("pim.meetingNoteCreated", { name: res.path.split("/").pop() ?? res.path }));
       onOpenNote?.(res.path);
     } catch {

@@ -181,6 +181,10 @@ export interface VaultScopedSettings {
    * settings of the vault and the person, not of a device, so they travel.
    */
   meetingFolder: string;
+  /** Which template a meeting note starts from (plan Befunde 24.09., E24): a
+   *  template name in the templates folder or a vault path; "" = none. Travels
+   *  with the profile like its folder. */
+  meetingTemplate: string;
   defaultCalendar: string;
   /**
    * The name "Mark as reviewed" writes as `verified: human:<name>` (OKF 0.2,
@@ -239,6 +243,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "navigatorTab",
   "swipeHintSeen",
   "meetingFolder",
+  "meetingTemplate",
   "defaultCalendar",
   "verifierName",
 ];
@@ -292,6 +297,7 @@ export function vaultDefaults(): VaultScopedSettings {
     calendarOverlays: [],
     mailFolder: profileDefault<string>("mailFolder")!,
     meetingFolder: profileDefault<string>("meetingFolder")!,
+    meetingTemplate: profileDefault<string>("meetingNoteTemplate")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
@@ -349,6 +355,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     calendarOverlays: src.calendarOverlays ?? d.calendarOverlays,
     mailFolder: src.mailFolder ?? d.mailFolder,
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
+    meetingTemplate: src.meetingTemplate ?? d.meetingTemplate,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,

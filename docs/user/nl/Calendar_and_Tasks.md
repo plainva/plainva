@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-24
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -57,6 +57,8 @@ Het opdrachtenpalet biedt **Communicatievenster openen**: één venster met e-ma
 ## Afspraak → vergadernotitie
 
 Het notitie-icoon bij een afspraak maakt zijn **vergadernotitie** aan (of opent hem opnieuw) — een gewone notitie in je vergadermap met de naam `JJJJ-MM-DD Titel.md`, vooraf ingevuld met datum, locatie en deelnemers, plus een kleine `plainva.pim`-markering in de frontmatter die hem koppelt aan de afspraak. Nogmaals klikken op dezelfde afspraak opent altijd dezelfde notitie; een eigen notitie die toevallig dezelfde naam draagt, wordt nooit aangeraakt.
+
+**Sjabloon voor vergadernotities**: naast de **Vergadermap** kies je een sjabloon uit je sjablonenmap — op de telefoon in de **Agenda-instellingen** van de agenda-accounts. Zonder sjabloon ziet de notitie eruit zoals voorheen. Kies je er geen, dan gelden **Sjablonen per map** (voor de vergadermap) en **Sjablonen per notitietype** (voor het type `Meeting`); de instelling gaat voor beide. Naast de [gebruikelijke plaatshouders](Notes_and_Markdown.md) kan het sjabloon `{{title}}` (de titel van de afspraak), `{{start}}` en `{{end}}` (begin en einde — bij een afspraak die de hele dag duurt de eerste en de laatste dag; met een eigen notatie zoals `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (gescheiden door komma's, `{{attendees:list}}` als opsomming), `{{organizer}}`, `{{link}}` (de link naar de onlinevergadering) en `{{description}}` (de beschrijving van de afspraak) gebruiken. `{{date}}` is de dag van de afspraak. Datum, locatie, deelnemers en de `plainva.pim`-markering schrijft Plainva zelf in de eigenschappen, **na** het sjabloon — geen sjabloon kan de koppeling met de afspraak verbreken. Stelt het sjabloon vragen (`{{prompt:…}}`), dan komen die bij het eerste aanmaken; annuleer je, dan ontstaat er geen notitie.
 
 ## Externe takenlijsten in je takendatabase
 

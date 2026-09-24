@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import { Banner, Button, ICON, classifyAuthError, isApiNotEnabled, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows } from "@plainva/ui";
+import { Banner, Button, ICON, MEETING_TEMPLATE_TOKENS, TextInput, classifyAuthError, isApiNotEnabled, listTemplates, logDiagnostic, needsReauthorisation, reviewDuplicatePimRows } from "@plainva/ui";
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
-import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
+import { useVault, meetingFolderKey, meetingNoteTemplateKey, templateFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
 
@@ -75,7 +75,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
         return t("pim.accountFailed");
     }
   };
-  const { pimRuntime, vaultPath } = useVault();
+  const { pimRuntime, vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
   const [calendars, setCalendars] = useState<Array<PimCalendar & { accountId: string; selected: boolean }>>([]);
@@ -136,6 +136,37 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
     await store.set(meetingFolderKey(vaultPath), meetingFolder.trim());
     await store.save();
   }, [vaultPath, meetingFolder]);
+
+  // Meeting-note template (plan Befunde 24.09., E24) — the daily note's
+  // setting, for meetings: a pick from the templates folder, or a typed name
+  // when the folder holds none. Loaded once like the folder above.
+  const [meetingTemplate, setMeetingTemplate] = useState("");
+  const [templateFiles, setTemplateFiles] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!vaultPath) return;
+    void (async () => {
+      const store = await getSettingsStore();
+      const value = (await store.get<string>(meetingNoteTemplateKey(vaultPath))) ?? "";
+      const folder = (await store.get<string>(templateFolderKey(vaultPath))) || "Templates";
+      const items = vaultAdapter ? await listTemplates(vaultAdapter, folder) : [];
+      if (!alive) return;
+      setMeetingTemplate(value);
+      setTemplateFiles(items.map((it) => it.path.split("/").pop() ?? it.path));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [vaultPath, vaultAdapter]);
+  const persistMeetingTemplate = useCallback(
+    async (value: string) => {
+      if (!vaultPath) return;
+      const store = await getSettingsStore();
+      await store.set(meetingNoteTemplateKey(vaultPath), value.trim());
+      await store.save();
+    },
+    [vaultPath]
+  );
 
   // Default calendar for new events ("<accountId> <calId>"; "" = first writable).
   const [defaultCal, setDefaultCal] = useState("");
@@ -433,6 +464,50 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
         />
         <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.2rem 0 0" }}>
           {t("pim.meetingFolderHint", { defaultValue: "Ablage für Notizen aus „Termin → Meeting-Notiz“ im Kalender." })}
+        </p>
+      </div>
+
+      <div style={{ marginTop: "var(--space-3)" }} data-testid="pim-meeting-template-row">
+        <label style={{ display: "block", fontSize: "var(--text-md)", marginBottom: "var(--space-1)" }}>
+          {t("pim.meetingTemplate")}
+        </label>
+        <div style={{ maxWidth: "20rem" }}>
+          {templateFiles.length > 0 ? (
+            <Select
+              ariaLabel={t("pim.meetingTemplate")}
+              value={meetingTemplate}
+              onChange={(v) => {
+                setMeetingTemplate(v);
+                void persistMeetingTemplate(v);
+              }}
+              // A typed path that is not in the folder stays visible instead of
+              // turning into "—" behind the person's back.
+              options={[
+                { value: "", label: "—" },
+                ...(meetingTemplate && !templateFiles.includes(meetingTemplate) ? [{ value: meetingTemplate, label: meetingTemplate }] : []),
+                ...templateFiles.map((f) => ({ value: f, label: f.replace(/\.md$/i, "") })),
+              ]}
+              data-testid="pim-meeting-template"
+            />
+          ) : (
+            <TextInput
+              autoComplete="off"
+              value={meetingTemplate}
+              onChange={(e) => setMeetingTemplate(e.target.value)}
+              onBlur={() => void persistMeetingTemplate(meetingTemplate)}
+              placeholder="Meeting.md"
+              data-testid="pim-meeting-template"
+            />
+          )}
+        </div>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "var(--space-1) 0 0" }}>
+          {t("pim.meetingTemplateHint")}
+        </p>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", margin: "var(--space-1) 0 0", display: "flex", flexWrap: "wrap", gap: "var(--space-1)", alignItems: "baseline" }} data-testid="pim-meeting-template-tokens">
+          <span>{t("pim.meetingTemplatePlaceholders")}</span>
+          {MEETING_TEMPLATE_TOKENS.map((token) => (
+            <code key={token}>{`{{${token}}}`}</code>
+          ))}
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 # Calendario y tareas externas
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-24
 
 Plainva puede conectar tus cuentas de calendario y tareas existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendario + Tareas) y **Microsoft** (Calendario de Outlook + To Do) — y trabajar con ellas en ambas direcciones. Tus notas siguen siendo el centro: los eventos pueden convertirse en notas de reunión, y las listas de tareas externas se reflejan en tu [base de datos de tareas predeterminada](Tasks.md) como notas normales.
 
@@ -57,6 +57,8 @@ La paleta de comandos ofrece **Abrir ventana de comunicación**: una ventana con
 ## Evento → nota de reunión
 
 El icono de nota en cualquier evento crea (o vuelve a abrir) su **nota de reunión** — una nota normal en tu carpeta de reuniones llamada `AAAA-MM-DD Título.md`, prerrellenada con la fecha, el lugar y los asistentes, más una pequeña marca `plainva.pim` en el frontmatter que la vincula al evento. Hacer clic en el mismo evento otra vez siempre abre la misma nota; una nota tuya que casualmente comparta el nombre nunca se toca.
+
+**Plantilla para notas de reunión**: junto a la **Carpeta de reuniones** eliges una plantilla de tu carpeta de plantillas — en el teléfono, en los **Ajustes del calendario** de las cuentas de calendario. Sin plantilla, la nota queda como hasta ahora. Si no eliges ninguna, se aplican **Plantillas por carpeta** (para la carpeta de reuniones) y **Plantillas por tipo de nota** (para el tipo `Meeting`); el ajuste tiene prioridad sobre ambas. Además de los [marcadores habituales](Notes_and_Markdown.md), la plantilla puede usar `{{title}}` (el título del evento), `{{start}}` y `{{end}}` (inicio y fin — en un evento de todo el día, su primer y su último día; con un formato propio como `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (separados por comas, `{{attendees:list}}` como lista), `{{organizer}}`, `{{link}}` (el enlace de la reunión en línea) y `{{description}}` (la descripción del evento). `{{date}}` es el día del evento. Plainva escribe por sí mismo la fecha, el lugar, los asistentes y la marca `plainva.pim` en las propiedades, **después** de la plantilla — ninguna plantilla puede romper el vínculo con el evento. Si la plantilla pregunta algo (`{{prompt:…}}`), las preguntas aparecen al crear la nota por primera vez; si las cancelas, no se crea ninguna nota.
 
 ## Listas de tareas externas en tu base de datos de tareas
 

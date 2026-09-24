@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-24
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -57,6 +57,8 @@ A paleta de comandos oferece **Abrir janela de comunicação**: uma janela com e
 ## Evento → nota de reunião
 
 O ícone de nota em qualquer evento cria (ou reabre) sua **nota de reunião** — uma nota comum na sua pasta de reuniões, com o nome `AAAA-MM-DD Título.md`, pré-preenchida com data, local e participantes, além de uma pequena marcação `plainva.pim` no frontmatter que a vincula ao evento. Clicar de novo no mesmo evento sempre abre a mesma nota; uma nota sua que por acaso tenha o mesmo nome nunca é tocada.
+
+**Modelo para notas de reunião**: ao lado da **Pasta de reuniões** você escolhe um modelo da sua pasta de modelos — no celular, nas **Configurações do calendário** das contas de calendário. Sem modelo, a nota fica como sempre foi. Se nenhum for escolhido, valem **Modelos por pasta** (para a pasta de reuniões) e **Modelos por tipo de nota** (para o tipo `Meeting`); a configuração tem prioridade sobre ambos. Além dos [marcadores de sempre](Notes_and_Markdown.md), o modelo pode usar `{{title}}` (o título do evento), `{{start}}` e `{{end}}` (início e fim — num evento de dia inteiro, o primeiro e o último dia; com formato próprio, como `{{start:HH:mm}}`), `{{location}}`, `{{attendees}}` (separados por vírgulas, `{{attendees:list}}` como lista), `{{organizer}}`, `{{link}}` (o link da reunião online) e `{{description}}` (a descrição do evento). `{{date}}` é o dia do evento. Data, local, participantes e a marcação `plainva.pim` o próprio Plainva grava nas propriedades, **depois** do modelo — nenhum modelo pode quebrar o vínculo com o evento. Se o modelo perguntar algo (`{{prompt:…}}`), as perguntas aparecem na primeira criação; se você cancelar, nenhuma nota é criada.
 
 ## Listas de tarefas externas no seu banco de tarefas
 
