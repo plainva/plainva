@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
-import { COMMAND_GROUPS } from "@plainva/ui";
-import { buildMobileCommands, type MobileCommandHost } from "./mobileCommands";
+import { COMMAND_GROUPS, PARITY_FEATURES, commandInventory, type ParityFeatureDef } from "@plainva/ui";
+import { MOBILE_ABSENT_COMMANDS, buildMobileCommands, type MobileCommandHost } from "./mobileCommands";
 
 function host(over: Partial<MobileCommandHost> = {}): MobileCommandHost {
   return {
@@ -78,5 +81,164 @@ describe("mobile commands", () => {
       expect(COMMAND_GROUPS, `${c.id} has an unknown group`).toContain(c.group);
       expect(c.icon, `${c.id} has no icon`).toBeTruthy();
     }
+  });
+});
+
+/**
+ * The keys of the object literal App.tsx hands to `callee(...)`, read with the
+ * TypeScript parser; anything it cannot vouch for (no call, a second one, a
+ * non-literal argument, a spread, a computed key, a key set to `undefined`
+ * outright) is a problem, never a pass.
+ *
+ * The same reader as the desktop guard's (apps/desktop/src/services/
+ * commandRegistry.test.ts), kept in both suites on purpose: a guard has to run
+ * where the files it reads change, and the test cache re-runs this suite for
+ * App.tsx, not the desktop's.
+ */
+function wiredKeys(source: string, callee: string): { keys: string[]; problems: string[] } {
+  const tree = ts.createSourceFile("shell.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const calls: ts.CallExpression[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === callee) calls.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  if (calls.length !== 1) return { keys: [], problems: [`expected one ${callee}(...) call, found ${calls.length}`] };
+  const [arg] = calls[0].arguments;
+  if (!arg || !ts.isObjectLiteralExpression(arg)) {
+    return { keys: [], problems: [`${callee}(...) must be handed an object literal, so its keys can be read`] };
+  }
+  const keys: string[] = [];
+  const problems: string[] = [];
+  for (const p of arg.properties) {
+    if (ts.isSpreadAssignment(p)) {
+      problems.push(`a spread (...${p.expression.getText(tree)}) hides its keys`);
+      continue;
+    }
+    const name = ts.isIdentifier(p.name) || ts.isStringLiteral(p.name) ? p.name.text : null;
+    if (name === null) {
+      problems.push(`a computed key (${p.name.getText(tree)}) cannot be read`);
+    } else if (ts.isPropertyAssignment(p) && ts.isIdentifier(p.initializer) && p.initializer.text === "undefined") {
+      problems.push(`${name} is set to undefined`);
+    } else {
+      keys.push(name);
+    }
+  }
+  return { keys, problems };
+}
+
+/**
+ * Every way MOBILE_ABSENT_COMMANDS can disagree with the registry, with what
+ * the phone really offers and with the parity catalog; empty means they agree.
+ * Pure, so the guard runs against broken fixtures as well as the real thing.
+ */
+function absenceFindings(
+  registry: readonly string[],
+  offered: ReadonlySet<string>,
+  absent: Readonly<Record<string, string>>,
+  catalog: readonly ParityFeatureDef[],
+): string[] {
+  const out: string[] = [];
+  const entries = new Set(catalog.map((f) => f.id));
+  for (const id of registry) {
+    if (!offered.has(id) && !(id in absent)) out.push(`${id}: neither offered on the phone nor named in MOBILE_ABSENT_COMMANDS`);
+  }
+  for (const [id, parity] of Object.entries(absent)) {
+    if (!registry.includes(id)) out.push(`${id}: named, but the registry builds no such command`);
+    else if (offered.has(id)) out.push(`${id}: the phone offers it now - delete its line`);
+    if (!entries.has(parity)) out.push(`${id}: points at "${parity}", which is no parity-catalog entry`);
+  }
+  // The other end of the thread. An entry that sends its reader to this table
+  // (the palette gap does) must still be pointed at from it: once the phone
+  // offers the last of its commands, the gap is closed and the entry goes,
+  // instead of rotting into a claim nothing checks any more.
+  const pointedAt = new Set(Object.values(absent));
+  for (const f of catalog) {
+    const sendsHere = `${f.desktopReason ?? ""} ${f.mobileReason ?? ""}`.includes("MOBILE_ABSENT_COMMANDS");
+    if (sendsHere && !pointedAt.has(f.id)) out.push(`${f.id}: no line of MOBILE_ABSENT_COMMANDS points at it any more - delete the entry`);
+  }
+  return out;
+}
+
+/**
+ * The phone's counterpart of the desktop's drift guard. The desktop must build
+ * every command; the phone may leave some out, but only by name. What it
+ * offers is computed, not asserted: the host keys App.tsx really passes go
+ * through the real buildMobileCommands, and whatever the registry can build
+ * beyond that must stand in MOBILE_ABSENT_COMMANDS with its catalog entry.
+ */
+describe("the phone names every command it leaves out (S15 drift guard)", () => {
+  const wiring = wiredKeys(readFileSync(fileURLToPath(new URL("../App.tsx", import.meta.url)), "utf8"), "buildMobileCommands");
+  const registry = commandInventory().commands.map((c) => c.id);
+  const wired = Object.fromEntries(wiring.keys.map((k) => [k, vi.fn()])) as unknown as MobileCommandHost;
+  const offered = new Set(buildMobileCommands(wired).map((c) => c.id));
+
+  it("reads the palette's wiring in App.tsx", () => {
+    expect(wiring.problems).toEqual([]);
+  });
+
+  it("offers or names each command the registry knows, and names nothing it offers", () => {
+    expect(absenceFindings(registry, offered, MOBILE_ABSENT_COMMANDS, PARITY_FEATURES)).toEqual([]);
+  });
+});
+
+/** A guard that only ever sees a valid table says nothing about what it would catch. */
+describe("the mobile drift guard itself catches", () => {
+  const decision: ParityFeatureDef = {
+    id: "split-editor",
+    title: "Two editor panes side by side",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason: "A phone screen cannot carry two editing surfaces at a usable width.",
+    verified: "2026-09-24",
+  };
+  const catalog = [decision];
+
+  it("a command the registry gained", () => {
+    expect(absenceFindings(["a", "b"], new Set(["a"]), {}, catalog).join(" | ")).toMatch(/b: neither offered/);
+  });
+
+  it("a line the phone has outgrown", () => {
+    expect(absenceFindings(["a"], new Set(["a"]), { a: "split-editor" }, catalog).join(" | ")).toMatch(/delete its line/);
+  });
+
+  it("a line naming no command", () => {
+    expect(absenceFindings([], new Set(), { ghost: "split-editor" }, catalog).join(" | ")).toMatch(/no such command/);
+  });
+
+  it("a line pointing past the catalog", () => {
+    expect(absenceFindings(["a"], new Set(), { a: "nowhere" }, catalog).join(" | ")).toMatch(/no parity-catalog entry/);
+  });
+
+  it("a gap entry left behind when its last command arrived", () => {
+    const gap: ParityFeatureDef = {
+      ...decision,
+      id: "palette-gap",
+      kind: "gap",
+      mobile: "partial",
+      mobileReason: "Not in the palette yet; MOBILE_ABSENT_COMMANDS names each command.",
+    };
+    expect(absenceFindings(["a"], new Set(["a"]), {}, [gap]).join(" | ")).toMatch(/palette-gap: .*delete the entry/);
+    expect(absenceFindings(["a"], new Set(), { a: "palette-gap" }, [gap])).toEqual([]);
+  });
+
+  it("a host key App.tsx stops passing", () => {
+    const { keys } = wiredKeys("buildMobileCommands({ newNote, openGraph: () => go() });", "buildMobileCommands");
+    const thin = Object.fromEntries(keys.map((k) => [k, vi.fn()])) as unknown as MobileCommandHost;
+    const offeredThen = new Set(buildMobileCommands(thin).map((c) => c.id));
+    expect(absenceFindings(["open-graph", "open-mail"], offeredThen, {}, catalog)).toEqual([
+      "open-mail: neither offered on the phone nor named in MOBILE_ABSENT_COMMANDS",
+    ]);
+  });
+
+  it.each([
+    ["no call at all", "const commands = [];", /found 0/],
+    ["a host handed over as a variable", "buildMobileCommands(host);", /object literal/],
+    ["a spread", "buildMobileCommands({ ...base, openGraph });", /spread/],
+    ["a key set to undefined", "buildMobileCommands({ openMail: undefined });", /set to undefined/],
+  ])("%s", (_name, source, expected) => {
+    expect(wiredKeys(source, "buildMobileCommands").problems.join(" | ")).toMatch(expected);
   });
 });

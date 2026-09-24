@@ -8,11 +8,13 @@ import { buildAppCommands, type AppCommand, type CommandDeps } from "@plainva/ui
  * it cannot serve is simply absent: `split` needs two panes, the sidebar
  * toggles need sidebars, tabs need a tab strip. A command that appears and
  * does nothing is worse than one that is honestly not offered, and the drift
- * guard on the desktop side makes sure the absence stays deliberate.
+ * guard beside this module (mobileCommands.test.ts) makes sure the absence
+ * stays deliberate.
  *
- * This module is the ONE place that says what the phone leaves out, with the
- * reason next to it — instead of the answer being spread over a palette
- * component, a shortcut table and a menu.
+ * This module is the ONE place that says what the phone leaves out
+ * (`MOBILE_ABSENT_COMMANDS`, with the catalog entry that gives the reason) —
+ * instead of the answer being spread over a palette component, a shortcut
+ * table and a menu.
  */
 export interface MobileCommandHost {
   newNote: () => void;
@@ -84,18 +86,57 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     activePath: h.activeNote,
     // Gates every note-scoped command, not just print (renamed 2026-08-20 —
     // as `canPrint` it read like a print flag on a shell that cannot print,
-    // and was written down as dead. Read/edit, source mode and the Markdown
-    // export all hang off it here).
+    // and was written down as dead. Read/edit and the Markdown export hang
+    // off it here).
     hasActiveNote: () => h.activeNote() !== null,
-    // Deliberately absent, each for a structural reason:
-    //   split / sidebar toggles / focus mode — no panes, no sidebars.
-    //   close+reopen tab — no tab strip.
-    //   print — no print dialog in the WebView (share carries the note out).
-    //   share the note as text — the note screen has its own share action;
-    //     as a command it was supplied and never read (removed 2026-08-21).
-    //   theme toggle — Appearance owns it; a second switch would drift.
-    //   version history, backup, index maintenance, import — these have
-    //     surfaces of their own and come with P4/P8/P10.
+    // Everything else is absent on purpose, and MOBILE_ABSENT_COMMANDS below
+    // names each command with the catalog entry that says why. (Sharing the
+    // note as text was supplied here once and never read — the note screen
+    // has its own share action; removed 2026-08-21.)
   };
   return buildAppCommands(deps);
 }
+
+/**
+ * Every registry command the phone leaves out, and the parity-catalog entry
+ * (packages/ui/src/lib/featureParity.ts) that says why. The reason lives in
+ * the catalog, once, next to every other asymmetry — not here as well.
+ *
+ * mobileCommands.test.ts holds this table against the registry and against
+ * the wiring in App.tsx, both ways: a command the registry gains is offered
+ * on the phone or named here, and a command named here that the phone starts
+ * to offer loses its line. Until 2026-09-24 the answer was a comment that
+ * named 14 of the 26 and a test that pinned five.
+ */
+export const MOBILE_ABSENT_COMMANDS: Readonly<Record<string, string>> = {
+  // The desktop's window furniture: panes, sidebars, tabs, OS windows.
+  "split-vertical": "split-editor",
+  "split-horizontal": "split-editor",
+  "toggle-left-sidebar": "side-panels",
+  "toggle-right-sidebar": "side-panels",
+  "focus-mode": "reader-chrome-auto-hide",
+  "close-tab": "editor-tabs",
+  "reopen-tab": "editor-tabs",
+  "open-comms-window": "multi-window",
+  "open-second-window": "multi-window",
+  "open-vault-window": "multi-vault",
+  // The phone's own way: the share sheet prints, the note menu hands a note
+  // straight to mail, Appearance owns the theme, touch has no shortcut layer.
+  "print": "print-note",
+  "mail-copy-html": "note-copy-as-email",
+  "toggle-theme": "theme-quick-toggle",
+  "show-shortcuts": "keyboard-shortcuts",
+  // Served on a screen of its own, but not from the palette yet — a gap.
+  "template-new": "palette-command-reach",
+  "open-comments": "palette-command-reach",
+  "import-pkm": "palette-command-reach",
+  "backup-now": "palette-command-reach",
+  "rebuild-index": "palette-command-reach",
+  "update-indexes": "palette-command-reach",
+  "version-history": "palette-command-reach",
+  "insert-template": "palette-command-reach",
+  "template-from-note": "palette-command-reach",
+  "toggle-source": "palette-command-reach",
+  "mail-mailto": "palette-command-reach",
+  "mail-draft": "palette-command-reach",
+};
