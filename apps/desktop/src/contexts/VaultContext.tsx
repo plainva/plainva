@@ -55,7 +55,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
-import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "../services/vaultRefresh";
+import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
 import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runEntryEventSync } from "../services/pim/entryEventSync";
@@ -1000,8 +1000,8 @@ export const VaultProvider: React.FC<{
       const indexQueue = createIncrementalIndexQueue({
         indexer,
         exists: (p) => tauriVaultAdapter.exists(p),
-        onBatchDone: ({ fullScan, anyChange, paths: batchPaths }) => {
-          if (fullScan) {
+        onBatchDone: ({ fullScan, anyChange, paths: batchPaths, structureChanged }) => {
+          if (fullScan || structureChanged) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
           } else if (anyChange) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: batchPaths }));
@@ -1940,6 +1940,9 @@ export const VaultProvider: React.FC<{
     // Paths accumulated across the debounce window: the timer only sees the
     // LAST event batch otherwise, and incremental indexing needs all of them.
     const pendingWatchPaths = new Set<string>();
+    // Paths named by a rename or removal: their parent folder is reconciled
+    // too, once they turn out to have changed the index (issue 110, E8).
+    const pendingMovedPaths = new Set<string>();
 
     const startWatching = async () => {
       if (!state.vaultAdapter?.watch) return;
@@ -1972,16 +1975,19 @@ export const VaultProvider: React.FC<{
               // "" is the vault root — indexPath classifies it as a directory and
               // the queue escalates to a full reconcile (P1d fail-safe).
               pendingWatchPaths.add(e.path === WATCH_RESCAN_MARKER ? "" : e.path);
+              if ((e.type === "rename" || e.type === "remove") && e.path !== WATCH_RESCAN_MARKER) pendingMovedPaths.add(e.path);
             }
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
               const batch = Array.from(pendingWatchPaths);
+              const moved = Array.from(pendingMovedPaths);
               pendingWatchPaths.clear();
+              pendingMovedPaths.clear();
               console.log("[VaultContext] vault watcher detected changes", batch);
               // Incremental per-path indexing (P2.5) — the former full scan
               // walked the ENTIRE vault over IPC after every save echo. The
               // shared queue serializes this with concurrent sync-pull batches.
-              indexQueue.enqueue(batch);
+              indexQueue.enqueue(batch, { moved });
             }, 1000);
           }
         });
@@ -2275,19 +2281,18 @@ export const VaultProvider: React.FC<{
     return run;
   };
 
-  /** Reconcile ONE folder subtree — the fast path when the vault has 20.000 files. */
+  /**
+   * Reconcile ONE folder subtree — the fast path when the vault has 20.000
+   * files. Through the core's reconcileFolder (issue 110, E8): walking the
+   * folder and indexing each entry only ever saw what IS there, so a file
+   * moved away outside Plainva stayed in the tree after "refresh folder".
+   */
   const refreshFolder = async (folderPath: string) => {
     const indexer = state.indexer;
-    const adapter = state.vaultAdapter;
-    if (!indexer || !adapter) return;
+    if (!indexer) return;
     try {
-      const entries = await adapter.listDir(folderPath, true);
-      let touched = 0;
-      for (const entry of entries) {
-        if (entry.isDirectory) continue;
-        const outcome = await indexer.indexPath(entry.path);
-        if (outcome === "indexed" || outcome === "removed") touched++;
-      }
+      const report = await indexer.reconcileFolder(folderPath);
+      const touched = report.indexed.length + report.removed.length;
       bumpTree();
       toast.success(
         i18n.t("refresh.folderDone", {

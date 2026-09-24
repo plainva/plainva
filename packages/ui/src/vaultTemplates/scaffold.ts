@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ensureOkfFrontmatter, generateIndexContent, upsertFrontmatterKeys } from "@plainva/core";
+import { ensureOkfFrontmatter, generateIndexContent, isSystemJunkName, upsertFrontmatterKeys } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 
@@ -100,8 +100,10 @@ export async function scaffoldVaultTemplate(opts: {
   const { adapter, template, vaultName, subfoldersHeading } = opts;
   // Check before ANY write, including settings in the callers. A missing or
   // unreadable listing is not permission to fill gaps in a user's vault.
-  if (!opts.isNewVault || (await adapter.listDir("")).some((entry) =>
-    ![".ds_store", "thumbs.db", "desktop.ini"].includes(entry.name.toLowerCase()))) {
+  // Operating-system bookkeeping does not count as content (the core's one
+  // list, E10). An AppleDouble `._x` does: it only exists beside an `x`,
+  // and that `x` already makes the folder non-empty.
+  if (!opts.isNewVault || (await adapter.listDir("")).some((entry) => !isSystemJunkName(entry.name))) {
     throw new Error("Vault templates can only be used when creating a new, empty vault.");
   }
   const now = opts.now ?? new Date();

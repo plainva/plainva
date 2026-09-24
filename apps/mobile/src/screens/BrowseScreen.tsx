@@ -21,7 +21,7 @@ import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, 
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
@@ -144,8 +144,11 @@ export function BrowseScreen({
   // one thing the gesture was for came last.
   const [refreshTick, setRefreshTick] = useState(0);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => {
+    // This folder is read into the index first — including what vanished from
+    // it (issue 110, E8) — then the listing, then the sync behind it.
+    await rereadVault(folder).catch(() => {});
     setRefreshTick((n) => n + 1);
-    void refreshVaultAction();
+    void refreshVaultAction({ rereadLocal: false });
   });
   useEffect(() => {
     let stale = false;

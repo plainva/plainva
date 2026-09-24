@@ -19,6 +19,24 @@ pub struct CheckedDirEntry {
     /// A directory snapshot carries regular-file metadata in the same IPC.
     /// Links stay unresolved here; the walker applies its identity/cycle guard.
     metadata: Option<EntryMetadata>,
+    /// Set when THIS entry could not be inspected (a name that is not UTF-8,
+    /// a failing file type or metadata call). The walker protects exactly this
+    /// entry; the rest of the listing stays trustworthy (issue #110, E8). It
+    /// used to fail the whole directory, and the index then refused every
+    /// deletion under it — one odd name kept every moved file in the tree.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unreadable: Option<String>,
+}
+
+fn unreadable_entry(name: String, reason: String) -> CheckedDirEntry {
+    CheckedDirEntry {
+        name,
+        is_file: false,
+        is_directory: false,
+        is_symlink: false,
+        metadata: None,
+        unreadable: Some(reason),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -65,32 +83,55 @@ fn read_text(path: &Path) -> Result<Option<String>, String> {
     }
 }
 
+/// An iterator error carries no name, so nothing narrower than the whole
+/// directory can be protected: it still fails the listing. Everything that
+/// fails for ONE named entry is reported on that entry instead.
 fn collect_entries(
     entries: impl Iterator<Item = io::Result<DirEntry>>,
 ) -> Result<Vec<CheckedDirEntry>, String> {
     entries
         .map(|entry| {
             let entry = entry.map_err(|error| format!("cannot read directory entry: {error}"))?;
-            let name = entry
-                .file_name()
-                .into_string()
-                .map_err(|_| "directory entry has an invalid filename".to_string())?;
-            let kind = entry
-                .file_type()
-                .map_err(|error| format!("cannot inspect directory entry: {error}"))?;
-            let metadata = if kind.is_file() {
-                let value = entry.metadata().map_err(|error| format!("cannot inspect file metadata: {error}"))?;
-                Some(EntryMetadata { size: value.len(), mtime: timestamp_ms(value.modified()), ctime: timestamp_ms(value.created()) })
-            } else { None };
-            Ok(CheckedDirEntry {
-                name,
-                is_file: kind.is_file(),
-                is_directory: kind.is_dir(),
-                is_symlink: kind.is_symlink(),
-                metadata,
-            })
+            Ok(inspect_entry(entry.file_name(), entry.file_type(), || entry.metadata()))
         })
         .collect()
+}
+
+fn inspect_entry(
+    raw_name: std::ffi::OsString,
+    kind: io::Result<fs::FileType>,
+    metadata: impl FnOnce() -> io::Result<Metadata>,
+) -> CheckedDirEntry {
+    let name = match raw_name.into_string() {
+        Ok(name) => name,
+        Err(raw) => {
+            return unreadable_entry(raw.to_string_lossy().into_owned(), "directory entry has an invalid filename".into())
+        }
+    };
+    let kind = match kind {
+        Ok(kind) => kind,
+        Err(error) => return unreadable_entry(name, format!("cannot inspect directory entry: {error}")),
+    };
+    let metadata = if kind.is_file() {
+        match metadata() {
+            Ok(value) => Some(EntryMetadata {
+                size: value.len(),
+                mtime: timestamp_ms(value.modified()),
+                ctime: timestamp_ms(value.created()),
+            }),
+            Err(error) => return unreadable_entry(name, format!("cannot inspect file metadata: {error}")),
+        }
+    } else {
+        None
+    };
+    CheckedDirEntry {
+        name,
+        is_file: kind.is_file(),
+        is_directory: kind.is_dir(),
+        is_symlink: kind.is_symlink(),
+        metadata,
+        unreadable: None,
+    }
 }
 
 fn read_directory(path: &Path) -> Result<Option<Vec<CheckedDirEntry>>, String> {
@@ -182,6 +223,54 @@ mod tests {
             Err(io::Error::from(io::ErrorKind::PermissionDenied)),
         ];
         assert!(collect_entries(broken.into_iter()).is_err());
+    }
+
+    #[test]
+    fn one_uninspectable_entry_is_reported_on_that_entry_only() {
+        // Issue #110: one entry the walker cannot inspect used to fail the whole
+        // directory, and the index then kept every row under it forever.
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("visible.md"), "kept").unwrap();
+        let file_type = fs::metadata(dir.path().join("visible.md")).unwrap().file_type();
+
+        let broken_type = inspect_entry("odd.md".into(), Err(io::Error::from(io::ErrorKind::PermissionDenied)), || {
+            fs::metadata(dir.path().join("visible.md"))
+        });
+        assert_eq!(broken_type.name, "odd.md");
+        assert!(broken_type.unreadable.is_some());
+        assert!(!broken_type.is_file && !broken_type.is_directory && !broken_type.is_symlink);
+
+        let broken_metadata = inspect_entry("odd.md".into(), Ok(file_type), || {
+            Err(io::Error::from(io::ErrorKind::PermissionDenied))
+        });
+        assert!(broken_metadata.unreadable.is_some());
+
+        let fine = inspect_entry("visible.md".into(), Ok(file_type), || fs::metadata(dir.path().join("visible.md")));
+        assert!(fine.unreadable.is_none());
+        assert!(fine.is_file);
+        assert_eq!(fine.metadata.as_ref().unwrap().size, 4);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_name_that_is_not_utf8_is_reported_not_fatal() {
+        use std::os::unix::ffi::OsStringExt;
+        let raw = std::ffi::OsString::from_vec(vec![b'n', 0xff, b'.', b'm', b'd']);
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("a.md"), "x").unwrap();
+        let file_type = fs::metadata(dir.path().join("a.md")).unwrap().file_type();
+        let entry = inspect_entry(raw, Ok(file_type), || fs::metadata(dir.path().join("a.md")));
+        assert!(entry.unreadable.is_some());
+        assert!(entry.name.starts_with('n'));
+    }
+
+    #[test]
+    fn a_healthy_listing_carries_no_unreadable_marker_on_the_wire() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("Note.md"), "x").unwrap();
+        let entries = read_directory(dir.path()).unwrap().unwrap();
+        let json = serde_json::to_string(&entries).unwrap();
+        assert!(!json.contains("unreadable"), "{json}");
     }
 
     #[test]

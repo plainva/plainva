@@ -32,9 +32,11 @@ export function onAppForeground(): void {
   // plainly rather than promising the desktop's near-immediacy.
   void import("./commentNotifier").then((m) => m.runMobileCommentNotifications()).catch(() => {});
   pimForegroundSync();
-  // External vault folder (P5): somebody else may have written into the folder
-  // while the app was away — the index is brought up to date on return.
-  void import("./vaultService").then((m) => m.rescanExternalVaultOnResume()).catch(() => {});
+  // Somebody else may have written into the vault while the app was away —
+  // another program in an external folder (P5), the iOS Files app in the
+  // app's own one (issue 110, E9). EVERY vault is re-read on return,
+  // throttled to once a minute.
+  void import("./vaultService").then((m) => m.rereadVaultOnResume()).catch(() => {});
   // ...and so are the remarks (N2): another device's comment file may have
   // arrived through a foreign sync, which no cycle of ours announces. "*" is
   // every note; the open surfaces re-read.

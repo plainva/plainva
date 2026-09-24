@@ -2,7 +2,7 @@ import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type Chec
 import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, trimEndChars } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { isWithinRoot } from "@plainva/ui";
 import { logDiagnostic, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -332,8 +332,16 @@ export class TauriVaultAdapter implements IVaultAdapter {
     const validEntries = entries.filter(e => {
       const name = e.name;
       if (!name) return false;
-      if (insideInternal) return true;
-      return !isInternalPath(path ? `${path}/${name}` : name);
+      const childPath = path ? `${path}/${name}` : name;
+      if (!insideInternal && isInternalPath(childPath)) return false;
+      if (e.unreadable) {
+        // ONE entry the walk cannot use (issue 110, E8): it is reported and
+        // protected on its own. The whole folder used to count as unreadable,
+        // and the index then refused every deletion under it.
+        skipped.push({ path: childPath, reason: "unreadable" });
+        return false;
+      }
+      return true;
     });
 
     const separator = absPath.includes('\\') ? '\\' : '/';
@@ -431,37 +439,105 @@ export class TauriVaultAdapter implements IVaultAdapter {
     await mkdir(absPath, { recursive: true });
   }
 
+  /**
+   * The vault watcher (issue 110, E8): the app's own native command on
+   * `notify`, without the fs plugin's debouncer — which, on macOS, lost the
+   * old side of a rename and swallowed watcher errors. Every path of every
+   * event arrives here; errors do too. Debouncing stays in VaultContext.
+   */
   async watch(callback: (events: import("@plainva/core").WatchEvent[]) => void): Promise<() => void> {
     try {
-      const { watch: tauriWatch } = await import("@tauri-apps/plugin-fs");
-
-      const unwatch = await tauriWatch(this.rootPath, async (event) => {
-        // Ignore "access" events (reading files/directories) to prevent infinite loops
-        // when the indexer reads the vault. Read off the event STRUCTURE — the old
-        // JSON.stringify heuristic also matched a note called "access-log.md".
-        if (isAccessWatchEvent(event.type)) return;
-
-        const events: import("@plainva/core").WatchEvent[] = [];
-        for (const p of event.paths || []) {
-          const rel = relativizeWatchPath(this.rootPath, p);
-          if (rel === null) {
-            // Not attributable to this vault (unexpected casing, a mount point,
-            // a truncated path). Enqueuing the raw absolute path would address a
-            // row that does not exist — worse, it can read as "removed". Ask for
-            // a full reconcile instead: slower, but never wrong.
-            console.warn("[TauriVaultAdapter] watcher path outside the vault root, forcing a full reconcile:", p);
-            events.push({ path: WATCH_RESCAN_MARKER, type: "any" });
-            continue;
-          }
-          events.push({ path: rel, type: "any" });
+      const rootId = await this.rootId();
+      // Event paths start with the directory the native side actually
+      // watches — canonical, which is not always the path the vault was
+      // opened with. Both are tried; the canonical one is known once started.
+      let roots = [this.rootPath];
+      const channel = new Channel<NativeWatchChange[]>();
+      channel.onmessage = (batch) => {
+        const { events, errors } = mapNativeWatchBatch(Array.isArray(batch) ? batch : [], roots);
+        for (const message of errors) {
+          // Never swallowed: an error can mean lost events. The rescan the
+          // batch carries repairs the index; the diagnostics keep the reason.
+          console.warn("[TauriVaultAdapter] watcher error:", message);
+          logDiagnostic("vault", `watcher error: ${message} — reconciling the vault`);
         }
-        callback(events);
-      }, { recursive: true, delayMs: 300 });
-
-      return unwatch;
+        if (events.length > 0) callback(events);
+      };
+      const started = await invoke<{ id?: unknown; root?: unknown } | null>("vault_watch_start", { rootId, onEvent: channel });
+      if (!started || typeof started.id !== "number") {
+        // Only a host without the native command answers like this (the
+        // browser fixtures). There is nothing to stop.
+        console.warn("[TauriVaultAdapter] no native watcher available; relying on the refresh net");
+        return () => {};
+      }
+      if (typeof started.root === "string" && started.root) roots = [started.root, this.rootPath];
+      const id = started.id;
+      return () => {
+        void invoke("vault_watch_stop", { id }).catch((e) => console.warn("[TauriVaultAdapter] stopping the watcher failed", e));
+      };
     } catch (err: any) {
       console.error("Tauri watch failed to start:", err);
       throw err;
     }
   }
+}
+
+/** One change as the native watcher reports it (src-tauri/src/vault_watch.rs). */
+export interface NativeWatchChange {
+  /** create | modify | remove | rename | any | rescan | error */
+  kind: string;
+  /** Absolute paths, exactly as the platform delivered them. */
+  paths: string[];
+  message?: string;
+}
+
+const WATCH_KINDS = new Set(["create", "modify", "remove", "rename", "any"]);
+
+/**
+ * Turns one native batch into vault-relative watch events. Every path is
+ * kept — a rename that carries only its target (FSEvents) is a `rename` event
+ * for that path, and its parent folder gets reconciled downstream. A path
+ * outside every known root, a `rescan` notice and an error each become the
+ * rescan marker: slower, never wrong.
+ */
+export function mapNativeWatchBatch(
+  batch: NativeWatchChange[],
+  roots: string[],
+): { events: import("@plainva/core").WatchEvent[]; errors: string[] } {
+  const events: import("@plainva/core").WatchEvent[] = [];
+  const errors: string[] = [];
+  const rescan = () => events.push({ path: WATCH_RESCAN_MARKER, type: "any" });
+  for (const change of batch) {
+    if (!change || typeof change.kind !== "string") continue;
+    if (isAccessWatchEvent(change.kind)) continue;
+    if (change.kind === "error") {
+      errors.push(change.message || "unknown watcher error");
+      rescan();
+      continue;
+    }
+    if (change.kind === "rescan" || !WATCH_KINDS.has(change.kind)) {
+      rescan();
+      continue;
+    }
+    const type = change.kind as "create" | "modify" | "remove" | "rename" | "any";
+    for (const p of Array.isArray(change.paths) ? change.paths : []) {
+      if (typeof p !== "string") continue;
+      let rel: string | null = null;
+      for (const root of roots) {
+        rel = relativizeWatchPath(root, p);
+        if (rel !== null) break;
+      }
+      if (rel === null) {
+        // Not attributable to this vault (unexpected casing, a mount point,
+        // a truncated path). Enqueuing the raw absolute path would address a
+        // row that does not exist — worse, it can read as "removed". Ask for
+        // a full reconcile instead: slower, but never wrong.
+        console.warn("[TauriVaultAdapter] watcher path outside the vault root, forcing a full reconcile:", p);
+        rescan();
+        continue;
+      }
+      events.push({ path: rel, type });
+    }
+  }
+  return { events, errors };
 }

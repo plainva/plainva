@@ -32,6 +32,7 @@ export * from "./vault/ConflictFileStore.js";
 export * from "./vault/QueueingVaultAdapter.js";
 export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
+export * from "./vault/systemJunk.js";
 export * from "./vault/newVault.js";
 export * from "./vault/VaultQueryService.js";
 export * from "./vault/taskScan.js";

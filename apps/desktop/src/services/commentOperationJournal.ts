@@ -23,6 +23,13 @@ export function desktopCommentOperationJournal(vaultPath: string): FileCommentOp
     writeAtomic: async (file, text) => {
       await invoke("write_file_atomic", { rootId: await rootId(), relPath: file, contents: text, encoding: "utf8" });
     },
-    list: async () => (await checkedReadDirectory(await rootId(), "") ?? []).map((entry) => entry.name),
+    list: async () => {
+      const entries = await checkedReadDirectory(await rootId(), "") ?? [];
+      // The journal's own folder holds only files the app wrote. An entry it
+      // cannot inspect is a real fault, not someone else's odd file name: a
+      // listing that skipped it would silently lose an operation.
+      if (entries.some((entry) => entry.unreadable)) throw new Error("The comment operation journal could not be listed completely");
+      return entries.map((entry) => entry.name);
+    },
   });
 }

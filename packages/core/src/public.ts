@@ -21,6 +21,7 @@ export * from "./vault/rollup.js";
 export * from "./vault/obsidianRollup.js";
 export * from "./vault/summary.js";
 export * from "./vault/VaultIndexer.js";
+export * from "./vault/systemJunk.js";
 export * from "./vault/VaultQueryService.js";
 export * from "./vault/GraphService.js";
 export * from "./db/IDatabaseAdapter.js";

@@ -14,6 +14,7 @@ import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErr
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
+import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -149,7 +150,10 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
  * the live local index and corrupts it ("database disk image is malformed").
  */
 export function isLocalOnlyPath(path: string): boolean {
-  return path.startsWith(".plainva") || path.includes(".CONFLICT");
+  // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, …; issue #110,
+  // E10) is neither downloaded nor mirrored as a deletion. A copy an older
+  // version uploaded stays in the cloud: excluding a name deletes nothing.
+  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 /**
@@ -1626,19 +1630,24 @@ export class SyncWorker {
       // path is reconciled at most once per cycle, so the snapshot cannot go
       // stale within the loop.
       const stateMap = await this.stateRepo.getAllStates();
+      // AppleDouble sidecars (`._Note.md`, E10). The header cannot be read
+      // without downloading the file, so the path-only rule decides here: `._x`
+      // stays out while `x` is in the listing or known locally.
+      const excludedFromSync = (path: string): boolean =>
+        isLocalOnlyPath(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
 
       // 2. Reconcile each remote file against local state. Device-local paths
       // (.plainva/*, .CONFLICT copies — e.g. an index DB a desktop client independently
       // mirrored onto the same remote) are never reconciled and must not inflate the
       // progress count either: "Sync x/y" should reflect real vault files, not thousands
       // of mirrored backup snapshots. Count only the reconcilable entries.
-      const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
+      const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !excludedFromSync(p)).length;
       // Overlap the network downloads for the files this cycle will actually
       // reconcile (P3.3): everything AFTER the download — merge, writes,
       // sync_state, the failure counters — stays strictly sequential below.
       const reconcileOrder: string[] = [];
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
-        if (isLocalOnlyPath(path)) continue;
+        if (excludedFromSync(path)) continue;
         // No speculative download for a file with a queued delete/rename —
         // reconcile skips those (live-checked below), so downloading would be
         // wasted bandwidth at best and a resurrection vector at worst.
@@ -1671,7 +1680,8 @@ export class SyncWorker {
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
-        if (isLocalOnlyPath(path)) continue;
+        // Nor operating-system bookkeeping (E10).
+        if (excludedFromSync(path)) continue;
         this.emitProgress("pull", ++pullIdx, pullTotal);
 
         const state = stateMap.get(path) ?? null;
@@ -1758,6 +1768,7 @@ export class SyncWorker {
         // per-file safety (never delete a locally-modified file).
         for (const path of pullResult.deleted ?? []) {
           if (!alive()) break;
+          if (excludedFromSync(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
@@ -1778,7 +1789,7 @@ export class SyncWorker {
         const emptyListing = remotePaths.size === 0;
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
-          if (isLocalOnlyPath(path)) continue;
+          if (excludedFromSync(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
         // A path the listing does not carry while the remote DOES hold a twin that

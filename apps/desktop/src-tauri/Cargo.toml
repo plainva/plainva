@@ -21,7 +21,10 @@ tauri-build = { version = "2", features = [] }
 tempfile = "3.27.0"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
-tauri-plugin-fs = { version = "2", features = ["watch"] }
+tauri-plugin-fs = "2"
+# The vault watcher (src/vault_watch.rs, issue #110): notify directly, without
+# the plugin's debouncer, which lost the old side of a rename on macOS.
+notify = "8"
 tauri-plugin-dialog = "2"
 tauri-plugin-store = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }

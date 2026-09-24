@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -22,6 +22,7 @@ import {
   OwnDeletionRegister,
   VaultIndexer,
   VaultQueryService,
+  isSystemJunkFile,
   type IDatabaseAdapter,
   type IVaultAdapter,
   type DeletionConfirmation,
@@ -396,16 +397,41 @@ export async function createExternalVault(ref: ExternalFolderRef, name: string):
 }
 
 /**
- * Foreign changes, stage 1 (P5): on return to the app an external vault is
- * rescanned by modification times. Nothing watches the folder while the app
- * is away — neither platform gives a reliable watcher for a foreign folder —
- * so the rescan is the honest answer, not the lazy one.
+ * Foreign changes on return to the app (P5, widened by issue 110, E9).
+ *
+ * Nothing watches a vault while the app is away — neither platform gives a
+ * reliable watcher for it — so the rescan is the honest answer, not the lazy
+ * one. It used to run for a vault in an EXTERNAL folder only; but the app's
+ * own vault is visible in the iOS Files app, and a note moved there stayed at
+ * its old place until the next start. Every vault is re-read now, through the
+ * same throttle and refresh the desktop's window focus uses (shared in
+ * packages/ui): at most once a minute, disk only — the foreground sync that
+ * runs beside it on every return is the cloud half.
  */
-export async function rescanExternalVaultOnResume(): Promise<void> {
+const resumeMarks = new Map<string, AutoRefreshMarks>();
+
+export async function rereadVaultOnResume(now: number = Date.now()): Promise<boolean> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
-  if (!v || !v.external || !v.indexer) return;
-  await v.indexer.indexVaultFull().catch(() => {});
+  if (!v || !v.indexer) return false;
+  const marks = resumeMarks.get(v.vaultId) ?? { local: 0, cloud: 0 };
+  if (!planAutoRefresh(now, marks, RESUME_REFRESH_LIMITS).local) return false;
+  resumeMarks.set(v.vaultId, { ...marks, local: now });
+  await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true }).catch(() => {});
   window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  return true;
+}
+
+/**
+ * Pull-to-refresh reads the vault on THIS device again (issue 110, E8/E9) —
+ * it used to only sync. With a folder, just that folder (the browser's pull,
+ * fast on a large vault); without one, the whole vault. Either way through the
+ * core's reconcile, which also removes what vanished.
+ */
+export async function rereadVault(folder?: string): Promise<void> {
+  const v = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!v || !v.indexer) return;
+  if (folder === undefined) await v.indexer.indexVaultFull();
+  else await v.indexer.reconcileFolder(folder);
 }
 
 /**
@@ -734,7 +760,14 @@ export interface NoteRenameReport {
 
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
-    const entries = await v.files.listDir(folder);
+    // Operating-system bookkeeping is not content (issue 110, E10): the one
+    // list from the core, and an AppleDouble `._Note.md` by its header — a
+    // note of the user's that merely starts with `._` stays listed.
+    const listed = await v.files.listDir(folder);
+    const junk = await Promise.all(
+      listed.map((e) => (e.isDirectory ? false : isSystemJunkFile(e.path, (p) => v.adapter.readBinaryFile(p)))),
+    );
+    const entries = listed.filter((_, i) => !junk[i]);
     // Note counts per subfolder (mockup 1 "24 Notizen").
     //
     // S21: this counted ONE level with a directory listing, so a folder holding
