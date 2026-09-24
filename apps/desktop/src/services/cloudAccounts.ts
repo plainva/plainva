@@ -4,6 +4,8 @@ import {
   refreshDriveAccessToken,
   refreshDropboxAccessToken,
   refreshOneDriveAccessToken,
+  sameStoredValue,
+  storedJson,
   type PimAccountRow,
 } from "@plainva/core";
 import {
@@ -155,7 +157,9 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
   }
   const next = reconcileCloudAccounts(stored, observed);
-  if (JSON.stringify(next) !== JSON.stringify(stored) && recordShape(next) !== lastSavedShape.get(vaultPath)) {
+  // `stored` comes back from the store with sorted keys; a text comparison saw
+  // a change on every refresh and saved again (finding 2026-09-24).
+  if (!sameStoredValue(next, stored) && recordShape(next) !== lastSavedShape.get(vaultPath)) {
     lastSavedShape.set(vaultPath, recordShape(next));
     await saveCloudAccounts(vaultPath, next);
   }
@@ -171,7 +175,7 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
  */
 const lastSavedShape = new Map<string, string>();
 const recordShape = (records: CloudAccountRecord[]): string =>
-  JSON.stringify(records.map(({ id: _id, ...rest }) => rest));
+  storedJson(records.map(({ id: _id, ...rest }) => rest));
 
 /**
  * Identity backfill for an account that holds NO files service.

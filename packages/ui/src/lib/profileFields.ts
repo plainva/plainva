@@ -16,6 +16,8 @@
  * settings object, and neither belongs in shared code.
  */
 
+import { sameStoredValue } from "@plainva/core";
+
 /**
  * Who a setting belongs to. `vault` is a convention of the ARCHIVE and sensibly
  * the same for everyone working in it; `member` is personal and would otherwise
@@ -183,7 +185,7 @@ export function canonicalizeProfileValues(values: Record<string, unknown>): Reco
     if ((value === null) && Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, key)) continue;
     const normalized = canonicalFieldValue(key, value);
     const fallback = profileDefault(key);
-    if (fallback !== undefined && JSON.stringify(normalized) === JSON.stringify(fallback)) continue;
+    if (fallback !== undefined && sameStoredValue(normalized, fallback)) continue;
     canonical[key] = normalized;
   }
   return canonical;

@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import {
   applyAppFonts,
   applyTagColors,
@@ -326,7 +327,7 @@ export async function initMobileSettings(): Promise<void> {
     const design = parseCustomThemeDesign(cache.customTheme) ?? defaultCustomThemeDesign();
     const legacyFont = customThemeSpecForMode(design, "light").fontUi;
     const moved = migrateCustomThemeFont(mobileAppFonts(cache), legacyFont, saved?.uiFontFamily != null);
-    if (moved || legacyFont || JSON.stringify(cache.customTheme) !== JSON.stringify(design)) {
+    if (moved || legacyFont || !sameStoredValue(cache.customTheme, design)) {
       cache = {
         ...cache,
         ...(moved ? { uiFontFamily: moved.ui.family, uiFontCustom: moved.ui.customName } : {}),

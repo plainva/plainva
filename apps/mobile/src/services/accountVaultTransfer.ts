@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
 import { assertConnectionIdentity, getPlatformServices, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
@@ -128,8 +129,8 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     const mailAccounts = await listMailAccounts(v.vaultId);
     const existingMail = await listMailAccounts(id);
     // Validate binding collisions before copying anything.
-    for (const row of accounts) { const old = existingPim.find(a => a.id === row.id); if (old && JSON.stringify(old) !== JSON.stringify(row)) throw new Error("transfer_binding_collision"); }
-    for (const mail of mailAccounts) { const old = existingMail.find(a => a.id === mail.id); if (old && JSON.stringify(old) !== JSON.stringify(mail)) throw new Error("transfer_binding_collision"); }
+    for (const row of accounts) { const old = existingPim.find(a => a.id === row.id); if (old && !sameStoredValue(old, row)) throw new Error("transfer_binding_collision"); }
+    for (const mail of mailAccounts) { const old = existingMail.find(a => a.id === mail.id); if (old && !sameStoredValue(old, mail)) throw new Error("transfer_binding_collision"); }
     await commitVaultTransfer(plan, v.adapter, target, remote);
     for (const row of accounts) {
       const creds = await getPimCredentials(v.vaultId, row.id);
@@ -143,9 +144,9 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     for (const record of records) { const token = await getAccountToken(v.vaultId, record.id); if (token) await saveAccountToken(id, record.id === selected?.id ? accountId : record.id, token); }
     if (!existing) await copyProfilePreferences(v, id, target);
     await saveCloudAccounts(id, [...combined.values()]);
-    if (JSON.stringify(await loadCloudAccounts(id)) !== JSON.stringify([...combined.values()])) throw new Error("storageFailed");
+    if (!sameStoredValue(await loadCloudAccounts(id), [...combined.values()])) throw new Error("storageFailed");
     await secrets.writeSecret(syncProviderSlot(id), p);
-    if (JSON.stringify(await secrets.readSecret(syncProviderSlot(id))) !== JSON.stringify(p)) throw new Error("storageFailed");
+    if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));
   } finally { await db.close(); }
   if (!existing) await addVault({ id, name, provider: p.provider });

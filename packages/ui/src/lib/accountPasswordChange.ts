@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import type { CloudServiceId } from "./cloudAccounts";
 import { withAccountCredentialLock } from "./tokenRefreshCoordinator";
 
@@ -81,7 +82,7 @@ async function sameBinding(ports: PasswordChangePorts): Promise<void> {
 async function checkpoint(ports: PasswordChangePorts, value: PasswordChangeJournal, expected: PasswordChangeJournal | null): Promise<void> {
   try {
     await ports.journal.write(structuredClone(value), expected);
-    if (JSON.stringify(await readJournal(ports)) !== JSON.stringify(value)) throw new Error("unconfirmed journal");
+    if (!sameStoredValue(await readJournal(ports), value)) throw new Error("unconfirmed journal");
   } catch { throw new PasswordChangeError("storage"); }
 }
 

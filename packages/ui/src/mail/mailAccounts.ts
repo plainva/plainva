@@ -1,8 +1,9 @@
-import { firstAngleValue, trimEndChars, trimChars } from "@plainva/core";
+import { firstAngleValue, sameStoredValue, trimEndChars, trimChars } from "@plainva/core";
 import { getPlatformServices } from "../platform/services";
 import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
 import { withAccountCredentialLock } from "../lib/tokenRefreshCoordinator";
+import { ServiceConnectionError } from "../lib/serviceConnection";
 
 /**
  * Mail accounts (PIM stage 5+): the non-secret account list lives in the
@@ -240,15 +241,19 @@ async function commitMailAccount(vaultPath: string, account: MailAccountConfig, 
     const previousSecret = await readSlot(credentials, slot, legacyMailSecretKey(vaultPath, account.id));
     const list = await listMailAccounts(vaultPath);
     const next = [...list.filter(a => a.id !== account.id), account];
+    // Both checks and both rollbacks compare CONTENT (`sameStoredValue`): the
+    // desktop store hands objects back with sorted keys, and a text comparison
+    // failed every new account and then never recognised its own write to undo
+    // it (finding 2026-09-24).
     try {
       await credentials.writeSecret(slot, secret);
-      if (JSON.stringify(await credentials.readSecret(slot)) !== JSON.stringify(secret)) throw new Error("storageFailed");
+      if (!sameStoredValue(await credentials.readSecret(slot), secret)) throw new ServiceConnectionError("storageFailed");
       await store.set(mailAccountsKey(vaultPath), next);
       await store.save();
-      if (JSON.stringify(await listMailAccounts(vaultPath)) !== JSON.stringify(next)) throw new Error("storageFailed");
+      if (!sameStoredValue(await listMailAccounts(vaultPath), next)) throw new ServiceConnectionError("storageFailed");
     } catch (error) {
-      if (JSON.stringify(await listMailAccounts(vaultPath)) === JSON.stringify(next)) { await store.set(mailAccountsKey(vaultPath), list); await store.save(); }
-      if (JSON.stringify(await credentials.readSecret(slot)) === JSON.stringify(secret)) {
+      if (sameStoredValue(await listMailAccounts(vaultPath), next)) { await store.set(mailAccountsKey(vaultPath), list); await store.save(); }
+      if (sameStoredValue(await credentials.readSecret(slot), secret)) {
         if (previousSecret) await credentials.writeSecret(slot, previousSecret); else await credentials.removeSecret(slot);
       }
       throw error;

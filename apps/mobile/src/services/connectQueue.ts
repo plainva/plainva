@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { FAMILY_SERVICES, getPlatformServices, withAccountCredentialLock, type CloudProviderFamily, type CloudServiceId, type ServiceConnectionContext, type ServiceConnectionOutcome } from "@plainva/ui";
 import { clearConnectSecrets } from "./connectSecrets";
 import { getActiveVaultEntry } from "./vaultRegistry";
@@ -46,7 +47,7 @@ async function persist(queue: ConnectQueue | null): Promise<void> {
   if (queue) await store.set(KEY, queue); else await store.delete(KEY);
   await store.save();
   const saved = await store.get<ConnectQueue>(KEY);
-  if (JSON.stringify(saved ?? null) !== JSON.stringify(queue)) throw new Error("Connection progress could not be saved");
+  if (!sameStoredValue(saved ?? null, queue)) throw new Error("Connection progress could not be saved");
   current = queue;
   if (!queue) clearConnectSecrets();
   changed();

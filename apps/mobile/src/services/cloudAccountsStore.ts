@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import {
   getPlatformServices,
   reconcileCloudAccounts,
@@ -118,6 +119,6 @@ export async function refreshCloudAccounts(vaultId: string, pimReady: boolean): 
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
   }
   const next = reconcileCloudAccounts(stored, observed);
-  if (JSON.stringify(next) !== JSON.stringify(stored)) await saveCloudAccounts(vaultId, next);
+  if (!sameStoredValue(next, stored)) await saveCloudAccounts(vaultId, next);
   return next;
 }

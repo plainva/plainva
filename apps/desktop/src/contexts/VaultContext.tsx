@@ -1,5 +1,5 @@
 import { clearPinboardCache } from "@plainva/ui";
-import { projectPublicationFeedbackForOwner } from "@plainva/core";
+import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
@@ -2131,7 +2131,7 @@ export const VaultProvider: React.FC<{
       void getWorkspaceSecurityStatus(path).then((status) => {
         setState((s) => {
           if (s.vaultPath !== path) return s;
-          if (JSON.stringify(s.workspaceSecurityStatus) === JSON.stringify(status)) return s;
+          if (sameStoredValue(s.workspaceSecurityStatus, status)) return s;
           return { ...s, workspaceSecurityStatus: status };
         });
       }).catch(() => undefined);

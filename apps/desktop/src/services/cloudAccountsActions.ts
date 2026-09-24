@@ -1,4 +1,4 @@
-import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES, type DriveSyncTarget } from "@plainva/core";
+import { DRIVE_DEFAULT_SCOPE, GOOGLE_CALENDAR_SCOPES, sameStoredValue, storedJson, type DriveSyncTarget } from "@plainva/core";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
@@ -524,7 +524,10 @@ export async function bindConnectResult(
       .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
     await saveCloudAccounts(vaultPath, [...others, record]);
     const persisted = (await loadCloudAccounts(vaultPath)).find(r => r.id === record.id);
-    if (!persisted || JSON.stringify(persisted.services) !== JSON.stringify(record.services)) throw new ServiceConnectionError("storageFailed");
+    // Content, not text: the store returns `{ calendar, files }` for a written
+    // `{ files, calendar }`, and the text comparison failed every files +
+    // calendar binding (finding 2026-09-24).
+    if (!persisted || !sameStoredValue(persisted.services, record.services)) throw new ServiceConnectionError("storageFailed");
     if (runtime && result.pimAccountId) {
       const row = (await runtime.cache.listAccounts()).find(r => r.id === result.pimAccountId);
       if (row) await runtime.cache.upsertAccount({ ...row, enabled: true });
@@ -771,12 +774,14 @@ async function oauthServicesInVault(vault: string, record: CloudAccountRecord): 
 /** Capture local service sources so a late consent cannot replace newer sign-ins. */
 async function accountLoginSources(vaultPath: string, record: CloudAccountRecord): Promise<Partial<Record<CloudServiceId, string>>> {
   const sources: Partial<Record<CloudServiceId, string>> = {};
-  if (record.services.files) sources.files = JSON.stringify(record.services.files.provider === "drive"
+  // Canonical text (`storedJson`), so "unchanged" never depends on the key
+  // order a store happens to return.
+  if (record.services.files) sources.files = storedJson(record.services.files.provider === "drive"
     ? await credentialManager.getDriveCredentials(vaultPath) : await credentialManager.getOneDriveCredentials(vaultPath));
-  if (record.services.calendar) sources.calendar = JSON.stringify(await getPimCredentials(vaultPath, record.services.calendar.pimAccountId));
+  if (record.services.calendar) sources.calendar = storedJson(await getPimCredentials(vaultPath, record.services.calendar.pimAccountId));
   if (record.services.mail) {
     const id = record.services.mail.mailAccountId;
-    sources.mail = JSON.stringify({ account: (await listMailAccounts(vaultPath)).find((m) => m.id === id), credential: await credentialManager.readSecret(mailSecretKey(vaultPath, id)) });
+    sources.mail = storedJson({ account: (await listMailAccounts(vaultPath)).find((m) => m.id === id), credential: await credentialManager.readSecret(mailSecretKey(vaultPath, id)) });
   }
   return sources;
 }

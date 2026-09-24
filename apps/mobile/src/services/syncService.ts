@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { clearMobileCommentWorker, setMobileCommentWorker } from "./commentWorker";
 import {
   DriveSyncTarget,
@@ -407,7 +408,7 @@ export async function switchProviderToAccountBroker(vaultId: string, record: Clo
   const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
   await probe.getAccessToken();
   if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
-  if (JSON.stringify(await getStoredProvider(vaultId)) !== JSON.stringify(existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+  if (!sameStoredValue(await getStoredProvider(vaultId), existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
   let merged: MobileSyncProvider;
   if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "", nativeGoogle: undefined } };
   else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };

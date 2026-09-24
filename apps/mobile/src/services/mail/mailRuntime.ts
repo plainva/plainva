@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { assertConnectionIdentity, classifyAuthError, parseMicrosoftMe, toast, type ServiceConnectionContext } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import {
@@ -105,7 +106,7 @@ export async function bindMicrosoftMailAccount(vault: string, clientId: string, 
       forgetGraphMailRuntime(vault, id);
       const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === id;
       const ownRow = (await listMailAccounts(vault)).find(a => a.id === id);
-      if (!bound && JSON.stringify(ownRow) === JSON.stringify(account) && await getMailRefreshToken(vault, id) === refreshToken) {
+      if (!bound && sameStoredValue(ownRow, account) && await getMailRefreshToken(vault, id) === refreshToken) {
       if (previous) await saveMicrosoftMailAccount(vault, previous, oldToken ?? "");
       else await removeMailAccount(vault, id);
     }

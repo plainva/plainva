@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { PasswordChangeError, type PasswordChangePorts } from "./accountPasswordChange";
 
 /** Native-only storage. The compare and write share a lane with every native
@@ -17,7 +18,7 @@ export function createPasswordChangeJournal(store: ProtectedSecretStore, key: st
   };
   const replace = async (expected: unknown, value: unknown | null): Promise<void> => {
     const raw = await store.read(key);
-    if (JSON.stringify(parse(raw)) !== JSON.stringify(expected)) throw new PasswordChangeError("changed");
+    if (!sameStoredValue(parse(raw), expected)) throw new PasswordChangeError("changed");
     if (!await store.compareAndSet(key, raw, value === null ? null : JSON.stringify(value))) throw new PasswordChangeError("changed");
   };
   return {

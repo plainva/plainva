@@ -9,15 +9,23 @@ import { keychainSlotName, oauthScopeFor, type CloudAccountRecord } from "@plain
  */
 
 const registry = new Map<string, CloudAccountRecord[]>();
+/** When set, the registry answers like the desktop store: keys sorted (serde). */
+const storeOrder = vi.hoisted(() => ({ serde: false }));
 
-vi.mock("./cloudAccounts", () => ({
+vi.mock("./cloudAccounts", async () => {
+  const { serdeOrdered } = await import("../test-serdeStore");
+  return {
   CLOUD_ACCOUNTS_EVENT: "plainva-cloud-accounts-changed",
-  loadCloudAccounts: vi.fn(async (vaultPath: string) => registry.get(vaultPath) ?? []),
+  loadCloudAccounts: vi.fn(async (vaultPath: string) => {
+    const records = registry.get(vaultPath) ?? [];
+    return storeOrder.serde ? serdeOrdered(records) : records;
+  }),
   saveCloudAccounts: vi.fn(async (vaultPath: string, records: CloudAccountRecord[]) => {
     registry.set(vaultPath, records);
   }),
   refreshCloudAccounts: vi.fn(async (vaultPath: string) => registry.get(vaultPath) ?? []),
-}));
+  };
+});
 
 /** In-memory keychain so the password rotation can be observed slot by slot. */
 const slots = new Map<string, unknown>();
@@ -174,7 +182,54 @@ import {
 import type { PimRuntime } from "./pim/pimRuntime";
 
 describe("bindConnectResult", () => {
-  beforeEach(() => registry.clear());
+  beforeEach(() => {
+    registry.clear();
+    storeOrder.serde = false;
+  });
+
+  /**
+   * The desktop store returns `{ calendar, files }` for a written
+   * `{ files, calendar }`. The check after saving compared JSON text, so every
+   * files + calendar binding — Drive + calendar, OneDrive + calendar, WebDAV +
+   * CalDAV — failed with "storageFailed", and the calendar was never switched
+   * on (finding 2026-09-24).
+   */
+  it.each([
+    ["google", "drive"],
+    ["microsoft", "onedrive"],
+    ["webdav", "webdav"],
+  ] as const)("binds files + calendar of a %s account against the desktop's key order", async (family, provider) => {
+    storeOrder.serde = true;
+    const upsertAccount = vi.fn(async () => undefined);
+    const runtime = {
+      isActive: () => true,
+      cache: { listAccounts: async () => [{ id: "P", provider: "caldav", label: "", config: {}, enabled: false }], upsertAccount, setScopeState: vi.fn() },
+      worker: { start: vi.fn(), triggerImmediate: vi.fn() },
+    } as unknown as PimRuntime;
+    const { records } = await bindConnectResult(
+      "/v",
+      runtime,
+      { family, services: ["files", "calendar"] },
+      { filesProvider: provider, pimAccountId: "P", identity: "m.muster@example.invalid" },
+    );
+    expect(records).toHaveLength(1);
+    expect(records[0].services).toEqual({ files: { provider }, calendar: { pimAccountId: "P" } });
+    // The calendar is switched on — the step the failed check used to skip.
+    expect(upsertAccount).toHaveBeenCalledWith(expect.objectContaining({ id: "P", enabled: true }));
+  });
+
+  it("adds files to an existing calendar + mail account against the desktop's key order", async () => {
+    storeOrder.serde = true;
+    registry.set("/v", [{ id: "card", family: "google", label: "m@gmail.com", services: { calendar: { pimAccountId: "P" }, mail: { mailAccountId: "M" } } }]);
+    const { records } = await bindConnectResult(
+      "/v",
+      null,
+      { family: "google", services: ["files"] },
+      { filesProvider: "drive", identity: "m@gmail.com" },
+      "card",
+    );
+    expect(records.find((r) => r.id === "card")?.services).toEqual({ calendar: { pimAccountId: "P" }, mail: { mailAccountId: "M" }, files: { provider: "drive" } });
+  });
 
   it("a retry binds into the SAME account record instead of minting a duplicate", async () => {
     // First attempt: calendar connected, mail failed → partial bind.

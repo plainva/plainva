@@ -92,6 +92,7 @@ export * from "./settingsSync/KeyfileSyncStep.js";
 export * from "./settingsSync/manifestGuard.js";
 export * from "./settingsSync/connectionId.js";
 export * from "./settingsSync/canonicalJson.js";
+export * from "./storedValue.js";
 export * from "./settingsSync/errors.js";
 export * from "./settingsSync/manifest.js";
 export * from "./settingsSync/secretsBundle.js";

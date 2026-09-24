@@ -31,6 +31,7 @@
  * is left exactly where it is - a foreign sync would carry a rename to its
  * origin as a deletion - and reported with a reason code (N3).
  */
+import { sameStoredValue } from "../storedValue.js";
 import { withCommentsWrite, withCommentsSync } from "./commentsCoordinator.js";
 import { readCommentMoveJournals } from "./commentMoveJournal.js";
 import { CommentIdentityConflictError, sameCommentContent } from "./commentIdentity.js";
@@ -476,7 +477,7 @@ export function serializeCommentDevicesRoster(roster: CommentDevicesRoster): str
 }
 
 function sameRoster(a: CommentDevicesRoster | null, b: CommentDevicesRoster | null): boolean {
-  return JSON.stringify(Object.keys(a?.devices ?? {}).sort()) === JSON.stringify(Object.keys(b?.devices ?? {}).sort());
+  return sameStoredValue(Object.keys(a?.devices ?? {}).sort(), Object.keys(b?.devices ?? {}).sort());
 }
 
 /* ------------------------------------------------------------------ */
@@ -630,8 +631,8 @@ async function readLocalRoster(vault: IVaultAdapter): Promise<CommentDevicesRost
 
 /** A conflicting immutable ID is not proof that the source was preserved. */
 function bundleContains(container: CommentsBundle, source: CommentsBundle): boolean {
-  for (const [id, record] of Object.entries(source.comments)) if (JSON.stringify(container.comments[id]) !== JSON.stringify(record)) return false;
-  for (const [id, move] of Object.entries(source.moves ?? {})) if (JSON.stringify(container.moves?.[id]) !== JSON.stringify(move)) return false;
+  for (const [id, record] of Object.entries(source.comments)) if (!sameStoredValue(container.comments[id], record)) return false;
+  for (const [id, move] of Object.entries(source.moves ?? {})) if (!sameStoredValue(container.moves?.[id], move)) return false;
   return sameBundle(mergeCommentsBundles(container, source, container.updatedAt), container);
 }
 
@@ -643,9 +644,9 @@ function mergeOptional(a: CommentsBundle | null, b: CommentsBundle | null, now: 
 
 /** Compares content, ignoring the bundle timestamp - which changes on every merge. */
 export function sameBundle(a: CommentsBundle, b: CommentsBundle): boolean {
-  return (
-    JSON.stringify({ c: sortedKeys(a.comments), a: sortedKeys(a.authors), m: sortedKeys(a.moves ?? {}) })
-    === JSON.stringify({ c: sortedKeys(b.comments), a: sortedKeys(b.authors), m: sortedKeys(b.moves ?? {}) })
+  return sameStoredValue(
+    { c: sortedKeys(a.comments), a: sortedKeys(a.authors), m: sortedKeys(a.moves ?? {}) },
+    { c: sortedKeys(b.comments), a: sortedKeys(b.authors), m: sortedKeys(b.moves ?? {}) },
   );
 }
 

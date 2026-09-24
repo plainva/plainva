@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { parseCustomThemeDesign, type CustomThemeDesign } from "./customThemeDesign";
 
 type ThemeClock = Record<string, number>;
@@ -32,13 +33,13 @@ function normalize(variants: CustomThemeVariant[]): CustomThemeProfile {
   const unique = new Map<string, CustomThemeVariant>();
   for (const variant of variants) {
     const id = variantId(variant), previous = unique.get(id);
-    if (previous && JSON.stringify(previous) !== JSON.stringify(variant)) throw new Error("custom_theme_revision_collision");
+    if (previous && !sameStoredValue(previous, variant)) throw new Error("custom_theme_revision_collision");
     unique.set(id, variant);
   }
   const all = [...unique.values()];
   // Identical causal clocks with different content are not a valid fork.
   for (let i = 0; i < all.length; i++) for (let j = 0; j < i; j++) {
-    if (JSON.stringify(all[i].clock) === JSON.stringify(all[j].clock) && JSON.stringify(all[i].design) !== JSON.stringify(all[j].design)) throw new Error("custom_theme_revision_collision");
+    if (sameStoredValue(all[i].clock, all[j].clock) && !sameStoredValue(all[i].design, all[j].design)) throw new Error("custom_theme_revision_collision");
   }
   const heads = all.filter(v => !all.some(other => dominates(other.clock, v.clock)));
   if (heads.length > MAX_VARIANTS || new Set(heads.flatMap(v => Object.keys(v.clock))).size > MAX_DEVICES) throw new Error("custom_theme_profile_limit");

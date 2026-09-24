@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import type { ISettingsStore } from "../platform/settings";
 import { parseCustomThemeDesign, type CustomThemeDesign } from "./customThemeDesign";
 import { mergeCustomThemeProfiles, parseCustomThemeProfile, reviseCustomThemeProfile, type CustomThemeProfile } from "./customThemeProfile";
@@ -136,7 +137,7 @@ export class PersonalDesignSync {
       const incoming = requireProfile(raw);
       if (incoming) {
         const state = await this.state(), profile = mergeCustomThemeProfiles(state.profile, incoming);
-        if (JSON.stringify(profile) !== JSON.stringify(state.profile)) await this.persist({ profile, pending: true });
+        if (!sameStoredValue(profile, state.profile)) await this.persist({ profile, pending: true });
       }
       await this.recover();
       signal();

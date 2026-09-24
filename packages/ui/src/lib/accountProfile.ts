@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
@@ -788,7 +789,7 @@ function sameCloudBinding(
   right: CloudAccountRecord,
 ): boolean {
   return left.family === right.family
-    && JSON.stringify(left.services) === JSON.stringify(right.services);
+    && sameStoredValue(left.services, right.services);
 }
 
 /**

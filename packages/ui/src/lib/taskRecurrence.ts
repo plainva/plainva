@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, workspaceSha256Hex, utf8Encode, tasksDayNumber } from "@plainva/core";
 
 /**
@@ -271,7 +272,7 @@ export async function writeNextOccurrenceNote(
     if (!path) return null;
     plan = { version: 1, id, path, hash, ...(completedOn ? { completedOn } : {}) };
     await adapter.writeTextFile(sourcePath, setFrontmatterPath(initial, planKey, plan));
-    if (JSON.stringify(readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey)) !== JSON.stringify(plan)) throw new Error("task_repeat_plan_not_saved");
+    if (!sameStoredValue(readFrontmatterPath(await adapter.readTextFile(sourcePath), planKey), plan)) throw new Error("task_repeat_plan_not_saved");
   }
   let created = false;
   if (await adapter.exists(plan.path)) {

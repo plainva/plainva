@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { PasswordChangeError, type PasswordChangeTarget } from "./accountPasswordChange";
 import type { CloudServiceId } from "./cloudAccounts";
 import type { ProtectedSecretStore } from "./passwordChangeJournal";
@@ -35,12 +36,12 @@ export function createPasswordCredentialTarget<T, B>(opts: {
     write: async (expected, next) => {
       await opts.beforeWrite?.();
       const current = await source();
-      if (JSON.stringify(current) !== expected) throw new PasswordChangeError("changed", opts.service);
+      if (!sameStoredValue(current, parse(expected))) throw new PasswordChangeError("changed", opts.service);
       const replacement = parse(next);
-      if (JSON.stringify(current.binding) !== JSON.stringify(replacement.binding)) throw new PasswordChangeError("changed", opts.service);
+      if (!sameStoredValue(current.binding, replacement.binding)) throw new PasswordChangeError("changed", opts.service);
       const raw = await opts.store.read(opts.key);
-      if (raw === null || JSON.stringify(JSON.parse(raw)) !== JSON.stringify(current.credential)
-        || JSON.stringify(await opts.readBinding()) !== JSON.stringify(current.binding)) throw new PasswordChangeError("changed", opts.service);
+      if (raw === null || !sameStoredValue(JSON.parse(raw), current.credential)
+        || !sameStoredValue(await opts.readBinding(), current.binding)) throw new PasswordChangeError("changed", opts.service);
       if (!await opts.store.compareAndSet(opts.key, raw, JSON.stringify(replacement.credential))) throw new PasswordChangeError("changed", opts.service);
     },
   };

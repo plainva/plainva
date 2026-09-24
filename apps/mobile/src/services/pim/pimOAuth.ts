@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { authorizeNativeGoogle } from "../googleNativeAuthorization";
@@ -285,7 +286,7 @@ async function beginPimOAuthFlow(
     try { await withAccountCredentialLock(PENDING_KEY, async () => {
       const creds = getPlatformServices().credentials;
       await creds.writeSecret(PENDING_KEY, flow);
-      if (JSON.stringify(await creds.readSecret(PENDING_KEY)) !== JSON.stringify(flow)) throw new Error("Account sign-in context could not be confirmed in secure storage");
+      if (!sameStoredValue(await creds.readSecret(PENDING_KEY), flow)) throw new Error("Account sign-in context could not be confirmed in secure storage");
     }); }
     catch (error) { pending = null; throw error; }
   }
@@ -298,7 +299,7 @@ async function beginPimOAuthFlow(
         nativeGoogle: { email: result.profile.label! }, providerIdentity: result.profile.identity };
       const credentials = getPlatformServices().credentials;
       await credentials.writeSecret(RESULT_KEY, received);
-      if (JSON.stringify(await credentials.readSecret(RESULT_KEY)) !== JSON.stringify(received)) throw new Error("Google sign-in could not be confirmed in secure storage");
+      if (!sameStoredValue(await credentials.readSecret(RESULT_KEY), received)) throw new Error("Google sign-in could not be confirmed in secure storage");
       pending = null;
       await persistPending(null);
       await resumePimOAuthResult();
@@ -377,7 +378,7 @@ export async function handlePimOAuthRedirect(urlStr: string): Promise<boolean> {
     }
     const received: ReceivedPimFlow = { flow, refreshToken, accessToken, grantedScope };
     await getPlatformServices().credentials.writeSecret(RESULT_KEY, received);
-    if (JSON.stringify(await getPlatformServices().credentials.readSecret(RESULT_KEY)) !== JSON.stringify(received)) throw new Error("storageFailed");
+    if (!sameStoredValue(await getPlatformServices().credentials.readSecret(RESULT_KEY), received)) throw new Error("storageFailed");
     await resumePimOAuthResult();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

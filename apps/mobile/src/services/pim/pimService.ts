@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
 import {
@@ -408,7 +409,7 @@ async function addPimAccountInVault(
       await saveCloudAccounts(owner.vaultId, records.map(r => r.id === source.id ? nextRecord : r));
       assertCurrent();
       const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
-      if (JSON.stringify(persisted) !== JSON.stringify(nextRecord)) throw new ServiceConnectionError("storageFailed");
+      if (!sameStoredValue(persisted, nextRecord)) throw new ServiceConnectionError("storageFailed");
       assertCurrent();
       await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: { ...adoptInto?.config, ...config }, enabled: true });
     } catch (error) {
@@ -420,7 +421,7 @@ async function addPimAccountInVault(
         else await clearPimCredentials(owner.vaultId, connectedId);
       }
       const latest = await loadCloudAccounts(owner.vaultId);
-      if (JSON.stringify(latest.find(r => r.id === source.id)) === JSON.stringify(nextRecord)) {
+      if (sameStoredValue(latest.find(r => r.id === source.id), nextRecord)) {
         await saveCloudAccounts(owner.vaultId, latest.map(r => r.id === source.id ? current : r));
       }
       throw error;

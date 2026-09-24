@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { PimCacheRepository, type PimAccountRow } from "@plainva/core";
 import {
@@ -100,7 +101,7 @@ export async function copyProfilePreferences(source: MobileVault, targetId: stri
     }
     if (value) await store.set(keyOf(targetId), value); else await store.delete(keyOf(targetId));
     await store.save();
-    if (JSON.stringify(await store.get(keyOf(targetId)) ?? null) !== JSON.stringify(value ?? null)) throw new Error("storageFailed");
+    if (!sameStoredValue(await store.get(keyOf(targetId)) ?? null, value ?? null)) throw new Error("storageFailed");
   }
   if (!await barLayoutIsInherited("mobileBar", source.vaultId)) await saveBarLayout("mobileBar", targetId, await loadBarLayout("mobileBar", source.vaultId));
   const path = ".plainva/bookmarks.json";

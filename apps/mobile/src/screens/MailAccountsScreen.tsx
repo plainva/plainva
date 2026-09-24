@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GmailSignInButton } from "@plainva/ui";
 import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
@@ -348,7 +349,7 @@ export function MailAccountsScreen({
       catch (error) {
         const bound = context?.cloudAccountId && (await loadCloudAccounts(vault)).find(r => r.id === context.cloudAccountId)?.services.mail?.mailAccountId === account.id;
         const ownRow = (await listMailAccounts(vault)).find(a => a.id === account.id);
-        if (!bound && JSON.stringify(ownRow) === JSON.stringify(account) && await getMailPassword(vault, account.id) === password) {
+        if (!bound && sameStoredValue(ownRow, account) && await getMailPassword(vault, account.id) === password) {
           if (existing) await saveMailAccount(vault, existing, oldPassword ?? "");
           else await removeMailAccount(vault, account.id);
         }

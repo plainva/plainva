@@ -1,5 +1,6 @@
 /** Typed, device-local bookmark file, shared by both shells. Historical mobile
  * string arrays and Obsidian file/folder groups remain readable. */
+import { sameStoredValue } from "@plainva/core";
 import { VaultFileNotFoundError } from "@plainva/core";
 
 export interface BookmarkEntry { type: "file" | "folder"; path: string }
@@ -130,7 +131,7 @@ async function updateBookmarksOnDisk(io: BookmarksIO, change: (current: Bookmark
   const run = (lanes.get(lane) ?? Promise.resolve()).catch(() => {}).then(async () => {
     const current = await readBookmarksOnDisk(io);
     const next = deduplicateBookmarks(change(current));
-    if (JSON.stringify(current) !== JSON.stringify(next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
+    if (!sameStoredValue(current, next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
     return next;
   });
   lanes.set(lane, run);

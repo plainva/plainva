@@ -1,3 +1,4 @@
+import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { authorizeNativeGoogle } from "./googleNativeAuthorization";
@@ -108,7 +109,7 @@ async function persistPending(flow: PendingFlow | null): Promise<void> {
     const creds = getPlatformServices().credentials;
     if (flow) await creds.writeSecret(PENDING_KEY, flow);
     else await creds.removeSecret(PENDING_KEY);
-    if (JSON.stringify(await creds.readSecret(PENDING_KEY) ?? null) !== JSON.stringify(flow)) throw new Error("storageFailed");
+    if (!sameStoredValue(await creds.readSecret(PENDING_KEY) ?? null, flow)) throw new Error("storageFailed");
 }
 
 async function loadPending(): Promise<PendingFlow | null> {
@@ -153,7 +154,7 @@ export async function persistPendingConnect(provider: MobileSyncProvider): Promi
     if (!previous) return;
     const next = { ...previous, provider };
     await credentials.writeSecret(FOLDER_KEY, next);
-    if (JSON.stringify(await credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(next)) throw new Error("storageFailed");
+    if (!sameStoredValue(await credentials.readSecret(FOLDER_KEY), next)) throw new Error("storageFailed");
   });
 }
 
@@ -168,7 +169,7 @@ export async function beginStoredFilesConnection(context: ServiceConnectionConte
   pendingCreateTemplateId = null; pendingServiceContext = context;
   const saved: PendingFolder = { provider: pendingConnect, createTemplateId: null, context, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, saved);
-  if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(saved)) throw new Error("storageFailed");
+  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), saved)) throw new Error("storageFailed");
   window.dispatchEvent(new CustomEvent("plainva-oauth-choose-folder"));
   return true;
 }
@@ -476,7 +477,7 @@ export async function handleOAuthRedirect(urlStr: string): Promise<boolean> {
 async function offerFolderPicker(provider: MobileSyncProvider, extras: OAuthExtras): Promise<void> {
   const folderState: PendingFolder = { provider, createTemplateId: extras.createTemplateId ?? null, context: extras.serviceContext, createdAt: Date.now() };
   await getPlatformServices().credentials.writeSecret(FOLDER_KEY, folderState);
-  if (JSON.stringify(await getPlatformServices().credentials.readSecret(FOLDER_KEY)) !== JSON.stringify(folderState)) throw new Error("storageFailed");
+  if (!sameStoredValue(await getPlatformServices().credentials.readSecret(FOLDER_KEY), folderState)) throw new Error("storageFailed");
   pendingConnect = provider;
   pendingCreateTemplateId = folderState.createTemplateId;
   pendingServiceContext = folderState.context;

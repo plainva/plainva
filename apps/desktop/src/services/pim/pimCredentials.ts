@@ -1,6 +1,7 @@
 import { credentialManager } from "../CredentialManager";
 import { legacySlot, slot } from "../keychainSlots";
 import { readSlot, removeSlot, replaceProtectedCredential } from "@plainva/ui";
+import { sameStoredValue } from "@plainva/core";
 import { protectedSecrets } from "../protectedSecrets";
 
 /**
@@ -30,7 +31,7 @@ export async function getPimCredentials(vaultPath: string, accountId: string): P
 
 export async function savePimCredentials(vaultPath: string, accountId: string, creds: PimStoredCredentials): Promise<void> {
   await credentialManager.writeSecret(pimSecretKey(vaultPath, accountId), creds);
-  if (JSON.stringify(await getPimCredentials(vaultPath, accountId)) !== JSON.stringify(creds)) throw new Error("Calendar sign-in could not be confirmed in secure storage");
+  if (!sameStoredValue(await getPimCredentials(vaultPath, accountId), creds)) throw new Error("Calendar sign-in could not be confirmed in secure storage");
 }
 
 export async function rotatePimCredentials(vaultPath: string, accountId: string, previous: PimStoredCredentials, next: PimStoredCredentials): Promise<void> {
