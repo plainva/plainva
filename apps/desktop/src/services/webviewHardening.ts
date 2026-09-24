@@ -17,9 +17,17 @@ import { findEditable, selectedText } from "@plainva/ui";
  *    `plainva-refresh-vault`, which VaultContext turns into a disk reconcile
  *    plus, on a synced vault, a full cloud listing. Mod+Alt+R stays free — it
  *    toggles the right sidebar — because we require `!altKey`.
- *  - DevTools keys (F12, Ctrl/Cmd+Shift+I/J/C) are swallowed only in production.
- *    Release builds ship without devtools anyway; dev builds keep them so the
- *    maintainer can still debug.
+ *  - DevTools keys (F12, Ctrl/Cmd+Shift+I/C) are swallowed only in production.
+ *    Release builds ship without devtools anyway (the `tauri` crate is built
+ *    without its `devtools` feature); dev builds keep them so the maintainer
+ *    can still debug.
+ *
+ * A key swallowed here never reaches the app — and only in the builds users
+ * run, so neither the dev server nor the E2E suite can notice. Ctrl/Cmd+Shift+J
+ * sat in the devtools set until 2026-09-24 and ate the journal entry's own
+ * shortcut in every release build. No key the app documents may be swallowed:
+ * webviewHardening.test.ts presses every key of the shortcuts window
+ * (shortcutCatalog.ts) through the production listener.
  *
  * Idempotent — call once from main.tsx.
  */
@@ -33,11 +41,14 @@ export function isReloadKey(e: KeyboardEvent): boolean {
   return mod && !e.altKey && e.key.toLowerCase() === "r";
 }
 
-/** F12 or Ctrl/Cmd+Shift+I / J / C. */
+/**
+ * F12 or Ctrl/Cmd+Shift+I / C. Not J: that is the journal entry (Mod+Shift+J),
+ * and a release build has no console for it to open.
+ */
 export function isDevtoolsKey(e: KeyboardEvent): boolean {
   if (e.key === "F12") return true;
   const mod = e.ctrlKey || e.metaKey;
-  return mod && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase());
+  return mod && e.shiftKey && ["i", "c"].includes(e.key.toLowerCase());
 }
 
 function onKeyDown(e: KeyboardEvent): void {

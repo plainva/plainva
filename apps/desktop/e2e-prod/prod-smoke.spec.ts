@@ -58,6 +58,40 @@ test('production bundle boots and renders the splash without an uncaught error',
 });
 
 /**
+ * The webview hardening, in the production bundle (2026-09-24).
+ *
+ * `webviewHardening.ts` swallows the devtools keys only when
+ * `import.meta.env.PROD` holds — in the builds users run, never on the dev
+ * server. Ctrl/Cmd+Shift+J was one of them, so the journal entry passed every
+ * E2E run and did nothing in every release. The real bundle answers both
+ * halves: a devtools key stops at the hardening (proof that it is live here),
+ * the journal's key goes on to where the app's global shortcut handler listens.
+ */
+test('production bundle lets the journal shortcut through the webview hardening', async ({ page }) => {
+  await page.goto('/');
+  await expect(
+    page.getByRole('heading', { level: 1, name: /Willkommen bei Plainva|Welcome to Plainva/ }),
+  ).toBeVisible({ timeout: 15000 });
+
+  // Listen where AppShell's global handler listens: on window, bubble phase.
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __keysSeen: string[] }).__keysSeen = seen;
+    window.addEventListener('keydown', (e) => {
+      if (e.key.length !== 1) return; // the modifier presses themselves
+      seen.push(`${e.metaKey ? 'Meta' : 'Control'}+${e.shiftKey ? 'Shift+' : ''}${e.key.toUpperCase()}`);
+    });
+  });
+
+  await page.keyboard.press('Control+Shift+I');
+  await page.keyboard.press('Control+Shift+J');
+  await page.keyboard.press('Meta+Shift+J');
+
+  const seen = await page.evaluate(() => (window as unknown as { __keysSeen: string[] }).__keysSeen);
+  expect(seen).toEqual(['Control+Shift+J', 'Meta+Shift+J']);
+});
+
+/**
  * The auxiliary-window entry point, in the production bundle (multi-window P0).
  *
  * A second window is a second entry into the SAME bundle (`index.html?win=aux`),
