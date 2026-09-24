@@ -5,6 +5,7 @@ import { EditorView, type DecorationSet } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { cursorCharRight } from "@codemirror/commands";
 import { anchorMarkerHidePlugin, isAnchorMarkerText, markdownDecorationPlugin } from "@plainva/ui";
+import { forceFullParse } from "../test-parse";
 
 const DOC = "The contract runs <!--pv#7f3a-->until the end of the year<!--/pv#7f3a--> and renews.\n\n<!-- -->\n- a\n";
 const OPEN_FROM = DOC.indexOf("<!--pv#7f3a-->");
@@ -50,8 +51,10 @@ describe("anchorMarkerHidePlugin", () => {
   });
 
   it("hides both markers in live mode even where the caret sits, and nothing else", () => {
+    // Every view here starts from a fully parsed state (test-parse.ts): CodeMirror's
+    // first parse is a wall-clock slice, and a half-built tree hides and dims nothing.
     const view = new EditorView({
-      state: EditorState.create({ doc: DOC, extensions: [markdown(), anchorMarkerHidePlugin(true)], selection: EditorSelection.single(OPEN_FROM + 3) }),
+      state: forceFullParse(EditorState.create({ doc: DOC, extensions: [markdown(), anchorMarkerHidePlugin(true)], selection: EditorSelection.single(OPEN_FROM + 3) })),
       parent: document.body,
     });
     try {
@@ -67,7 +70,7 @@ describe("anchorMarkerHidePlugin", () => {
   });
 
   it("does nothing in source mode", () => {
-    const view = new EditorView({ state: EditorState.create({ doc: DOC, extensions: [markdown(), anchorMarkerHidePlugin(false)] }), parent: document.body });
+    const view = new EditorView({ state: forceFullParse(EditorState.create({ doc: DOC, extensions: [markdown(), anchorMarkerHidePlugin(false)] })), parent: document.body });
     try {
       expect(hiddenRanges(view)).toEqual([]);
     } finally {
@@ -77,7 +80,7 @@ describe("anchorMarkerHidePlugin", () => {
 
   it("the live decoration plugin no longer dims a marker, but still dims the separator", () => {
     const view = new EditorView({
-      state: EditorState.create({ doc: DOC, extensions: [markdown(), markdownDecorationPlugin(true)], selection: EditorSelection.single(DOC.length - 1) }),
+      state: forceFullParse(EditorState.create({ doc: DOC, extensions: [markdown(), markdownDecorationPlugin(true)], selection: EditorSelection.single(DOC.length - 1) })),
       parent: document.body,
     });
     try {

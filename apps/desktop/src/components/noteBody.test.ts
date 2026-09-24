@@ -5,6 +5,7 @@ import { EditorView, type DecorationSet } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { calloutLine, calloutLineClass, calloutTint, listIndentPlugin, markdownDecorationPlugin } from "@plainva/ui";
 import { isDoneTaskItem } from "./markdownReaderModel";
+import { forceFullParse } from "../test-parse";
 
 /**
  * The note body (finding 2026-09-19): a callout is ONE card although the editor
@@ -14,14 +15,18 @@ import { isDoneTaskItem } from "./markdownReaderModel";
 interface Deco { from: number; to: number; cls: string }
 
 function decorations(doc: string, caret = 0): { view: EditorView; all: Deco[] } {
-  const view = new EditorView({
-    state: EditorState.create({
+  // The whole tree before the view exists: the plugins draw from it once, at
+  // construction, and CodeMirror's first parse is a 20 ms wall-clock slice. A
+  // busy machine (the pre-commit hook runs every suite) cut it short, and a
+  // callout or a done task read as plain lines (test-parse.ts).
+  const state = forceFullParse(
+    EditorState.create({
       doc,
       extensions: [markdown({ base: markdownLanguage }), markdownDecorationPlugin(true), listIndentPlugin({ hideLeadingWhitespace: true })],
       selection: EditorSelection.single(caret),
     }),
-    parent: document.body,
-  });
+  );
+  const view = new EditorView({ state, parent: document.body });
   const all: Deco[] = [];
   for (const source of view.state.facet(EditorView.decorations)) {
     const set: DecorationSet = typeof source === "function" ? source(view) : source;

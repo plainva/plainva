@@ -5,6 +5,7 @@ import { EditorView } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxTree } from "@codemirror/language";
 import { anchorAwareHtmlBlock, markdownDecorationPlugin, startsWithAnchorMarker } from "@plainva/ui";
+import { forceFullParse } from "../test-parse";
 
 /**
  * A comment anchor never starts an HTML block (finding 2026-09-03). A comment
@@ -68,7 +69,8 @@ describe("anchorAwareHtmlBlock", () => {
     expect(tree).toContain("CommentBlock");
     expect(tree).not.toContain("StrongEmphasis");
     expect(tree.filter(name => name === "Paragraph")).toHaveLength(1);
-    const view = new EditorView({ state: EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage, extensions: [anchorAwareHtmlBlock] })] }), parent: document.body });
+    // Parsed in full first (test-parse.ts): a half-built tree renders nothing and would pass for the wrong reason.
+    const view = new EditorView({ state: forceFullParse(EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage, extensions: [anchorAwareHtmlBlock] })] })), parent: document.body });
     try {
       expect(view.dom.querySelector("img,script")).toBeNull();
       expect(view.state.doc.toString()).toBe(doc);
@@ -78,11 +80,11 @@ describe("anchorAwareHtmlBlock", () => {
   it("the live preview no longer dims the commented item and its bullet is still a list mark", () => {
     const doc = "- <!--pv#7f3a-->Vorlagen<!--/pv#7f3a-->\n- zwei\n";
     const view = new EditorView({
-      state: EditorState.create({
+      state: forceFullParse(EditorState.create({
         doc,
         extensions: [markdown({ base: markdownLanguage, extensions: [anchorAwareHtmlBlock] }), markdownDecorationPlugin(true)],
         selection: EditorSelection.single(doc.length - 1),
-      }),
+      })),
       parent: document.body,
     });
     try {
