@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DatabaseSync } from "node:sqlite";
 import type { IDatabaseAdapter } from "@plainva/core";
 import { setPlatformServices, type ISettingsStore } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -17,16 +16,20 @@ import { listMailAccounts, mailAccountsKey, mailSecretKey, type MailAccountConfi
  * like a leftover from here, and removing it would reach that device too.
  */
 
-class NodeSqliteAdapter implements IDatabaseAdapter {
-  private db = new DatabaseSync(":memory:");
-  async execute(sql: string, params: unknown[] = []): Promise<void> {
-    this.db.prepare(sql).run(...(params as never[]));
+/**
+ * A mail cache that accepts its schema and holds no messages: every account
+ * here is one that never fetched. The rule itself is tested against real
+ * SQLite in the node-environment test of `orphanedMailAccounts`; this render
+ * test runs in jsdom, where Vite cannot bundle `node:sqlite` on Node 22 (the
+ * CI) — see jsdomNodeBuiltins.test.ts.
+ */
+class EmptyMailCacheAdapter implements IDatabaseAdapter {
+  async execute(): Promise<void> {}
+  async query<T>(): Promise<T[]> {
+    return [];
   }
-  async query<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-    return this.db.prepare(sql).all(...(params as never[])) as T[];
-  }
-  async queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-    return (await this.query<T>(sql, params))[0] ?? null;
+  async queryOne<T>(): Promise<T | null> {
+    return null;
   }
   async transaction<T>(fn: (adapter: IDatabaseAdapter) => Promise<T>): Promise<T> {
     return fn(this);
@@ -69,14 +72,14 @@ const account = (id: string): MailAccountConfig => ({ id, label: `${id}@gmail.co
 
 let container: HTMLDivElement;
 let root: Root;
-let db: NodeSqliteAdapter;
+let db: EmptyMailCacheAdapter;
 
 beforeEach(async () => {
   await i18n.changeLanguage("en");
   values.clear();
   secrets.clear();
   confirm.mockClear();
-  db = new NodeSqliteAdapter();
+  db = new EmptyMailCacheAdapter();
   const store: ISettingsStore = {
     get: async <T,>(key: string) => values.get(key) as T | undefined,
     set: async (key: string, value: unknown) => { values.set(key, structuredClone(value)); },
