@@ -1602,7 +1602,7 @@
     "noteFoldMac": "macOS: ⌘⌥[ / ⌘⌥]",
     "noteVaultMapOnly": "Tylko mapa sejfu.",
     "noteLinkNewTab": "Mod+klik otwiera go w nowej karcie.",
-    "noteReloadGuard": "F5 / Mod+R nie odświeżają.",
+    "noteReloadGuard": "Nie przeładowuje aplikacji.",
     "gClick": "Kliknięcie",
     "gMiddleClick": "Środkowy przycisk myszy",
     "gRightClick": "Kliknięcie prawym przyciskiem",

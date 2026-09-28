@@ -1584,7 +1584,7 @@
     "noteFoldMac": "macOS: ⌘⌥[ / ⌘⌥]",
     "noteVaultMapOnly": "保管庫マップのみ。",
     "noteLinkNewTab": "Mod+クリックで新しいタブに開きます。",
-    "noteReloadGuard": "F5 / Mod+R では再読み込みされません。",
+    "noteReloadGuard": "アプリは再読み込みされません。",
     "gClick": "クリック",
     "gMiddleClick": "中クリック",
     "gRightClick": "右クリック",

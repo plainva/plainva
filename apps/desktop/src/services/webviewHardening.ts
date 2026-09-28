@@ -27,7 +27,9 @@ import { findEditable, selectedText } from "@plainva/ui";
  * sat in the devtools set until 2026-09-24 and ate the journal entry's own
  * shortcut in every release build. No key the app documents may be swallowed:
  * webviewHardening.test.ts presses every key of the shortcuts window
- * (shortcutCatalog.ts) through the production listener.
+ * (shortcutCatalog.ts) through the production listener. The reload keys stand
+ * in that window too: they reach the app as the `plainva-refresh-vault` this
+ * listener dispatches, which is exactly what their row promises.
  *
  * Idempotent — call once from main.tsx.
  */

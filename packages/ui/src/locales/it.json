@@ -1596,7 +1596,7 @@
     "noteFoldMac": "macOS: ⌘⌥[ / ⌘⌥]",
     "noteVaultMapOnly": "Solo nella mappa del vault.",
     "noteLinkNewTab": "Mod+clic lo apre in una nuova scheda.",
-    "noteReloadGuard": "F5 / Mod+R non ricaricano.",
+    "noteReloadGuard": "Non ricarica l'app.",
     "gClick": "Clic",
     "gMiddleClick": "Clic centrale",
     "gRightClick": "Clic destro",

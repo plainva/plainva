@@ -1584,7 +1584,7 @@
     "noteFoldMac": "macOS：⌘⌥[ / ⌘⌥]",
     "noteVaultMapOnly": "仅限仓库地图。",
     "noteLinkNewTab": "Mod+点击可在新标签页中打开。",
-    "noteReloadGuard": "F5 / Mod+R不会重新加载。",
+    "noteReloadGuard": "不会重新加载应用。",
     "gClick": "点击",
     "gMiddleClick": "点击鼠标中键",
     "gRightClick": "右键点击",

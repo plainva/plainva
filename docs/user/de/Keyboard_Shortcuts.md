@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-09-24
+Stand: 2026-09-28
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -46,7 +46,7 @@ Im Dateibaum: **Klick** wählt aus und öffnet, `Strg`+Klick schaltet eine Mehrf
 | `Strg+Tab` / `Strg+Umschalt+Tab` | Nächster / vorheriger Tab (`Strg` auf jedem System) |
 | `Strg+1` … `Strg+8` | Zu Tab 1–8 springen |
 | `Strg+9` | Zum letzten Tab springen |
-| `F5` | Vault neu einlesen (lädt **nicht** die App neu) |
+| `F5` / `Strg+R` | Vault neu einlesen (lädt **nicht** die App neu) |
 
 Der Fokus-Modus (beide Seitenleisten aus) liegt in der Befehlspalette. Tab anheften, neu laden und die Schließen-Gruppe (**Andere/Links/Rechts/Alle schließen**) erreichst Du per **Rechtsklick auf den Tab**.
 
@@ -128,7 +128,7 @@ Maus: **Mausrad** zoomt; **mittlere Maustaste + ziehen** oder `Strg`+ziehen vers
 - **Tabs:** ziehen zum Umsortieren, zwischen Bereichen oder an den Rand zum Teilen; **Rechtsklick** öffnet das Tab-Menü (**Anheften**, **Neu laden**, **Im Split öffnen**, Schließen-Gruppe). Ein **angehefteter** Tab rückt nach vorn und überlebt jedes Massen-Schließen.
 - **Aktionsleiste (ganz links):** einen Knopf kurz halten und ziehen sortiert ihn um (obere und untere Gruppe getrennt); `Esc` bricht ab.
 - **Links:** einen Wiki-/Markdown-Link anklicken zum Öffnen (`Strg`+Klick für neuen Tab).
-- **Rechtsklick** auf eine Auswahl oder ein Feld öffnet Plainvas eigenes Kopieren-/Ausschneiden-/Einfügen-Menü. `F5` und `Strg+R` laden **nicht** die App neu (das würde Tabs und ungespeicherte Puffer verwerfen) — sie lesen stattdessen den **Vault neu ein**.
+- **Rechtsklick** auf eine Auswahl oder ein Feld öffnet Plainvas eigenes Kopieren-/Ausschneiden-/Einfügen-Menü.
 - **Peek-Fenster:** Kopf ziehen zum Verschieben, Eck-Griff zum Anpassen der Größe; `◀ ▶` ist ein eigener Verlauf.
 - **Kalender:** Titel im Kalender-Tab oder Monatsnamen in der Seitenleiste anklicken (oder mit `Tab` erreichen und `Enter` drücken) für die Datumsauswahl — Pfeiltasten bewegen im Raster, `Bild↑/↓` blättern Monate, `Enter` springt, `Esc` schließt; einen Tag anklicken für seine Tagesnotiz.
 - **Bild-Editor:** mit der Maus zeichnen (Stift/Pfeil/Rechteck/Text/Zuschneiden); Zoom über die Knöpfe.

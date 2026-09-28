@@ -83,6 +83,9 @@ describe("shortcutCatalog", () => {
     // Not vacuous: the chords are read, and a cross-listed row counts once.
     expect([...(owners.get("Mod+Shift+J") ?? [])]).toEqual(["journal.newEntry"]);
     expect([...(owners.get("Mod+Shift+G") ?? [])]).toEqual(["graph.open"]);
+    // Alt tells the vault refresh from the right sidebar, as isReloadKey does.
+    expect([...(owners.get("Mod+R") ?? [])]).toEqual(["refresh.action"]);
+    expect([...(owners.get("Mod+Alt+R") ?? [])]).toEqual(["shortcuts.toggleRightSidebar"]);
     const shared = [...owners]
       .filter(([, actions]) => actions.size > 1)
       .map(([chord, actions]) => `${chord}: ${[...actions].join(", ")}`);

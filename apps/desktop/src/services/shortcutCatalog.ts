@@ -1,8 +1,9 @@
 /**
  * Central catalog of Plainva's keyboard shortcuts and notable mouse gestures.
  * This is the single source of truth the shortcuts help window (F1) renders
- * from, and it mirrors what is actually wired in App.tsx (global keydown),
- * packages/ui editorSession (editor keymap) and the graph/base components.
+ * from, and it mirrors what is actually wired in AppShell.tsx (global keydown),
+ * webviewHardening.ts (the reload keys), packages/ui editorSession (editor
+ * keymap) and the graph/base components.
  *
  * `keys` tokens are platform-substituted at render time ("Mod" -> Ctrl/⌘,
  * "Alt" -> Alt/⌥). Descriptions/labels/notes are i18n keys; existing keys are
@@ -87,6 +88,9 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { descKey: "shortcuts.prevTab", keys: [["Ctrl", "Shift", "Tab"]] },
       { descKey: "shortcuts.jumpTab", keys: [["Mod", "1"], ["Mod", "8"]] },
       { descKey: "shortcuts.lastTab", keys: [["Mod", "9"]] },
+      // Wired in webviewHardening.ts, not AppShell: the key must never reach
+      // the webview, whose own reload would drop every open tab.
+      { descKey: "refresh.action", keys: [["F5"], ["Mod", "R"]], noteKey: "shortcuts.noteReloadGuard" },
       { descKey: "shortcuts.toggleFocusMode", keys: [], noteKey: "shortcuts.notePaletteOnly" },
     ],
     mouse: [],
@@ -228,7 +232,7 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
       { descKey: "shortcuts.mBlockHandleDrag", gestureKey: "shortcuts.gBlockHandleDrag" },
       { descKey: "shortcuts.mTabDrag", gestureKey: "shortcuts.gDragTab" },
       { descKey: "shortcuts.mLinkClick", gestureKey: "shortcuts.gClickLink", noteKey: "shortcuts.noteLinkNewTab" },
-      { descKey: "shortcuts.mContextCopy", gestureKey: "shortcuts.gRightClick", noteKey: "shortcuts.noteReloadGuard" },
+      { descKey: "shortcuts.mContextCopy", gestureKey: "shortcuts.gRightClick" },
       { descKey: "shortcuts.mPeek", gestureKey: "shortcuts.gPeekWindow" },
       { descKey: "shortcuts.mResize", gestureKey: "shortcuts.gDragDivider" },
       { descKey: "shortcuts.mCalendar", gestureKey: "shortcuts.gCalendar" },
