@@ -15,4 +15,8 @@
 # still run `git add -A` (after reviewing `git status`) so no file is left
 # behind (see CI lesson from 2026-06-30, missing blockTransforms.ts).
 # The full suite locally, when wanted: `pnpm lint && pnpm typecheck && pnpm run test:all`.
-pnpm turbo run lint typecheck test --filter="...[origin/main]"
+#
+# Lint and typecheck first, then the test suites ONE AFTER ANOTHER: a few suites
+# boot a large module graph in `beforeAll`, and next to three other suites they
+# ran past their hook timeouts although nothing was wrong (2026-09-28).
+pnpm turbo run lint typecheck --filter="...[origin/main]" && pnpm turbo run test --filter="...[origin/main]" --concurrency=1
