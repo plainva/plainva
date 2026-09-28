@@ -12,6 +12,39 @@ export function trimChars(text: string, chars: string): string {
   return text.slice(start, end);
 }
 
+export function trimStartChars(text: string, chars: string): string {
+  let start = 0;
+  while (start < text.length && chars.includes(text[start])) start++;
+  return text.slice(start);
+}
+
+/** What `$` stands before under the `m` flag: every line terminator. */
+const LINE_TERMINATORS = "\n\r\u2028\u2029";
+
+/**
+ * Drops every run of spaces and tabs that stands right before one of `ends`,
+ * and at the very end of the text when `atEnd` — `/[ \t]+$/gm` (the defaults)
+ * or `/[ \t]+\n/g` (`ends` "\n", `atEnd` false) in one pass. The patterns
+ * retried the run from each of its characters when it did not end a line,
+ * which is quadratic on a long run of blanks.
+ */
+export function trimSpaceBeforeLineEnds(text: string, ends: string = LINE_TERMINATORS, atEnd = true): string {
+  let out = "", from = 0, run = -1;
+  for (let i = 0; i <= text.length; i++) {
+    const ch = text[i];
+    if (ch === " " || ch === "\t") {
+      if (run < 0) run = i;
+      continue;
+    }
+    if (run >= 0 && (i === text.length ? atEnd : ends.includes(ch))) {
+      out += text.slice(from, run);
+      from = i;
+    }
+    run = -1;
+  }
+  return out + text.slice(from);
+}
+
 export interface DelimitedText { index: number; end: number; inner: string; raw: string }
 /** Failed closers stop the scan instead of retrying the entire remaining suffix. */
 export function* delimitedText(text: string, open: string, close: string): Generator<DelimitedText> {

@@ -15,6 +15,7 @@
  * verbatim (never inline-stripped). Pure and unit-testable.
  */
 
+import { readMarkdownListItem } from "@plainva/core";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
 
 /** Flatten parsed inline nodes to plain text, dropping every formatting mark. */
@@ -62,8 +63,6 @@ const ATX_RE = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 // one repeated mark. Dropped from the plain-text output.
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
 const BLOCKQUOTE_RE = /^\s{0,3}((?:>[ \t]?)+)(.*)$/;
-const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
-const TASK_RE = /^\[([ xX/-])\][ \t]+(.*)$/;
 
 function isTableSeparatorRow(line: string): boolean {
   const s = line.trim();
@@ -98,16 +97,17 @@ function stripBlockLine(line: string): string | null {
     return inner == null ? "" : inner;
   }
 
-  const li = LIST_RE.exec(line);
+  // The shared list reader (plan Befunde 24.09., E6): the same grammar as the
+  // HTML copy and the editor, one pass instead of three patterns.
+  const li = readMarkdownListItem(line);
   if (li) {
-    const [, indent, marker, rest] = li;
-    const task = TASK_RE.exec(rest);
-    if (task) {
+    const { indent, marker, box: state, text } = li;
+    if (state !== null) {
       // done, in progress, cancelled, open — four shapes, as in the app (E12).
-      const box = task[1].toLowerCase() === "x" ? "☑" : task[1] === "/" ? "◪" : task[1] === "-" ? "☒" : "☐";
-      return `${indent}${marker} ${box} ${inlineToPlainText(task[2])}`;
+      const box = state.toLowerCase() === "x" ? "☑" : state === "/" ? "◪" : state === "-" ? "☒" : "☐";
+      return `${indent}${marker} ${box} ${inlineToPlainText(text)}`;
     }
-    return `${indent}${marker} ${inlineToPlainText(rest)}`;
+    return `${indent}${marker} ${inlineToPlainText(text)}`;
   }
 
   if (isTableRow(line)) return stripTableRow(line);

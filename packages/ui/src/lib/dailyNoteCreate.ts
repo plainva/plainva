@@ -15,6 +15,7 @@
  *     questions resolve to nothing and `{{cursor}}` is removed. A capture that
  *     wants a dialog answered first is not a quick capture.
  */
+import { trimEndChars } from "@plainva/core";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
 import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
@@ -80,7 +81,7 @@ export function noteStamp(date: Date, now: Date = new Date()): Date {
 export function dailyTemplatePath(config: Pick<DailyNoteCreateConfig, "templateFolder" | "template">): string {
   const name = config.template.trim();
   if (!name) return "";
-  const folder = config.templateFolder.trim().replace(/[/\\]+$/, "");
+  const folder = trimEndChars(config.templateFolder.trim(), "/\\");
   return folder ? `${folder}/${name}` : name;
 }
 

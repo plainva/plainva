@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Ellipsis, FileText } from "lucide-react";
-import type { JournalEntry } from "@plainva/core";
+import { trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
 import { resolveCoverSource } from "../base/coverImage";
 import { ICON } from "../lib/iconSizes";
 import { findMediaEmbeds, imageCandidates } from "../lib/imageTarget";
@@ -87,7 +87,7 @@ function splitMedia(text: string): { prose: string; images: string[]; sounds: st
   prose += text.slice(at);
   const spell = (e: (typeof embeds)[number]) => (e.syntax === "wiki" ? `![[${e.target}]]` : e.target);
   return {
-    prose: prose.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(),
+    prose: trimSpaceBeforeLineEnds(prose, "\n", false).replace(/\n{3,}/g, "\n\n").trim(),
     images: embeds.filter((e) => e.kind === "image").map(spell),
     sounds: embeds.filter((e) => e.kind === "audio").map((e) => e.target),
   };

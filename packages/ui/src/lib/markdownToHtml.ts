@@ -15,6 +15,7 @@
  * level (acceptable for a clipboard paste). Pure and unit-testable.
  */
 
+import { readMarkdownListItem } from "@plainva/core";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
 
 function escapeHtml(s: string): string {
@@ -78,8 +79,6 @@ const OPEN_FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const ATX_RE = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
 const BLOCKQUOTE_RE = /^\s{0,3}((?:>[ \t]?)+)(.*)$/;
-const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
-const TASK_RE = /^\[([ xX/-])\][ \t]+(.*)$/;
 
 function isTableSeparatorRow(line: string): boolean {
   const s = line.trim();
@@ -186,20 +185,23 @@ export function markdownToHtml(md: string): string {
       continue;
     }
 
-    if (LIST_RE.test(raw)) {
+    // The shared list reader (plan Befunde 24.09., E6): the same grammar as the
+    // plain-text copy and the editor, one pass instead of three patterns.
+    const first = readMarkdownListItem(raw);
+    if (first) {
       flushPara();
-      const ordered = /\d/.test(LIST_RE.exec(raw)![2]);
+      const ordered = first.ordered;
       const items: string[] = [];
       while (i < lines.length) {
-        const m = LIST_RE.exec(lines[i]);
-        if (!m) break;
-        const task = TASK_RE.exec(m[3]);
-        if (task) {
+        const item = readMarkdownListItem(lines[i]);
+        if (!item) break;
+        if (item.box !== null) {
           // done, in progress, cancelled, open — four shapes, as in the app (E12).
-          const box = task[1].toLowerCase() === "x" ? "☑" : task[1] === "/" ? "◪" : task[1] === "-" ? "☒" : "☐";
-          items.push(`${box} ${inlineToHtml(task[2])}`);
+          const state = item.box;
+          const box = state.toLowerCase() === "x" ? "☑" : state === "/" ? "◪" : state === "-" ? "☒" : "☐";
+          items.push(`${box} ${inlineToHtml(item.text)}`);
         } else {
-          items.push(inlineToHtml(m[3]));
+          items.push(inlineToHtml(item.text));
         }
         i++;
       }

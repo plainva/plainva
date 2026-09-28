@@ -1,4 +1,4 @@
-import { findInlineTags } from "@plainva/core";
+import { findInlineTags, trimChars } from "@plainva/core";
 import { addDaysToKey, type TaskPriority } from "./taskPlanner";
 import type { RepeatRule } from "./taskRecurrence";
 
@@ -286,7 +286,10 @@ export function parseTaskCapture(
   // The title is what is left. Positions are cut from the back so they stay valid.
   let title = input;
   for (const t of [...taken].sort((a, b) => b.from - a.from)) title = title.slice(0, t.from) + " " + title.slice(t.to);
-  result.title = title.replace(/\s+/g, " ").replace(/^[\s,;–—-]+|[\s,;–—-]+$/g, "").trim();
+  // Whitespace is one space after the first step, so the edges trim as plain
+  // characters — linear, where `[\s,;–—-]+$` retried every start of a long
+  // run of separators (plan Befunde 24.09., E6).
+  result.title = trimChars(title.replace(/\s+/g, " "), " ,;–—-").trim();
   result.bricks.sort((a, b) => a.from - b.from);
   return result;
 }
@@ -302,7 +305,7 @@ export function setCaptureWord(input: string, result: CaptureResult, kind: Captu
   const tidy = (text: string) => text.replace(/ {2,}/g, " ").replace(/^\s+/, "");
   if (brick) return tidy(input.slice(0, brick.from) + word + input.slice(brick.to));
   if (!word) return input;
-  return input.trim().length === 0 ? `${word} ` : `${input.replace(/\s+$/, "")} ${word}`;
+  return input.trim().length === 0 ? `${word} ` : `${input.trimEnd()} ${word}`;
 }
 
 /** The next mark of the priority button: none → !!! → !! → ! → none. */

@@ -25,6 +25,7 @@ import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { findInlineTagsInLine } from "./tagRule.js";
 import { isOpenTaskState, scanTasks, taskBoxChar, taskBoxState, type TaskBoxState } from "./vault/taskScan.js";
 import { setChecklistTaskDone, type ChecklistMutationOptions } from "./vault/taskMutation.js";
+import { trimChars, trimEndChars, trimSpaceBeforeLineEnds, trimStartChars } from "./textScan.js";
 
 export const DEFAULT_JOURNAL_HEADING = "Journal";
 
@@ -70,8 +71,40 @@ export type JournalRemoval = { ok: true; content: string; removed: JournalEntry 
 
 export interface JournalOptions { heading?: string | null }
 
-const ENTRY_LINE = /^(?<prefix>(?<indent> {0,3})(?<marker>[-*+])(?<gap>[ \t]+)(?:\[(?<box>[ xX/-])\](?<boxGap>[ \t]+))?)(?<time>(?<h>\d{1,2}):(?<m>\d{2})(?::(?<s>\d{2}))?)(?=[ \t]|$)[ \t]*(?<rest>.*)$/;
+const ENTRY_LINE = /^(?<prefix>(?<indent> {0,3})(?<marker>[-*+])(?<gap>[ \t]+)(?:\[(?<box>[ xX/-])\](?<boxGap>[ \t]+))?)(?<time>(?<h>\d{1,2}):(?<m>\d{2})(?::(?<s>\d{2}))?)(?:[ \t](?<rest>.*))?$/;
 const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+
+interface EntryLineParts {
+  prefix: string;
+  indent: string;
+  marker: string;
+  gap: string;
+  box?: string;
+  boxGap?: string;
+  time: string;
+  h: string;
+  m: string;
+  s?: string;
+  /** The text after the time, without the blanks before it. */
+  rest: string;
+}
+
+/**
+ * One entry line taken apart (plan Befunde 24.09., E6). The pattern takes ONE
+ * blank after the time and the rest of the line; the other blanks come off the
+ * rest by hand. `[ \t]*(?<rest>.*)$` let the engine trade blanks between the
+ * two from every start of a long run — quadratic on a line of blanks.
+ */
+function entryLineParts(line: string): EntryLineParts | null {
+  const groups = ENTRY_LINE.exec(line)?.groups;
+  if (!groups) return null;
+  return { ...(groups as unknown as EntryLineParts), rest: trimStartChars(groups.rest ?? "", " \t") };
+}
+
+/** A body cleaned the way an entry is shown: no blanks at line ends, no blank lines around it. */
+function tidyBody(text: string): string {
+  return trimChars(trimSpaceBeforeLineEnds(text), "\n");
+}
 
 function secondsOf(h: string, m: string, s: string | undefined): number | null {
   const hours = Number(h), minutes = Number(m), seconds = s === undefined ? 0 : Number(s);
@@ -90,10 +123,10 @@ export function journalTimeOf(date: Date, withSeconds = false): string {
  * stricter reader: it also knows the heading and the code fences.
  */
 export function readJournalLine(line: string): { seconds: number; task: TaskBoxState | null } | null {
-  const match = ENTRY_LINE.exec(line.replace(/\r$/, ""));
-  if (!match?.groups) return null;
-  const seconds = secondsOf(match.groups.h, match.groups.m, match.groups.s);
-  return seconds === null ? null : { seconds, task: match.groups.box === undefined ? null : taskBoxState(match.groups.box) };
+  const parts = entryLineParts(line.endsWith("\r") ? line.slice(0, -1) : line);
+  if (!parts) return null;
+  const seconds = secondsOf(parts.h, parts.m, parts.s);
+  return seconds === null ? null : { seconds, task: parts.box === undefined ? null : taskBoxState(parts.box) };
 }
 
 // ---------------------------------------------------------------- lines
@@ -181,21 +214,21 @@ function parseSection(raw: string, options: JournalOptions): ParsedSection {
     const loose = list.items.some((item, i) => i > 0 && isBlank(lines[item.line - 2]));
     for (const item of list.items) {
       const first = item.line - 1;
-      const match = ENTRY_LINE.exec(lines[first]?.text ?? "");
-      if (!match?.groups) continue;
-      const seconds = secondsOf(match.groups.h, match.groups.m, match.groups.s);
+      const parts = entryLineParts(lines[first]?.text ?? "");
+      if (!parts) continue;
+      const seconds = secondsOf(parts.h, parts.m, parts.s);
       if (seconds === null) continue;
       const last = Math.max(first, lastLineOf(item));
       const source = lines.slice(first, last + 1).map((line) => line.text);
-      const column = match.groups.indent.length + match.groups.marker.length + match.groups.gap.length;
-      const body = [match.groups.rest, ...source.slice(1).map((text) => dedent(text, column))];
-      const text = stripAnchorMarkers(body.join("\n")).text.replace(/[ \t]+$/gm, "").replace(/^\n+|\n+$/g, "");
+      const column = parts.indent.length + parts.marker.length + parts.gap.length;
+      const body = [parts.rest, ...source.slice(1).map((text) => dedent(text, column))];
+      const text = tidyBody(stripAnchorMarkers(body.join("\n")).text);
       const tags: string[] = [];
       for (const part of text.split("\n")) for (const tag of findInlineTagsInLine(part)) if (!tags.includes(tag.name)) tags.push(tag.name);
       entries.push({
-        line: first, lineCount: last - first + 1, time: match.groups.time, seconds, text,
-        task: match.groups.box === undefined ? null : taskBoxState(match.groups.box), tags, source,
-        marker: match.groups.marker, loose,
+        line: first, lineCount: last - first + 1, time: parts.time, seconds, text,
+        task: parts.box === undefined ? null : taskBoxState(parts.box), tags, source,
+        marker: parts.marker, loose,
       });
     }
   }
@@ -220,7 +253,7 @@ export function parseJournal(raw: string, options: JournalOptions = {}): Journal
 // ---------------------------------------------------------------- writing
 
 function entryLines(prefix: string, column: number, time: string, text: string): string[] {
-  const parts = text.replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/^\s+|\n+$/g, "").split("\n");
+  const parts = trimEndChars(trimSpaceBeforeLineEnds(text.replace(/\r\n?/g, "\n")).trimStart(), "\n").split("\n");
   const pad = " ".repeat(column);
   return [`${prefix}${time}${parts[0] ? ` ${parts[0]}` : ""}`, ...parts.slice(1).map((part) => (part ? pad + part : ""))];
 }
@@ -339,7 +372,7 @@ export function replaceJournalEntry(raw: string, ref: JournalEntryRef, change: {
   }
   const section = parseSection(raw, options);
   const entry = locate(section, ref);
-  const groups = entry && ENTRY_LINE.exec(entry.source[0])?.groups;
+  const groups = entry && entryLineParts(entry.source[0]);
   if (!entry || !groups) return { ok: false, reason: "missing" };
   const column = groups.indent.length + groups.marker.length + groups.gap.length;
   const source = entryLines(groups.prefix, column, time ?? groups.time, change.text);
@@ -350,7 +383,7 @@ export function replaceJournalEntry(raw: string, ref: JournalEntryRef, change: {
 export function setJournalEntryTask(raw: string, ref: JournalEntryRef, task: TaskBoxState | null, options: JournalOptions = {}): JournalEdit {
   const section = parseSection(raw, options);
   const entry = locate(section, ref);
-  const groups = entry && ENTRY_LINE.exec(entry.source[0])?.groups;
+  const groups = entry && entryLineParts(entry.source[0]);
   if (!entry || !groups) return { ok: false, reason: "missing" };
   const lead = groups.indent + groups.marker + groups.gap;
   const box = task === null ? "" : `[${taskBoxChar(task)}]${groups.boxGap ?? " "}`;
