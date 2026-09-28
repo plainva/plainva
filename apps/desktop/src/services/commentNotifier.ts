@@ -1,22 +1,21 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import {
-  buildCommentOverview,
-  commentBaseline,
   commentNotificationText,
-  planCommentNotifications,
+  drawCommentNotificationBaseline,
+  requestCommentOverviewFocus,
+  runCommentNotificationCycle,
   toast,
+  type CommentLockState,
+  type CommentNotificationCycle,
   type CommentNotificationNote,
   type CommentNotificationPlan,
-  type NewCommentNotice, requestCommentOverviewFocus } from "@plainva/ui";
+  type NewCommentNotice,
+} from "@plainva/ui";
+import type { ISettingsStore } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { reportTrayComments } from "./trayNext";
-import {
-  loadCommentNotificationSettings,
-  loadSeenComments,
-  saveSeenComments,
-  type CommentNotificationSettings,
-} from "./commentNotificationSettings";
+import { loadCommentNotificationSettings, loadSeenComments, saveSeenComments } from "./commentNotificationSettings";
 
 /**
  * Telling somebody a remark arrived (Stufe F, F2).
@@ -33,18 +32,31 @@ import {
  * the phone cannot promise that, and F3 says so in its own words.
  */
 
-/** How the shell hands over what it alone can read. */
+/**
+ * How the shell hands over what it alone can read — for ONE vault.
+ *
+ * Two vaults can run in one window (stage D), and the sideband cycle of each
+ * fires the same event. The answers below come from the vault the shell shows,
+ * so they carry its path: a cycle for another vault reads and writes nothing
+ * here. Before this, the other vault's cycle wrote this vault's remarks into
+ * the other vault's ledger (plan Befunde 24.09., E7).
+ */
 export interface CommentNotifierDeps {
+  /** The vault these answers belong to. */
+  vaultPath: string;
+  /**
+   * Can the vault's remarks be read in full right now? Locked: the cycle reads
+   * nothing, writes nothing and says nothing (E7, `runCommentNotificationCycle`).
+   */
+  lockState(): Promise<CommentLockState>;
   /** Every note with comments, as the surface already lists them (D9). */
-  listNotes(vaultPath: string): Promise<CommentNotificationNote[]>;
+  listNotes(): Promise<CommentNotificationNote[]>;
   /** Display names by member id, for resolving `@Name`. */
-  listNames(vaultPath: string): Promise<ReadonlyMap<string, string>>;
+  listNames(): Promise<ReadonlyMap<string, string>>;
   /** This device's identities. A plain vault has no member id. */
-  identity(vaultPath: string): Promise<{ memberId: string | null; deviceId: string | null }>;
+  identity(): Promise<{ memberId: string | null; deviceId: string | null }>;
   /** Notes this user wrote, where the shell can tell. */
-  ownedPaths?(vaultPath: string): Promise<ReadonlySet<string>>;
-  /** Is the vault currently locked? Then there is no preview to give (§5). */
-  isLocked?(vaultPath: string): boolean;
+  ownedPaths?(): Promise<ReadonlySet<string>>;
   /** Opens the note with the column open and the card highlighted (§6). */
   openComment(target: { path: string; commentId: string }): void;
   /** Opens the vault-wide overview, pre-filtered to what is new (§6). */
@@ -56,66 +68,56 @@ export interface CommentNotifierDeps {
 let deps: CommentNotifierDeps | null = null;
 let permissionAsked = false;
 
-/** Registered once at startup, like the mail token resolver next door. */
-export function setCommentNotifierDeps(next: CommentNotifierDeps | null): void {
+/** Registered by the shell for the vault it shows, like the mail token resolver next door. */
+export function setCommentNotifierDeps(next: CommentNotifierDeps): void {
   deps = next;
+}
+
+/**
+ * Unregisters a vault's answers — only that vault's: on a vault switch the old
+ * shell's cleanup and the new shell's registration race, and the old one must
+ * not take the new one's answers with it.
+ */
+export function releaseCommentNotifierDeps(vaultPath: string): void {
+  if (deps?.vaultPath === vaultPath) deps = null;
+}
+
+function depsFor(vaultPath: string): CommentNotifierDeps | null {
+  const current = deps;
+  return current && current.vaultPath === vaultPath ? current : null;
+}
+
+/** The shared cycle, wired to this vault's settings, ledger and tray line. */
+function cycleFor(vaultPath: string, current: CommentNotifierDeps, store: ISettingsStore): CommentNotificationCycle {
+  return {
+    // A question about a lock that cannot be answered is answered with the lock.
+    lockState: () => current.lockState().catch((): CommentLockState => "locked"),
+    settings: () => loadCommentNotificationSettings(store, vaultPath),
+    listNotes: () => current.listNotes(),
+    readSeen: () => loadSeenComments(store, vaultPath),
+    writeSeen: (ids) => {
+      const kept = new Set(ids);
+      return saveSeenComments(store, vaultPath, kept, kept);
+    },
+    names: () => current.listNames(),
+    identity: () => current.identity(),
+    ownedPaths: () => current.ownedPaths?.() ?? Promise.resolve(undefined),
+    reportWaiting: (count) => reportTrayComments(vaultPath, count),
+    announce: (plan, { preview, names }) => announce(plan, preview, { names, deps: current }),
+  };
 }
 
 /**
  * One cycle's worth of work for one vault.
  *
- * Exported for the test: it takes the settings and the plan rather than reading
- * them, so the wording and the ledger can be checked without a notification
- * backend.
+ * The rule for when a cycle may look — never on a locked vault — is the shared
+ * `runCommentNotificationCycle`; this file only says where this shell keeps
+ * the settings and the ledger and how it shows a message.
  */
 export async function runCommentNotifications(vaultPath: string): Promise<CommentNotificationPlan | null> {
-  const current = deps;
+  const current = depsFor(vaultPath);
   if (!current) return null;
-  const store = await getSettingsStore();
-  const settings = await loadCommentNotificationSettings(store, vaultPath);
-  const notes = await current.listNotes(vaultPath);
-  const present = new Set(commentBaseline(notes));
-
-  // Off: keep the ledger current anyway, so switching it ON draws the baseline
-  // at THAT moment (FB3) instead of releasing everything that arrived while it
-  // was off.
-  if (!settings.enabled) {
-    await saveSeenComments(store, vaultPath, present, present);
-    return null;
-  }
-
-  const seen = await loadSeenComments(store, vaultPath);
-  const [names, identity, owned] = await Promise.all([
-    current.listNames(vaultPath),
-    current.identity(vaultPath),
-    current.ownedPaths?.(vaultPath) ?? Promise.resolve(undefined),
-  ]);
-
-  const plan = planCommentNotifications({
-    notes,
-    seen,
-    selfMemberId: identity.memberId,
-    selfDeviceId: identity.deviceId,
-    names,
-    level: settings.level,
-    mutedPaths: new Set(settings.mutedPaths),
-    ownedPaths: owned,
-  });
-
-  for (const id of plan.seen) seen.add(id);
-  await saveSeenComments(store, vaultPath, seen, present);
-
-  // The tray counts what is WAITING, not what just arrived: a notification is
-  // about a moment, the tray line is about a state. Computed from the same
-  // overview the surface uses, so the two cannot disagree.
-  const addressed = buildCommentOverview(notes, identity.memberId, names, { onlyAddressed: true })
-    .reduce((sum, note) => sum + note.addressedCount, 0);
-  reportTrayComments(vaultPath, addressed);
-
-  if (plan.kind === "none") return plan;
-
-  await announce(plan, settings, { names, vaultPath, deps: current });
-  return plan;
+  return runCommentNotificationCycle(cycleFor(vaultPath, current, await getSettingsStore()));
 }
 
 /**
@@ -124,25 +126,21 @@ export async function runCommentNotifications(vaultPath: string): Promise<Commen
  * Called the moment somebody switches notifications on: the instant of
  * switching on is the zero line, so what predates it is never announced. The
  * older material is not lost - it is in the overview, which is where a backlog
- * belongs.
+ * belongs. A locked vault draws no baseline; it could only list too little.
  */
 export async function drawCommentBaseline(vaultPath: string): Promise<void> {
-  const current = deps;
+  const current = depsFor(vaultPath);
   if (!current) return;
-  const store = await getSettingsStore();
-  const notes = await current.listNotes(vaultPath);
-  const present = new Set(commentBaseline(notes));
-  await saveSeenComments(store, vaultPath, present, present);
+  await drawCommentNotificationBaseline(cycleFor(vaultPath, current, await getSettingsStore()));
 }
 
 async function announce(
   plan: CommentNotificationPlan,
-  settings: CommentNotificationSettings,
-  context: { names: ReadonlyMap<string, string>; vaultPath: string; deps: CommentNotifierDeps },
+  preview: boolean,
+  context: { names: ReadonlyMap<string, string>; deps: CommentNotifierDeps },
 ): Promise<void> {
-  const { names, vaultPath, deps: current } = context;
-  // A locked vault has nothing to preview - the records came in sealed (§5).
-  const preview = settings.preview && !(current.isLocked?.(vaultPath) ?? false);
+  const { names, deps: current } = context;
+  // The cycle asked the lock right before this call; a locked vault never gets here.
   const text = commentNotificationText({ plan, preview, names, t: i18n.t.bind(i18n) });
   if (!text) return;
 

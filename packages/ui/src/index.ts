@@ -172,6 +172,7 @@ export * from "./lib/commentOverviewFocus";
 export * from "./lib/commentMentions";
 export * from "./lib/commentNotifications";
 export * from "./lib/commentNotificationText";
+export * from "./lib/commentNotifierCycle";
 export * from "./lib/commentExport";
 export * from "./lib/commentTask";
 export * from "./lib/commentThreads";
