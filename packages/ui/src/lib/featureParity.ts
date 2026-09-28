@@ -251,6 +251,34 @@ export function findGuardContradictions(
  */
 export const PARITY_FEATURES: ParityFeatureDef[] = [
   {
+    id: "ai-answer-in-background",
+    title: "An AI answer keeps arriving while the app is in the background",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The answer streams into the web view, and iOS and Android suspend a " +
+      "backgrounded app's web view: on the phone an answer arrives only while " +
+      "Plainva is open, which the handbook says. A run that outlives the app " +
+      "needs the whole loop native, the routines of plan KI-Harness P8.",
+    verified: "2026-09-24",
+  },
+  {
+    id: "ai-local-servers",
+    title: "AI models on this computer (Ollama, LM Studio)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Ollama and LM Studio are servers that run on a computer; neither exists " +
+      "for a phone, and a phone cannot reach a computer's localhost. A server " +
+      "elsewhere is added as an OpenAI-compatible server over https, which " +
+      "both shells offer.",
+    verified: "2026-09-24",
+  },
+  {
     id: "density-mode",
     title: "Comfortable/compact density choice",
     area: "appearance",

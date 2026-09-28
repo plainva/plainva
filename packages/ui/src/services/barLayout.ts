@@ -18,6 +18,7 @@ import {
   NotebookText,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Sun,
   Waypoints,
   type LucideIcon,
@@ -57,7 +58,7 @@ export type BarId = "ribbon" | "leftTabs" | "leftSections" | "rightSections" | "
  * Nine visible instead of twelve, and every one of the three stays in the
  * ＋ menu, the palette and on its shortcut. New installations only: an
  * arrangement somebody made is never overwritten. */
-export const RIBBON_AREA_IDS = ["new", "open", "palette", "journal", "tasks", "calendar", "mail", "graph", "comments", "newFolder", "newBase", "daily"] as const;
+export const RIBBON_AREA_IDS = ["new", "open", "palette", "ai", "journal", "tasks", "calendar", "mail", "graph", "comments", "newFolder", "newBase", "daily"] as const;
 export const LEFT_TAB_IDS = ["files", "tags", "databases"] as const;
 export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 /** `journal` follows `calendar`: it is the calendar's day written out, and it
@@ -81,7 +82,9 @@ export const RIGHT_SECTION_IDS = ["calendar", "journal", "outline", "graph", "da
  * follows how often it is reached for. The journal takes the first place
  * outside the bar, so it heads the second group of the areas sheet; mail
  * goes last, because it hangs on an account many vaults never connect. */
-export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "journal", "graph", "comments", "mail"] as const;
+/* "ai" (plan KI-Harness P1a) is the ninth, last and outside the bar by default:
+ * a surface that exists only while the per-device AI switch is on. */
+export const MOBILE_BAR_IDS = ["notes", "today", "tasks", "calendar", "journal", "graph", "comments", "mail", "ai"] as const;
 
 export interface BarAreaDef {
   id: string;
@@ -109,11 +112,15 @@ export const BAR_DEFS: BarDef[] = [
     id: "ribbon",
     titleKey: "bars.ribbon",
     descriptionKey: "bars.ribbonDesc",
-    spec: { known: RIBBON_AREA_IDS, defaultVisibleCount: 9 },
+    // Ten, of which the AI button (fourth, beside the palette — Ctrl+J and
+    // Ctrl+P are siblings) only appears while the per-device AI switch is on:
+    // the nine visible buttons of 2026-09-22 stay what a rail without AI shows.
+    spec: { known: RIBBON_AREA_IDS, defaultVisibleCount: 10 },
     areas: [
       { id: "new", labelKey: "common.newNote", icon: FilePlus },
       { id: "open", labelKey: "editor.openFile", icon: Search },
       { id: "palette", labelKey: "palette.title", icon: Command },
+      { id: "ai", labelKey: "ai.ask", icon: Sparkles },
       { id: "journal", labelKey: "journal.open", icon: NotebookText },
       { id: "tasks", labelKey: "tasks.openTasks", icon: ListChecks },
       // ONE source for this glyph: the rail used to render CalendarDays here
@@ -180,6 +187,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "graph", labelKey: "rightPanel.graph", icon: Waypoints },
       { id: "comments", labelKey: "comments.commentOverview", icon: MessageSquare },
       { id: "mail", labelKey: "mail.title", icon: Mail },
+      { id: "ai", labelKey: "ai.title", icon: Sparkles },
     ],
   },
 ];
@@ -357,7 +365,7 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
   // hidden, because from then on the id IS in the stored order.
   touched =
     // Order matters where one new id follows another: "journal" is placed after "comments", which may itself be new.
-    (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments" })) ||
+    (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments", ai: "palette" })) ||
     touched;
   touched =
     (await adoptNewAreas(store, vaultPath, "rightSections", { journal: "calendar" })) ||
@@ -398,7 +406,10 @@ async function adoptNewAreas(
       const at = order.indexOf(predecessor);
       const index = at >= 0 ? at + 1 : order.length;
       order.splice(index, 0, id);
-      if (index < count) count += 1;
+      // Visible exactly when the action it follows is visible — including the
+      // last visible one: "index < count" sent an id placed right after it into
+      // the hidden half (the AI button behind a palette at the end of the rail).
+      if (at >= 0 && at < count) count += 1;
       dirty = true;
     }
     if (!dirty) continue;

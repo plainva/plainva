@@ -38,7 +38,7 @@ function conversationFor(provider: string): Conversation[] {
 }
 
 function history(spec: HttpRequestSpec): unknown[] {
-  const body = spec.body;
+  const body = spec.body!;
   return (body.messages ?? body.input ?? body.contents) as unknown[];
 }
 
@@ -69,7 +69,7 @@ describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
   });
 
   it("keeps the tool list and the system prompt stable for the whole conversation", () => {
-    const shape = (s: HttpRequestSpec) => JSON.stringify([s.body.tools, s.body.system ?? s.body.instructions ?? s.body.systemInstruction]);
+    const shape = (s: HttpRequestSpec) => JSON.stringify([s.body!.tools, s.body!.system ?? s.body!.instructions ?? s.body!.systemInstruction]);
     for (const spec of specs) expect(shape(spec)).toBe(shape(specs[0]!));
   });
 
@@ -77,6 +77,7 @@ describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
     for (const spec of specs) {
       expect(deepKeys(spec.body).has("tool_choice")).toBe(false);
       expect(deepKeys(spec.body).has("toolConfig")).toBe(false);
+      expect(spec.method).toBe("POST");
     }
   });
 
@@ -84,7 +85,7 @@ describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
     for (const spec of specs) {
       expect(new URL(spec.url).host).toBe(new URL(endpoint.baseUrl).host);
       if (endpoint.api === "gemini") expect(spec.url).toContain("/models/chosen-model-7:streamGenerateContent");
-      else expect(spec.body.model).toBe("chosen-model-7");
+      else expect(spec.body!.model).toBe("chosen-model-7");
       // A bare "provider/model" string routes through a gateway in some SDKs;
       // the adapters never invent one.
       expect(JSON.stringify(spec)).not.toMatch(/"(openai|anthropic|google)\/chosen-model-7"/);
@@ -105,15 +106,15 @@ describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
 
   it("switches off provider-side storage where the API allows it", () => {
     for (const spec of specs) {
-      if (endpoint.api === "openai-responses") expect(spec.body.store).toBe(false);
-      if (endpoint.api === "openai-chat") expect(spec.body.store).toBe(endpoint.officialOpenAi ? false : undefined);
+      if (endpoint.api === "openai-responses") expect(spec.body!.store).toBe(false);
+      if (endpoint.api === "openai-chat") expect(spec.body!.store).toBe(endpoint.officialOpenAi ? false : undefined);
     }
   });
 
   it("streams", () => {
     for (const spec of specs) expect(spec.stream).toBe(true);
     if (endpoint.api === "gemini") expect(specs[0]!.url).toMatch(/alt=sse$/);
-    else expect(specs[0]!.body.stream).toBe(true);
+    else expect(specs[0]!.body!.stream).toBe(true);
   });
 });
 
@@ -133,6 +134,19 @@ describe("provider specifics", () => {
   it("returns Gemini's thought signature with its call, unchanged", () => {
     const spec = buildRequest(byId("gemini"), { model: "m", conversation: conversationFor("gemini")[1]!, tools, maxOutputTokens: 100 });
     expect(JSON.stringify(spec.body)).toContain('"functionCall":{"name":"search_vault","args":{"query":"Northwind deadline"}},"thoughtSignature":"ts1"');
+  });
+
+  it("sends two user turns in a row as one message where the API wants turns to alternate", () => {
+    // A stopped run answers its open calls "not run"; the next message follows directly.
+    let c = conversationFor("anthropic")[1]!;
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "tool_result", callId: "call_1", name: "search_vault", content: "Not run: the user stopped the run.", isError: true }] });
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "text", text: "Never mind." }] });
+    const anthropic = buildRequest(byId("anthropic"), { model: "m", conversation: c, tools, maxOutputTokens: 100 }).body!.messages as Array<{ role: string; content: Array<{ type: string }> }>;
+    expect(anthropic.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(anthropic[2]!.content.map((b) => b.type)).toEqual(["tool_result", "text"]);
+    const gemini = buildRequest(byId("gemini"), { model: "m", conversation: c, tools, maxOutputTokens: 100 }).body!.contents as Array<{ role: string; parts: Record<string, unknown>[] }>;
+    expect(gemini.map((m) => m.role)).toEqual(["user", "model", "user"]);
+    expect(gemini[2]!.parts.map((p) => Object.keys(p)[0])).toEqual(["functionResponse", "text"]);
   });
 
   it("refuses a tool list that differs from the conversation's", () => {

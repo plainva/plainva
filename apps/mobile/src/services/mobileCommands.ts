@@ -28,6 +28,8 @@ export interface MobileCommandHost {
   /** The capture sheet on its journal kind, and the journal screen (plan Journal, J4/J5). */
   newJournalEntry?: () => void;
   openJournal?: () => void;
+  /** The KI sheet (plan KI-Harness P1a); absent while the per-device switch is off. */
+  openAi?: () => void;
   openSearch: () => void;
   openFindReplace: () => void;
   openGraph: () => void;
@@ -66,6 +68,7 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     newTask: h.newTask,
     newJournalEntry: h.newJournalEntry,
     openJournal: h.openJournal,
+    openAi: h.openAi,
     // The phone's file opener IS the search surface (S16 gives it the
     // quick-switcher behaviour); one door, not two.
     openQuickSwitcher: h.openSearch,

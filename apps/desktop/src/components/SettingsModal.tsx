@@ -59,6 +59,8 @@ import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
+import { AiSettingsPage } from "./settings/AiSettingsPage";
+import { AiVaultSettingsPage } from "./settings/AiVaultSettingsPage";
 import { SecuritySharingPage } from "./security/SecuritySharingPage";
 
 interface SettingsModalProps {
@@ -862,6 +864,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
+                  <SettingsPage active={inAppWorld && appPage === "ai"}>
+                    <AiSettingsPage />
+                  </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "updates"}>
                     <UpdatesPage
                       autoUpdateCheckEnabled={autoUpdateCheckEnabled}
@@ -920,6 +925,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       securityArea={securityArea}
                       onOpenSecurityArea={setSecurityArea}
                     />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "aiVault"}>
+                    <AiVaultSettingsPage isActiveVault={isActiveVault} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
                     <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />

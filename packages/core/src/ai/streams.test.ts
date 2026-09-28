@@ -70,7 +70,7 @@ describe("stream decoders", () => {
     expect(text(events)).toBe("The deadline is near.");
     expect(events).toContainEqual({ type: "reasoning", part: { type: "reasoning", provider: "openai", data: { type: "reasoning", id: "rs_1", encrypted_content: "enc" } } });
     expect(events).toContainEqual({ type: "tool_call", call: { type: "tool_call", id: "call_9", name: "read_note", args: { path: "a.md" } } });
-    expect(events.slice(-2)).toEqual([{ type: "usage", inputTokens: 10, outputTokens: 5, cacheReadTokens: 4 }, { type: "stop", reason: "tool_use" }]);
+    expect(events.slice(-2)).toEqual([{ type: "usage", inputTokens: 6, outputTokens: 5, cacheReadTokens: 4 }, { type: "stop", reason: "tool_use" }]);
   });
 
   it("OpenAI Chat (compatible servers): tool call fragments by index, [DONE]", () => {

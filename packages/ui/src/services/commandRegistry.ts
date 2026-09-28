@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Calendar, Columns2, Download, FileText, FolderOpen,
   Gauge, Keyboard, ListChecks, Mail, MessageSquare, Moon, NotebookText, Palette, Pencil, Printer, RefreshCw, Replace,
-  Rows2, Save, Search, Settings, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
+  Rows2, Save, Search, Settings, Sparkles, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
 import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../lib/newCatalog";
 
@@ -63,6 +63,8 @@ export interface CommandDeps {
   newTask?: () => void;
   /** Opens the journal capture (Mod+Shift+J): one line into today's daily note. */
   newJournalEntry?: () => void;
+  /** Asks the AI (Mod+J, plan KI-Harness §19.1); absent while the per-device switch is off. */
+  openAi?: () => void;
   openQuickSwitcher?: () => void;
   openTemplatePicker?: () => void;
   openGraph?: () => void;
@@ -165,6 +167,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openTasks, (run) => ({ id: "open-tasks", group: "open", icon: ListChecks, titleKey: "tasks.openTasks", titleDefault: "Aufgaben öffnen", run })),
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openJournal, (run) => ({ id: "open-journal", group: "open", icon: NotebookText, titleKey: "journal.open", titleDefault: "Journal öffnen", run })),
+    need(d.openAi, (run) => ({ id: "ask-ai", group: "open", icon: Sparkles, titleKey: "ai.ask", titleDefault: "KI fragen", hint: "Mod+J", run })),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "comments.commentOverview", titleDefault: "Offene Kommentare", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),

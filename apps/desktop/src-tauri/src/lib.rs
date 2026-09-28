@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
+mod ai_egress;
 mod app_identity;
 mod atomic_write;
 mod checked_fs;
@@ -367,6 +368,7 @@ pub fn run() {
         })
         .manage(atomic_write::WriteRoots::default())
         .manage(tray::TrayState::default())
+        .manage(ai_egress::AiEgress::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -394,6 +396,13 @@ pub fn run() {
             secure_store::keychain_get,
             secure_store::keychain_delete,
             secure_store::keychain_compare_and_set,
+            ai_egress::ai_http,
+            ai_egress::ai_http_cancel,
+            ai_egress::ai_key_set,
+            ai_egress::ai_key_present,
+            ai_egress::ai_key_delete,
+            ai_egress::ai_endpoint_add,
+            ai_egress::ai_endpoint_remove,
             oauth_loopback_start,
             oauth_loopback_wait,
             oauth_loopback_cancel,

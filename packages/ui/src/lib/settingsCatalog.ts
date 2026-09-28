@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Rocket,
   ShieldCheck,
+  Sparkles,
   Users,
   Wrench,
 } from "lucide-react";
@@ -57,6 +58,8 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "appearance", world: "app", labelKey: "settings.sectionAppearance", descKey: "settings.pageDescAppearance", icon: Palette },
   { id: "editor", world: "app", labelKey: "settings.sectionEditor", descKey: "settings.pageDescEditor", icon: Pencil },
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
+  // The AI harness (plan KI-Harness §19.1): what holds for this device — providers, keys, profiles.
+  { id: "ai", world: "app", labelKey: "ai.settings.title", descKey: "ai.settings.sectionApp", icon: Sparkles },
   {
     id: "updates",
     world: "app",
@@ -73,6 +76,8 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
   { id: "security", world: "vault", labelKey: "settings.sectionSecurity", descKey: "settings.pageDescSecurity", icon: ShieldCheck },
+  // ...and what travels with the vault: the privacy rules of `.agent/policy.yml`.
+  { id: "aiVault", world: "vault", labelKey: "ai.settings.title", descKey: "ai.settings.sectionVault", icon: Sparkles },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },

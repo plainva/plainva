@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import {CalendarDays, Home, ListChecks, Mail, MessageSquare, NotebookText, Sun, Waypoints} from "lucide-react";
+import {CalendarDays, Home, ListChecks, Mail, MessageSquare, NotebookText, Sparkles, Sun, Waypoints} from "lucide-react";
 import type { CloudProviderFamily } from "@plainva/ui";
 
 /**
@@ -27,7 +27,7 @@ import type { CloudProviderFamily } from "@plainva/ui";
  * ids the pool no longer knows (E3: no migration notice, there are no users
  * but the maintainer).
  */
-export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph" | "comments" | "journal";
+export type TabScreenId = "notes" | "today" | "calendar" | "mail" | "tasks" | "graph" | "comments" | "journal" | "ai";
 
 export interface TabDef {
   id: TabScreenId;
@@ -57,6 +57,9 @@ export const TAB_POOL: TabDef[] = [
   // not on an account, and is reachable from the areas sheet the moment it exists.
   { id: "journal", icon: NotebookText, labelKey: "journal.title" },
   { id: "mail", icon: Mail, labelKey: "mail.title" },
+  // The AI (plan KI-Harness §19.1, dress C): the ninth area, outside the bar by
+  // default and in the areas sheet only while the per-device switch is on.
+  { id: "ai", icon: Sparkles, labelKey: "ai.title" },
 ];
 
 /**
@@ -88,7 +91,7 @@ export const NAV_KINDS = [
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
-  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration",
+  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "ai", "aihistory",
 ] as const;
 
 export type NavKind =
@@ -132,7 +135,9 @@ export type NavKind =
   | "importwizard"
   | "okfconversion"
   | "okfmigration"
-  | "imageviewer";
+  | "imageviewer"
+  | "ai"
+  | "aihistory";
 
 /** The list above must name exactly the union — in both directions. */
 const _navKindsCoverUnion = NAV_KINDS satisfies readonly NavKind[];
@@ -184,6 +189,7 @@ export const emptyStacks = (): Record<TabScreenId, NavEntry[]> => ({
   graph: [],
   comments: [],
   journal: [],
+  ai: [],
 });
 
 export function initialNavState(activeTab: TabScreenId): NavState {
@@ -215,7 +221,8 @@ export function activeFolderPath(state: NavState): string {
  * "write an entry", and the pen is the screen's own.
  */
 export function showsCaptureFab(top?: NavEntry, activeTab?: TabScreenId): boolean {
-  if (!top) return activeTab !== "mail" && activeTab !== "journal";
+  // The KI screen is a third: its composer sits where the FAB would float.
+  if (!top) return activeTab !== "mail" && activeTab !== "journal" && activeTab !== "ai";
   if (top.kind === "mail") return false;
   return top.kind === "folder";
 }
@@ -406,4 +413,5 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   graph: { kind: "graphmap", path: "" },
   comments: { kind: "comments", path: "" },
   journal: { kind: "journal", path: "" },
+  ai: { kind: "ai", path: "" },
 };

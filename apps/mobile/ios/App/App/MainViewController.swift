@@ -16,5 +16,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(VaultFolderPlugin())
         bridge?.registerPluginInstance(DevicePimPlugin())
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+        bridge?.registerPluginInstance(AiNetPlugin())
     }
 }

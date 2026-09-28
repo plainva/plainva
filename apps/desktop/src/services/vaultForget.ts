@@ -194,6 +194,13 @@ export async function forgetVaultData(
     await removeVaultDrafts(vaultPath);
   });
 
+  // AI conversations and the usage ledger (plan KI-Harness P1a) live in
+  // app-data per vault, never in the vault — "forget app data" includes them.
+  await attempt("ai-conversations", async () => {
+    const { forgetAiVaultData } = await import("./ai/desktopAi");
+    await forgetAiVaultData(vaultPath);
+  });
+
   // Content-E2E connection pin (`e2eState_<b64(connectionId)>`): keyed by the
   // connection fingerprint (provider + remote root), NOT the vault path, so the
   // suffix sweep below misses it. Derive the connection id from the still-present

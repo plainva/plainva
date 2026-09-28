@@ -81,6 +81,8 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
+import { AiSheet } from "./components/AiSheet";
+import { MobileAiNavigation, openAiNoteTarget, openAiSheet, useMobileAi, withoutAiArea } from "./services/ai/mobileAi";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -397,6 +399,7 @@ export default function App() {
   // early return: hooks must run in the same order on every render.
 
   useCommentShell(vault, useCallback((entry) => setNav((s) => pushEntry(s, entry)), []));
+  const ai = useMobileAi(vault);
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);
@@ -419,6 +422,7 @@ export default function App() {
     void vaultOps.noteOpened(vault, path); // real MRU (B2) + next cold start (T6)
     push({ kind: "note", path });
   };
+  const aiNavigation = <MobileAiNavigation navRef={ai.navRef} nav={{ openNote, areas: { tasks: () => setNav((st) => tapTab(st, "tasks")), calendar: () => setNav((st) => tapTab(st, "calendar")), journal: () => setNav((st) => tapTab(st, "journal")), graph: () => setNav((st) => tapTab(st, "graph")) } }} />;
   const openBase = (path: string) => {
     // Databases join the "Zuletzt" carousel too (mockup 1 shows one).
     void vaultOps.pushRecent(vault, path);
@@ -648,6 +652,7 @@ export default function App() {
     switchVault: () => push({ kind: "vaults", path: "" }),
     refreshVault: () => setBump((n) => n + 1),
     activeNote: () => activeNotePath(top),
+    openAi: ai.enabled ? () => openAiSheet(activeNotePath(top) ?? null) : undefined,
   });
 
   const routeCtx = {
@@ -664,6 +669,7 @@ export default function App() {
   return (
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
+      {aiNavigation}
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
       {!onboarded && (
         <div className="m-onboarding">
@@ -721,7 +727,7 @@ export default function App() {
       {areasOpen && (
         <AreasSheet
           active={nav.activeTab}
-          order={barLayout}
+          order={withoutAiArea(barLayout, ai.enabled)}
           onArrange={() => {
             setAreasOpen(false);
             // Straight to the setting that arranges the bar — noticing "this
@@ -758,6 +764,10 @@ export default function App() {
           onSwitchToTask={(text) => { setJournalCapture(null); requestNew("task", text); void tabTapped("tasks", setNav); toast.info(t("journal.handoverTask")); }}
           vault={vault}
         />
+      )}
+      {ai.sheet && (
+        <AiSheet notePath={ai.sheet.path} onClose={ai.closeSheet} onOpenScreen={() => { ai.closeSheet(); setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai))); }}
+          onOpenNote={(target) => { ai.closeSheet(); openAiNoteTarget(vault, target, openNote); }} onOpenSettings={() => { ai.closeSheet(); push({ kind: "settingsArea", path: "ai" }); }} />
       )}
       {fromTemplate && (
         <TemplatePickSheet

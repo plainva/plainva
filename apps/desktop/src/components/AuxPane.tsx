@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { EmptyState } from "@plainva/ui";
 import { COMPARISON_PREFIX } from "../services/comparisonWindow";
 const ComparisonWindow = lazy(() => import("./ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { AI_TAB_PATH, CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
 
 const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
 const BaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
@@ -59,6 +59,10 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
         <CommentsOverview onOpenPath={(p) => onOpenPath(p)} />
       ) : path === JOURNAL_TAB_PATH ? (
         <JournalView onOpenPath={(p) => onOpenPath(p)} />
+      ) : path === AI_TAB_PATH ? (
+        // AI v1 runs in the central window: it owns the write paths, and the
+        // native egress answers no other window. Said, not silently drawn as a note.
+        <EmptyState>{t("ai.empty.mainWindowOnly")}</EmptyState>
       ) : path.endsWith(".base") ? (
         <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} />
       ) : (

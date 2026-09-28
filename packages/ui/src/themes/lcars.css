@@ -877,3 +877,13 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
 [data-theme-name="lcars"] .pv-rating-mark--on {
   color: var(--lcars-1);
 }
+
+/* AI conversation: the console draws blocks — square bubbles, a panel-colour
+   edge on the side each voice speaks from, the model line in caps. */
+[data-theme-name="lcars"] .pv-ai-msg { border-radius: 0; }
+[data-theme-name="lcars"] .pv-ai-msg--user { border-right: 4px solid var(--lcars-2); }
+[data-theme-name="lcars"] .pv-ai-msg--ai { border-left: 4px solid var(--lcars-1); }
+[data-theme-name="lcars"] .pv-ai-marking {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

@@ -52,6 +52,9 @@ walkdir = "2.5.0"
 # `Body::sized` takes any Read, so a large attachment never has to exist in memory
 # (the async path would need a second dependency for the same thing).
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "blocking"] }
+# The AI egress (ai_egress.rs) races a streaming response against STOP and an
+# idle timeout. Tauri already runs on tokio; this only names the features it uses.
+tokio = { version = "1", features = ["macros", "sync", "time"] }
 # Streaming content hash for sync_file_sha256 — otherwise the renderer would still
 # read a whole attachment just to hash it, keeping half the memory peak (issue #48).
 sha2 = "0.10"

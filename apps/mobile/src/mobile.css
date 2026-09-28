@@ -4764,3 +4764,12 @@ textarea {
 .m-image-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; }
 .m-image-stage img { max-width: 100%; max-height: 100%; object-fit: contain; flex: none; user-select: none; }
 .m-image-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2); }
+
+/* The KI sheet and screen (plan KI-Harness §19.1): the shared conversation
+   (.pv-ai, packages/ui) fills them; only the frame is the phone's. */
+.m-ai-sheet { display: flex; flex-direction: column; padding-bottom: 0; }
+.m-ai-sheethead { display: flex; align-items: center; gap: var(--space-1); }
+.m-ai-sheethead .m-sheet-title { flex: 1; min-width: 0; margin: 0; }
+.m-ai-sheet .pv-ai { flex: 1; min-height: 0; }
+.m-ai-page { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.m-ai-page .pv-ai { flex: 1; min-height: 0; }

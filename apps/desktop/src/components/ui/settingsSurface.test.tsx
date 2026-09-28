@@ -34,17 +34,22 @@ function render(el: ReactElement) {
 }
 
 describe("settingsCatalog (shared area catalog, redesign P1)", () => {
-  it("carries five app areas and nine vault areas with unique ids", () => {
-    expect(settingsAreas("app").map((a) => a.id)).toEqual(["appearance", "editor", "behavior", "updates", "about"]);
-    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["cloudAccounts", "sync", "security", "pim", "mail", "content", "bars", "backup", "maintenance"]);
+  it("carries six app areas and ten vault areas with unique ids", () => {
+    // "AI & automation" stands in both worlds (plan KI-Harness §19.1): what holds
+    // for this device, and the privacy rules that travel with the vault.
+    expect(settingsAreas("app").map((a) => a.id)).toEqual(["appearance", "editor", "behavior", "ai", "updates", "about"]);
+    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["cloudAccounts", "sync", "security", "aiVault", "pim", "mail", "content", "bars", "backup", "maintenance"]);
     const ids = SETTINGS_AREAS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("every area has a label key, a page-description key and an icon", () => {
     for (const a of SETTINGS_AREAS) {
-      expect(a.labelKey).toMatch(/^settings\./);
-      expect(a.descKey).toMatch(/^settings\.pageDesc/);
+      // The two AI areas keep their strings in the locales' `ai` anchor (plan
+      // KI-Harness §21a.4): the long-lived harness branch writes where main does
+      // not append, so merging main never conflicts on them.
+      expect(a.labelKey).toMatch(/^(settings|ai)\./);
+      expect(a.descKey).toMatch(/^(settings\.pageDesc|ai\.settings\.section)/);
       expect(a.icon).toBeTruthy();
     }
   });

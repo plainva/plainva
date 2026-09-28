@@ -10,6 +10,7 @@ Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para a
 |---|---|
 | `Ctrl+P` (ou `Ctrl+Shift+P`) | Abrir a paleta de comandos |
 | `Ctrl+O` | Alternador rápido – buscar e abrir arquivos |
+| `Ctrl+J` | Perguntar à IA – abre o assistente (somente enquanto a IA estiver ativada, veja [Assistente de IA](AI_Assistant.md)) |
 | `Ctrl+,` | Abrir configurações |
 | `Ctrl+Plus` / `Ctrl+Minus` | Aumentar / diminuir o zoom da interface (80–150 %) |
 | `Ctrl+0` | Redefinir o zoom para 100 % |

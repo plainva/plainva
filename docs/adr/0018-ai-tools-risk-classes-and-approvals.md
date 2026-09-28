@@ -74,6 +74,19 @@ a write or an outside effect.
    warning at 80 %; a loop guard for repeated identical calls; a circuit
    breaker after three errors; STOP at any time — an abort in the middle of a
    write never leaves half a state, because the write path is atomic.
+8. **Unattended runs: one capability set, fixed in advance** (designed with
+   the first chat package, built with the routines). A run nobody watches
+   gets its capability set when the routine is created, and the user sees it
+   then: the tools it may call (the `read` class by default), the folders and
+   data classes it may read, the providers it may send to, and a budget per
+   run. Nothing widens at run time — a tool outside the set is not offered,
+   rather than refused after the call. Whatever needs an approval (every write
+   proposal, every external effect) is parked as a pending item in the inbox
+   instead of waiting for a person; nothing is carried out unattended. A
+   routine that would combine all three Rule-of-Two properties is rejected
+   when it is saved, not when it runs. The same set is what a paired MCP or
+   ACP client receives (ADR 0021): one capability model for every run without
+   a person in front of it.
 
 ## Consequences
 

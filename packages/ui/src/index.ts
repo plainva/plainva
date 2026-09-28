@@ -403,3 +403,6 @@ export * from "./base/usePinboardCards";
 
 export * from "./base/BaseSearchField";
 export * from "./base/baseSearch";
+
+// AI harness (ADR 0016): the conversation store, the answer renderer, the vault tools.
+export * from "./ai";

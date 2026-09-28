@@ -192,6 +192,22 @@ export function journalRowActions(t: RowActionT, c: JournalRowCaps): RowActionSp
   return out.filter((a): a is RowActionSpec => a !== null);
 }
 
+/* ---------------------------------------------------------- conversation */
+
+export interface ConversationRowCaps {
+  rename?: () => void;
+  delete?: () => void;
+}
+
+/** A conversation in the AI history (plan KI-Harness P1a): the same two actions in both shells. */
+export function conversationRowActions(t: RowActionT, c: ConversationRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.rename ? { id: "rename", label: t("ai.history.rename"), icon: Pencil, run: c.rename } : null,
+    c.delete ? { id: "delete", label: t("ai.history.delete"), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
 /* ------------------------------------------------------------------ file */
 
 export interface FileRowCaps {

@@ -1,4 +1,4 @@
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 /**
  * The AI privacy policy of a vault (ADR 0017; the format is documented for
@@ -143,6 +143,23 @@ export function parsePolicyFile(text: string): ParsedPolicyFile {
     rules.push(rule);
   }
   return { rules, problems };
+}
+
+/**
+ * Writes folder rules back as `.agent/policy.yml` — what the settings save
+ * when a person changes a rule there. The whole file is Plainva's format, so
+ * it is written whole; rules without a value are dropped rather than written
+ * as an empty mapping the parser would report.
+ */
+export function serializePolicyFile(rules: readonly FolderPolicyRule[]): string {
+  const folders: Record<string, Partial<Record<AiPolicyDimension, AiPermission>>> = {};
+  for (const rule of rules) {
+    const entry: Partial<Record<AiPolicyDimension, AiPermission>> = {};
+    for (const dimension of AI_POLICY_DIMENSIONS) if (rule[dimension]) entry[dimension] = rule[dimension];
+    if (Object.keys(entry).length) folders[rule.folder === "" ? "/" : rule.folder] = entry;
+  }
+  const header = "# Plainva AI privacy rules (see the File Format Reference of the user guide).";
+  return `${header}\n${stringifyYaml({ folders })}`;
 }
 
 /**

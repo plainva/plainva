@@ -1,0 +1,85 @@
+import { describe, expect, it } from "vitest";
+import { appendTurn, startConversation } from "./conversation.js";
+import { assembleContext, assistantSystemPrompt, contextChanged, contextStamp, lastSentContext, type ContextPolicyHost } from "./chat.js";
+import { WITHHELD_LINK, type EgressRecipient } from "./egressGate.js";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile } from "./policy.js";
+
+/** A small vault: Finance/ is kept from the cloud by folder rule, Diary.md by its own frontmatter. */
+const files: Record<string, string> = {
+  "Projects/Offer.md": "# Offer\n\nRates as in [[Salaries 2026]] and [[Plan]]; see [the diary](Diary.md).",
+  "Finance/Salaries 2026.md": "# Salaries\n\nsecret numbers",
+  "Diary.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\nDear diary",
+  "Plan.md": "# Plan",
+};
+const rules = parsePolicyFile("folders:\n  Finance/:\n    cloud: deny\n").rules;
+const frontmatterOf = (text: string) => {
+  const m = /^---\n([\s\S]*?)\n---/.exec(text);
+  if (!m) return {};
+  return m[1]!.includes("cloud: deny") ? { plainva: { ai: { cloud: "deny" } } } : {};
+};
+const host: ContextPolicyHost = {
+  async policyOf(path, text) {
+    return effectivePolicy(path, notePolicyFrom(frontmatterOf(text ?? files[path] ?? "")), rules);
+  },
+  async resolveLink(target) {
+    const hit = Object.keys(files).find((p) => p === target || p.endsWith(`/${target}.md`) || p === `${target}.md`);
+    return hit ?? null;
+  },
+};
+const cloud: EgressRecipient = { kind: "cloud", provider: "anthropic", model: "m" };
+const local: EgressRecipient = { kind: "local", provider: "ollama", model: "m" };
+const note = (path: string, pinned = false) => ({ path, title: path.replace(/^.*\//, "").replace(/\.md$/, ""), text: files[path]!, pinned });
+
+describe("context through the hard gate", () => {
+  it("a note kept from the cloud contributes nothing — not its text, not its title", async () => {
+    const ctx = await assembleContext([note("Finance/Salaries 2026.md"), note("Diary.md", true)], cloud, host);
+    expect(ctx.part).toBeNull();
+    expect(ctx.refs.map((r) => [r.path, r.sent, r.reason])).toEqual([
+      ["Finance/Salaries 2026.md", false, "cloud-denied"],
+      ["Diary.md", false, "cloud-denied"],
+    ]);
+  });
+
+  it("links to such notes inside an allowed note are withheld, wiki and Markdown alike", async () => {
+    const ctx = await assembleContext([note("Projects/Offer.md")], cloud, host);
+    const text = ctx.part!.text;
+    expect(text).not.toContain("Salaries");
+    expect(text).not.toContain("Diary");
+    expect(text).toContain("[[Plan]]");
+    expect(text.split(WITHHELD_LINK)).toHaveLength(3);
+    expect(ctx.withheldLinks).toBe(2);
+    expect(text).toMatch(/^The note the user has open/);
+    expect(text).toContain('<untrusted_data origin="vault:Projects/Offer.md" trust="3">');
+  });
+
+  it("a model on this device sees what the cloud may not", async () => {
+    const ctx = await assembleContext([note("Finance/Salaries 2026.md")], local, host);
+    expect(ctx.part!.text).toContain("secret numbers");
+    expect(ctx.refs[0]!.sent).toBe(true);
+  });
+
+  it("stamps what was sent, so an unchanged note is not sent twice", async () => {
+    const first = await assembleContext([note("Plan.md", true)], cloud, host);
+    expect(first.part!.context).toEqual([`Plan.md#${contextStamp("# Plan")}`]);
+    expect(first.part!.text).toMatch(/^Notes the user pinned/);
+    let c = startConversation("c", "s", []);
+    expect(contextChanged(c, first.part)).toBe(true);
+    c = appendTurn(c, { role: "user", parts: [first.part!, { type: "text", text: "Summarise" }], at: "t" });
+    expect(lastSentContext(c)).toEqual(first.part!.context);
+    expect(contextChanged(c, (await assembleContext([note("Plan.md", true)], cloud, host)).part)).toBe(false);
+    const edited = await assembleContext([{ ...note("Plan.md", true), text: "# Plan\n\nnew line" }], cloud, host);
+    expect(contextChanged(c, edited.part)).toBe(true);
+    expect(contextChanged(c, null)).toBe(false);
+  });
+});
+
+describe("system prompt", () => {
+  it("is free of note text, names the answer language and only the tools the conversation has", () => {
+    const prompt = assistantSystemPrompt({ language: "German", today: "2026-09-24", tools: ["search_vault", "run_command"] });
+    expect(prompt).toContain("Answer in German");
+    expect(prompt).toContain("<untrusted_data>");
+    expect(prompt).toContain("search_vault finds notes");
+    expect(prompt).not.toContain("get_tasks");
+    expect(assistantSystemPrompt({ language: "English", today: "2026-09-24", tools: [] })).not.toContain("Look things up");
+  });
+});

@@ -10,6 +10,7 @@ Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier*
 |---|---|
 | `Ctrl+P` (ou `Ctrl+Shift+P`) | Ouvrir la palette de commandes |
 | `Ctrl+O` | Sélecteur rapide – rechercher et ouvrir des fichiers |
+| `Ctrl+J` | Demander à l'IA – ouvrir le compagnon (uniquement tant que l'IA est activée, voir [Assistant IA](AI_Assistant.md)) |
 | `Ctrl+,` | Ouvrir les paramètres |
 | `Ctrl+Plus` / `Ctrl+Minus` | Zoom avant / arrière sur l'interface (80–150 %) |
 | `Ctrl+0` | Réinitialiser le zoom à 100 % |

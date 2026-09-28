@@ -51,6 +51,9 @@ export { parseDatabaseSourceFilter } from "./vault/databaseQueryHelpers.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";
+// The retry rules for HTTP (429 with Retry-After, jittered backoff), shared by
+// the sync targets and the AI harness's model calls.
+export * from "./sync/httpRetry.js";
 export * from "./sync/ISyncTarget.js";
 export * from "./sync/fileType.js";
 export * from "./sync/WebDavSyncTarget.js";

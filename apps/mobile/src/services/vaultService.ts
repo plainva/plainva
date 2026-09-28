@@ -322,6 +322,9 @@ export async function deleteVault(id: string): Promise<void> {
   // drafts, the repair/import journals, the settings record, the bar layout.
   await forgetVaultSecrets(secretKeys);
   await forgetVaultFiles(id).catch(() => {});
+  // AI conversations and the usage ledger live in app data per vault (plan
+  // KI-Harness P1a); loaded late because the AI module imports this one.
+  await import("./ai/mobileAi").then((ai) => ai.forgetAiVaultData(id)).catch(() => {});
   await forgetVaultStoreKeys(id).catch(() => {});
   forgetVaultMemories(id);
   await removeVault(id);

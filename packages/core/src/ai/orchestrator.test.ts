@@ -1,0 +1,235 @@
+import { describe, expect, it } from "vitest";
+import { appendTurn, startConversation, type ToolResultPart } from "./conversation.js";
+import type { AiEgress, EgressChunk } from "./egress.js";
+import { runAgent, type ToolExecutor } from "./orchestrator.js";
+import { BUILTIN_ENDPOINTS } from "./providers.js";
+
+const anthropic = BUILTIN_ENDPOINTS.find((e) => e.id === "anthropic")!;
+const at = "2026-09-24T10:00:00Z";
+
+/** One Anthropic answer as an SSE transcript: optional text, optional tool calls. */
+function turn(opts: { text?: string; calls?: Array<{ id: string; name: string; args: unknown }> }): EgressChunk[] {
+  const events: Array<[string, unknown]> = [["message_start", { type: "message_start", message: { usage: { input_tokens: 10 } } }]];
+  let index = 0;
+  if (opts.text) {
+    events.push(["content_block_start", { type: "content_block_start", index, content_block: { type: "text", text: "" } }]);
+    events.push(["content_block_delta", { type: "content_block_delta", index, delta: { type: "text_delta", text: opts.text } }]);
+    events.push(["content_block_stop", { type: "content_block_stop", index }]);
+    index++;
+  }
+  for (const call of opts.calls ?? []) {
+    events.push(["content_block_start", { type: "content_block_start", index, content_block: { type: "tool_use", id: call.id, name: call.name, input: {} } }]);
+    events.push(["content_block_delta", { type: "content_block_delta", index, delta: { type: "input_json_delta", partial_json: JSON.stringify(call.args) } }]);
+    events.push(["content_block_stop", { type: "content_block_stop", index }]);
+    index++;
+  }
+  events.push(["message_delta", { type: "message_delta", delta: { stop_reason: opts.calls?.length ? "tool_use" : "end_turn" }, usage: { output_tokens: 4 } }]);
+  events.push(["message_stop", { type: "message_stop" }]);
+  return [{ type: "open", status: 200 }, { type: "data", text: events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("") }, { type: "done" }];
+}
+
+function scriptedEgress(answers: EgressChunk[][]): AiEgress & { calls: number } {
+  const egress = {
+    calls: 0,
+    async send(_id: string, _spec: unknown, onChunk: (c: EgressChunk) => void) {
+      const answer = answers[egress.calls++] ?? [{ type: "failed", code: "network", message: "script ended" } as EgressChunk];
+      for (const chunk of answer) onChunk(chunk);
+    },
+    async cancel() {},
+    async setKey() {},
+    async hasKey() {
+      return true;
+    },
+    async deleteKey() {},
+    async addEndpoint() {
+      return true;
+    },
+    async removeEndpoint() {},
+  };
+  return egress;
+}
+
+const base = () =>
+  appendTurn(startConversation("c", "system", ["search_vault", "read_note"]), { role: "user", parts: [{ type: "text", text: "Find the offer" }], at });
+
+const okExecutor: ToolExecutor = {
+  async execute(tool, args) {
+    return { content: `${tool.name} ${JSON.stringify(args)}`, origin: { kind: "tool", tool: tool.name } };
+  },
+};
+
+const lastResults = (turns: readonly { parts: readonly unknown[] }[]) => turns.at(-1)!.parts as ToolResultPart[];
+
+describe("the orchestrator", () => {
+  it("calls tools, fences their results as data and continues until the model answers", async () => {
+    const egress = scriptedEgress([turn({ calls: [{ id: "t1", name: "search_vault", args: { query: "offer" } }] }), turn({ text: "It is in [[Offer]]." })]);
+    const result = await runAgent({ conversation: base(), egress, endpoint: anthropic, model: "m", executor: okExecutor, context: { privateContext: true, untrustedContext: true }, now: () => at });
+    expect(result.stop).toEqual({ kind: "answered" });
+    expect(result.conversation.turns.map((t) => t.role)).toEqual(["user", "assistant", "user", "assistant"]);
+    const [toolResult] = lastResults(result.conversation.turns.slice(0, 3));
+    expect(toolResult!.content).toMatch(/^<untrusted_data origin="tool:search_vault" trust="3">/);
+    expect(toolResult!.content).toContain('"limit":10');
+    expect(result.usage).toMatchObject({ inputTokens: 20, outputTokens: 8, steps: 2, toolCalls: 1 });
+  });
+
+  it("answers every open call when the user stops, so the conversation stays valid", async () => {
+    const controller = new AbortController();
+    const executor: ToolExecutor = {
+      async execute(tool, args) {
+        controller.abort();
+        return { content: `${tool.name} ${JSON.stringify(args)}` };
+      },
+    };
+    const egress = scriptedEgress([turn({ calls: [{ id: "a", name: "search_vault", args: { query: "x" } }, { id: "b", name: "read_note", args: { path: "X.md" } }] })]);
+    const result = await runAgent({ conversation: base(), egress, endpoint: anthropic, model: "m", executor, context: { privateContext: true, untrustedContext: true }, signal: controller.signal, now: () => at });
+    expect(result.stop).toEqual({ kind: "cancelled" });
+    const results = lastResults(result.conversation.turns);
+    expect(results.map((r) => [r.callId, r.isError ?? false])).toEqual([["a", false], ["b", true]]);
+    expect(results[1]!.content).toBe("Not run: the user stopped the run.");
+    // The next message can follow directly.
+    expect(() => appendTurn(result.conversation, { role: "user", parts: [{ type: "text", text: "go on" }], at })).not.toThrow();
+  });
+
+  it("stops a loop of the same call and a run of failing tools", async () => {
+    const same = { id: "x", name: "search_vault", args: { query: "same" } };
+    const loop = await runAgent({
+      conversation: base(),
+      egress: scriptedEgress([turn({ calls: [{ ...same, id: "1" }] }), turn({ calls: [{ ...same, id: "2" }] }), turn({ calls: [{ ...same, id: "3" }] })]),
+      endpoint: anthropic,
+      model: "m",
+      executor: okExecutor,
+      context: { privateContext: true, untrustedContext: true },
+      now: () => at,
+    });
+    expect(loop.stop).toEqual({ kind: "loop", tool: "search_vault" });
+    expect(lastResults(loop.conversation.turns)[0]!.content).toBe("Not run: the same call was repeated too often.");
+
+    const failing: ToolExecutor = { async execute() { throw new Error("disk"); } };
+    const calls = [1, 2, 3].map((i) => ({ id: `f${i}`, name: "read_note", args: { path: `N${i}.md` } }));
+    const breaker = await runAgent({ conversation: base(), egress: scriptedEgress([turn({ calls })]), endpoint: anthropic, model: "m", executor: failing, context: { privateContext: true, untrustedContext: true }, now: () => at });
+    expect(breaker.stop).toEqual({ kind: "circuit_breaker", tool: "read_note" });
+    expect(lastResults(breaker.conversation.turns).map((r) => r.content)).toEqual(["The tool failed: disk", "The tool failed: disk", "The tool failed: disk"]);
+  });
+
+  it("refuses arguments that do not fit the schema and tools the conversation does not carry", async () => {
+    const egress = scriptedEgress([turn({ calls: [{ id: "1", name: "read_note", args: { nope: 1 } }, { id: "2", name: "get_tasks", args: {} }] }), turn({ text: "Sorry." })]);
+    const result = await runAgent({ conversation: base(), egress, endpoint: anthropic, model: "m", executor: okExecutor, context: { privateContext: true, untrustedContext: true }, now: () => at });
+    const results = lastResults(result.conversation.turns.slice(0, 3));
+    expect(results[0]!.content).toMatch(/^Invalid arguments/);
+    expect(results[1]!.content).toMatch(/^Unknown tool "get_tasks"/);
+  });
+
+  it("reports a failed request without inventing turns", async () => {
+    const result = await runAgent({
+      conversation: base(),
+      egress: scriptedEgress([[{ type: "httpError", status: 401, body: "" }]]),
+      endpoint: anthropic,
+      model: "m",
+      executor: okExecutor,
+      context: { privateContext: true, untrustedContext: true },
+    });
+    expect(result.stop).toEqual({ kind: "failed", failure: { kind: "invalid_key", status: 401 } });
+    expect(result.conversation.turns).toHaveLength(1);
+  });
+
+  it("ends as a failed call when the egress itself breaks, with every tool call answered", async () => {
+    const egress = scriptedEgress([turn({ calls: [{ id: "t1", name: "search_vault", args: { query: "offer" } }] })]);
+    const send = egress.send.bind(egress);
+    let calls = 0;
+    egress.send = async (id, spec, onChunk) => {
+      if (++calls === 2) throw new Error("key store unavailable");
+      return send(id, spec, onChunk);
+    };
+    const result = await runAgent({
+      conversation: base(),
+      egress,
+      endpoint: anthropic,
+      model: "m",
+      executor: okExecutor,
+      context: { privateContext: true, untrustedContext: true },
+      now: () => at,
+    });
+    expect(result.stop).toEqual({ kind: "failed", failure: { kind: "offline", message: "key store unavailable" } });
+    // user, assistant with the call, the call's result — nothing left open.
+    expect(result.conversation.turns.map((t) => t.role)).toEqual(["user", "assistant", "user"]);
+    expect(lastResults(result.conversation.turns)[0]!.callId).toBe("t1");
+  });
+
+  it("honours the tool-call limit", async () => {
+    const calls = [1, 2, 3].map((i) => ({ id: `c${i}`, name: "search_vault", args: { query: `q${i}` } }));
+    const result = await runAgent({
+      conversation: base(),
+      egress: scriptedEgress([turn({ calls })]),
+      endpoint: anthropic,
+      model: "m",
+      executor: okExecutor,
+      context: { privateContext: true, untrustedContext: true },
+      limits: { maxSteps: 5, maxToolCalls: 2, maxOutputTokens: 1000 },
+      now: () => at,
+    });
+    expect(result.stop).toEqual({ kind: "limit", which: "maxToolCalls" });
+    expect(lastResults(result.conversation.turns).map((r) => r.isError ?? false)).toEqual([false, false, true]);
+  });
+});
+
+describe("a busy provider", () => {
+  const run = (answers: EgressChunk[][], extra: Partial<Parameters<typeof runAgent>[0]> = {}) => {
+    const egress = scriptedEgress(answers);
+    const waits: number[] = [];
+    const events: string[] = [];
+    const result = runAgent({
+      conversation: base(),
+      egress,
+      endpoint: anthropic,
+      model: "m",
+      executor: okExecutor,
+      context: { privateContext: true, untrustedContext: true },
+      now: () => at,
+      random: () => 0.5,
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+      onEvent: (e) => {
+        if (e.type === "retry") events.push(`${e.failure.kind}@${e.attempt}`);
+      },
+      ...extra,
+    });
+    return { egress, waits, events, result };
+  };
+
+  it("is asked again after an overload and a rate limit, honouring Retry-After", async () => {
+    const { egress, waits, events, result } = run([
+      [{ type: "httpError", status: 529, body: "" }],
+      [{ type: "httpError", status: 429, body: "", retryAfter: "3" }],
+      turn({ text: "Found it." }),
+    ]);
+    expect((await result).stop).toEqual({ kind: "answered" });
+    expect(egress.calls).toBe(3);
+    expect(events).toEqual(["overloaded@1", "rate_limited@2"]);
+    // Jittered backoff first (half of 2 s at random 0.5), then the provider's own 3 s.
+    expect(waits).toEqual([1000, 3000]);
+  });
+
+  it("gives up after three attempts, or at once when asked to wait longer than it would", async () => {
+    const three = run([1, 2, 3].map(() => [{ type: "httpError", status: 529, body: "" } as EgressChunk]));
+    expect((await three.result).stop).toEqual({ kind: "failed", failure: { kind: "overloaded", status: 529 } });
+    expect(three.egress.calls).toBe(3);
+
+    const long = run([[{ type: "httpError", status: 429, body: "", retryAfter: "120" }]]);
+    expect((await long.result).stop).toEqual({ kind: "failed", failure: { kind: "rate_limited", status: 429, retryAfterSeconds: 120 } });
+    expect(long.egress.calls).toBe(1);
+    expect(long.waits).toEqual([]);
+  });
+
+  it("stops waiting when the user presses STOP", async () => {
+    const controller = new AbortController();
+    const stopped = run([[{ type: "httpError", status: 529, body: "" }], turn({ text: "never" })], {
+      signal: controller.signal,
+      sleep: async () => {
+        controller.abort();
+      },
+    });
+    expect((await stopped.result).stop).toEqual({ kind: "cancelled" });
+    expect(stopped.egress.calls).toBe(1);
+  });
+});

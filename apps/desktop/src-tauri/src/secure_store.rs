@@ -19,6 +19,27 @@ fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(&service, key).map_err(|e| e.to_string())
 }
 
+/// AI provider keys are write-only for the web view (ADR 0016): only the AI
+/// egress reads them, natively, to put them into a request. The generic
+/// commands below refuse their slots, so no script in the web view -- injected
+/// or not -- can read one back, overwrite it or probe it through them.
+fn generic(key: &str) -> Result<&str, String> {
+    if key.starts_with(crate::ai_egress::AI_KEY_PREFIX) {
+        return Err("this keychain slot is reserved for the AI egress".into());
+    }
+    Ok(key)
+}
+
+/// Native access for the module that owns a slot (the AI egress). Never a
+/// command: nothing here is reachable from the web view.
+pub(crate) fn read_slot(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
+    locked(|| read(&entry(app, key)?))
+}
+
+pub(crate) fn write_slot(app: &tauri::AppHandle, key: &str, value: Option<&str>) -> Result<(), String> {
+    locked(|| write(&entry(app, key)?, value))
+}
+
 fn read(entry: &keyring::Entry) -> Result<Option<String>, String> {
     match entry.get_password() {
         Ok(value) => Ok(Some(value)),
@@ -51,17 +72,20 @@ fn conditional_update(
 
 #[tauri::command]
 pub fn keychain_get(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
-    locked(|| read(&entry(&app, &key)?))
+    let key = generic(&key)?;
+    locked(|| read(&entry(&app, key)?))
 }
 
 #[tauri::command]
 pub fn keychain_set(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
-    locked(|| write(&entry(&app, &key)?, Some(&value)))
+    let key = generic(&key)?;
+    locked(|| write(&entry(&app, key)?, Some(&value)))
 }
 
 #[tauri::command]
 pub fn keychain_delete(app: tauri::AppHandle, key: String) -> Result<(), String> {
-    locked(|| write(&entry(&app, &key)?, None))
+    let key = generic(&key)?;
+    locked(|| write(&entry(&app, key)?, None))
 }
 
 #[tauri::command]
@@ -71,8 +95,9 @@ pub fn keychain_compare_and_set(
     expected: Option<String>,
     value: Option<String>,
 ) -> Result<bool, String> {
+    let key = generic(&key)?;
     locked(|| {
-        let entry = entry(&app, &key)?;
+        let entry = entry(&app, key)?;
         conditional_update(
             expected.as_deref(),
             || read(&entry),
@@ -101,6 +126,15 @@ mod tests {
         .unwrap();
         assert!(!changed);
         assert_eq!(value.borrow().as_deref(), Some("current"));
+    }
+
+    #[test]
+    fn the_generic_commands_cannot_reach_an_ai_key() {
+        assert!(generic("ai-provider:anthropic").is_err());
+        assert!(generic("ai-provider:").is_err());
+        assert_eq!(generic("sync-token:v1"), Ok("sync-token:v1"));
+        // Only the prefix counts, not a look-alike further in.
+        assert_eq!(generic("x-ai-provider:y"), Ok("x-ai-provider:y"));
     }
 
     #[test]

@@ -7,6 +7,7 @@ import {
   Bookmark,
   Check,
   Code,
+  Sparkles,
   FolderInput,
   MoreVertical,
   Paintbrush,
@@ -51,6 +52,7 @@ import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobil
 import { mobileCommentOperations } from "../services/commentOperations";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
+import { aiEnabled, openAiSheet } from "../services/ai/mobileAi";
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -1033,6 +1035,8 @@ export function NoteScreen({
           title={title}
           onClose={() => setMenu(false)}
           actions={[
+            // Ask AI about this note (plan KI-Harness §19.1): the sheet over the note, only while the switch is on.
+            ...(aiEnabled() ? [{ icon: <Sparkles size={ICON.head} />, label: t("ai.ask"), onClick: () => { setMenu(false); openAiSheet(path); } }] : []),
             /*
              * A text file is not a note (C15/S14), so three of these entries do
              * not belong to it. Icon and colour WRITE `plainva` frontmatter into

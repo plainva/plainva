@@ -3486,6 +3486,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tempfile",
+ "tokio",
  "trash",
  "walkdir",
  "webpki-roots",

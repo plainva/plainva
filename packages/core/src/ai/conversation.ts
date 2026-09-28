@@ -16,6 +16,13 @@
 export interface TextPart {
   type: "text";
   text: string;
+  /**
+   * Set on the part that carries the context of a user message: one stamp
+   * per note sent (`path#hash`). The request codecs send only `text`; the
+   * stamps let the UI tell context from the user's words and let the next
+   * message resend a note only when it changed.
+   */
+  context?: readonly string[];
 }
 
 export interface ToolCallPart {

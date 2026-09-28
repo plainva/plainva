@@ -10,6 +10,7 @@ Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**
 |---|---|
 | `Ctrl+P` (o `Ctrl+Shift+P`) | Apri la palette dei comandi |
 | `Ctrl+O` | Selettore rapido – cerca e apri file |
+| `Ctrl+J` | Chiedi all'IA – apri il compagno (solo mentre l'IA è attiva, vedi [Assistente IA](AI_Assistant.md)) |
 | `Ctrl+,` | Apri le impostazioni |
 | `Ctrl+Plus` / `Ctrl+Minus` | Aumenta / riduci lo zoom dell'interfaccia (80–150 %) |
 | `Ctrl+0` | Ripristina lo zoom al 100 % |

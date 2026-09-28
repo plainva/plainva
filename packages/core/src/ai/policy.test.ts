@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_AI_POLICY, effectivePolicy, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile } from "./policy.js";
+import { DEFAULT_AI_POLICY, effectivePolicy, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
 import { gateDecision, hardGate, redactDeniedLinks, WITHHELD_LINK, type GateRun } from "./egressGate.js";
 
 const cloudRun: GateRun = { recipient: { kind: "cloud", provider: "anthropic", model: "m" }, webTools: false };
@@ -108,5 +108,18 @@ describe("withheld links", () => {
     const { text: out, redacted } = redactDeniedLinks(text, denied);
     expect(redacted).toBe(4);
     expect(out).toBe(`See ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK} and ${WITHHELD_LINK}, but [[Plan]] and [site](https://example.org/Diary).`);
+  });
+});
+
+describe("writing the policy file", () => {
+  it("round-trips through the parser, the vault default included", () => {
+    const rules = [
+      { folder: "", cloud: "allow" as const, web: "deny" as const },
+      { folder: "Finance/", cloud: "deny" as const },
+      { folder: "Journal/" },
+    ];
+    const text = serializePolicyFile(rules);
+    expect(text.startsWith("# Plainva AI privacy rules")).toBe(true);
+    expect(parsePolicyFile(text)).toEqual({ rules: [{ folder: "", cloud: "allow", web: "deny" }, { folder: "Finance/", cloud: "deny" }], problems: [] });
   });
 });

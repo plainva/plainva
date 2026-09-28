@@ -724,3 +724,21 @@
 [data-theme-name="win95"] .pv-rating-mark--on {
   color: #000080;
 }
+
+/* AI conversation: an answer sits in a sunken white field like any text the
+   user did not type; the user's words wear the navy selection bar. */
+[data-theme-name="win95"] .pv-ai-msg { border-radius: 0; }
+[data-theme-name="win95"] .pv-ai-msg--ai {
+  background: #FFFFFF;
+  box-shadow:
+    inset 1px 1px 0 #808080,
+    inset -1px -1px 0 #FFFFFF;
+}
+[data-theme-name="win95"] .pv-ai-msg--user {
+  background: #000080;
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-ai-composer {
+  border-top: 1px solid #808080;
+  box-shadow: inset 0 1px 0 #FFFFFF;
+}

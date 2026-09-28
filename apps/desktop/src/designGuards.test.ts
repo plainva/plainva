@@ -61,6 +61,7 @@ const CODE_ROOTS = [
   join(SRC, "services"),
   join(REPO, "packages/ui/src/components"),
   join(REPO, "packages/ui/src/base"),
+  join(REPO, "packages/ui/src/ai"),
   join(REPO, "apps/mobile/src"),
 ];
 const CODE_FILES = [join(SRC, "App.tsx"), join(SRC, "main.tsx")];

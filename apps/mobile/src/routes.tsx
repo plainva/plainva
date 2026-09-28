@@ -43,6 +43,11 @@ import { SettingsScreen } from "./SettingsScreen";
 import { TagsScreen } from "./TagsScreen";
 import { CommentsScreen } from "./screens/CommentsScreen";
 import { JournalScreen } from "./screens/JournalScreen";
+import { AiScreen } from "./screens/AiScreen";
+import { AiHistoryScreen } from "./screens/AiHistoryScreen";
+import { AiPolicyScreen } from "./screens/AiPolicyScreen";
+import { AiSettingsScreen } from "./screens/AiSettingsScreen";
+import { openAiNoteTarget } from "./services/ai/mobileAi";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -156,6 +161,10 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
         />
       );
     case "about": return <AboutAreaScreen onBack={ctx.pop} />;
+    // AI & automation, in both worlds: this device's providers and keys, and
+    // the privacy rules that travel with the vault (plan KI-Harness §19.1).
+    case "ai": return <AiSettingsScreen onBack={ctx.pop} />;
+    case "aiVault": return <AiPolicyScreen onBack={ctx.pop} vault={ctx.vault} />;
     // An unknown id is a bug, not a screen. It used to render About, which
     // looked like a working area and hid the typo.
     default: return null;
@@ -408,6 +417,11 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   // with a Back arrow instead of the menu button.
   comments: (_e, c) => <CommentsScreen bump={c.bump} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   journal: (_e, c) => <JournalScreen bump={c.bump} onBack={c.pop} onNewEntry={() => c.captureJournal()} onOpenNote={c.openNote} vault={c.vault} />,
+  // Pushed when the KI screen sits outside the bar — its usual place (plan KI-Harness §19.1).
+  ai: (_e, c) => (
+    <AiScreen onBack={c.pop} onHistory={() => c.push({ kind: "aihistory", path: "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
+  ),
+  aihistory: (_e, c) => <AiHistoryScreen onBack={c.pop} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which
@@ -530,6 +544,14 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onNewEntry={() => c.captureJournal()}
       onOpenNote={c.openNote}
       vault={c.vault}
+    />
+  ),
+  ai: (c) => (
+    <AiScreen
+      onMenu={() => c.push({ kind: "settings", path: "" })}
+      onHistory={() => c.push({ kind: "aihistory", path: "" })}
+      onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)}
+      onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })}
     />
   ),
 };

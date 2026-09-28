@@ -1,6 +1,7 @@
-import React, { Fragment } from "react";
+import { Fragment } from "react";
 import { parseCommentMentions } from "../lib/commentMentions";
-import { parseInlineMarkdown, type InlineNode } from "../lib/inlineMarkdown";
+import { parseInlineMarkdown } from "../lib/inlineMarkdown";
+import { renderInlineNodes } from "../lib/inlineReact";
 
 /**
  * The text of a remark, with `@Name` lifted out and links made clickable (K4).
@@ -25,53 +26,6 @@ export interface CommentBodyProps {
   onOpenUrl?: (url: string) => void;
 }
 
-function renderNodes(nodes: InlineNode[], keyPrefix: string, handlers: Pick<CommentBodyProps, "onOpenNote" | "onOpenUrl">): React.ReactNode[] {
-  const stop = (event: React.SyntheticEvent) => { event.preventDefault(); event.stopPropagation(); };
-  return nodes.map((node, index) => {
-    const key = `${keyPrefix}-${index}`;
-    switch (node.kind) {
-      case "text": return <Fragment key={key}>{node.text}</Fragment>;
-      case "br": return <br key={key} />;
-      case "code": return <code key={key}>{node.text}</code>;
-      case "strong": return <strong key={key}>{renderNodes(node.children, key, handlers)}</strong>;
-      case "em": return <em key={key}>{renderNodes(node.children, key, handlers)}</em>;
-      case "strongEm": return <strong key={key}><em>{renderNodes(node.children, key, handlers)}</em></strong>;
-      case "strike": return <s key={key}>{renderNodes(node.children, key, handlers)}</s>;
-      case "highlight": return <mark key={key}>{renderNodes(node.children, key, handlers)}</mark>;
-      case "wikiLink":
-        return (
-          <a
-            key={key}
-            href="#"
-            className="pv-comment-card__link"
-            data-wiki-target={node.target}
-            onClick={(event) => { stop(event); handlers.onOpenNote?.(node.target); }}
-          >
-            {node.display}
-          </a>
-        );
-      case "link":
-        return (
-          <a
-            key={key}
-            href={node.href}
-            className="pv-comment-card__link"
-            onClick={(event) => { stop(event); if (node.external) handlers.onOpenUrl?.(node.href); else handlers.onOpenNote?.(node.href); }}
-          >
-            {node.label}
-          </a>
-        );
-      case "url":
-        return (
-          <a key={key} href={node.href} className="pv-comment-card__link" onClick={(event) => { stop(event); handlers.onOpenUrl?.(node.href); }}>
-            {node.href}
-          </a>
-        );
-      default: return null;
-    }
-  });
-}
-
 export function CommentBody({ body, names, onOpenNote, onOpenUrl }: CommentBodyProps) {
   const handlers = { onOpenNote, onOpenUrl };
   return (
@@ -82,7 +36,7 @@ export function CommentBody({ body, names, onOpenNote, onOpenUrl }: CommentBodyP
             {segment.text}
           </span>
         ) : (
-          <Fragment key={index}>{renderNodes(parseInlineMarkdown(segment.text), String(index), handlers)}</Fragment>
+          <Fragment key={index}>{renderInlineNodes(parseInlineMarkdown(segment.text), String(index), handlers, "pv-comment-card__link")}</Fragment>
         ),
       )}
     </span>

@@ -38,12 +38,20 @@ export type KeySlot = { header: string; scheme?: "Bearer" } | null;
 export interface HttpRequestSpec {
   endpointId: string;
   url: string;
-  method: "POST";
+  /** POST for a model call; GET only for the model list of the connection test. */
+  method: "POST" | "GET";
   headers: Record<string, string>;
-  body: Record<string, unknown>;
+  /** The JSON body of a POST; a GET has none. */
+  body?: Record<string, unknown>;
+  /**
+   * Where the key belongs, for the record and the conformance suite. The
+   * native egress does not read it: it decides the key's place from the
+   * endpoint itself, so the web view cannot redirect a key into a header of
+   * its choosing.
+   */
   auth: KeySlot;
-  /** The response is a server-sent event stream. */
-  stream: true;
+  /** The response is a server-sent event stream (model calls). */
+  stream: boolean;
 }
 
 export interface ModelRequest {
@@ -93,10 +101,15 @@ function anthropicPart(part: Part, turn: Turn): Record<string, unknown> | null {
 }
 
 function buildAnthropic(endpoint: ProviderEndpoint, request: ModelRequest): HttpRequestSpec {
-  const messages = request.conversation.turns.map((turn) => ({
-    role: turn.role,
-    content: turn.parts.map((p) => anthropicPart(p, turn)).filter((p): p is Record<string, unknown> => p !== null),
-  }));
+  const messages: { role: string; content: Record<string, unknown>[] }[] = [];
+  for (const turn of request.conversation.turns) {
+    const content = turn.parts.map((p) => anthropicPart(p, turn)).filter((p): p is Record<string, unknown> => p !== null);
+    // Two user turns in a row (a stopped run's "not run" results, then the
+    // next message) go out as one message: tool results first, as required.
+    const last = messages[messages.length - 1];
+    if (last && last.role === turn.role) last.content.push(...content);
+    else messages.push({ role: turn.role, content });
+  }
   const tools = request.tools.map((tool, i) => ({
     name: tool.name,
     description: tool.description,
@@ -203,10 +216,11 @@ function buildOpenAiChat(endpoint: ProviderEndpoint, request: ModelRequest): Htt
 // ------------------------------------------------------------------- Gemini
 
 function buildGemini(endpoint: ProviderEndpoint, request: ModelRequest): HttpRequestSpec {
-  const contents = request.conversation.turns.map((turn) => ({
-    role: turn.role === "assistant" ? "model" : "user",
-    parts: turn.parts
-      .map((part) => {
+  const contents: { role: string; parts: Record<string, unknown>[] }[] = [];
+  for (const turn of request.conversation.turns) {
+    const role = turn.role === "assistant" ? "model" : "user";
+    const parts = turn.parts
+      .map((part): Record<string, unknown> | null => {
         switch (part.type) {
           case "text":
             return { text: part.text };
@@ -221,8 +235,14 @@ function buildGemini(endpoint: ProviderEndpoint, request: ModelRequest): HttpReq
             return null;
         }
       })
-      .filter((p) => p !== null),
-  }));
+      .filter((p): p is Record<string, unknown> => p !== null);
+    // Gemini wants user and model to alternate. Two user turns in a row happen
+    // when a run stopped after the model asked for tools (every call is then
+    // answered "not run") and the user writes again: they become one content.
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts.push(...parts);
+    else contents.push({ role, parts });
+  }
   const tools = request.tools.length
     ? [{ functionDeclarations: request.tools.map((tool) => ({ name: tool.name, description: tool.description, parametersJsonSchema: toolInputJsonSchema(tool) })) }]
     : undefined;

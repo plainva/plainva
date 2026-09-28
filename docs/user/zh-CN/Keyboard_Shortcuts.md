@@ -10,6 +10,7 @@
 |---|---|
 | `Ctrl+P`（或`Ctrl+Shift+P`） | 打开命令面板 |
 | `Ctrl+O` | 快速切换——搜索并打开文件 |
+| `Ctrl+J` | 问AI——打开悬浮窗（仅当AI已开启时可用，参见[AI助手](AI_Assistant.md)） |
 | `Ctrl+,` | 打开设置 |
 | `Ctrl+Plus` / `Ctrl+Minus` | 放大 / 缩小界面（80–150 %） |
 | `Ctrl+0` | 将缩放重置为100 % |

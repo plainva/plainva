@@ -2159,6 +2159,9 @@ describe("the settings surfaces", () => {
     "screens/BehaviorAreaScreen.tsx",
     "screens/MaintenanceAreaScreen.tsx",
     "screens/SecurityAreaScreen.tsx",
+    // AI & automation in both worlds (plan KI-Harness §19.1).
+    "screens/AiSettingsScreen.tsx",
+    "screens/AiPolicyScreen.tsx",
     "screens/SyncChainScreen.tsx",
     "screens/SyncDiagnosticsScreen.tsx",
     "screens/MailAccountsScreen.tsx",

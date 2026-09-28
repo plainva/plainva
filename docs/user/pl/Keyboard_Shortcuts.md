@@ -10,6 +10,7 @@ Stan na: 2026-09-24
 |---|---|
 | `Ctrl+P` (lub `Ctrl+Shift+P`) | Otwórz paletę poleceń |
 | `Ctrl+O` | Szybkie przełączanie – wyszukiwanie i otwieranie plików |
+| `Ctrl+J` | Zapytaj AI – otwiera asystenta (tylko gdy AI jest włączona, zobacz [Asystent AI](AI_Assistant.md)) |
 | `Ctrl+,` | Otwórz ustawienia |
 | `Ctrl+Plus` / `Ctrl+Minus` | Powiększ / pomniejsz interfejs (80–150 %) |
 | `Ctrl+0` | Zresetuj powiększenie do 100 % |

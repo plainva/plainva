@@ -18,7 +18,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { EmptyState, ICON, IconButton, isImagePath, journalToday, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { AiSessionContext, EmptyState, ICON, IconButton, isImagePath, journalToday, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -33,10 +33,13 @@ const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ de
 const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
+const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ default: m.AiTabView })));
+const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => ({ default: m.AiCompanion })));
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { useDesktopAi } from "./components/ai/useDesktopAi";
 import { requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
@@ -99,7 +102,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, discardLocalFork } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, workspaceSecurityStatus, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, discardLocalFork } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -260,6 +263,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     });
   };
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
+  /** Set while the switcher picks a note for the AI context instead of opening it. */
+  const [aiPinPick, setAiPinPick] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   const { bookmarks, toggleBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
@@ -304,9 +309,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // The user's sidebar choice is global. Full-surface/non-note tabs temporarily
   // close it because their context panels have no useful active document; that
   // temporary state must not overwrite what comes back for the next note.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p === JOURNAL_TAB_PATH ? "journal" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" | "ai" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p === JOURNAL_TAB_PATH ? "journal" : p === AI_TAB_PATH ? "ai" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" | "ai"): boolean => {
     if (kind !== "editor") return true;
     return localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed")) === "1";
   };
@@ -521,6 +526,30 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       }
     })();
   });
+
+  // The AI harness (plan KI-Harness P1a): one session of the central window;
+  // the companion, the AI tab and the palette all show and drive it.
+  const ai = useDesktopAi({
+    vaultPath,
+    vaultAdapter,
+    queryService,
+    encrypted: workspaceSecurityStatus !== null,
+    activePath,
+    openView,
+    openNote: (path) => openInFocusedPane(path),
+    navigation: {
+      graph: () => openView(GRAPH_TAB_PATH),
+      tasks: () => openView(TASKS_TAB_PATH),
+      calendar: cloudServices.calendar ? () => openView(CALENDAR_TAB_PATH) : undefined,
+      journal: () => openView(JOURNAL_TAB_PATH),
+      mail: cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined,
+      comments: () => openView(COMMENTS_TAB_PATH),
+      leftSidebar: () => setLeftCollapsed((c) => !c),
+      rightSidebar: toggleRightSidebar,
+    },
+  });
+  // The global key handler binds these two, not the whole (per-render) object.
+  const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
@@ -858,6 +887,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
         closeActiveTab();
+      } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j" && aiEnabled) {
+        // Ask AI: the companion over the work (plan KI-Harness §19.1, dress A).
+        e.preventDefault();
+        toggleAiCompanion();
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {
         // Journal entry: one line into today's daily note (plan Journal, J4).
         e.preventDefault();
@@ -917,7 +950,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities]);
+  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities, aiEnabled, toggleAiCompanion]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -1213,6 +1246,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const showHorizontalPreview = drag.splitPreview === "horizontal";
 
   return (
+    <AiSessionContext.Provider value={ai.session}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       <TitleBar
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -1244,6 +1278,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
         onOpenComments={() => openView(COMMENTS_TAB_PATH)}
         onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
+        onOpenAi={ai.enabled ? ai.openCompanion : undefined}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
@@ -1564,6 +1599,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           onHandoverTask={handoverToTasks}
                         />
                       </Suspense>
+                    ) : path === AI_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <AiTabView
+                          activeNote={ai.activeNote}
+                          onOpenNote={ai.openNoteTarget}
+                          onOpenUrl={ai.openUrl}
+                          onOpenSettings={() => capabilities.openSettings()}
+                          onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}
+                        />
+                      </Suspense>
                     ) : path === COMMENTS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <CommentsOverview onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
@@ -1745,6 +1790,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openMail: () => openView(MAIL_TAB_PATH),
             openComments: () => openView(COMMENTS_TAB_PATH),
             openJournal: () => openView(JOURNAL_TAB_PATH),
+            openAi: ai.enabled ? ai.openCompanion : undefined,
             openCommsWindow: vaultPath ? openCommsWindow : undefined,
             // Dispatched rather than called, so a client window travels the
             // listener above instead of needing a capability it does not have.
@@ -1889,6 +1935,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             />
           </Suspense>
         )}
+        {ai.companionOpen && (
+          <Suspense fallback={null}>
+            <AiCompanion
+              activeNote={ai.activeNote}
+              onClose={ai.closeCompanion}
+              onOpenAsTab={ai.openAsTab}
+              onOpenNote={ai.openNoteTarget}
+              onOpenUrl={ai.openUrl}
+              onOpenSettings={() => capabilities.openSettings()}
+              onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}
+            />
+          </Suspense>
+        )}
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />
@@ -1906,7 +1965,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         )}
       </Suspense>
       <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
-      <QuickSwitcher isOpen={showQuickSwitcher} onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); normalizeNow(); }} onOpenPath={(p) => openInFocusedPane(p, quickSwitcherNewTab)} recentPaths={recentPaths} />
+      <QuickSwitcher
+        isOpen={showQuickSwitcher}
+        onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPinPick(false); normalizeNow(); }}
+        onOpenPath={(p) => { if (aiPinPick) void ai.session?.pin(p); else openInFocusedPane(p, quickSwitcherNewTab); }}
+        recentPaths={recentPaths}
+      />
       {tabMenu && (() => {
         // Everything the tab menu needs about the RIGHT-CLICKED tab (not the
         // active one — they differ whenever you right-click a background tab).
@@ -1958,5 +2022,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       {children}
       {tabTransfer.modal}
     </div>
+    </AiSessionContext.Provider>
   );
 }

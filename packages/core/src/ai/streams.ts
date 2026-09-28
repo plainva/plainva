@@ -15,9 +15,21 @@ export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "reasoning"; part: ReasoningPart }
   | { type: "tool_call"; call: ToolCallPart }
+  /**
+   * Token counts, normalised across providers: `inputTokens` is the input
+   * NOT served from the provider's cache, `cacheReadTokens` the part that
+   * was. Anthropic reports it that way; OpenAI and Gemini count cached tokens
+   * inside their total, so their decoders subtract them — otherwise a cost
+   * estimate would count cached input twice.
+   */
   | { type: "usage"; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number }
   | { type: "stop"; reason: StopReason }
   | { type: "error"; message: string; code?: string };
+
+/** A total that includes cached tokens, without them. */
+function uncached(total: number | undefined, cached: number | undefined): number | undefined {
+  return total === undefined ? undefined : Math.max(0, total - (cached ?? 0));
+}
 
 export interface SseMessage {
   event?: string;
@@ -166,7 +178,7 @@ function openAiResponsesDecoder(): StreamDecoder {
           const r = msg.response ?? {};
           const out: StreamEvent[] = [];
           const u = r.usage;
-          if (u) out.push({ type: "usage", inputTokens: u.input_tokens, outputTokens: u.output_tokens, cacheReadTokens: u.input_tokens_details?.cached_tokens });
+          if (u) out.push({ type: "usage", inputTokens: uncached(u.input_tokens, u.input_tokens_details?.cached_tokens), outputTokens: u.output_tokens, cacheReadTokens: u.input_tokens_details?.cached_tokens });
           const toolUse = Array.isArray(r.output) && r.output.some((o: { type?: string }) => o.type === "function_call");
           const reason: StopReason =
             msg.type === "response.incomplete" ? (r.incomplete_details?.reason === "max_output_tokens" ? "max_tokens" : "other") : toolUse ? "tool_use" : "end";
@@ -222,7 +234,8 @@ function openAiChatDecoder(): StreamDecoder {
         }
       }
       if (msg.usage) {
-        out.push({ type: "usage", inputTokens: msg.usage.prompt_tokens, outputTokens: msg.usage.completion_tokens, cacheReadTokens: msg.usage.prompt_tokens_details?.cached_tokens });
+        const cached = msg.usage.prompt_tokens_details?.cached_tokens;
+        out.push({ type: "usage", inputTokens: uncached(msg.usage.prompt_tokens, cached), outputTokens: msg.usage.completion_tokens, cacheReadTokens: cached });
       }
       return out;
     },
@@ -265,7 +278,7 @@ function geminiDecoder(): StreamDecoder {
         if (candidate.finishReason) out.push({ type: "stop", reason: sawCall ? "tool_use" : (stopReasons[candidate.finishReason] ?? "other") });
       }
       const u = msg.usageMetadata;
-      if (u) out.push({ type: "usage", inputTokens: u.promptTokenCount, outputTokens: u.candidatesTokenCount, cacheReadTokens: u.cachedContentTokenCount });
+      if (u) out.push({ type: "usage", inputTokens: uncached(u.promptTokenCount, u.cachedContentTokenCount), outputTokens: u.candidatesTokenCount, cacheReadTokens: u.cachedContentTokenCount });
       return out;
     },
   };
