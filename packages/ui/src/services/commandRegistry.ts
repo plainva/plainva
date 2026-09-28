@@ -13,11 +13,20 @@ import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../
  * vocabulary. Handlers are injected by the shell (deps), so commands stay
  * declarative and testable.
  *
- * Shared since S15: the phone offers the same 39 commands, minus the ones it
- * genuinely cannot serve. That is why every dep is OPTIONAL and a command
- * whose handler is missing is not built at all — a command that appears and
- * does nothing is worse than one that is honestly absent. A drift guard keeps
- * the desktop offering all of them.
+ * Shared since S15: both shells build their palette from this one list, and
+ * the phone leaves out what it cannot serve. That is why every dep is
+ * OPTIONAL and a command whose handler is missing is not built at all — a
+ * command that appears and does nothing is worse than one that is honestly
+ * absent. Absent must never mean forgotten, so each shell has a drift guard
+ * that reads its REAL wiring and holds it against `commandInventory()` below.
+ * The desktop's (commandRegistry.test.ts, reading AppShell.tsx) wants every
+ * dep wired; the phone's (mobileCommands.test.ts, reading App.tsx) wants
+ * every command it leaves out named, with the parity-catalog entry that says
+ * why.
+ *
+ * No count stands here on purpose: this comment said "39 commands" while the
+ * list grew to 47, and the guard beside it checked a fixture seven handlers
+ * short. The list below is the count.
  *
  * Groups and icons live here too (E6), so both shells present the same
  * vocabulary in the same order instead of each inventing one.
@@ -111,8 +120,9 @@ export interface CommandDeps {
    * was noted as one: on the phone it is set while `printActive` is not, so it
    * looked like a flag that could never gate anything. It gates every
    * note-scoped command in this registry — reading/editing, source mode,
-   * export, save-as-template, the three mail entries — and the phone supplies
-   * all of those. The name was the defect, not the flag.
+   * print, export, save-as-template, the three mail entries — and the phone's
+   * reading/editing and export hang off it. The name was the defect, not the
+   * flag.
    */
   hasActiveNote?: () => boolean;
   /** Exports the active note as a standalone .md copy (issue #6). */
@@ -192,6 +202,35 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
 /** Builds an entry only when the handler it needs exists. */
 function need<F>(dep: F | undefined, make: (run: F) => AppCommand): AppCommand | null {
   return dep === undefined ? null : make(dep);
+}
+
+/**
+ * Every command the registry can build, and every dep it reads to build one.
+ *
+ * Found, not listed: the registry is built once against a stand-in that
+ * answers every name it is asked for with a handler that does nothing, and
+ * each command is then asked whether it is available and run, so the gates
+ * read only lazily (`activePath`, `hasActiveNote`, `themeTogglePinned`) count
+ * too. A command added above shows up here without anyone touching this
+ * function. That is what the shells' drift guards compare their wiring
+ * against — a second, hand-kept list would drift exactly like the fixture
+ * that used to stand in for this.
+ */
+export function commandInventory(): { commands: AppCommand[]; deps: string[] } {
+  const read = new Set<string>();
+  const nothing = () => undefined;
+  const probe = new Proxy({} as CommandDeps, {
+    get(_target, key) {
+      if (typeof key === "string") read.add(key);
+      return nothing;
+    },
+  });
+  const commands = buildAppCommands(probe);
+  for (const c of commands) {
+    c.isAvailable?.();
+    c.run();
+  }
+  return { commands, deps: [...read].sort() };
 }
 
 /**

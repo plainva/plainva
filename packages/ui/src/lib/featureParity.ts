@@ -213,6 +213,11 @@ export interface ParityGuardMarker {
  * entry is a `decision`, and a decision describes a platform limit — those do
  * not quietly get built. A `gap` is the entry that rots, because the work
  * happens and the line stays.
+ *
+ * The one gap written back since (`palette-command-reach`, 2026-09-24) is held
+ * from the code's side instead: MOBILE_ABSENT_COMMANDS points at it command by
+ * command, and mobileCommands.test.ts wants a line deleted as soon as the phone
+ * offers that command, and the entry deleted once no line points at it.
  */
 export function findGuardContradictions(
   features: readonly ParityFeatureDef[],
@@ -258,6 +263,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "targets below the 44px floor the touch guard enforces, so this is a fixed " +
       "value rather than a missing setting.",
     verified: "2026-08-19",
+  },
+  {
+    id: "theme-quick-toggle",
+    title: "Switching between light and dark with one click",
+    area: "appearance",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop has a toggle in the title bar and in the palette, beside the " +
+      "Appearance setting. The phone keeps the choice in one place, Appearance " +
+      "(System, Light, Dark): the system's own dark mode is a quick setting on both " +
+      "platforms, and a second switch inside the app would drift from the one that " +
+      "owns the choice. So the phone's palette has no toggle-theme.",
+    verified: "2026-09-24",
   },
   {
     id: "ui-zoom",
@@ -440,6 +460,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "note-copy-as-email",
+    title: "Copying a note as formatted text for an email",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop puts the note on the clipboard as HTML and as plain text, to be " +
+      "pasted into a mail program's window beside the note. The phone deliberately " +
+      "leaves the copy out (NoteScreen.tsx): it keeps no mail window open next to " +
+      "the note, so its note menu hands the note to mail directly - through mailto, " +
+      "Plainva's own composer, or as an attachment. Getting a note into a mail works " +
+      "on both shells; only the clipboard route is the desktop's.",
+    verified: "2026-09-24",
+  },
+  {
     id: "task-reminder-actions",
     title: "Done and Later on a task reminder",
     area: "pim",
@@ -489,6 +525,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       verified: "2026-09-11",
   },
   {
+    id: "editor-tabs",
+    title: "Tabs: closing one, reopening the last one closed",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The phone has no tab strip. It shows one screen at a time and moves between " +
+      "them on a navigation stack: going back pops it (see system-back), and the " +
+      "bottom bar switches between the main screens rather than between open notes. " +
+      "With no strip there is no tab to close and no closed tab to bring back, so " +
+      "the phone's palette has no close-tab and no reopen-tab.",
+    verified: "2026-09-24",
+  },
+  {
     id: "global-quick-capture",
     title: "Global quick capture: a system-wide shortcut opens a small capture window",
     area: "platform",
@@ -532,6 +583,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "task, journal entry), which is there whenever the window is not.",
     mobile: "yes",
     verified: "2026-09-23",
+  },
+  {
+    id: "keyboard-shortcuts",
+    title: "Keyboard shortcuts and the overview that lists them",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The phone is operated by touch and has no app-level shortcut layer: no Mod+N, " +
+      "no F1, only the arrow keys a focused list answers to. An overview would have " +
+      "nothing to list, so the phone's palette has no show-shortcuts. A keyboard " +
+      "attached to a tablet types and edits text through the system; the actions " +
+      "themselves sit on the FAB, the bottom bar and the palette.",
+    verified: "2026-09-24",
   },
   {
     id: "launcher-shortcuts",
@@ -582,6 +648,25 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-14",
   },
   {
+    id: "palette-command-reach",
+    title: "Reaching screen actions through the command palette",
+    area: "platform",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Each of these works on the phone, on a screen of its own, but the phone's " +
+      "palette does not list them yet: the comment overview (Comments), import, the " +
+      "index rebuild and the index.md overviews (Maintenance), backup now (the " +
+      "vault's detail screen), a new template (New from template), version history " +
+      "(the note's context), and from the note menu Markdown source, insert " +
+      "template, save as template, mailto and compose. Closing it takes a handler " +
+      "per command in mobileCommands.ts - for the note ones an event the note " +
+      "screen listens for, as rename does. MOBILE_ABSENT_COMMANDS names them one by " +
+      "one; in the maintainer's open-items plan since 2026-09-24.",
+    verified: "2026-09-24",
+  },
+  {
     id: "process-exit-diagnostics",
     title: "Why the system ended the app, in the sync diagnostics",
     area: "platform",
@@ -609,6 +694,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "revisiting only if a platform grows a real share target.",
     mobile: "yes",
     verified: "2026-09-14",
+  },
+  {
+    id: "side-panels",
+    title: "Side panels beside the editor, shown and hidden at will",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "A phone screen has no room beside the note: the file tree is the Notes " +
+      "screen and the note's context opens as a sheet. From 1024 px (a tablet) the " +
+      "context docks beside the note, and the context button in the note's bar " +
+      "docks and undocks it - the right sidebar's counterpart, kept on the note it " +
+      "belongs to. The file tree stays a screen of its own there too, because the " +
+      "tablet's two columns are navigator and work surface. So the desktop's two " +
+      "sidebar toggles have no entry in the phone's palette.",
+    verified: "2026-09-24",
   },
   {
     id: "split-editor",
