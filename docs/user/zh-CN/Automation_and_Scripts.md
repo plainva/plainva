@@ -1,6 +1,6 @@
 # 自动化与脚本
 
-更新日期：2026-08-21
+更新日期：2026-09-24
 
 Plainva没有运行第三方代码的插件系统。取而代之，仓库本身就是扩展接口：你的笔记是纯Markdown，数据库是纯YAML（`.base`），[OKF约定](OKF.md)让每个文件都拥有可预测的结构。任何能够读写文件的东西，都可以扩展、生成或重新组织你的仓库，而不需要任何Plainva专属的API——不管是Shell脚本、Python程序、CLI工具、定时任务，还是AI助手。
 
@@ -54,8 +54,12 @@ Plainva没有运行第三方代码的插件系统。取而代之，仓库本身�
 1. **把[文件格式参考](File_Format_Reference.md)交给它。** 这份文档正是为机器读者而写的：OKF Frontmatter契约、属性→YAML的序列化方式、完整的`.base`模式（schema）及其硬性的Obsidian规则、`index.md`契约，以及安全规则——AI助手编辑文件而不破坏它们所需要的一切都在这里。
 2. **把它指向仓库文件夹，而不是`.plainva/`文件夹。** 明确告诉它`.plainva/`是禁区。
 3. **要求它进行原子化的最小改动。** 如果某个AI助手要为了修改一个属性而重写整篇笔记，它应该原样保留Frontmatter和正文中的其余部分。
+4. **把现成的指令交给它。** Plainva 提供用于 Vault 根目录的 [`AGENTS.md` 模板](../../agents/AGENTS.md)，以及 Agent Skills 格式的技能（[`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)）；两者都以智能体读取的形式包含本页的规则。
+5. **遵守隐私规则。** 带有 `plainva: { ai: { cloud: deny } }` 的笔记，以及在 `.agent/policy.yml` 中如此标注的文件夹，不得发送给云端模型——参见[文件格式参考](File_Format_Reference.md)。
 
 因为这份契约是一份文档，而不是一个实时API，所以同样的说明适用于任何AI助手——无论离线还是在线。
+
+**直接写入会跳过什么。** Plainva 会察觉外部修改并同步它们，但不会为智能体替换掉的文本保留备份：版本历史只包含 Plainva 自己写入的内容。进行较大修改时，请让 Vault 处于版本控制（Git）之下。
 
 ## 安全要点回顾
 
@@ -63,6 +67,7 @@ Plainva没有运行第三方代码的插件系统。取而代之，仓库本身�
 - 原子写入（临时文件 + 重命名）。
 - 保留`type`、`okf_version`以及未知的键。
 - 绝不要写入`.plainva/`。
+- 除非被要求，不要动 `.agent/`；遵守 `cloud: deny`。
 - `.base`：四个顶层键、命名视图、单根筛选条件，其余一切都放在`plainva:`子键下。
 - 仓库处于被监视状态——外部更改会自动出现在Plainva中。
 

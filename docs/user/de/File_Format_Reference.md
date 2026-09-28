@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-20
+Stand: 2026-09-24
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -140,6 +140,7 @@ Plainva-spezifische Notiz-Extras liegen gebündelt unter einem einzigen `plainva
 | `tasks` | `false` | Schließt die Checkboxen dieser Notiz aus der [Aufgabenansicht](Tasks.md) aus |
 | `templateFor` | Liste von Wiki-Links auf `.base`-Dateien | Ordnet eine **Vorlage** den genannten Datenbanken zu (nur für Notizen im Vorlagen-Ordner von Bedeutung) |
 | `pim` | Mapping (siehe unten) | Anker, der die Notiz mit einem externen Termin, einer Aufgabe oder E-Mail verknüpft |
+| `ai` | Mapping `{cloud, web}`, je `allow` oder `deny` | KI-Datenschutzregel dieser Notiz (siehe unten) |
 
 Alle davon sind optional. Schreibst Du keinen davon, lass den `plainva:`-Schlüssel ganz weg. Ungültige Werte werden beim Lesen ignoriert, nie als Fehler behandelt.
 
@@ -159,6 +160,29 @@ plainva:
 **Wer die Herkunft beschreibt.** Bei einer Aufgabe zählen `uid` und `list` — eine `uid` ist bei **einem** Anbieter eindeutig, nicht über zwei hinweg. `provider` (`google`, `microsoft`, `caldav`) und `identity` (die geprüfte Kontokennung, sofern der Anbieter eine anbietet) grenzen zusätzlich ein und überleben eine Neuanmeldung. `account` ist die **lokale** Konto-Kennung: Plainva schreibt sie weiterhin, damit ältere Fassungen den Anker lesen, vergleicht sie aber nicht mehr — sie wird bei jeder Neuanmeldung neu vergeben und war damit der Grund, warum ein neu verbundenes Konto seine Aufgaben ein zweites Mal importierte. Wer Anker selbst schreibt, setzt `uid` und `list`; `provider`/`identity` sind empfohlen, `account` ist entbehrlich. `recurring: true` ergänzt Plainva an einem Aufgaben-Anker, sobald es gesehen hat, dass der Anbieter die Aufgabe wiederkehren lässt (erledigt, dann unter derselben `uid` mit späterem Datum wieder offen). Der Schlüssel ist rein informativ, wird nie verglichen und darf entfernt werden.
 
 `templateFor` ist der Feldvertrag der Vorlagen-Zuordnung (siehe [Datenbanken](Databases_Base.md)): Auf einer Notiz im Vorlagen-Ordner listet es die Datenbanken, in deren **Eintrag**-Menü die Vorlage standardmäßig erscheint. Die Werte sind ganze Wiki-Links inklusive `.base`-Endung — bare (`"[[Tasks.base]]"` matcht die Datei dieses Namens in jedem Ordner, überlebt also reine Ordner-Verschiebungen) oder pfad-qualifiziert (`"[[Projekte/Tasks.base]]"` matcht exakt diesen Pfad). Plainva schreibt bare Links und qualifiziert nur, wenn zwei gleichnamige `.base`-Dateien existieren. Ein Skalar statt einer Liste wird toleriert. Beim Erstellen eines Eintrags aus der Vorlage wird `templateFor` — anders als die übrigen `plainva:`-Schlüssel — **nicht** in die neue Notiz übernommen.
+
+### KI-Datenschutzregel (`plainva.ai` und `.agent/`)
+
+`plainva: { ai: … }` legt fest, wohin der Inhalt der Notiz gehen darf, wenn KI im Spiel ist:
+
+- `cloud: deny` — nie an einen KI-Empfänger in der Cloud: weder Text noch Titel, Dateiname, Linktext oder eine Zusammenfassung davon. Lokale Modelle auf dem Gerät bleiben erlaubt.
+- `web: deny` — nie in einer Aufgabe, die zugleich das Web nutzt.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Regeln für ganze Ordner stehen in `.agent/policy.yml`. Der eigene Wert der Notiz gewinnt, sonst die nächstgelegene Ordnerregel:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` gelten als `allow`/`deny`; jeder andere Wert wird ignoriert und öffnet nie etwas. Der Rest des versteckten Ordners `.agent/` — Skills (`skills/<name>/SKILL.md`), Gedächtnis und Gesprächsnotizen — gehört Plainvas Assistenten. Plainva folgt einer Datei dort, die neu oder geändert ist, erst, wenn Du sie auf dem jeweiligen Gerät freigegeben hast; ein Werkzeug sollte deshalb nur dann in `.agent/` schreiben, wenn Du genau das verlangst.
 
 ### Links
 
@@ -592,6 +616,7 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 ## Nicht-anfassen und Sicherheit
 
 - **`.plainva/`** enthält Backups und internen Zustand. Niemals daraus Programmlogik lesen oder hineinschreiben.
+- **`.agent/`** enthält Plainvas KI-Regeln, Skills und Gedächtnis. Nur ändern, wenn Du genau das verlangst; `cloud: deny` und `web: deny` beachten (siehe KI-Datenschutzregel oben).
 - **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
 - **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
 - **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.

@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-20
+Stan na: 2026-09-24
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -140,6 +140,7 @@ Specyficzne dla Plainva dodatki do notatek są zgrupowane pod jednym kluczem `pl
 | `tasks` | `false` | Wyklucza pola wyboru tej notatki z [widoku Zadania](Tasks.md) |
 | `templateFor` | lista linków wiki do plików `.base` | Przypisuje **szablon** do wymienionych baz danych (istotne tylko dla notatek wewnątrz folderu szablonów) |
 | `pim` | mapowanie (patrz niżej) | Kotwica wiążąca notatkę z zewnętrznym wydarzeniem kalendarza, zadaniem lub e-mailem |
+| `ai` | mapa `{cloud, web}`, każde `allow` lub `deny` | Reguła prywatności AI tej notatki (patrz niżej) |
 
 Wszystkie te pola są opcjonalne. Jeśli nie zapisujesz żadnego z nich, pomiń klucz `plainva:` całkowicie. Nieprawidłowe wartości są ignorowane przy odczycie, nigdy traktowane jako błąd.
 
@@ -159,6 +160,29 @@ plainva:
 **Co opisuje pochodzenie.** Dla zadania liczą się `uid` i `list` — `uid` jest unikalne u JEDNEGO dostawcy, nie u dwóch naraz. `provider` (`google`, `microsoft`, `caldav`) i `identity` (zweryfikowana tożsamość konta, jeśli dostawca ją udostępnia) zawężają to dalej, i oba przetrwają ponowne połączenie. `account` to LOKALNY identyfikator konta: Plainva nadal go zapisuje, aby starsze wersje mogły odczytać kotwicę, ale już go nie porównuje — jest on nadawany na nowo przy każdym połączeniu, i to właśnie dlatego ponownie połączone konto importowało kiedyś swoje zadania po raz drugi. Jeśli sam zapisujesz kotwice, ustaw `uid` i `list`; `provider`/`identity` są zalecane, `account` nie jest potrzebny. `recurring: true` Plainva dopisuje do kotwicy zadania, gdy zobaczy, że dostawca przywraca zadanie (ukończone, a potem ponownie otwarte pod tym samym `uid` z późniejszą datą). Klucz ma charakter czysto informacyjny, nigdy nie jest porównywany i można go usunąć.
 
 `templateFor` to kontrakt pola przypisania szablonu (patrz [Bazy danych (.base)](Databases_Base.md)): na notatce wewnątrz folderu szablonów wymienia bazy danych, w których menu **Wpis** domyślnie pokazuje ten szablon. Wartości to całe linki wiki wraz z rozszerzeniem `.base` — w formie gołej (`"[[Tasks.base]]"` pasuje do pliku o tej nazwie w dowolnym folderze, więc przetrwa samo przeniesienie folderu) albo kwalifikowanej ścieżką (`"[[Projekte/Tasks.base]]"` pasuje dokładnie do tej ścieżki). Plainva zapisuje gołe linki i kwalifikuje je tylko wtedy, gdy istnieją dwa pliki `.base` o tej samej nazwie. Skalar zamiast listy jest tolerowany. Gdy wpis jest tworzony z szablonu, `templateFor` — w odróżnieniu od pozostałych kluczy `plainva:` — **nie** jest kopiowany do nowej notatki.
+
+### Reguła prywatności AI (`plainva.ai` i `.agent/`)
+
+`plainva: { ai: … }` określa, dokąd może trafić treść notatki, gdy w grę wchodzi AI:
+
+- `cloud: deny` — nigdy do odbiorcy AI w chmurze: ani tekst, ani tytuł, nazwa pliku, tekst linku czy streszczenie. Modele lokalne na urządzeniu pozostają dozwolone.
+- `web: deny` — nigdy w zadaniu, które korzysta też z internetu.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Reguły dla całych folderów znajdują się w `.agent/policy.yml`. Wygrywa własna wartość notatki, a w przeciwnym razie najbliższa reguła folderu:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` są odczytywane jako `allow`/`deny`; każda inna wartość jest pomijana i nigdy niczego nie otwiera. Reszta ukrytego folderu `.agent/` — skille (`skills/<name>/SKILL.md`), pamięć i notatki z rozmów — należy do asystenta Plainva. Plainva stosuje się do nowego lub zmienionego pliku w tym miejscu dopiero wtedy, gdy użytkownik zatwierdzi go na danym urządzeniu; narzędzie powinno więc zapisywać w `.agent/` tylko wtedy, gdy użytkownik dokładnie o to prosi.
 
 ### Linki
 
@@ -592,6 +616,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 ## Nie dotykaj i bezpieczeństwo
 
 - **`.plainva/`** przechowuje kopie zapasowe i stan wewnętrzny. Nigdy nie czytaj z niego logiki programu ani do niego nie zapisuj.
+- **`.agent/`** zawiera reguły AI, skille i pamięć Plainva. Zmieniaj go tylko wtedy, gdy użytkownik dokładnie o to prosi, i przestrzegaj `cloud: deny` oraz `web: deny` (patrz reguła prywatności AI wyżej).
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
 - **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `views`.

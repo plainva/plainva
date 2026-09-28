@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-24
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -140,6 +140,7 @@ Gli extra specifici di Plainva sono raggruppati sotto un'unica chiave `plainva:`
 | `tasks` | `false` | Esclude le caselle di controllo di questa nota dalla [vista Attività](Tasks.md) |
 | `templateFor` | elenco di wiki-link a file `.base` | Assegna un **modello** ai database elencati (rilevante solo per le note all'interno della cartella dei modelli) |
 | `pim` | mappatura (vedi sotto) | Àncora che collega la nota a un evento di calendario, un'attività o un'e-mail esterni |
+| `ai` | mappa `{cloud, web}`, ciascuno `allow` o `deny` | Regola di privacy IA di questa nota (vedi sotto) |
 
 Tutte queste sono opzionali. Se non ne scrivi nessuna, ometti del tutto la chiave `plainva:`. I valori non validi vengono ignorati in lettura, mai trattati come errore.
 
@@ -159,6 +160,29 @@ plainva:
 **Cosa descrive l'origine.** Per un'attività, contano `uid` e `list` — un `uid` è univoco presso UN provider, non tra due. `provider` (`google`, `microsoft`, `caldav`) e `identity` (l'identità verificata dell'account, dove il provider ne offre una) la restringono ulteriormente, ed entrambi sopravvivono a una riconnessione. `account` è l'id LOCALE dell'account: Plainva lo scrive ancora così che le versioni più vecchie possano leggere l'àncora, ma non lo confronta più — viene coniato di nuovo a ogni connessione, ed è proprio per questo che un account riconnesso importava le sue attività una seconda volta. Se scrivi tu stesso le àncore, imposta `uid` e `list`; `provider`/`identity` sono consigliati, `account` non serve. Plainva aggiunge `recurring: true` a un'àncora di attività non appena ha visto il provider ripresentare l'attività (completata, poi riaperta con lo stesso `uid` e una data successiva). La chiave è puramente informativa, non viene mai confrontata e si può rimuovere.
 
 `templateFor` è il contratto di campo dell'assegnazione dei modelli (vedi [Database (.base)](Databases_Base.md)): su una nota all'interno della cartella dei modelli elenca i database il cui menu **Voce** mostra il modello per impostazione predefinita. I valori sono wiki-link completi, estensione `.base` inclusa — bare (`"[[Tasks.base]]"` corrisponde al file con quel nome in qualsiasi cartella, quindi sopravvive ai semplici spostamenti di cartella) oppure qualificati con il percorso (`"[[Projekte/Tasks.base]]"` corrisponde esattamente a quel percorso). Plainva scrive link bare e li qualifica solo quando esistono due file `.base` con lo stesso nome. Uno scalare al posto di un elenco è tollerato. Quando una voce viene creata dal modello, `templateFor` — a differenza delle altre chiavi `plainva:` — **non** viene copiato nella nuova nota.
+
+### Regola di privacy IA (`plainva.ai` e `.agent/`)
+
+`plainva: { ai: … }` stabilisce dove può andare il contenuto della nota quando è coinvolta l'IA:
+
+- `cloud: deny` — mai verso un destinatario IA nel cloud: né il testo, né il titolo, il nome del file, il testo di un link o un riassunto. I modelli locali sul dispositivo restano consentiti.
+- `web: deny` — mai in un'attività che usa anche il web.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Le regole per intere cartelle si trovano in `.agent/policy.yml`. Vince il valore proprio della nota, altrimenti la regola di cartella più vicina:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` valgono come `allow`/`deny`; qualsiasi altro valore viene ignorato e non apre mai nulla. Il resto della cartella nascosta `.agent/` — skill (`skills/<name>/SKILL.md`), memoria e note di conversazione — appartiene all'assistente di Plainva. Plainva segue un file nuovo o modificato in quella cartella solo dopo che l'utente lo ha approvato su quel dispositivo; uno strumento dovrebbe quindi scrivere in `.agent/` solo se l'utente chiede esattamente questo.
 
 ### Link
 
@@ -592,6 +616,7 @@ Regole: i percorsi fissati non vengono ripetuti in `pinboardOrder`. Le schede ch
 ## Da non toccare e sicurezza
 
 - **`.plainva/`** contiene backup e stato interno. Non leggerne mai la logica del programma né scriverci dentro.
+- **`.agent/`** contiene le regole IA, le skill e la memoria di Plainva. Modificala solo se l'utente chiede esattamente questo, e rispetta `cloud: deny` e `web: deny` (vedi la regola di privacy IA sopra).
 - **Le chiavi sconosciute sono sacre.** Quando riscrivi una `.base` o una nota, porta con te ogni chiave che non intendevi cambiare. Plainva stesso conserva le chiavi `.base` sconosciute tramite una copia grezza interna; uno scrittore terzo dovrebbe fare lo stesso (analizza → cambia solo ciò che intendi → serializza).
 - **I valori cambiano nella nota, non nella `.base`.** Per impostare una cella, modifica il frontmatter della nota. La `.base` decide solo quali note e colonne vengono mostrate.
 - **Non aggiungere chiavi `.base` di primo livello** oltre a `filters` / `formulas` / `properties` / `views`.

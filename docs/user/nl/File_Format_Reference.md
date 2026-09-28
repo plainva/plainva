@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-24
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -140,6 +140,7 @@ Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plai
 | `tasks` | `false` | Sluit de selectievakjes van deze notitie uit van de [Taken-weergave](Tasks.md) |
 | `templateFor` | lijst van wiki-links naar `.base`-bestanden | Wijst een **sjabloon** toe aan de genoemde databases (alleen relevant voor notities in de sjablonenmap) |
 | `pim` | mapping (zie hieronder) | Anker die de notitie koppelt aan een externe afspraak, taak of e-mail |
+| `ai` | mapping `{cloud, web}`, elk `allow` of `deny` | AI-privacyregel van deze notitie (zie hieronder) |
 
 Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
 
@@ -159,6 +160,29 @@ plainva:
 **Wat de herkomst beschrijft.** Voor een taak tellen `uid` en `list` — een `uid` is uniek bij ÉÉN provider, niet over twee heen. `provider` (`google`, `microsoft`, `caldav`) en `identity` (de geverifieerde account-identiteit, waar de provider die aanbiedt) bakenen het verder af, en beide overleven een herverbinding. `account` is de LOKALE account-id: Plainva schrijft hem nog steeds zodat oudere versies het anker kunnen lezen, maar vergelijkt hem niet meer — hij wordt bij elke verbinding opnieuw geslagen, en dat is precies waarom een opnieuw verbonden account zijn taken vroeger een tweede keer importeerde. Schrijf je zelf ankers, zet dan `uid` en `list`; `provider`/`identity` worden aanbevolen, `account` is niet nodig. `recurring: true` voegt Plainva aan een taakanker toe zodra het heeft gezien dat de aanbieder de taak laat terugkomen (afgerond, daarna onder dezelfde `uid` weer open met een latere datum). De sleutel is puur informatief, wordt nooit vergeleken en mag worden verwijderd.
 
 `templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
+
+### AI-privacyregel (`plainva.ai` en `.agent/`)
+
+`plainva: { ai: … }` bepaalt waar de inhoud van de notitie heen mag als er AI bij komt kijken:
+
+- `cloud: deny` — nooit naar een AI-ontvanger in de cloud: geen tekst, titel, bestandsnaam, linktekst of samenvatting ervan. Lokale modellen op het apparaat blijven toegestaan.
+- `web: deny` — nooit in een taak die ook het web gebruikt.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Regels voor hele mappen staan in `.agent/policy.yml`. De eigen waarde van de notitie wint, anders de dichtstbijzijnde mapregel:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` gelden als `allow`/`deny`; elke andere waarde wordt genegeerd en zet nooit iets open. De rest van de verborgen map `.agent/` — skills (`skills/<name>/SKILL.md`), geheugen en gespreksnotities — hoort bij de assistent van Plainva. Plainva volgt een nieuw of gewijzigd bestand daar pas als de gebruiker het op dat apparaat heeft goedgekeurd; een tool zou dus alleen in `.agent/` moeten schrijven als de gebruiker precies dat vraagt.
 
 ### Links
 
@@ -592,6 +616,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 ## Niet-aanraken en veiligheid
 
 - **`.plainva/`** bevat back-ups en interne status. Lees er nooit programmalogica uit en schrijf er nooit naar.
+- **`.agent/`** bevat de AI-regels, skills en het geheugen van Plainva. Wijzig het alleen als de gebruiker precies dat vraagt, en respecteer `cloud: deny` en `web: deny` (zie de AI-privacyregel hierboven).
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
 - **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `views`.

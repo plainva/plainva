@@ -1,6 +1,6 @@
 # Automation & Scripts
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-09-24
 
 Plainva has no plugin system that runs third-party code. Instead the vault itself is the extension interface: your notes are plain Markdown, databases are plain YAML (`.base`), and the [OKF conventions](OKF.md) give every file a predictable structure. Anything that can read and write files — a shell script, a Python program, a CLI tool, a scheduled job or an AI agent — can extend, generate or reorganize your vault without a single Plainva-specific API.
 
@@ -54,8 +54,12 @@ An AI agent with read/write access to a vault folder is exactly the case this de
 1. **Give it the [File Format Reference](File_Format_Reference.md).** It is written for a machine reader: the OKF frontmatter contract, the property→YAML serialization, the full `.base` schema with its hard Obsidian rules, the `index.md` contract and the safety rules — everything an agent needs to edit files without breaking them.
 2. **Point it at the vault folder, not the `.plainva/` folder.** State clearly that `.plainva/` is off-limits.
 3. **Ask for atomic, minimal edits.** An agent that rewrites a whole note to change one property should preserve the rest of the frontmatter and body verbatim.
+4. **Give it the ready-made instructions.** Plainva ships an [`AGENTS.md` template](../../agents/AGENTS.md) for the vault root and a skill in the Agent Skills format ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)); both carry the rules of this page in the form agents read.
+5. **Respect the privacy policy.** Notes marked `plainva: { ai: { cloud: deny } }`, and folders listed like that in `.agent/policy.yml`, must not go to a cloud model — see the [File Format Reference](File_Format_Reference.md).
 
 Because the contract is a document, not a live API, the same instructions work with any assistant, offline or online.
+
+**What a direct write skips.** Plainva notices changes from outside and syncs them, but it makes no backup of the text an agent replaces: the version history only holds what Plainva itself wrote. For larger edits, keep the vault under version control (Git).
 
 ## Safety recap
 
@@ -63,6 +67,7 @@ Because the contract is a document, not a live API, the same instructions work w
 - Write atomically (temp file + rename).
 - Preserve `type`, `okf_version` and unknown keys.
 - Never write into `.plainva/`.
+- Leave `.agent/` alone unless asked; respect `cloud: deny`.
 - `.base`: four top-level keys, named views, single-rooted filters, `plainva:` sub-keys for everything else.
 - The vault is watched — external changes appear in Plainva automatically.
 

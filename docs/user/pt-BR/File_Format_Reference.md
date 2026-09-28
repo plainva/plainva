@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-24
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -140,6 +140,7 @@ Extras específicos do Plainva para notas são agrupados sob uma única chave `p
 | `tasks` | `false` | Exclui as caixas de seleção desta nota da [visualização de Tarefas](Tasks.md) |
 | `templateFor` | lista de links wiki para arquivos `.base` | Atribui um **modelo** aos bancos de dados listados (só faz sentido para notas dentro da pasta de modelos) |
 | `pim` | mapeamento (veja abaixo) | Âncora que vincula a nota a um evento de calendário, tarefa ou e-mail externo |
+| `ai` | mapa `{cloud, web}`, cada um `allow` ou `deny` | Regra de privacidade de IA desta nota (veja abaixo) |
 
 Todos são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
 
@@ -159,6 +160,29 @@ plainva:
 **O que descreve a origem.** Para uma tarefa, o que conta é `uid` e `list` — um `uid` é único em UM provedor, não entre dois. `provider` (`google`, `microsoft`, `caldav`) e `identity` (a identidade verificada da conta, quando o provedor oferece uma) restringem ainda mais, e ambos sobrevivem a uma reconexão. `account` é o id LOCAL da conta: o Plainva ainda o grava para que versões mais antigas consigam ler a âncora, mas não o compara mais — ele é gerado novamente a cada conexão, e é exatamente por isso que uma conta reconectada costumava importar suas tarefas uma segunda vez. Se você mesmo escrever âncoras, defina `uid` e `list`; `provider`/`identity` são recomendados, `account` não é necessário. O Plainva acrescenta `recurring: true` a uma âncora de tarefa assim que vê o provedor trazer a tarefa de volta (concluída e depois reaberta com o mesmo `uid` e uma data posterior). A chave é puramente informativa, nunca é comparada e pode ser removida.
 
 `templateFor` é o contrato de campo da atribuição de modelo (veja [Bancos de Dados (.base)](Databases_Base.md)): em uma nota dentro da pasta de modelos, ele lista os bancos de dados cujo menu **Entrada** mostra o modelo por padrão. Os valores são links wiki completos, incluindo a extensão `.base` — sem qualificação (`"[[Tasks.base]]"` corresponde ao arquivo desse nome em qualquer pasta, portanto continua funcionando mesmo que o arquivo apenas mude de pasta) ou qualificados por caminho (`"[[Projekte/Tasks.base]]"` corresponde exatamente a esse caminho). O Plainva grava links sem qualificação e só os qualifica por caminho quando existem dois arquivos `.base` com o mesmo nome. Um escalar em vez de uma lista é tolerado. Ao criar um item a partir do modelo, `templateFor` — diferente das demais chaves `plainva:` — **não** é copiado para a nova nota.
+
+### Regra de privacidade de IA (`plainva.ai` e `.agent/`)
+
+`plainva: { ai: … }` diz para onde o conteúdo da nota pode ir quando há IA envolvida:
+
+- `cloud: deny` — nunca para um destinatário de IA na nuvem: nem o texto, nem o título, o nome do arquivo, o texto de link ou um resumo. Modelos locais no dispositivo continuam permitidos.
+- `web: deny` — nunca numa tarefa que também use a web.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+As regras para pastas inteiras ficam em `.agent/policy.yml`. O valor da própria nota vence; senão, a regra de pasta mais próxima:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` valem como `allow`/`deny`; qualquer outro valor é ignorado e nunca libera nada. O restante da pasta oculta `.agent/` — skills (`skills/<name>/SKILL.md`), memória e notas de conversa — pertence ao assistente do Plainva. O Plainva só segue um arquivo novo ou alterado ali depois que o usuário o aprova naquele dispositivo; por isso, uma ferramenta só deve escrever em `.agent/` se o usuário pedir exatamente isso.
 
 ### Links
 
@@ -592,6 +616,7 @@ Regras: caminhos fixados não são repetidos em `pinboardOrder`. Cartões que n�
 ## O que não tocar e segurança
 
 - **`.plainva/`** guarda backups e estado interno. Nunca leia lógica de programa dali nem escreva ali.
+- **`.agent/`** guarda as regras de IA, os skills e a memória do Plainva. Altere só se o usuário pedir exatamente isso, e respeite `cloud: deny` e `web: deny` (veja a regra de privacidade de IA acima).
 - **Chaves desconhecidas são sagradas.** Ao reescrever uma `.base` ou uma nota, carregue adiante toda chave que você não pretendia alterar. O próprio Plainva preserva chaves desconhecidas de `.base` por meio de uma cópia bruta interna; um escritor de terceiros deve fazer o mesmo (analisar → alterar apenas o que você pretende → serializar).
 - **Os valores mudam na nota, não na `.base`.** Para definir uma célula, edite o frontmatter da nota. A `.base` só decide quais notas e colunas são exibidas.
 - **Não adicione chaves de nível superior em `.base`** além de `filters` / `formulas` / `properties` / `views`.

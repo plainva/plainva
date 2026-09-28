@@ -39,7 +39,7 @@ Note that the guarantee runs one way: Obsidian can always **open** what Plainva 
 
 ## Automation & scripting
 
-Plainva has no code-plugin sandbox — the vault *is* the interface. Every file is plain Markdown or YAML with an open, documented format, so any script, CLI tool or AI agent can read and write your vault directly and safely, with no Plainva-specific API to learn. See the guide's [Automation & Scripts](docs/user/en/Automation_and_Scripts.md) page and the machine-oriented [file format reference](docs/user/en/File_Format_Reference.md). (A dedicated in-app plugin system remains a separate post-1.0 idea.)
+Plainva has no code-plugin sandbox — the vault *is* the interface. Every file is plain Markdown or YAML with an open, documented format, so any script, CLI tool or AI agent can read and write your vault directly and safely, with no Plainva-specific API to learn. See the guide's [Automation & Scripts](docs/user/en/Automation_and_Scripts.md) page and the machine-oriented [file format reference](docs/user/en/File_Format_Reference.md); for AI agents there is a ready-made [`AGENTS.md` template and skill](docs/agents/). A direct write skips Plainva's pre-write backup — the version history only holds what Plainva wrote — so larger agent edits belong in a vault under Git. (A dedicated in-app plugin system remains a separate post-1.0 idea.)
 
 ## Download & install
 

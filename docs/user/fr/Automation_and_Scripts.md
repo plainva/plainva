@@ -1,6 +1,6 @@
 # Automatisation & scripts
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-09-24
 
 Plainva n'a pas de système de plugins qui exécute du code tiers. C'est le vault lui-même qui sert d'interface d'extension : vos notes sont du Markdown pur, les bases de données sont du YAML pur (`.base`), et les [conventions OKF](OKF.md) donnent à chaque fichier une structure prévisible. Tout ce qui peut lire et écrire des fichiers — un script shell, un programme Python, un outil CLI, une tâche planifiée ou un agent IA — peut étendre, générer ou réorganiser votre vault sans la moindre API propre à Plainva.
 
@@ -54,8 +54,12 @@ Un agent IA disposant d'un accès en lecture/écriture à un dossier de vault es
 1. **Donnez-lui la [Référence du format de fichier](File_Format_Reference.md).** Elle est écrite pour un lecteur machine : le contrat de frontmatter OKF, la sérialisation propriété→YAML, le schéma complet des `.base` avec ses règles strictes d'Obsidian, le contrat `index.md` et les règles de sécurité — tout ce dont un agent a besoin pour modifier des fichiers sans les casser.
 2. **Pointez-le vers le dossier du vault, pas vers le dossier `.plainva/`.** Précisez clairement que `.plainva/` est hors limites.
 3. **Demandez des modifications atomiques et minimales.** Un agent qui réécrit toute une note pour changer une seule propriété devrait préserver le reste du frontmatter et du corps mot pour mot.
+4. **Donnez-lui les instructions toutes prêtes.** Plainva fournit un [modèle `AGENTS.md`](../../agents/AGENTS.md) pour la racine du vault et un skill au format Agent Skills ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)) ; tous deux reprennent les règles de cette page sous la forme que lisent les agents.
+5. **Respectez la règle de confidentialité.** Les notes marquées `plainva: { ai: { cloud: deny } }`, et les dossiers indiqués ainsi dans `.agent/policy.yml`, ne doivent pas aller vers un modèle dans le cloud — voir la [Référence du format de fichiers](File_Format_Reference.md).
 
 Comme le contrat est un document et non une API en direct, les mêmes instructions fonctionnent avec n'importe quel assistant, hors ligne comme en ligne.
+
+**Ce qu'une écriture directe contourne.** Plainva remarque les changements faits de l'extérieur et les synchronise, mais ne sauvegarde pas le texte qu'un agent remplace : l'historique des versions ne contient que ce que Plainva a écrit lui-même. Pour des modifications importantes, gardez le vault sous gestion de versions (Git).
 
 ## Récapitulatif de sécurité
 
@@ -63,6 +67,7 @@ Comme le contrat est un document et non une API en direct, les mêmes instructio
 - Écrire de manière atomique (fichier temporaire + renommage).
 - Préserver `type`, `okf_version` et les clés inconnues.
 - Ne jamais écrire dans `.plainva/`.
+- Ne touchez pas à `.agent/` sauf demande ; respectez `cloud: deny`.
 - `.base` : quatre clés de premier niveau, vues nommées, filtres à racine unique, sous-clés `plainva:` pour tout le reste.
 - Le vault est surveillé — les changements externes apparaissent automatiquement dans Plainva.
 

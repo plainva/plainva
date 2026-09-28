@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-24
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -140,6 +140,7 @@ Plainva-specific note extras are bundled under a single `plainva:` key so other 
 | `tasks` | `false` | Exclude this note's checkboxes from the [Tasks view](Tasks.md) |
 | `templateFor` | list of wiki links to `.base` files | Assigns a **template** to the listed databases (meaningful only for notes inside the template folder) |
 | `pim` | mapping (see below) | Anchor tying the note to an external calendar event, task or email |
+| `ai` | mapping `{cloud, web}`, each `allow` or `deny` | AI privacy policy of this note (see below) |
 
 All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
 
@@ -159,6 +160,29 @@ plainva:
 **What describes the origin.** For a task, `uid` and `list` are what count — a `uid` is unique at ONE provider, not across two. `provider` (`google`, `microsoft`, `caldav`) and `identity` (the verified account identity, where the provider offers one) narrow it further, and both survive a reconnect. `account` is the LOCAL account id: Plainva still writes it so older versions can read the anchor, but no longer compares it — it is minted fresh on every connect, which is precisely why a reconnected account used to import its tasks a second time. If you write anchors yourself, set `uid` and `list`; `provider`/`identity` are recommended, `account` is not needed. `recurring: true` is added to a task anchor once Plainva has seen the provider bring the task round again (done, then open again under the same `uid` with a later date). The key is purely informational, is never compared, and may be removed.
 
 `templateFor` is the field contract of the template assignment (see [databases](Databases_Base.md)): on a note inside the template folder it lists the databases whose **Entry** menu shows the template by default. Values are whole wiki links including the `.base` extension — bare (`"[[Tasks.base]]"` matches the file of that name in any folder, so it survives pure folder moves) or path-qualified (`"[[Projekte/Tasks.base]]"` matches exactly that path). Plainva writes bare links and only qualifies when two same-named `.base` files exist. A scalar instead of a list is tolerated. When an entry is created from the template, `templateFor` — unlike the other `plainva:` keys — is **not** copied into the new note.
+
+### AI privacy policy (`plainva.ai` and `.agent/`)
+
+`plainva: { ai: … }` says where the note's content may go when AI is involved:
+
+- `cloud: deny` — never to a cloud AI recipient: no text, title, file name, link text or summary of it. Local models on the device stay allowed.
+- `web: deny` — never in a task that also uses web access.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Rules for whole folders live in `.agent/policy.yml`. The note's own value wins, otherwise the nearest folder rule:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` are read as `allow`/`deny`; any other value is ignored and never widens anything. The rest of the hidden `.agent/` folder — skills (`skills/<name>/SKILL.md`), memory and conversation notes — belongs to Plainva's assistant. Plainva does not follow a file there that is new or changed until the user has approved it on that device, so a tool should not write into `.agent/` unless the user asked for exactly that.
 
 ### Links
 
@@ -592,6 +616,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 ## Do-not-touch and safety
 
 - **`.plainva/`** holds backups and internal state. Never read program logic into it or write to it.
+- **`.agent/`** holds Plainva's AI policy, skills and memory. Change it only when the user asks for exactly that, and respect `cloud: deny` and `web: deny` (see the AI privacy policy above).
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
 - **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `views`.
