@@ -1,5 +1,5 @@
 import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, trimEndChars } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
@@ -43,7 +43,7 @@ type FsLimiter = ConcurrencyLimiter;
  * back to a full reconcile when this returns null, which is fail-safe.
  */
 export function relativizeWatchPath(rootPath: string, absolutePath: string): string | null {
-  const strip = (s: string) => s.replace(/^\\\\\?\\/, "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const strip = (s: string) => trimEndChars(s.replace(/^\\\\\?\\/, "").replace(/\\/g, "/"), "/");
   const root = strip(rootPath);
   const full = strip(absolutePath);
   if (!root) return null;

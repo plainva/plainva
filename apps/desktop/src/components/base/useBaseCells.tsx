@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { upsertFrontmatterKeys, wikiTargetForPath } from "@plainva/core";
+import { upsertFrontmatterKeys, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { Button, chipClass, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
@@ -369,7 +369,7 @@ export function useBaseCells({
         folder = baseDir;
       }
     }
-    const path = (folder ? folder.replace(/\/+$/, "") + "/" : "") + safeTitle + ".md";
+    const path = (folder ? trimEndChars(folder, "/") + "/" : "") + safeTitle + ".md";
     try {
       await vaultAdapter.readTextFile(path);
       return safeTitle; // already exists — just link it

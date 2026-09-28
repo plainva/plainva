@@ -10,6 +10,8 @@
  * active-flags into the note.
  */
 
+import { isSimpleEmail } from "@plainva/core";
+
 export type PropertyType =
   | "text"
   | "number"
@@ -56,7 +58,6 @@ export function isPlainString(t: PropertyType): boolean {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DATETIME_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
 const URL_RE = /^https?:\/\/\S+$/i;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WIKILINK_RE = /^\[\[.+\]\]$/;
 
 /**
@@ -80,7 +81,9 @@ export function inferType(value: unknown, key: string): PropertyType {
     if (DATETIME_RE.test(v)) return "datetime";
     if (WIKILINK_RE.test(v)) return "link";
     if (URL_RE.test(v)) return "url";
-    if (EMAIL_RE.test(v)) return "email";
+    // `^[^\s@]+@[^\s@]+\.[^\s@]+$` in one pass (plan Befunde 24.09., E6): the
+    // pattern tried every dot after the `@` against both sides of it.
+    if (isSimpleEmail(v)) return "email";
   }
   return "text";
 }

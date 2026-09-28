@@ -21,12 +21,121 @@ import { isExcludedFromOkfScan, isReservedOkfName } from "./okf-conversion.js";
 export const OKF_ROOT_INDEX_PATH = "index.md";
 
 const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+
+const WHITESPACE = /\s/;
+const isWhitespace = (ch: string | undefined): boolean => ch !== undefined && WHITESPACE.test(ch);
+const isSpaceOrTab = (ch: string | undefined): boolean => ch === " " || ch === "\t";
+/** Where `^` and `$` stand under the `m` flag. */
+const isLineTerminator = (ch: string | undefined): boolean => ch === "\n" || ch === "\r" || ch === "\u2028" || ch === "\u2029";
+const DECL_KEY = "okf_version";
+
 /**
  * The declaration line inside the root frontmatter. Accepts the quoted form
  * Plainva writes, an unquoted scalar (YAML would read `0.1` as a number) and a
  * trailing `# comment`, which survives the rewrite.
  */
-const DECL_LINE_RE = /^([ \t]*okf_version[ \t]*:)[ \t]*(?:"([^"\r\n]*)"|'([^'\r\n]*)'|([^#\r\n]*?))[ \t]*(#[^\r\n]*)?$/m;
+interface DeclarationLine {
+  /** The span the rewrite replaces: from the line start to the end of the value or comment. */
+  index: number;
+  end: number;
+  /** Indentation, key and colon. */
+  key: string;
+  /** The value — exactly one of the three is set, by how it was written. */
+  doubleQuoted?: string;
+  singleQuoted?: string;
+  plain?: string;
+  comment?: string;
+}
+
+/** End of a `[^\r\n]*` run: the other line terminators belong to it. */
+function crlfEnd(text: string, from: number): number {
+  while (from < text.length && text[from] !== "\r" && text[from] !== "\n") from++;
+  return from;
+}
+
+/** `[ \t]*(#[^\r\n]*)?$` from `from`: where it ends and the comment, or null. */
+function declarationTail(block: string, from: number): { end: number; comment?: string } | null {
+  let at = from;
+  while (isSpaceOrTab(block[at])) at++;
+  if (block[at] === "#") {
+    const end = crlfEnd(block, at);
+    return { end, comment: block.slice(at, end) };
+  }
+  return at === block.length || isLineTerminator(block[at]) ? { end: at } : null;
+}
+
+/**
+ * The first declaration line of a frontmatter block, read by hand (plan
+ * Befunde 24.09., E6). The pattern it replaces —
+ * `^([ \t]*okf_version[ \t]*:)[ \t]*(?:"…"|'…'|([^#\r\n]*?))[ \t]*(#[^\r\n]*)?$`
+ * under the `m` flag — let a plain value and the blanks after it share a run
+ * of blanks, so a long run inside the value made the engine retry from every
+ * blank: quadratic on text from a synced file.
+ *
+ * The reading is the old one: a quoted value counts only when the rest of the
+ * line is blanks and an optional comment; otherwise the value is plain — it
+ * starts after the blanks behind the colon and runs to the first `#` or line
+ * terminator, without its trailing blanks. The comment runs to the next `\r`
+ * or `\n`.
+ */
+function findDeclarationLine(block: string): DeclarationLine | null {
+  const n = block.length;
+  for (let lineStart = 0; lineStart <= n;) {
+    let at = lineStart;
+    while (isSpaceOrTab(block[at])) at++;
+    if (block.startsWith(DECL_KEY, at)) {
+      let colon = at + DECL_KEY.length;
+      while (isSpaceOrTab(block[colon])) colon++;
+      if (block[colon] === ":") {
+        const key = block.slice(lineStart, colon + 1);
+        let value = colon + 1;
+        while (isSpaceOrTab(block[value])) value++;
+        const quote = block[value];
+        if (quote === "\"" || quote === "'") {
+          let close = value + 1;
+          while (close < n && block[close] !== quote && block[close] !== "\r" && block[close] !== "\n") close++;
+          const tail = block[close] === quote ? declarationTail(block, close + 1) : null;
+          if (tail) {
+            const quoted = block.slice(value + 1, close);
+            return { index: lineStart, end: tail.end, key, ...(quote === "\"" ? { doubleQuoted: quoted } : { singleQuoted: quoted }), comment: tail.comment };
+          }
+        }
+        let stop = value;
+        while (stop < n && block[stop] !== "#" && !isLineTerminator(block[stop])) stop++;
+        let valueEnd = stop;
+        while (valueEnd > value && isSpaceOrTab(block[valueEnd - 1])) valueEnd--;
+        const tail = declarationTail(block, stop)!;
+        return { index: lineStart, end: tail.end, key, plain: block.slice(value, valueEnd), comment: tail.comment };
+      }
+    }
+    while (at < n && !isLineTerminator(block[at])) at++;
+    lineStart = at + 1;
+  }
+  return null;
+}
+
+/**
+ * Whether a frontmatter block carries an `okf_version` key at the start of a
+ * line — blank lines and any whitespace before it allowed, like
+ * `/(^|\r?\n)\s*okf_version\s*:/` — in one pass (plan Befunde 24.09., E6).
+ * The pattern retried its whitespace from every newline of a blank run.
+ * Looser than `readRootOkfDeclaration`: an empty value counts, too.
+ */
+export function hasOkfVersionKey(frontmatter: string): boolean {
+  // Whether the text since the start, or since the last `\n`, is whitespace.
+  let lineStart = true;
+  for (let i = 0; i < frontmatter.length; i++) {
+    if (lineStart && frontmatter.startsWith(DECL_KEY, i)) {
+      let colon = i + DECL_KEY.length;
+      while (isWhitespace(frontmatter[colon])) colon++;
+      if (frontmatter[colon] === ":") return true;
+    }
+    const ch = frontmatter[i];
+    if (ch === "\n") lineStart = true;
+    else if (!isWhitespace(ch)) lineStart = false;
+  }
+  return false;
+}
 
 /**
  * The bundle version a root `index.md` declares, or null when it declares
@@ -36,9 +145,9 @@ const DECL_LINE_RE = /^([ \t]*okf_version[ \t]*:)[ \t]*(?:"([^"\r\n]*)"|'([^'\r\
 export function readRootOkfDeclaration(content: string): string | null {
   const fm = content.match(FM_RE);
   if (!fm) return null;
-  const m = fm[1].match(DECL_LINE_RE);
+  const m = findDeclarationLine(fm[1]);
   if (!m) return null;
-  const value = (m[2] ?? m[3] ?? m[4] ?? "").trim();
+  const value = (m.doubleQuoted ?? m.singleQuoted ?? m.plain ?? "").trim();
   return value === "" ? null : value;
 }
 
@@ -62,9 +171,10 @@ export function bumpRootOkfDeclaration(content: string, version: string = OKF_VE
   if (from === null || from === version) return { content, changed: false, from };
   const fm = content.match(FM_RE)!;
   const block = fm[1];
-  const newBlock = block.replace(DECL_LINE_RE, (_all, key: string, _dq, _sq, _plain, comment?: string) =>
-    `${key} "${version}"${comment ? ` ${comment}` : ""}`
-  );
+  const decl = findDeclarationLine(block);
+  const newBlock = decl
+    ? block.slice(0, decl.index) + `${decl.key} "${version}"${decl.comment ? ` ${decl.comment}` : ""}` + block.slice(decl.end)
+    : block;
   const start = fm.index! + fm[0].indexOf(block);
   const next = content.slice(0, start) + newBlock + content.slice(start + block.length);
   return { content: next, changed: next !== content, from };

@@ -4,6 +4,7 @@ import { parseDavListing } from "./xmlListing.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence } from "./ISyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
+import { trimChars, trimEndChars } from "../textScan.js";
 
 export interface WebDavCredentials {
   url: string;
@@ -256,7 +257,7 @@ export class WebDavSyncTarget implements ISyncTarget {
    * Depth: 1; a 404 (folder does not exist yet) is an empty level, not an error.
    */
   public async listFolders(path: string): Promise<string[]> {
-    const rel = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const rel = trimChars(path.replace(/\\/g, "/"), "/");
     const url = rel ? this.urlForPath(rel + "/") : this.creds.url;
     const res = await this.request("PROPFIND", url, {
       headers: { ...this.headers, "Depth": "1" }
@@ -270,7 +271,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     for (const resp of this.parseListing(await res.text())) {
       if (!resp.href || !resp.isCollection) continue;
       // A Depth: 1 answer lists the collection itself first — skip it.
-      const childRel = this.relativeHref(resp.href).replace(/\/+$/, "");
+      const childRel = trimEndChars(this.relativeHref(resp.href), "/");
       if (!childRel || childRel === rel) continue;
       const name = childRel.split("/").pop() ?? childRel;
       if (WebDavSyncTarget.SKIPPED_COLLECTIONS.has(name)) continue;
@@ -285,7 +286,7 @@ export class WebDavSyncTarget implements ISyncTarget {
    * collection already exists (same tolerance as ensureDir).
    */
   public async createFolder(path: string): Promise<void> {
-    const rel = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const rel = trimChars(path.replace(/\\/g, "/"), "/");
     if (!rel) return;
     let currentPath = "";
     for (const part of rel.split("/").filter((p) => p.length > 0)) {
@@ -350,7 +351,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     for (const resp of responses) {
       if (!resp.href) continue;
       if (resp.isCollection) {
-        const rel = this.relativeHref(resp.href).replace(/\/+$/, "");
+        const rel = trimEndChars(this.relativeHref(resp.href), "/");
         if (
           rel &&
           !rel.includes(".CONFLICT") &&
@@ -478,7 +479,7 @@ export class WebDavSyncTarget implements ISyncTarget {
         // A Depth: 1 answer lists the collection itself first — only true
         // children go back into the queue (and into the result, so pull()
         // reports them for the empty-folder sync, 2026-07-17).
-        const childRel = this.relativeHref(resp.href).replace(/\/+$/, "");
+        const childRel = trimEndChars(this.relativeHref(resp.href), "/");
         if (!childRel || childRel === rel) continue;
         const name = childRel.split("/").pop() ?? childRel;
         if (WebDavSyncTarget.SKIPPED_COLLECTIONS.has(name)) continue;

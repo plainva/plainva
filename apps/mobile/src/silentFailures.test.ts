@@ -109,7 +109,9 @@ describe("saving with .eml saves the .eml", () => {
     // the note already existed.
     expect(text, "the .eml must not hang on res.created").not.toMatch(/mode === "eml" && res\.created/);
     expect(text).toMatch(/if \(mode === "eml"\) \{/);
-    expect(text, "an already linked raw copy must not be written twice").toMatch(/\\.eml\\]\\]/);
+    // Read by the shared linear reader since plan Befunde 24.09., E6 (was an
+    // inline `[[….eml]]` pattern, quadratic on a run of "[").
+    expect(text, "an already linked raw copy must not be written twice").toMatch(/if \(!hasEmlWikiLink\(existing\)\)/);
   });
 
   it("says that the raw copy was added", () => {

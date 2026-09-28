@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Per-vault filename for the SQLite index DB in the OS app-data dir (WP5 5b).
  *
@@ -10,7 +11,7 @@
 
 /** SHA-256 of the slash/case-normalized vault path, first 16 hex chars. */
 export async function hashVaultPath(vaultPath: string): Promise<string> {
-  const norm = vaultPath.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const norm = trimEndChars(vaultPath.replace(/\\/g, "/"), "/").toLowerCase();
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(norm));
   return Array.from(new Uint8Array(digest))
     .slice(0, 8)
@@ -26,6 +27,6 @@ export async function hashVaultPath(vaultPath: string): Promise<string> {
 export async function indexDbFileName(vaultPath: string): Promise<string> {
   const hash = await hashVaultPath(vaultPath);
   const base =
-    (vaultPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || "vault").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 40);
+    (trimEndChars(vaultPath, "\\/").split(/[\\/]/).pop() || "vault").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 40);
   return `${base}-${hash}.db`;
 }

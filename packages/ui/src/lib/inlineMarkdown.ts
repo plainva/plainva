@@ -1,4 +1,4 @@
-import { findInlineTags, readHtmlCheckbox } from "@plainva/core";
+import { bracketLinkMatcher, findInlineTags, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { splitLinkAnchor } from "./linkAnchor";
 import { tagColorAttrs } from "./tagColor";
@@ -33,32 +33,158 @@ export interface InlineLinkHandlers {
   onOpenTag?: (tag: string) => void;
 }
 
-// Alternation order matters: escapes and comments first, *** before ** before *,
-// __ before _. Case-insensitivity is only relevant for <br>/https.
-const TOKEN_SRC = [
-  /\\[\\`*_~=[\]()<>|#+.!{}-]/.source, // backslash escape
-  /<!--[\s\S]*?-->/.source, // HTML comment (hidden, like the read view)
-  /<br\s*\/?>/.source, // <br>, <br/>, <br />
-  // GFM has no spelling for a task box inside a table cell, so people write
-  // the HTML tag there and Obsidian draws it (finding 2026-09-22). Exactly
-  // this one element with exactly these two attributes; `readHtmlCheckbox`
-  // decides, so the renderer and the writer never disagree.
-  /<input\b[^>]*>/.source, // <input type="checkbox">
-  /`[^`\n]+`/.source, // inline code
-  /!?\[\[[^\]\n]+?\]\]/.source, // wiki link (embed "!" tolerated)
-  /!?\[[^\]\n]*?\]\([^)\n]+?\)/.source, // markdown link (image "!" tolerated)
-  /https?:\/\/[^\s<>]+/.source, // bare URL
-  /\*\*\*[^\n]+?\*\*\*/.source, // bold italic
-  /\*\*[^\n]+?\*\*/.source, // bold
-  /\*[^*\n]+\*/.source, // italic (*)
-  /__[^\n]+?__/.source, // bold (__)
-  /_[^_\n]+_/.source, // italic (_), intraword guarded below
-  /~~[^\n]+?~~/.source, // strikethrough
-  /==[^=\n]+?==/.source, // ==highlight==
-].join("|");
+// The token grammar, one alternative per line. Order matters: at every
+// position they are tried top to bottom and the first that matches is the
+// token — escapes and comments first, *** before ** before *, __ before _.
+// Case-insensitivity (the old pattern's `i` flag) is only relevant for
+// <br>/<input>/https.
+//
+//   \\[\\`*_~=[\]()<>|#+.!{}-]    backslash escape
+//   <!--[\s\S]*?-->                HTML comment (hidden, like the read view)
+//   <br\s*\/?>                     <br>, <br/>, <br />
+//   <input\b[^>]*>                 <input type="checkbox">
+//   `[^`\n]+`                      inline code
+//   !?\[\[[^\]\n]+?\]\]            wiki link (embed "!" tolerated)
+//   !?\[[^\]\n]*?\]\([^)\n]+?\)    markdown link (image "!" tolerated)
+//   https?:\/\/[^\s<>]+            bare URL
+//   \*\*\*[^\n]+?\*\*\*            bold italic
+//   \*\*[^\n]+?\*\*                bold
+//   \*[^*\n]+\*                    italic (*)
+//   __[^\n]+?__                    bold (__)
+//   _[^_\n]+_                      italic (_), intraword guarded below
+//   ~~[^\n]+?~~                    strikethrough
+//   ==[^=\n]+?==                   ==highlight==
+//
+// GFM has no spelling for a task box inside a table cell, so people write the
+// HTML tag there and Obsidian draws it (finding 2026-09-22). Exactly this one
+// element with exactly these two attributes; `readHtmlCheckbox` decides, so
+// the renderer and the writer never disagree.
+//
+// The grammar used to be one combined pattern, which looked for each closer
+// again from every opener: a cell with a long run of `[` or `*` and no closer
+// behind it took quadratic time (plan Befunde 24.09., E6). `tokenSpans` reads
+// it by hand instead, alternative for alternative; every alternative asks its
+// own cursor for its closer, and a cursor reads each character once.
 
-const URL_TRAILING_PUNCT_RE = /[).,;:!?"']+$/;
+const ESCAPABLE = "\\`*_~=[]()<>|#+.!{}-";
+const SPACE = /\s/;
+const WORD = /[A-Za-z0-9_]/;
+const URL_TRAILING_PUNCT = ").,;:!?\"'";
 const MAX_DEPTH = 4;
+
+/** `word` (lowercase ASCII letters) at `at` in any case — what the `i` flag folded, and nothing else. */
+function spells(text: string, at: number, word: string): boolean {
+  for (let k = 0; k < word.length; k++) if ((text.charCodeAt(at + k) | 0x20) !== word.charCodeAt(k)) return false;
+  return true;
+}
+
+/** Every token of `text`, left to right, as `[index, end)`. */
+function* tokenSpans(text: string): Generator<{ index: number; end: number }> {
+  const n = text.length;
+  const next = (hit: (i: number) => boolean) => nextWhere(n, hit);
+  const seq = (s: string) => next((i) => text.startsWith(s, i));
+  const either = (a: string, b: string) => next((i) => text[i] === a || text[i] === b);
+  const commentEnd = seq("-->");
+  const inputEnd = next((i) => text[i] === ">");
+  const codeEnd = either("`", "\n");
+  const wikiAt = wikiLinkMatcher(text, { bang: true, innerStops: "\n" });
+  const linkAt = bracketLinkMatcher(text, { bang: true, labelStops: "\n", destinationStops: "\n", destinationMin: 1 });
+  const lineEnd = next((i) => text[i] === "\n");
+  const boldItalicEnd = seq("***");
+  const boldEnd = seq("**");
+  const italicEnd = either("*", "\n");
+  const underBoldEnd = seq("__");
+  const underItalicEnd = either("_", "\n");
+  const strikeEnd = seq("~~");
+  const highlightEnd = either("=", "\n");
+
+  /**
+   * `open[^\n]+?close` with `close` as long as `open`: the first closer at
+   * least one character in, before the line ends. The opener holds no line
+   * break, so the line ending after it is the one ending at `at`.
+   */
+  const lazyToCloser = (at: number, length: number, closer: (from: number) => number): number => {
+    const close = closer(at + length + 1);
+    return close < lineEnd(at) ? close + length : -1;
+  };
+  /** `open[^open\n]+open` for a one-character marker: the first marker or line break decides. */
+  const runToMarker = (at: number, stop: (from: number) => number): number => {
+    const close = stop(at + 1);
+    return close > at + 1 && text[close] === text[at] ? close + 1 : -1;
+  };
+
+  const tokenEnd = (at: number): number => {
+    switch (text[at]) {
+      case "\\":
+        return at + 1 < n && ESCAPABLE.includes(text[at + 1]) ? at + 2 : -1;
+      case "<": {
+        if (text.startsWith("<!--", at)) {
+          const close = commentEnd(at + 4);
+          if (close < n) return close + 3;
+        }
+        if (spells(text, at + 1, "br")) {
+          let end = at + 3;
+          while (end < n && SPACE.test(text[end])) end++;
+          if (text[end] === "/" && text[end + 1] === ">") return end + 2;
+          if (text[end] === ">") return end + 1;
+        }
+        if (spells(text, at + 1, "input") && !(at + 6 < n && WORD.test(text[at + 6]))) {
+          const close = inputEnd(at + 6);
+          if (close < n) return close + 1;
+        }
+        return -1;
+      }
+      case "`":
+        return runToMarker(at, codeEnd);
+      case "!":
+      case "[":
+        return (wikiAt(at) ?? linkAt(at))?.end ?? -1;
+      case "h":
+      case "H": {
+        if (!spells(text, at, "http")) return -1;
+        let scheme = at + 4;
+        if ((text.charCodeAt(scheme) | 0x20) === 0x73) scheme++; // "s"
+        if (!text.startsWith("://", scheme)) return -1;
+        let end = scheme + 3;
+        while (end < n && !SPACE.test(text[end]) && text[end] !== "<" && text[end] !== ">") end++;
+        return end > scheme + 3 ? end : -1;
+      }
+      case "*":
+        if (text.startsWith("***", at)) {
+          const end = lazyToCloser(at, 3, boldItalicEnd);
+          if (end >= 0) return end;
+        }
+        if (text[at + 1] === "*") {
+          const end = lazyToCloser(at, 2, boldEnd);
+          if (end >= 0) return end;
+        }
+        return runToMarker(at, italicEnd);
+      case "_":
+        if (text[at + 1] === "_") {
+          const end = lazyToCloser(at, 2, underBoldEnd);
+          if (end >= 0) return end;
+        }
+        return runToMarker(at, underItalicEnd);
+      case "~":
+        return text[at + 1] === "~" ? lazyToCloser(at, 2, strikeEnd) : -1;
+      case "=": {
+        if (text[at + 1] !== "=") return -1;
+        const close = highlightEnd(at + 2);
+        return close > at + 2 && text[close] === "=" && text[close + 1] === "=" ? close + 2 : -1;
+      }
+      default:
+        return -1;
+    }
+  };
+
+  for (let at = 0; at < n; ) {
+    const end = tokenEnd(at);
+    if (end > at) {
+      yield { index: at, end };
+      at = end;
+    } else at++;
+  }
+}
 
 export function parseInlineMarkdown(text: string): InlineNode[] {
   return parseRange(text, 0);
@@ -77,13 +203,11 @@ function parseRange(text: string, depth: number): InlineNode[] {
     pushText(out, text);
     return out;
   }
-  const re = new RegExp(TOKEN_SRC, "gi");
   let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    const tok = m[0];
-    if (m.index > last) pushText(out, text.slice(last, m.index));
-    last = m.index + tok.length;
+  for (const { index, end } of tokenSpans(text)) {
+    const tok = text.slice(index, end);
+    if (index > last) pushText(out, text.slice(last, index));
+    last = end;
 
     if (tok.startsWith("\\")) {
       pushText(out, tok.slice(1));
@@ -116,7 +240,7 @@ function parseRange(text: string, depth: number): InlineNode[] {
         pushText(out, tok);
       }
     } else if (/^https?:/i.test(tok)) {
-      const trimmed = tok.replace(URL_TRAILING_PUNCT_RE, "");
+      const trimmed = trimEndChars(tok, URL_TRAILING_PUNCT);
       out.push({ kind: "url", href: trimmed });
       pushText(out, tok.slice(trimmed.length));
     } else if (tok.startsWith("***")) {
@@ -127,7 +251,7 @@ function parseRange(text: string, depth: number): InlineNode[] {
       out.push({ kind: "em", children: parseRange(tok.slice(1, -1), depth + 1) });
     } else if (tok.startsWith("__") || tok.startsWith("_")) {
       // CommonMark: intraword underscores never open/close emphasis.
-      const before = text[m.index - 1];
+      const before = text[index - 1];
       const after = text[last];
       if ((before && /\w/.test(before)) || (after && /\w/.test(after))) {
         pushText(out, tok);

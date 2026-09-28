@@ -1,4 +1,5 @@
 import {
+  hasOkfVersionKey,
   isInternalPath,
   isPlainvaManagedIndex,
   isReservedOkfName,
@@ -97,7 +98,7 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
     try {
       const rootIndex = await deps.adapter.readTextFile("index.md");
       const fm = rootIndex.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      value = !!fm && /(^|\r?\n)\s*okf_version\s*:/.test(fm[1]);
+      value = !!fm && hasOkfVersionKey(fm[1]);
     } catch {
       value = false;
     }

@@ -1,4 +1,4 @@
-import { isSimpleEmail } from "@plainva/core";
+import { isSimpleEmail, trimEndChars } from "@plainva/core";
 import {
   normalizeVerifiedProviderIdentity,
   verifiedProviderIdentityKey,
@@ -199,7 +199,7 @@ export function nextcloudEndpoints(baseUrl: string, user: string): { files: stri
   } catch {
     return null;
   }
-  const basePath = parsed.pathname.replace(/\/remote\.php\/.*$/i, "").replace(/\/+$/, "");
+  const basePath = trimEndChars(parsed.pathname.replace(/\/remote\.php\/.*$/i, ""), "/");
   const base = `${parsed.origin}${basePath}`;
   return {
     files: `${base}/remote.php/dav/files/${encodeURIComponent(user.trim())}/`,

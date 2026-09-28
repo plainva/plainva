@@ -7,6 +7,7 @@ import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { signS3Request, sha256Hex, encodeS3Key, rfc3986Encode } from "./sigv4.js";
 import { parseListingRoot } from "./xmlListing.js";
+import { trimChars } from "../textScan.js";
 
 /**
  * Credentials/config for an S3-compatible object store (AWS S3, Cloudflare R2,
@@ -105,7 +106,7 @@ export class S3SyncTarget implements ISyncTarget {
           }) as any));
     this.endpointUrl = new URL(creds.endpoint);
     this.pathStyle = creds.forcePathStyle !== false;
-    this.prefix = (creds.prefix ?? "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    this.prefix = trimChars((creds.prefix ?? "").replace(/\\/g, "/"), "/");
   }
 
   /** Host header value (includes a non-default port, e.g. MinIO on :9000). */
@@ -263,7 +264,7 @@ export class S3SyncTarget implements ISyncTarget {
    * picker's job is to CHOOSE that prefix.
    */
   public async listFolders(path: string): Promise<string[]> {
-    const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const clean = trimChars(path.replace(/\\/g, "/"), "/");
     const rawPrefix = clean ? `${clean}/` : "";
     const names: string[] = [];
     const seen = new Set<string>();
@@ -293,7 +294,7 @@ export class S3SyncTarget implements ISyncTarget {
    * skips such markers.
    */
   public async createFolder(path: string): Promise<void> {
-    const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const clean = trimChars(path.replace(/\\/g, "/"), "/");
     if (!clean) return;
     const res = await this.signedFetch("PUT", encodeS3Key(`${clean}/`), { body: new Uint8Array() });
     if (!res.ok) throw syncHttpError(`S3 folder create failed: ${res.status} ${res.statusText}`, res);

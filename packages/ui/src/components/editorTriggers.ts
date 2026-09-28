@@ -40,6 +40,22 @@ export interface EditorTriggerDeps {
 
 type TriggerCompletion = Completion & { description?: string };
 
+/**
+ * The `[[query` the caret stands in: `context.matchBefore(/\[\[[^\]\n]*$/)`,
+ * read without the pattern (plan Befunde 24.09., E6), which tried every `[` of
+ * the window and ran each to the caret. The query is bounded by the last `]`
+ * (or line break) before the caret and opened by the first `[[` after it. The
+ * window is matchBefore's: the line, at most 250 characters back.
+ */
+export function wikiQueryBefore(context: CompletionContext): { from: number; to: number; text: string } | null {
+  const line = context.state.doc.lineAt(context.pos);
+  const start = Math.max(line.from, context.pos - 250);
+  const before = line.text.slice(start - line.from, context.pos - line.from);
+  const bound = Math.max(before.lastIndexOf("]"), before.lastIndexOf("\n"));
+  const found = before.indexOf("[[", bound + 1);
+  return found < 0 ? null : { from: start + found, to: context.pos, text: before.slice(found) };
+}
+
 // `[[` -> live note search; selection inserts `[[Title]]`.
 //
 // Attachments are offered too since issue #56, but SECOND (E4): notes keep the
@@ -49,7 +65,7 @@ type TriggerCompletion = Completion & { description?: string };
 // would not help you write.
 export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
   return async (context: CompletionContext): Promise<CompletionResult | null> => {
-    const word = context.matchBefore(/\[\[[^\]\n]*$/);
+    const word = wikiQueryBefore(context);
     if (!word) return null;
     // A leading "!" means an embed (`![[`) — handled by embedCompletionSource.
     if (context.state.sliceDoc(Math.max(0, word.from - 1), word.from) === "!") return null;

@@ -15,7 +15,7 @@
  * verbatim (never inline-stripped). Pure and unit-testable.
  */
 
-import { readMarkdownListItem } from "@plainva/core";
+import { peelBlockquotes, readAtxHeading, readMarkdownListItem } from "@plainva/core";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
 
 /** Flatten parsed inline nodes to plain text, dropping every formatting mark. */
@@ -58,11 +58,9 @@ function inlineToPlainText(line: string): string {
 }
 
 const OPEN_FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
-const ATX_RE = /^\s{0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
 // Thematic break (---, ***, ___) and setext underlines (===) — a whole line of
 // one repeated mark. Dropped from the plain-text output.
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
-const BLOCKQUOTE_RE = /^\s{0,3}((?:>[ \t]?)+)(.*)$/;
 
 function isTableSeparatorRow(line: string): boolean {
   const s = line.trim();
@@ -84,18 +82,26 @@ function stripTableRow(line: string): string {
 }
 
 function stripBlockLine(line: string): string | null {
+  // Drop the '>' markers; the quoted content may itself be a heading/list, or
+  // another quote. All levels come off in one pass (plan Befunde 24.09., E6):
+  // `>  >  > …` nests once per marker, and reading them one level at a time
+  // overflowed the stack on a long line of them. A line that starts as a quote
+  // is never a rule, a table separator or a heading, so peeling first changes
+  // nothing. A dropped line inside a quote reads as "".
+  const { depth, text } = peelBlockquotes(line);
+  const inner = stripQuotedLine(text);
+  return inner === null && depth > 0 ? "" : inner;
+}
+
+/** One block line that is no quote (any quote markers are already off). */
+function stripQuotedLine(line: string): string | null {
   if (THEMATIC_BREAK_RE.test(line)) return null; // rule / setext underline — drop
   if (isTableSeparatorRow(line)) return null; // table header separator — drop
 
-  const atx = ATX_RE.exec(line);
-  if (atx) return inlineToPlainText(atx[2]);
-
-  const bq = BLOCKQUOTE_RE.exec(line);
-  if (bq) {
-    // Drop the '>' markers; the quoted content may itself be a heading/list.
-    const inner = stripBlockLine(bq[2]);
-    return inner == null ? "" : inner;
-  }
+  // Heading lines come from the shared reader (plan Befunde 24.09., E6): the
+  // same grammar as the HTML copy, in one pass.
+  const atx = readAtxHeading(line);
+  if (atx) return inlineToPlainText(atx.text);
 
   // The shared list reader (plan Befunde 24.09., E6): the same grammar as the
   // HTML copy and the editor, one pass instead of three patterns.

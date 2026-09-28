@@ -1,4 +1,4 @@
-import { trimEndChars } from "@plainva/core";
+import { trimEndChars, trimChars } from "@plainva/core";
 import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
@@ -1118,7 +1118,7 @@ export function BaseViewer({
     const dlg = folderDialog;
     if (!dlg || !dbConfig || !vaultAdapter) return;
     setFolderDialog(null);
-    const clean = folder.replace(/^\/+|\/+$/g, "").trim();
+    const clean = trimChars(folder, "/").trim();
     if (!clean) return;
     // The folder must exist before a note can land in it; an already existing
     // folder counts as success (same contract as the source editor).

@@ -25,6 +25,7 @@ import { ConnectRunBanner } from "./components/ConnectRunBanner";
 import { rememberConnectSecrets } from "./services/connectSecrets";
 import { loadConnectQueue, runServices } from "./services/connectQueue";
 import { runConsentScope } from "./services/connectConsent";
+import { trimEndChars } from "@plainva/core";
 
 type ProviderId = MobileSyncProvider["provider"];
 
@@ -187,7 +188,7 @@ export function AddVaultScreen({
             creds: {
               ...p.creds,
               url: folder
-                ? p.creds.url.replace(/\/+$/, "") + "/" + folder.split("/").map(encodeURIComponent).join("/")
+                ? trimEndChars(p.creds.url, "/") + "/" + folder.split("/").map(encodeURIComponent).join("/")
                 : p.creds.url,
             },
           }

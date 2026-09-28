@@ -1,6 +1,6 @@
 import { DEFAULT_ZIP_KEEP, sanitizeFileName as sanitize, type ISettingsStore } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
-import { BackupRetentionPolicy, DEFAULT_BACKUP_RETENTION } from "@plainva/core";
+import { BackupRetentionPolicy, DEFAULT_BACKUP_RETENTION, trimEndChars } from "@plainva/core";
 
 /** Same file as STORE_KEY in services/settingsStore.ts; duplicated here so this policy module stays free of runtime store imports. */
 export const SETTINGS_STORE_FILE = "plainva-settings.json";
@@ -60,7 +60,7 @@ export async function loadZipBackupSettings(store: ISettingsStore, vaultPath: st
 }
 
 export function vaultFolderName(vaultPath: string): string {
-  return vaultPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || "Vault";
+  return trimEndChars(vaultPath, "\\/").split(/[\\/]/).pop() || "Vault";
 }
 
 /** Short filesystem-safe vault identity (btoa output is not: '/', '+'). */

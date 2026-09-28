@@ -4,6 +4,7 @@ import {
   VaultFileNotFoundError,
   type IVaultAdapter,
   type VaultFileInfo,
+  trimChars,
 } from "@plainva/core";
 import { atomicWriteBase64, atomicWriteText } from "../platform/atomicFile";
 import { isExistingDirectory, isMissingFile } from "./fileErrors";
@@ -16,7 +17,7 @@ import { isExistingDirectory, isMissingFile } from "./fileErrors";
  * nothing else edits the sandbox (ADR 0011 / mobile plan).
  */
 
-const norm = (path: string): string => path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+const norm = (path: string): string => trimChars(path.replace(/\\/g, "/"), "/");
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);

@@ -3,6 +3,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
+import { wikiLinkMatcher } from "./linkScan.js";
 
 interface SourceNode {
   type: string;
@@ -170,6 +171,37 @@ export interface ReaderSource {
 }
 const encodeTarget = (text: string) => encodeURIComponent(text).replace(/[()!'*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 
+/** `@2026-09-24`, not glued to a word or an escape — tried where an `@` stands. */
+const RELATIVE_DATE_AT = /(?<![\w\\])@(\d{4}-\d{2}-\d{2})\b/y;
+
+/**
+ * The wiki links, embeds and `@dates` of one text node, left to right: what
+ * `/!?\[\[([^\]\r\n]+)\]\]|(?<![\w\\])@(\d{4}-\d{2}-\d{2})\b/g` found, read in
+ * one pass (plan Befunde 24.09., E6). The pattern looked for `]]` again from
+ * every `[[`, quadratic on a long run of `[`.
+ */
+function* readerTokens(source: string): Generator<{ index: number; raw: string; inner?: string; date?: string }> {
+  const wikiAt = wikiLinkMatcher(source, { bang: true, innerStops: "\r\n" });
+  for (let at = 0; at < source.length; ) {
+    const wiki = wikiAt(at);
+    if (wiki) {
+      yield { index: at, raw: wiki.raw, inner: wiki.inner };
+      at = wiki.end;
+      continue;
+    }
+    if (source[at] === "@") {
+      RELATIVE_DATE_AT.lastIndex = at;
+      const date = RELATIVE_DATE_AT.exec(source);
+      if (date) {
+        yield { index: at, raw: date[0], date: date[1] };
+        at += date[0].length;
+        continue;
+      }
+    }
+    at++;
+  }
+}
+
 /**
  * One source map for frontmatter, markers, CRLF, wiki syntax and relative dates.
  * Only prose text nodes are transformed; code, HTML and link destinations stay
@@ -189,26 +221,27 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     if (node.position && node.type === "text" && !inLink) {
       const start = node.position.start.offset;
       const source = clean.text.slice(start, node.position.end.offset);
-      const token = /!?\[\[([^\]\r\n]+)\]\]|(?<![\w\\])@(\d{4}-\d{2}-\d{2})\b/g;
-      for (const m of source.matchAll(token)) {
+      for (const m of readerTokens(source)) {
         if (m.index > 0 && source[m.index - 1] === "\\") continue;
-        const from = start + m.index, to = from + m[0].length;
-        if (m[2]) {
-          if (options.formatDate) edits.push({ from, to, text: options.formatDate(m[2]) });
-        } else if (m[0].startsWith("!")) {
+        const from = start + m.index, to = from + m.raw.length;
+        if (m.date) {
+          if (options.formatDate) edits.push({ from, to, text: options.formatDate(m.date) });
+        } else if (m.raw.startsWith("!")) {
+          const inner = m.inner!;
           // Three kinds, one scheme each, so the renderer branches on the URL
           // rather than sniffing the extension a second time (plan
           // Journal-Erweiterungen, X3). The fallback pattern stands for a host
           // that passes no port - it used to be the only answer.
-          const kind = options.embedKind?.(m[1])
-            ?? (/\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(m[1]) ? "image" : "note");
+          const kind = options.embedKind?.(inner)
+            ?? (/\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(inner) ? "image" : "note");
           const scheme = kind === "note" ? "embed" : kind;
           const alt = kind === "image" ? "img" : kind === "audio" ? "audio" : "embed";
-          edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(m[1])})`, embed: kind === "note" ? m[1] : undefined });
+          edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(inner)})`, embed: kind === "note" ? inner : undefined });
         } else {
-          const pipe = m[1].indexOf("|");
-          const target = pipe < 0 ? m[1] : m[1].slice(0, pipe);
-          const label = pipe < 0 ? target : m[1].slice(pipe + 1);
+          const inner = m.inner!;
+          const pipe = inner.indexOf("|");
+          const target = pipe < 0 ? inner : inner.slice(0, pipe);
+          const label = pipe < 0 ? target : inner.slice(pipe + 1);
           const labelFrom = from + 2 + (pipe < 0 ? 0 : pipe + 1);
           // The label was already Markdown prose; preserve its spelling and offsets.
           edits.push({ from, to, text: `[${label}](wiki://${encodeTarget(target)})`, visible: { from: labelFrom, to: labelFrom + label.length, start: 1, end: label.length + 1 } });

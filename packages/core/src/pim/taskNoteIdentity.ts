@@ -1,5 +1,6 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
 import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "../frontmatter-surgical.js";
+import { trimEndChars } from "../textScan.js";
 
 /** Provider identity belongs to the task. A local connection id never does. */
 export interface TaskNoteIdentity {
@@ -40,7 +41,9 @@ export function classifyTaskNotes(left: string, right: string): "same" | "differ
 export function taskNotePath(folder: string, title: string, task: TaskNoteIdentity, fullHash = false): string {
   const hash = sha256Hex(utf8Encode(taskNoteKey(task)));
   const printable = [...title].map(char => char.charCodeAt(0) < 32 ? " " : char).join("");
-  const stem = printable.replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 80) || "Task";
+  // Trailing dots and blanks by hand (plan Befunde 24.09., E6): `/[. ]+$/`
+  // retried a long run of them from each of its characters.
+  const stem = trimEndChars(printable.replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim(), ". ").slice(0, 80) || "Task";
   return `${folder ? folder.replace(/\/$/, "") + "/" : ""}${stem} — ${hash.slice(0, fullHash ? 64 : 16)}.md`;
 }
 
@@ -100,11 +103,43 @@ export async function preserveDisplacedTask(
   return path;
 }
 
+const WHITESPACE = /\s/;
+const isWhitespace = (ch: string | undefined): boolean => ch !== undefined && WHITESPACE.test(ch);
+/** Where `^` and `$` stand under the `m` flag, and what `.` does not match. */
+const isLineBreak = (ch: string | undefined): boolean => ch === "\n" || ch === "\r" || ch === "\u2028" || ch === "\u2029";
+
+/**
+ * The text of the first `# ` heading — what `/^#\s+(.+)$/m` captured — in one
+ * pass (plan Befunde 24.09., E6). The pattern's `\s+` and `.+` shared the
+ * blanks after the `#`. The reading is the old one: the blanks may run over
+ * line breaks, and when nothing but blanks follows, the last blank that is no
+ * line break becomes the text.
+ */
+function firstHeadingText(text: string): string | undefined {
+  const n = text.length;
+  for (let lineStart = 0; lineStart < n;) {
+    if (text[lineStart] === "#") {
+      let at = lineStart + 1;
+      while (at < n && isWhitespace(text[at])) at++;
+      if (at === n) at--;
+      while (at > lineStart + 1 && isLineBreak(text[at])) at--;
+      if (at > lineStart + 1) {
+        let end = at;
+        while (end < n && !isLineBreak(text[end])) end++;
+        return text.slice(at, end);
+      }
+    }
+    while (lineStart < n && !isLineBreak(text[lineStart])) lineStart++;
+    lineStart++;
+  }
+  return undefined;
+}
+
 export async function displacedTaskPath(adapter: TaskFileReader, originalPath: string, content: string): Promise<string> {
   const task = readTaskNoteIdentity(content);
   if (!task?.provider || !task.identity) throw new Error("task_identity_unverified");
   const folder = originalPath.includes("/") ? originalPath.slice(0, originalPath.lastIndexOf("/")) : "";
-  const title = content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").match(/^#\s+(.+)$/m)?.[1]
+  const title = firstHeadingText(content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, ""))
     ?? originalPath.split("/").pop()!.replace(/\.md$/i, "");
   const path = await availableTaskNotePath(adapter, folder, title, task);
   if (path === originalPath) throw new Error("task_source_is_destination");

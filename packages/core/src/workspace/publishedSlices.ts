@@ -1,6 +1,7 @@
 import { parseDocument, stringify } from "yaml";
 import { sha256Hex, utf8Encode } from "./encoding.js";
 import { protocolAssert } from "./errors.js";
+import { nextWhere } from "../linkScan.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
 
@@ -165,6 +166,30 @@ function isIncluded(target: string, index: Set<string>): boolean {
   return index.has(linkTarget(target));
 }
 
+const SPACE = /\s/;
+const LINE_TERMINATORS = "\n\r\u2028\u2029";
+
+/**
+ * A fence line: `^ {0,3}(`{3,}|~{3,})(.*)$`, read by hand (plan Befunde
+ * 24.09., E6) — the pattern gave a long run of backticks back one at a time
+ * before it failed. Up to three spaces, a run of three or more of one fence
+ * character, and the rest of the line as the info string. `.` matches no line
+ * terminator, so a line that still carries one — the `\r` of a CRLF note —
+ * is no fence, as it never was.
+ */
+function fenceOf(line: string): { char: string; length: number; info: string } | null {
+  let at = 0;
+  while (at < 3 && line[at] === " ") at++;
+  const char = line[at];
+  if (char !== "`" && char !== "~") return null;
+  let end = at;
+  while (line[end] === char) end++;
+  if (end - at < 3) return null;
+  const info = line.slice(end);
+  for (let i = 0; i < info.length; i++) if (LINE_TERMINATORS.includes(info[i])) return null;
+  return { char, length: end - at, info };
+}
+
 /**
  * Where fenced code blocks sit, so the projection can leave them alone.
  *
@@ -185,15 +210,15 @@ function fencedRanges(markdown: string): Array<[number, number]> {
   let open: { char: string; length: number; start: number } | null = null;
   for (const line of markdown.split("\n")) {
     const lineEnd = offset + line.length + 1;
-    const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const fence = fenceOf(line);
     if (!open) {
       // A backtick fence may not carry a backtick in its info string
       // (CommonMark), which keeps a prose line like "``` and `code`" from
       // opening a block that never closes.
-      if (fence && !(fence[1][0] === "`" && fence[2].includes("`"))) {
-        open = { char: fence[1][0], length: fence[1].length, start: offset };
+      if (fence && !(fence.char === "`" && fence.info.includes("`"))) {
+        open = { char: fence.char, length: fence.length, start: offset };
       }
-    } else if (fence && fence[1][0] === open.char && fence[1].length >= open.length && fence[2].trim() === "") {
+    } else if (fence && fence.char === open.char && fence.length >= open.length && fence.info.trim() === "") {
       ranges.push([open.start, Math.min(lineEnd, markdown.length)]);
       open = null;
     }
@@ -206,26 +231,70 @@ function fencedRanges(markdown: string): Array<[number, number]> {
 }
 
 /**
+ * Whether offsets, asked in rising order, stand inside a fence. The ranges
+ * come sorted and apart, so one pointer walks them once — asking every range
+ * for every link was quadratic in a note of many fences and links (E6).
+ */
+function insideFences(ranges: Array<[number, number]>): (offset: number) => boolean {
+  let at = 0;
+  return (offset) => {
+    while (at < ranges.length && ranges[at][1] <= offset) at++;
+    return at < ranges.length && ranges[at][0] <= offset;
+  };
+}
+
+/** One match of a link shape: where it stands and what its groups captured (undefined: did not take part). */
+interface LinkMatch {
+  index: number;
+  end: number;
+  groups: Array<string | undefined>;
+}
+
+/** Every match of a link shape in a text, left to right, as a global pattern finds them. */
+type LinkScanner = (text: string) => Iterable<LinkMatch>;
+
+/**
  * One replace pass that skips fenced code.
  *
- * The ranges are measured inside, per call, and never hoisted: `String.replace`
- * hands the replacer an offset into the snapshot it was called on, so a pass
- * that ran after an earlier one edited the text needs its own measurement.
+ * The ranges are measured inside, per call, and never hoisted: every match
+ * carries an offset into the text this pass was called on, so a pass that ran
+ * after an earlier one edited the text needs its own measurement.
  */
 function replaceOutsideFences(
   markdown: string,
-  pattern: RegExp,
+  scan: LinkScanner,
   replacer: (whole: string, groups: Array<string | undefined>) => string,
 ): string {
-  const ranges = fencedRanges(markdown);
-  return markdown.replace(pattern, (...args: unknown[]) => {
-    // None of the patterns below use named groups, so the last two arguments
-    // are the offset and the whole string.
-    const whole = args[0] as string;
-    const offset = args[args.length - 2] as number;
-    if (ranges.some(([from, to]) => offset >= from && offset < to)) return whole;
-    return replacer(whole, args.slice(1, -2) as Array<string | undefined>);
-  });
+  const fenced = insideFences(fencedRanges(markdown));
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const match of scan(markdown)) {
+    const whole = markdown.slice(match.index, match.end);
+    pieces.push(markdown.slice(cursor, match.index), fenced(match.index) ? whole : replacer(whole, match.groups));
+    cursor = match.end;
+  }
+  pieces.push(markdown.slice(cursor));
+  return pieces.join("");
+}
+
+/** A pattern that stays a pattern (no quadratic reading), as a scanner. */
+function patternScanner(pattern: RegExp): LinkScanner {
+  return function* (text) {
+    for (const match of text.matchAll(pattern)) {
+      yield { index: match.index, end: match.index + match[0].length, groups: match.slice(1) };
+    }
+  };
+}
+
+/** Every match of `matchAt` left to right; after a match the scan goes on behind it. */
+function* scanFrom(text: string, matchAt: (at: number) => LinkMatch | null): Generator<LinkMatch> {
+  for (let at = 0; at < text.length; ) {
+    const match = matchAt(at);
+    if (match) {
+      yield match;
+      at = match.end;
+    } else at++;
+  }
 }
 
 /** The first of several optional capture groups that actually matched. */
@@ -243,14 +312,236 @@ function firstDefined(...values: Array<string | undefined>): string {
  */
 const EXTERNAL_TARGET = /^(?:[a-z][a-z0-9+.-]+:|\/\/|#)/i;
 
-const WIKI_LINK = /(!?)\[\[([^\]|#]+)(#[^\]|]+)?(?:\|([^\]]+))?\]\]/g;
-const INLINE_LINK = /(!?)\[([^\]]*)\]\(\s*(?:<([^>\n]*)>|([^\s)]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)/g;
-const REFERENCE_LINK = /(!?)\[([^\]\n]*)\]\[([^\]\n]*)\]/g;
-const SHORTCUT_LINK = /(!?)\[([^\]\n]+)\](?![[(:])/g;
+/*
+ * The link shapes below were global patterns, and each looked for its closing
+ * bracket again from every `[` (the HTML ones for `>` from every candidate
+ * attribute): a note with a long run of `[` took quadratic time to publish
+ * (plan Befunde 24.09., E6). Each scanner reads its old pattern by hand,
+ * decision for decision; a part that cannot hold its own closer ends at the
+ * first one, so no position needs a second reading, and the cursors of
+ * `nextWhere` read every character once however many starts ask.
+ */
+
+/** `(!?)` — the `!` in front belongs to the match, and a `!` alone is no `[`. */
+const openAfterBang = (text: string, at: number) => (text[at] === "!" ? at + 1 : at);
+
+/** `(!?)\[\[([^\]|#]+)(#[^\]|]+)?(?:\|([^\]]+))?\]\]` */
+const wikiLinks: LinkScanner = (text) => {
+  const n = text.length;
+  const targetEnd = nextWhere(n, (i) => text[i] === "]" || text[i] === "|" || text[i] === "#");
+  const anchorEnd = nextWhere(n, (i) => text[i] === "]" || text[i] === "|");
+  const aliasEnd = nextWhere(n, (i) => text[i] === "]");
+  return scanFrom(text, (at) => {
+    const open = openAfterBang(text, at);
+    if (text[open] !== "[" || text[open + 1] !== "[") return null;
+    const from = open + 2;
+    const target = targetEnd(from);
+    if (target === from) return null;
+    let end = target;
+    let anchor: string | undefined;
+    let alias: string | undefined;
+    if (text[end] === "#") {
+      const stop = anchorEnd(end + 1);
+      if (stop === end + 1) return null;
+      anchor = text.slice(end, stop);
+      end = stop;
+    }
+    if (text[end] === "|") {
+      const stop = aliasEnd(end + 1);
+      if (stop === end + 1) return null;
+      alias = text.slice(end + 1, stop);
+      end = stop;
+    }
+    if (text[end] !== "]" || text[end + 1] !== "]") return null;
+    return { index: at, end: end + 2, groups: [open > at ? "!" : "", text.slice(from, target), anchor, alias] };
+  });
+};
+
+/** `(!?)\[([^\]]*)\]\(\s*(?:<([^>\n]*)>|([^\s)]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)` */
+const inlineLinks: LinkScanner = (text) => {
+  const n = text.length;
+  const isSpace = (i: number) => i < n && SPACE.test(text[i]);
+  const skipSpace = (i: number) => {
+    while (isSpace(i)) i++;
+    return i;
+  };
+  const labelEnd = nextWhere(n, (i) => text[i] === "]");
+  const destinationStart = nextWhere(n, (i) => !isSpace(i));
+  const angledEnd = nextWhere(n, (i) => text[i] === ">" || text[i] === "\n");
+  const bareEnd = nextWhere(n, (i) => text[i] === ")" || isSpace(i));
+  // After a destination: an optional title, blanks, `)` — the match end, or -1.
+  // A destination ends before a blank run's first character or after a `>`,
+  // so each run and each title is read once; the map keeps it that way.
+  const closes = new Map<number, number>();
+  const closeAfter = (at: number): number => {
+    const known = closes.get(at);
+    if (known !== undefined) return known;
+    let end = -1;
+    const title = skipSpace(at);
+    if (title > at) {
+      const quote = text[title];
+      let close = -1;
+      if (quote === "\"" || quote === "'") close = text.indexOf(quote, title + 1);
+      else if (quote === "(") {
+        let i = title + 1;
+        while (i < n && text[i] !== "(" && text[i] !== ")") i++;
+        if (text[i] === ")") close = i;
+      }
+      if (close >= 0) {
+        const paren = skipSpace(close + 1);
+        if (text[paren] === ")") end = paren + 1;
+      }
+    }
+    if (end < 0 && text[title] === ")") end = title + 1;
+    closes.set(at, end);
+    return end;
+  };
+  // Everything after `](` depends on where it starts alone, and every `[`
+  // before the same `]` asks the same question: the last answer is kept.
+  let tailAt = -1;
+  let tail: { end: number; angled?: string; bare?: string } | null = null;
+  const tailFrom = (at: number): typeof tail => {
+    const start = destinationStart(at);
+    if (text[start] === "<") {
+      const close = angledEnd(start + 1);
+      if (text[close] === ">") {
+        const end = closeAfter(close + 1);
+        if (end >= 0) return { end, angled: text.slice(start + 1, close) };
+      }
+    }
+    const stop = bareEnd(start);
+    if (stop > start) {
+      const end = closeAfter(stop);
+      if (end >= 0) return { end, bare: text.slice(start, stop) };
+    }
+    return null;
+  };
+  return scanFrom(text, (at) => {
+    const open = openAfterBang(text, at);
+    if (text[open] !== "[") return null;
+    const close = labelEnd(open + 1);
+    if (text[close] !== "]" || text[close + 1] !== "(") return null;
+    if (close + 2 !== tailAt) {
+      tailAt = close + 2;
+      tail = tailFrom(tailAt);
+    }
+    if (!tail) return null;
+    return { index: at, end: tail.end, groups: [open > at ? "!" : "", text.slice(open + 1, close), tail.angled, tail.bare] };
+  });
+};
+
+/** `(!?)\[([^\]\n]*)\]\[([^\]\n]*)\]` */
+const referenceLinks: LinkScanner = (text) => {
+  const stop = (i: number) => text[i] === "]" || text[i] === "\n";
+  const labelEnd = nextWhere(text.length, stop);
+  const refEnd = nextWhere(text.length, stop);
+  return scanFrom(text, (at) => {
+    const open = openAfterBang(text, at);
+    if (text[open] !== "[") return null;
+    const close = labelEnd(open + 1);
+    if (text[close] !== "]" || text[close + 1] !== "[") return null;
+    const end = refEnd(close + 2);
+    if (text[end] !== "]") return null;
+    return { index: at, end: end + 1, groups: [open > at ? "!" : "", text.slice(open + 1, close), text.slice(close + 2, end)] };
+  });
+};
+
+/** `(!?)\[([^\]\n]+)\](?![[(:])` */
+const shortcutLinks: LinkScanner = (text) => {
+  const labelEnd = nextWhere(text.length, (i) => text[i] === "]" || text[i] === "\n");
+  return scanFrom(text, (at) => {
+    const open = openAfterBang(text, at);
+    if (text[open] !== "[") return null;
+    const close = labelEnd(open + 1);
+    const after = text[close + 1];
+    if (close === open + 1 || text[close] !== "]" || after === "[" || after === "(" || after === ":") return null;
+    return { index: at, end: close + 1, groups: [open > at ? "!" : "", text.slice(open + 1, close)] };
+  });
+};
+
 const LINK_DEFINITION =
   /^ {0,3}\[([^\]\n]+)\]:[ \t]*(?:<([^>\n]*)>|(\S+))(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?[ \t]*(?:\r?\n|$)/gm;
-const HTML_IMAGE = /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>/gi;
-const HTML_ANCHOR = /<a\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a>/gi;
+
+const WORD = /[A-Za-z0-9_]/;
+const isWord = (ch: string | undefined) => ch !== undefined && WORD.test(ch);
+/** `word` (lowercase ASCII letters) at `at` in any case — what the `i` flag folded, and nothing else. */
+function spells(text: string, at: number, word: string): boolean {
+  for (let k = 0; k < word.length; k++) if ((text.charCodeAt(at + k) | 0x20) !== word.charCodeAt(k)) return false;
+  return true;
+}
+
+/**
+ * `<tag\b[^>]*?\battr\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>` (flags
+ * `gi`); with `element`, followed by `([\s\S]*?)<\/tag>`.
+ *
+ * The lazy `[^>]*?` tries every position up to the tag's first `>` for the
+ * attribute, and each attempt used to read on to a `>` again — quadratic in a
+ * long tag without one. Whether an attribute value at a position leads to a
+ * match does not depend on where the tag began, so a cursor walks those
+ * positions once; and whether a `>` (and, for an element, a closing tag after
+ * it) follows a point is one comparison against the last one in the text.
+ */
+function htmlAttributeLinks(tag: string, attribute: string, element: boolean): LinkScanner {
+  return (text) => {
+    const n = text.length;
+    const lastClose = element ? lastClosingTag(text, tag) : -1;
+    // The last `>` a value may be followed by: for an element it must leave a closing tag after it.
+    const lastGt = element ? (lastClose > 0 ? text.lastIndexOf(">", lastClose - 1) : -1) : text.lastIndexOf(">");
+    const bareEnd = nextWhere(n, (i) => text[i] === ">" || SPACE.test(text[i]));
+    const skipSpace = (i: number) => {
+      while (i < n && SPACE.test(text[i])) i++;
+      return i;
+    };
+    /** The value of the attribute starting at `at`, if the rest of the pattern can follow it. */
+    const valueAt = (at: number): { after: number; groups: Array<string | undefined> } | null => {
+      if (isWord(text[at - 1]) || !spells(text, at, attribute)) return null;
+      const equals = skipSpace(at + attribute.length);
+      if (text[equals] !== "=") return null;
+      const start = skipSpace(equals + 1);
+      const quote = text[start];
+      if (quote === "\"" || quote === "'") {
+        const close = text.indexOf(quote, start + 1);
+        if (close >= 0 && close + 1 <= lastGt) {
+          const value = text.slice(start + 1, close);
+          return { after: close + 1, groups: quote === "\"" ? [value, undefined, undefined] : [undefined, value, undefined] };
+        }
+      }
+      const stop = bareEnd(start);
+      if (stop > start && stop <= lastGt) return { after: stop, groups: [undefined, undefined, text.slice(start, stop)] };
+      return null;
+    };
+    const nextValue = nextWhere(n, (i) => valueAt(i) !== null);
+    const tagEnd = nextWhere(n, (i) => text[i] === ">");
+    return scanFrom(text, (at) => {
+      const from = at + 1 + tag.length;
+      if (text[at] !== "<" || !spells(text, at + 1, tag) || isWord(text[from])) return null;
+      const attributeAt = nextValue(from);
+      if (attributeAt >= tagEnd(from)) return null;
+      const value = valueAt(attributeAt)!;
+      const gt = text.indexOf(">", value.after);
+      if (!element) return { index: at, end: gt + 1, groups: value.groups };
+      const close = closingTagFrom(text, tag, gt + 1);
+      return { index: at, end: close + tag.length + 3, groups: [...value.groups, text.slice(gt + 1, close)] };
+    });
+  };
+}
+
+/** Whether `</tag>` (any case) stands at `at`. */
+const closingTagAt = (text: string, tag: string, at: number) =>
+  text[at] === "<" && text[at + 1] === "/" && spells(text, at + 2, tag) && text[at + 2 + tag.length] === ">";
+
+function closingTagFrom(text: string, tag: string, from: number): number {
+  for (let at = text.indexOf("<", from); at >= 0; at = text.indexOf("<", at + 1)) if (closingTagAt(text, tag, at)) return at;
+  return -1;
+}
+
+function lastClosingTag(text: string, tag: string): number {
+  for (let at = text.lastIndexOf("<"); at >= 0; at = at > 0 ? text.lastIndexOf("<", at - 1) : -1) if (closingTagAt(text, tag, at)) return at;
+  return -1;
+}
+
+const htmlImages = htmlAttributeLinks("img", "src", false);
+const htmlAnchors = htmlAttributeLinks("a", "href", true);
 
 /**
  * Creates a non-round-trippable Markdown projection for an external slice.
@@ -309,7 +600,7 @@ export function projectPublishedMarkdown(input: {
     }
   }
 
-  markdown = replaceOutsideFences(markdown, WIKI_LINK, (whole, [embed, rawTarget, , alias]) => {
+  markdown = replaceOutsideFences(markdown, wikiLinks, (whole, [embed, rawTarget, , alias]) => {
     const target = rawTarget ?? "";
     if (isIncluded(target, included)) return whole;
     if (embed) { removedEmbeds.add(target.trim()); return ""; }
@@ -317,7 +608,7 @@ export function projectPublishedMarkdown(input: {
     return alias?.trim() || target.trim().split("/").pop() || "";
   });
 
-  markdown = replaceOutsideFences(markdown, INLINE_LINK, (whole, [embed, label, angled, bare]) => {
+  markdown = replaceOutsideFences(markdown, inlineLinks, (whole, [embed, label, angled, bare]) => {
     const target = firstDefined(angled, bare);
     if (EXTERNAL_TARGET.test(target) || isIncluded(target, included)) return whole;
     if (embed) { removedEmbeds.add(target); return ""; }
@@ -329,10 +620,10 @@ export function projectPublishedMarkdown(input: {
   // `[ref]` is only a link when a definition of that name exists, and the same
   // map decides which definition lines have to go at the end.
   const definitions = new Map<string, { target: string; excluded: boolean }>();
-  const definitionFences = fencedRanges(markdown);
+  const definitionFenced = insideFences(fencedRanges(markdown));
   for (const match of markdown.matchAll(LINK_DEFINITION)) {
     const offset = match.index ?? 0;
-    if (definitionFences.some(([from, to]) => offset >= from && offset < to)) continue;
+    if (definitionFenced(offset)) continue;
     const target = firstDefined(match[2], match[3]);
     definitions.set(normalizePropertyKey(match[1] ?? ""), {
       target,
@@ -341,7 +632,7 @@ export function projectPublishedMarkdown(input: {
   }
 
   if (definitions.size > 0) {
-    markdown = replaceOutsideFences(markdown, REFERENCE_LINK, (whole, [embed, label, ref]) => {
+    markdown = replaceOutsideFences(markdown, referenceLinks, (whole, [embed, label, ref]) => {
       // "[label][]" is the collapsed form: the label is its own reference.
       const key = normalizePropertyKey((ref ?? "").trim() || (label ?? "").trim());
       const definition = definitions.get(key);
@@ -350,14 +641,14 @@ export function projectPublishedMarkdown(input: {
       neutralizedLinks.add(definition.target);
       return label ?? "";
     });
-    markdown = replaceOutsideFences(markdown, SHORTCUT_LINK, (whole, [embed, label]) => {
+    markdown = replaceOutsideFences(markdown, shortcutLinks, (whole, [embed, label]) => {
       const definition = definitions.get(normalizePropertyKey((label ?? "").trim()));
       if (!definition || !definition.excluded) return whole;
       if (embed) { removedEmbeds.add(definition.target); return ""; }
       neutralizedLinks.add(definition.target);
       return label ?? "";
     });
-    markdown = replaceOutsideFences(markdown, LINK_DEFINITION, (whole, [label]) => {
+    markdown = replaceOutsideFences(markdown, patternScanner(LINK_DEFINITION), (whole, [label]) => {
       const definition = definitions.get(normalizePropertyKey((label ?? "").trim()));
       if (!definition || !definition.excluded) return whole;
       neutralizedLinks.add(definition.target);
@@ -365,14 +656,14 @@ export function projectPublishedMarkdown(input: {
     });
   }
 
-  markdown = replaceOutsideFences(markdown, HTML_IMAGE, (whole, [quoted, single, bare]) => {
+  markdown = replaceOutsideFences(markdown, htmlImages, (whole, [quoted, single, bare]) => {
     const target = firstDefined(quoted, single, bare);
     if (EXTERNAL_TARGET.test(target) || isIncluded(target, included)) return whole;
     removedEmbeds.add(target);
     return "";
   });
 
-  markdown = replaceOutsideFences(markdown, HTML_ANCHOR, (whole, [quoted, single, bare, inner]) => {
+  markdown = replaceOutsideFences(markdown, htmlAnchors, (whole, [quoted, single, bare, inner]) => {
     const target = firstDefined(quoted, single, bare);
     if (EXTERNAL_TARGET.test(target) || isIncluded(target, included)) return whole;
     neutralizedLinks.add(target);

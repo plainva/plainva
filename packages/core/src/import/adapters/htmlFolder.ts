@@ -13,8 +13,12 @@ import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { htmlToMarkdown, extractHtmlTitle } from '../../pim/htmlToMarkdown.js';
 import { timesFromFile } from '../sourceTimes.js';
+import { replaceBracketLinks, type BracketLinkGrammar } from '../../linkScan.js';
 
 const HTML_RE = /\.html?$/i;
+
+/** `[text](href)`: the href runs up to `)` and holds no whitespace. */
+const PAGE_LINK: BracketLinkGrammar = { destinationStopsAtSpace: true, destinationMin: 1 };
 
 function isHtml(file: UnpackedFile): boolean {
   return isTextEntry(file) && HTML_RE.test(file.relativePath);
@@ -112,13 +116,17 @@ export class HtmlFolderImporter implements ImportSource {
     return plan;
   }
 
-  /** Points Markdown links at the notes this run writes. */
+  /**
+   * Points Markdown links at the notes this run writes. The links are
+   * `/\[([^\]]*)\]\(([^)\s]+)\)/g`, read in one pass (plan Befunde 24.09., E6):
+   * the pattern looked for `]` again from every `[`.
+   */
   private repointLinks(
     markdown: string,
     fromPath: string,
     plan: Map<string, { path: string; title: string }>
   ): string {
-    return markdown.replace(/\[([^\]]*)\]\(([^)\s]+)\)/g, (whole, text: string, href: string) => {
+    return replaceBracketLinks(markdown, PAGE_LINK, ({ raw: whole, label: text, destination: href }) => {
       if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#')) return whole;
       const target = plan.get(resolveRelative(fromPath, decodeURIComponent(href.split('#')[0])));
       if (!target) return whole;

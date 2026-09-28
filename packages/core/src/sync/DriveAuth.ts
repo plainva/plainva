@@ -1,6 +1,7 @@
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { oauthErrorMessage } from "./oauthError.js";
 import { refreshOAuthToken } from "./oauthRefresh.js";
+import { trimEndChars } from "../textScan.js";
 
 /**
  * Google OAuth 2.0 PKCE helper for the BYO Google Drive flow (phase 5.1, G1; ADR 0006).
@@ -45,7 +46,7 @@ export interface DriveTokenResult {
 function base64UrlEncode(bytes: Uint8Array): string {
   let str = "";
   for (const b of bytes) str += String.fromCharCode(b);
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return trimEndChars(btoa(str).replace(/\+/g, "-").replace(/\//g, "_"), "=");
 }
 
 /**

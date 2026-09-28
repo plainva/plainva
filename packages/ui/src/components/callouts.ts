@@ -117,13 +117,35 @@ export interface ParsedCallout {
   title: string;
 }
 
+const WHITESPACE = /\s/;
+const isWhitespace = (ch: string | undefined): boolean => ch !== undefined && WHITESPACE.test(ch);
+const isAsciiLetter = (code: number): boolean => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+/** What `.` does not match. */
+const isLineBreak = (ch: string): boolean => ch === "\n" || ch === "\r" || ch === "\u2028" || ch === "\u2029";
+
 /**
  * Parses a callout marker from a single line (already stripped of the leading
  * "> " quote markers). Returns null if the line is not a callout header.
  * Examples: "[!info]", "[!warning]- Collapsed", "[!tip] My title".
+ *
+ * Read by hand in one pass (plan Befunde 24.09., E6): the pattern it replaces,
+ * `^\s*\[!([A-Za-z]+)\][+-]?\s*(.*)$`, retried the title from every blank
+ * before it when a line break stood in the title — quadratic on a long run.
+ * The reading is the old one: the title starts after all the whitespace behind
+ * the marker (a line break there included) and must run to the end of the
+ * text without one.
  */
 export function parseCalloutMarker(line: string): ParsedCallout | null {
-  const m = line.match(/^\s*\[!([A-Za-z]+)\][+-]?\s*(.*)$/);
-  if (!m) return null;
-  return { type: m[1].toLowerCase(), title: m[2].trim() };
+  let at = 0;
+  while (isWhitespace(line[at])) at++;
+  if (line[at] !== "[" || line[at + 1] !== "!") return null;
+  const typeStart = at + 2;
+  let typeEnd = typeStart;
+  while (isAsciiLetter(line.charCodeAt(typeEnd))) typeEnd++;
+  if (typeEnd === typeStart || line[typeEnd] !== "]") return null;
+  let titleStart = typeEnd + 1;
+  if (line[titleStart] === "+" || line[titleStart] === "-") titleStart++;
+  while (isWhitespace(line[titleStart])) titleStart++;
+  for (let i = titleStart; i < line.length; i++) if (isLineBreak(line[i])) return null;
+  return { type: line.slice(typeStart, typeEnd).toLowerCase(), title: line.slice(titleStart).trim() };
 }

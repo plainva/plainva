@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isTextPath, readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl, type UnpackedFile } from '@plainva/core';
+import { isTextPath, readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl, type UnpackedFile, trimEndChars } from '@plainva/core';
 
 // The text-extension list moved to @plainva/core in S40 so the phone decodes
 // the same entries as text; re-exported because callers here import it.
@@ -250,7 +250,7 @@ export async function readFolderAsFiles(
     }
   };
 
-  await walk(folderPath.replace(/[/\\]+$/, ''), '');
+  await walk(trimEndChars(folderPath, '/\\'), '');
   // `root` is the picked folder itself and is NOT a temp directory — the
   // caller must never hand it to `discardExtractedArchive`, which is why the
   // wizard only tracks archives in `extractedRef`.

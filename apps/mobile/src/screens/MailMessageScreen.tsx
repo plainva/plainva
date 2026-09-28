@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { hasEmlWikiLink } from "@plainva/core";
 import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, ICON, IconButton, plainvaProducer, safeFileStem, toast } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
@@ -446,13 +447,13 @@ export function MailMessageScreen({
         // thing that was asked for fell away. What decides is whether a raw
         // copy is already linked, not whether the note happens to be new.
         const existing = res.created ? "" : await vault.files.readTextFile(res.path);
-        if (!/\[\[[^\]]+\.eml\]\]/i.test(existing)) {
+        if (!hasEmlWikiLink(existing)) {
           // The raw copy is fetched only when asked for: it is the whole message
           // over the wire again, which on a phone connection is not free.
           const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
           const emlPath = await saveEmlFile(vault.files, message, raw, folder);
           const content = res.created ? await vault.files.readTextFile(res.path) : existing;
-          await vault.files.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
+          await vault.files.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
           emlAdded = true;
         }
       }

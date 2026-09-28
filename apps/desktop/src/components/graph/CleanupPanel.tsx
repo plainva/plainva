@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
+import { brokenLinkNoteTitle, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
@@ -107,7 +107,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
       try {
         const folder = item.sourcePath.includes("/") ? item.sourcePath.substring(0, item.sourcePath.lastIndexOf("/")) : "";
         const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
-        const title = item.targetRaw.split(/[/\\]/).pop()!.replace(/#.*$/, "");
+        const title = brokenLinkNoteTitle(item.targetRaw);
         const path = await createConnectedNote(vaultAdapter, queryService, { folder, title, noteType });
         setBroken((prev) => prev.filter((b) => b !== item));
         toast.success(t("graph.cleanupCreated", { defaultValue: "Notiz erstellt: {{name}}", name: path }));

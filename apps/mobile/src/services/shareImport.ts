@@ -1,5 +1,6 @@
 import type { IVaultAdapter } from "@plainva/core";
 import { SHARE_LIMITS, validateShare, type PendingShare, type SharedFile, type ShareImportPlan, type ShareJournalEntry, type ShareTargetPort } from "./shareTarget";
+import { trimEndChars } from "@plainva/core";
 
 const active = new Map<string, { vaultId: string; run: Promise<string> }>();
 function safeName(name: string): string {
@@ -10,7 +11,7 @@ function safeName(name: string): string {
     if (size > 160) break;
     result += char;
   }
-  return result.replace(/[. ]+$/, "") || "Shared";
+  return trimEndChars(result, ". ") || "Shared";
 }
 const safePath = (path: string) => typeof path === "string" && !path.startsWith("/") && !path.includes("\\") && !path.split("/").some(p => !p || p === "." || p === ".." || new TextEncoder().encode(p).length > 255 || [...p].some(c => c.charCodeAt(0) < 32 || '<>:"|?*'.includes(c)));
 async function hash(bytes: Uint8Array): Promise<string> {

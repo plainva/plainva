@@ -1,3 +1,5 @@
+import { replaceBracketLinks, type BracketLinkGrammar } from '../linkScan.js';
+
 /**
  * Rewrites the internal links of a Notion ZIP export onto the notes Plainva
  * actually wrote.
@@ -79,6 +81,9 @@ function isExternal(target: string): boolean {
   return /^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('#') || target.startsWith('//');
 }
 
+/** A target runs up to `)` and may hold no `(` and no whitespace. */
+const NOTION_LINK: BracketLinkGrammar = { bang: true, destinationStops: '(', destinationStopsAtSpace: true, destinationMin: 1 };
+
 export interface NotionLinkRewriteResult {
   content: string;
   /** How many internal links were pointed at an imported note. */
@@ -107,7 +112,9 @@ export function rewriteNotionLinks(
 
   // `[text](target)` and `![alt](target)`; targets with a closing paren inside
   // are rare in a Notion export and stay untouched rather than half-rewritten.
-  const out = content.replace(/(!?)\[([^\]]*)\]\(([^()\s]+)\)/g, (whole, bang: string, text: string, rawTarget: string) => {
+  // `/(!?)\[([^\]]*)\]\(([^()\s]+)\)/g`, read in one pass (plan Befunde 24.09.,
+  // E6): the pattern looked for `]` again from every `[`.
+  const out = replaceBracketLinks(content, NOTION_LINK, ({ raw: whole, bang, label: text, destination: rawTarget }) => {
     if (isExternal(rawTarget)) return whole;
 
     const hashAt = rawTarget.indexOf('#');

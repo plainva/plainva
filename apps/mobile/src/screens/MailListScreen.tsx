@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { firstAngleValue } from "@plainva/core";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
@@ -1650,7 +1651,7 @@ function labelRoomForWindow(): number {
 
 export function mailAccountLabel(label: string | undefined, max = labelRoomForWindow()): string {
   if (!label) return "";
-  const bare = (/<([^>]+)>/.exec(label)?.[1] ?? label).trim();
+  const bare = (firstAngleValue(label) ?? label).trim();
   if (bare.length <= max) return bare;
   const at = bare.lastIndexOf("@");
   if (at <= 0) return `${bare.slice(0, max - 1)}…`;

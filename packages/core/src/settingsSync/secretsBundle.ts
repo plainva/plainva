@@ -17,6 +17,7 @@
 import { openBlob, sealBlob } from "../crypto/sealedBlob.js";
 import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { utf8Decode, utf8Encode } from "../crypto/cryptoPrimitives.js";
+import { trimEndChars } from "../textScan.js";
 
 /** The static, shareable secret types. Everything else is refused. */
 export const SHAREABLE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
@@ -102,7 +103,7 @@ export function canonicalizeEndpoint(url: string): string {
   const host = parsed.hostname.toLowerCase();
   const defaultPort = scheme === "https:" ? "443" : scheme === "http:" ? "80" : "";
   const port = parsed.port && parsed.port !== defaultPort ? `:${parsed.port}` : "";
-  const path = parsed.pathname.replace(/\/+$/, "") || "";
+  const path = trimEndChars(parsed.pathname, "/") || "";
   return `${scheme}//${host}${port}${path}`;
 }
 

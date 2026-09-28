@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import regexp from "eslint-plugin-regexp";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
@@ -206,6 +207,26 @@ export default tseslint.config(
     plugins: { plainva: plainvaPlugin },
     rules: {
       "plainva/no-top-level-imported-static-read": "error",
+    },
+  },
+  {
+    // Linear text scanning (docs/engineering/Text_Scanning.md). Text from
+    // vaults, mail, calendars, providers and publications reaches these
+    // patterns, and one that backtracks or moves super-linearly freezes the
+    // window on a hostile note: code scanning found nineteen in five days
+    // (September 2026), one of them exponential. Shipped sources only — tests
+    // scan the repository's own files, never input from users or outside.
+    files: [
+      "packages/core/src/**/*.ts",
+      "packages/ui/src/**/*.{ts,tsx}",
+      "apps/desktop/src/**/*.{ts,tsx}",
+      "apps/mobile/src/**/*.{ts,tsx}",
+    ],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    plugins: { regexp },
+    rules: {
+      "regexp/no-super-linear-backtracking": "error",
+      "regexp/no-super-linear-move": "error",
     },
   },
 );

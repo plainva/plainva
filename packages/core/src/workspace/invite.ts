@@ -1,4 +1,5 @@
 import { fromBase64, toBase64 } from "./encoding.js";
+import { trimEndChars } from "../textScan.js";
 
 /**
  * Copyable workspace invitation code (Security & Sharing, package C3). The owner
@@ -20,8 +21,8 @@ export interface WorkspaceInvite {
 const INVITE_PREFIX = "PVINVITE1.";
 
 export function encodeWorkspaceInvite(invite: WorkspaceInvite): string {
-  return INVITE_PREFIX + toBase64(new TextEncoder().encode(JSON.stringify(invite)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return INVITE_PREFIX + trimEndChars(toBase64(new TextEncoder().encode(JSON.stringify(invite)))
+    .replace(/\+/g, "-").replace(/\//g, "_"), "=");
 }
 
 export function decodeWorkspaceInvite(code: string): WorkspaceInvite {

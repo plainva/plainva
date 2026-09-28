@@ -28,6 +28,7 @@
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "./ISyncTarget.js";
 import { DELETIONS_SYNC_PATH } from "../settingsSync/paths.js";
+import { trimEndChars, trimStartChars } from "../textScan.js";
 
 /** Entries older than this are forgotten on load/merge (plan P1: 90 days). */
 export const DELETION_JOURNAL_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
@@ -92,7 +93,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 export function normalizeJournalPath(path: string): string {
-  return path.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "").replace(/^\/+/, "");
+  return trimStartChars(trimEndChars(path.replace(/\\/g, "/").replace(/^\.\//, ""), "/"), "/");
 }
 
 function entryKey(e: DeletionJournalEntry): string {

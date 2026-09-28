@@ -1,4 +1,5 @@
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
+import { bracketLinks, wikiLinks } from "@plainva/core";
 import { splitLinkAnchor } from "../lib/linkAnchor";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
@@ -184,16 +185,16 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
         for (const { from, to } of view.visibleRanges) {
           const text = view.state.sliceDoc(from, to);
           
-          // Match WikiLinks: [[target|alias]] or [[target]]
-          const wikiRegex = /\[\[(.*?)\]\]/g;
-          let match;
-          while ((match = wikiRegex.exec(text)) !== null) {
+          // Match WikiLinks: [[target|alias]] or [[target]] — `/\[\[(.*?)\]\]/g`,
+          // read in one pass (plan Befunde 24.09., E6): the pattern looked for
+          // `]]` again from every `[[`, on every keystroke.
+          for (const match of wikiLinks(text, { anyInLine: true })) {
             const matchStart = from + match.index;
             if (matchStart > 0 && view.state.sliceDoc(matchStart - 1, matchStart) === "!") {
               continue; // Skip image links ![[...]]
             }
-            const matchEnd = matchStart + match[0].length;
-            const content = match[1];
+            const matchEnd = matchStart + match.raw.length;
+            const content = match.inner;
             const hideRanges: {start: number, end: number}[] = [];
             let rawTarget = content;
             
@@ -219,15 +220,15 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
           // `]` (a real Markdown link's text can't) — otherwise the match spans
           // across a preceding `[...]` such as a footnote `[^1]` into the real
           // link, styling everything in between as one link (issue #11).
-          const mdRegex = /\[([^\]\n]*?)\]\(([^)\n]*?)\)/g;
-          while ((match = mdRegex.exec(text)) !== null) {
+          // `/\[([^\]\n]*?)\]\(([^)\n]*?)\)/g`, read in one pass (E6).
+          for (const match of bracketLinks(text, { labelStops: "\n", destinationStops: "\n", destinationMin: 0 })) {
             const matchStart = from + match.index;
             if (matchStart > 0 && view.state.sliceDoc(matchStart - 1, matchStart) === "!") {
               continue; // Skip image links ![...](...)
             }
-            const matchEnd = matchStart + match[0].length;
-            const displayText = match[1];
-            const target = match[2];
+            const matchEnd = matchStart + match.raw.length;
+            const displayText = match.label;
+            const target = match.destination;
             
             const hideRanges = [];
             hideRanges.push({ start: matchStart, end: matchStart + 1 }); // hide `[`
@@ -239,6 +240,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
 
           // Match raw URLs: https://...
           const urlRegex = /(https?:\/\/[^\s)]+)/g;
+          let match: RegExpExecArray | null;
           while ((match = urlRegex.exec(text)) !== null) {
             const matchStart = from + match.index;
             const matchEnd = matchStart + match[0].length;

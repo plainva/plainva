@@ -12,6 +12,7 @@ import {
   setFrontmatterPath,
   type TaskRecord,
   deleteFrontmatterPath,
+  trimEndChars,
 } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -362,7 +363,7 @@ export function TasksScreen({
    * marker IN the note, so this is a write, not a preference.
    */
   const templateNotePaths = useMemo(() => {
-    const base = (getMobileSettings().templateFolder || "Templates").replace(/\/+$/, "");
+    const base = trimEndChars(getMobileSettings().templateFolder || "Templates", "/");
     if (!base) return [];
     const seen = new Set<string>();
     for (const tk of tasks) {

@@ -1,4 +1,5 @@
 import { parseSourceClause, type SourceClause } from "@plainva/ui";
+import { trimEndChars } from "@plainva/core";
 
 /**
  * Decides whether an index refresh restricted to `changedPaths` can affect a
@@ -64,5 +65,5 @@ function collectClauses(filters: unknown): string[] {
 }
 
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/\/+$/, "");
+  return trimEndChars(p.replace(/\\/g, "/"), "/");
 }

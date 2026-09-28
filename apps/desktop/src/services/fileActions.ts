@@ -31,6 +31,74 @@ export function renameInitialName(path: string, isFolder: boolean): string {
   return name;
 }
 
+const WHITESPACE = /\s/;
+const isWhitespace = (ch: string | undefined): boolean => ch !== undefined && WHITESPACE.test(ch);
+const isSpaceOrTab = (ch: string | undefined): boolean => ch === " " || ch === "\t";
+/** Where `^` and `$` stand under the `m` flag, and what `.` does not match. */
+const isLineBreak = (ch: string | undefined): boolean => ch === "\n" || ch === "\r" || ch === "\u2028" || ch === "\u2029";
+
+interface HeadingLine {
+  /** Where the match starts (a line start) and ends (the line's end). */
+  index: number;
+  end: number;
+  /** The whitespace before the marker — blank lines included. */
+  lead: string;
+  /** The `#` run and the blanks after it. */
+  marker: string;
+  text: string;
+  /** The blanks after the text. */
+  trail: string;
+}
+
+/**
+ * The first heading line of `body` — what `/^(\s*)(#{1,6}[ \t]+)(.+?)([ \t]*)$/m`
+ * matched — found in one pass (plan Befunde 24.09., E6). The pattern retried
+ * its leading whitespace from every line start in a run of blank lines, and
+ * its text from every blank before a line break: quadratic on a long run.
+ *
+ * The reading is the old one. The lead runs over blank lines up to the `#`
+ * run; the marker takes every blank after one to six `#`, and gives one back
+ * when nothing else is left on the line; the text is the rest of the line
+ * without its trailing blanks, but at least one character.
+ */
+function firstHeadingLine(body: string): HeadingLine | null {
+  const n = body.length;
+  let lineStart = 0;
+  while (lineStart <= n) {
+    // A line start inside the lead of a failed line leads to the same `#`, so
+    // the search resumes after it.
+    let hashes = lineStart;
+    while (hashes < n && isWhitespace(body[hashes])) hashes++;
+    let blanks = hashes;
+    while (body[blanks] === "#") blanks++;
+    const level = blanks - hashes;
+    let resume = blanks;
+    if (level >= 1 && level <= 6 && isSpaceOrTab(body[blanks])) {
+      let textStart = blanks;
+      while (isSpaceOrTab(body[textStart])) textStart++;
+      let end = textStart;
+      while (end < n && !isLineBreak(body[end])) end++;
+      if (textStart === end) textStart--;
+      if (textStart > blanks) {
+        let textEnd = end;
+        while (textEnd > textStart + 1 && isSpaceOrTab(body[textEnd - 1])) textEnd--;
+        return {
+          index: lineStart,
+          end,
+          lead: body.slice(lineStart, hashes),
+          marker: body.slice(hashes, textStart),
+          text: body.slice(textStart, textEnd),
+          trail: body.slice(textEnd, end),
+        };
+      }
+      resume = end;
+    }
+    while (resume < n && !isLineBreak(body[resume])) resume++;
+    lineStart = resume + 1;
+  }
+  return null;
+}
+
 /**
  * Rewrites a note's first heading when it MIRRORS the old file name — the state
  * a database entry starts in (`buildNewItemContent` writes `# <file name>`).
@@ -44,13 +112,13 @@ export function carryMirroredHeading(content: string, oldName: string, newName: 
   const body = content.slice(bodyStart);
   // The heading must be the first non-empty body line — a "# Task_1" buried in
   // the middle of a note is prose, not a title.
-  const match = body.match(/^(\s*)(#{1,6}[ \t]+)(.+?)([ \t]*)$/m);
-  if (!match || match.index === undefined) return null;
+  const match = firstHeadingLine(body);
+  if (!match) return null;
   if (body.slice(0, match.index).trim() !== "") return null;
-  if (match[3].trim() !== oldName.trim()) return null;
+  if (match.text.trim() !== oldName.trim()) return null;
   const start = bodyStart + match.index;
-  const end = start + match[0].length;
-  return content.slice(0, start) + match[1] + match[2] + newName + match[4] + content.slice(end);
+  const end = bodyStart + match.end;
+  return content.slice(0, start) + match.lead + match.marker + newName + match.trail + content.slice(end);
 }
 
 /**

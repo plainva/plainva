@@ -7,6 +7,7 @@ import { fetchWithRetry, parseRetryAfterMs } from "./httpRetry.js";
 import { SyncProviderError, SyncRootMissingError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
+import { trimChars } from "../textScan.js";
 
 /** Quote one Drive query value; escaping quotes alone leaves backslashes active. */
 function driveQueryString(value: string): string {
@@ -500,7 +501,7 @@ export class DriveSyncTarget implements ISyncTarget {
    * folder structure on Drive. Returns null when any segment does not exist.
    */
   private async resolveFolderIdReadOnly(folderPath: string): Promise<string | null> {
-    const normalized = folderPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const normalized = trimChars(folderPath.replace(/\\/g, "/"), "/");
     if (normalized === "") return this.getRootFolderId();
     const cached = this.folderToId.get(normalized);
     if (cached) return cached;
@@ -525,7 +526,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
   /** Resolves (creating as needed) the Drive folder id for a relative folder path. */
   private async resolveFolderId(folderPath: string): Promise<string> {
-    const normalized = folderPath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const normalized = trimChars(folderPath.replace(/\\/g, "/"), "/");
     if (normalized === "") return this.getRootFolderId();
     const cached = this.folderToId.get(normalized);
     if (cached) return cached;

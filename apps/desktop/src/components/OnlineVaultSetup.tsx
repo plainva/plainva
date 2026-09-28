@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { ArrowRight, Check, Cloud, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
-import { assertEmptyRemoteVault } from "@plainva/core";
+import { assertEmptyRemoteVault, trimEndChars } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { credentialManager } from "../services/CredentialManager";
 import { authorizeDrive } from "../services/driveAuth";
@@ -200,7 +200,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       if (mode === "create") {
         if (!(await isVaultFolderEmpty(localDir))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }));
         const folder = cloudFolder?.trim() || undefined;
-        const remote = c.provider === "webdav" ? buildWebDavTarget({ ...c, url: folder ? `${c.url.replace(/\/+$/, "")}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url })
+        const remote = c.provider === "webdav" ? buildWebDavTarget({ ...c, url: folder ? `${trimEndChars(c.url, "/")}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url })
           : c.provider === "drive" ? buildDriveTarget({ ...c, rootFolderName: folder })
           : c.provider === "onedrive" ? buildOneDriveTarget({ ...c, rootFolderName: folder }, token => { c.refreshToken = token; })
           : c.provider === "dropbox" ? buildDropboxTarget({ ...c, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined }, token => { c.refreshToken = token; })
@@ -218,7 +218,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       }
       const folder = cloudFolder?.trim() || undefined;
       if (c.provider === "webdav") {
-        const base = c.url.replace(/\/+$/, "");
+        const base = trimEndChars(c.url, "/");
         const url = folder ? `${base}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url;
         await credentialManager.saveWebDavCredentials(localDir, { url, user: c.user, pass: c.pass });
       } else if (c.provider === "drive") {

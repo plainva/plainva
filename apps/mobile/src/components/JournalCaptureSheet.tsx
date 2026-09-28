@@ -65,7 +65,7 @@ export function JournalCaptureSheet({
           writeBinaryFile: (p, bytes) => vault.adapter.writeBinaryFile(p, bytes),
         },
       );
-      setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${insert}` : insert));
+      setValue((v) => (v.trim() ? `${v.trimEnd()}\n${insert}` : insert));
     } catch (error) {
       toast.error(errorText(error));
     }
@@ -77,7 +77,7 @@ export function JournalCaptureSheet({
    * X7): plain Markdown the person can edit into a real name or delete.
    */
   const onPlace = (line: string) => {
-    setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${line}` : line));
+    setValue((v) => (v.trim() ? `${v.trimEnd()}\n${line}` : line));
   };
 
   // A photo goes the way every photo goes: into the attachment folder, embedded by name.

@@ -10,6 +10,7 @@ import {
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { MarkdownFamilyImporter } from './markdownFamily.js';
+import { wikiLinkMatcher } from '../../linkScan.js';
 
 function safeName(name: string, fallback: string): string {
   const cleaned = name
@@ -61,6 +62,8 @@ export function parseTiddlyDate(raw: string | undefined): number | undefined {
   return Number.isFinite(ms) ? ms : undefined;
 }
 
+const SPACE = /\s/;
+
 /**
  * TiddlyWiki keeps tags in one string and quotes the ones with spaces.
  *
@@ -69,9 +72,20 @@ export function parseTiddlyDate(raw: string | undefined): number | undefined {
 export function parseTiddlyTags(raw: string | undefined): string[] {
   if (!raw) return [];
   const tags: string[] = [];
-  for (const match of raw.matchAll(/\[\[([^\]]+)\]\]|(\S+)/g)) {
-    const tag = (match[1] ?? match[2] ?? '').trim();
+  // `/\[\[([^\]]+)\]\]|(\S+)/g`, read in one pass (plan Befunde 24.09., E6): the
+  // pattern looked for `]` again from every `[[`, quadratic on `[[ [[ [[ …`.
+  const quotedAt = wikiLinkMatcher(raw, {});
+  for (let at = 0; at < raw.length; ) {
+    const quoted = quotedAt(at);
+    let end = quoted ? quoted.end : at;
+    if (!quoted) while (end < raw.length && !SPACE.test(raw[end])) end++;
+    if (end === at) {
+      at++; // whitespace: no tag starts here
+      continue;
+    }
+    const tag = (quoted ? quoted.inner : raw.slice(at, end)).trim();
     if (tag) tags.push(tag);
+    at = end;
   }
   return tags;
 }
