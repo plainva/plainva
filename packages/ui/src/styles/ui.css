@@ -3479,6 +3479,22 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* A link inside a remark (K4) - the reply "task created: [[…]]" is one. */
 .pv-comment-card__link { color: var(--accent-color); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .pv-comment-card.is-active .pv-comment-card__link { color: inherit; }
+/* The description of a calendar event (plan Befunde 24.09., E25): text from
+   whoever sent the invitation, drawn from the linear parser - never as HTML. A
+   link is a chip that names the HOST it leads to; a Safe Link adds a quiet line
+   under its chip. Both previews (desktop window, phone sheet) share it. */
+.pv-evtdesc { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--bg-secondary); font-size: var(--text-ui); line-height: 1.5; color: var(--text-muted); overflow-wrap: anywhere; }
+.pv-evtdesc p { margin: 0 0 var(--space-2); }
+.pv-evtdesc ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); }
+.pv-evtdesc > :last-child { margin-bottom: 0; }
+.pv-evtdesc__head { color: var(--text-main); font-weight: 600; }
+.pv-evtdesc__link { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-xs); background: var(--bg-primary); color: var(--accent-color); text-decoration: none; white-space: nowrap; vertical-align: baseline; }
+.pv-evtdesc__link:hover { background: var(--state-hover); }
+.pv-evtdesc__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pv-evtdesc__host { color: var(--text-faint); font-size: var(--text-xs); }
+.pv-evtdesc__via { display: block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
+/* "Join · Teams" sits under the time, as wide as its words, not as the column. */
+.pv-evtjoin { align-self: flex-start; }
 .pv-comment-card__state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-faint); font-size: var(--text-sm); }
 .pv-comment-card__reply { display: grid; gap: var(--space-1); margin-left: var(--space-3); padding-left: var(--space-2); border-left: 1px solid var(--border-color-light); }
 .pv-comment-card__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }

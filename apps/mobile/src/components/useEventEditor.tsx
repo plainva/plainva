@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
+import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
 import { parseRRule, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -316,6 +316,7 @@ export function useEventEditor({
           onMeetingNote={() => void meetingNoteFromPeek(peek)}
           onRespond={peek.selfResponse ? (r) => void respondFromPeek(peek, r) : undefined}
           onBlock={blockTargetsFor(peek).length > 0 ? () => void blockFromPeek(peek) : undefined}
+          onOpenUrl={(url) => void getPlatformServices().openExternal(url)}
         />
       ) : null}
       {sheet ? (

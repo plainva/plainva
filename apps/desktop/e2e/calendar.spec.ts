@@ -50,6 +50,9 @@ test.beforeEach(async ({ page }) => {
                 { name: 'Chef', email: 'chef@example.org', status: 'accepted', organizer: true },
                 { name: 'Ich', email: 'me@example.org', status: 'needsAction', self: true },
               ]),
+              // Opt-in for the link test (E25): an Outlook description with a
+              // Safe Link and the provider's own join link.
+              ...((window as any).__pimLinks ?? {}),
             },
             {
               account_id: 'acc1', cal_id: 'cal1', uid: 'ev-holiday', title: 'Feiertag',
@@ -150,6 +153,8 @@ test.beforeEach(async ({ page }) => {
           return [null, false];
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
+        // What the system browser was asked to open (E25).
+        if (cmd === 'plugin:opener|open_url') { ((window as any).__opened ??= []).push(args?.url); return null; }
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
         if (cmd === 'plugin:sql|load') return args.db;
@@ -399,6 +404,46 @@ test('meeting note from the vault meeting-note template, anchor written after it
   expect(note).toContain('uid: ev-standup');
   expect(note).not.toContain('not-this-event');
   expect(note).toContain(`date: ${todayKey}`);
+});
+
+test('event preview: a Safe Link shows its target and opens itself; Join opens the meeting (E25)', async ({ page }) => {
+  const teams = 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0';
+  const safe =
+    'https://nam12.safelinks.protection.outlook.com/?url=' +
+    encodeURIComponent('https://contoso.sharepoint.com/sites/Planung/Q4.docx') +
+    '&data=05%7C02%7C%7Cc0ffee&reserved=0';
+  await page.addInitScript(({ safe, teams }) => {
+    (window as any).__pimLinks = { description: `Microsoft Teams meeting\nDocuments: ${safe}`, meeting_url: teams };
+  }, { safe, teams });
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  const body = page.getByTestId('event-peek-body');
+  await expect(body).toBeVisible();
+  const chip = body.locator('a.pv-evtdesc__link');
+  await expect(chip).toHaveText('contoso.sharepoint.com');
+  await expect(chip).toHaveAttribute('href', safe);
+  await expect(body.locator('.pv-evtdesc__via')).toHaveText(/Safe Links/);
+  await expect(body).not.toContainText('safelinks');
+  await chip.click();
+  // The organisation's check is not skipped: what opens is the Safe Link itself.
+  await expect.poll(() => page.evaluate(() => (window as any).__opened ?? [])).toEqual([safe]);
+  const join = page.getByTestId('event-join');
+  await expect(join).toHaveText(/(Join|Teilnehmen) · Teams/);
+  await join.click();
+  await expect.poll(() => page.evaluate(() => (window as any).__opened ?? [])).toEqual([safe, teams]);
+});
+
+test('event preview without an online meeting has no Join button (E25)', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await page.getByTestId(`calendar-day-number-${todayKey}`).click();
+  await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
+  await expect(page.getByTestId('event-peek-body')).toContainText('Kurzes Standup');
+  await expect(page.getByTestId('event-join')).toHaveCount(0);
 });
 
 test('right-click an event opens the quick-action context menu (edit/colour/RSVP)', async ({ page }) => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
@@ -1103,6 +1104,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, onOpenPath, t]
   );
 
+  /** A link in an event's description, or its Join button (E25): the system
+   *  browser opens exactly the address the event carries. */
+  const openEventUrl = useCallback(
+    (url: string) => {
+      openUrl(url).catch((err) => toast.error(t("dialogs.openWebLinkErrorMsg", { error: err })));
+    },
+    [t]
+  );
+
   const viewMonth = viewDate.getMonth();
 
   // Agenda: upcoming days (events and/or due tasks) inside the rolling range.
@@ -2111,6 +2121,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : undefined
           }
           onBlock={writableAnyCount > 1 ? () => { setPeekEvent(null); setBlockEvent(peekEvent); } : undefined}
+          onOpenUrl={openEventUrl}
         />
       )}
       {ctxMenu && (

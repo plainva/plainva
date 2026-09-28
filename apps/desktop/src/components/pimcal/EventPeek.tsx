@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Check, FilePlus2, MapPin, MoreVertical, Pencil, Repeat, Users, X } from "lucide-react";
 import {
   Button,
+  EventDescription,
+  EventJoinButton,
   FloatingWindow,
   ICON,
   IconButton,
@@ -10,7 +12,6 @@ import {
   describeRecurrence,
   formatEventWhen,
   isSeries,
-  markdownToHtml,
   nextOccurrenceOf,
   peekAttendees,
   seriesRecurrenceOf,
@@ -56,6 +57,13 @@ export interface EventPeekProps {
   onSetColor?: EventContextMenuProps["onSetColor"];
   onRespond?: EventContextMenuProps["onRespond"];
   onBlock?: EventContextMenuProps["onBlock"];
+  /**
+   * Opens an http(s) address in the system browser — a link in the
+   * description and the Join button (plan Befunde 24.09., E25). Until then the
+   * description was HTML in the DOM, and a click on a link never reached the
+   * app's opener.
+   */
+  onOpenUrl: (url: string) => void;
 }
 
 const STATUS_KEY: Record<PimAttendeeStatus, { key: string; fallback: string }> = {
@@ -79,6 +87,7 @@ export function EventPeek({
   onSetColor,
   onRespond,
   onBlock,
+  onOpenUrl,
 }: EventPeekProps) {
   const { t, i18n } = useTranslation();
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
@@ -105,7 +114,6 @@ export function EventPeek({
   const next = useMemo(() => nextOccurrenceOf(rows, event), [rows, event]);
 
   const dateLabel = useMemo(() => formatEventWhen(event, i18n.language), [event, i18n.language]);
-  const body = useMemo(() => (event.description ? markdownToHtml(event.description) : ""), [event.description]);
 
   const repeatLabel = recurrence ? describeRecurrence(recurrence, t, i18n.language) : null;
   const nextLabel = next
@@ -158,6 +166,8 @@ export function EventPeek({
             ) : null}
           </div>
         </div>
+
+        <EventJoinButton meetingUrl={event.meetingUrl} onOpenUrl={onOpenUrl} />
 
         {isSeries(event) ? (
           <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }} data-testid="event-peek-series">
@@ -216,13 +226,8 @@ export function EventPeek({
           </div>
         ) : null}
 
-        {body ? (
-          <div
-            className="markdown-reader"
-            style={{ fontSize: "var(--text-ui)", overflowWrap: "anywhere" }}
-            data-testid="event-peek-body"
-            dangerouslySetInnerHTML={{ __html: body }}
-          />
+        {event.description ? (
+          <EventDescription text={event.description} onOpenUrl={onOpenUrl} data-testid="event-peek-body" />
         ) : null}
 
         {onRespond ? (

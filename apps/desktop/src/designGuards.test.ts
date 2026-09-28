@@ -429,6 +429,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-resulthead": "text row above the hits — the label is --text-muted and the ✕ is a themed .pv-iconbtn",
   "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed",
   "pv-capturerow": "dashed placeholder row in --text-muted on the page ground; both themes override those tokens",
+  "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
+  "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
