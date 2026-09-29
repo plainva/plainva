@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { ICON, Modal, Swatch, toast } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, Swatch, toast } from "@plainva/ui";
 import {
   ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
@@ -13,6 +13,8 @@ import { ColorPopover } from "./ColorPopover";
 import { imageMimeType, isEditableImage, loadImageBlob, saveCanvasToVault } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { copyCandidate } from "./fileTreeModel";
+import { MissingFileView } from "./MissingFileView";
+import { useOpenFileLookup } from "./useOpenFileLookup";
 import {
   clampRect, emptyEditorState, pushOp, rectFrom, redoOp, renderOps, sizeAfterOps,
   toCanvasPoint, undoOp, type EditorState, type ImageOp, type Point,
@@ -23,12 +25,21 @@ type Tool = "select" | "crop" | "pen" | "arrow" | "rect" | "text";
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 
 /**
+ * Unsaved edits of an image whose file moved outside Plainva (issue 110,
+ * E9), handed from the tab at the old place to the tab at the new one. The
+ * viewer mounts once per path, and edits are only written when the reader
+ * saves them — so they travel along, and nothing is written on the way.
+ */
+const carriedEdits = new Map<string, EditorState>();
+const carryKey = (vault: string | null | undefined, path: string) => `${vault ?? ""}\u0000${path}`;
+
+/**
  * In-app viewer + simple canvas editor for vault images (plan UI-UX-Paket P10).
  * Viewing uses a blob URL (never asset:// — no canvas taint, no stale cache
  * after saving); editing replays an op list over the original bitmap. Editable
  * formats: PNG/JPG/WebP; SVG/GIF/BMP/AVIF are view-only.
  */
-export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, onDelete, onSplit, activeSplitDirection }: {
+export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, onDelete, onSplit, activeSplitDirection, onRenamed, onCloseTab }: {
   path: string;
   onOpenPath?: (p: string, newTab?: boolean) => void;
   isBookmarked?: boolean;
@@ -36,9 +47,13 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   onDelete?: () => void;
   onSplit?: (direction: "vertical" | "horizontal") => void;
   activeSplitDirection?: "vertical" | "horizontal";
+  /** Tab retargeting: the tab follows its image when it was moved outside Plainva (issue 110). */
+  onRenamed?: (from: string, to: string) => void;
+  /** Closes this tab — the missing-file state's one action. */
+  onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, indexer, triggerFileTreeUpdate } = useVault();
+  const { vaultAdapter, indexer, triggerFileTreeUpdate, vaultPath } = useVault();
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [byteSize, setByteSize] = useState(0);
@@ -61,6 +76,22 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   const dragRef = useRef<{ start: Point; points: Point[] } | null>(null);
   const saveAsInputRef = useRef<HTMLInputElement>(null);
 
+  // The image moved or vanished outside Plainva (issue 110, E9): looked for
+  // by its content hash, a proven move followed — with bookmarks and pinboard
+  // places — or "Moved?", or the missing state. Unsaved edits go along with
+  // the tab; nothing is written until the reader saves.
+  const hasEdits = editing && state.ops.length > 0;
+  const missing = useOpenFileLookup(path, {
+    enabled: true,
+    onRenamed,
+    onOpenPath,
+    carry: async (to) => {
+      if (hasEdits) carriedEdits.set(carryKey(vaultPath, to), state);
+      return true;
+    },
+  });
+  const { look: lookForFile, remember: rememberFile } = missing;
+
   const fileName = path.split(/[/\\]/).pop() ?? path;
   const editable = isEditableImage(path);
   const currentSize = bitmap ? sizeAfterOps({ width: bitmap.width, height: bitmap.height }, state.ops) : null;
@@ -81,10 +112,19 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
         url = URL.createObjectURL(blob);
         setObjectUrl(url);
         setByteSize(blob.size);
+        rememberFile();
         try {
           const bmp = await createImageBitmap(blob);
-          if (alive) setBitmap(bmp);
-          else bmp.close();
+          if (alive) {
+            setBitmap(bmp);
+            // Edits that came along with a move made outside Plainva.
+            const carried = carriedEdits.get(carryKey(vaultPath, path));
+            if (carried) {
+              carriedEdits.delete(carryKey(vaultPath, path));
+              setState(carried);
+              setEditing(true);
+            }
+          } else bmp.close();
         } catch {
           // e.g. SVG without intrinsic size — the <img> viewer still works.
           if (alive) setBitmap(null);
@@ -92,7 +132,11 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
       })
       .catch((e) => {
         console.error("[ImageViewer] loading failed", path, e);
-        if (alive) setError(t("imageViewer.loadError"));
+        if (alive) {
+          setError(t("imageViewer.loadError"));
+          // Moved or deleted outside Plainva? Looked for before the error stands.
+          lookForFile();
+        }
       });
     return () => {
       alive = false;
@@ -214,10 +258,16 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
     setTextDraft(null);
   };
 
-  const doSave = async (targetPath: string, openAfter: boolean) => {
+  const doSave = async (targetPath: string, openAfter: boolean, { restore = false }: { restore?: boolean } = {}) => {
     if (!vaultAdapter || !bitmap) return;
     setBusy(true);
     try {
+      // Never over a place the image has left (issue 110, E9): the edits stay
+      // and the image is looked for. "Save here again" is the reader's word.
+      if (targetPath === path && !restore && !(await vaultAdapter.exists(path).catch(() => true))) {
+        lookForFile();
+        return;
+      }
       const target = document.createElement("canvas");
       renderOps(bitmap, state.ops, target);
       let out = target;
@@ -254,6 +304,8 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
         setBitmap(bmp);
         setState(emptyEditorState());
         setEditing(false);
+        missing.clear();
+        rememberFile();
       } else if (openAfter) {
         onOpenPath?.(targetPath, true);
       }
@@ -327,8 +379,41 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
 
   const cssZoom = zoom === "fit" ? null : zoom;
 
+  if (missing.lookup && !hasEdits) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "var(--bg-primary)" }}>
+        <MissingFileView path={path} lookup={missing.lookup} onPick={missing.pick} onCloseTab={onCloseTab} testIdPrefix="image" />
+      </div>
+    );
+  }
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-primary)" }}>
+      {hasEdits && missing.lookup && missing.lookup.kind !== "checking" && (
+        // The image vanished while it held unsaved edits: they stay on the
+        // canvas, the question sits above it. Picking a file takes them there
+        // (still unsaved); "Save here again" writes them where it was.
+        <div data-testid="image-vanished">
+          <Banner
+            kind="warning"
+            actions={
+              <>
+                {missing.lookup.kind === "ask" && missing.lookup.candidates.map((candidate) => (
+                  <Button key={candidate} size="sm" variant="secondary" data-testid="image-vanished-candidate" onClick={() => missing.pick(candidate)}>
+                    {candidate}
+                  </Button>
+                ))}
+                <Button size="sm" variant="secondary" data-testid="image-vanished-restore" disabled={busy} onClick={() => { void doSave(path, false, { restore: true }); }}>
+                  {t("editor.vanishedRestore")}
+                </Button>
+              </>
+            }
+          >
+            {missing.lookup.kind === "ask" ? t("editor.vanishedAsk") : t("editor.vanishedGone")}
+            {missing.lookup.searching && <> {t("editor.movedFileStillLooking")}</>}
+          </Banner>
+        </div>
+      )}
       {/* Toolbar */}
       <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
         <button type="button" className="pv-iconbtn" onClick={() => zoomBy(-1)} data-tip={t("imageViewer.zoomOut")} aria-label={t("imageViewer.zoomOut")}><ZoomOut size={ICON.ui} /></button>

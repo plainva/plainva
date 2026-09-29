@@ -2585,6 +2585,7 @@
     "saveRetry": "Opslaan mislukt — opnieuw proberen op de achtergrond.",
     "noteMissing": "Deze notitie is niet gevonden.",
     "noteMovedFollowed": "Buiten Plainva verplaatst. De notitie staat nu in {{folder}}.",
+    "fileMovedFollowed": "Buiten Plainva verplaatst. Het bestand staat nu in {{folder}}.",
     "needsIndex": "Deze weergave heeft de zoekindex nodig. Die wordt opgebouwd bij het openen van de kluis.",
     "stepOf": "Stap {{n}} van {{total}}",
     "tabDatabases": "Databases",

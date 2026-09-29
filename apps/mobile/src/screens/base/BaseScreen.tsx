@@ -29,6 +29,7 @@ import {
   MoreHorizontal,
   CheckSquare,
   MessageSquare,
+  FileX,
   X, Search } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
@@ -38,7 +39,7 @@ import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
-import { errorText, pinboardLabelProperty } from "@plainva/ui";
+import { errorText, isFileNotFound, pinboardLabelProperty, useStableHandler } from "@plainva/ui";
 import {
   commitCellValue,
   createBaseItem,
@@ -49,6 +50,8 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
+import { MissingFileState } from "../../components/MissingFileState";
+import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
@@ -145,10 +148,13 @@ export function BaseScreen({
   onOpenNote,
   onNewPinboardEntry,
   initialConfigOpen,
+  onRenamed,
 }: {
   vault: MobileVault;
   path: string;
   onBack: () => void;
+  /** The screen follows its database when it was moved outside Plainva (issue 110). */
+  onRenamed?: (to: string) => void;
   onOpenNote: (path: string) => void;
   /**
    * Opens the "New entry" page for a draft the pinboard just created (plan
@@ -166,6 +172,31 @@ export function BaseScreen({
   const [loaded, setLoaded] = useState<LoadedBase | null>(() => snapshot?.loaded ?? null);
   const [viewIndex, setViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
   const [allRows, setRows] = useState<Row[] | null>(() => snapshot?.rows ?? null);
+  // The database file moved or vanished outside Plainva (issue 110, E9): the
+  // screen looks for it by the content hash the index stored and follows a
+  // proven move — with bookmarks and pinboard places — or asks "Moved?", or
+  // shows the missing state. A config change that found its file gone waits
+  // here and goes with the file once it is found; it never recreates the
+  // file at its old place unless the reader says so. `loadFailed` without a
+  // lookup: the file is there but could not be read — the screen used to
+  // show an empty database then, whose next change would have overwritten it.
+  const [pendingConfig, setPendingConfig] = useState<any | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const missing = useOpenFileLookup(vault, path, {
+    onRenamed,
+    carry: async (to) => {
+      if (pendingConfig === null) return true;
+      try {
+        await saveBaseConfig(vault, to, pendingConfig);
+        return true;
+      } catch (e) {
+        console.error("[BaseScreen] carrying the database change to the moved file failed", e);
+        toast.error(t("editor.saveFailed"));
+        return false;
+      }
+    },
+  });
+  const { look: lookForFile, remember: rememberFile } = missing;
   // The search of the database (finding 2026-09-19). Only the pinboard had one,
   // although nothing about it was the pinboard's. It narrows the rows at the
   // SOURCE — everything below reads `rows` — so table, list, cards, board,
@@ -328,17 +359,23 @@ export function BaseScreen({
     setLoaded(snapshot?.loaded ?? null);
     setRows(snapshot?.rows ?? null);
     setViewIndex(snapshot?.viewIndex ?? 0);
+    setLoadFailed(false);
     void loadBase(vault, path)
       .then((l) => {
         if (stale) return;
         setLoaded(l);
+        rememberFile();
         // The view this database was last left on (P6, Build-91 feedback) —
         // by name, the desktop's rule; a restored session lands on the
         // pinboard, not on view 0.
         setViewIndex(resolveViewIndex(l.config?.views, getLastActiveView(vault.vaultId, path)));
       })
       .catch(() => {
-        if (!stale) setLoaded({ config: { columns: {}, views: [] }, stem: title });
+        if (stale) return;
+        // Moved or deleted outside Plainva? Looked for (issue 110, E9). Never
+        // an empty stand-in: its next change would write it over the file.
+        setLoadFailed(true);
+        lookForFile();
       });
     return () => {
       stale = true;
@@ -373,13 +410,49 @@ export function BaseScreen({
     return () => window.removeEventListener("m-vault-changed", onChanged);
   }, [config, viewIndex, requery]);
 
+  /**
+   * Writes the config of this database — never to a place its file has left
+   * (issue 110, E9): the change then waits and goes with the file once found.
+   */
+  const persistConfig = useStableHandler(async (next: any): Promise<void> => {
+    try {
+      await saveBaseConfig(vault, path, next);
+      setPendingConfig(null);
+      rememberFile();
+    } catch (e) {
+      if (isFileNotFound(e)) {
+        setPendingConfig(next);
+        lookForFile();
+        return;
+      }
+      toast.warning(t("mobile.saveRetry"));
+    }
+  });
+  /** "Save here again": the reader brings the database back where it was, with the waiting change. */
+  const restoreHere = useStableHandler(async (): Promise<void> => {
+    if (pendingConfig === null) return;
+    try {
+      await saveBaseConfig(vault, path, pendingConfig, { recreate: true });
+    } catch (e) {
+      console.error("[BaseScreen] saving the database back failed", e);
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
+    setLoaded({ config: pendingConfig, stem: title });
+    setPendingConfig(null);
+    setLoadFailed(false);
+    missing.clear();
+    rememberFile();
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  });
+
   /** Clone-mutate-save-requery — the single write path for config changes. */
   const mutateConfig = (mutate: (cfg: any) => void) => {
     if (!loaded) return;
     const next = JSON.parse(JSON.stringify(loaded.config));
     mutate(next);
     setLoaded({ ...loaded, config: next });
-    void saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
+    void persistConfig(next);
   };
 
   /**
@@ -422,9 +495,9 @@ export function BaseScreen({
       }
     }
     setLoaded({ ...loaded, config: next });
-    await saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
+    await persistConfig(next);
     return { config: next, folder };
-  }, [loaded, path, vault, t]);
+  }, [loaded, path, vault, t, persistConfig]);
 
   const columnsPool = useMemo(() => {
     const set = new Set<string>(Object.keys(config?.columns ?? {}).filter((key) => key !== "plainva"));
@@ -861,9 +934,9 @@ export function BaseScreen({
         else v[k] = val;
       }
       setLoaded({ config: next, stem: loaded.stem });
-      void saveBaseConfig(vault, path, next);
+      void persistConfig(next);
     },
-    [config, loaded, viewIndex, vault, path],
+    [config, loaded, viewIndex, persistConfig],
   );
 
   /**
@@ -1981,6 +2054,37 @@ export function BaseScreen({
       </>
     );
   };
+
+  if (missing.lookup || loadFailed) {
+    // The file is not where the screen says (issue 110, E9), or could not be
+    // read: nothing of the database is offered — no "+", no settings.
+    return (
+      <div className="m-page">
+        <AppBar onBack={onBack} title={title} />
+        {missing.lookup ? (
+          <MissingFileState
+            keepsChanges={pendingConfig !== null}
+            lookup={missing.lookup}
+            onBack={onBack}
+            onPick={missing.pick}
+            onRestore={pendingConfig !== null ? () => { void restoreHere(); } : undefined}
+            testIdPrefix="base"
+          />
+        ) : (
+          <EmptyState
+            action={
+              <Button data-testid="base-missing-back" onClick={onBack} variant="tonal">
+                {t("common.back")}
+              </Button>
+            }
+            icon={<FileX size={ICON.touch} />}
+          >
+            {t("database.failedLoad")}
+          </EmptyState>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>

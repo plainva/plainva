@@ -60,7 +60,7 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
       ) : path === JOURNAL_TAB_PATH ? (
         <JournalView onOpenPath={(p) => onOpenPath(p)} />
       ) : path.endsWith(".base") ? (
-        <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} />
+        <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} onCloseTab={onCloseTab} />
       ) : (
         <Editor
           key={path}

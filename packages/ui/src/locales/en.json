@@ -2585,6 +2585,7 @@
     "saveRetry": "Saving failed — retrying in the background.",
     "noteMissing": "This note could not be found.",
     "noteMovedFollowed": "Moved outside Plainva. The note is now in {{folder}}.",
+    "fileMovedFollowed": "Moved outside Plainva. The file is now in {{folder}}.",
     "needsIndex": "This view needs the search index. It is built when the vault opens.",
     "stepOf": "Step {{n}} of {{total}}",
     "tabDatabases": "Databases",

@@ -649,6 +649,144 @@ test('unsaved text of a note deleted outside Plainva stays until the reader save
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/4 blog/link-50.md'])).toContain('Still mine.');
 });
 
+// Issue 110 (E9) for every other file a tab can hold: a database and an image
+// follow a proven move like a note, and fall back to the same "Moved?" and
+// missing states. What they hold unsaved never lands at the old place.
+const LINKS_BASE = 'views:\n  - type: table\n    name: Links\n';
+async function scriptLookup(page: import('@playwright/test').Page, candidates: string[]) {
+  await page.addInitScript(({ stamp, found }) => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const q = String(args?.query || '');
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT sha256, mtime_local FROM files WHERE path = ?')) return [{ sha256: 'hash-of-it', mtime_local: stamp }];
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT path, mtime_local FROM files WHERE sha256 = ?')) return found.map((path: string) => ({ path, mtime_local: stamp }));
+      return orig(cmd, args, options);
+    };
+  }, { stamp: STAMP, found: candidates });
+}
+async function openLinksBase(page: import('@playwright/test').Page, extra: Record<string, string> = {}) {
+  await page.addInitScript(({ base, files }) => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/taken': { isDir: true },
+      '/test-vault/4 blog/Links.base': base,
+      ...files,
+    });
+  }, { base: LINKS_BASE, files: extra });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await tree.getByText(/^Links(\.base)?$/).first().click();
+  await expect(page.locator('button.base-view-add')).toBeVisible();
+}
+const mockHas = (page: import('@playwright/test').Page, path: string) => page.evaluate((p) => p in (window as any).mockFs, `/test-vault/${path}`);
+const mockText = (page: import('@playwright/test').Page, path: string) => page.evaluate((p) => String((window as any).mockFs[p] ?? ''), `/test-vault/${path}`);
+async function addListView(page: import('@playwright/test').Page) {
+  await page.locator('button.base-view-add').click();
+  await page.locator('.base-view-menu').getByRole('button', { name: 'List', exact: true }).click();
+}
+
+test('an open database follows its file when it is moved outside Plainva, and so does its bookmark (issue 110)', async ({ page }) => {
+  await scriptLookup(page, ['4 blog/taken/Links.base']);
+  await openLinksBase(page, { '/test-vault/.plainva/bookmarks.json': JSON.stringify({ items: [{ type: 'file', path: '4 blog/Links.base' }] }) });
+
+  // Moved in Finder; the watcher reports the old side as gone.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/4 blog/taken/Links.base'] = fs['/test-vault/4 blog/Links.base'];
+    delete fs['/test-vault/4 blog/Links.base'];
+    window.dispatchEvent(new CustomEvent('plainva-external-update', { detail: { path: '4 blog/Links.base' } }));
+  });
+
+  await expect(page.getByText(/Moved outside Plainva\. The tab now shows the file in 4 blog\/taken\//)).toBeVisible();
+  await expect(page.locator('button.base-view-add')).toBeVisible();
+  await expect(page.getByTestId('base-missing-file')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => JSON.parse((window as any).mockFs['/test-vault/.plainva/bookmarks.json']).items.map((i: any) => i.path)))
+    .toEqual(['4 blog/taken/Links.base']);
+  // The tab stands on the new place: a change lands there, never at the old one.
+  await addListView(page);
+  await expect.poll(() => mockText(page, '4 blog/taken/Links.base')).toContain('type: list');
+  expect(await mockHas(page, '4 blog/Links.base')).toBe(false);
+});
+
+test('a database change made after its file was deleted outside Plainva waits until the reader saves it back (issue 110)', async ({ page }) => {
+  await scriptLookup(page, []);
+  await openLinksBase(page);
+  // Deleted outside Plainva, and nothing reported it yet.
+  await page.evaluate(() => { delete (window as any).mockFs['/test-vault/4 blog/Links.base']; });
+
+  await addListView(page);
+  const missing = page.getByTestId('base-missing-file');
+  await expect(missing).toBeVisible();
+  await expect(missing).toContainText('This file was removed outside Plainva. Your unsaved changes are kept here.');
+  // No silent resurrection at the old place.
+  await page.waitForTimeout(1500);
+  expect(await mockHas(page, '4 blog/Links.base')).toBe(false);
+
+  await missing.getByRole('button', { name: 'Save here again' }).click();
+  await expect(missing).toHaveCount(0);
+  await expect.poll(() => mockText(page, '4 blog/Links.base')).toContain('type: list');
+  await expect(page.locator('button.base-view-add')).toBeVisible();
+});
+
+// A 2×2 PNG. The mock stores text, so the test serves the image's bytes itself.
+const RED_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGN46uH71MOXAUIBACvGBel5qPs2AAAAAElFTkSuQmCC';
+async function serveImages(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:fs|read_file') {
+        const raw = options?.headers?.path ? decodeURIComponent(options.headers.path) : String(args?.path || '');
+        const content = (window as any).mockFs[raw];
+        if (typeof content === 'string' && raw.endsWith('.png')) {
+          const binary = content.startsWith('png:') ? atob(content.slice(4)) : content;
+          return Array.from(binary, (c: string) => c.charCodeAt(0));
+        }
+      }
+      return orig(cmd, args, options);
+    };
+  });
+}
+
+test('unsaved edits of an image go with its tab when the image is moved outside Plainva (issue 110)', async ({ page }) => {
+  await scriptLookup(page, ['4 blog/taken/red.png']);
+  await serveImages(page);
+  await page.addInitScript((png) => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/taken': { isDir: true },
+      '/test-vault/4 blog/red.png': `png:${png}`,
+    });
+  }, RED_PNG);
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await tree.getByText(/^red(\.png)?$/).first().click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByRole('button', { name: 'Rotate right' }).click();
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeEnabled();
+
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/4 blog/taken/red.png'] = fs['/test-vault/4 blog/red.png'];
+    delete fs['/test-vault/4 blog/red.png'];
+    window.dispatchEvent(new CustomEvent('plainva-external-update', { detail: { path: '4 blog/red.png' } }));
+  });
+
+  await expect(page.getByText(/Moved outside Plainva\. The tab now shows the file in 4 blog\/taken\//)).toBeVisible();
+  // The edit came along, still unsaved: nothing was written anywhere yet.
+  await expect(save).toBeEnabled();
+  expect(await mockText(page, '4 blog/taken/red.png')).toBe(`png:${RED_PNG}`);
+  expect(await mockHas(page, '4 blog/red.png')).toBe(false);
+
+  await save.click();
+  await expect.poll(() => mockText(page, '4 blog/taken/red.png')).not.toBe(`png:${RED_PNG}`);
+  expect(await mockHas(page, '4 blog/red.png')).toBe(false);
+});
+
 test('Lists: nested items get a stepped hanging indent in the editor', async ({ page }) => {
   // #2: verifies the listIndent decoration applies with the expected padding
   // (top level one step in from body, nested one step deeper) in live mode.

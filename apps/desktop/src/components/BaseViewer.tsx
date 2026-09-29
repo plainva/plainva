@@ -39,7 +39,7 @@ import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
 import { writeRelationLink } from "../services/graphRelationTargets";
-import { toast } from "@plainva/ui";
+import { assertFileStillThere, isFileNotFound, toast } from "@plainva/ui";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { NewItemButton, NewItemFolderDialog } from "./base/NewItemButton";
@@ -54,6 +54,8 @@ import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { FILE_DAY } from "@plainva/ui";
 import { BasePeekModal } from "./BasePeekModal";
+import { MissingFileView } from "./MissingFileView";
+import { useOpenFileLookup } from "./useOpenFileLookup";
 import { PinboardEntryModal } from "./base/PinboardEntryModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems, getCollapsedLanes, setCollapsedLanes } from "../services/baseViewState";
@@ -96,7 +98,9 @@ export function BaseViewer({
   activeSplitDirection,
   isActivePane = true,
   embedded = false,
-  hostPath
+  hostPath,
+  onRenamed,
+  onCloseTab,
 }: {
   activePath: string;
   onOpenPath?: (path: string, newTab: boolean) => void;
@@ -122,6 +126,10 @@ export function BaseViewer({
   /** Path of the note this base is embedded in — enables auto-scoping the rows
    * to the host element when the two bases are related (embedScope). */
   hostPath?: string;
+  /** Tab retargeting: the tab follows its file when it was moved outside Plainva (issue 110). */
+  onRenamed?: (from: string, to: string) => void;
+  /** Closes this tab — the missing-file state's one action (never the delete flow). */
+  onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities } = useVault();
@@ -131,6 +139,33 @@ export function BaseViewer({
   const [content, setContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!snapshot);
+
+  // The database file moved or vanished outside Plainva (issue 110, E9): the
+  // tab looks for it by the content hash the index stored and follows a
+  // proven move — with bookmarks and pinboard places — or asks "Moved?", or
+  // shows the missing state. A config change that found its file gone waits
+  // here (`pendingConfig`, serialized) and goes with the file once it is found;
+  // it never recreates the file at its old place unless the reader says so.
+  const [pendingConfig, setPendingConfig] = useState<string | null>(null);
+  const missing = useOpenFileLookup(activePath, {
+    enabled: !embedded,
+    onRenamed,
+    onOpenPath,
+    carry: async (to) => {
+      if (pendingConfig === null || !vaultAdapter) return true;
+      try {
+        await assertFileStillThere(vaultAdapter, to);
+        await vaultAdapter.writeTextFile(to, pendingConfig);
+        if (indexer) await applyIndexChanges(indexer, { added: [to] }).catch(() => {});
+        return true;
+      } catch (e) {
+        console.error("[BaseViewer] carrying the database change to the moved file failed", e);
+        toast.error(t("editor.saveFailed"));
+        return false;
+      }
+    },
+  });
+  const { look: lookForFile, remember: rememberFile } = missing;
 
   // Reload the config when THIS .base changes on disk (sync, watcher, or the
   // cross-file "Auf Ziel anzeigen" write from another viewer). The content
@@ -145,7 +180,7 @@ export function BaseViewer({
       vaultAdapter
         .readTextFile(activePath)
         .then((text) => { if (text !== contentRef.current) setReloadTick((n) => n + 1); })
-        .catch(() => { /* file gone — the tab host handles that */ });
+        .catch(() => { /* gone: useOpenFileLookup hears the same update and looks for the file */ });
     };
     window.addEventListener("plainva-external-update", onExternal);
     return () => window.removeEventListener("plainva-external-update", onExternal);
@@ -1343,6 +1378,9 @@ export function BaseViewer({
       .then(async text => {
         if (!isMounted) return;
         setContent(text);
+        // What the index knows about this file now, for when it vanishes
+        // while open: by then the watcher has removed the row (issue 110).
+        rememberFile();
 
         // Reconcile the recorded local hash with the content we just loaded (the Editor
         // does the same on open). Without this, a stale local_sha256 from an earlier
@@ -1414,6 +1452,9 @@ export function BaseViewer({
         if (isMounted) {
           setError(e.message || t("database.failedLoad", "Failed to load base file"));
           setIsLoading(false);
+          // Moved or deleted outside Plainva? Looked for before the error
+          // stands (issue 110, E9); a file that is there after all keeps it.
+          lookForFile();
         }
       });
 
@@ -1430,13 +1471,19 @@ export function BaseViewer({
 
   const saveConfig = async (newConfig: any) => {
     if (!vaultAdapter) return;
+    const newText = serializeBaseConfig(newConfig);
     try {
-      const newText = serializeBaseConfig(newConfig);
       // Optimistic UI update to prevent stuck screens
       setContent(newText);
       setDbConfig(newConfig);
 
+      // Never to a place the file has left (issue 110, E9): a database moved
+      // or deleted outside Plainva would come back here as a duplicate or a
+      // deletion undone.
+      await assertFileStillThere(vaultAdapter, activePath);
       await vaultAdapter.writeTextFile(activePath, newText);
+      setPendingConfig(null);
+      if (indexer) void applyIndexChanges(indexer, { added: [activePath] }).then(rememberFile, () => {});
 
       // Re-query with new config
       if (queryService) {
@@ -1444,8 +1491,33 @@ export function BaseViewer({
         setDbData(data);
       }
     } catch (e: any) {
+      if (isFileNotFound(e) && !embedded) {
+        // The change stays here and goes with the file once it is found.
+        setPendingConfig(newText);
+        lookForFile();
+        return;
+      }
       console.error("Failed to save database config", e);
     }
+  };
+
+  /** "Save here again": the reader brings the database back where it was, with the waiting change. */
+  const restoreHere = async () => {
+    if (!vaultAdapter || pendingConfig === null) return;
+    try {
+      // The plain write on purpose: the config save refuses to recreate a
+      // vanished file; this is the reader saying it should.
+      await vaultAdapter.writeTextFile(activePath, pendingConfig);
+      if (indexer) await applyIndexChanges(indexer, { added: [activePath] }).catch(() => {});
+    } catch (e) {
+      console.error("[BaseViewer] saving the database back failed", e);
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
+    setPendingConfig(null);
+    missing.clear();
+    triggerFileTreeUpdate();
+    setReloadTick((n) => n + 1);
   };
 
   const toggleColumn = (col: string) => {
@@ -2372,6 +2444,24 @@ export function BaseViewer({
       />
     );
   };
+
+  if (missing.lookup) {
+    // The file is not where the tab says (issue 110, E9): the same states as
+    // a note's — nothing of the database is offered while it is looked for.
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', background: 'var(--bg-primary)' }}>
+        <MissingFileView
+          path={activePath}
+          lookup={missing.lookup}
+          keepsChanges={pendingConfig !== null}
+          onPick={missing.pick}
+          onRestore={pendingConfig !== null ? () => { void restoreHere(); } : undefined}
+          onCloseTab={onCloseTab}
+          testIdPrefix="base"
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>

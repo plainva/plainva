@@ -568,9 +568,10 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "app runs no code to receive events anyway. The phone re-reads the vault " +
       "instead - every vault, on every return to the app (at most once a minute) " +
       "and on every pull-to-refresh, both through the core's reconcile that also " +
-      "removes what vanished (issue 110, E9). A note that went missing follows " +
-      "its file the same way on both shells. What differs is only the moment: " +
-      "the desktop within a second, the phone when it comes back to the front.",
+      "removes what vanished (issue 110, E9). A note, a database or an image " +
+      "that went missing follows its file the same way on both shells. What " +
+      "differs is only the moment: the desktop within a second, the phone when " +
+      "it comes back to the front.",
     verified: "2026-09-24",
   },
   {

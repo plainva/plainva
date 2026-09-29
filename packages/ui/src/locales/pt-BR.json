@@ -2600,6 +2600,7 @@
     "saveRetry": "Falha ao salvar — tentando novamente em segundo plano.",
     "noteMissing": "Esta nota não foi encontrada.",
     "noteMovedFollowed": "Movida para fora do Plainva. A nota agora está em {{folder}}.",
+    "fileMovedFollowed": "Movido para fora do Plainva. O arquivo agora está em {{folder}}.",
     "needsIndex": "Esta visualização precisa do índice de busca. Ele é criado ao abrir o cofre.",
     "stepOf": "Etapa {{n}} de {{total}}",
     "tabDatabases": "Bancos de dados",

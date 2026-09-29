@@ -2615,6 +2615,7 @@
     "saveRetry": "Zapis nie powiódł się — ponawianie w tle.",
     "noteMissing": "Nie znaleziono tej notatki.",
     "noteMovedFollowed": "Przeniesiono poza Plainva. Notatka jest teraz w {{folder}}.",
+    "fileMovedFollowed": "Przeniesiono poza Plainva. Plik jest teraz w {{folder}}.",
     "needsIndex": "Ten widok wymaga indeksu wyszukiwania. Powstaje przy otwieraniu sejfu.",
     "stepOf": "Krok {{n}} z {{total}}",
     "tabDatabases": "Bazy danych",

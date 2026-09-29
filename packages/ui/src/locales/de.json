@@ -2585,6 +2585,7 @@
     "saveRetry": "Speichern fehlgeschlagen — neuer Versuch läuft im Hintergrund.",
     "noteMissing": "Diese Notiz wurde nicht gefunden.",
     "noteMovedFollowed": "Außerhalb von Plainva verschoben. Die Notiz liegt jetzt in {{folder}}.",
+    "fileMovedFollowed": "Außerhalb von Plainva verschoben. Die Datei liegt jetzt in {{folder}}.",
     "needsIndex": "Diese Ansicht braucht den Suchindex. Er entsteht beim Öffnen des Vaults.",
     "stepOf": "Schritt {{n}} von {{total}}",
     "tabDatabases": "Datenbanken",

@@ -2600,6 +2600,7 @@
     "saveRetry": "Salvataggio non riuscito — nuovo tentativo in background.",
     "noteMissing": "Impossibile trovare questa nota.",
     "noteMovedFollowed": "Spostata fuori da Plainva. La nota ora si trova in {{folder}}.",
+    "fileMovedFollowed": "Spostato fuori da Plainva. Il file ora si trova in {{folder}}.",
     "needsIndex": "Questa vista richiede l’indice di ricerca. Viene creato all’apertura del vault.",
     "stepOf": "Passaggio {{n}} di {{total}}",
     "tabDatabases": "Database",

@@ -2600,6 +2600,7 @@
     "saveRetry": "Error al guardar; se reintentará en segundo plano.",
     "noteMissing": "No se encontró esta nota.",
     "noteMovedFollowed": "Movida fuera de Plainva. La nota está ahora en {{folder}}.",
+    "fileMovedFollowed": "Movido fuera de Plainva. El archivo está ahora en {{folder}}.",
     "needsIndex": "Esta vista necesita el índice de búsqueda. Se crea al abrir la bóveda.",
     "stepOf": "Paso {{n}} de {{total}}",
     "tabDatabases": "Bases de datos",

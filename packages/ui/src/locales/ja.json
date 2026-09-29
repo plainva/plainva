@@ -2570,6 +2570,7 @@
     "saveRetry": "保存に失敗しました — バックグラウンドで再試行しています。",
     "noteMissing": "このノートが見つかりません。",
     "noteMovedFollowed": "Plainva の外で移動されました。ノートは現在 {{folder}} にあります。",
+    "fileMovedFollowed": "Plainva の外で移動されました。ファイルは現在 {{folder}} にあります。",
     "needsIndex": "このビューには検索インデックスが必要です。Vault を開くときに作成されます。",
     "stepOf": "ステップ {{n}} / {{total}}",
     "tabDatabases": "データベース",

@@ -1,4 +1,4 @@
-import { searchMissingFile, type KnownFileIdentity, type MissingFileDeps, type MissingFileOutcome, type MissingFileSearch } from "@plainva/core";
+import { searchMissingFile, VaultFileNotFoundError, type KnownFileIdentity, type MissingFileDeps, type MissingFileOutcome, type MissingFileSearch } from "@plainva/core";
 import { sweepPinboardRefs, type PinboardSweepDeps } from "../base/pinboardSweep";
 import { notifyFileOps } from "./indexMdAutoUpdate";
 
@@ -131,4 +131,30 @@ export function healMissingNote(path: string, deps: MissingFileDeps, scope = "",
   const done = () => { if (inFlight.get(key) === run) inFlight.delete(key); };
   void run.then((search) => search.settled ?? undefined).then(done, done);
   return run;
+}
+
+/**
+ * Proves that the file a surface loaded is still where the surface writes it
+ * (issue 110, E9). A database or an image open while its file is moved or
+ * deleted elsewhere must not recreate it at its old place: that is a duplicate
+ * of a moved file or a deletion undone, and sync carries either on. So the
+ * write of such a surface asks first and throws `VaultFileNotFoundError`
+ * instead; the surface keeps its change and looks for the file
+ * (`useMissingFile`). Only the reader's own "Save here again" writes there.
+ *
+ * The note editor needs no such step: its save carries the text it started
+ * from, and the adapter tells a vanished file from a new one under its own
+ * lock. A move in the very instant between this check and the write is not
+ * caught here.
+ */
+export async function assertFileStillThere(adapter: { exists(path: string): Promise<boolean> }, path: string): Promise<void> {
+  if (!(await adapter.exists(path))) throw new VaultFileNotFoundError(path);
+}
+
+/**
+ * True for the error of a file that is not there. Across a window boundary
+ * the class does not survive, the code does.
+ */
+export function isFileNotFound(error: unknown): boolean {
+  return error instanceof VaultFileNotFoundError || (error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND";
 }

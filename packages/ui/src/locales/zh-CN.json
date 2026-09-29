@@ -2570,6 +2570,7 @@
     "saveRetry": "保存失败——正在后台重试。",
     "noteMissing": "找不到此笔记。",
     "noteMovedFollowed": "已在 Plainva 之外移动。笔记现在位于 {{folder}}。",
+    "fileMovedFollowed": "已在 Plainva 之外移动。文件现在位于 {{folder}}。",
     "needsIndex": "此视图需要搜索索引。索引会在打开保险库时建立。",
     "stepOf": "第 {{n}} 步，共 {{total}} 步",
     "tabDatabases": "数据库",

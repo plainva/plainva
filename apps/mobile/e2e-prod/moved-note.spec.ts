@@ -281,3 +281,103 @@ test.describe("a note that is OPEN while it is moved outside Plainva (issue 110)
     }
   });
 });
+
+/**
+ * Issue 110 (E9) for the other files a screen shows: a database and an image
+ * follow a proven move like a note does, and fall back to the same "Moved?"
+ * and missing states. A database change that finds its file gone never
+ * brings the file back at its old place unless the reader says so.
+ */
+const LINKS_BASE = "views:\n  - type: table\n    name: Links\n";
+const DIAGRAM = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="40" height="30" fill="cornflowerblue"/></svg>';
+
+/** Binary files are written as base64, the way an image lands in the vault. */
+async function writeBinary(page: Page, path: string, data: string) {
+  await page.evaluate(async ([p, d]) => {
+    await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path: "vault/" + p, data: btoa(d), directory: "DATA", recursive: true });
+  }, [path, data]);
+  await page.waitForTimeout(5);
+}
+
+test.describe("a database or an image moved outside Plainva (issue 110)", () => {
+  test.beforeEach(async ({ page, context }) => {
+    test.setTimeout(90_000);
+    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+    await context.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" })));
+  });
+
+  test("an open database follows its file after the return to the app, and so does its bookmark", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      await openBlogFolder(page, sql, [["4 blog/Links.base", LINKS_BASE], ["4 blog/link-50.md", NOTE], ["4 blog/taken/keep.md", "# Keep\n"]]);
+      await write(page, [[".plainva/bookmarks.json", JSON.stringify({ items: [{ type: "file", path: "4 blog/Links.base" }] })]]);
+      await page.getByRole("button", { name: /^Links/ }).first().click();
+      await expect(page.getByTestId("base-search-toggle")).toBeVisible();
+
+      await moveOutside(page, "4 blog/Links.base", "4 blog/taken/Links.base");
+      await returnToApp(page);
+
+      await expect(page.locator(".pv-toast").filter({ hasText: "Moved outside Plainva. The file is now in 4 blog/taken/." })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("base-search-toggle")).toBeVisible();
+      await expect(page.getByTestId("base-missing-back")).toHaveCount(0);
+      await expect.poll(async () => JSON.parse((await readVaultFile(page, ".plainva/bookmarks.json")) ?? "{}").items?.map((i: { path: string }) => i.path))
+        .toEqual(["4 blog/taken/Links.base"]);
+      expect(await onDisk(page, "4 blog/Links.base")).toBe(false);
+    } finally {
+      sql.close();
+    }
+  });
+
+  test("a database change after its file was deleted outside Plainva waits until it is saved back", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      await openBlogFolder(page, sql, [["4 blog/Links.base", LINKS_BASE], ["4 blog/link-50.md", NOTE]]);
+      await page.getByRole("button", { name: /^Links/ }).first().click();
+      await expect(page.getByTestId("base-search-toggle")).toBeVisible();
+      // Deleted in the Files app while the database is open; nothing reports it.
+      await removeOutside(page, "4 blog/Links.base");
+
+      await page.getByRole("button", { name: "Configure", exact: true }).click();
+      await page.getByRole("button", { name: /^View options/ }).click();
+      await page.getByRole("button", { name: "Add view" }).click();
+      await page.locator(".m-sheet-inputrow input").fill("Second");
+      await page.keyboard.press("Enter");
+
+      await expect(page.getByText("This file was removed outside Plainva. Your unsaved changes are kept here.")).toBeVisible({ timeout: 20_000 });
+      // The change does not bring the file back on its own.
+      await page.waitForTimeout(1500);
+      expect(await onDisk(page, "4 blog/Links.base")).toBe(false);
+
+      await page.getByTestId("base-restore").click();
+      await expect.poll(() => readVaultFile(page, "4 blog/Links.base")).toContain("name: Second");
+      await expect(page.getByTestId("base-search-toggle")).toBeVisible();
+    } finally {
+      sql.close();
+    }
+  });
+
+  test("an image whose file moved opens at its new place instead of a load error", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      await page.goto("/");
+      await waitForVaultDirectory(page);
+      await writeBinary(page, "4 blog/diagram.svg", DIAGRAM);
+      await write(page, [["4 blog/link-50.md", NOTE], ["4 blog/taken/keep.md", "# Keep\n"]]);
+      await page.reload();
+      for (const path of ["4 blog/diagram.svg", "4 blog/link-50.md", "4 blog/taken/keep.md"]) await expect.poll(() => indexed(sql, path), { timeout: 20_000 }).toBe(1);
+      await page.getByRole("button", { name: /^4 blog/ }).first().click();
+      const row = page.getByRole("button", { name: /^diagram/ }).first();
+      await expect(row).toBeVisible();
+
+      await moveOutside(page, "4 blog/diagram.svg", "4 blog/taken/diagram.svg");
+      await row.click();
+
+      await expect(page.locator(".pv-toast").filter({ hasText: "Moved outside Plainva. The file is now in 4 blog/taken/." })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole("img", { name: "diagram.svg" })).toBeVisible();
+      await expect(page.getByText("Could not load the image.")).toHaveCount(0);
+      expect(await onDisk(page, "4 blog/diagram.svg")).toBe(false);
+    } finally {
+      sql.close();
+    }
+  });
+});

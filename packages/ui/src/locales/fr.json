@@ -2600,6 +2600,7 @@
     "saveRetry": "Échec de l'enregistrement — nouvelle tentative en arrière-plan.",
     "noteMissing": "Cette note est introuvable.",
     "noteMovedFollowed": "Déplacée en dehors de Plainva. La note se trouve maintenant dans {{folder}}.",
+    "fileMovedFollowed": "Déplacé en dehors de Plainva. Le fichier se trouve maintenant dans {{folder}}.",
     "needsIndex": "Cette vue a besoin de l’index de recherche. Il est créé à l’ouverture du coffre.",
     "stepOf": "Étape {{n}} sur {{total}}",
     "tabDatabases": "Bases de données",

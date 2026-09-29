@@ -7,6 +7,7 @@ import { buildMobilePlanDeps } from "./cascadeDelete";
 import { getMobileSettings } from "./mobileSettings";
 import {
   applyRelationWrite,
+  assertFileStillThere,
   baseStemOf,
   buildContextScopeRelation,
   computeContextScope,
@@ -77,9 +78,18 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
   return v.queryService.queryDatabaseFiles(merged);
 }
 
-/** Serializes and writes the config through the sync chain, then re-indexes. */
-export async function saveBaseConfig(v: MobileVault, path: string, config: any): Promise<void> {
+/**
+ * Serializes and writes the config through the sync chain, then re-indexes.
+ *
+ * Only over the file that is there (issue 110, E9): a database moved or
+ * deleted outside Plainva while it was open must not come back at its old
+ * place — a duplicate of the moved file, or a deletion undone, which sync
+ * would carry on. The write throws `VaultFileNotFoundError` then, and the
+ * screen looks for the file. `recreate` is the reader's own "Save here again".
+ */
+export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {
   const text = serializeBaseConfig(config);
+  if (!recreate) await assertFileStillThere(v.files, path);
   await v.files.writeTextFile(path, text);
   if (v.indexer) {
     try {

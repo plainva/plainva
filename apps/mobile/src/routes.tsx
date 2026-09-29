@@ -201,7 +201,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   importwizard: (_e, c) => <ImportWizardScreen onBack={c.pop} vault={c.vault} />,
   okfconversion: (_e, c) => <OkfConversionScreen onBack={c.pop} vault={c.vault} />,
   okfmigration: (_e, c) => <OkfMigrationScreen onBack={c.pop} vault={c.vault} />,
-  imageviewer: (e, c) => <ImageViewerScreen key={e.path} onBack={c.pop} path={e.path} vault={c.vault} />,
+  imageviewer: (e, c) => <ImageViewerScreen key={e.path} onBack={c.pop} onRenamed={(newPath) => retargetTop(c.setNav, newPath)} path={e.path} vault={c.vault} />,
   vaults: (_e, c) => (
     <VaultsScreen
       activeVaultId={c.vault.vaultId}
@@ -296,6 +296,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onBack={c.pop}
       onNewPinboardEntry={(entry) => c.push({ kind: "pinentry", path: serializePinboardEntryRef(entry) })}
       onOpenNote={c.openNote}
+      onRenamed={(newPath) => retargetTop(c.setNav, newPath)}
       path={e.path}
       vault={c.vault}
     />
