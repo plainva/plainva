@@ -1,3 +1,4 @@
+import type { ToolScope } from "./vaultTools";
 import {
   addUsage,
   aiMonthlyTotals,
@@ -89,8 +90,8 @@ export interface AiVaultHost {
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   candidates(question: string, activePath: string | null): Promise<Candidate[][]>;
   policy: ContextPolicyHost;
-  /** The tools of a run for this recipient; null when this vault offers none. */
-  tools(recipient: EgressRecipient): { names: readonly string[]; executor: ToolExecutor } | null;
+  /** The tools of a run for this recipient, optionally narrowed (the MCP server's clients); null when this vault offers none. */
+  tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
 }

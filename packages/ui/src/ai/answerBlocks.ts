@@ -1,3 +1,5 @@
+import { atxHeading } from "@plainva/core";
+
 /**
  * The block structure of an AI answer (P1a): paragraphs, headings, lists,
  * quotes, code blocks, rules and tables. Pure and total — any text parses,
@@ -25,12 +27,22 @@ export interface AnswerListItem {
 }
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})\s*([^`\s]*)/;
-const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+// Linear patterns only: they run on untrusted model output, so no two
+// quantifiers may trade characters (eslint-plugin-regexp, super-linear
+// backtracking). What a pattern cannot say linearly, code does.
 const RULE = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
-const BULLET = /^(\s*)([-*+])\s+(.*)$/;
-const ORDERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
+const BULLET = /^([ \t]*)([-*+])[ \t]([^\n]*)$/;
+const ORDERED = /^([ \t]*)(\d{1,9})[.)][ \t]([^\n]*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
-const TABLE_SEP = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+/** A table's delimiter row: cells of at least three dashes, colons for alignment. */
+function isTableSeparator(line: string): boolean {
+  let row = line.trim();
+  if (row.startsWith("|")) row = row.slice(1);
+  if (row.endsWith("|")) row = row.slice(0, -1);
+  return row.split("|").every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+}
+
+
 
 function cells(line: string): string[] {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
@@ -84,10 +96,10 @@ export function parseAnswer(markdown: string): AnswerBlock[] {
       i++;
       continue;
     }
-    const heading = HEADING.exec(line);
+    const heading = atxHeading(line);
     if (heading) {
       flush();
-      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2] });
+      blocks.push({ kind: "heading", level: heading.level, text: heading.text });
       i++;
       continue;
     }
@@ -115,7 +127,7 @@ export function parseAnswer(markdown: string): AnswerBlock[] {
         const o = ORDERED.exec(lines[i]);
         const m = isOrdered ? o ?? (b && b[1].length >= 2 ? b : null) : b ?? (o && o[1].length >= 2 ? o : null);
         if (m) {
-          items.push(listItem(m[1], m[3]));
+          items.push(listItem(m[1], m[3].trimStart()));
           i++;
           continue;
         }
@@ -130,7 +142,7 @@ export function parseAnswer(markdown: string): AnswerBlock[] {
       blocks.push({ kind: "list", ordered: isOrdered, start, items });
       continue;
     }
-    if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
+    if (line.includes("|") && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
       flush();
       const header = cells(line);
       const rows: string[][] = [];

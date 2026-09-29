@@ -34,7 +34,9 @@ const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Scrip
 export function questionTerms(question: string, max = 10): string[] {
   const out: string[] = [];
   for (const match of question.toLowerCase().matchAll(/[\p{L}\p{N}][\p{L}\p{N}'’_-]*/gu)) {
-    const word = match[0].replace(/['’_-]+$/u, "");
+    // Trailing apostrophes and dashes go; trimmed in code, not by an unanchored pattern.
+    let word = match[0];
+    while (word && "'’_-".includes(word[word.length - 1]!)) word = word.slice(0, -1);
     const minimum = SPACELESS.test(word) ? 2 : 3;
     if (word.length < minimum || STOPWORDS.has(word) || /^\d{1,2}$/.test(word)) continue;
     if (!out.includes(word)) out.push(word);

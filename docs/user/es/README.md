@@ -1,6 +1,6 @@
 # Guía de usuario de Plainva
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-29
 
 Esta traducción se generó automáticamente — las correcciones son bienvenidas.
 
@@ -28,6 +28,7 @@ Plainva es un editor de vaults en Markdown: tus notas son archivos Markdown norm
 | [Buscar](Search.md) | Búsqueda de texto completo, selector rápido, buscar y reemplazar, etiquetas |
 | [Tareas](Tasks.md) | La vista de tareas de todo el vault: todas las casillas de tus notas, con filtros de estado, etiqueta, carpeta y fecha límite, y cambio de estado con un clic |
 | [Asistente de IA (Beta)](AI_Assistant.md) | Hacer preguntas sobre tus notas con un modelo de IA de tu elección: proveedores y claves, perfiles, contexto, reglas de privacidad e historial |
+| [Conectar apps de IA (Beta)](Connect_AI_Apps.md) | Dejar que las apps de IA de este ordenador (Claude Code, Claude Desktop, editores) lean la bóveda a través del servidor MCP de Plainva: activarlo, emparejar, carpetas, lo que ve una app |
 | [Diario](Journal.md) | La entrada rápida en la nota diaria de hoy: capturar desde cualquier lugar, la vista del diario en todos los días, cómo se guardan las entradas y el atajo global opcional |
 | [Calendario y tareas externas](Calendar_and_Tasks.md) | Conectar calendarios CalDAV/Google/Microsoft, la pestaña de calendario, notas de reunión y la sincronización de listas de tareas externas con la base de datos de tareas |
 | [Captura de correo](Email_Capture.md) | IMAP de solo lectura: el visor aislado, guardar correos como notas/.eml/tareas, y sacar contenido sin enviar |

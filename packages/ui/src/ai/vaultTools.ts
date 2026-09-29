@@ -66,6 +66,17 @@ export interface VaultToolDeps {
   moodKey?(): Promise<string | null>;
 }
 
+/**
+ * A narrower view for an outside client (the MCP server, plan §17.3): only
+ * paths `inside` exist — anything else answers like a note that does not —
+ * and every path that passes the gate is reported, so the native side can
+ * check the answer once more.
+ */
+export interface ToolScope {
+  inside(path: string): boolean;
+  passed?(path: string): void;
+}
+
 /** The tools a new conversation carries; a conversation's own list never changes afterwards. */
 export const CHAT_TOOL_NAMES = [
   "search_vault",
@@ -81,6 +92,23 @@ export const CHAT_TOOL_NAMES = [
 ] as const;
 
 const NOT_FOUND = "No note is available at this path.";
+/**
+ * An excerpt is cut at arbitrary places: a link cut in half ("…as in [[Finance/Sal")
+ * is no link the gate can recognise, yet it carries part of a note's name. The
+ * broken ends go; whole links stay and pass the gate as usual.
+ */
+export function withoutBrokenLinks(text: string): string {
+  let out = text;
+  const lastOpen = out.lastIndexOf("[[");
+  if (lastOpen >= 0 && out.indexOf("]]", lastOpen) < 0) out = out.slice(0, lastOpen);
+  const firstClose = out.indexOf("]]");
+  if (firstClose >= 0) {
+    const open = out.indexOf("[[");
+    if (open < 0 || open > firstClose) out = out.slice(firstClose + 2);
+  }
+  return out;
+}
+
 /** Search snippets carry sentinel characters around the matches; the model gets plain text. */
 export const unmarkSnippet = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
 
@@ -132,15 +160,17 @@ function dayStart(key: string): Date | null {
   return dayOf(d) === key ? d : null;
 }
 
-export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): ToolExecutor {
+export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
   const decisions = new Map<string, boolean>();
   const allowed = async (path: string, text?: string): Promise<boolean> => {
+    if (scope && !scope.inside(path)) return false;
     let ok = decisions.get(path);
     if (ok === undefined) {
       ok = gateDecision(await deps.policyOf(path, text), run).allowed;
       decisions.set(path, ok);
     }
+    if (ok) scope?.passed?.(path);
     return ok;
   };
   /** What any vault text passes: place stamps withheld for everyone, links to denied notes for a cloud. */
@@ -181,7 +211,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
           const lines: string[] = [];
           for (const hit of hits) {
             if (!(await allowed(hit.path))) continue;
-            const snippet = hit.snippet ? (await withhold(unmarkSnippet(hit.snippet), hit.path)).replace(/\s+/g, " ").trim() : "";
+            const snippet = hit.snippet ? (await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path)).replace(/\s+/g, " ").trim() : "";
             lines.push(`- [[${hit.title}]] (${hit.path})${snippet ? ` — ${snippet}` : ""}`);
           }
           const more = hits.length === limit ? `\n\nMore results: call search_vault again with cursor "${offset + limit}".` : "";
@@ -368,6 +398,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
           const listed = lines.length ? await withhold(lines.join("\n"), "") : "";
           const more = events.length > limit ? `\n\n${events.length - limit} more; ask for a shorter range.` : "";
           return result(tool.name, listed ? `${listed}${more}` : "No appointments in this range.");
+        }
+        case "open_in_app": {
+          // An outside client shows the user what it is talking about: the note opens in Plainva, through the same gate as a read.
+          const note = await readAllowed(a.path);
+          if (!note) return { content: NOT_FOUND, isError: true };
+          const open = deps.commands().find((c) => c.id === "open-note");
+          if (!open || !(await open.run({ path: note.path }))) return { content: "Plainva could not open the note.", isError: true };
+          return result(tool.name, `Opened ${note.path} in Plainva.`);
         }
         case "run_command": {
           const commands = deps.commands();

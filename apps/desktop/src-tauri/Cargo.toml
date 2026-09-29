@@ -4,6 +4,11 @@ version = "0.8.3"
 description = "Plainva - a Markdown vault editor"
 authors = ["Plainva contributors"]
 edition = "2021"
+# Two binaries since the MCP helper (src/bin/plainva-mcp.rs, plan KI-Harness
+# §17.3): `cargo run` and `tauri dev` start the app. The helper is a console
+# program of its own — the app's executable has no stdio (windows_subsystem) —
+# links none of the app and shares two small files with it through #[path].
+default-run = "plainva-desktop"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -54,7 +59,15 @@ walkdir = "2.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "blocking"] }
 # The AI egress (ai_egress.rs) races a streaming response against STOP and an
 # idle timeout. Tauri already runs on tokio; this only names the features it uses.
-tokio = { version = "1", features = ["macros", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "sync", "time", "net", "io-util", "io-std", "rt"] }
+# Plainva as a read-only MCP server (plan KI-Harness §17.3): the protocol side
+# lives here, natively, so a malformed or hostile request never reaches the web
+# view. Server over any byte stream (a named pipe or a Unix socket), no HTTP.
+rmcp = { version = "3.5", default-features = false, features = ["server"] }
+# Paths from a client are compared in one Unicode form (NFC).
+unicode-normalization = "0.1"
+# Secrets for paired MCP clients.
+getrandom = "0.3"
 # Streaming content hash for sync_file_sha256 — otherwise the renderer would still
 # read a whole attachment just to hash it, keeping half the memory peak (issue #48).
 sha2 = "0.10"
@@ -90,6 +103,16 @@ tauri-plugin-single-instance = "2"
 # is registered until the user switches it on. Desktop only, like the crate.
 tauri-plugin-global-shortcut = "2"
 
+# The MCP endpoint's owner-only DACL, and the helper's parent-process lookup.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp"] }
+
+# The Unix socket's private folder (uid, the per-user temporary folder on macOS).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
+# The MCP server's connection tests run against Tauri's mock runtime.
+tauri = { version = "2", features = ["test"] }
 # Scope-coverage test only: the same glob the fs plugin matches paths with.
 glob = "0.3"

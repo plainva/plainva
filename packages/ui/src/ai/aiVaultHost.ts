@@ -20,7 +20,7 @@ import {
 } from "@plainva/core";
 import type { AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore } from "./aiStores";
-import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, type VaultToolDeps } from "./vaultTools";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
 /**
  * The vault side of the AI session, built the same way in both shells: the
@@ -136,7 +136,7 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
   ]);
   const best = Math.max(...hits.map((h) => h.score), 0) || 1;
   return [
-    hits.map((h) => ({ path: h.path, title: h.title || noteTitle(h.path), signals: { lexical: Math.max(0, h.score) / best }, ...(h.snippet ? { snippet: unmarkSnippet(h.snippet) } : {}) })),
+    hits.map((h) => ({ path: h.path, title: h.title || noteTitle(h.path), signals: { lexical: Math.max(0, h.score) / best }, ...(h.snippet ? { snippet: withoutBrokenLinks(unmarkSnippet(h.snippet)) } : {}) })),
     neighbors.map((n) => ({ path: n.path, title: n.title || noteTitle(n.path), signals: { graph: Math.min(1, 0.6 + 0.15 * (n.incoming + n.outgoing - 1)) } })),
     changed.map((c) => ({ path: c.path, title: c.title || noteTitle(c.path), signals: { edited: recencySignal(now - c.mtime, EDITED_HALF_LIFE_MS) } })),
     opened
@@ -155,7 +155,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     candidates: (question, activePath) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath) : Promise.resolve([])),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
-    tools(recipient: EgressRecipient) {
+    tools(recipient: EgressRecipient, scope?: ToolScope) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -165,7 +165,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         policyOf: input.policy.policyOf,
         resolveLink: input.policy.resolveLink,
       };
-      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }) };
+      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }, scope) };
     },
   };
 }

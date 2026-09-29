@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { getPlatformServices, noteDisplayName, situationEvents, useStableHandler, type AiNavigationCommand, type AiSession, type AiState } from "@plainva/ui";
+import { getPlatformServices, noteDisplayName, situationEvents, useStableHandler, type AiNavigationCommand, type AiSession, type AiState, type AiVaultHost } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
+import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
 /**
@@ -84,9 +85,12 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
 
   const { vaultPath, vaultAdapter, queryService } = input;
+  /** The vault host of the open vault: the MCP server's calls run on it too (plan §17.3). */
+  const hostRef = useRef<AiVaultHost | null>(null);
   useEffect(() => {
     if (!session) return;
     if (!vaultPath || !vaultAdapter || !queryService) {
+      hostRef.current = null;
       void session.attachVault(null);
       return;
     }
@@ -107,8 +111,24 @@ export function useDesktopAi(input: DesktopAiInput) {
       events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
       commands,
     });
+    hostRef.current = host;
     void session.attachVault(host);
   }, [session, vaultPath, vaultAdapter, queryService, commands]);
+
+  // The MCP server (plan §17.3): the native side forwards calls here; only
+  // the main window has a session, so only it answers.
+  useEffect(() => {
+    if (!session) return;
+    return listenForMcpCalls(() => hostRef.current);
+  }, [session]);
+  // What the native side serves: on only with the AI and the device switch,
+  // and always for the vault open now — a new vault closes older connections.
+  const mcpOn = Boolean(enabled && state?.settings.mcpEnabled);
+  useEffect(() => {
+    if (!session || !state?.loaded) return;
+    const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
+    void configureMcp(mcpOn, vault).catch(() => undefined);
+  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService]);
 
   // Switching the AI off closes the companion; the conversation stays stored.
   useEffect(() => {

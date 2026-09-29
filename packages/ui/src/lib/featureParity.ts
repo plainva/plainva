@@ -279,6 +279,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-24",
   },
   {
+    id: "ai-mcp-server",
+    title: "AI apps on this computer read the vault through Plainva (MCP server)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The clients that speak MCP locally (Claude Code, Claude Desktop, editors) " +
+      "run on computers and start Plainva's helper as a program of their own. " +
+      "A phone runs no such client, and neither iOS nor Android lets one app " +
+      "offer another a local pipe or socket; reaching a phone from outside would " +
+      "need a server on the internet, which Plainva does not run (plan KI-Harness " +
+      "§17.3, §22). The phone's own assistant reads the vault directly.",
+    verified: "2026-09-29",
+  },
+  {
     id: "density-mode",
     title: "Comfortable/compact density choice",
     area: "appearance",

@@ -26,6 +26,7 @@ import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
+import { McpSettingsCard } from "./McpSettingsCard";
 
 /**
  * Settings → AI & automation, APP world (plan KI-Harness §19.1): what holds
@@ -145,6 +146,8 @@ function AiSettingsBody({ session }: { session: AiSession }) {
           />
         </SettingRow>
       </SettingCard>
+
+      {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
 
       <SettingCard label={t("ai.settings.history")}>
         <SettingRow label={t("ai.settings.historyKeep")} desc={t("ai.settings.historyDesc")}>

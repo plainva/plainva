@@ -311,6 +311,8 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // A product name (the MCP settings row of plan KI-Harness §17.3): the same in every language.
+  "ai.mcp.package",
   // A running AI tool: the tool's own (translated) name and an ellipsis.
   "ai.toolRunning",
   // Two placeholders and a separator; there is no word in it to translate.

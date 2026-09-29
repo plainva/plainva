@@ -1,6 +1,6 @@
 # Automatyzacja i skrypty
 
-Stan na: 2026-09-24
+Stan na: 2026-09-29
 
 Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego interfejsem rozszerzeń jest sam vault: Twoje notatki to zwykły Markdown, bazy danych to zwykły YAML (`.base`), a [konwencje OKF](OKF.md) nadają każdemu plikowi przewidywalną strukturę. Wszystko, co potrafi czytać i zapisywać pliki — skrypt powłoki, program w Pythonie, narzędzie CLI, zaplanowane zadanie czy agent AI — może rozszerzać, generować lub reorganizować Twój vault bez żadnego API specyficznego dla Plainva.
 
@@ -58,6 +58,8 @@ Agent AI z dostępem do odczytu i zapisu folderu vaultu to dokładnie ten przypa
 5. **Przestrzegaj reguły prywatności.** Notatki oznaczone `plainva: { ai: { cloud: deny } }` oraz foldery wpisane tak w `.agent/policy.yml` nie mogą trafić do modelu w chmurze — zobacz [Opis formatu plików](File_Format_Reference.md).
 
 Ponieważ kontrakt jest dokumentem, a nie żywym API, te same instrukcje działają z każdym asystentem, offline czy online.
+
+**Czytanie bez dotykania plików.** Aplikacja AI na tym komputerze — Claude Code, Claude Desktop, edytor — może też czytać sejf przez Plainva zamiast przez folder: widzi tylko foldery, na które zezwolono, obowiązują zasady prywatności i niczego nie może zmienić. Zob. [Łączenie aplikacji AI](Connect_AI_Apps.md).
 
 **Co pomija bezpośredni zapis.** Plainva zauważa zmiany wprowadzone z zewnątrz i je synchronizuje, ale nie tworzy kopii tekstu, który agent zastępuje: historia wersji zawiera tylko to, co zapisała sama Plainva. Przy większych zmianach trzymaj vault pod kontrolą wersji (Git).
 

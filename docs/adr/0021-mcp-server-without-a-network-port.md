@@ -87,6 +87,48 @@ credentials from the environment".
     instead of dynamic client registration, audience check; secrets only
     through a broker with consumer-bound short-lived tokens.
 
+### Implementation (read-only stage, 2026-09-29)
+
+- **Where the protocol is parsed.** The helper `plainva-mcp` (a second binary
+  of the desktop crate, `src/bin/plainva-mcp.rs`, console subsystem) does not
+  speak MCP itself: it reads the client's `initialize` line for the client's
+  name, sends one JSON *hello* line (client, version, starting program,
+  secret) and, once admitted, passes bytes in both directions. MCP is parsed
+  by `rmcp` 3.5 in the app process (`src/mcp/`), still in Rust and still never
+  in the WebView — the "small framed request protocol" of point 3 is that
+  hello line plus the typed call the app hands to the main window.
+- **Endpoint.** Windows: `\\.\pipe\plainva-mcp-<identifier>`, created with
+  `first_pipe_instance` (no one else may hold the name), `reject_remote_clients`
+  and a DACL that grants only the signed-in user. macOS/Linux: a socket
+  `plainva-mcp-<identifier>.sock` in a per-user folder (`0700`; the per-user
+  temporary folder on macOS, `/run/user/<uid>` or `/tmp/plainva-mcp-<uid>` on
+  Linux), the socket itself `0600`. Nothing listens until the user switches the
+  server on (Settings → AI & automation), and it closes with the switch or when
+  another vault opens (older connections then stop answering).
+- **Pairing and grants.** The app keeps `mcp/clients.json` (name, program,
+  SHA-256 of the secret, last use) and `mcp/grants-<vault>.json` (folders per
+  client and vault) in its data folder, never in the vault; the helper keeps
+  its secret in the OS keychain (`plainva-mcp`, `<identifier>/<client>`).
+  Nothing is ticked in the pairing question; a refusal silences that client for
+  ten minutes; one question at a time. The audit is
+  `mcp/audit-<vault>.jsonl` (last 500 calls: client, tool, success, how many
+  notes) and is shown in the settings.
+- **Two walls.** Every path argument is checked natively — string rules
+  (NUL, `..`, backslashes, drive letters, trailing dots and spaces, Plainva's
+  own folders), then the real path with symlinks and junctions resolved must
+  lie in the vault and in the client's folders — before the call reaches the
+  main window. There the tools run with the assistant's own executor as a
+  cloud-like recipient (`plainva.ai` rules hold), narrowed to the same
+  folders; every path that passed is reported back, and one path outside the
+  folders refuses the whole answer. `file://` and loopback addresses are
+  withheld from answers.
+- **Surface.** The tools are the manifests with surface `mcp`, served as the
+  web view registers them (one source of names, descriptions and schemas).
+  One resource: the format contract (`plainva://format`). The core skills as
+  prompts follow with the skills themselves (plan P1.5).
+- **Claude Desktop.** The settings write an `.mcpb` (manifest 0.3, `binary`
+  server) that carries the installed helper; no package is built in CI.
+
 ## Consequences
 
 - One more native binary per desktop platform (built and signed with the

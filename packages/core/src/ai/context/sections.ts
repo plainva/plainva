@@ -9,6 +9,20 @@
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 /** The note without its frontmatter block. */
+/**
+ * An ATX heading ("## Title", closing hashes allowed), or null. Linear on any
+ * input — it also reads untrusted model output — so the closing hashes are cut
+ * in code instead of by a pattern whose quantifiers could trade characters.
+ */
+export function atxHeading(line: string): { level: number; text: string } | null {
+  const m = /^ {0,3}(#{1,6})[ \t]([^\n]*)$/.exec(line);
+  if (!m) return null;
+  let text = m[2]!.trim();
+  const closing = /(?:^|[ \t])#+$/.exec(text);
+  if (closing) text = text.slice(0, closing.index).trim();
+  return { level: m[1]!.length, text };
+}
+
 export function noteBody(content: string): string {
   return content.replace(FRONTMATTER, "");
 }
@@ -41,12 +55,12 @@ export function outlineOf(body: string): OutlineHeading[] {
       return;
     }
     if (fence) return;
-    const m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line);
-    if (!m) return;
-    const level = m[1]!.length;
+    const heading = atxHeading(line);
+    if (!heading) return;
+    const { level, text } = heading;
     while (stack.length && stack[stack.length - 1]!.level >= level) stack.pop();
-    stack.push({ level, text: m[2]! });
-    out.push({ level, text: m[2]!, chain: stack.map((s) => s.text).join(" > "), line: index });
+    stack.push({ level, text });
+    out.push({ level, text, chain: stack.map((s) => s.text).join(" > "), line: index });
   });
   return out;
 }

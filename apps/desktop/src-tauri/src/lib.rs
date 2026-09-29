@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 mod ai_egress;
+mod mcp;
 mod app_identity;
 mod atomic_write;
 mod checked_fs;
@@ -369,6 +370,7 @@ pub fn run() {
         .manage(atomic_write::WriteRoots::default())
         .manage(tray::TrayState::default())
         .manage(ai_egress::AiEgress::default())
+        .manage(mcp::McpState::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -403,6 +405,13 @@ pub fn run() {
             ai_egress::ai_key_delete,
             ai_egress::ai_endpoint_add,
             ai_egress::ai_endpoint_remove,
+            mcp::mcp_configure,
+            mcp::mcp_status,
+            mcp::mcp_pair_answer,
+            mcp::mcp_call_answer,
+            mcp::mcp_set_folders,
+            mcp::mcp_revoke,
+            mcp::mcp_write_package,
             oauth_loopback_start,
             oauth_loopback_wait,
             oauth_loopback_cancel,

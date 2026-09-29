@@ -120,7 +120,8 @@ export function normalizeBaseUrl(raw: string): { baseUrl: string; local: boolean
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
   // Plain http leaves the device readable by anyone on the way: only for a server on this device.
   if (url.protocol === "http:" && !local) return null;
-  const path = url.pathname.replace(/\/+$/, "");
+  let path = url.pathname;
+  while (path.endsWith("/")) path = path.slice(0, -1);
   return { baseUrl: `${url.protocol}//${url.host.toLowerCase()}${path}`, local };
 }
 
@@ -169,6 +170,11 @@ export interface AiAppSettings {
    * scope grows (plan §13.3, for the strict ones).
    */
   confirmEveryRequest: boolean;
+  /**
+   * Let AI apps on this computer read the vault through Plainva's MCP server
+   * (plan §17.3; desktop only). Off: nothing listens, not even locally.
+   */
+  mcpEnabled: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -180,6 +186,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   historyDays: 90,
   prices: {},
   confirmEveryRequest: false,
+  mcpEnabled: false,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -226,6 +233,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     historyDays,
     prices,
     confirmEveryRequest: typeof value.confirmEveryRequest === "boolean" ? value.confirmEveryRequest : defaults.confirmEveryRequest,
+    mcpEnabled: typeof value.mcpEnabled === "boolean" ? value.mcpEnabled : defaults.mcpEnabled,
   };
 }
 

@@ -8,7 +8,7 @@
  */
 
 /** A place line as the journal writes it: the pin, latitude and longitude. */
-const PLACE_LINE = /^([ \t>*+-]*)📍[ \t]*-?\d{1,3}(?:\.\d+)?[ \t]*,[ \t]*-?\d{1,3}(?:\.\d+)?[^\n]*$/gmu;
+const PLACE_LINE = /^([ \t>*+-]*)📍[ \t]*-?\d{1,3}(?:\.\d+)?[ \t]*,[ \t]*-?\d[^\n]*$/gmu;
 
 /** What a withheld place stamp becomes: says that something was there, not where. */
 export const WITHHELD_PLACE = "📍 ⟦place withheld⟧";

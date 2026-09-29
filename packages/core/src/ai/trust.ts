@@ -110,7 +110,7 @@ export function fenceUntrusted(item: TrustedPayload<string>): string {
   // Escaped, not removed: the model sees that the data tried to open or close
   // a block (a forged `trust="0"` block included), and blocks begin and end
   // only where Plainva writes them.
-  const body = text.replace(/<(\s*\/?\s*untrusted_data)/gi, "&lt;$1");
+  const body = text.replace(/<(\s*(?:\/\s*)?untrusted_data)/gi, "&lt;$1");
   return `<${FENCE_TAG} origin="${attribute(describeOrigin(item.origin))}" trust="${item.trust}">\n${body}\n</${FENCE_TAG}>`;
 }
 

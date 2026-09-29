@@ -116,12 +116,12 @@ function splitFences(text: string): Array<{ code: boolean; text: string }> {
   };
   for (const line of lines) {
     if (!fence) {
-      const opener = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line.replace(/\r?\n$/, ""));
+      const opener = fenceOpener(line.replace(/\r?\n$/, ""));
       // A backtick fence's info string may not contain a backtick — then the
       // line is no fence at all, and treating it as one would hide what follows.
-      if (opener && !(opener[1]![0] === "`" && opener[2]!.includes("`"))) {
+      if (opener && !(opener.char === "`" && opener.info.includes("`"))) {
         flush(false);
-        fence = { char: opener[1]![0]!, length: opener[1]!.length };
+        fence = { char: opener.char, length: opener.length };
         buffer = line;
         continue;
       }
@@ -143,7 +143,25 @@ function splitFences(text: string): Array<{ code: boolean; text: string }> {
 const HTML_TAG = /<\/?[a-z][a-z0-9:-]*(?:\s[^<>]*)?\/?>/gi;
 const ALWAYS_ESCAPED_TAG = /^<\/?(?:script|style|iframe|frame|frameset|object|embed|applet|link|meta|base|form|svg|math|template|portal|noscript)\b/i;
 const HTML_URL_ATTRIBUTE = /\b(?:src|href|srcset|poster|data|background|action|formaction|xlink:href|cite|longdesc|codebase|manifest|ping|lowsrc|dynsrc|imagesrcset)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
-const CSS_URL = /url\(\s*(["']?)([^"')]*)\1\s*\)/gi;
+const CSS_URL = /url\(([^)]*)\)/gi;
+
+/** The address inside `url(…)`: blanks and one pair of quotes around it removed. */
+function cssUrlValue(inner: string): string {
+  const value = inner.trim();
+  const quote = value[0];
+  return (quote === '"' || quote === "'") && value.length > 1 && value.endsWith(quote) ? value.slice(1, -1) : value;
+}
+
+/** A fence opener: its character, the length of its run, and the info string after it. */
+function fenceOpener(line: string): { char: string; length: number; info: string } | null {
+  let start = 0;
+  while (start < 3 && line[start] === " ") start++;
+  const char = line[start];
+  if (char !== "`" && char !== "~") return null;
+  let end = start;
+  while (line[end] === char) end++;
+  return end - start >= 3 ? { char, length: end - start, info: line.slice(end) } : null;
+}
 // Absolute network URLs anywhere in the text. The class stops at characters a
 // URL in running text does not contain; a partial match is still defused,
 // because defusing only rewrites the "://".
@@ -196,7 +214,7 @@ export function preWriteLint(markdown: string, options: LintOptions = {}): LintR
           // srcset carries a list: "a.png 1x, https://host/b.png 2x".
           for (const part of value.split(",")) candidates.push(part.trim().split(/\s+/)[0] ?? "");
         }
-        for (const m of tag.matchAll(CSS_URL)) candidates.push(m[2]!);
+        for (const m of tag.matchAll(CSS_URL)) candidates.push(cssUrlValue(m[1]!));
         for (const candidate of candidates) {
           const v = classifyUrl(candidate, allowed);
           if (!v.safe) {

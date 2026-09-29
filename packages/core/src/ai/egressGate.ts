@@ -104,12 +104,12 @@ export const WITHHELD_LINK = "⟦withheld note⟧";
  */
 export function redactDeniedLinks(text: string, isDenied: (target: string) => boolean): { text: string; redacted: number } {
   let redacted = 0;
-  const wikilinks = text.replace(/!?\[\[([^\]|#\n]+)(?:#[^\]|\n]*)?(?:\|[^\]\n]*)?\]\]/g, (match, target: string) => {
+  const wikilinks = text.replace(/!?\[\[([^[\]|#\n]+)(?:#[^[\]|\n]*)?(?:\|[^[\]\n]*)?\]\]/g, (match, target: string) => {
     if (!isDenied(target.trim())) return match;
     redacted++;
     return WITHHELD_LINK;
   });
-  const markdown = wikilinks.replace(/!?\[([^\]\n]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (match, _label: string, href: string) => {
+  const markdown = wikilinks.replace(/!?\[([^[\]\n]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (match, _label: string, href: string) => {
     if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//") || href.startsWith("#")) return match;
     let target: string;
     try {

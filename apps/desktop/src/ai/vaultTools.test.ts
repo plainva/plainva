@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolByName, type EgressRecipient } from "@plainva/core";
-import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
+import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "---\nstatus: draft\nclient: \"[[Private/Client]]\"\n---\n# Offer\n\nIntro\n\n## Costs\n\n### 2026\n\nRates as in [[Private/Client]].\n\n## Notes\n\nlater",
@@ -122,6 +122,14 @@ describe("vault tools behind the hard gate", () => {
   it("refuses paths that leave the vault or reach Plainva's own folders", () => {
     for (const bad of ["../x.md", "/etc/passwd", "C:/Windows", "a\\b.md", "a//b.md", "./../x", ".plainva/state.db", ".agent/policy.yml", "x\0.md", ""]) expect(safeRelPath(bad)).toBeNull();
     expect(safeRelPath("./Projects/Offer.md")).toBe("Projects/Offer.md");
+  });
+
+  it("an excerpt cut inside a link keeps no part of the link", () => {
+    expect(withoutBrokenLinks("Rates as in [[Finance/Sal")).toBe("Rates as in ");
+    expect(withoutBrokenLinks("aries]] and the plan")).toBe(" and the plan");
+    expect(withoutBrokenLinks("see [[Plan]] and [[Fin")).toBe("see [[Plan]] and ");
+    expect(withoutBrokenLinks("ance]] then [[Plan]]")).toBe(" then [[Plan]]");
+    expect(withoutBrokenLinks("plain text")).toBe("plain text");
   });
 
   it("outlines ignore headings inside code fences", () => {

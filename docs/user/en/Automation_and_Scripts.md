@@ -1,6 +1,6 @@
 # Automation & Scripts
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-29
 
 Plainva has no plugin system that runs third-party code. Instead the vault itself is the extension interface: your notes are plain Markdown, databases are plain YAML (`.base`), and the [OKF conventions](OKF.md) give every file a predictable structure. Anything that can read and write files — a shell script, a Python program, a CLI tool, a scheduled job or an AI agent — can extend, generate or reorganize your vault without a single Plainva-specific API.
 
@@ -58,6 +58,8 @@ An AI agent with read/write access to a vault folder is exactly the case this de
 5. **Respect the privacy policy.** Notes marked `plainva: { ai: { cloud: deny } }`, and folders listed like that in `.agent/policy.yml`, must not go to a cloud model — see the [File Format Reference](File_Format_Reference.md).
 
 Because the contract is a document, not a live API, the same instructions work with any assistant, offline or online.
+
+**Reading without touching the files.** An AI app on this computer — Claude Code, Claude Desktop, an editor — can also read the vault through Plainva instead of the folder: it sees only the folders you allowed, the privacy rules apply, and it cannot change anything. See [Connecting AI apps](Connect_AI_Apps.md).
 
 **What a direct write skips.** Plainva notices changes from outside and syncs them, but it makes no backup of the text an agent replaces: the version history only holds what Plainva itself wrote. For larger edits, keep the vault under version control (Git).
 

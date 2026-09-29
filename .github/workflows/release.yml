@@ -303,12 +303,19 @@ jobs:
                 Select-Object -First 1
               if ($inner) { $targets += $inner.FullName }
               else { Write-Host "::warning::no plainva-desktop.exe inside the MSI" }
+              # The MCP helper (plan KI-Harness §17.3) ships beside the app and is
+              # started by other programs, so it is measured like the app itself.
+              $helper = Get-ChildItem -Path $extract -Recurse -Filter "plainva-mcp.exe" -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+              if ($helper) { $targets += $helper.FullName }
+              else { $helperMissing = $true }
             } else {
               Write-Host "::warning::msiexec /a exited $($p.ExitCode); skipping the inner binary"
             }
           }
           $checked = 0
           $failed = @()
+          if ($helperMissing) { $failed += "the MCP helper plainva-mcp.exe is missing from the MSI" }
           foreach ($pattern in $targets) {
             $files = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
             if (-not $files) { $failed += "no artifact matched $pattern"; continue }
