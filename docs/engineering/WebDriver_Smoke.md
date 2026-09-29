@@ -50,7 +50,8 @@ Files:
   `driverProvider: "external"` and `autoInstallTauriDriver: true`, mocha, the
   binary path (override with `PLAINVA_TAURI_BINARY`; `PLAINVA_TAURI_PROFILE`
   picks debug/release). `onPrepare` creates a THROWAWAY vault and writes the
-  Tauri store (`<appConfig>/plainva-settings.json`) with `lastVaultPath` +
+  Tauri store (`<appData>/plainva-settings.json` — the store plugin resolves
+  against the app DATA dir, which on Linux is not the config dir) with `lastVaultPath` +
   `autoOpenLastVault: true`, so the app opens it on launch without the OS folder
   picker; `onComplete` deletes the vault.
 - `apps/desktop/wdio/smoke.e2e.ts` — the single flow above.

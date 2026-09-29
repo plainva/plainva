@@ -34,10 +34,17 @@ const application =
 // on launch — WebDriver cannot drive the native "open folder" dialog.
 let vaultDir = "";
 
-function appConfigDir(): string {
+/**
+ * Where the app's settings store lives: tauri-plugin-store resolves a relative
+ * store path against `BaseDirectory::AppData` (the app DATA dir, not the config
+ * dir). On Windows and macOS the two are the same folder; on Linux they are not
+ * (`~/.local/share/<id>` vs `~/.config/<id>`) — the first real run seeded the
+ * config dir there, and the app never saw the vault.
+ */
+function appDataDir(): string {
   if (isWin) return join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), APP_ID);
   if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", APP_ID);
-  return join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), APP_ID);
+  return join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), APP_ID);
 }
 
 export const config: WebdriverIO.Config = {
@@ -52,7 +59,10 @@ export const config: WebdriverIO.Config = {
   // `external` + `autoInstallTauriDriver`: the service installs tauri-driver with
   // cargo when it is missing (the workflow sets up the Rust toolchain) and manages
   // the Edge WebDriver on Windows; Linux needs `webkit2gtk-driver` (installed there).
-  services: [["@wdio/tauri-service", { driverProvider: "external", autoInstallTauriDriver: true }]],
+  // The driver logs at debug level: the first runs failed before any test step
+  // (on Windows "session not created: DevToolsActivePort file doesn't exist"),
+  // and only the driver's own output says why.
+  services: [["@wdio/tauri-service", { driverProvider: "external", autoInstallTauriDriver: true, logLevel: "debug" }]],
   framework: "mocha",
   reporters: ["spec"],
   mochaOpts: { timeout: 180_000 },
@@ -60,10 +70,10 @@ export const config: WebdriverIO.Config = {
 
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));
-    const cfgDir = appConfigDir();
-    mkdirSync(cfgDir, { recursive: true });
+    const dataDir = appDataDir();
+    mkdirSync(dataDir, { recursive: true });
     writeFileSync(
-      join(cfgDir, STORE_FILE),
+      join(dataDir, STORE_FILE),
       JSON.stringify({ lastVaultPath: vaultDir.split("\\").join("/"), autoOpenLastVault: true }),
       "utf8"
     );
