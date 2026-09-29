@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-24
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -131,6 +131,13 @@ Taken van de aanbieder worden op identiteit gekoppeld. Afzonderlijke herhalingen
 Deze bestanden horen bij verschillende taken. Terugkerende taken met dezelfde titel kunnen aparte instanties zijn. Beide inhouden blijven als aparte taken bewaard.
 
 **Als aparte taken behouden** — Dit bestand blijft ongewijzigd: Huidig bestand  De conflictkopie blijft bewaard als apart bestand: conflictkopie
+
+<!-- task-names-2026-09-24 -->
+## Hoe taken van de aanbieder heten
+
+Een taak die Plainva uit een takenlijst van je aanbieder spiegelt, heet zoals haar titel: „Tandarts bellen” wordt `Tandarts bellen.md` in de map van je takendatabase. Is de naam al bezet — door een eigen notitie of door een tweede taak met dezelfde titel —, dan krijgt de nieuwe taak het volgende vrije nummer, net als elke andere notitie: `Boodschappen 2.md`, `Boodschappen 3.md`.
+
+Welke taak in welk bestand staat, zegt niet de naam, maar de frontmatter-markering (`plainva.pim`, zie de [Bestandsformaat-referentie](File_Format_Reference.md)). Daarom gebruikt Plainva een bestaande naam alleen opnieuw als het bestand daar dezelfde taak bevat, en maakt het nieuwe taken op elk apparaat in dezelfde volgorde aan — zo geven twee apparaten dezelfde nummers. Verandert de titel bij de aanbieder, dan werkt Plainva de kop van de notitie bij, maar hernoemt het bestand niet: links naar de notitie blijven werken. Je kunt de notitie altijd zelf hernoemen en verplaatsen; de markering houdt de koppeling in stand.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks-metagegevens en herhaling

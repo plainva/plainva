@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-09-20
+Stand: 2026-09-24
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -131,6 +131,13 @@ Aufgaben vom Anbieter werden anhand ihrer Identität zugeordnet. Verschiedene Wi
 Diese Dateien gehören zu unterschiedlichen Aufgaben. Gleiche Titel bedeuten bei wiederkehrenden Aufgaben nicht dieselbe Instanz. Beide Inhalte bleiben als getrennte Aufgaben erhalten.
 
 **Als getrennte Aufgaben behalten** — Diese Datei bleibt unverändert: Aktuelle Datei  Die Konfliktkopie bleibt als separate Datei erhalten: Konfliktkopie
+
+<!-- task-names-2026-09-24 -->
+## Wie Aufgaben vom Anbieter heißen
+
+Eine Aufgabe, die Plainva aus einer Aufgabenliste Deines Anbieters spiegelt, heißt wie ihr Titel: aus „Zahnarzt anrufen“ wird `Zahnarzt anrufen.md` im Ordner Deiner Aufgabendatenbank. Ist der Name schon vergeben — durch eine eigene Notiz oder eine zweite Aufgabe mit demselben Titel —, bekommt die neue Aufgabe die nächste freie Nummer, genau wie jede andere Notiz: `Einkaufen 2.md`, `Einkaufen 3.md`.
+
+Welche Aufgabe in welcher Datei steht, verrät nicht der Name, sondern die Frontmatter-Markierung (`plainva.pim`, siehe [Dateiformat-Referenz](File_Format_Reference.md)). Deshalb nimmt Plainva einen vorhandenen Namen nur, wenn die Datei dort dieselbe Aufgabe trägt, und legt neue Aufgaben auf jedem Gerät in derselben Reihenfolge an — zwei Geräte vergeben so dieselben Nummern. Ändert sich der Titel beim Anbieter, zieht Plainva die Überschrift der Notiz nach, benennt die Datei aber nicht um: Links auf die Notiz bleiben gültig. Umbenennen und verschieben darfst Du sie jederzeit selbst; die Markierung hält die Verbindung.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks-Metadaten und Wiederholungen

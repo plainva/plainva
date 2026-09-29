@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-20
+Last updated: 2026-09-24
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -131,6 +131,13 @@ Provider tasks are matched by identity. Different recurring instances get their 
 These files belong to different tasks. Recurring tasks with the same title can be separate instances. Both contents are kept as separate tasks.
 
 **Keep as separate tasks** — This file stays unchanged: Current file  The conflict copy is kept as a separate file: conflict copy
+
+<!-- task-names-2026-09-24 -->
+## How provider tasks are named
+
+A task Plainva mirrors from one of your provider's task lists is named after its title: “Call the dentist” becomes `Call the dentist.md` in the folder of your task database. If the name is already taken — by a note of your own or by a second task with the same title — the new task gets the next free number, just like any other note: `Groceries 2.md`, `Groceries 3.md`.
+
+Which task lives in which file is not told by the name but by the frontmatter marker (`plainva.pim`, see the [File Format Reference](File_Format_Reference.md)). So Plainva only reuses an existing name when the file there carries the same task, and it creates new tasks in the same order on every device — two devices hand out the same numbers. If the title changes at the provider, Plainva updates the note's heading but does not rename the file, so links to the note keep working. You can rename and move the note yourself at any time; the marker keeps the link.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks metadata and recurrence

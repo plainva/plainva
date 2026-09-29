@@ -6,6 +6,7 @@ import {
   initializeSchema,
   type IDatabaseAdapter,
   type IPimTarget,
+  type PimAccountRow,
   type PimTask,
   PimConflictError,
 } from "@plainva/core";
@@ -166,7 +167,42 @@ describe("independent file views", () => {
     const ra = await runTaskSync(optsFor(A, a, null)), rb = await runTaskSync(optsFor(B, b, null));
     expect(new Set(ra.createdNotes).size).toBe(2);
     expect([...ra.createdNotes].sort()).toEqual([...rb.createdNotes].sort());
+    // Title names (E11): the SAME task gets the same number on both devices,
+    // so the file sync never meets two different tasks at one path.
+    expect([...ra.createdNotes].sort()).toEqual(["Aufgaben/Daily task 2.md", "Aufgaben/Daily task.md"]);
+    for (const path of ra.createdNotes) expect(/uid: (\S+)/.exec(a.files.get(path)!)?.[1]).toBe(/uid: (\S+)/.exec(b.files.get(path)!)?.[1]);
     expect((await runTaskSync(optsFor(A, a, null))).createdNotes).toEqual([]);
+  });
+
+  it("numbers same-titled tasks alike on two devices whose accounts come in a different order", async () => {
+    // Account order follows the LOCAL label, which each device sets itself.
+    const setup = async (accounts: Array<{ id: string; provider: PimAccountRow["provider"]; label: string; uid: string }>) => {
+      const db = new NodeSqliteAdapter();
+      await initializeSchema(db);
+      const cache = new PimCacheRepository(db);
+      for (const acc of accounts) {
+        await cache.upsertAccount({ id: acc.id, provider: acc.provider, label: acc.label, config: {}, enabled: true });
+        await cache.replaceTaskLists(acc.id, [{ id: "l1", name: "Aufgaben" }]);
+        await cache.setTaskListSelected(acc.id, "l1", true);
+        await cache.replaceTasks(acc.id, "l1", [rt({ uid: acc.uid, title: "Einkaufen" })]);
+      }
+      return { db, cache, accountId: accounts[0]!.id };
+    };
+    const A = await setup([
+      { id: "a-g", provider: "google", label: "Arbeit", uid: "task-google" },
+      { id: "a-c", provider: "caldav", label: "Privat", uid: "task-caldav" },
+    ]);
+    const B = await setup([
+      { id: "b-g", provider: "google", label: "Zuhause", uid: "task-google" },
+      { id: "b-c", provider: "caldav", label: "Büro", uid: "task-caldav" },
+    ]);
+    const a = sharedVault({ "Aufgaben.base": TASK_DB }), b = sharedVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(optsFor(A, a, null));
+    await runTaskSync(optsFor(B, b, null));
+    const uidAt = (v: ReturnType<typeof sharedVault>, p: string) => /uid: (\S+)/.exec(v.files.get(p) ?? "")?.[1];
+    expect(uidAt(a, "Aufgaben/Einkaufen.md")).toBe(uidAt(b, "Aufgaben/Einkaufen.md"));
+    expect(uidAt(a, "Aufgaben/Einkaufen 2.md")).toBe(uidAt(b, "Aufgaben/Einkaufen 2.md"));
+    expect(uidAt(a, "Aufgaben/Einkaufen.md")).toBeTruthy();
   });
 
   it("never writes another task's fields through a stale cached path or anchor index", async () => {

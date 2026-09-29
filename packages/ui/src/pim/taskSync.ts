@@ -14,13 +14,16 @@ import {
   taskNoteMatches,
   availableTaskNotePath,
   trimEndChars,
+  taskNoteKey,
+  taskNoteStem,
+  type TaskNoteIdentity,
 } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { anchorMatchesTask, buildTaskAnchor, taskAnchorIdentity } from "./providerTask";
 import { buildNewItemContent } from "../lib/newItemContent";
 import { generatedStamp } from "../lib/okfProvenance";
-import { taskDbFileStem, resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
+import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
 
 /**
@@ -192,7 +195,7 @@ export function chooseAnchorToAdopt<T extends { path: string; ctime: number | nu
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0]!;
   const baseName = (p: string) => p.split("/").pop() ?? p;
-  const stem = taskDbFileStem(remoteTitle) ?? "";
+  const stem = taskNoteStem(remoteTitle);
   const exact = stem ? candidates.filter((c) => baseName(c.path) === `${stem}.md`) : [];
   const pool = exact.length > 0 ? exact : candidates.filter((c) => !/ \d+\.md$/.test(baseName(c.path)));
   const ranked = (pool.length > 0 ? pool : candidates).slice().sort((a, b) => {
@@ -222,6 +225,7 @@ export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult
   const db = await readDbShape(opts);
   if (!db) return result;
 
+  const creates: PendingCreate[] = [];
   const accounts = (await opts.cache.listAccounts()).filter((a) => a.enabled);
   for (const account of accounts) {
     const lists = (await opts.cache.listTaskLists(account.id)).filter((l) => l.selected);
@@ -241,13 +245,66 @@ export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult
     };
     for (const list of lists) {
       try {
-        await reconcileList(opts, db, account, list.id, getTarget, result);
+        await reconcileList(opts, db, account, list.id, getTarget, result, (task) => creates.push({ account, listId: list.id, listName: list.name, task }));
       } catch (e) {
         result.errors.push(`${account.label}/${list.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }
+  await createPendingNotes(opts, db, creates, result);
   return result;
+}
+
+/** A task this run imports as a new note — created after every list has been read. */
+interface PendingCreate {
+  account: PimAccountRow;
+  listId: string;
+  listName: string;
+  task: PimTask;
+}
+
+/**
+ * Creates the notes of every newly seen task in ONE fixed order: by the task's
+ * identity (decision E11). The name is the title, and two tasks of one title
+ * become "Title" and "Title 2" — so the order decides who gets which number.
+ * Provider order, list order and account order differ between devices; the
+ * identity does not. Two devices that import the same tasks into the same
+ * vault therefore give every task the same name, and neither sync sees two
+ * different tasks at one path.
+ */
+async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: PendingCreate[], result: TaskSyncResult): Promise<void> {
+  const keyed = creates.map((c) => ({ ...c, key: taskNoteKey(taskIdentityOf(c.account, c.listId, c.task.uid)) }));
+  keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const known = new Set(opts.allNotePaths);
+  for (const { account, listId, listName, task } of keyed) {
+    try {
+      const notePath = await createTaskNote(opts, db, account, listId, task, known);
+      if (!notePath) continue;
+      known.add(notePath);
+      result.createdNotes.push(notePath);
+      await opts.cache.upsertTaskState({
+        accountId: account.id,
+        listId,
+        uid: task.uid,
+        notePath,
+        remoteEtag: task.etag ?? null,
+        baseFields: fieldsOfTask(task),
+      });
+    } catch (e) {
+      result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+}
+
+/** The identity a task's anchor carries — what names and sorting go by. */
+function taskIdentityOf(account: PimAccountRow, listId: string, uid: string): TaskNoteIdentity {
+  const identity = taskAnchorIdentity(account);
+  return {
+    uid,
+    list: listId,
+    ...(account.provider ? { provider: account.provider } : {}),
+    ...(identity ? { identity } : {}),
+  };
 }
 
 async function reconcileList(
@@ -256,7 +313,9 @@ async function reconcileList(
   account: PimAccountRow,
   listId: string,
   getTarget: () => Promise<IPimTarget | null>,
-  result: TaskSyncResult
+  result: TaskSyncResult,
+  /** Queues a task for import; the notes are created after all lists, in a fixed order. */
+  queueCreate: (task: PimTask) => void
 ): Promise<void> {
   const { adapter, cache } = opts;
   const remoteTasks = await cache.listTasks(account.id, listId);
@@ -342,11 +401,7 @@ async function reconcileList(
         result.deferredCreates++;
         continue;
       }
-      const notePath = await createTaskNote(opts, db, account, listId, rt);
-      if (notePath) {
-        result.createdNotes.push(notePath);
-        await cache.upsertTaskState({ accountId: account.id, listId, uid: rt.uid, notePath, remoteEtag: rt.etag ?? null, baseFields: remoteFields });
-      }
+      queueCreate(rt);
       continue;
     }
     if (st.notePath === null) continue; // tombstone: never re-import
@@ -512,10 +567,13 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
   };
 }
 
-async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAccountRow, listId: string, task: PimTask): Promise<string | null> {
+async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAccountRow, listId: string, task: PimTask, known: Iterable<string>): Promise<string | null> {
   const { adapter } = opts;
   const anchor = buildTaskAnchor({ uid: task.uid, listId, accountId: account.id, provider: account.provider, identity: taskAnchorIdentity(account) });
-  const notePath = await availableTaskNotePath(adapter, db.folder, task.title, anchor);
+  // The title alone (E11). Whether "Title" is free is decided by the anchor in
+  // the file there, not by the name: this task's own note is reused, anything
+  // else moves this one on to "Title 2".
+  const notePath = await availableTaskNotePath(adapter, db.folder, task.title, anchor, { known });
   // An earlier interrupted run may have written the file before its state row.
   // Reuse it without overwriting independent edits with provider contents.
   if (await adapter.exists(notePath)) return notePath;

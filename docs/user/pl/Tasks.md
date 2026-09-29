@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-09-20
+Stan na: 2026-09-24
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -131,6 +131,13 @@ Zadania dostawcy są dopasowywane według tożsamości. Osobne wystąpienia maj�
 Te pliki należą do różnych zadań. Zadania cykliczne o tym samym tytule mogą być osobnymi wystąpieniami. Obie zawartości zostaną zachowane jako oddzielne zadania.
 
 **Zachowaj jako osobne zadania** — Ten plik pozostanie bez zmian: Bieżący plik  Kopia konfliktowa zostanie zachowana jako osobny plik: kopia konfliktu
+
+<!-- task-names-2026-09-24 -->
+## Jak nazywają się zadania od dostawcy
+
+Zadanie, które Plainva odzwierciedla z listy zadań Twojego dostawcy, nosi nazwę swojego tytułu: „Zadzwonić do dentysty” staje się plikiem `Zadzwonić do dentysty.md` w folderze bazy zadań. Jeśli nazwa jest już zajęta — przez Twoją własną notatkę lub drugie zadanie o tym samym tytule — nowe zadanie dostaje kolejny wolny numer, tak jak każda inna notatka: `Zakupy 2.md`, `Zakupy 3.md`.
+
+O tym, które zadanie jest w którym pliku, nie mówi nazwa, lecz znacznik we frontmatter (`plainva.pim`, zob. [Dokumentacja formatu plików](File_Format_Reference.md)). Dlatego Plainva używa istniejącej nazwy ponownie tylko wtedy, gdy plik zawiera to samo zadanie, i tworzy nowe zadania na każdym urządzeniu w tej samej kolejności — dwa urządzenia nadają więc te same numery. Gdy tytuł zmieni się u dostawcy, Plainva aktualizuje nagłówek notatki, ale nie zmienia nazwy pliku: linki do notatki nadal działają. Zmienić nazwę notatki lub ją przenieść możesz w każdej chwili sam; znacznik utrzymuje powiązanie.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadane Tasks i powtarzanie

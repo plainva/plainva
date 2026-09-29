@@ -1312,7 +1312,8 @@ export class SyncWorker {
         changedPaths.push(copyPath);
         await this.queue.queueWrite(copyPath);
         // The old canonical path remains attached to the remote task. Its
-        // existing links survive; the displaced task gets a stable filename.
+        // existing links survive; the displaced task takes the next free number
+        // of its title ("Title 2"), decided by the anchors found there.
         // A crash before here leaves the source; after here its copy is queued.
         if (await this.vault.readTextFile(path) !== localContent) throw new Error("task_source_changed");
         mergedContent = remoteContent;

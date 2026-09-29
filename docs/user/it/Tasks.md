@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-24
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -131,6 +131,13 @@ Le attività del provider vengono associate in base all’identità. Le diverse 
 Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.
 
 **Conserva come attività separate** — Questo file resta invariato: File attuale  La copia in conflitto viene conservata come file separato: copia di conflitto
+
+<!-- task-names-2026-09-24 -->
+## Come si chiamano le attività del provider
+
+Un'attività che Plainva rispecchia da una lista di attività del tuo provider prende il nome dal suo titolo: «Chiamare il dentista» diventa `Chiamare il dentista.md` nella cartella del tuo database delle attività. Se il nome è già occupato — da una tua nota o da una seconda attività con lo stesso titolo —, la nuova attività riceve il numero libero successivo, come qualsiasi altra nota: `Spesa 2.md`, `Spesa 3.md`.
+
+Quale attività si trovi in quale file non lo dice il nome, ma la marcatura nel frontmatter (`plainva.pim`, vedi [File Format Reference](File_Format_Reference.md)). Per questo Plainva riusa un nome esistente solo se il file contiene la stessa attività, e crea le nuove attività nello stesso ordine su ogni dispositivo: così due dispositivi assegnano gli stessi numeri. Se il titolo cambia presso il provider, Plainva aggiorna l'intestazione della nota ma non rinomina il file, quindi i collegamenti alla nota continuano a funzionare. Puoi rinominarla o spostarla tu in qualsiasi momento; la marcatura mantiene il collegamento.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadati Tasks e ripetizione

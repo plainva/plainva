@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-24
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -131,6 +131,13 @@ Les tâches du fournisseur sont associées selon leur identité. Les occurrences
 Ces fichiers correspondent à des tâches différentes. Des tâches récurrentes de même titre peuvent être des occurrences distinctes. Les deux contenus sont conservés séparément.
 
 **Conserver comme tâches séparées** — Ce fichier reste inchangé : Fichier actuel  La copie en conflit est conservée dans un fichier séparé : copie de conflit
+
+<!-- task-names-2026-09-24 -->
+## Comment les tâches du fournisseur sont nommées
+
+Une tâche que Plainva reflète depuis une liste de tâches de votre fournisseur porte le nom de son titre : « Appeler le dentiste » devient `Appeler le dentiste.md` dans le dossier de votre base de tâches. Si le nom est déjà pris — par une note à vous ou par une deuxième tâche du même titre —, la nouvelle tâche reçoit le numéro libre suivant, comme toute autre note : `Courses 2.md`, `Courses 3.md`.
+
+Ce n'est pas le nom qui dit quelle tâche se trouve dans quel fichier, mais le marqueur du frontmatter (`plainva.pim`, voir la [Référence du format de fichier](File_Format_Reference.md)). Plainva ne reprend donc un nom existant que si le fichier contient la même tâche, et crée les nouvelles tâches dans le même ordre sur chaque appareil : deux appareils attribuent ainsi les mêmes numéros. Si le titre change chez le fournisseur, Plainva met à jour le titre de la note sans renommer le fichier : les liens vers la note restent valides. Vous pouvez la renommer ou la déplacer vous-même à tout moment ; le marqueur conserve le lien.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Métadonnées Tasks et répétition
