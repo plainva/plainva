@@ -145,7 +145,14 @@ export function TasksScreen({
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
   const { status, text, folder, tag, dueOnly, showHidden, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setList, resetFilters } = useTaskViewState(vault.vaultId);
   const [tick, setTick] = useState(0);
-  const [taskDb, setTaskDb] = useState("");
+  // Known from the first render on (plan Befunde 2026-09-24, E28). "New task"
+  // from the ＋ menu on another tab, the palette, the launcher shortcut and the
+  // journal's handover open this tab with the request already parked, and the
+  // first effect serves it: an empty first value read as "this vault has no
+  // task database" there, and the request was taken and dropped — the tab
+  // opened without its sheet, and the journal's typed text was lost. The effect
+  // below keeps the value current when the vault or its settings change.
+  const [taskDb, setTaskDb] = useState(() => getMobileSettings().taskDatabase.trim());
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** The database's date column — where a generated occurrence writes its
