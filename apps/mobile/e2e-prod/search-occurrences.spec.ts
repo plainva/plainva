@@ -40,6 +40,40 @@ test("phone search pages, jumps to the selected occurrence, and restores return 
 });
 
 /**
+ * The field takes its row (finding 2026-09-24, E19).
+ *
+ * The app bar gave its flexible share only to a heading; the search field in
+ * the title slot stayed as wide as its content and ended at about 60 % of the
+ * bar once the sort button stood beside it. Measured in the production bundle,
+ * because a stylesheet test cannot see what a flex row actually hands out.
+ */
+test("the phone's search field reaches the sort button", async ({ page, context }) => {
+  const sql = await installSqlBridge(context);
+  await context.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "de", motion: "off" })));
+  try {
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await expect(page.locator("#root > *").first()).toBeVisible();
+    const close = page.getByTestId("whats-new-close");
+    await expect(close).toBeVisible({ timeout: 15000 });
+    await close.click();
+    await page.getByTestId("appbar-search").first().click();
+    const field = page.getByTestId("appbar-searchpage").locator(".pv-searchfield");
+    const input = field.locator("input");
+    // The main job first, in the placeholder too.
+    await expect(input).toHaveAttribute("placeholder", "Suchen oder > für Befehle");
+    const sort = page.getByTestId("search-sort");
+    const [f, s, viewport] = [await field.boundingBox(), await sort.boundingBox(), page.viewportSize()];
+    expect(f && s && viewport).toBeTruthy();
+    // Up to the sort button, less the row's gap — not a few percent short of it.
+    const gap = s!.x - (f!.x + f!.width);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(12);
+    expect(f!.width / viewport!.width).toBeGreaterThan(0.7);
+  } finally { sql.close(); }
+});
+
+/**
  * The ORDER of the hits and of the backlinks (finding 2026-09-19).
  *
  * Search hits came by relevance and nothing else; backlinks came in whatever

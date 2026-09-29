@@ -2084,7 +2084,7 @@
     "opPath": "path:",
     "opPhrase": "\"exacte zin\"",
     "opExclude": "-uitsluiten",
-    "hint": "Typ > voor opdrachten",
+    "hint": "Zoeken of > voor opdrachten",
     "clearRecent": "Geschiedenis wissen"
   },
   "block": {

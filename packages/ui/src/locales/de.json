@@ -2084,7 +2084,7 @@
     "opPath": "path:",
     "opPhrase": "\"genaue Phrase\"",
     "opExclude": "-ausschließen",
-    "hint": "> tippen für Befehle",
+    "hint": "Suchen oder > für Befehle",
     "clearRecent": "Verlauf leeren"
   },
   "block": {

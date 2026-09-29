@@ -2091,7 +2091,7 @@
     "opPath": "path:",
     "opPhrase": "\"frase exacta\"",
     "opExclude": "-excluir",
-    "hint": "Escribe > para comandos",
+    "hint": "Buscar o > para comandos",
     "clearRecent": "Borrar historial"
   },
   "block": {

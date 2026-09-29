@@ -2084,7 +2084,7 @@
     "opPath": "path:",
     "opPhrase": "\"exact phrase\"",
     "opExclude": "-exclude",
-    "hint": "Type > for commands",
+    "hint": "Search or > for commands",
     "clearRecent": "Clear history"
   },
   "block": {

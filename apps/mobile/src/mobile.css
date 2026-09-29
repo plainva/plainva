@@ -257,7 +257,9 @@ textarea {
 }
 
 /* The title block: heading plus one line of context. Both truncate — a wrapped
-   title would change the bar's height on the way into a screen. */
+   title would change the bar's height on the way into a screen. It is also the
+   holder of a control that stands in for the title (the search page's field):
+   the column stretches it to the full share of the row (E19). */
 .m-appbar-ttl {
   flex: 1;
   min-width: 0;

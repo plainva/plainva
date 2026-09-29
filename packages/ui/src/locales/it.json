@@ -2091,7 +2091,7 @@
     "opPath": "path:",
     "opPhrase": "\"frase esatta\"",
     "opExclude": "-escludi",
-    "hint": "Digita > per i comandi",
+    "hint": "Cerca o > per i comandi",
     "clearRecent": "Cancella cronologia"
   },
   "block": {

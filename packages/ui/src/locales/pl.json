@@ -2098,7 +2098,7 @@
     "opPath": "path:",
     "opPhrase": "\"dokładna fraza\"",
     "opExclude": "-wyklucz",
-    "hint": "Wpisz > dla poleceń",
+    "hint": "Szukaj lub > dla poleceń",
     "clearRecent": "Wyczyść historię"
   },
   "block": {
