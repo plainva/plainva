@@ -121,6 +121,23 @@ CSS file. `packages/ui/src/lib/customTheme.ts` holds the whole model:
   custom theme is active and removes them (`clearCustomTheme`) for every other
   theme — inline custom properties beat every `[data-theme-name]` rule, which
   is the same mechanism the content font uses.
+- **Live preview (plan Befunde 2026-09-24, E22):** while the "My theme" page
+  is on screen, `useCustomThemePair` hands the mood being edited — a proposal
+  that is not adopted yet included — to `setCustomThemePreview({ mode, spec })`.
+  `applyResolved()` then paints that preview whatever the stored Mode, System
+  or a one-mood pin say, and keeps remembering its arguments as the stored
+  look (`appliedTheme()`), so a save or a System change during the preview
+  still lands in the right place. `setCustomThemePreview(null)` repaints the
+  stored look: the phone on unmount, the desktop when the page stops being the
+  shown one (every settings page stays mounted) and when the settings close.
+  The preview is never persisted — a restart after a crash mid-preview paints
+  the stored settings like any other start, and the Mode setting is never
+  written by it. Code that derives a STORED decision must read `appliedTheme()`,
+  not `<html>` (`toggleLightDark`, the title bar's toggle and the palette's
+  toggle command, which ask whether the stored theme pins its mode);
+  `onThemeApplied` notifies after every paint
+  (the phone's status bar follows it). The editor starts on the mood the app
+  shows and follows it until somebody switches.
 - **Guards:** `designGuards`' docking matrix does not apply — there is no CSS
   surface to dock onto; the guarantee is the contrast grid instead. The lint
   that keeps colour literals out of components is satisfied because the

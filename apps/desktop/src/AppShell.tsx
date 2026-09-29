@@ -65,8 +65,8 @@ import { toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
-import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
-import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
+import { appliedTheme, buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
+import { toggleLightDark } from "./services/theme";
 import { Plus, ChevronsDownUp, ChevronsUpDown, FileText, FolderTree, RefreshCw, ArrowUpDown, X } from "lucide-react";
 import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey,
   SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
@@ -1783,7 +1783,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             reopenClosedTab,
             openImport: () => capabilities.openImport(),
             toggleTheme: () => { void toggleLightDark(); },
-            themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
+            // The stored theme, not <html> — "My theme" may be previewing a mood (E22).
+            themeTogglePinned: () => appliedTheme().pinned,
             openSettings: () => capabilities.openSettings(),
             openShortcuts: () => setShowShortcuts(true),
             openFindReplace: () => setShowFindReplace(true),

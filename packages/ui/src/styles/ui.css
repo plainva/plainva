@@ -977,7 +977,8 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-seg-item:hover:not(.is-active) { background: var(--state-hover); color: var(--text-main); }
+.pv-seg-item:hover:not(.is-active):not(:disabled) { background: var(--state-hover); color: var(--text-main); }
+.pv-seg-item:disabled { opacity: 0.45; cursor: default; }
 .pv-seg-item.is-active {
   background: var(--surface);
   color: var(--accent-color);
@@ -1058,7 +1059,7 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 }
 .pv-btn:active:not(:disabled),
 .pv-iconbtn:active:not(:disabled),
-.pv-seg-item:active { transform: scale(0.97); }
+.pv-seg-item:active:not(:disabled) { transform: scale(0.97); }
 
 /* Shared list-row hover: lets CSS drive the hover so rows (file tree, tags,
    outline, backlinks, folder pickers) don't hand-roll it in JS. An inline

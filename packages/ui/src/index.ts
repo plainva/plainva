@@ -127,6 +127,7 @@ export * from "./lib/personalDesignSync";
 export * from "./hooks/useCustomThemePair";
 export * from "./hooks/usePersonalDesignSync";
 export * from "./components/CustomThemeSync";
+export * from "./components/CustomThemePreviewBanner";
 export * from "./lib/concurrencyLimiter";
 export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";

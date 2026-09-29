@@ -267,21 +267,94 @@ test('My design preserves the legacy mood until adoption and follows System with
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
   await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
+  // One adopted mood pins Mode; the row says where the other one comes from (E22).
+  await expect(page.getByText(/^(Die andere Stimmung unter Mein Design übernehmen|Adopt the other mood under My theme)\.$/)).toBeVisible();
   await page.getByTestId('theme-card-custom-edit').click();
+  // The editor starts on the mood the app shows (plan Befunde 2026-09-24, E22):
+  // the only adopted one, not "light" because the page mounted with a placeholder.
+  await expect(page.getByTestId('custom-theme-mood-dark')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('custom-theme-mood-light').click();
   await expect(page.getByTestId('custom-theme-adopt-mood')).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // The proposal is what the whole app wears while the page is open (E22) —
+  // and the saved design stays the legacy one until adoption.
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('pvE2EStore') || '{}').customTheme);
   expect(await saved()).toEqual(legacy);
   await page.getByTestId('custom-theme-adopt-mood').click();
   await expect.poll(async () => (await saved()).version).toBe(2);
   expect((await saved()).dark).toEqual(legacy);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  // Leaving the page hands the look back to Mode — System, which with both
+  // moods follows the device.
+  await page.getByTestId('custom-theme-back').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect((await saved()).dark).toEqual(legacy);
+});
+
+test('My design: the whole app wears the mood being edited, there and back, and leaving restores Mode', async ({ page }) => {
+  // Plan Befunde 2026-09-24, E22 — the finding: with Mode on Dark, "Light"
+  // in the editor changed only the small preview card.
+  const light = { mode: 'light', background: '#f7f1e8', accent: '#b4532a', fontUi: '', radius: 'normal' };
+  const dark = { mode: 'dark', background: '#1c1815', accent: '#e58a5e', fontUi: '', radius: 'normal' };
+  await page.addInitScript(design => {
+    const data = JSON.parse(localStorage.getItem('pvE2EStore') || '{}');
+    if (!data.customTheme) localStorage.setItem('pvE2EStore', JSON.stringify({ ...data, customTheme: design, themeName: 'custom', theme: 'dark' }));
+  }, { version: 2, radius: 'normal', light, dark });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await openApp(page);
+  const html = page.locator('html');
+  const ground = () => page.evaluate(() => document.documentElement.style.getPropertyValue('--bg-primary'));
+  const storedMode = () => page.evaluate(() => JSON.parse(localStorage.getItem('pvE2EStore') || '{}').theme);
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  const openEditor = async () => {
+    await dialog.getByRole('button', { name: /^(Appearance|Erscheinungsbild)$/ }).click();
+    await page.getByTestId('theme-card-custom-edit').click();
+    await expect(page.getByTestId('custom-theme-page')).toBeVisible();
+  };
+  await page.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
+  await openEditor();
+  // It starts on the mood the app shows, and says what the preview does.
+  await expect(page.getByTestId('custom-theme-mood-dark')).toHaveAttribute('aria-checked', 'true');
+  const banner = page.getByTestId('custom-theme-preview-banner');
+  await expect(banner).toHaveText(/^(Vorschau: Die App zeigt die dunkle Stimmung, solange diese Seite offen ist\.|Preview: the app shows the dark mood while this page is open\.)$/);
+
+  // There and back, twice: the whole window follows, not only the card.
+  await page.getByTestId('custom-theme-mood-light').click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  expect(await ground()).toBe('#f7f1e8');
+  await expect(banner).toContainText(/Danach gilt wieder Modus: Dunkel\.|Afterwards, Mode applies again: Dark\./);
+  await page.getByTestId('custom-theme-mood-dark').click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await ground()).toBe('#1c1815');
+  await page.getByTestId('custom-theme-mood-light').click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  expect(await ground()).toBe('#f7f1e8');
+  await page.screenshot({ path: test.info().outputPath('my-theme-preview-light.png') });
+  expect(await storedMode()).toBe('dark');
+
+  // Another settings page: the page stays mounted, the preview ends.
+  await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await ground()).toBe('#1c1815');
+
+  // Back on the page it starts on the shown mood again; closing the settings
+  // ends the preview too — and Mode was never written.
+  await openEditor();
+  await expect(page.getByTestId('custom-theme-mood-dark')).toHaveAttribute('aria-checked', 'true');
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  await page.getByTestId('custom-theme-mood-light').click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await ground()).toBe('#1c1815');
+  expect(await storedMode()).toBe('dark');
 });
 
 test('My design opts in, retains concurrent variants and keeps its appearance after opting out', async ({ page }) => {
@@ -336,6 +409,9 @@ test('Theme cards switch bundled themes; single-mode themes pin the mode', async
   await page.getByTestId('theme-card-midnight').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-name', 'midnight');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // The title bar's light/dark toggle follows the stored theme's pin.
+  const toggle = page.getByRole('button', { name: /^(Toggle light\/dark|Hell\/Dunkel umschalten)$/ });
+  await expect(toggle).toBeDisabled();
 
   // Windows 95 is easter-egg gated since 2026-07-06: no card while locked
   // (unlock flow + light pinning covered by the "Hello computer" test below).
@@ -344,6 +420,7 @@ test('Theme cards switch bundled themes; single-mode themes pin the mode', async
   // Back to Petrol: the pin is released.
   await page.getByTestId('theme-card-petrol').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-name', 'petrol');
+  await expect(toggle).toBeEnabled();
 });
 
 test("Scotty's line to the mouse unlocks Windows 95 as the LAST picker card", async ({ page }) => {

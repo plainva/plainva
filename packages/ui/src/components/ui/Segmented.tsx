@@ -17,6 +17,8 @@ export interface SegmentedProps<T extends string> {
   ariaLabel?: string;
   size?: "sm" | "md";
   className?: string;
+  /** Shows the value but takes no choice (a mode a theme pins). */
+  disabled?: boolean;
 }
 
 /**
@@ -32,11 +34,13 @@ export function Segmented<T extends string>({
   ariaLabel,
   size = "md",
   className,
+  disabled,
 }: SegmentedProps<T>) {
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
+      aria-disabled={disabled || undefined}
       className={cx("pv-segmented", size === "sm" && "pv-segmented--sm", className)}
     >
       {options.map((opt) => {
@@ -49,6 +53,7 @@ export function Segmented<T extends string>({
             aria-checked={on}
             data-testid={opt.testId}
             className={cx("pv-seg-item", on && "is-active")}
+            disabled={disabled}
             onClick={() => onChange(opt.value)}
           >
             {opt.icon ? <span className="pv-seg-ic">{opt.icon}</span> : null}

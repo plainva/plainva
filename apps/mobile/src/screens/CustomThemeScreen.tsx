@@ -4,6 +4,7 @@ import {
   AVAILABLE_THEMES,
   Banner,
   Button,
+  CustomThemePreviewBanner,
   GroupCard,
   Row,
   RowList,
@@ -39,7 +40,9 @@ import { mobilePersonalDesignForEditor } from "../services/personalDesign";
  * "Mein Design" on the phone (plan 2026-09-04, A2): the screen the pencil on
  * the theme card opens. Preview first; every row opens its own sheet or
  * picker and shows what is chosen — the same few choices, the same
- * derivation and the same corrections as the desktop page.
+ * derivation and the same corrections as the desktop page. While the screen
+ * is open, the whole app wears the mood being edited; leaving it (unmount)
+ * brings the stored look back (plan Befunde 2026-09-24, E22).
  */
 export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
@@ -134,6 +137,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
             <Row title={t("settings.customThemeText")} subtitle={t("settings.customThemeTextHint")} end={<span>{dot(colors.textMain)} {dot(colors.textMuted)} {dot(colors.textFaint)}</span>} />
           </RowList>
         </GroupCard>
+        <CustomThemePreviewBanner mood={pair.mode} stored={pair.stored} mobile />
         {lastCorrection && (
           <Banner kind="warning" rounded>
             {lastCorrection.field === "accent"

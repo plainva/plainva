@@ -5,6 +5,7 @@ import {
   migrateCustomThemeFont,
   type AppFonts,
   applyResolved,
+  onThemeApplied,
   clampContentFontSize,
   type ContentFontFamily,
   DEFAULT_CONTENT_FONT_SIZE,
@@ -273,6 +274,7 @@ function applyTheme(): void {
   // single-mode themes (Midnight, LCARS, …) pin their mode; themes with a
   // default variant get it applied. themeMode maps 1:1 onto ThemePref.
   // The custom entry only exists once its spec is registered (P2).
+  followThemeWithStatusBar();
   setCustomTheme(live().customTheme);
   const name = getThemeDef(live().themeName) ? live().themeName : DEFAULT_THEME_NAME;
   applyResolved(live().themeMode, name, live().themeVariants[name]);
@@ -292,10 +294,19 @@ function applyTheme(): void {
   // and skips the OS reduce-collapse on "on"; absent = follow the system.
   if (live().motion === "system") root.removeAttribute("data-motion");
   else root.setAttribute("data-motion", live().motion);
-  // Drive the native status bar from the RESOLVED theme (applyResolved just
-  // wrote data-theme, so mode-pinning/variants are already accounted for) —
-  // otherwise a light app under a dark OS shows unreadable white status text.
-  syncNativeStatusBar(root.getAttribute("data-theme") === "dark" ? "dark" : "light");
+}
+
+// Drive the native status bar from the RESOLVED theme (mode pinning and
+// variants included) — otherwise a light app under a dark OS shows unreadable
+// white status text. A listener on every paint rather than a call in
+// applyTheme, because the live preview of "My theme" repaints without passing
+// through applyTheme (plan Befunde 2026-09-24, E22). Installed with the first
+// apply, so importing this module has no side effect.
+let statusBarFollowsTheme = false;
+function followThemeWithStatusBar(): void {
+  if (statusBarFollowsTheme) return;
+  statusBarFollowsTheme = true;
+  onThemeApplied(() => syncNativeStatusBar(document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"));
 }
 
 /**

@@ -19,6 +19,7 @@ import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
+import { pinnedModeHintKey } from "@plainva/ui";
 import type { Density } from "../../services/density";
 import type { WeekStartSetting } from "@plainva/ui";
 import { MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type AppFontSettings, type ContentFontFamily, type FontChoice, type FontSlot } from "../../services/appFonts";
@@ -127,7 +128,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         </SettingRow>
         <SettingRow
           label={t("settings.themeMode", { defaultValue: "Modus" })}
-          desc={isModePinned(p.themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : undefined}
+          desc={pinnedModeHintKey(p.themeName) ? t(pinnedModeHintKey(p.themeName)!) : undefined}
         >
           <div style={{ width: "100%" }}>
             {isModePinned(p.themeName) ? (
@@ -524,9 +525,12 @@ export interface CustomThemePageProps {
   onChange: (spec: CustomThemeDesign) => void | Promise<void>;
   onBack: () => void;
   designSync: CustomThemeSyncProps;
+  /** The page is the one shown (and its stored design has loaded): only then
+   * does the app wear the mood being edited (E22). */
+  active: boolean;
 }
 
-export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack, designSync }) => {
+export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack, designSync, active }) => {
   const { t } = useTranslation();
   return (
     <div data-testid="custom-theme-page">
@@ -536,7 +540,7 @@ export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange
         </Button>
       </div>
       <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
-      <CustomThemeEditor spec={spec} onChange={onChange} />
+      <CustomThemeEditor spec={spec} onChange={onChange} active={active} />
       <CustomThemeSync {...designSync} />
     </div>
   );

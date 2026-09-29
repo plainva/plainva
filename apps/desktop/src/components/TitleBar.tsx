@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { Pin, SunMoon, X, Plus, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_THEME_NAME, isModePinned, toggleLightDark } from "../services/theme";
-import { ICON, PlainvaLogo } from "@plainva/ui";
+import { toggleLightDark } from "../services/theme";
+import { ICON, PlainvaLogo, appliedTheme, onThemeApplied } from "@plainva/ui";
 import { WindowControls, detectMac } from "./WindowControls";
 import { HailingFrequenciesModal } from "./HailingFrequenciesModal";
 import { tabLabel, useTabDnd, useElementWidth, tabWindowOf, dropIndicatorShadow, TAB_MIN_WIDTH } from "./tabStrip";
@@ -48,22 +48,15 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
     .slice(tabWindow.start, tabWindow.start + tabWindow.count);
   const docIcons = useDocumentIcons();
   const dirtyPaths = useDirtyPaths();
-  const [themeName, setThemeName] = useState(() => document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME);
+  // Mode pinning of the STORED theme (single-mode themes disable the
+  // light/dark toggle). Not read from <html>: while "My theme" previews a mood
+  // it wears the preview, and the toggle flips what is stored (plan Befunde
+  // 2026-09-24, E22). The toggle icon itself is static (SunMoon).
+  const themePinned = useSyncExternalStore(onThemeApplied, () => appliedTheme().pinned, () => appliedTheme().pinned);
   const [showHailing, setShowHailing] = useState(false);
   // 5 quick clicks on the logo open the hailing-frequencies dialog (easter
   // egg). Rolling 3s window between clicks; plain clicks do nothing else.
   const logoClicks = useRef({ n: 0, t: 0 });
-
-  // Track the theme name for mode pinning (single-mode themes disable the
-  // light/dark toggle). The toggle icon itself is static (SunMoon).
-  useEffect(() => {
-    const root = document.documentElement;
-    const obs = new MutationObserver(() => {
-      setThemeName(root.getAttribute("data-theme-name") || DEFAULT_THEME_NAME);
-    });
-    obs.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-theme-name"] });
-    return () => obs.disconnect();
-  }, []);
 
   const handleLogoClick = () => {
     const now = Date.now();
@@ -229,8 +222,8 @@ export function TitleBar({ tabs, pinnedTabs, activeIndex, onSelectTab, onCloseTa
       <button
         type="button"
         aria-label={t("titlebar.toggleTheme", { defaultValue: "Hell/Dunkel umschalten" })}
-        data-tip={isModePinned(themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : t("titlebar.toggleTheme", { defaultValue: "Hell/Dunkel umschalten" })}
-        disabled={isModePinned(themeName)}
+        data-tip={themePinned ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : t("titlebar.toggleTheme", { defaultValue: "Hell/Dunkel umschalten" })}
+        disabled={themePinned}
         onClick={() => { toggleLightDark().catch(console.error); }}
         className="pv-titlebar-btn"
       >

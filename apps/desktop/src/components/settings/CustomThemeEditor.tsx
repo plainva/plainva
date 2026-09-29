@@ -4,6 +4,7 @@ import {
   AVAILABLE_THEMES,
   Banner,
   Button,
+  CustomThemePreviewBanner,
   Segmented,
   SettingCard,
   SettingRow,
@@ -35,15 +36,19 @@ import { Select } from "../Select";
  * corrected and the correction is said in a sentence. Every change persists
  * at once for an adopted mood; a proposed mood waits for adoption. Rendered on its own
  * settings page (CustomThemePage), the preview first, then three cards.
+ * While the page is shown, the whole app wears the mood being edited (E22).
  */
 export interface CustomThemeEditorProps {
   spec: CustomThemeDesign;
   onChange: (spec: CustomThemeDesign) => void | Promise<void>;
+  /** Is the page on screen? Every settings page stays mounted, so the live
+   * preview must end when another page is chosen, not only on unmount. */
+  active: boolean;
 }
 
-export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: design, onChange }) => {
+export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: design, onChange, active }) => {
   const { t } = useTranslation();
-  const pair = useCustomThemePair(design, onChange), spec = pair.spec;
+  const pair = useCustomThemePair(design, onChange, { active }), spec = pair.spec;
   const [lastCorrection, setLastCorrection] = useState<CustomThemeCorrection | null>(null);
   const colors = useMemo(() => customThemeColors(spec), [spec]);
   const ratios = useMemo(() => customThemeContrast(spec), [spec]);
@@ -129,6 +134,7 @@ export const CustomThemeEditor: React.FC<CustomThemeEditorProps> = ({ spec: desi
         <SettingRow label={t("settings.customThemeText")} desc={t("settings.customThemeTextHint")}>
           <SwatchGrid presets={[colors.textMain, colors.textMuted, colors.textFaint]} readOnly />
         </SettingRow>
+        <CustomThemePreviewBanner mood={pair.mode} stored={pair.stored} />
         {lastCorrection && (
           <Banner kind="warning" rounded>
             {lastCorrection.field === "accent"
