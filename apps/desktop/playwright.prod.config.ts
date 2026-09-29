@@ -22,6 +22,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: 'list',
+  // Its own folder: a run empties its output folder first, and this smoke runs
+  // right after the E2E suite in CI (see playwright.config.ts).
+  outputDir: 'test-results/prod',
   use: {
     baseURL,
     trace: 'on-first-retry',
