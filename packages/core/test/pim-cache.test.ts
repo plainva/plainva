@@ -234,6 +234,18 @@ describe("PimCacheRepository", () => {
     });
   });
 
+  it("moves the stored note path of every task bound to a renamed note, and nothing else (E12)", async () => {
+    await repo.replaceTaskLists("acc1", [{ id: "l1", name: "Aufgaben" }]);
+    const row = (uid: string, notePath: string | null) => ({ accountId: "acc1", listId: "l1", uid, notePath, remoteEtag: null, baseFields: null });
+    await repo.upsertTaskState(row("t1", "Aufgaben/Einkaufen — 0123456789abcdef.md"));
+    await repo.upsertTaskState(row("t2", "Aufgaben/Anderes.md"));
+    await repo.upsertTaskState(row("t3", null));
+    await repo.moveTaskNotePath("Aufgaben/Einkaufen — 0123456789abcdef.md", "Aufgaben/Einkaufen.md");
+    await repo.moveTaskNotePath("Aufgaben/Einkaufen — 0123456789abcdef.md", "Aufgaben/Einkaufen.md");
+    const paths = Object.fromEntries((await repo.getTaskStates("acc1", "l1")).map((s) => [s.uid, s.notePath]));
+    expect(paths).toEqual({ t1: "Aufgaben/Einkaufen.md", t2: "Aufgaben/Anderes.md", t3: null });
+  });
+
   it("a delta never deletes from absence — only the named uids go (S18)", async () => {
     const range = Date.parse("2027-01-01T00:00:00Z");
     await repo.replaceEventWindow("acc1", "cal1", 0, range, [

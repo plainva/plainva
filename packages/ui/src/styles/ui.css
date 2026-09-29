@@ -2501,6 +2501,30 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--text-muted);
 }
 
+/* ── Task notes with an id in their name (plan Befunde 2026-09-24, E12) ──────
+   The notice and the list of renames beneath it, one surface for both shells
+   (mockup § 4). Banner, GroupCard and Row carry every visible surface — this
+   family only stacks them and lays out a row as "old → new": the old name a
+   struck-through <del> in the muted text colour, the new one in the main text
+   colour. Only shared text tokens, which every theme sets, so LCARS and Win95
+   need no docking of their own. Names wrap instead of being cut: the whole
+   point of a row is to show both names. The desktop insets the notice like the
+   duplicates banner; the phone's page carries the inset itself
+   (.m-names-notice). */
+.pv-names-notice { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-names-notice--inset { margin: 0 var(--space-3) var(--space-3); }
+.pv-names-notice .pv-grouprow-title { overflow: visible; white-space: normal; }
+.pv-names-rename {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.pv-names-rename > svg { color: var(--text-faint); }
+.pv-names-old { color: var(--text-muted); text-decoration: line-through; overflow-wrap: anywhere; }
+.pv-names-new { color: var(--text-main); font-weight: 500; overflow-wrap: anywhere; }
+
 /* ── Task planner and quick capture (plan Aufgaben-Oberflaeche, B1/B2) ───────
    The list switch (rail on the desktop, segment on the phone), the planner's
    sections and the capture field. Cards, rows, chips and the input are the

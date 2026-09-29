@@ -25,6 +25,7 @@ import { buildNewItemContent } from "../lib/newItemContent";
 import { generatedStamp } from "../lib/okfProvenance";
 import { resolveTaskCompletionModel, classifyTaskCompletion, applyTaskCompletion, type TaskCompletionModel } from "../lib/taskDatabase";
 import { findColumnKey } from "../lib/taskPromotion";
+import { taskSyncPaused, trackTaskSync } from "./taskSyncPause";
 
 /**
  * Task <-> note reconciler (PIM stage 3): mirrors the SELECTED task lists of
@@ -156,6 +157,12 @@ export interface TaskSyncResult {
   /** Notes removed here because the journal says their task was deleted elsewhere (P1). */
   deletedNotes: string[];
   errors: string[];
+  /**
+   * True when the reconcile did nothing because task notes are being renamed
+   * in bulk (`withTaskSyncPaused`, E12). The runner asks to be called again
+   * once the pause lifts (`afterTaskSyncResume`).
+   */
+  paused?: boolean;
 }
 
 interface DbShape {
@@ -208,6 +215,13 @@ export function chooseAnchorToAdopt<T extends { path: string; ctime: number | nu
 }
 
 export async function runTaskSync(opts: TaskSyncOptions): Promise<TaskSyncResult> {
+  if (taskSyncPaused()) {
+    return { createdNotes: [], changedNotes: [], adoptedNotes: [], duplicateAnchors: 0, deferredCreates: 0, pushed: 0, conflicts: 0, deletedRemote: 0, deletedNotes: [], errors: [], paused: true };
+  }
+  return trackTaskSync(reconcileAll(opts));
+}
+
+async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
   const result: TaskSyncResult = {
     createdNotes: [],
     changedNotes: [],
@@ -415,6 +429,14 @@ async function reconcileList(
           // Without the anchor index "no note found" means "not looked", not
           // "deleted". A tombstone says never import this again — that is not
           // a decision to take on missing information.
+          continue;
+        }
+        if (anchoredCandidates(opts, account, listId, rt).length > 0) {
+          // The index still names a note for this task that is not there: it
+          // lags behind a MOVE — a rename arriving from another device (E12),
+          // or one made here and not yet indexed. A lagging index can no more
+          // authorize a tombstone than an adoption; the next cycle, with the
+          // index caught up, finds the note under its new name.
           continue;
         }
         if ((opts.deletionsInFlight ?? []).some((d) => anchorMatchesTask(d, taskId(rt.uid)))) {

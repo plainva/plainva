@@ -13,6 +13,7 @@ import { toggleTaskDone, writeTaskNote } from "../../services/taskCompletion";
 import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecurringAtProviderNamespace, repeatFromNamespace, RowActionList, taskRowActions, writeRepeatRule, type RepeatRule, type TaskRowCaps } from "@plainva/ui";
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { TaskDuplicatesNotice } from "./TaskDuplicatesNotice";
+import { TaskNamesNotice } from "./TaskNamesNotice";
 import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -75,6 +76,13 @@ function renderTaskText(text: string, emptyLabel: string): React.ReactNode {
 interface Props {
   /** Open a note (the search-jump store already carries the line to reveal). */
   onOpenPath: (path: string, newTab?: boolean) => void;
+  /**
+   * Open tabs follow a renamed note. Only the owner window — the one that runs
+   * the vault and its task reconciler — passes it, and only there is the
+   * clean-up of task-note names offered (E12): a bulk rename has to hold that
+   * reconciler, which another window's JavaScript cannot reach.
+   */
+  onRenamed?: (from: string, to: string) => void;
 }
 
 type StatusFilter = "open" | "done" | "all";
@@ -103,7 +111,7 @@ function DueLabel({ due }: { due: string }) {
   return <>{formatDueLabel(due, { locale: i18n.language, t }).text}</>;
 }
 
-export function TasksView({ onOpenPath }: Props) {
+export function TasksView({ onOpenPath, onRenamed }: Props) {
   const { t } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
   // The list stays on screen while it reloads (finding 2026-09-20): `loading`
@@ -853,6 +861,16 @@ export function TasksView({ onOpenPath }: Props) {
   const shownCount = list === "all" ? filtered.length : plannerSections.reduce((n, sec) => n + sec.rows.length, 0);
   const plannerEmpty =
     list === "upcoming" ? t("tasks.plannerEmptyUpcoming", { days: 14 }) : list === "inbox" ? t("tasks.plannerEmptyInbox") : list === "done" ? t("tasks.plannerEmptyDone") : t("tasks.plannerEmptyToday");
+  const namesNotice = onRenamed ? (
+    <TaskNamesNotice
+      reloadKey={`${fileTreeVersion}:${refreshTick}`}
+      onRenamed={onRenamed}
+      onChanged={() => {
+        triggerFileTreeUpdate();
+        setRefreshTick((x) => x + 1);
+      }}
+    />
+  ) : null;
   const duplicatesNotice = (
     <TaskDuplicatesNotice
       db={duplicatesDb}
@@ -943,6 +961,7 @@ export function TasksView({ onOpenPath }: Props) {
       {taskDb && <TaskCaptureBar key={captureSeed.seeded} initialValue={captureSeed.text} todayKey={todayKey} providerList={providerList} focusTick={captureSeed.focus} onSubmit={createFromCapture} />}
       {list !== "all" ? (
         <div className="pv-planner-scroll">
+          {namesNotice}
           {duplicatesNotice}
           {loading ? null : (
             <TaskPlannerList
@@ -957,6 +976,7 @@ export function TasksView({ onOpenPath }: Props) {
         </div>
       ) : (
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
+        {namesNotice}
         {duplicatesNotice}
         {taskDb && (
           <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>

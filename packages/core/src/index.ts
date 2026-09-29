@@ -110,7 +110,7 @@ export * from "./pim/GraphPimTarget.js";
 export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
 export * from "./import/index.js";
-export { foldPathNormalization } from "./sync/pathIdentity.js";
+export { foldPathForCollision, foldPathNormalization } from "./sync/pathIdentity.js";
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
 export * from "./textScan.js";

@@ -351,3 +351,50 @@ describe("two reconcilers on one vault", () => {
     expect(noteIn(vault)).toEqual([]);
   });
 });
+
+describe("the clean-up of names with an id (E12), seen from the other device", () => {
+  const legacyPath = "Aufgaben/Einkaufen — 0123456789abcdef.md";
+  const cleanPath = "Aufgaben/Einkaufen.md";
+  const anchored = ["---", "plainva:", "  pim:", "    kind: task", "    uid: u1", "    list: l1", "    provider: caldav", "status: Offen", "---", "# Einkaufen", ""].join("\n");
+
+  /** Both devices know the task under its old name; A renames it, and A's stored path follows. */
+  async function renamedOnA() {
+    const A = await device("device-a");
+    const B = await device("device-b");
+    const task = rt({ uid: "u1", title: "Einkaufen", etag: '"e1"' });
+    await A.cache.replaceTasks(A.accountId, "l1", [task]);
+    await B.cache.replaceTasks(B.accountId, "l1", [task]);
+    const vault = sharedVault({ "Aufgaben.base": TASK_DB, [legacyPath]: anchored });
+    expect((await runTaskSync(optsFor(A, vault, null))).adoptedNotes).toEqual([legacyPath]);
+    expect((await runTaskSync(optsFor(B, vault, null))).adoptedNotes).toEqual([legacyPath]);
+    // B's index still describes the vault as it was before the move arrived.
+    const staleAnchors = anchorsOf(vault.files) as TaskSyncOptions["anchorsByUid"];
+    vault.files.set(cleanPath, vault.files.get(legacyPath)!);
+    vault.files.delete(legacyPath);
+    await A.cache.moveTaskNotePath(legacyPath, cleanPath);
+    return { A, B, vault, staleAnchors };
+  }
+
+  it("the renaming device keeps its task bound to the new name", async () => {
+    const { A, vault } = await renamedOnA();
+    const res = await runTaskSync(optsFor(A, vault, null));
+    expect(res.createdNotes).toEqual([]);
+    expect((await A.cache.getTaskStates(A.accountId, "l1"))[0].notePath).toBe(cleanPath);
+  });
+
+  it("a device whose index lags behind the move waits instead of burying the task", async () => {
+    // B's stored path is gone and its index still names the old path. That
+    // is a move not yet indexed, not a deletion: a tombstone here would stop
+    // B from ever mirroring this task again.
+    const { B, vault, staleAnchors } = await renamedOnA();
+    const lagging = await runTaskSync({ ...optsFor(B, vault, null), anchorsByUid: staleAnchors });
+    expect(lagging.createdNotes).toEqual([]);
+    expect((await B.cache.getTaskStates(B.accountId, "l1"))[0].notePath).toBe(legacyPath);
+
+    // Once the index has caught up, B follows the note to its new name.
+    const caughtUp = await runTaskSync(optsFor(B, vault, null));
+    expect(caughtUp.createdNotes).toEqual([]);
+    expect((await B.cache.getTaskStates(B.accountId, "l1"))[0].notePath).toBe(cleanPath);
+    expect([...vault.files.keys()].filter((p) => p.endsWith(".md"))).toEqual([cleanPath]);
+  });
+});

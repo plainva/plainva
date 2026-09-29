@@ -1,4 +1,4 @@
-import { clearPinboardCache } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
@@ -1069,6 +1069,8 @@ export const VaultProvider: React.FC<{
               onDeletionResolved: (intent, outcome) =>
                 resolveTaskDeletion(intent as TaskDeletionOrder, outcome),
             });
+            // Task notes are being renamed in bulk (E12): come back once that is done.
+            if (res.paused) afterTaskSyncResume(() => void runTaskSyncNow());
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);

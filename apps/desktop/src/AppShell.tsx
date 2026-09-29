@@ -1562,7 +1562,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       </Suspense>
                     ) : path === TASKS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
-                        <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                        <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} onRenamed={isOwnerWindow() ? renameTabPrefix : undefined} />
                       </Suspense>
                     ) : path === CALENDAR_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>

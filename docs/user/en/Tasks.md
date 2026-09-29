@@ -139,6 +139,8 @@ A task Plainva mirrors from one of your provider's task lists is named after its
 
 Which task lives in which file is not told by the name but by the frontmatter marker (`plainva.pim`, see the [File Format Reference](File_Format_Reference.md)). So Plainva only reuses an existing name when the file there carries the same task, and it creates new tasks in the same order on every device — two devices hand out the same numbers. If the title changes at the provider, Plainva updates the note's heading but does not rename the file, so links to the note keep working. You can rename and move the note yourself at any time; the marker keeps the link.
 
+**Cleaning up names with an id.** Between 12 and 24 September 2026, Plainva appended an id to the names of new task notes (`Call the dentist — 3f9a1c0b7d2e4a61.md`). If your vault still has such names, the tasks view — on the desktop and on the phone — shows a notice once, listing old → new and the number of links that are updated along with them. **Clean up names…** asks once more and then renames the notes after their titles, numbering same-titled ones as above; links to them are updated. **Hide** puts the notice away until further such names turn up. Plainva only recognises names it gave itself: the id must match the marker in the same file. Nothing is ever renamed on its own. Your other devices receive the renames as a move once they run the same version; an older version sees deleted and new notes there instead, and either asks whether to delete them or keeps the old name next to the new one — best update those devices first. On the desktop the notice appears in the main window.
+
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks metadata and recurrence
 

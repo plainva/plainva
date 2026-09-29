@@ -268,6 +268,13 @@ const MASS_DELETE_SHARE = 0.2;
 const PROBE_SAMPLE = 20;
 
 /**
+ * At most this many names a listing brings for the first time are hashed to
+ * recognise a move by content (E12). Beyond it — a whole new tree arriving —
+ * a missing file is treated as before: probed, and at worst asked about.
+ */
+const MOVE_CONTENT_SCAN_LIMIT = 500;
+
+/**
  * A journal entry is only taken back automatically once it is this old. The
  * deleting device writes the entry BEFORE its remote DELETE runs (the intent
  * must survive a crash in between), so for a moment "listed and journaled" is
@@ -1156,6 +1163,73 @@ export class SyncWorker {
   }
 
   /**
+   * Which of the files a full listing no longer carries MOVED rather than
+   * vanished (plan Befunde 2026-09-24, E12), as old path -> new path.
+   *
+   * By id first: a provider id names one file, so a missing path whose recorded
+   * id the listing carries under another name has moved (Drive keeps the id
+   * through a rename). By content for stores without ids: a name the listing
+   * brings for the FIRST time, whose bytes here — downloaded this cycle — are
+   * exactly what the missing path held at the last agreement. Only new names
+   * count: a short listing of a vault full of identical notes must still read
+   * as a short listing, and it brings no new names. Each new name explains at
+   * most one missing path.
+   *
+   * `byId` tells the two apart: an id listed under a new name is the
+   * provider's own statement, a content match is still an inference from the
+   * listing — the caller asks the provider about the old name before it goes.
+   */
+  private async recognizeRemoteMoves(
+    missing: ReadonlyArray<{ path: string; state: SyncState }>,
+    remotePaths: ReadonlySet<string>,
+    idMap: ReadonlyMap<string, string> | undefined,
+    stateMap: ReadonlyMap<string, SyncState>,
+  ): Promise<Map<string, { to: string; byId: boolean }>> {
+    const moves = new Map<string, { to: string; byId: boolean }>();
+    if (missing.length === 0) return moves;
+    const claimed = new Set<string>();
+    if (idMap && idMap.size > 0) {
+      const pathById = new Map<string, string>();
+      for (const [path, id] of idMap) if (!isLocalOnlyPath(path)) pathById.set(id, path);
+      for (const { path, state } of missing) {
+        const to = state.remote_id ? pathById.get(state.remote_id) : undefined;
+        if (!to || to === path || claimed.has(to)) continue;
+        moves.set(path, { to, byId: true });
+        claimed.add(to);
+      }
+    }
+    const byBase = new Map<string, string[]>();
+    const extensions = new Set<string>();
+    const extOf = (p: string) => (p.includes(".") ? p.slice(p.lastIndexOf(".")).toLowerCase() : "");
+    for (const { path, state } of missing) {
+      if (moves.has(path) || !state.base_sha256) continue;
+      const list = byBase.get(state.base_sha256);
+      if (list) list.push(path);
+      else byBase.set(state.base_sha256, [path]);
+      extensions.add(extOf(path));
+    }
+    if (byBase.size === 0) return moves;
+    const fresh: string[] = [];
+    for (const path of remotePaths) {
+      if (stateMap.has(path) || claimed.has(path) || isLocalOnlyPath(path) || !extensions.has(extOf(path))) continue;
+      fresh.push(path);
+    }
+    if (fresh.length === 0 || fresh.length > MOVE_CONTENT_SCAN_LIMIT) return moves;
+    for (const to of fresh) {
+      let hash: string;
+      try {
+        if (!(await this.vault.exists(to))) continue;
+        hash = isTextFile(to) ? await sha256Hash(await this.vault.readTextFile(to)) : await sha256Bytes(await this.vault.readBinaryFile(to));
+      } catch {
+        continue;
+      }
+      const from = byBase.get(hash)?.shift();
+      if (from) moves.set(from, { to, byId: false });
+    }
+    return moves;
+  }
+
+  /**
    * Asks the target for ONE file, by the id this device recorded for it
    * (finding 2026-09-20). "unknown" covers a target that cannot be asked, an
    * id-based provider without an id for the path, and a probe that failed:
@@ -1725,6 +1799,42 @@ export class SyncWorker {
           missing.push(candidate);
         }
 
+        // A rename made on another device (plan Befunde 2026-09-24, E12): the
+        // listing no longer carries the old name, but it carries the file under
+        // a new one. That is a MOVE, not a deletion — not counted by the guard
+        // below, which exists for listings that LOSE files. The old copy goes
+        // only once the new one is here, and only without unsynced edits (the
+        // same rule as a mirrored deletion).
+        //
+        // A move by id is not probed: the listing itself names the file's new
+        // place (and Drive would answer "present" — the id is alive). A move by
+        // content is an inference, so the invariant of plan A1 holds for it:
+        // the provider is asked about the old name first. Still there means a
+        // copy was made elsewhere and the listing lost the original — it goes
+        // back among the missing files and meets the probes like any other.
+        const moves = await this.recognizeRemoteMoves(missing, remotePaths, pullResult.idMap, stateMap);
+        const movedButPresent: string[] = [];
+        if (moves.size > 0) {
+          const moved = missing.filter((m) => moves.has(m.path));
+          for (let i = missing.length - 1; i >= 0; i--) if (moves.has(missing[i]!.path)) missing.splice(i, 1);
+          const canVerify = Boolean(this.target.probeExists);
+          for (const candidate of moved) {
+            if (!alive()) break;
+            const { to, byId } = moves.get(candidate.path)!;
+            await guardPullStep(candidate.path, async () => {
+              if (!(await this.vault.exists(to))) return;
+              const outcome = await this.mirrorRemoteDeletion(
+                candidate.path, stateMap, changedPaths, nameCollisions, !byId && canVerify
+              );
+              if (outcome === "stillRemote") {
+                missing.push(candidate);
+                movedButPresent.push(candidate.path);
+              }
+              else if (outcome === "keptLocalEdits") deletionReport.keptLocalEdits.push(candidate.path);
+            });
+          }
+        }
+
         // Numbers first (plan A0): whatever happens below, this listing leaves its
         // counters behind — never a name.
         this.reportListing(pullResult.listing, pullMs, remotePaths.size, confirmed.length, missing.map((m) => m.path));
@@ -1735,9 +1845,9 @@ export class SyncWorker {
         // only definitive answer an id-based provider can give). One that is
         // alive settles it: the listing is wrong, nothing is deleted, nobody asked.
         const canProbe = Boolean(this.target.probeExists);
-        const verdicts = new Map<string, RemotePresence>();
+        const verdicts = new Map<string, RemotePresence>(movedButPresent.map((p) => [p, "present"]));
         if (canProbe) {
-          for (const candidate of pickProbeSample(missing, PROBE_SAMPLE)) {
+          for (const candidate of pickProbeSample(missing.filter((m) => !verdicts.has(m.path)), PROBE_SAMPLE)) {
             if (!alive()) break;
             verdicts.set(candidate.path, await this.probePresence(candidate.path, candidate.state));
           }

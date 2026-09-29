@@ -2144,6 +2144,16 @@ textarea {
   flex-wrap: wrap;
 }
 
+/* Task notes with an id in their name (plan Befunde 2026-09-24, E12): the
+   shared notice and its list of renames. Same place and rhythm as the
+   duplicates notice above; the page carries the side inset. */
+.m-names-notice {
+  margin: 0 0 var(--space-3);
+}
+.m-names-notice .pv-banner {
+  flex-wrap: wrap;
+}
+
 /* Security centre master/detail tabs; horizontal on phones, full labels remain reachable. */
 .m-security-tabs {
   display: flex;

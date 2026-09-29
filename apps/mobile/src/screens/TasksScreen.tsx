@@ -19,6 +19,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
 import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
+import { TaskNamesNotice } from "../components/TaskNamesNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -903,6 +904,8 @@ export function TasksScreen({
           <Chip onClick={() => void hideAllTemplates()}>{t("tasks.hideTemplates")}</Chip>
         )}
       </div>
+
+      <TaskNamesNotice vault={vault} reloadKey={`${bump}:${tick}`} onChanged={() => setTick((x) => x + 1)} />
 
       {dupes.visible && (
         <div className="m-dupes-notice">

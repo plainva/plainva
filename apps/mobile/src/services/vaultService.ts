@@ -724,6 +724,14 @@ const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "")
 /** Reports a newly created note to the managed-overview updater (P6). */
 const reportCreated = (path: string) => notifyFileOps([{ type: "create", path }]);
 
+/** What one note rename did — `vaultOps.renameReport` hands it back instead of telling the person. */
+export interface NoteRenameReport {
+  newPath: string;
+  renamedLinks: number;
+  changedFiles: number;
+  linkUpdateFailed: boolean;
+}
+
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
     const entries = await v.files.listDir(folder);
@@ -781,14 +789,27 @@ export const vaultOps = {
    * [[links]] silently); rewrites run through v.files, so backups + sync queue
    * see every touched referencing note. */
   async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
+    const result = await vaultOps.renameReport(v, oldPath, newTitle);
+    if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    else if (result.changedFiles > 0)
+      toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+    return result.newPath;
+  },
+
+  /**
+   * The rename itself, reporting instead of telling — what a batch needs (the
+   * clean-up of task-note names, E12): one message at the end, not one per note.
+   */
+  async renameReport(v: MobileVault, oldPath: string, newTitle: string): Promise<NoteRenameReport> {
     // S2: land the editor's pending text BEFORE the path moves. A queued save
     // that settles afterwards writes to the OLD path — which recreates the file
     // we just renamed away, and the sync queue then pushes that ghost.
     await noteSaver.flush(oldPath, v);
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newTitle}.md`;
-    if (newPath === oldPath) return oldPath;
+    if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
+    let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     if (v.queryService) {
       const result = await renameFileWithLinkUpdates({
         adapter: v.files,
@@ -797,9 +818,7 @@ export const vaultOps = {
         newPath,
       });
       changedPaths = result.changedPaths;
-      if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
-      else if (result.changedFiles > 0)
-        toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+      report = { renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed };
     } else {
       await v.files.renameItem(oldPath, newPath);
     }
@@ -816,7 +835,7 @@ export const vaultOps = {
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
-    return newPath;
+    return { newPath, ...report };
   },
 
   /** Deletes a note; with sync active the deletion reaches the cloud too. */

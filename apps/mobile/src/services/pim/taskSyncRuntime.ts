@@ -7,6 +7,7 @@ import {
   initTaskDeletion,
   cancelInFlightTaskDeletion,
   plainvaProducer,
+  afterTaskSyncResume,
   type TaskDeletionOrder,
 } from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
@@ -121,6 +122,8 @@ export async function runMobileTaskSync(): Promise<void> {
       onDeletionResolved: (intent, outcome) => resolveTaskDeletion(intent as TaskDeletionOrder, outcome),
     });
 
+    // Task notes are being renamed in bulk (E12): come back once that is done.
+    if (res.paused) afterTaskSyncResume(() => void runMobileTaskSync());
     const touched = [...res.createdNotes, ...res.changedNotes];
     if (touched.length > 0) {
       await w.vault.reindexPaths(touched);
